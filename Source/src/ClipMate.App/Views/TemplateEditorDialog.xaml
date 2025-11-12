@@ -1,0 +1,382 @@
+<Window x:Class="ClipMate.App.Views.TemplateEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+        xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
+        xmlns:converters="clr-namespace:ClipMate.App.Converters"
+        mc:Ignorable="d"
+        Title="Template Editor" 
+        Height="700" 
+        Width="1000"
+        MinHeight="500"
+        MinWidth="800"
+        Background="#252526"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Loaded="Window_Loaded">
+
+    <Window.DataContext>
+        <vm:TemplateEditorViewModel/>
+    </Window.DataContext>
+
+    <Window.Resources>
+        <!-- Converters -->
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter"/>
+        
+        <!-- Dark Theme Styles -->
+        <Style x:Key="DarkButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1C97EA"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#3E3E42"/>
+                                <Setter Property="Foreground" Value="#656565"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource DarkButtonStyle}">
+            <Setter Property="Background" Value="#3E3E42"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#505050"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#2A2A2A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#3E3E42"/>
+                                <Setter Property="Foreground" Value="#656565"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="#3E3E42"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <Style x:Key="HeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource LabelStyle}">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="ListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#007ACC"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#505050"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel: Template List -->
+            <Border Grid.Column="0" 
+                    Background="#2D2D30" 
+                    BorderBrush="#555555" 
+                    BorderThickness="1"
+                    CornerRadius="2">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0" 
+                              Text="Templates" 
+                              Style="{StaticResource HeaderStyle}"/>
+
+                    <!-- Template List -->
+                    <ListBox Grid.Row="2"
+                            Background="#1E1E1E"
+                            BorderBrush="#555555"
+                            BorderThickness="1"
+                            ItemsSource="{Binding Templates}"
+                            SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
+                            ItemContainerStyle="{StaticResource ListBoxItemStyle}"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:Template}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" 
+                                              FontWeight="SemiBold" 
+                                              TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Description}" 
+                                              FontSize="11" 
+                                              Foreground="#999999"
+                                              TextTrimming="CharacterEllipsis"
+                                              Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- New Button -->
+                    <Button Grid.Row="4"
+                           Content="➕ New Template"
+                           Style="{StaticResource DarkButtonStyle}"
+                           Command="{Binding ClearFormCommand}"
+                           Margin="0"/>
+                </Grid>
+            </Border>
+
+            <!-- Right Panel: Template Form -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Form Header -->
+                <TextBlock Grid.Row="0" 
+                          Text="Template Details" 
+                          Style="{StaticResource HeaderStyle}"/>
+
+                <!-- Form Fields -->
+                <ScrollViewer Grid.Row="2" 
+                             VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Template Name -->
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="Name *" Style="{StaticResource LabelStyle}"/>
+                            <TextBox Text="{Binding TemplateName, UpdateSourceTrigger=PropertyChanged}" 
+                                    Style="{StaticResource DarkTextBoxStyle}"/>
+                        </StackPanel>
+
+                        <!-- Template Description -->
+                        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                            <TextBlock Text="Description" Style="{StaticResource LabelStyle}"/>
+                            <TextBox Text="{Binding TemplateDescription, UpdateSourceTrigger=PropertyChanged}" 
+                                    Style="{StaticResource DarkTextBoxStyle}"/>
+                        </StackPanel>
+
+                        <!-- Template Content -->
+                        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                            <TextBlock Text="Template Content *" Style="{StaticResource LabelStyle}"/>
+                            <TextBox Text="{Binding TemplateContent, UpdateSourceTrigger=PropertyChanged}" 
+                                    Style="{StaticResource DarkTextBoxStyle}"
+                                    TextWrapping="Wrap"
+                                    AcceptsReturn="True"
+                                    MinHeight="120"
+                                    MaxHeight="200"
+                                    VerticalScrollBarVisibility="Auto"/>
+                            <TextBlock Text="Use {DATE}, {TIME}, {USERNAME}, {COMPUTERNAME} or {PROMPT:label} for variables" 
+                                      Foreground="#858585" 
+                                      FontSize="11" 
+                                      Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Extracted Variables -->
+                        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+                            <TextBlock Text="Variables Found" Style="{StaticResource LabelStyle}"/>
+                            <Border Background="#1E1E1E" 
+                                   BorderBrush="#555555" 
+                                   BorderThickness="1"
+                                   CornerRadius="2"
+                                   MinHeight="60"
+                                   MaxHeight="100">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding ExtractedVariables}" Margin="6">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" 
+                                                          Foreground="#4EC9B0" 
+                                                          FontFamily="Consolas"
+                                                          Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Preview -->
+                        <StackPanel Grid.Row="4" Margin="0,0,0,12">
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" 
+                                          Text="Preview" 
+                                          Style="{StaticResource LabelStyle}" 
+                                          Margin="0"/>
+                                <Button Grid.Column="1" 
+                                       Content="🔄 Refresh Preview"
+                                       Style="{StaticResource SecondaryButtonStyle}"
+                                       Command="{Binding PreviewTemplateCommand}"
+                                       Padding="8,4"
+                                       Margin="0"/>
+                            </Grid>
+                            <Border Background="#1E1E1E" 
+                                   BorderBrush="#555555" 
+                                   BorderThickness="1"
+                                   CornerRadius="2"
+                                   MinHeight="80">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" 
+                                             MaxHeight="120">
+                                    <TextBlock Text="{Binding PreviewText}" 
+                                              Foreground="#D4D4D4" 
+                                              FontFamily="Consolas"
+                                              FontSize="12"
+                                              TextWrapping="Wrap"
+                                              Margin="8"/>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Action Buttons -->
+                        <StackPanel Grid.Row="5" 
+                                   Orientation="Horizontal" 
+                                   HorizontalAlignment="Left">
+                            <Button Content="💾 Save" 
+                                   Style="{StaticResource DarkButtonStyle}"
+                                   Command="{Binding CreateTemplateCommand}"
+                                   Visibility="{Binding SelectedTemplate, Converter={StaticResource NullToVisibilityConverter}}"
+                                   Margin="0,0,4,0"/>
+                            <Button Content="✏️ Update" 
+                                   Style="{StaticResource DarkButtonStyle}"
+                                   Command="{Binding UpdateTemplateCommand}"
+                                   Visibility="{Binding SelectedTemplate, Converter={StaticResource NotNullToVisibilityConverter}}"
+                                   Margin="0,0,4,0"/>
+                            <Button Content="🗑️ Delete" 
+                                   Style="{StaticResource SecondaryButtonStyle}"
+                                   Command="{Binding DeleteTemplateCommand}"
+                                   Margin="0,0,4,0"/>
+                            <Button Content="🧹 Clear" 
+                                   Style="{StaticResource SecondaryButtonStyle}"
+                                   Command="{Binding ClearFormCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Error Message -->
+        <Border Grid.Row="1" 
+                Background="#3E1F1F" 
+                BorderBrush="#BE1100" 
+                BorderThickness="1"
+                CornerRadius="2"
+                Padding="8"
+                Margin="0,12,0,0"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
+            <TextBlock Text="{Binding ErrorMessage}" 
+                      Foreground="#F48771" 
+                      TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Bottom Buttons -->
+        <StackPanel Grid.Row="2" 
+                   Orientation="Horizontal" 
+                   HorizontalAlignment="Right"
+                   Margin="0,12,0,0">
+            <Button Content="Close" 
+                   Style="{StaticResource SecondaryButtonStyle}"
+                   Click="CloseButton_Click"
+                   Padding="16,6"/>
+        </StackPanel>
+    </Grid>
+</Window>
