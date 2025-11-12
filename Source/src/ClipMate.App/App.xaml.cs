@@ -146,6 +146,9 @@ public partial class App : Application
         // Register Collections/Folders ViewModel
         services.AddSingleton<ViewModels.CollectionTreeViewModel>();
 
+        // Register Search ViewModel
+        services.AddSingleton<ViewModels.SearchViewModel>(); // Singleton to maintain search state
+
         // ViewModels will be registered here as they are created
         // Example:
         // services.AddTransient<MainViewModel>();

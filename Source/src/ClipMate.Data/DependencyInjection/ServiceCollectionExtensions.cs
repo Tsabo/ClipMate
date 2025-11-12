@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IClipService, ClipService>();
         services.AddSingleton<ICollectionService, CollectionService>();
         services.AddSingleton<IFolderService, FolderService>();
+        services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching
         services.AddSingleton<ClipboardCoordinator>();
 
         return services;
