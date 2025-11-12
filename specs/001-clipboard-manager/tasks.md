@@ -15,13 +15,13 @@
 
 ## Path Conventions
 
-ClipMate uses a multi-project structure:
-- `src/ClipMate.App/` - WPF UI project
-- `src/ClipMate.Core/` - Business logic and domain models
-- `src/ClipMate.Data/` - LiteDB data access layer
-- `src/ClipMate.Platform/` - Windows-specific Win32 interop
-- `tests/ClipMate.Tests.Unit/` - Unit tests
-- `tests/ClipMate.Tests.Integration/` - Integration tests
+ClipMate uses a multi-project structure under `Source/`:
+- `Source/src/ClipMate.App/` - WPF UI project
+- `Source/src/ClipMate.Core/` - Business logic and domain models
+- `Source/src/ClipMate.Data/` - LiteDB data access layer
+- `Source/src/ClipMate.Platform/` - Windows-specific Win32 interop
+- `Source/tests/ClipMate.Tests.Unit/` - Unit tests
+- `Source/tests/ClipMate.Tests.Integration/` - Integration tests
 
 ---
 
@@ -29,13 +29,13 @@ ClipMate uses a multi-project structure:
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create .NET 10 solution file at src/ClipMate.sln
-- [ ] T002 [P] Create ClipMate.App WPF project in src/ClipMate.App/ClipMate.App.csproj
-- [ ] T003 [P] Create ClipMate.Core class library in src/ClipMate.Core/ClipMate.Core.csproj
-- [ ] T004 [P] Create ClipMate.Data class library in src/ClipMate.Data/ClipMate.Data.csproj
-- [ ] T005 [P] Create ClipMate.Platform class library in src/ClipMate.Platform/ClipMate.Platform.csproj
-- [ ] T006 [P] Create ClipMate.Tests.Unit xUnit project in tests/ClipMate.Tests.Unit/ClipMate.Tests.Unit.csproj
-- [ ] T007 [P] Create ClipMate.Tests.Integration xUnit project in tests/ClipMate.Tests.Integration/ClipMate.Tests.Integration.csproj
+- [ ] T001 Create .NET 10 solution file at Source/ClipMate.sln
+- [ ] T002 [P] Create ClipMate.App WPF project in Source/src/ClipMate.App/ClipMate.App.csproj
+- [ ] T003 [P] Create ClipMate.Core class library in Source/src/ClipMate.Core/ClipMate.Core.csproj
+- [ ] T004 [P] Create ClipMate.Data class library in Source/src/ClipMate.Data/ClipMate.Data.csproj
+- [ ] T005 [P] Create ClipMate.Platform class library in Source/src/ClipMate.Platform/ClipMate.Platform.csproj
+- [ ] T006 [P] Create ClipMate.Tests.Unit xUnit project in Source/tests/ClipMate.Tests.Unit/ClipMate.Tests.Unit.csproj
+- [ ] T007 [P] Create ClipMate.Tests.Integration xUnit project in Source/tests/ClipMate.Tests.Integration/ClipMate.Tests.Integration.csproj
 - [ ] T008 Create Directory.Packages.props with Central Package Management enabled at repository root
 - [ ] T009 Configure project references (App→Core/Data/Platform, Data→Core, Platform→Core, Tests→All)
 - [ ] T010 [P] Add NuGet package LiteDB 5.0+ to Directory.Packages.props
@@ -58,89 +58,89 @@ ClipMate uses a multi-project structure:
 
 ### Core Models & Enums
 
-- [ ] T019 [P] Create ClipContentType enum (Text, Image, FileList, RichText) in src/ClipMate.Core/Models/ClipContentType.cs
-- [ ] T020 [P] Create RetentionPolicy enum in src/ClipMate.Core/Models/RetentionPolicy.cs
-- [ ] T021 [P] Create SearchScope enum in src/ClipMate.Core/Models/SearchScope.cs
-- [ ] T022 [P] Create FilterType enum in src/ClipMate.Core/Models/FilterType.cs
-- [ ] T023 [P] Create Clip entity model in src/ClipMate.Core/Models/Clip.cs
-- [ ] T024 [P] Create Collection entity model in src/ClipMate.Core/Models/Collection.cs
-- [ ] T025 [P] Create Folder entity model in src/ClipMate.Core/Models/Folder.cs
-- [ ] T026 [P] Create Template entity model in src/ClipMate.Core/Models/Template.cs
-- [ ] T027 [P] Create SearchQuery entity model in src/ClipMate.Core/Models/SearchQuery.cs
-- [ ] T028 [P] Create ApplicationFilter entity model in src/ClipMate.Core/Models/ApplicationFilter.cs
-- [ ] T029 [P] Create SoundEvent entity model in src/ClipMate.Core/Models/SoundEvent.cs
+- [ ] T019 [P] Create ClipContentType enum (Text, Image, FileList, RichText) in Source/src/ClipMate.Core/Models/ClipContentType.cs
+- [ ] T020 [P] Create RetentionPolicy enum in Source/src/ClipMate.Core/Models/RetentionPolicy.cs
+- [ ] T021 [P] Create SearchScope enum in Source/src/ClipMate.Core/Models/SearchScope.cs
+- [ ] T022 [P] Create FilterType enum in Source/src/ClipMate.Core/Models/FilterType.cs
+- [ ] T023 [P] Create Clip entity model in Source/src/ClipMate.Core/Models/Clip.cs
+- [ ] T024 [P] Create Collection entity model in Source/src/ClipMate.Core/Models/Collection.cs
+- [ ] T025 [P] Create Folder entity model in Source/src/ClipMate.Core/Models/Folder.cs
+- [ ] T026 [P] Create Template entity model in Source/src/ClipMate.Core/Models/Template.cs
+- [ ] T027 [P] Create SearchQuery entity model in Source/src/ClipMate.Core/Models/SearchQuery.cs
+- [ ] T028 [P] Create ApplicationFilter entity model in Source/src/ClipMate.Core/Models/ApplicationFilter.cs
+- [ ] T029 [P] Create SoundEvent entity model in Source/src/ClipMate.Core/Models/SoundEvent.cs
 
 ### Repository Interfaces
 
-- [ ] T030 [P] Create IClipRepository interface in src/ClipMate.Core/Repositories/IClipRepository.cs
-- [ ] T029 [P] Create ICollectionRepository interface in src/ClipMate.Core/Repositories/ICollectionRepository.cs
-- [ ] T030 [P] Create IFolderRepository interface in src/ClipMate.Core/Repositories/IFolderRepository.cs
-- [ ] T031 [P] Create ITemplateRepository interface in src/ClipMate.Core/Repositories/ITemplateRepository.cs
-- [ ] T032 [P] Create ISearchQueryRepository interface in src/ClipMate.Core/Repositories/ISearchQueryRepository.cs
-- [ ] T033 [P] Create IApplicationFilterRepository interface in src/ClipMate.Core/Repositories/IApplicationFilterRepository.cs
-- [ ] T034 [P] Create ISoundEventRepository interface in src/ClipMate.Core/Repositories/ISoundEventRepository.cs
+- [ ] T030 [P] Create IClipRepository interface in Source/src/ClipMate.Core/Repositories/IClipRepository.cs
+- [ ] T029 [P] Create ICollectionRepository interface in Source/src/ClipMate.Core/Repositories/ICollectionRepository.cs
+- [ ] T030 [P] Create IFolderRepository interface in Source/src/ClipMate.Core/Repositories/IFolderRepository.cs
+- [ ] T031 [P] Create ITemplateRepository interface in Source/src/ClipMate.Core/Repositories/ITemplateRepository.cs
+- [ ] T032 [P] Create ISearchQueryRepository interface in Source/src/ClipMate.Core/Repositories/ISearchQueryRepository.cs
+- [ ] T033 [P] Create IApplicationFilterRepository interface in Source/src/ClipMate.Core/Repositories/IApplicationFilterRepository.cs
+- [ ] T034 [P] Create ISoundEventRepository interface in Source/src/ClipMate.Core/Repositories/ISoundEventRepository.cs
 
 ### LiteDB Implementation
 
-- [ ] T035 Create LiteDbContext class with connection management in src/ClipMate.Data/LiteDB/LiteDbContext.cs
-- [ ] T036 [P] Implement ClipRepository with all 7 indexes in src/ClipMate.Data/LiteDB/ClipRepository.cs
-- [ ] T037 [P] Implement CollectionRepository with indexes in src/ClipMate.Data/LiteDB/CollectionRepository.cs
-- [ ] T038 [P] Implement FolderRepository with indexes in src/ClipMate.Data/LiteDB/FolderRepository.cs
-- [ ] T039 [P] Implement TemplateRepository with indexes in src/ClipMate.Data/LiteDB/TemplateRepository.cs
-- [ ] T040 [P] Implement SearchQueryRepository in src/ClipMate.Data/LiteDB/SearchQueryRepository.cs
-- [ ] T041 [P] Implement ApplicationFilterRepository in src/ClipMate.Data/LiteDB/ApplicationFilterRepository.cs
-- [ ] T042 [P] Implement SoundEventRepository in src/ClipMate.Data/LiteDB/SoundEventRepository.cs
-- [ ] T043 Add database schema migration system in src/ClipMate.Data/LiteDB/SchemaManager.cs
-- [ ] T044 Add database backup and restore functionality in src/ClipMate.Data/LiteDB/BackupService.cs
+- [ ] T035 Create LiteDbContext class with connection management in Source/src/ClipMate.Data/LiteDB/LiteDbContext.cs
+- [ ] T036 [P] Implement ClipRepository with all 7 indexes in Source/src/ClipMate.Data/LiteDB/ClipRepository.cs
+- [ ] T037 [P] Implement CollectionRepository with indexes in Source/src/ClipMate.Data/LiteDB/CollectionRepository.cs
+- [ ] T038 [P] Implement FolderRepository with indexes in Source/src/ClipMate.Data/LiteDB/FolderRepository.cs
+- [ ] T039 [P] Implement TemplateRepository with indexes in Source/src/ClipMate.Data/LiteDB/TemplateRepository.cs
+- [ ] T040 [P] Implement SearchQueryRepository in Source/src/ClipMate.Data/LiteDB/SearchQueryRepository.cs
+- [ ] T041 [P] Implement ApplicationFilterRepository in Source/src/ClipMate.Data/LiteDB/ApplicationFilterRepository.cs
+- [ ] T042 [P] Implement SoundEventRepository in Source/src/ClipMate.Data/LiteDB/SoundEventRepository.cs
+- [ ] T043 Add database schema migration system in Source/src/ClipMate.Data/LiteDB/SchemaManager.cs
+- [ ] T044 Add database backup and restore functionality in Source/src/ClipMate.Data/LiteDB/BackupService.cs
 
 ### Service Interfaces
 
-- [ ] T045 [P] Create IClipboardService interface in src/ClipMate.Core/Services/IClipboardService.cs
-- [ ] T046 [P] Create ISearchService interface in src/ClipMate.Core/Services/ISearchService.cs
-- [ ] T047 [P] Create ICollectionService interface in src/ClipMate.Core/Services/ICollectionService.cs
-- [ ] T048 [P] Create IFolderService interface in src/ClipMate.Core/Services/IFolderService.cs
-- [ ] T049 [P] Create IClipService interface in src/ClipMate.Core/Services/IClipService.cs
-- [ ] T050 [P] Create IHotkeyService interface in src/ClipMate.Core/Services/IHotkeyService.cs
-- [ ] T051 [P] Create ITemplateService interface in src/ClipMate.Core/Services/ITemplateService.cs
-- [ ] T052 [P] Create ISoundService interface in src/ClipMate.Core/Services/ISoundService.cs
-- [ ] T053 [P] Create ISettingsService interface in src/ClipMate.Core/Services/ISettingsService.cs
-- [ ] T054 [P] Create IApplicationFilterService interface in src/ClipMate.Core/Services/IApplicationFilterService.cs
+- [ ] T045 [P] Create IClipboardService interface in Source/src/ClipMate.Core/Services/IClipboardService.cs
+- [ ] T046 [P] Create ISearchService interface in Source/src/ClipMate.Core/Services/ISearchService.cs
+- [ ] T047 [P] Create ICollectionService interface in Source/src/ClipMate.Core/Services/ICollectionService.cs
+- [ ] T048 [P] Create IFolderService interface in Source/src/ClipMate.Core/Services/IFolderService.cs
+- [ ] T049 [P] Create IClipService interface in Source/src/ClipMate.Core/Services/IClipService.cs
+- [ ] T050 [P] Create IHotkeyService interface in Source/src/ClipMate.Core/Services/IHotkeyService.cs
+- [ ] T051 [P] Create ITemplateService interface in Source/src/ClipMate.Core/Services/ITemplateService.cs
+- [ ] T052 [P] Create ISoundService interface in Source/src/ClipMate.Core/Services/ISoundService.cs
+- [ ] T053 [P] Create ISettingsService interface in Source/src/ClipMate.Core/Services/ISettingsService.cs
+- [ ] T054 [P] Create IApplicationFilterService interface in Source/src/ClipMate.Core/Services/IApplicationFilterService.cs
 
 ### Win32 Platform Layer
 
-- [ ] T055 [P] Create Win32Constants class with clipboard format constants in src/ClipMate.Platform/Win32/Win32Constants.cs
-- [ ] T056 [P] Create Win32Methods class with P/Invoke declarations in src/ClipMate.Platform/Win32/Win32Methods.cs
-- [ ] T057 [P] Create ClipboardMonitor Win32 wrapper in src/ClipMate.Platform/ClipboardMonitor.cs
-- [ ] T058 [P] Create HotkeyManager Win32 wrapper in src/ClipMate.Platform/HotkeyManager.cs
-- [ ] T059 [P] Create DpiHelper for DPI awareness in src/ClipMate.Platform/DpiHelper.cs
+- [ ] T055 [P] Create Win32Constants class with clipboard format constants in Source/src/ClipMate.Platform/Win32/Win32Constants.cs
+- [ ] T056 [P] Create Win32Methods class with P/Invoke declarations in Source/src/ClipMate.Platform/Win32/Win32Methods.cs
+- [ ] T057 [P] Create ClipboardMonitor Win32 wrapper in Source/src/ClipMate.Platform/ClipboardMonitor.cs
+- [ ] T058 [P] Create HotkeyManager Win32 wrapper in Source/src/ClipMate.Platform/HotkeyManager.cs
+- [ ] T059 [P] Create DpiHelper for DPI awareness in Source/src/ClipMate.Platform/DpiHelper.cs
 
 ### MVVM Infrastructure
 
-- [ ] T060 Create ViewModelBase class with INotifyPropertyChanged in src/ClipMate.Core/ViewModels/ViewModelBase.cs
-- [ ] T061 [P] Create RelayCommand implementation in src/ClipMate.Core/Commands/RelayCommand.cs
-- [ ] T062 [P] Create AsyncRelayCommand implementation in src/ClipMate.Core/Commands/AsyncRelayCommand.cs
-- [ ] T063 [P] Create EventAggregator for loose coupling in src/ClipMate.Core/Events/EventAggregator.cs
+- [ ] T060 Create ViewModelBase class with INotifyPropertyChanged in Source/src/ClipMate.Core/ViewModels/ViewModelBase.cs
+- [ ] T061 [P] Create RelayCommand implementation in Source/src/ClipMate.Core/Commands/RelayCommand.cs
+- [ ] T062 [P] Create AsyncRelayCommand implementation in Source/src/ClipMate.Core/Commands/AsyncRelayCommand.cs
+- [ ] T063 [P] Create EventAggregator for loose coupling in Source/src/ClipMate.Core/Events/EventAggregator.cs
 
 ### Dependency Injection Setup
 
-- [ ] T064 Create ServiceCollectionExtensions for Core services in src/ClipMate.Core/DependencyInjection/ServiceCollectionExtensions.cs
-- [ ] T065 Create ServiceCollectionExtensions for Data repositories in src/ClipMate.Data/DependencyInjection/ServiceCollectionExtensions.cs
-- [ ] T066 Create App.xaml.cs with DI container configuration in src/ClipMate.App/App.xaml.cs
+- [ ] T064 Create ServiceCollectionExtensions for Core services in Source/src/ClipMate.Core/DependencyInjection/ServiceCollectionExtensions.cs
+- [ ] T065 Create ServiceCollectionExtensions for Data repositories in Source/src/ClipMate.Data/DependencyInjection/ServiceCollectionExtensions.cs
+- [ ] T066 Create App.xaml.cs with DI container configuration in Source/src/ClipMate.App/App.xaml.cs
 - [ ] T067 Configure service lifetimes (singleton for services, scoped for repositories) in App.xaml.cs
 
 ### Testing Infrastructure
 
-- [ ] T068 [P] Create TestFixtureBase class with common setup in tests/ClipMate.Tests.Unit/TestFixtureBase.cs
-- [ ] T069 [P] Create MockRepositoryFactory for test data in tests/ClipMate.Tests.Unit/Mocks/MockRepositoryFactory.cs
-- [ ] T070 [P] Create TestDataBuilder for entity creation in tests/ClipMate.Tests.Unit/Builders/TestDataBuilder.cs
-- [ ] T071 [P] Create IntegrationTestBase with real database in tests/ClipMate.Tests.Integration/IntegrationTestBase.cs
+- [ ] T068 [P] Create TestFixtureBase class with common setup in Source/tests/ClipMate.Tests.Unit/TestFixtureBase.cs
+- [ ] T069 [P] Create MockRepositoryFactory for test data in Source/tests/ClipMate.Tests.Unit/Mocks/MockRepositoryFactory.cs
+- [ ] T070 [P] Create TestDataBuilder for entity creation in Source/tests/ClipMate.Tests.Unit/Builders/TestDataBuilder.cs
+- [ ] T071 [P] Create IntegrationTestBase with real database in Source/tests/ClipMate.Tests.Integration/IntegrationTestBase.cs
 
 ### Error Handling & Logging
 
-- [ ] T072 [P] Create AppException base exception class in src/ClipMate.Core/Exceptions/AppException.cs
-- [ ] T073 [P] Create ClipboardException for clipboard errors in src/ClipMate.Core/Exceptions/ClipboardException.cs
-- [ ] T074 [P] Create DatabaseException for database errors in src/ClipMate.Core/Exceptions/DatabaseException.cs
-- [ ] T075 Create ILogger interface and FileLogger implementation in src/ClipMate.Core/Logging/ILogger.cs
+- [ ] T072 [P] Create AppException base exception class in Source/src/ClipMate.Core/Exceptions/AppException.cs
+- [ ] T073 [P] Create ClipboardException for clipboard errors in Source/src/ClipMate.Core/Exceptions/ClipboardException.cs
+- [ ] T074 [P] Create DatabaseException for database errors in Source/src/ClipMate.Core/Exceptions/DatabaseException.cs
+- [ ] T075 Create ILogger interface and FileLogger implementation in Source/src/ClipMate.Core/Logging/ILogger.cs
 - [ ] T076 Add global exception handler in App.xaml.cs
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
@@ -157,18 +157,18 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T077 [P] [US1] Unit test for ClipboardService.StartMonitoringAsync in tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T078 [P] [US1] Unit test for ClipboardService text capture in tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T079 [P] [US1] Unit test for ClipboardService image capture in tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T080 [P] [US1] Unit test for ClipboardService duplicate detection via ContentHash in tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T081 [P] [US1] Unit test for ClipService.GetRecentAsync with timestamp ordering in tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
-- [ ] T082 [P] [US1] Integration test for clipboard monitoring lifecycle in tests/ClipMate.Tests.Integration/ClipboardMonitoringTests.cs
-- [ ] T083 [P] [US1] Integration test for clip persistence after app restart in tests/ClipMate.Tests.Integration/ClipPersistenceTests.cs
-- [ ] T084 [P] [US1] Integration test for application filter exclusion in tests/ClipMate.Tests.Integration/ApplicationFilterTests.cs
+- [ ] T077 [P] [US1] Unit test for ClipboardService.StartMonitoringAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [ ] T078 [P] [US1] Unit test for ClipboardService text capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [ ] T079 [P] [US1] Unit test for ClipboardService image capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [ ] T080 [P] [US1] Unit test for ClipboardService duplicate detection via ContentHash in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [ ] T081 [P] [US1] Unit test for ClipService.GetRecentAsync with timestamp ordering in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
+- [ ] T082 [P] [US1] Integration test for clipboard monitoring lifecycle in Source/tests/ClipMate.Tests.Integration/ClipboardMonitoringTests.cs
+- [ ] T083 [P] [US1] Integration test for clip persistence after app restart in Source/tests/ClipMate.Tests.Integration/ClipPersistenceTests.cs
+- [ ] T084 [P] [US1] Integration test for application filter exclusion in Source/tests/ClipMate.Tests.Integration/ApplicationFilterTests.cs
 
 ### Implementation for User Story 1
 
-- [ ] T085 [US1] Implement ClipboardService with Win32 RegisterClipboardFormatListener in src/ClipMate.Core/Services/ClipboardService.cs (depends on T057, T045)
+- [ ] T085 [US1] Implement ClipboardService with Win32 RegisterClipboardFormatListener in Source/src/ClipMate.Core/Services/ClipboardService.cs (depends on T057, T045)
 - [ ] T086 [US1] Add clipboard format detection and prioritization logic to ClipboardService
 - [ ] T087 [US1] Add text capture with multiple format support (plain, RTF, HTML) to ClipboardService
 - [ ] T088 [US1] Add image capture with bitmap handling to ClipboardService
@@ -176,10 +176,10 @@ ClipMate uses a multi-project structure:
 - [ ] T090 [US1] Add ContentHash calculation using SHA256 for duplicate detection to ClipboardService
 - [ ] T091 [US1] Add thread-safe clipboard data extraction with retry logic to ClipboardService
 - [ ] T092 [US1] Add ClipCaptured event with ClipCapturedEventArgs to ClipboardService
-- [ ] T093 [US1] Implement ClipService with clip CRUD operations in src/ClipMate.Core/Services/ClipService.cs (depends on T049, T028)
+- [ ] T093 [US1] Implement ClipService with clip CRUD operations in Source/src/ClipMate.Core/Services/ClipService.cs (depends on T049, T028)
 - [ ] T094 [US1] Add GetRecentAsync method with timestamp DESC ordering to ClipService
 - [ ] T095 [US1] Add duplicate detection check before saving in ClipService
-- [ ] T096 [US1] Implement ApplicationFilterService with exclusion rules in src/ClipMate.Core/Services/ApplicationFilterService.cs (depends on T054, T033)
+- [ ] T096 [US1] Implement ApplicationFilterService with exclusion rules in Source/src/ClipMate.Core/Services/ApplicationFilterService.cs (depends on T054, T033)
 - [ ] T097 [US1] Add filter matching logic (ProcessName, WindowTitle) to ApplicationFilterService
 - [ ] T098 [US1] Wire ClipboardService.ClipCaptured event to ClipService.CreateAsync in App.xaml.cs
 - [ ] T099 [US1] Add application filter check before saving clip in ClipboardService event handler
@@ -203,37 +203,37 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T105 [P] [US2] Unit test for MainWindowViewModel initialization in tests/ClipMate.Tests.Unit/ViewModels/MainWindowViewModelTests.cs
-- [ ] T106 [P] [US2] Unit test for CollectionTreeViewModel.LoadCollectionsAsync in tests/ClipMate.Tests.Unit/ViewModels/CollectionTreeViewModelTests.cs
-- [ ] T107 [P] [US2] Unit test for ClipListViewModel.LoadClipsAsync with collection filter in tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
-- [ ] T108 [P] [US2] Unit test for ClipListViewModel view mode switching in tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
-- [ ] T109 [P] [US2] Unit test for PreviewPaneViewModel content type selection in tests/ClipMate.Tests.Unit/ViewModels/PreviewPaneViewModelTests.cs
-- [ ] T110 [P] [US2] Integration test for main window initialization and layout in tests/ClipMate.Tests.Integration/UI/MainWindowTests.cs
-- [ ] T111 [P] [US2] UI automation test for collection selection in tests/ClipMate.Tests.Integration/UI/CollectionNavigationTests.cs
+- [ ] T105 [P] [US2] Unit test for MainWindowViewModel initialization in Source/tests/ClipMate.Tests.Unit/ViewModels/MainWindowViewModelTests.cs
+- [ ] T106 [P] [US2] Unit test for CollectionTreeViewModel.LoadCollectionsAsync in Source/tests/ClipMate.Tests.Unit/ViewModels/CollectionTreeViewModelTests.cs
+- [ ] T107 [P] [US2] Unit test for ClipListViewModel.LoadClipsAsync with collection filter in Source/tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
+- [ ] T108 [P] [US2] Unit test for ClipListViewModel view mode switching in Source/tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
+- [ ] T109 [P] [US2] Unit test for PreviewPaneViewModel content type selection in Source/tests/ClipMate.Tests.Unit/ViewModels/PreviewPaneViewModelTests.cs
+- [ ] T110 [P] [US2] Integration test for main window initialization and layout in Source/tests/ClipMate.Tests.Integration/UI/MainWindowTests.cs
+- [ ] T111 [P] [US2] UI automation test for collection selection in Source/tests/ClipMate.Tests.Integration/UI/CollectionNavigationTests.cs
 
 ### Implementation for User Story 2
 
-- [ ] T112 [P] [US2] Create MainWindow.xaml with three-pane grid layout in src/ClipMate.App/Views/MainWindow.xaml
+- [ ] T112 [P] [US2] Create MainWindow.xaml with three-pane grid layout in Source/src/ClipMate.App/Views/MainWindow.xaml
 - [ ] T113 [P] [US2] Add GridSplitter controls with position persistence in MainWindow.xaml
 - [ ] T114 [P] [US2] Create MenuBar with File, Edit, View, Tools, Help menus in MainWindow.xaml
 - [ ] T115 [P] [US2] Create ToolBar with icon buttons in MainWindow.xaml
 - [ ] T116 [P] [US2] Create StatusBar with dynamic content in MainWindow.xaml
-- [ ] T117 [US2] Create MainWindowViewModel in src/ClipMate.App/ViewModels/MainWindowViewModel.cs (depends on T060)
+- [ ] T117 [US2] Create MainWindowViewModel in Source/src/ClipMate.App/ViewModels/MainWindowViewModel.cs (depends on T060)
 - [ ] T118 [US2] Add window state persistence (size, position, splitter) to MainWindowViewModel
-- [ ] T119 [US2] Create CollectionTreeView.xaml with HierarchicalDataTemplate in src/ClipMate.App/Views/Controls/CollectionTreeView.xaml
-- [ ] T120 [US2] Create CollectionTreeViewModel in src/ClipMate.App/ViewModels/CollectionTreeViewModel.cs (depends on T060, T047)
+- [ ] T119 [US2] Create CollectionTreeView.xaml with HierarchicalDataTemplate in Source/src/ClipMate.App/Views/Controls/CollectionTreeView.xaml
+- [ ] T120 [US2] Create CollectionTreeViewModel in Source/src/ClipMate.App/ViewModels/CollectionTreeViewModel.cs (depends on T060, T047)
 - [ ] T121 [US2] Add SelectedCollectionChanged event to CollectionTreeViewModel
-- [ ] T122 [US2] Implement CollectionService with CRUD operations in src/ClipMate.Core/Services/CollectionService.cs (depends on T047, T029)
-- [ ] T123 [US2] Implement FolderService with hierarchy management in src/ClipMate.Core/Services/FolderService.cs (depends on T048, T030)
-- [ ] T124 [US2] Create ClipListView.xaml with VirtualizingStackPanel in src/ClipMate.App/Views/Controls/ClipListView.xaml
+- [ ] T122 [US2] Implement CollectionService with CRUD operations in Source/src/ClipMate.Core/Services/CollectionService.cs (depends on T047, T029)
+- [ ] T123 [US2] Implement FolderService with hierarchy management in Source/src/ClipMate.Core/Services/FolderService.cs (depends on T048, T030)
+- [ ] T124 [US2] Create ClipListView.xaml with VirtualizingStackPanel in Source/src/ClipMate.App/Views/Controls/ClipListView.xaml
 - [ ] T125 [US2] Add multiple view modes (List, Details, Icons) to ClipListView.xaml using DataTemplate selectors
-- [ ] T126 [US2] Create ClipListViewModel in src/ClipMate.App/ViewModels/ClipListViewModel.cs (depends on T060, T049)
+- [ ] T126 [US2] Create ClipListViewModel in Source/src/ClipMate.App/ViewModels/ClipListViewModel.cs (depends on T060, T049)
 - [ ] T127 [US2] Add LoadClipsAsync with collection/folder filtering to ClipListViewModel
 - [ ] T128 [US2] Add view mode switching command to ClipListViewModel
 - [ ] T129 [US2] Add clip selection with multi-select support to ClipListViewModel
 - [ ] T130 [US2] Add right-click context menu to ClipListView.xaml
-- [ ] T131 [US2] Create PreviewPane.xaml with ContentPresenter in src/ClipMate.App/Views/Controls/PreviewPane.xaml
-- [ ] T132 [US2] Create PreviewPaneViewModel in src/ClipMate.App/ViewModels/PreviewPaneViewModel.cs (depends on T060)
+- [ ] T131 [US2] Create PreviewPane.xaml with ContentPresenter in Source/src/ClipMate.App/Views/Controls/PreviewPane.xaml
+- [ ] T132 [US2] Create PreviewPaneViewModel in Source/src/ClipMate.App/ViewModels/PreviewPaneViewModel.cs (depends on T060)
 - [ ] T133 [US2] Add DataTemplate for text preview in PreviewPane.xaml
 - [ ] T134 [US2] Add DataTemplate for image preview in PreviewPane.xaml
 - [ ] T135 [US2] Add DataTemplate for file list preview in PreviewPane.xaml
@@ -258,22 +258,22 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T142 [P] [US3] Unit test for HotkeyService.RegisterAsync with conflict detection in tests/ClipMate.Tests.Unit/Services/HotkeyServiceTests.cs
-- [ ] T143 [P] [US3] Unit test for PowerPasteViewModel initialization in tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
-- [ ] T144 [P] [US3] Unit test for PowerPasteViewModel.FilterItems search-as-you-type in tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
-- [ ] T145 [P] [US3] Integration test for global hotkey registration in tests/ClipMate.Tests.Integration/HotkeyIntegrationTests.cs
-- [ ] T146 [P] [US3] Integration test for PowerPaste window activation in tests/ClipMate.Tests.Integration/UI/PowerPasteTests.cs
+- [ ] T142 [P] [US3] Unit test for HotkeyService.RegisterAsync with conflict detection in Source/tests/ClipMate.Tests.Unit/Services/HotkeyServiceTests.cs
+- [ ] T143 [P] [US3] Unit test for PowerPasteViewModel initialization in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
+- [ ] T144 [P] [US3] Unit test for PowerPasteViewModel.FilterItems search-as-you-type in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
+- [ ] T145 [P] [US3] Integration test for global hotkey registration in Source/tests/ClipMate.Tests.Integration/HotkeyIntegrationTests.cs
+- [ ] T146 [P] [US3] Integration test for PowerPaste window activation in Source/tests/ClipMate.Tests.Integration/UI/PowerPasteTests.cs
 
 ### Implementation for User Story 3
 
-- [ ] T147 [US3] Implement HotkeyService with Win32 RegisterHotKey in src/ClipMate.Core/Services/HotkeyService.cs (depends on T050, T058)
+- [ ] T147 [US3] Implement HotkeyService with Win32 RegisterHotKey in Source/src/ClipMate.Core/Services/HotkeyService.cs (depends on T050, T058)
 - [ ] T148 [US3] Add hotkey conflict detection to HotkeyService
 - [ ] T149 [US3] Add HotkeyPressed event to HotkeyService
 - [ ] T150 [US3] Add ComponentDispatcher.ThreadFilterMessage integration in HotkeyService
-- [ ] T151 [P] [US3] Create PowerPasteWindow.xaml borderless popup window in src/ClipMate.App/Views/PowerPasteWindow.xaml
+- [ ] T151 [P] [US3] Create PowerPasteWindow.xaml borderless popup window in Source/src/ClipMate.App/Views/PowerPasteWindow.xaml
 - [ ] T152 [P] [US3] Add window positioning logic (near cursor) in PowerPasteWindow.xaml.cs
 - [ ] T153 [P] [US3] Add ListBox with keyboard navigation in PowerPasteWindow.xaml
-- [ ] T154 [US3] Create PowerPasteViewModel in src/ClipMate.App/ViewModels/PowerPasteViewModel.cs (depends on T060, T049)
+- [ ] T154 [US3] Create PowerPasteViewModel in Source/src/ClipMate.App/ViewModels/PowerPasteViewModel.cs (depends on T060, T049)
 - [ ] T155 [US3] Add LoadRecentItemsAsync (configurable count) to PowerPasteViewModel
 - [ ] T156 [US3] Add FilterItems instant search with <50ms response to PowerPasteViewModel
 - [ ] T157 [US3] Add PasteSelectedCommand with clipboard setting to PowerPasteViewModel
@@ -300,11 +300,11 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T166 [P] [US4] Unit test for CollectionService.CreateAsync with validation in tests/ClipMate.Tests.Unit/Services/CollectionServiceTests.cs
-- [ ] T167 [P] [US4] Unit test for FolderService.CreateAsync with hierarchy in tests/ClipMate.Tests.Unit/Services/FolderServiceTests.cs
-- [ ] T168 [P] [US4] Unit test for ClipService.MoveToFolderAsync in tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
-- [ ] T169 [P] [US4] Integration test for collection switching in tests/ClipMate.Tests.Integration/CollectionManagementTests.cs
-- [ ] T170 [P] [US4] UI automation test for drag-drop between folders in tests/ClipMate.Tests.Integration/UI/DragDropTests.cs
+- [ ] T166 [P] [US4] Unit test for CollectionService.CreateAsync with validation in Source/tests/ClipMate.Tests.Unit/Services/CollectionServiceTests.cs
+- [ ] T167 [P] [US4] Unit test for FolderService.CreateAsync with hierarchy in Source/tests/ClipMate.Tests.Unit/Services/FolderServiceTests.cs
+- [ ] T168 [P] [US4] Unit test for ClipService.MoveToFolderAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
+- [ ] T169 [P] [US4] Integration test for collection switching in Source/tests/ClipMate.Tests.Integration/CollectionManagementTests.cs
+- [ ] T170 [P] [US4] UI automation test for drag-drop between folders in Source/tests/ClipMate.Tests.Integration/UI/DragDropTests.cs
 
 ### Implementation for User Story 4
 
@@ -316,8 +316,8 @@ ClipMate uses a multi-project structure:
 - [ ] T176 [US4] Add circular reference validation to FolderService
 - [ ] T177 [US4] Add MoveToFolderAsync to ClipService (depends on T093)
 - [ ] T178 [US4] Add CopyToCollectionAsync to ClipService
-- [ ] T179 [P] [US4] Create NewCollectionDialog.xaml in src/ClipMate.App/Views/Dialogs/NewCollectionDialog.xaml
-- [ ] T180 [P] [US4] Create NewFolderDialog.xaml in src/ClipMate.App/Views/Dialogs/NewFolderDialog.xaml
+- [ ] T179 [P] [US4] Create NewCollectionDialog.xaml in Source/src/ClipMate.App/Views/Dialogs/NewCollectionDialog.xaml
+- [ ] T180 [P] [US4] Create NewFolderDialog.xaml in Source/src/ClipMate.App/Views/Dialogs/NewFolderDialog.xaml
 - [ ] T181 [US4] Add CreateCollectionCommand to MainWindowViewModel (depends on T117)
 - [ ] T182 [US4] Add CreateFolderCommand to CollectionTreeViewModel (depends on T120)
 - [ ] T183 [US4] Add DeleteCollectionCommand to CollectionTreeViewModel
@@ -325,7 +325,7 @@ ClipMate uses a multi-project structure:
 - [ ] T185 [US4] Add RenameCollectionCommand to CollectionTreeViewModel
 - [ ] T186 [US4] Add RenameFolderCommand to CollectionTreeViewModel
 - [ ] T187 [US4] Add color/icon assignment UI to collection/folder dialogs
-- [ ] T188 [US4] Implement drag-drop behavior for clips between folders in src/ClipMate.App/Behaviors/ClipDragDropBehavior.cs
+- [ ] T188 [US4] Implement drag-drop behavior for clips between folders in Source/src/ClipMate.App/Behaviors/ClipDragDropBehavior.cs
 - [ ] T189 [US4] Add visual feedback during drag operation to ClipListView.xaml
 - [ ] T190 [US4] Add auto-categorization rules to FolderService
 - [ ] T191 [US4] Add auto-categorize on capture to ClipboardService event handler
@@ -348,16 +348,16 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T196 [P] [US5] Unit test for SearchService.SearchAsync with full-text indexing in tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
-- [ ] T197 [P] [US5] Unit test for SearchService.SearchAsync with <50ms performance requirement in tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
-- [ ] T198 [P] [US5] Unit test for SearchService regex pattern validation in tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
-- [ ] T199 [P] [US5] Unit test for SavedSearchService.SaveAsync in tests/ClipMate.Tests.Unit/Services/SavedSearchServiceTests.cs
-- [ ] T200 [P] [US5] Integration test for search with 100k+ clips dataset in tests/ClipMate.Tests.Integration/SearchPerformanceTests.cs
-- [ ] T201 [P] [US5] Integration test for search result highlighting in tests/ClipMate.Tests.Integration/UI/SearchTests.cs
+- [ ] T196 [P] [US5] Unit test for SearchService.SearchAsync with full-text indexing in Source/tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
+- [ ] T197 [P] [US5] Unit test for SearchService.SearchAsync with <50ms performance requirement in Source/tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
+- [ ] T198 [P] [US5] Unit test for SearchService regex pattern validation in Source/tests/ClipMate.Tests.Unit/Services/SearchServiceTests.cs
+- [ ] T199 [P] [US5] Unit test for SavedSearchService.SaveAsync in Source/tests/ClipMate.Tests.Unit/Services/SavedSearchServiceTests.cs
+- [ ] T200 [P] [US5] Integration test for search with 100k+ clips dataset in Source/tests/ClipMate.Tests.Integration/SearchPerformanceTests.cs
+- [ ] T201 [P] [US5] Integration test for search result highlighting in Source/tests/ClipMate.Tests.Integration/UI/SearchTests.cs
 
 ### Implementation for User Story 5
 
-- [ ] T202 [US5] Implement SearchService with LiteDB full-text indexing in src/ClipMate.Core/Services/SearchService.cs (depends on T046, T028)
+- [ ] T202 [US5] Implement SearchService with LiteDB full-text indexing in Source/src/ClipMate.Core/Services/SearchService.cs (depends on T046, T028)
 - [ ] T203 [US5] Add SearchAsync with instant results as user types to SearchService
 - [ ] T204 [US5] Add search scope filtering (current/all collections, folder) to SearchService
 - [ ] T205 [US5] Add content type filtering (text/images/files) to SearchService
@@ -365,9 +365,9 @@ ClipMate uses a multi-project structure:
 - [ ] T207 [US5] Add regex pattern matching with validation to SearchService
 - [ ] T208 [US5] Add search result caching for performance to SearchService
 - [ ] T209 [US5] Add result highlighting logic to SearchService
-- [ ] T210 [US5] Create SavedSearchService for managing saved queries in src/ClipMate.Core/Services/SavedSearchService.cs
-- [ ] T211 [P] [US5] Create SearchPanel.xaml with search box and filters in src/ClipMate.App/Views/Controls/SearchPanel.xaml
-- [ ] T212 [US5] Create SearchViewModel in src/ClipMate.App/ViewModels/SearchViewModel.cs (depends on T060)
+- [ ] T210 [US5] Create SavedSearchService for managing saved queries in Source/src/ClipMate.Core/Services/SavedSearchService.cs
+- [ ] T211 [P] [US5] Create SearchPanel.xaml with search box and filters in Source/src/ClipMate.App/Views/Controls/SearchPanel.xaml
+- [ ] T212 [US5] Create SearchViewModel in Source/src/ClipMate.App/ViewModels/SearchViewModel.cs (depends on T060)
 - [ ] T213 [US5] Add SearchCommand with debounced search-as-you-type to SearchViewModel
 - [ ] T214 [US5] Add scope selection (ComboBox) to SearchPanel.xaml
 - [ ] T215 [US5] Add content type filter checkboxes to SearchPanel.xaml
@@ -395,15 +395,15 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T225 [P] [US6] Unit test for TextTransformService.ConvertCase in tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
-- [ ] T226 [P] [US6] Unit test for TextTransformService.SortLines in tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
-- [ ] T227 [P] [US6] Unit test for TextTransformService.RemoveDuplicateLines in tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
-- [ ] T228 [P] [US6] Unit test for TextTransformService.FindAndReplace with regex in tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
-- [ ] T229 [P] [US6] Integration test for text tool application to clip in tests/ClipMate.Tests.Integration/TextTransformTests.cs
+- [ ] T225 [P] [US6] Unit test for TextTransformService.ConvertCase in Source/tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
+- [ ] T226 [P] [US6] Unit test for TextTransformService.SortLines in Source/tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
+- [ ] T227 [P] [US6] Unit test for TextTransformService.RemoveDuplicateLines in Source/tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
+- [ ] T228 [P] [US6] Unit test for TextTransformService.FindAndReplace with regex in Source/tests/ClipMate.Tests.Unit/Services/TextTransformServiceTests.cs
+- [ ] T229 [P] [US6] Integration test for text tool application to clip in Source/tests/ClipMate.Tests.Integration/TextTransformTests.cs
 
 ### Implementation for User Story 6
 
-- [ ] T230 [P] [US6] Create TextTransformService in src/ClipMate.Core/Services/TextTransformService.cs
+- [ ] T230 [P] [US6] Create TextTransformService in Source/src/ClipMate.Core/Services/TextTransformService.cs
 - [ ] T231 [P] [US6] Add ConvertCase method (uppercase/lowercase/titlecase/sentencecase) to TextTransformService
 - [ ] T232 [P] [US6] Add SortLines method (alphabetically/numerically/reverse) to TextTransformService
 - [ ] T233 [P] [US6] Add RemoveDuplicateLines method to TextTransformService
@@ -411,8 +411,8 @@ ClipMate uses a multi-project structure:
 - [ ] T235 [P] [US6] Add FindAndReplace method with literal/regex modes to TextTransformService
 - [ ] T236 [P] [US6] Add CleanUpText method (spaces/line breaks/trim) to TextTransformService
 - [ ] T237 [P] [US6] Add ConvertFormat method (plain/RTF/HTML) to TextTransformService
-- [ ] T238 [P] [US6] Create TextToolsDialog.xaml with tool selection in src/ClipMate.App/Views/Dialogs/TextToolsDialog.xaml
-- [ ] T239 [US6] Create TextToolsViewModel in src/ClipMate.App/ViewModels/TextToolsViewModel.cs (depends on T060)
+- [ ] T238 [P] [US6] Create TextToolsDialog.xaml with tool selection in Source/src/ClipMate.App/Views/Dialogs/TextToolsDialog.xaml
+- [ ] T239 [US6] Create TextToolsViewModel in Source/src/ClipMate.App/ViewModels/TextToolsViewModel.cs (depends on T060)
 - [ ] T240 [US6] Add ApplyTransformCommand to TextToolsViewModel
 - [ ] T241 [US6] Add tool preview before applying to TextToolsViewModel
 - [ ] T242 [US6] Add custom macro creation UI to TextToolsDialog.xaml
@@ -436,20 +436,20 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T248 [P] [US7] Unit test for TemplateService.ExpandVariablesAsync in tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
-- [ ] T249 [P] [US7] Unit test for TemplateService date/time formatting in tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
-- [ ] T250 [P] [US7] Unit test for TemplateService prompt variable handling in tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
-- [ ] T251 [P] [US7] Integration test for template insertion workflow in tests/ClipMate.Tests.Integration/TemplateTests.cs
+- [ ] T248 [P] [US7] Unit test for TemplateService.ExpandVariablesAsync in Source/tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
+- [ ] T249 [P] [US7] Unit test for TemplateService date/time formatting in Source/tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
+- [ ] T250 [P] [US7] Unit test for TemplateService prompt variable handling in Source/tests/ClipMate.Tests.Unit/Services/TemplateServiceTests.cs
+- [ ] T251 [P] [US7] Integration test for template insertion workflow in Source/tests/ClipMate.Tests.Integration/TemplateTests.cs
 
 ### Implementation for User Story 7
 
-- [ ] T252 [US7] Implement TemplateService with variable expansion in src/ClipMate.Core/Services/TemplateService.cs (depends on T051, T031)
+- [ ] T252 [US7] Implement TemplateService with variable expansion in Source/src/ClipMate.Core/Services/TemplateService.cs (depends on T051, T031)
 - [ ] T253 [US7] Add ExpandVariablesAsync with {DATE}, {TIME}, {USERNAME}, {COMPUTERNAME} to TemplateService
 - [ ] T254 [US7] Add date/time format string support ({DATE:yyyy-MM-dd}) to TemplateService
 - [ ] T255 [US7] Add {PROMPT:Label} interactive input support to TemplateService
 - [ ] T256 [US7] Add variable validation in TemplateService
-- [ ] T257 [P] [US7] Create TemplateEditorDialog.xaml in src/ClipMate.App/Views/Dialogs/TemplateEditorDialog.xaml
-- [ ] T258 [US7] Create TemplateEditorViewModel in src/ClipMate.App/ViewModels/TemplateEditorViewModel.cs (depends on T060)
+- [ ] T257 [P] [US7] Create TemplateEditorDialog.xaml in Source/src/ClipMate.App/Views/Dialogs/TemplateEditorDialog.xaml
+- [ ] T258 [US7] Create TemplateEditorViewModel in Source/src/ClipMate.App/ViewModels/TemplateEditorViewModel.cs (depends on T060)
 - [ ] T259 [US7] Add syntax highlighting for variables in TemplateEditorDialog.xaml
 - [ ] T260 [US7] Add CreateTemplateCommand to TemplateEditorViewModel
 - [ ] T261 [US7] Add UpdateTemplateCommand to TemplateEditorViewModel
@@ -459,7 +459,7 @@ ClipMate uses a multi-project structure:
 - [ ] T265 [US7] Add InsertTemplateCommand to MainWindowViewModel
 - [ ] T266 [US7] Add template menu with hierarchical categories to MainWindow menu bar
 - [ ] T267 [US7] Add template hotkey support to HotkeyService
-- [ ] T268 [US7] Add prompt dialog for {PROMPT:} variables in src/ClipMate.App/Views/Dialogs/PromptDialog.xaml
+- [ ] T268 [US7] Add prompt dialog for {PROMPT:} variables in Source/src/ClipMate.App/Views/Dialogs/PromptDialog.xaml
 - [ ] T269 [US7] Add template import/export to TemplateService
 - [ ] T270 [US7] Add usage count tracking to TemplateRepository
 - [ ] T271 [US7] Run all US7 unit tests and verify 90%+ coverage
@@ -479,20 +479,20 @@ ClipMate uses a multi-project structure:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T273 [P] [US8] Unit test for SoundService.PlayAsync in tests/ClipMate.Tests.Unit/Services/SoundServiceTests.cs
-- [ ] T274 [P] [US8] Unit test for SoundService volume control in tests/ClipMate.Tests.Unit/Services/SoundServiceTests.cs
-- [ ] T275 [P] [US8] Integration test for sound playback with NAudio in tests/ClipMate.Tests.Integration/SoundTests.cs
+- [ ] T273 [P] [US8] Unit test for SoundService.PlayAsync in Source/tests/ClipMate.Tests.Unit/Services/SoundServiceTests.cs
+- [ ] T274 [P] [US8] Unit test for SoundService volume control in Source/tests/ClipMate.Tests.Unit/Services/SoundServiceTests.cs
+- [ ] T275 [P] [US8] Integration test for sound playback with NAudio in Source/tests/ClipMate.Tests.Integration/SoundTests.cs
 
 ### Implementation for User Story 8
 
-- [ ] T276 [US8] Implement SoundService with NAudio playback in src/ClipMate.Core/Services/SoundService.cs (depends on T052, T034)
+- [ ] T276 [US8] Implement SoundService with NAudio playback in Source/src/ClipMate.Core/Services/SoundService.cs (depends on T052, T034)
 - [ ] T277 [US8] Add PlayAsync method with WAV file support to SoundService
 - [ ] T278 [US8] Add volume control (0-100%) to SoundService
 - [ ] T279 [US8] Add sound event mapping (capture, paste, error, etc.) to SoundService
 - [ ] T280 [US8] Add global mute toggle to SoundService
 - [ ] T281 [US8] Add sound caching for performance to SoundService
-- [ ] T282 [US8] Create default sound files (capture.wav, paste.wav, error.wav) in src/ClipMate.App/Resources/Sounds/
-- [ ] T283 [P] [US8] Create SoundSettingsPanel.xaml in src/ClipMate.App/Views/Controls/SoundSettingsPanel.xaml
+- [ ] T282 [US8] Create default sound files (capture.wav, paste.wav, error.wav) in Source/src/ClipMate.App/Resources/Sounds/
+- [ ] T283 [P] [US8] Create SoundSettingsPanel.xaml in Source/src/ClipMate.App/Views/Controls/SoundSettingsPanel.xaml
 - [ ] T284 [US8] Add event-to-sound mapping UI to SoundSettingsPanel.xaml
 - [ ] T285 [US8] Add custom sound file selection to SoundSettingsPanel.xaml
 - [ ] T286 [US8] Add volume slider to SoundSettingsPanel.xaml
@@ -515,19 +515,19 @@ ClipMate uses a multi-project structure:
 
 ### System Integration
 
-- [ ] T295 [P] Create system tray integration with NotifyIcon in src/ClipMate.App/SystemTray/TrayIconManager.cs
+- [ ] T295 [P] Create system tray integration with NotifyIcon in Source/src/ClipMate.App/SystemTray/TrayIconManager.cs
 - [ ] T296 [P] Add context menu to system tray (Open, PowerPaste, Exit) in TrayIconManager.cs
 - [ ] T297 [P] Add minimize to tray behavior to MainWindow.xaml.cs
 - [ ] T298 [P] Add Windows startup registration to SettingsService
-- [ ] T299 [P] Create startup configuration dialog in src/ClipMate.App/Views/Dialogs/StartupDialog.xaml
-- [ ] T300 [P] Add toast notification support for errors/warnings in src/ClipMate.App/Notifications/ToastNotificationService.cs
+- [ ] T299 [P] Create startup configuration dialog in Source/src/ClipMate.App/Views/Dialogs/StartupDialog.xaml
+- [ ] T300 [P] Add toast notification support for errors/warnings in Source/src/ClipMate.App/Notifications/ToastNotificationService.cs
 - [ ] T301 [P] Add multi-monitor support with window position tracking to MainWindowViewModel
 - [ ] T302 Add proper application shutdown and cleanup in App.xaml.cs
 
 ### Settings & Preferences
 
-- [ ] T303 Implement SettingsService with JSON storage in src/ClipMate.Core/Services/SettingsService.cs (depends on T053)
-- [ ] T304 [P] Create SettingsDialog.xaml with tabbed interface in src/ClipMate.App/Views/Dialogs/SettingsDialog.xaml
+- [ ] T303 Implement SettingsService with JSON storage in Source/src/ClipMate.Core/Services/SettingsService.cs (depends on T053)
+- [ ] T304 [P] Create SettingsDialog.xaml with tabbed interface in Source/src/ClipMate.App/Views/Dialogs/SettingsDialog.xaml
 - [ ] T305 [P] Add General settings tab (startup, theme, language) to SettingsDialog.xaml
 - [ ] T306 [P] Add Capture settings tab (filters, formats, debounce) to SettingsDialog.xaml
 - [ ] T307 [P] Add PowerPaste settings tab (hotkey, item count) to SettingsDialog.xaml
@@ -537,21 +537,21 @@ ClipMate uses a multi-project structure:
 ### Performance Optimization
 
 - [ ] T310 [P] Profile database query performance with 100k clips dataset and optimize indexes
-- [ ] T311 [P] Implement memory pooling for large image clips in src/ClipMate.Core/Utilities/ImagePool.cs
-- [ ] T312 [P] Add background cleanup task for expired clips in src/ClipMate.Core/Services/CleanupService.cs
+- [ ] T311 [P] Implement memory pooling for large image clips in Source/src/ClipMate.Core/Utilities/ImagePool.cs
+- [ ] T312 [P] Add background cleanup task for expired clips in Source/src/ClipMate.Core/Services/CleanupService.cs
 - [ ] T313 [P] Optimize UI rendering with VirtualizingStackPanel validation in ClipListView
 - [ ] T314 Add progressive loading for large collections in ClipListViewModel
-- [ ] T315 [P] Add performance monitoring and diagnostics in src/ClipMate.Core/Diagnostics/PerformanceMonitor.cs
+- [ ] T315 [P] Add performance monitoring and diagnostics in Source/src/ClipMate.Core/Diagnostics/PerformanceMonitor.cs
 - [ ] T316 Run memory leak detection tests with long-running scenarios
 - [ ] T317 Validate <100ms capture, <50ms search, <50MB memory requirements per constitution
 
 ### Data Management
 
 - [ ] T318 [P] Add clip deduplication based on ContentHash to ClipService
-- [ ] T319 [P] Implement retention policy enforcement in src/ClipMate.Core/Services/RetentionService.cs
+- [ ] T319 [P] Implement retention policy enforcement in Source/src/ClipMate.Core/Services/RetentionService.cs
 - [ ] T320 Add database optimization and compression to BackupService
 - [ ] T321 [P] Add export functionality (text, HTML, CSV) to src/ClipMate.Core/Services/ExportService.cs
-- [ ] T322 [P] Add import functionality from text/CSV in src/ClipMate.Core/Services/ImportService.cs
+- [ ] T322 [P] Add import functionality from text/CSV in Source/src/ClipMate.Core/Services/ImportService.cs
 - [ ] T323 Add database repair and recovery to BackupService
 
 ### Documentation & Help
@@ -560,14 +560,14 @@ ClipMate uses a multi-project structure:
 - [ ] T325 [P] Create keyboard shortcuts reference in docs/keyboard-shortcuts.md
 - [ ] T326 [P] Create troubleshooting guide in docs/troubleshooting.md
 - [ ] T327 [P] Add inline help tooltips to all UI elements
-- [ ] T328 [P] Create About dialog with version/license info in src/ClipMate.App/Views/Dialogs/AboutDialog.xaml
+- [ ] T328 [P] Create About dialog with version/license info in Source/src/ClipMate.App/Views/Dialogs/AboutDialog.xaml
 
 ### Testing & Quality Assurance
 
 - [ ] T329 Run full unit test suite and verify 90%+ coverage requirement met
 - [ ] T330 Run all integration tests including Windows API interactions
-- [ ] T331 Create UI automation test suite for critical workflows in tests/ClipMate.Tests.Integration/UI/
-- [ ] T332 [P] Create performance benchmark tests in tests/ClipMate.Tests.Performance/
+- [ ] T331 Create UI automation test suite for critical workflows in Source/tests/ClipMate.Tests.Integration/UI/
+- [ ] T332 [P] Create performance benchmark tests in Source/tests/ClipMate.Tests.Performance/
 - [ ] T333 Run performance regression tests against constitution requirements
 - [ ] T334 [P] Add accessibility compliance testing (screen reader, keyboard navigation)
 - [ ] T335 Test on Windows 10 (1809+) and Windows 11 with different DPI settings
@@ -586,11 +586,11 @@ ClipMate uses a multi-project structure:
 
 ### Deployment Preparation
 
-- [ ] T345 [P] Set up ClickOnce deployment configuration in src/ClipMate.App/ClipMate.App.csproj
+- [ ] T345 [P] Set up ClickOnce deployment configuration in Source/src/ClipMate.App/ClipMate.App.csproj
 - [ ] T346 [P] Create MSI installer project with WiX Toolset in installer/
 - [ ] T347 [P] Add Windows integration (file associations, registry) to installer
 - [ ] T348 [P] Create portable application build configuration in build/portable.ps1
-- [ ] T349 [P] Implement automatic update system in src/ClipMate.App/Updates/UpdateService.cs
+- [ ] T349 [P] Implement automatic update system in Source/src/ClipMate.App/Updates/UpdateService.cs
 - [ ] T350 [P] Add digital signing for executables and installers
 - [ ] T351 Create release notes in CHANGELOG.md
 - [ ] T352 Create deployment guide in docs/deployment.md
