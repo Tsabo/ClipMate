@@ -164,13 +164,14 @@
                             <DataGrid.Columns>
                                 <!-- Title Column (Clip Content Preview) -->
                                 <DataGridTextColumn Header="Title" 
-                                                   Binding="{Binding TextContent}" 
+                                                   Binding="{Binding DisplayTitle}" 
                                                    Width="*" 
                                                    CanUserSort="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="ToolTip" Value="{Binding TextContent}"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>

@@ -94,4 +94,45 @@ public class Clip
     /// Foreign key to the folder within a collection (optional).
     /// </summary>
     public Guid? FolderId { get; set; }
+
+    /// <summary>
+    /// Gets a display-friendly title for the clip (first line, max 100 chars).
+    /// Used in grid/list views to show preview of multi-line content.
+    /// </summary>
+    public string DisplayTitle
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(TextContent))
+            {
+                return Type switch
+                {
+                    ClipType.Image => "[Image]",
+                    ClipType.Files => "[Files]",
+                    ClipType.Html => "[HTML]",
+                    ClipType.RichText => "[Rich Text]",
+                    _ => "(Empty)"
+                };
+            }
+
+            // Get first line only
+            var lines = TextContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var firstLine = lines.Length > 0 ? lines[0].Trim() : TextContent.Trim();
+
+            // Truncate to reasonable length for grid display
+            const int maxLength = 100;
+            if (firstLine.Length > maxLength)
+            {
+                return firstLine[..maxLength] + "...";
+            }
+
+            // Add indicator if multi-line
+            if (lines.Length > 1)
+            {
+                return firstLine + " ↵"; // Down arrow with hook symbol indicates more lines
+            }
+
+            return firstLine;
+        }
+    }
 }
