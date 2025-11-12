@@ -31,34 +31,46 @@
         </Style>
     </Window.Resources>
 
-    <!-- Main Grid with three columns -->
+    <!-- Main Grid with search panel at top -->
     <Grid>
-        <Grid.ColumnDefinitions>
-            <!-- Left Pane: Collections & Folders Tree -->
-            <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400"/>
-            <ColumnDefinition Width="Auto"/>
-            <!-- Center Pane: Clip List -->
-            <ColumnDefinition Width="*" MinWidth="300"/>
-            <ColumnDefinition Width="Auto"/>
-            <!-- Right Pane: Preview -->
-            <ColumnDefinition Width="400" MinWidth="200" MaxWidth="600"/>
-        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <!-- Search Panel Row -->
+            <RowDefinition Height="Auto"/>
+            <!-- Main Content Row -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Search Panel (spans all columns) -->
+        <views:SearchPanel Grid.Row="0" x:Name="SearchPanel" Margin="0,0,0,5"/>
+        
+        <!-- Three-pane layout -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <!-- Left Pane: Collections & Folders Tree -->
+                <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400"/>
+                <ColumnDefinition Width="Auto"/>
+                <!-- Center Pane: Clip List -->
+                <ColumnDefinition Width="*" MinWidth="300"/>
+                <ColumnDefinition Width="Auto"/>
+                <!-- Right Pane: Preview -->
+                <ColumnDefinition Width="400" MinWidth="200" MaxWidth="600"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Left Pane: Collections & Folders -->
-        <Border Grid.Column="0" Style="{StaticResource PaneBorderStyle}">
-            <views:CollectionTreeView x:Name="CollectionTree"/>
-        </Border>
+            <!-- Left Pane: Collections & Folders -->
+            <Border Grid.Column="0" Style="{StaticResource PaneBorderStyle}">
+                <views:CollectionTreeView x:Name="CollectionTree"/>
+            </Border>
 
-        <!-- Splitter between Left and Center -->
-        <GridSplitter Grid.Column="1" 
+            <!-- Splitter between Left and Center -->
+            <GridSplitter Grid.Column="1" 
                      Width="5" 
                      HorizontalAlignment="Center" 
                      VerticalAlignment="Stretch"
                      Background="#E0E0E0"
                      ShowsPreview="True"/>
 
-        <!-- Center Pane: Clip List -->
-        <Border Grid.Column="2" Style="{StaticResource PaneBorderStyle}">
+            <!-- Center Pane: Clip List -->
+            <Border Grid.Column="2" Style="{StaticResource PaneBorderStyle}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -230,5 +242,6 @@
                 </StackPanel>
             </Grid>
         </Border>
+        </Grid>
     </Grid>
 </Window>

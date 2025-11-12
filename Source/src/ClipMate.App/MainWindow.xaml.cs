@@ -14,13 +14,18 @@ public partial class MainWindow : Window
     private readonly ClipListViewModel _clipListViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
+    private readonly SearchViewModel _searchViewModel;
     private readonly ILogger<MainWindow>? _logger;
 
-    public MainWindow(CollectionTreeViewModel collectionTreeViewModel, ILogger<MainWindow>? logger = null)
+    public MainWindow(
+        CollectionTreeViewModel collectionTreeViewModel,
+        SearchViewModel searchViewModel,
+        ILogger<MainWindow>? logger = null)
     {
         InitializeComponent();
         
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
+        _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         _logger = logger;
         
         // Initialize ViewModels with mock services for now
@@ -38,11 +43,17 @@ public partial class MainWindow : Window
         // Set CollectionTree DataContext
         CollectionTree.DataContext = _collectionTreeViewModel;
         
+        // Set SearchPanel DataContext
+        SearchPanel.DataContext = _searchViewModel;
+        
         // Load initial data
         Loaded += MainWindow_Loaded;
         
         // Wire up selection changed event
         ClipListBox.SelectionChanged += ClipListBox_SelectionChanged;
+        
+        // Wire up search results to clip list
+        _searchViewModel.PropertyChanged += SearchViewModel_PropertyChanged;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -93,6 +104,42 @@ public partial class MainWindow : Window
         {
             _previewPaneViewModel.SetClip(null);
             PreviewTextBlock.Text = "Select a clip to preview...";
+        }
+    }
+
+    private void SearchViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // When search results change, update the clip list
+        if (e.PropertyName == nameof(SearchViewModel.SearchResults))
+        {
+            if (_searchViewModel.SearchResults.Count > 0)
+            {
+                // Display search results in the clip list
+                ClipListBox.ItemsSource = _searchViewModel.SearchResults;
+                UpdateSearchClipCount();
+            }
+            else if (!string.IsNullOrEmpty(_searchViewModel.SearchText))
+            {
+                // Search was performed but no results found
+                ClipListBox.ItemsSource = _searchViewModel.SearchResults;
+                UpdateSearchClipCount();
+            }
+            else
+            {
+                // Search was cleared, restore original clip list
+                ClipListBox.ItemsSource = _clipListViewModel.Clips;
+                UpdateClipCount();
+            }
+        }
+    }
+
+    private void UpdateSearchClipCount()
+    {
+        // Find the status TextBlock and update it
+        var statusBorder = FindName("ClipStatusBorder") as System.Windows.Controls.Border;
+        if (statusBorder?.Child is System.Windows.Controls.TextBlock statusText)
+        {
+            statusText.Text = $"Search results: {_searchViewModel.SearchResults.Count} of {_clipListViewModel.Clips.Count} clips";
         }
     }
 
