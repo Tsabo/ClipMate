@@ -253,11 +253,11 @@ public partial class MainWindow : Window
             _logger?.LogError(ex, "Failed to load collections and folders");
         }
         
+        // Set the DataContext for ClipListBox to enable binding
+        ClipListBox.DataContext = _clipListViewModel;
+        
         // Load clips when window is loaded
         await _clipListViewModel.LoadClipsAsync(50);
-        
-        // Bind the clip list to the ListBox
-        ClipListBox.ItemsSource = _clipListViewModel.Clips;
         
         // Update clip count
         UpdateClipCount();

@@ -43,7 +43,13 @@ public partial class ClipListViewModel : ObservableObject
         {
             IsLoading = true;
             var clips = await _clipService.GetRecentAsync(count);
-            Clips = new ObservableCollection<Clip>(clips);
+            
+            // Clear and repopulate the existing collection to maintain binding
+            Clips.Clear();
+            foreach (var clip in clips)
+            {
+                Clips.Add(clip);
+            }
         }
         catch
         {

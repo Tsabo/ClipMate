@@ -148,6 +148,7 @@
                 <!-- Clip List -->
                 <ListBox Grid.Row="2" 
                         x:Name="ClipListBox"
+                        ItemsSource="{Binding Clips}"
                         BorderThickness="0"
                         Background="Transparent"
                         HorizontalContentAlignment="Stretch">
