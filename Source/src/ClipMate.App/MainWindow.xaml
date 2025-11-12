@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ClipMate.App"
         xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+        xmlns:views="clr-namespace:ClipMate.App.Views"
         mc:Ignorable="d"
         Title="ClipMate - Clipboard Manager" 
         Height="700" 
@@ -45,32 +46,7 @@
 
         <!-- Left Pane: Collections & Folders -->
         <Border Grid.Column="0" Style="{StaticResource PaneBorderStyle}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" 
-                          Text="Collections" 
-                          Style="{StaticResource PaneHeaderStyle}"/>
-
-                <TreeView Grid.Row="1" 
-                         x:Name="CollectionsTreeView"
-                         BorderThickness="0"
-                         Background="Transparent">
-                    <!-- TreeView content will be data-bound to collections and folders -->
-                    <TreeViewItem Header="Default Collection" IsExpanded="True">
-                        <TreeViewItem Header="Work"/>
-                        <TreeViewItem Header="Personal"/>
-                        <TreeViewItem Header="Code Snippets"/>
-                    </TreeViewItem>
-                    <TreeViewItem Header="Archive">
-                        <TreeViewItem Header="2024"/>
-                        <TreeViewItem Header="2025"/>
-                    </TreeViewItem>
-                </TreeView>
-            </Grid>
+            <views:CollectionTreeView x:Name="CollectionTree"/>
         </Border>
 
         <!-- Splitter between Left and Center -->

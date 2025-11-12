@@ -2,6 +2,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App;
 
@@ -12,10 +13,15 @@ public partial class MainWindow : Window
 {
     private readonly ClipListViewModel _clipListViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
+    private readonly CollectionTreeViewModel _collectionTreeViewModel;
+    private readonly ILogger<MainWindow>? _logger;
 
-    public MainWindow()
+    public MainWindow(CollectionTreeViewModel collectionTreeViewModel, ILogger<MainWindow>? logger = null)
     {
         InitializeComponent();
+        
+        _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
+        _logger = logger;
         
         // Initialize ViewModels with mock services for now
         // TODO: Replace with real DI container when implementing full application
@@ -29,6 +35,9 @@ public partial class MainWindow : Window
         // Set DataContext for the window
         DataContext = mainWindowViewModel;
         
+        // Set CollectionTree DataContext
+        CollectionTree.DataContext = _collectionTreeViewModel;
+        
         // Load initial data
         Loaded += MainWindow_Loaded;
         
@@ -38,6 +47,17 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        try
+        {
+            // Load collections and folders
+            _logger?.LogInformation("Loading collections and folders");
+            await _collectionTreeViewModel.LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load collections and folders");
+        }
+        
         // Load clips when window is loaded
         await _clipListViewModel.LoadClipsAsync(50);
         

@@ -40,6 +40,8 @@ public static class ServiceCollectionExtensions
 
         // Register services
         services.AddScoped<IClipService, ClipService>();
+        services.AddSingleton<ICollectionService, CollectionService>();
+        services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<ClipboardCoordinator>();
 
         return services;

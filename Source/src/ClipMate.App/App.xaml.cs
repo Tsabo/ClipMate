@@ -143,6 +143,9 @@ public partial class App : Application
         services.AddTransient<Views.PowerPasteWindow>();
         services.AddSingleton<PowerPasteCoordinator>();
 
+        // Register Collections/Folders ViewModel
+        services.AddSingleton<ViewModels.CollectionTreeViewModel>();
+
         // ViewModels will be registered here as they are created
         // Example:
         // services.AddTransient<MainViewModel>();
