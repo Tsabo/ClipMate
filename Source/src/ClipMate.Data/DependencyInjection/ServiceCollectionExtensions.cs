@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICollectionService, CollectionService>();
         services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching
+        services.AddSingleton<ITemplateService, TemplateService>(); // Singleton for template management
         services.AddSingleton<ClipboardCoordinator>();
 
         return services;

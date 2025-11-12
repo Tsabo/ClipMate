@@ -153,6 +153,11 @@ public partial class App : Application
         services.AddTransient<ViewModels.TextToolsViewModel>();
         services.AddTransient<Views.TextToolsDialog>();
 
+        // Register Template components
+        services.AddTransient<ViewModels.TemplateEditorViewModel>();
+        services.AddTransient<Views.TemplateEditorDialog>();
+        services.AddTransient<Views.PromptDialog>();
+
         // ViewModels will be registered here as they are created
         // Example:
         // services.AddTransient<MainViewModel>();
