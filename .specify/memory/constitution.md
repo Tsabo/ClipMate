@@ -1,50 +1,96 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: template → 1.0.0 (initial constitution creation)
+- Modified principles: All principles established for first time
+- Added sections: Code Quality & Architecture, User Experience Consistency, Performance Requirements, Platform Integration, Data Management Principles
+- Removed sections: None (template conversion)
+- Templates requiring updates: ✅ all existing templates compatible
+- Follow-up TODOs: None
+-->
+
+# ClipMate Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Code Quality & Architecture
+Clean, maintainable C# code following SOLID principles MUST be implemented across all 
+components. Comprehensive unit testing MUST cover core clipboard and data management logic 
+with 90%+ code coverage. Async/await patterns MUST be used for UI responsiveness during 
+heavy operations. Proper separation of concerns MUST be maintained between UI, business 
+logic, and data access layers. Memory-efficient handling of large clipboard histories 
+MUST be implemented to prevent performance degradation.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+**Rationale**: ClipMate will handle continuous clipboard monitoring and large data volumes. 
+Poor architecture or memory leaks could severely impact user system performance.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. User Experience Consistency  
+The classic three-pane layout (tree view, list view, preview) MUST be preserved as the 
+primary interface paradigm. Familiar keyboard shortcuts and hotkey patterns from the 
+original ClipMate MUST be maintained for user migration. Search and filtering operations 
+MUST provide instant results with sub-50ms response time. Drag-and-drop interactions 
+MUST work seamlessly throughout the interface. Both mouse and keyboard-driven workflows 
+MUST be supported with equal functionality.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: ClipMate users have muscle memory and workflows built around the classic 
+interface. Breaking these patterns would create adoption barriers for existing users.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Performance Requirements (NON-NEGOTIABLE)
+Clipboard capture response time MUST be under 100ms to avoid interfering with user 
+workflow. Search results MUST appear instantly even with thousands of stored clips 
+through proper indexing. Memory footprint MUST remain minimal when running in system 
+tray mode. Database operations MUST be efficient with proper indexing strategies. 
+Background operations MUST never block the UI thread.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: As a system-level utility, ClipMate must be invisible to users except 
+when needed. Performance issues directly impact user productivity and system stability.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Platform Integration
+Windows clipboard monitoring MUST be robust and never miss captures through proper 
+API usage and error handling. Global hotkey support MUST work across all applications 
+without conflicts. System tray integration MUST provide full context menus and 
+notifications. Windows theming and DPI awareness MUST be properly supported for 
+modern displays. Sound cue system MUST provide volume control and customization 
+with user preferences.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: Deep Windows integration is core to ClipMate's value proposition as 
+a seamless system enhancement rather than just another application.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Data Management Principles
+Backward compatibility with original ClipMate database formats MUST be maintained 
+for user migration. Data persistence MUST be reliable with automatic backup 
+capabilities and corruption recovery. Import/export functionality MUST support 
+user data migration between systems. Configurable retention policies MUST allow 
+users to control storage usage. Sensitive clipboard content MUST be handled 
+securely with optional encryption.
+
+**Rationale**: Users have years of clipboard history and workflows. Data loss or 
+inability to migrate would be catastrophic for adoption.
+
+## Performance Standards
+
+All clipboard operations MUST complete within performance thresholds:
+- Capture: < 100ms response time  
+- Search: < 50ms for results display
+- Database queries: < 25ms for indexed lookups
+- UI updates: < 16ms for 60fps smoothness
+- Memory usage: < 50MB baseline, < 200MB with large datasets
+- Startup time: < 2 seconds to system tray ready state
+
+## Development Workflow
+
+Code changes MUST pass automated quality gates before merge. Unit tests MUST be 
+written before implementation (TDD approach). Integration tests MUST verify 
+Windows API interactions. Performance tests MUST validate response time requirements. 
+Code reviews MUST verify adherence to architectural principles and performance 
+requirements.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices and guidelines. 
+Amendments require documented justification, team approval, and migration plan 
+for existing code. All pull requests and code reviews MUST verify constitutional 
+compliance. Complexity that violates principles MUST be justified with technical 
+debt documentation. Performance requirements are non-negotiable and MUST be 
+validated through automated testing.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-11-11 | **Last Amended**: 2025-11-11

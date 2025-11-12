@@ -31,7 +31,29 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Code Quality & Architecture Gates:**
+- [ ] SOLID principles compliance verified in design
+- [ ] Unit test strategy defined with 90%+ coverage target
+- [ ] Async/await patterns planned for heavy operations
+- [ ] Separation of concerns documented (UI/business/data layers)
+- [ ] Memory management strategy defined for large datasets
+
+**Performance Gates:**
+- [ ] Clipboard capture <100ms requirement planned
+- [ ] Search <50ms requirement with indexing strategy
+- [ ] UI responsiveness plan (background operations, 60fps)
+- [ ] Memory footprint targets defined (<50MB baseline, <200MB max)
+
+**Platform Integration Gates:**
+- [ ] Windows clipboard API integration strategy defined
+- [ ] Global hotkey implementation approach documented
+- [ ] System tray and DPI awareness requirements addressed
+- [ ] Sound system integration planned
+
+**Data Management Gates:**
+- [ ] Database schema supports performance requirements
+- [ ] Backup and recovery strategy defined
+- [ ] Security approach for sensitive data documented
 
 ## Project Structure
 

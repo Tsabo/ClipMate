@@ -95,6 +95,14 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Non-Functional Requirements *(mandatory for ClipMate features)*
+
+- **NFR-001**: Response time MUST be [specific timing requirement based on operation type]
+- **NFR-002**: Memory usage MUST remain under [specific limit based on feature scope]
+- **NFR-003**: UI operations MUST maintain [responsiveness requirement, typically 60fps/16ms]
+- **NFR-004**: Data operations MUST support [scalability requirement, e.g., thousands of items]
+- **NFR-005**: Platform integration MUST work across [Windows version/configuration requirements]
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
