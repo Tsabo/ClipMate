@@ -36,15 +36,17 @@ ClipMate uses a multi-project structure:
 - [ ] T005 [P] Create ClipMate.Platform class library in src/ClipMate.Platform/ClipMate.Platform.csproj
 - [ ] T006 [P] Create ClipMate.Tests.Unit xUnit project in tests/ClipMate.Tests.Unit/ClipMate.Tests.Unit.csproj
 - [ ] T007 [P] Create ClipMate.Tests.Integration xUnit project in tests/ClipMate.Tests.Integration/ClipMate.Tests.Integration.csproj
-- [ ] T008 Configure project references (App→Core/Data/Platform, Data→Core, Platform→Core, Tests→All)
-- [ ] T009 [P] Add NuGet package LiteDB 5.0+ to ClipMate.Data project
-- [ ] T010 [P] Add NuGet package CommunityToolkit.Mvvm 8.2+ to ClipMate.Core and ClipMate.App projects
-- [ ] T011 [P] Add NuGet package NAudio 2.2+ to ClipMate.Core project
-- [ ] T012 [P] Add NuGet package Microsoft.Extensions.DependencyInjection 8.0+ to ClipMate.App project
-- [ ] T013 [P] Add NuGet packages Moq, FluentAssertions to test projects
-- [ ] T014 [P] Create .editorconfig with C# 12 nullable reference types enabled at repository root
-- [ ] T015 [P] Create README.md with setup instructions at repository root
-- [ ] T016 [P] Create .gitignore for .NET projects at repository root
+- [ ] T008 Create Directory.Packages.props with Central Package Management enabled at repository root
+- [ ] T009 Configure project references (App→Core/Data/Platform, Data→Core, Platform→Core, Tests→All)
+- [ ] T010 [P] Add NuGet package LiteDB 5.0+ to Directory.Packages.props
+- [ ] T011 [P] Add NuGet package CommunityToolkit.Mvvm 8.2+ to Directory.Packages.props
+- [ ] T012 [P] Add NuGet package NAudio 2.2+ to Directory.Packages.props
+- [ ] T013 [P] Add NuGet package Microsoft.Extensions.DependencyInjection 8.0+ to Directory.Packages.props
+- [ ] T014 [P] Add NuGet packages xUnit, Moq, FluentAssertions to Directory.Packages.props
+- [ ] T015 [P] Update all .csproj files to use PackageReference without Version attributes
+- [ ] T016 [P] Create .editorconfig with C# 14 nullable reference types enabled at repository root
+- [ ] T017 [P] Create README.md with setup instructions at repository root
+- [ ] T018 [P] Create .gitignore and .gitattributes for .NET projects at repository root
 
 ---
 
@@ -56,21 +58,21 @@ ClipMate uses a multi-project structure:
 
 ### Core Models & Enums
 
-- [ ] T017 [P] Create ClipContentType enum (Text, Image, FileList, RichText) in src/ClipMate.Core/Models/ClipContentType.cs
-- [ ] T018 [P] Create RetentionPolicy enum in src/ClipMate.Core/Models/RetentionPolicy.cs
-- [ ] T019 [P] Create SearchScope enum in src/ClipMate.Core/Models/SearchScope.cs
-- [ ] T020 [P] Create FilterType enum in src/ClipMate.Core/Models/FilterType.cs
-- [ ] T021 [P] Create Clip entity model in src/ClipMate.Core/Models/Clip.cs
-- [ ] T022 [P] Create Collection entity model in src/ClipMate.Core/Models/Collection.cs
-- [ ] T023 [P] Create Folder entity model in src/ClipMate.Core/Models/Folder.cs
-- [ ] T024 [P] Create Template entity model in src/ClipMate.Core/Models/Template.cs
-- [ ] T025 [P] Create SearchQuery entity model in src/ClipMate.Core/Models/SearchQuery.cs
-- [ ] T026 [P] Create ApplicationFilter entity model in src/ClipMate.Core/Models/ApplicationFilter.cs
-- [ ] T027 [P] Create SoundEvent entity model in src/ClipMate.Core/Models/SoundEvent.cs
+- [ ] T019 [P] Create ClipContentType enum (Text, Image, FileList, RichText) in src/ClipMate.Core/Models/ClipContentType.cs
+- [ ] T020 [P] Create RetentionPolicy enum in src/ClipMate.Core/Models/RetentionPolicy.cs
+- [ ] T021 [P] Create SearchScope enum in src/ClipMate.Core/Models/SearchScope.cs
+- [ ] T022 [P] Create FilterType enum in src/ClipMate.Core/Models/FilterType.cs
+- [ ] T023 [P] Create Clip entity model in src/ClipMate.Core/Models/Clip.cs
+- [ ] T024 [P] Create Collection entity model in src/ClipMate.Core/Models/Collection.cs
+- [ ] T025 [P] Create Folder entity model in src/ClipMate.Core/Models/Folder.cs
+- [ ] T026 [P] Create Template entity model in src/ClipMate.Core/Models/Template.cs
+- [ ] T027 [P] Create SearchQuery entity model in src/ClipMate.Core/Models/SearchQuery.cs
+- [ ] T028 [P] Create ApplicationFilter entity model in src/ClipMate.Core/Models/ApplicationFilter.cs
+- [ ] T029 [P] Create SoundEvent entity model in src/ClipMate.Core/Models/SoundEvent.cs
 
 ### Repository Interfaces
 
-- [ ] T028 [P] Create IClipRepository interface in src/ClipMate.Core/Repositories/IClipRepository.cs
+- [ ] T030 [P] Create IClipRepository interface in src/ClipMate.Core/Repositories/IClipRepository.cs
 - [ ] T029 [P] Create ICollectionRepository interface in src/ClipMate.Core/Repositories/ICollectionRepository.cs
 - [ ] T030 [P] Create IFolderRepository interface in src/ClipMate.Core/Repositories/IFolderRepository.cs
 - [ ] T031 [P] Create ITemplateRepository interface in src/ClipMate.Core/Repositories/ITemplateRepository.cs
