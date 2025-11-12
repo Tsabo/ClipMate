@@ -39,4 +39,14 @@ public class Folder
     /// Timestamp of last modification.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Whether this is a system-defined folder (InBox, Safe, Trash, etc.) that cannot be deleted.
+    /// </summary>
+    public bool IsSystemFolder { get; set; }
+
+    /// <summary>
+    /// Icon identifier for displaying in the tree view (optional).
+    /// </summary>
+    public string? IconName { get; set; }
 }

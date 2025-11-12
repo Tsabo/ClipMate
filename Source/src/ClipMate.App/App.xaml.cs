@@ -75,6 +75,11 @@ public partial class App : Application
 
             _logger?.LogInformation("ClipMate application started successfully");
             _logger?.LogInformation("Database path: {DatabasePath}", databasePath);
+
+            // Initialize default collections and folders
+            var dbInitService = _serviceProvider.GetRequiredService<DatabaseInitializationService>();
+            dbInitService.InitializeAsync().Wait(); // Synchronous wait during startup
+            _logger?.LogInformation("Database default data initialization complete");
         }
         catch (Exception ex)
         {

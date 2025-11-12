@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching
         services.AddSingleton<ITemplateService, TemplateService>(); // Singleton for template management
         services.AddSingleton<ClipboardCoordinator>();
+        services.AddSingleton<DatabaseInitializationService>(); // Database initialization
 
         return services;
     }
