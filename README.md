@@ -39,9 +39,10 @@ Source/
 
 - **UI Framework**: WPF (Windows Presentation Foundation)
 - **MVVM Toolkit**: CommunityToolkit.Mvvm 8.3.2 with source generators
-- **Database**: LiteDB 5.0.21 (embedded NoSQL)
-- **Audio**: NAudio 2.2.1 for sound playback
+- **Database**: Entity Framework Core 9.0.0 + SQLite
+- **Audio**: NAudio 2.2.1 for sound playback (pending implementation)
 - **DI Container**: Microsoft.Extensions.DependencyInjection 9.0.0
+- **Logging**: Microsoft.Extensions.Logging 9.0.0 (Console + Debug providers)
 - **Testing**: xUnit 2.9.2, Moq 4.20.72, FluentAssertions 6.12.1
 
 ### Package Management

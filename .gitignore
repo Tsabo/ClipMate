@@ -12,7 +12,9 @@ nupkg/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/mcp.json
+
+# MCP config contains API keys - do not commit
+.vscode/mcp.json
 
 # User-specific files
 *.rsuser

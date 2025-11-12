@@ -80,18 +80,20 @@ ClipMate uses a multi-project structure under `Source/`:
 - [ ] T033 [P] Create IApplicationFilterRepository interface in Source/src/ClipMate.Core/Repositories/IApplicationFilterRepository.cs
 - [ ] T034 [P] Create ISoundEventRepository interface in Source/src/ClipMate.Core/Repositories/ISoundEventRepository.cs
 
-### LiteDB Implementation
+### Database Implementation (Entity Framework Core + SQLite) ✅
 
-- [ ] T035 Create LiteDbContext class with connection management in Source/src/ClipMate.Data/LiteDB/LiteDbContext.cs
-- [ ] T036 [P] Implement ClipRepository with all 7 indexes in Source/src/ClipMate.Data/LiteDB/ClipRepository.cs
-- [ ] T037 [P] Implement CollectionRepository with indexes in Source/src/ClipMate.Data/LiteDB/CollectionRepository.cs
-- [ ] T038 [P] Implement FolderRepository with indexes in Source/src/ClipMate.Data/LiteDB/FolderRepository.cs
-- [ ] T039 [P] Implement TemplateRepository with indexes in Source/src/ClipMate.Data/LiteDB/TemplateRepository.cs
-- [ ] T040 [P] Implement SearchQueryRepository in Source/src/ClipMate.Data/LiteDB/SearchQueryRepository.cs
-- [ ] T041 [P] Implement ApplicationFilterRepository in Source/src/ClipMate.Data/LiteDB/ApplicationFilterRepository.cs
-- [ ] T042 [P] Implement SoundEventRepository in Source/src/ClipMate.Data/LiteDB/SoundEventRepository.cs
-- [ ] T043 Add database schema migration system in Source/src/ClipMate.Data/LiteDB/SchemaManager.cs
-- [ ] T044 Add database backup and restore functionality in Source/src/ClipMate.Data/LiteDB/BackupService.cs
+**Note:** Originally planned for LiteDB, migrated to EF Core 9.0.0 + SQLite based on team expertise and Implementation Policy. See architecture-decisions.md ADR-001.
+
+- [x] T035 Create ClipMateDbContext with EF Core DbContext in Source/src/ClipMate.Data/ClipMateDbContext.cs
+- [x] T036 [P] Implement ClipRepository with EF Core in Source/src/ClipMate.Data/Repositories/ClipRepository.cs
+- [x] T037 [P] Implement CollectionRepository with EF Core in Source/src/ClipMate.Data/Repositories/CollectionRepository.cs
+- [x] T038 [P] Implement FolderRepository with EF Core in Source/src/ClipMate.Data/Repositories/FolderRepository.cs
+- [x] T039 [P] Implement TemplateRepository with EF Core in Source/src/ClipMate.Data/Repositories/TemplateRepository.cs
+- [x] T040 [P] Implement SearchQueryRepository with EF Core in Source/src/ClipMate.Data/Repositories/SearchQueryRepository.cs
+- [x] T041 [P] Implement ApplicationFilterRepository with EF Core in Source/src/ClipMate.Data/Repositories/ApplicationFilterRepository.cs
+- [x] T042 [P] Implement SoundEventRepository with EF Core in Source/src/ClipMate.Data/Repositories/SoundEventRepository.cs
+- [x] T043 Add database schema migration system using EF Core Migrations in Source/src/ClipMate.Data/Migrations/
+- [x] T044 Add ClipMateDbContextFactory for design-time migrations in Source/src/ClipMate.Data/ClipMateDbContextFactory.cs
 
 ### Service Interfaces
 
@@ -108,25 +110,31 @@ ClipMate uses a multi-project structure under `Source/`:
 
 ### Win32 Platform Layer
 
-- [ ] T055 [P] Create Win32Constants class with clipboard format constants in Source/src/ClipMate.Platform/Win32/Win32Constants.cs
-- [ ] T056 [P] Create Win32Methods class with P/Invoke declarations in Source/src/ClipMate.Platform/Win32/Win32Methods.cs
-- [ ] T057 [P] Create ClipboardMonitor Win32 wrapper in Source/src/ClipMate.Platform/ClipboardMonitor.cs
-- [ ] T058 [P] Create HotkeyManager Win32 wrapper in Source/src/ClipMate.Platform/HotkeyManager.cs
-- [ ] T059 [P] Create DpiHelper for DPI awareness in Source/src/ClipMate.Platform/DpiHelper.cs
+**Note:** Tasks T055-T059 completed with manual P/Invoke. Migration to CsWin32 pending (see ADR-005 in architecture-decisions.md).
+
+- [x] T055 [P] Create Win32Constants class with clipboard format constants in Source/src/ClipMate.Platform/Win32/Win32Constants.cs
+- [x] T056 [P] Create Win32Methods class with P/Invoke declarations in Source/src/ClipMate.Platform/Win32/Win32Methods.cs
+- [x] T057 [P] Create ClipboardMonitor Win32 wrapper in Source/src/ClipMate.Platform/ClipboardMonitor.cs
+- [x] T058 [P] Create HotkeyManager Win32 wrapper in Source/src/ClipMate.Platform/HotkeyManager.cs
+- [x] T059 [P] Create DpiHelper for DPI awareness in Source/src/ClipMate.Platform/DpiHelper.cs
 
 ### MVVM Infrastructure
 
-- [ ] T060 Create ViewModelBase class with INotifyPropertyChanged in Source/src/ClipMate.Core/ViewModels/ViewModelBase.cs
-- [ ] T061 [P] Create RelayCommand implementation in Source/src/ClipMate.Core/Commands/RelayCommand.cs
-- [ ] T062 [P] Create AsyncRelayCommand implementation in Source/src/ClipMate.Core/Commands/AsyncRelayCommand.cs
-- [ ] T063 [P] Create EventAggregator for loose coupling in Source/src/ClipMate.Core/Events/EventAggregator.cs
+**Note:** Using CommunityToolkit.Mvvm for ObservableObject, source-generated properties, and RelayCommand (see ADR-002).
+
+- [x] T060 Create ViewModelBase class inheriting from ObservableObject in Source/src/ClipMate.Core/ViewModels/ViewModelBase.cs
+- [x] T061 [P] Using CommunityToolkit.Mvvm RelayCommand (no custom implementation needed)
+- [x] T062 [P] Using CommunityToolkit.Mvvm AsyncRelayCommand (no custom implementation needed)
+- [x] T063 [P] Create EventAggregator for loose coupling in Source/src/ClipMate.Core/Events/EventAggregator.cs
 
 ### Dependency Injection Setup
 
-- [ ] T064 Create ServiceCollectionExtensions for Core services in Source/src/ClipMate.Core/DependencyInjection/ServiceCollectionExtensions.cs
-- [ ] T065 Create ServiceCollectionExtensions for Data repositories in Source/src/ClipMate.Data/DependencyInjection/ServiceCollectionExtensions.cs
-- [ ] T066 Create App.xaml.cs with DI container configuration in Source/src/ClipMate.App/App.xaml.cs
-- [ ] T067 Configure service lifetimes (singleton for services, scoped for repositories) in App.xaml.cs
+**Note:** Using Microsoft.Extensions.DependencyInjection throughout (see ADR-003).
+
+- [x] T064 Create ServiceCollectionExtensions for Core services in Source/src/ClipMate.Core/DependencyInjection/ServiceCollectionExtensions.cs
+- [x] T065 Create ServiceCollectionExtensions for Data repositories with EF Core in Source/src/ClipMate.Data/DependencyInjection/ServiceCollectionExtensions.cs
+- [x] T066 Create App.xaml.cs with DI container configuration in Source/src/ClipMate.App/App.xaml.cs
+- [x] T067 Configure service lifetimes (scoped for DbContext and repositories) in ServiceCollectionExtensions
 
 ### Testing Infrastructure
 
@@ -137,13 +145,15 @@ ClipMate uses a multi-project structure under `Source/`:
 
 ### Error Handling & Logging
 
-- [ ] T072 [P] Create AppException base exception class in Source/src/ClipMate.Core/Exceptions/AppException.cs
-- [ ] T073 [P] Create ClipboardException for clipboard errors in Source/src/ClipMate.Core/Exceptions/ClipboardException.cs
-- [ ] T074 [P] Create DatabaseException for database errors in Source/src/ClipMate.Core/Exceptions/DatabaseException.cs
-- [ ] T075 Create ILogger interface and FileLogger implementation in Source/src/ClipMate.Core/Logging/ILogger.cs
-- [ ] T076 Add global exception handler in App.xaml.cs
+**Note:** Replaced custom logging with Microsoft.Extensions.Logging (see ADR-004). Custom FileLoggerProvider removed.
 
-**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+- [x] T072 [P] Create AppException base exception class in Source/src/ClipMate.Core/Exceptions/AppException.cs
+- [x] T073 [P] Create ClipboardException for clipboard errors in Source/src/ClipMate.Core/Exceptions/ClipboardException.cs
+- [x] T074 [P] Create DatabaseException for database errors in Source/src/ClipMate.Core/Exceptions/DatabaseException.cs
+- [x] T075 Using Microsoft.Extensions.Logging.ILogger<T> instead of custom logger interface (no custom implementation)
+- [x] T076 Add global exception handler in App.xaml.cs
+
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel ✅
 
 ---
 
