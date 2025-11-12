@@ -309,11 +309,24 @@ public partial class MainWindow : Window
 
     private void UpdateClipCount()
     {
-        // Find the status TextBlock and update it
-        var statusBorder = FindName("ClipStatusBorder") as System.Windows.Controls.Border;
-        if (statusBorder?.Child is System.Windows.Controls.TextBlock statusText)
+        // Update status bar with clip count
+        if (FindName("StatusBarRight") is System.Windows.Controls.TextBlock statusText)
         {
-            statusText.Text = $"Total clips: {_clipListViewModel.Clips.Count}";
+            var count = _clipListViewModel.Clips.Count;
+            var selectedClip = ClipListBox.SelectedItem as Clip;
+            
+            if (selectedClip != null)
+            {
+                var bytes = selectedClip.TextContent?.Length ?? 0;
+                var chars = selectedClip.TextContent?.Length ?? 0;
+                var words = selectedClip.TextContent?.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length ?? 0;
+                
+                statusText.Text = $"{count} clips | {bytes} bytes, {chars} chars, {words} words";
+            }
+            else
+            {
+                statusText.Text = $"{count} clips | 0 bytes, 0 chars, 0 words";
+            }
         }
     }
 
@@ -360,11 +373,12 @@ public partial class MainWindow : Window
 
     private void UpdateSearchClipCount()
     {
-        // Find the status TextBlock and update it
-        var statusBorder = FindName("ClipStatusBorder") as System.Windows.Controls.Border;
-        if (statusBorder?.Child is System.Windows.Controls.TextBlock statusText)
+        // Update status bar for search results
+        if (FindName("StatusBarRight") is System.Windows.Controls.TextBlock statusText)
         {
-            statusText.Text = $"Search results: {_searchViewModel.SearchResults.Count} of {_clipListViewModel.Clips.Count} clips";
+            var resultCount = _searchViewModel.SearchResults.Count;
+            var totalCount = _clipListViewModel.Clips.Count;
+            statusText.Text = $"Search: {resultCount} of {totalCount} clips";
         }
     }
 
@@ -404,20 +418,41 @@ public partial class MainWindow : Window
             try
             {
                 Clipboard.SetText(selectedClip.TextContent);
-                MessageBox.Show("Copied to clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (FindName("StatusBarLeft") is System.Windows.Controls.TextBlock statusLeft)
+                {
+                    statusLeft.Text = "Copied to clipboard";
+                }
             }
             catch (Exception ex)
             {
+                _logger?.LogError(ex, "Failed to copy clip to clipboard");
                 MessageBox.Show($"Failed to copy: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
 
-    private void EditButton_Click(object sender, RoutedEventArgs e)
+    private void PreviewTab_Click(object sender, RoutedEventArgs e)
     {
+        if (sender is not System.Windows.Controls.Button button || button.Tag is not string tabType)
+        {
+            return;
+        }
+
+        // Update preview based on selected tab
         if (ClipListBox.SelectedItem is Clip selectedClip)
         {
-            MessageBox.Show("Edit functionality will be implemented in a future update.", "Not Implemented", MessageBoxButton.OK, MessageBoxImage.Information);
+            switch (tabType)
+            {
+                case "Text":
+                    PreviewTextBlock.Text = selectedClip.TextContent ?? "(No text content)";
+                    break;
+                case "RichText":
+                    PreviewTextBlock.Text = selectedClip.RtfContent ?? "(No RTF content)";
+                    break;
+                case "Html":
+                    PreviewTextBlock.Text = selectedClip.HtmlContent ?? "(No HTML content)";
+                    break;
+            }
         }
     }
 
@@ -434,7 +469,11 @@ public partial class MainWindow : Window
             if (result == MessageBoxResult.Yes)
             {
                 _clipListViewModel.Clips.Remove(selectedClip);
-                MessageBox.Show("Clip deleted successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                if (FindName("StatusBarLeft") is System.Windows.Controls.TextBlock statusLeft)
+                {
+                    statusLeft.Text = "Clip deleted";
+                }
             }
         }
     }
