@@ -37,4 +37,5 @@ SetProcessDPIAware
 SetProcessDpiAwareness
 GetDpiForWindow
 GetSystemMetrics
+SendInput
 
