@@ -3,17 +3,18 @@ using ClipMate.Core.Models;
 namespace ClipMate.Core.Services;
 
 /// <summary>
-/// Service for searching clips across the history.
+/// Service for searching clips across the history with advanced filtering.
 /// </summary>
 public interface ISearchService
 {
     /// <summary>
-    /// Searches clips by text content.
+    /// Searches clips by text content with optional filters.
     /// </summary>
-    /// <param name="query">The search query.</param>
+    /// <param name="query">The search query text.</param>
+    /// <param name="filters">Optional search filters.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Search results with matching clips.</returns>
-    Task<SearchResults> SearchAsync(string query, CancellationToken cancellationToken = default);
+    Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Searches clips using a saved search query.
@@ -40,6 +41,81 @@ public interface ISearchService
     /// <param name="id">The search query ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteSearchQueryAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the search history (recent searches).
+    /// </summary>
+    /// <param name="count">Number of recent searches to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of recent search queries.</returns>
+    Task<IReadOnlyList<string>> GetSearchHistoryAsync(int count = 10, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Filters for advanced search operations.
+/// </summary>
+public class SearchFilters
+{
+    /// <summary>
+    /// Content types to include in search (null = all types).
+    /// </summary>
+    public IEnumerable<ClipType>? ContentTypes { get; init; }
+
+    /// <summary>
+    /// Filter by date range (clips captured within this range).
+    /// </summary>
+    public DateRange? DateRange { get; init; }
+
+    /// <summary>
+    /// Search scope (current collection, all collections, etc.).
+    /// </summary>
+    public SearchScope Scope { get; init; } = SearchScope.AllCollections;
+
+    /// <summary>
+    /// Collection ID to search within (when Scope = CurrentCollection).
+    /// </summary>
+    public Guid? CollectionId { get; init; }
+
+    /// <summary>
+    /// Folder ID to search within (when Scope = CurrentFolder).
+    /// </summary>
+    public Guid? FolderId { get; init; }
+
+    /// <summary>
+    /// Whether to use case-sensitive search.
+    /// </summary>
+    public bool CaseSensitive { get; init; }
+
+    /// <summary>
+    /// Whether to use regex pattern matching.
+    /// </summary>
+    public bool IsRegex { get; init; }
+}
+
+/// <summary>
+/// Date range for search filtering.
+/// </summary>
+public record DateRange(DateTime? From, DateTime? To);
+
+/// <summary>
+/// Search scope enumeration.
+/// </summary>
+public enum SearchScope
+{
+    /// <summary>
+    /// Search in all collections.
+    /// </summary>
+    AllCollections,
+
+    /// <summary>
+    /// Search in the current/active collection only.
+    /// </summary>
+    CurrentCollection,
+
+    /// <summary>
+    /// Search in a specific folder.
+    /// </summary>
+    CurrentFolder
 }
 
 /// <summary>
