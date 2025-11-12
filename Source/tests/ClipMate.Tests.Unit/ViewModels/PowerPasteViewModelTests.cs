@@ -126,11 +126,9 @@ public class PowerPasteViewModelTests
     public void NavigateUpCommand_ShouldSelectPreviousItem()
     {
         // Arrange
-        _viewModel.Clips.Clear();
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Third", Type = ClipType.Text });
-        _viewModel.SearchText = ""; // Trigger filtering
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Third", Type = ClipType.Text });
         _viewModel.SelectedIndex = 2;
 
         // Act
@@ -144,11 +142,9 @@ public class PowerPasteViewModelTests
     public void NavigateDownCommand_ShouldSelectNextItem()
     {
         // Arrange
-        _viewModel.Clips.Clear();
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Third", Type = ClipType.Text });
-        _viewModel.SearchText = ""; // Trigger filtering
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Third", Type = ClipType.Text });
         _viewModel.SelectedIndex = 0;
 
         // Act
@@ -162,10 +158,8 @@ public class PowerPasteViewModelTests
     public void NavigateUpCommand_AtFirstItem_ShouldWrapToLast()
     {
         // Arrange
-        _viewModel.Clips.Clear();
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
-        _viewModel.SearchText = ""; // Trigger filtering
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
         _viewModel.SelectedIndex = 0;
 
         // Act
@@ -179,10 +173,8 @@ public class PowerPasteViewModelTests
     public void NavigateDownCommand_AtLastItem_ShouldWrapToFirst()
     {
         // Arrange
-        _viewModel.Clips.Clear();
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
-        _viewModel.Clips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
-        _viewModel.SearchText = ""; // Trigger filtering
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
+        _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "Second", Type = ClipType.Text });
         _viewModel.SelectedIndex = 1;
 
         // Act
