@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Interop;
-using ClipMate.Platform.Win32;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 namespace ClipMate.Platform;
 
@@ -86,7 +88,7 @@ public class HotkeyManager : IDisposable
         var hotkeyId = _nextHotkeyId++;
         var modifierFlags = ConvertModifiers(modifiers);
 
-        if (!Win32Methods.RegisterHotKey(hwnd, hotkeyId, modifierFlags, (uint)key))
+        if (!PInvoke.RegisterHotKey(new HWND(hwnd), hotkeyId, (HOT_KEY_MODIFIERS)modifierFlags, (uint)key))
         {
             throw new InvalidOperationException(
                 $"Failed to register hotkey (Modifiers: {modifiers}, Key: {key}). " +
@@ -119,7 +121,7 @@ public class HotkeyManager : IDisposable
         }
 
         var hwnd = _hwndSource.Handle;
-        var result = Win32Methods.UnregisterHotKey(hwnd, hotkeyId);
+        var result = PInvoke.UnregisterHotKey(new HWND(hwnd), hotkeyId);
 
         if (result)
         {
@@ -144,7 +146,7 @@ public class HotkeyManager : IDisposable
 
         foreach (var hotkeyId in hotkeyIds)
         {
-            Win32Methods.UnregisterHotKey(hwnd, hotkeyId);
+            PInvoke.UnregisterHotKey(new HWND(hwnd), hotkeyId);
         }
 
         _registeredHotkeys.Clear();
@@ -155,7 +157,9 @@ public class HotkeyManager : IDisposable
     /// </summary>
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == Win32Constants.WM_HOTKEY)
+        const int WM_HOTKEY = 0x0312;
+        
+        if (msg == WM_HOTKEY)
         {
             var hotkeyId = wParam.ToInt32();
 
@@ -175,19 +179,32 @@ public class HotkeyManager : IDisposable
     /// </summary>
     private static uint ConvertModifiers(ModifierKeys modifiers)
     {
+        const uint MOD_ALT = 0x0001;
+        const uint MOD_CONTROL = 0x0002;
+        const uint MOD_SHIFT = 0x0004;
+        const uint MOD_WIN = 0x0008;
+        
         uint flags = 0;
 
         if (modifiers.HasFlag(ModifierKeys.Alt))
-            flags |= Win32Constants.MOD_ALT;
+        {
+            flags |= MOD_ALT;
+        }
         
         if (modifiers.HasFlag(ModifierKeys.Control))
-            flags |= Win32Constants.MOD_CONTROL;
+        {
+            flags |= MOD_CONTROL;
+        }
         
         if (modifiers.HasFlag(ModifierKeys.Shift))
-            flags |= Win32Constants.MOD_SHIFT;
+        {
+            flags |= MOD_SHIFT;
+        }
         
         if (modifiers.HasFlag(ModifierKeys.Windows))
-            flags |= Win32Constants.MOD_WIN;
+        {
+            flags |= MOD_WIN;
+        }
 
         return flags;
     }

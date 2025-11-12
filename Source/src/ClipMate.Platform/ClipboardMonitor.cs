@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
-using ClipMate.Platform.Win32;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace ClipMate.Platform;
 
@@ -24,7 +25,7 @@ public class ClipboardMonitor : IDisposable
     /// </summary>
     public ClipboardMonitor()
     {
-        _lastSequenceNumber = Win32Methods.GetClipboardSequenceNumber();
+        _lastSequenceNumber = PInvoke.GetClipboardSequenceNumber();
     }
 
     /// <summary>
@@ -70,7 +71,7 @@ public class ClipboardMonitor : IDisposable
         _hwndSource.AddHook(WndProc);
 
         // Register for clipboard updates
-        if (!Win32Methods.AddClipboardFormatListener(hwnd))
+        if (!PInvoke.AddClipboardFormatListener(new HWND(hwnd)))
         {
             _hwndSource.RemoveHook(WndProc);
             throw new InvalidOperationException("Failed to register clipboard format listener.");
@@ -94,7 +95,7 @@ public class ClipboardMonitor : IDisposable
         // Unregister clipboard listener
         if (hwnd != IntPtr.Zero)
         {
-            Win32Methods.RemoveClipboardFormatListener(hwnd);
+            PInvoke.RemoveClipboardFormatListener(new HWND(hwnd));
         }
 
         // Remove message hook
@@ -109,9 +110,11 @@ public class ClipboardMonitor : IDisposable
     /// </summary>
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == Win32Constants.WM_CLIPBOARDUPDATE)
+        const int WM_CLIPBOARDUPDATE = 0x031D;
+        
+        if (msg == WM_CLIPBOARDUPDATE)
         {
-            var currentSequenceNumber = Win32Methods.GetClipboardSequenceNumber();
+            var currentSequenceNumber = PInvoke.GetClipboardSequenceNumber();
             
             // Only raise event if sequence number actually changed
             if (currentSequenceNumber != _lastSequenceNumber)
@@ -140,7 +143,7 @@ public class ClipboardMonitor : IDisposable
     /// <returns>The sequence number.</returns>
     public uint GetSequenceNumber()
     {
-        return Win32Methods.GetClipboardSequenceNumber();
+        return PInvoke.GetClipboardSequenceNumber();
     }
 
     /// <summary>

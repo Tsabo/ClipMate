@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Interop;
-using ClipMate.Platform.Win32;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.HiDpi;
 
 namespace ClipMate.Platform;
 
@@ -20,15 +22,15 @@ public static class DpiHelper
         try
         {
             // Try to set per-monitor DPI awareness (Windows 8.1+)
-            var result = Win32Methods.SetProcessDpiAwareness(Win32Constants.PROCESS_PER_MONITOR_DPI_AWARE);
-            _isPerMonitorDpiAware = result == 0;
+            var result = PInvoke.SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.PROCESS_PER_MONITOR_DPI_AWARE);
+            _isPerMonitorDpiAware = result.Succeeded;
         }
         catch
         {
             // Fall back to system DPI awareness (Windows Vista+)
             try
             {
-                Win32Methods.SetProcessDPIAware();
+                PInvoke.SetProcessDPIAware();
                 _isPerMonitorDpiAware = false;
             }
             catch
@@ -61,8 +63,8 @@ public static class DpiHelper
 
         try
         {
-            var dpi = Win32Methods.GetDpiForWindow(hwnd);
-            return dpi > 0 ? dpi : (int)DefaultDpi;
+            var dpi = PInvoke.GetDpiForWindow(new HWND(hwnd));
+            return dpi > 0 ? (int)dpi : (int)DefaultDpi;
         }
         catch
         {
@@ -109,7 +111,7 @@ public static class DpiHelper
     /// <returns>The screen width.</returns>
     public static double GetScreenWidth()
     {
-        var physicalWidth = Win32Methods.GetSystemMetrics(Win32Methods.SM_CXSCREEN);
+        var physicalWidth = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXSCREEN);
         var source = PresentationSource.FromVisual(Application.Current?.MainWindow);
         var scaleFactor = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
         return physicalWidth * scaleFactor;
@@ -121,7 +123,7 @@ public static class DpiHelper
     /// <returns>The screen height.</returns>
     public static double GetScreenHeight()
     {
-        var physicalHeight = Win32Methods.GetSystemMetrics(Win32Methods.SM_CYSCREEN);
+        var physicalHeight = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYSCREEN);
         var source = PresentationSource.FromVisual(Application.Current?.MainWindow);
         var scaleFactor = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
         return physicalHeight * scaleFactor;
