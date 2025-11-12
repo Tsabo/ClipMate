@@ -4,6 +4,7 @@ using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App;
@@ -17,12 +18,15 @@ public partial class MainWindow : Window
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly SearchViewModel _searchViewModel;
+    private readonly ClipboardCoordinator _clipboardCoordinator;
     private readonly ILogger<MainWindow>? _logger;
     private readonly IServiceProvider _serviceProvider;
 
     public MainWindow(
         CollectionTreeViewModel collectionTreeViewModel,
         SearchViewModel searchViewModel,
+        IClipService clipService,
+        ClipboardCoordinator clipboardCoordinator,
         IServiceProvider serviceProvider,
         ILogger<MainWindow>? logger = null)
     {
@@ -30,16 +34,13 @@ public partial class MainWindow : Window
         
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
+        _clipboardCoordinator = clipboardCoordinator ?? throw new ArgumentNullException(nameof(clipboardCoordinator));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
         
-        // Initialize ViewModels with mock services for now
-        // TODO: Replace with real DI container when implementing full application
-        var mockClipService = new MockClipService();
-        
-        // Create ViewModels
+        // Create ViewModels with real services from DI
         var mainWindowViewModel = new MainWindowViewModel();
-        _clipListViewModel = new ClipListViewModel(mockClipService);
+        _clipListViewModel = new ClipListViewModel(clipService);
         _previewPaneViewModel = new PreviewPaneViewModel();
         
         // Set DataContext for the window
@@ -264,8 +265,46 @@ public partial class MainWindow : Window
         // Subscribe to collection changed events
         _clipListViewModel.Clips.CollectionChanged += (s, args) => UpdateClipCount();
 
+        // Subscribe to clipboard coordinator to refresh UI when new clips are captured
+        SubscribeToClipboardEvents();
+
         // Load template menu
         LoadTemplateMenu();
+    }
+
+    /// <summary>
+    /// Subscribes to clipboard coordinator events to update UI when new clips are captured.
+    /// </summary>
+    private void SubscribeToClipboardEvents()
+    {
+        // The ClipboardCoordinator saves clips to the database via ClipService
+        // We need to poll or listen for new clips. For now, we'll implement a simple polling mechanism.
+        // TODO: Consider implementing an event on ClipService when clips are added.
+        
+        // For immediate feedback, we can use a DispatcherTimer to periodically refresh
+        var refreshTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2) // Refresh every 2 seconds
+        };
+        
+        refreshTimer.Tick += async (s, e) =>
+        {
+            try
+            {
+                // Only refresh if we're not already loading
+                if (!_clipListViewModel.IsLoading)
+                {
+                    await _clipListViewModel.RefreshAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to refresh clip list");
+            }
+        };
+        
+        refreshTimer.Start();
+        _logger?.LogInformation("Clipboard event subscription active (polling mode)");
     }
 
     private void UpdateClipCount()
