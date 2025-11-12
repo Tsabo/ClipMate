@@ -95,6 +95,150 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ManageTemplates_Click(object sender, RoutedEventArgs e)
+    {
+        ShowManageTemplates();
+    }
+
+    private void ShowManageTemplates()
+    {
+        try
+        {
+            if (_serviceProvider.GetService(typeof(TemplateEditorDialog)) is TemplateEditorDialog templateEditorDialog)
+            {
+                templateEditorDialog.Owner = this;
+                templateEditorDialog.ShowDialog();
+
+                // Reload template menu after dialog closes
+                LoadTemplateMenu();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show Template Editor dialog");
+            MessageBox.Show($"Failed to open Template Editor: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void LoadTemplateMenu()
+    {
+        try
+        {
+            // Get the Insert Template menu item by name
+            if (FindName("InsertTemplateMenu") is not System.Windows.Controls.MenuItem insertTemplateMenu)
+            {
+                return;
+            }
+
+            // Clear existing items
+            insertTemplateMenu.Items.Clear();
+
+            // Get template service from DI
+            if (_serviceProvider.GetService(typeof(ITemplateService)) is not ITemplateService templateService)
+            {
+                _logger?.LogWarning("TemplateService not available in DI container");
+                return;
+            }
+
+            // Load templates
+            var templates = await templateService.GetAllAsync();
+
+            if (templates.Count == 0)
+            {
+                var emptyItem = new System.Windows.Controls.MenuItem
+                {
+                    Header = "(No templates available)",
+                    IsEnabled = false
+                };
+                insertTemplateMenu.Items.Add(emptyItem);
+            }
+            else
+            {
+                // Add template items
+                foreach (var template in templates.OrderBy(t => t.Name))
+                {
+                    var menuItem = new System.Windows.Controls.MenuItem
+                    {
+                        Header = template.Name,
+                        Tag = template,
+                        ToolTip = template.Description
+                    };
+                    menuItem.Click += TemplateMenuItem_Click;
+                    insertTemplateMenu.Items.Add(menuItem);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load template menu");
+        }
+    }
+
+    private async void TemplateMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.MenuItem menuItem || menuItem.Tag is not Template template)
+        {
+            return;
+        }
+
+        try
+        {
+            // Get template service
+            if (_serviceProvider.GetService(typeof(ITemplateService)) is not ITemplateService templateService)
+            {
+                MessageBox.Show("Template service not available", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Extract variables from template
+            var variables = templateService.ExtractVariables(template.Content);
+            var customVariables = new Dictionary<string, string>();
+
+            // Prompt for PROMPT variables
+            if (variables != null)
+            {
+                foreach (var variable in variables)
+                {
+                    // Check if it's a PROMPT variable
+                    if (variable.StartsWith("PROMPT:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var label = variable[7..]; // Remove "PROMPT:" prefix
+                        var promptDialog = new PromptDialog(label)
+                        {
+                            Owner = this
+                        };
+
+                        if (promptDialog.ShowDialog() == true && promptDialog.UserInput != null)
+                        {
+                            customVariables[variable] = promptDialog.UserInput;
+                        }
+                        else
+                        {
+                            // User cancelled, abort template expansion
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Expand template
+            var expandedText = await templateService.ExpandTemplateAsync(template.Id, customVariables);
+
+            // Insert into clipboard or current focus
+            if (!string.IsNullOrEmpty(expandedText))
+            {
+                Clipboard.SetText(expandedText);
+                MessageBox.Show($"Template '{template.Name}' has been copied to clipboard!", 
+                    "Template Inserted", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to insert template: {TemplateName}", template.Name);
+            MessageBox.Show($"Failed to insert template: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         try
@@ -119,6 +263,9 @@ public partial class MainWindow : Window
         
         // Subscribe to collection changed events
         _clipListViewModel.Clips.CollectionChanged += (s, args) => UpdateClipCount();
+
+        // Load template menu
+        LoadTemplateMenu();
     }
 
     private void UpdateClipCount()

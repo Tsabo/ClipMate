@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace ClipMate.App.ViewModels;
 
@@ -47,5 +48,16 @@ public partial class MainWindowViewModel : ObservableObject
     {
         IsBusy = isBusy;
         StatusMessage = isBusy ? (message ?? string.Empty) : string.Empty;
+    }
+
+    /// <summary>
+    /// Command to open the template management dialog.
+    /// This is a relay command that will be wired up in the code-behind.
+    /// </summary>
+    [RelayCommand]
+    private void ManageTemplates()
+    {
+        // This will be handled in MainWindow code-behind
+        // The command is just here to enable keyboard binding
     }
 }
