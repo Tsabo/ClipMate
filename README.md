@@ -1,78 +1,206 @@
-# ClipMate Remake - Spec-Kit Project
+# ClipMate
 
-This directory contains the GitHub Spec-Kit framework setup for recreating ClipMate, 
-a classic Delphi clipboard management application, using modern .NET technologies.
+A modern Windows desktop clipboard manager built with .NET 10 and WPF, featuring intelligent text/image storage, search capabilities, and customizable templates.
 
-## What Was Set Up
+## Features
 
-The Spec-Kit framework has been initialized with the following structure:
+- **Clipboard History**: Automatically capture and store text and image clipboard entries
+- **Smart Search**: Full-text search across clipboard history with highlighting
+- **Collections**: Organize clipboard items into custom collections
+- **Templates**: Create reusable text templates with variable substitution
+- **Global Hotkeys**: Quick access via customizable keyboard shortcuts
+- **Sound Feedback**: Optional audio cues for clipboard operations
+- **Content Filters**: Exclude sensitive applications from clipboard capture
+- **Modern UI**: Clean WPF interface with MVVM architecture
 
-### .github/prompts/
-Contains all the slash command prompt files that GitHub Copilot will use:
-- speckit.constitution.prompt.md - For establishing project principles
-- speckit.specify.prompt.md - For creating feature specifications
-- speckit.plan.prompt.md - For technical implementation planning
-- speckit.tasks.prompt.md - For breaking down into actionable tasks
-- speckit.implement.prompt.md - For executing the implementation
-- speckit.clarify.prompt.md - For clarifying ambiguous requirements
-- speckit.analyze.prompt.md - For consistency analysis
-- speckit.checklist.prompt.md - For quality validation
+## Prerequisites
 
-### .specify/
-Core Spec-Kit infrastructure:
-- memory/ - Stores project context and constitution
-- scripts/powershell/ - PowerShell automation scripts
-- 	emplates/ - Templates for specs, plans, tasks, etc.
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (required)
+- Windows 10/11 (required for Win32 clipboard APIs)
+- Visual Studio 2025+ or VS Code with C# Dev Kit (recommended)
 
-### .vscode/
-VS Code configuration that enables the Spec-Kit slash commands in GitHub Copilot chat.
+## Architecture
 
-## Next Steps - Spec-Driven Development Workflow
+ClipMate follows a clean, modular architecture with separation of concerns:
 
-Now you can use these slash commands in GitHub Copilot Chat:
+```
+Source/
+├── src/
+│   ├── ClipMate.App/              # WPF application (UI layer)
+│   ├── ClipMate.Core/             # Business logic & domain models
+│   ├── ClipMate.Data/             # LiteDB data access layer
+│   └── ClipMate.Platform/         # Windows-specific Win32 interop
+└── tests/
+    ├── ClipMate.Tests.Unit/       # Unit tests (90%+ coverage)
+    └── ClipMate.Tests.Integration/ # Integration tests
+```
 
-1. **/speckit.constitution** - Define project principles:
-   - Code quality standards
-   - UI/UX guidelines  
-   - Performance requirements
-   - Testing approach
+### Technology Stack
 
-2. **/speckit.specify** - Create the specification for ClipMate:
-   - Multi-pane interface with tree view, list view, preview
-   - Clipboard monitoring and capture
-   - Collections/databases organization
-   - PowerPaste quick access
-   - Sound cues for operations
-   - Search and filtering
-   - Text transformations
-   - Hotkey support
+- **UI Framework**: WPF (Windows Presentation Foundation)
+- **MVVM Toolkit**: CommunityToolkit.Mvvm 8.3.2 with source generators
+- **Database**: LiteDB 5.0.21 (embedded NoSQL)
+- **Audio**: NAudio 2.2.1 for sound playback
+- **DI Container**: Microsoft.Extensions.DependencyInjection 9.0.0
+- **Testing**: xUnit 2.9.2, Moq 4.20.72, FluentAssertions 6.12.1
 
-3. **/speckit.plan** - Create technical implementation plan:
-   - Choose .NET technology (WinForms/WPF/WinUI 3)
-   - Database design (SQLite/LiteDB)
-   - Architecture decisions
-   - Component structure
+### Package Management
 
-4. **/speckit.tasks** - Break into actionable tasks
+This project uses **Central Package Management** (CPM) via `Directory.Packages.props`. All package versions are centrally defined at the repository root, ensuring consistent versioning across all projects.
 
-5. **/speckit.implement** - Execute the implementation
+## Getting Started
 
-## About ClipMate
+### Clone the Repository
 
-ClipMate was a feature-rich Windows clipboard manager originally written in Delphi:
-- **Multi-pane UI**: Tree view (collections) + List view (clips) + Preview pane
-- **Clipboard History**: Persistent storage of thousands of clipboard entries
-- **Collections**: Organized clips into separate databases
-- **PowerPaste**: Quick access menu for recent clips
-- **Sound Cues**: Audio feedback for capture, paste, and other operations
-- **Search**: Full-text search across all history
-- **Templates/Macros**: Reusable text with variables
-- **Format Support**: Text, RTF, HTML, images, files
-- **Text Tools**: Case conversion, formatting, line manipulation
+```powershell
+git clone https://github.com/yourusername/ClipMate.git
+cd ClipMate
+```
 
-## Configuration
+### Build the Solution
 
-- **AI Agent**: GitHub Copilot
+```powershell
+cd Source
+dotnet restore
+dotnet build
+```
+
+### Run the Application
+
+```powershell
+cd src/ClipMate.App
+dotnet run
+```
+
+### Run Tests
+
+Run all tests:
+```powershell
+cd Source
+dotnet test
+```
+
+Run unit tests only:
+```powershell
+dotnet test tests/ClipMate.Tests.Unit
+```
+
+Run integration tests only:
+```powershell
+dotnet test tests/ClipMate.Tests.Integration
+```
+
+Run tests with coverage:
+```powershell
+dotnet test --collect:"XPlat Code Coverage"
+```
+
+## Development
+
+### Code Style
+
+This project uses `.editorconfig` to enforce consistent code formatting. Key conventions:
+
+- **Nullable Reference Types**: Enabled project-wide (C# 14)
+- **Naming**: Interfaces start with `I`, private fields start with `_`
+- **Indentation**: 4 spaces for C#, 2 spaces for XML/JSON
+- **Braces**: Always use braces for control statements (Allman style)
+
+### Testing Approach
+
+ClipMate follows **Test-Driven Development (TDD)** with a minimum **90% code coverage** requirement:
+
+1. Write failing test first (Red)
+2. Write minimal code to pass test (Green)
+3. Refactor while maintaining green tests (Refactor)
+
+Use xUnit for test framework, Moq for mocking, and FluentAssertions for readable assertions.
+
+### Project References
+
+```
+ClipMate.App
+├── ClipMate.Core (business logic)
+├── ClipMate.Data (database access)
+└── ClipMate.Platform (Win32 interop)
+
+ClipMate.Data
+└── ClipMate.Core
+
+ClipMate.Platform
+└── ClipMate.Core
+
+Tests (Unit & Integration)
+├── ClipMate.Core
+├── ClipMate.Data
+└── ClipMate.Platform
+```
+
+## Solution Structure
+
+The project uses the modern `.slnx` solution format (JSON-based). You can open `Source/ClipMate.sln` in Visual Studio 2025+ or use the CLI:
+
+```powershell
+dotnet sln Source/ClipMate.sln list
+```
+
+## Database
+
+ClipMate uses **LiteDB**, a serverless NoSQL database stored as a single file:
+
+- **Location**: `%LOCALAPPDATA%\ClipMate\clipmate.db`
+- **Schema**: Document-based with BSON serialization
+- **Migrations**: Handled automatically by repository layer
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes (TDD approach)
+4. Ensure all tests pass and coverage meets 90% threshold
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Commit Message Format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Roadmap
+
+- [x] Phase 1: Project Setup & Infrastructure
+- [ ] Phase 2: Foundational Infrastructure (Core Models, Repositories, Services)
+- [ ] Phase 3: Clipboard Capture (User Story 1)
+- [ ] Phase 4: Clipboard History UI (User Story 2)
+- [ ] Phase 5: Search & Filtering (User Story 3)
+- [ ] Phase 6: Collections Management (User Story 4)
+- [ ] Phase 7: Templates System (User Story 5)
+- [ ] Phase 8: Global Hotkeys (User Story 6)
+- [ ] Phase 9: Sound Feedback (User Story 7)
+- [ ] Phase 10: Content Filters (User Story 8)
+- [ ] Phase 11: Final Integration & Polish
+
+## Support
+
+For issues, questions, or feature requests, please [open an issue](https://github.com/yourusername/ClipMate/issues).
+
+---
+
+**Built with ❤️ using .NET 10 and WPF**
 - **Script Type**: PowerShell
 - **Git**: Initialized
 
