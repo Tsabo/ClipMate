@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ClipMate.Core.Events;
+using ClipMate.Core.Services;
 
 namespace ClipMate.Core.DependencyInjection;
 
@@ -17,6 +18,9 @@ public static class ServiceCollectionExtensions
     {
         // Register event aggregator as singleton
         services.AddSingleton<IEventAggregator, EventAggregator>();
+
+        // Register text transform service as singleton
+        services.AddSingleton<TextTransformService>();
 
         // Service interfaces will be registered here as they are implemented
         // Example:

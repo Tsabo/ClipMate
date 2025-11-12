@@ -1,5 +1,7 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 using ClipMate.App.ViewModels;
+using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
@@ -16,16 +18,19 @@ public partial class MainWindow : Window
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly SearchViewModel _searchViewModel;
     private readonly ILogger<MainWindow>? _logger;
+    private readonly IServiceProvider _serviceProvider;
 
     public MainWindow(
         CollectionTreeViewModel collectionTreeViewModel,
         SearchViewModel searchViewModel,
+        IServiceProvider serviceProvider,
         ILogger<MainWindow>? logger = null)
     {
         InitializeComponent();
         
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
         
         // Initialize ViewModels with mock services for now
@@ -54,6 +59,40 @@ public partial class MainWindow : Window
         
         // Wire up search results to clip list
         _searchViewModel.PropertyChanged += SearchViewModel_PropertyChanged;
+        
+        // Add keyboard shortcut for Text Tools (Ctrl+T)
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
+    }
+    
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.T && (Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+        {
+            ShowTextTools();
+            e.Handled = true;
+        }
+    }
+    
+    private void TextTools_Click(object sender, RoutedEventArgs e)
+    {
+        ShowTextTools();
+    }
+    
+    private void ShowTextTools()
+    {
+        try
+        {
+            if (_serviceProvider.GetService(typeof(TextToolsDialog)) is TextToolsDialog textToolsDialog)
+            {
+                textToolsDialog.Owner = this;
+                textToolsDialog.ShowDialog();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show Text Tools dialog");
+            MessageBox.Show($"Failed to open Text Tools: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

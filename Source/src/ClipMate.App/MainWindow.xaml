@@ -31,20 +31,29 @@
         </Style>
     </Window.Resources>
 
-    <!-- Main Grid with search panel at top -->
+    <!-- Main Grid with menu bar, search panel, and content -->
     <Grid>
         <Grid.RowDefinitions>
+            <!-- Menu Bar Row -->
+            <RowDefinition Height="Auto"/>
             <!-- Search Panel Row -->
             <RowDefinition Height="Auto"/>
             <!-- Main Content Row -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
+        <!-- Menu Bar -->
+        <Menu Grid.Row="0">
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T"/>
+            </MenuItem>
+        </Menu>
+        
         <!-- Search Panel (spans all columns) -->
-        <views:SearchPanel Grid.Row="0" x:Name="SearchPanel" Margin="0,0,0,5"/>
+        <views:SearchPanel Grid.Row="1" x:Name="SearchPanel" Margin="0,0,0,5"/>
         
         <!-- Three-pane layout -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <!-- Left Pane: Collections & Folders Tree -->
                 <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400"/>

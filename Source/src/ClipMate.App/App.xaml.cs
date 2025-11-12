@@ -149,6 +149,10 @@ public partial class App : Application
         // Register Search ViewModel
         services.AddSingleton<ViewModels.SearchViewModel>(); // Singleton to maintain search state
 
+        // Register Text Tools components
+        services.AddTransient<ViewModels.TextToolsViewModel>();
+        services.AddTransient<Views.TextToolsDialog>();
+
         // ViewModels will be registered here as they are created
         // Example:
         // services.AddTransient<MainViewModel>();
