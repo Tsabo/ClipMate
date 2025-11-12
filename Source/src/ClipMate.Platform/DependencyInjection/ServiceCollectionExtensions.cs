@@ -19,8 +19,13 @@ public static class ServiceCollectionExtensions
         // Register ClipboardService as singleton since it manages Win32 resources
         services.AddSingleton<IClipboardService, ClipboardService>();
 
+        // Register HotkeyService as singleton for global hotkey management
+        services.AddSingleton<IHotkeyService, HotkeyService>();
+
+        // Register PasteService for PowerPaste functionality
+        services.AddSingleton<IPasteService, PasteService>();
+
         // Future platform services will be registered here
-        // services.AddSingleton<IHotkeyService, HotkeyService>();
         // services.AddSingleton<ISoundService, SoundService>();
 
         return services;

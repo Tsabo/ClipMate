@@ -89,6 +89,11 @@ public partial class App : Application
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
 
+        // Initialize PowerPaste coordinator
+        var powerPasteCoordinator = _serviceProvider.GetRequiredService<PowerPasteCoordinator>();
+        powerPasteCoordinator.Initialize(mainWindow);
+        _logger?.LogInformation("PowerPaste coordinator initialized");
+
         // Start clipboard monitoring
         var coordinator = _serviceProvider.GetRequiredService<ClipboardCoordinator>();
         _logger?.LogInformation("Starting clipboard monitoring coordinator");
@@ -133,6 +138,11 @@ public partial class App : Application
         // Register MainWindow
         services.AddTransient<MainWindow>();
 
+        // Register PowerPaste components
+        services.AddTransient<ViewModels.PowerPasteViewModel>();
+        services.AddTransient<Views.PowerPasteWindow>();
+        services.AddSingleton<PowerPasteCoordinator>();
+
         // ViewModels will be registered here as they are created
         // Example:
         // services.AddTransient<MainViewModel>();
@@ -146,6 +156,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("ClipMate application shutting down");
+
+        // Dispose PowerPaste coordinator
+        var powerPasteCoordinator = _serviceProvider?.GetService<PowerPasteCoordinator>();
+        powerPasteCoordinator?.Dispose();
 
         // Stop clipboard monitoring
         var coordinator = _serviceProvider?.GetService<ClipboardCoordinator>();
