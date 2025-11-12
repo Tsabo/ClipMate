@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Interop;
 using Windows.Win32;
@@ -8,26 +9,38 @@ namespace ClipMate.Platform;
 
 /// <summary>
 /// Helper class for DPI awareness and scaling calculations.
+/// Uses CsWin32-generated P/Invoke methods for DPI management.
 /// </summary>
 public static class DpiHelper
 {
-    private const double DefaultDpi = 96.0;
+    private const double _defaultDpi = 96.0;
     private static bool _isPerMonitorDpiAware;
 
     /// <summary>
     /// Initializes DPI awareness for the application.
+    /// Supports Windows 8.1+ per-monitor DPI awareness with fallback to system DPI awareness.
     /// </summary>
+    [SupportedOSPlatform("windows8.1")]
     public static void InitializeDpiAwareness()
     {
         try
         {
             // Try to set per-monitor DPI awareness (Windows 8.1+)
-            var result = PInvoke.SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.PROCESS_PER_MONITOR_DPI_AWARE);
-            _isPerMonitorDpiAware = result.Succeeded;
+            if (OperatingSystem.IsWindowsVersionAtLeast(8, 1))
+            {
+                var result = PInvoke.SetProcessDpiAwareness(PROCESS_DPI_AWARENESS.PROCESS_PER_MONITOR_DPI_AWARE);
+                _isPerMonitorDpiAware = result.Succeeded;
+            }
+            else
+            {
+                // Fall back to system DPI awareness (Windows Vista+)
+                PInvoke.SetProcessDPIAware();
+                _isPerMonitorDpiAware = false;
+            }
         }
         catch
         {
-            // Fall back to system DPI awareness (Windows Vista+)
+            // Fall back to system DPI awareness if per-monitor fails
             try
             {
                 PInvoke.SetProcessDPIAware();
@@ -46,6 +59,7 @@ public static class DpiHelper
     /// </summary>
     /// <param name="window">The window to get DPI for.</param>
     /// <returns>The DPI value.</returns>
+    [SupportedOSPlatform("windows10.0.14393")]
     public static int GetDpiForWindow(Window window)
     {
         if (window == null)
@@ -58,17 +72,25 @@ public static class DpiHelper
 
         if (hwnd == IntPtr.Zero)
         {
-            return (int)DefaultDpi;
+            return (int)_defaultDpi;
         }
 
         try
         {
-            var dpi = PInvoke.GetDpiForWindow(new HWND(hwnd));
-            return dpi > 0 ? (int)dpi : (int)DefaultDpi;
+            // GetDpiForWindow requires Windows 10 Anniversary Update (14393) or later
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 14393))
+            {
+                var dpi = PInvoke.GetDpiForWindow(new HWND(hwnd));
+                return dpi > 0 ? (int)dpi : (int)_defaultDpi;
+            }
+            else
+            {
+                return (int)_defaultDpi;
+            }
         }
         catch
         {
-            return (int)DefaultDpi;
+            return (int)_defaultDpi;
         }
     }
 
@@ -77,10 +99,18 @@ public static class DpiHelper
     /// </summary>
     /// <param name="window">The window to get scale factor for.</param>
     /// <returns>The scale factor.</returns>
+    [SupportedOSPlatform("windows10.0.14393")]
     public static double GetScaleFactor(Window window)
     {
-        var dpi = GetDpiForWindow(window);
-        return dpi / DefaultDpi;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 14393))
+        {
+            var dpi = GetDpiForWindow(window);
+            return dpi / _defaultDpi;
+        }
+        else
+        {
+            return 1.0; // Default scale factor on older Windows versions
+        }
     }
 
     /// <summary>
@@ -140,6 +170,6 @@ public static class DpiHelper
     /// <returns>The system DPI value.</returns>
     public static double GetSystemDpi()
     {
-        return DefaultDpi;
+        return _defaultDpi;
     }
 }

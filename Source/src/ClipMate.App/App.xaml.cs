@@ -32,8 +32,11 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Initialize DPI awareness
-        ClipMate.Platform.DpiHelper.InitializeDpiAwareness();
+        // Initialize DPI awareness (Windows 8.1+)
+        if (OperatingSystem.IsWindowsVersionAtLeast(8, 1))
+        {
+            ClipMate.Platform.DpiHelper.InitializeDpiAwareness();
+        }
 
         // Setup global exception handlers
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
