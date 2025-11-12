@@ -5,12 +5,12 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "f:\\_brownie\\ClipMate"
+        "g:\\_brownie\\ClipMate"
       ]
     },
     "git": {
       "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "f:\\_brownie\\ClipMate"]
+      "args": ["mcp-server-git", "--repository", "g:\\_brownie\\ClipMate"]
     },
     "memory": {
       "command": "npx",
@@ -18,6 +18,13 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-8664dfad-fa6e-4059-a640-01b0b611cfb3"
+      }
     }
   }
 }

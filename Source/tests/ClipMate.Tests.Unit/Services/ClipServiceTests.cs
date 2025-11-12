@@ -2,7 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
-using FluentAssertions;
+using Shouldly;
 using Moq;
 using Xunit;
 
@@ -36,8 +36,8 @@ public class ClipServiceTests
         var result = await service.GetByIdAsync(clipId);
 
         // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(clipId);
+        result.ShouldNotBeNull();
+        result!.Id.ShouldBe(clipId);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class ClipServiceTests
         var result = await service.GetByIdAsync(clipId);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -78,10 +78,10 @@ public class ClipServiceTests
         var result = await service.GetRecentAsync(10);
 
         // Assert
-        result.Should().HaveCount(3);
-        result[0].CapturedAt.Should().Be(now);
-        result[1].CapturedAt.Should().Be(now.AddMinutes(-1));
-        result[2].CapturedAt.Should().Be(now.AddMinutes(-2));
+        result.Count.ShouldBe(3);
+        result[0].CapturedAt.ShouldBe(now);
+        result[1].CapturedAt.ShouldBe(now.AddMinutes(-1));
+        result[2].CapturedAt.ShouldBe(now.AddMinutes(-2));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class ClipServiceTests
         var result = await service.GetRecentAsync(3);
 
         // Assert
-        result.Should().HaveCount(3);
+        result.Count.ShouldBe(3);
         _mockRepository.Verify(p => p.GetRecentAsync(3, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -119,8 +119,8 @@ public class ClipServiceTests
         var result = await service.CreateAsync(clip);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().Be(clip.Id);
+        result.ShouldNotBeNull();
+        result.Id.ShouldBe(clip.Id);
         _mockRepository.Verify(p => p.CreateAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -140,8 +140,8 @@ public class ClipServiceTests
         var result = await service.CreateAsync(newClip);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().Be(existingClip.Id); // Should return existing clip
+        result.ShouldNotBeNull();
+        result.Id.ShouldBe(existingClip.Id); // Should return existing clip
         _mockRepository.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -199,8 +199,8 @@ public class ClipServiceTests
         var result = await service.GetByCollectionAsync(collectionId);
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(clip => clip.CollectionId.Should().Be(collectionId));
+        result.Count.ShouldBe(2);
+        result.ShouldAllBe(clip => clip.CollectionId == collectionId);
     }
 
     [Fact]
@@ -222,8 +222,8 @@ public class ClipServiceTests
         var result = await service.GetFavoritesAsync();
 
         // Assert
-        result.Should().HaveCount(2);
-        result.Should().AllSatisfy(clip => clip.IsFavorite.Should().BeTrue());
+        result.Count.ShouldBe(2);
+        result.ShouldAllBe(clip => clip.IsFavorite == true);
     }
 
     [Fact]
@@ -232,11 +232,8 @@ public class ClipServiceTests
         // Arrange
         var service = CreateClipService();
 
-        // Act
-        Func<Task> act = async () => await service.CreateAsync(null!);
-
-        // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>();
+        // Act & Assert
+        await Should.ThrowAsync<ArgumentNullException>(async () => await service.CreateAsync(null!));
     }
 
     private IClipService CreateClipService()

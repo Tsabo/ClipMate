@@ -1,13 +1,7 @@
-﻿using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows;
+using ClipMate.App.ViewModels;
+using ClipMate.Core.Models;
+using ClipMate.Core.Services;
 
 namespace ClipMate.App;
 
@@ -16,8 +10,237 @@ namespace ClipMate.App;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private readonly ClipListViewModel _clipListViewModel;
+    private readonly PreviewPaneViewModel _previewPaneViewModel;
+
     public MainWindow()
     {
         InitializeComponent();
+        
+        // Initialize ViewModels with mock services for now
+        // TODO: Replace with real DI container when implementing full application
+        var mockClipService = new MockClipService();
+        
+        // Create ViewModels
+        var mainWindowViewModel = new MainWindowViewModel();
+        _clipListViewModel = new ClipListViewModel(mockClipService);
+        _previewPaneViewModel = new PreviewPaneViewModel();
+        
+        // Set DataContext for the window
+        DataContext = mainWindowViewModel;
+        
+        // Load initial data
+        Loaded += MainWindow_Loaded;
+        
+        // Wire up selection changed event
+        ClipListBox.SelectionChanged += ClipListBox_SelectionChanged;
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Load clips when window is loaded
+        await _clipListViewModel.LoadClipsAsync(50);
+        
+        // Bind the clip list to the ListBox
+        ClipListBox.ItemsSource = _clipListViewModel.Clips;
+        
+        // Update clip count
+        UpdateClipCount();
+        
+        // Subscribe to collection changed events
+        _clipListViewModel.Clips.CollectionChanged += (s, args) => UpdateClipCount();
+    }
+
+    private void UpdateClipCount()
+    {
+        // Find the status TextBlock and update it
+        var statusBorder = FindName("ClipStatusBorder") as System.Windows.Controls.Border;
+        if (statusBorder?.Child is System.Windows.Controls.TextBlock statusText)
+        {
+            statusText.Text = $"Total clips: {_clipListViewModel.Clips.Count}";
+        }
+    }
+
+    private void ClipListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Update preview when selection changes
+        if (ClipListBox.SelectedItem is Clip selectedClip)
+        {
+            _previewPaneViewModel.SetClip(selectedClip);
+            UpdatePreviewPane(selectedClip);
+        }
+        else
+        {
+            _previewPaneViewModel.SetClip(null);
+            PreviewTextBlock.Text = "Select a clip to preview...";
+        }
+    }
+
+    private void UpdatePreviewPane(Clip clip)
+    {
+        // Update the preview text based on clip type
+        if (clip.Type == ClipType.Text && !string.IsNullOrEmpty(clip.TextContent))
+        {
+            PreviewTextBlock.Text = clip.TextContent;
+            PreviewTextBlock.FontStyle = FontStyles.Normal;
+            PreviewTextBlock.Foreground = System.Windows.Media.Brushes.Black;
+        }
+        else if (clip.Type == ClipType.Html && !string.IsNullOrEmpty(clip.HtmlContent))
+        {
+            PreviewTextBlock.Text = $"[HTML Content]\n\n{clip.HtmlContent}";
+            PreviewTextBlock.FontStyle = FontStyles.Normal;
+            PreviewTextBlock.Foreground = System.Windows.Media.Brushes.Black;
+        }
+        else if (clip.Type == ClipType.Image)
+        {
+            PreviewTextBlock.Text = "[Image Preview]\n\nImage preview will be displayed here.";
+            PreviewTextBlock.FontStyle = FontStyles.Italic;
+            PreviewTextBlock.Foreground = System.Windows.Media.Brushes.Gray;
+        }
+        else
+        {
+            PreviewTextBlock.Text = "No preview available for this clip type.";
+            PreviewTextBlock.FontStyle = FontStyles.Italic;
+            PreviewTextBlock.Foreground = System.Windows.Media.Brushes.Gray;
+        }
+    }
+
+    private void CopyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ClipListBox.SelectedItem is Clip selectedClip && !string.IsNullOrEmpty(selectedClip.TextContent))
+        {
+            try
+            {
+                Clipboard.SetText(selectedClip.TextContent);
+                MessageBox.Show("Copied to clipboard!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to copy: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void EditButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ClipListBox.SelectedItem is Clip selectedClip)
+        {
+            MessageBox.Show("Edit functionality will be implemented in a future update.", "Not Implemented", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void DeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ClipListBox.SelectedItem is Clip selectedClip)
+        {
+            var result = MessageBox.Show(
+                "Are you sure you want to delete this clip?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _clipListViewModel.Clips.Remove(selectedClip);
+                MessageBox.Show("Clip deleted successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
     }
 }
+
+/// <summary>
+/// Temporary mock ClipService for development/testing.
+/// TODO: Replace with real service implementation.
+/// </summary>
+internal class MockClipService : IClipService
+{
+    private readonly List<Clip> _sampleClips = new()
+    {
+        new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "Sample clipboard text content...",
+            CapturedAt = DateTime.Now.AddMinutes(-5),
+            ContentHash = "hash1"
+        },
+        new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "Another clipboard entry from earlier today",
+            CapturedAt = DateTime.Now.AddHours(-2),
+            ContentHash = "hash2"
+        },
+        new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "https://github.com/example/repo - Useful repository link",
+            CapturedAt = DateTime.Now.AddHours(-4),
+            ContentHash = "hash3"
+        }
+    };
+
+    public Task<Clip?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_sampleClips.FirstOrDefault(c => c.Id == id));
+    }
+
+    public Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<Clip>>(_sampleClips.Take(count).ToList());
+    }
+
+    public Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<Clip>>(Array.Empty<Clip>());
+    }
+
+    public Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<Clip>>(Array.Empty<Clip>());
+    }
+
+    public Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<Clip>>(Array.Empty<Clip>());
+    }
+
+    public Task<Clip> CreateAsync(Clip clip, CancellationToken cancellationToken = default)
+    {
+        _sampleClips.Add(clip);
+        return Task.FromResult(clip);
+    }
+
+    public Task UpdateAsync(Clip clip, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var clip = _sampleClips.FirstOrDefault(c => c.Id == id);
+        if (clip != null)
+        {
+            _sampleClips.Remove(clip);
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<int> DeleteOlderThanAsync(DateTime olderThan, CancellationToken cancellationToken = default)
+    {
+        var toDelete = _sampleClips.Where(c => c.CapturedAt < olderThan).ToList();
+        foreach (var clip in toDelete)
+        {
+            _sampleClips.Remove(clip);
+        }
+        return Task.FromResult(toDelete.Count);
+    }
+
+    public Task<bool> IsDuplicateAsync(string contentHash, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_sampleClips.Any(c => c.ContentHash == contentHash));
+    }
+}
+

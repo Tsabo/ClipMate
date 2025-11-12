@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using FluentAssertions;
+using Shouldly;
 using Moq;
 using Xunit;
 
@@ -22,7 +22,7 @@ public class ClipboardServiceTests
         await service.StartMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.Should().BeTrue();
+        service.IsMonitoring.ShouldBeTrue();
     }
 
     [Fact]
@@ -32,12 +32,9 @@ public class ClipboardServiceTests
         var service = CreateClipboardService();
         await service.StartMonitoringAsync();
 
-        // Act
-        Func<Task> act = async () => await service.StartMonitoringAsync();
-
-        // Assert
-        await act.Should().NotThrowAsync();
-        service.IsMonitoring.Should().BeTrue();
+        // Act & Assert
+        await Should.NotThrowAsync(async () => await service.StartMonitoringAsync());
+        service.IsMonitoring.ShouldBeTrue();
     }
 
     [Fact]
@@ -51,7 +48,7 @@ public class ClipboardServiceTests
         await service.StopMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.Should().BeFalse();
+        service.IsMonitoring.ShouldBeFalse();
     }
 
     [Fact]
@@ -60,11 +57,8 @@ public class ClipboardServiceTests
         // Arrange
         var service = CreateClipboardService();
 
-        // Act
-        Func<Task> act = async () => await service.StopMonitoringAsync();
-
-        // Assert
-        await act.Should().NotThrowAsync();
+        // Act & Assert
+        await Should.NotThrowAsync(async () => await service.StopMonitoringAsync());
     }
 
     [Fact]
@@ -78,9 +72,9 @@ public class ClipboardServiceTests
         var clip = await service.GetCurrentClipboardContentAsync();
 
         // Assert
-        clip.Should().NotBeNull();
-        clip!.Type.Should().Be(ClipType.Text);
-        clip.TextContent.Should().NotBeNullOrEmpty();
+        clip.ShouldNotBeNull();
+        clip!.Type.ShouldBe(ClipType.Text);
+        clip.TextContent.ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
@@ -94,7 +88,7 @@ public class ClipboardServiceTests
         var clip = await service.GetCurrentClipboardContentAsync();
 
         // Assert
-        clip.Should().BeNull();
+        clip.ShouldBeNull();
     }
 
     [Fact]
@@ -108,9 +102,9 @@ public class ClipboardServiceTests
         var clip = await service.GetCurrentClipboardContentAsync();
 
         // Assert
-        clip.Should().NotBeNull();
-        clip!.ContentHash.Should().NotBeNullOrEmpty();
-        clip.ContentHash.Should().HaveLength(64); // SHA256 produces 64 hex characters
+        clip.ShouldNotBeNull();
+        clip!.ContentHash.ShouldNotBeNullOrEmpty();
+        clip.ContentHash.Length.ShouldBe(64); // SHA256 produces 64 hex characters
     }
 
     [Fact]
@@ -126,7 +120,7 @@ public class ClipboardServiceTests
         // TODO: Simulate clipboard change
 
         // Assert
-        capturedClip.Should().NotBeNull();
+        capturedClip.ShouldNotBeNull();
     }
 
     [Fact]
@@ -142,7 +136,7 @@ public class ClipboardServiceTests
         // TODO: Simulate same content copied twice
 
         // Assert
-        eventCount.Should().Be(1); // Only first copy should raise event
+        eventCount.ShouldBe(1); // Only first copy should raise event
     }
 
     [Fact]
@@ -162,7 +156,7 @@ public class ClipboardServiceTests
         // TODO: Simulate clipboard change
 
         // Assert
-        wasCancelled.Should().BeTrue();
+        wasCancelled.ShouldBeTrue();
     }
 
     [Fact]
@@ -202,7 +196,7 @@ public class ClipboardServiceTests
 
         // Assert
         await Task.Delay(100); // Give time to stop
-        service.IsMonitoring.Should().BeFalse();
+        service.IsMonitoring.ShouldBeFalse();
     }
 
     /// <summary>

@@ -4,9 +4,255 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ClipMate.App"
+        xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="ClipMate - Clipboard Manager" 
+        Height="700" 
+        Width="1200"
+        MinHeight="500"
+        MinWidth="800">
+    
+    <Window.Resources>
+        <!-- Common Styles -->
+        <Style x:Key="PaneHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="5,5,5,10"/>
+            <Setter Property="Foreground" Value="#333333"/>
+        </Style>
 
+        <Style x:Key="PaneBorderStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Main Grid with three columns -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Left Pane: Collections & Folders Tree -->
+            <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400"/>
+            <ColumnDefinition Width="Auto"/>
+            <!-- Center Pane: Clip List -->
+            <ColumnDefinition Width="*" MinWidth="300"/>
+            <ColumnDefinition Width="Auto"/>
+            <!-- Right Pane: Preview -->
+            <ColumnDefinition Width="400" MinWidth="200" MaxWidth="600"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Pane: Collections & Folders -->
+        <Border Grid.Column="0" Style="{StaticResource PaneBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" 
+                          Text="Collections" 
+                          Style="{StaticResource PaneHeaderStyle}"/>
+
+                <TreeView Grid.Row="1" 
+                         x:Name="CollectionsTreeView"
+                         BorderThickness="0"
+                         Background="Transparent">
+                    <!-- TreeView content will be data-bound to collections and folders -->
+                    <TreeViewItem Header="Default Collection" IsExpanded="True">
+                        <TreeViewItem Header="Work"/>
+                        <TreeViewItem Header="Personal"/>
+                        <TreeViewItem Header="Code Snippets"/>
+                    </TreeViewItem>
+                    <TreeViewItem Header="Archive">
+                        <TreeViewItem Header="2024"/>
+                        <TreeViewItem Header="2025"/>
+                    </TreeViewItem>
+                </TreeView>
+            </Grid>
+        </Border>
+
+        <!-- Splitter between Left and Center -->
+        <GridSplitter Grid.Column="1" 
+                     Width="5" 
+                     HorizontalAlignment="Center" 
+                     VerticalAlignment="Stretch"
+                     Background="#E0E0E0"
+                     ShowsPreview="True"/>
+
+        <!-- Center Pane: Clip List -->
+        <Border Grid.Column="2" Style="{StaticResource PaneBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <TextBlock Grid.Row="0" 
+                          Text="Clips" 
+                          Style="{StaticResource PaneHeaderStyle}"/>
+
+                <!-- Search/Filter Bar -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5,0,5,10">
+                    <TextBox x:Name="SearchTextBox"
+                            Width="250"
+                            Padding="5"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                            VerticalAlignment="Center">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value="">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <VisualBrush Stretch="None" AlignmentX="Left">
+                                                    <VisualBrush.Visual>
+                                                        <TextBlock Text="Search clips..." 
+                                                                  Foreground="Gray" 
+                                                                  Margin="5,0,0,0"
+                                                                  VerticalAlignment="Center"/>
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <ComboBox x:Name="ViewModeComboBox"
+                             Width="120"
+                             Margin="10,0,0,0"
+                             SelectedIndex="0"
+                             VerticalAlignment="Center">
+                        <ComboBoxItem Content="List View"/>
+                        <ComboBoxItem Content="Grid View"/>
+                        <ComboBoxItem Content="Timeline"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Clip List -->
+                <ListBox Grid.Row="2" 
+                        x:Name="ClipListBox"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        HorizontalContentAlignment="Stretch">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="#E0E0E0" 
+                                   BorderThickness="0,0,0,1" 
+                                   Padding="5"
+                                   Margin="0,0,0,2">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" 
+                                              Text="{Binding TextContent}" 
+                                              FontWeight="Normal"
+                                              TextTrimming="CharacterEllipsis"
+                                              MaxHeight="40"
+                                              TextWrapping="Wrap"/>
+                                    
+                                    <TextBlock Grid.Row="1" 
+                                              Text="{Binding CapturedAt, StringFormat='Captured: {0:g}'}" 
+                                              FontSize="10"
+                                              Foreground="Gray"
+                                              Margin="0,3,0,0"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Status Bar -->
+                <Border Grid.Row="3" 
+                       x:Name="ClipStatusBorder"
+                       BorderBrush="#E0E0E0" 
+                       BorderThickness="0,1,0,0" 
+                       Padding="5"
+                       Background="#F5F5F5">
+                    <TextBlock Text="Total clips: 0" 
+                              FontSize="10" 
+                              Foreground="#666666"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Splitter between Center and Right -->
+        <GridSplitter Grid.Column="3" 
+                     Width="5" 
+                     HorizontalAlignment="Center" 
+                     VerticalAlignment="Stretch"
+                     Background="#E0E0E0"
+                     ShowsPreview="True"/>
+
+        <!-- Right Pane: Preview -->
+        <Border Grid.Column="4" Style="{StaticResource PaneBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <TextBlock Grid.Row="0" 
+                          Text="Preview" 
+                          Style="{StaticResource PaneHeaderStyle}"/>
+
+                <!-- Preview Content Area -->
+                <ScrollViewer Grid.Row="1" 
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto">
+                    <Grid x:Name="PreviewContentGrid">
+                        <!-- Content will be dynamically loaded based on clip type -->
+                        <TextBlock x:Name="PreviewTextBlock"
+                                  Text="Select a clip to preview..."
+                                  TextWrapping="Wrap"
+                                  Foreground="Gray"
+                                  FontStyle="Italic"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center"
+                                  Margin="20"/>
+                    </Grid>
+                </ScrollViewer>
+
+                <!-- Preview Actions -->
+                <StackPanel Grid.Row="2" 
+                           Orientation="Horizontal" 
+                           HorizontalAlignment="Right"
+                           Margin="0,10,0,0">
+                    <Button Content="Copy" 
+                           x:Name="CopyButton"
+                           Width="80" 
+                           Height="30" 
+                           Margin="5,0"
+                           Click="CopyButton_Click"/>
+                    <Button Content="Edit" 
+                           x:Name="EditButton"
+                           Width="80" 
+                           Height="30" 
+                           Margin="5,0"
+                           Click="EditButton_Click"/>
+                    <Button Content="Delete" 
+                           x:Name="DeleteButton"
+                           Width="80" 
+                           Height="30" 
+                           Margin="5,0"
+                           Background="#FFEBEE"
+                           Foreground="#C62828"
+                           Click="DeleteButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

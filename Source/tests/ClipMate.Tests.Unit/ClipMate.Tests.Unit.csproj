@@ -13,7 +13,7 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Moq" />
-    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Shouldly" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\..\src\ClipMate.Data\ClipMate.Data.csproj" />
     <ProjectReference Include="..\..\src\ClipMate.Platform\ClipMate.Platform.csproj" />
+    <ProjectReference Include="..\..\src\ClipMate.App\ClipMate.App.csproj" />
   </ItemGroup>
 
 </Project>

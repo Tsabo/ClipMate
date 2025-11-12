@@ -6,7 +6,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
-using FluentAssertions;
+using Shouldly;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -99,13 +99,13 @@ public class ClipboardIntegrationTests : IDisposable
 
         // Assert
         var savedClips = await _clipRepository.GetRecentAsync(10);
-        savedClips.Should().NotBeEmpty();
+        savedClips.ShouldNotBeEmpty();
         
         var savedClip = savedClips.FirstOrDefault(c => c.ContentHash == testClip.ContentHash);
-        savedClip.Should().NotBeNull();
-        savedClip!.TextContent.Should().Be(testClip.TextContent);
-        savedClip.Type.Should().Be(ClipType.Text);
-        savedClip.SourceApplicationName.Should().Be("TestApp.exe");
+        savedClip.ShouldNotBeNull();
+        savedClip!.TextContent.ShouldBe(testClip.TextContent);
+        savedClip.Type.ShouldBe(ClipType.Text);
+        savedClip.SourceApplicationName.ShouldBe("TestApp.exe");
     }
 
     [Fact]
@@ -136,10 +136,10 @@ public class ClipboardIntegrationTests : IDisposable
         var result = await _clipService.CreateAsync(clip2);
 
         // Assert
-        result.Id.Should().Be(clip1.Id, "duplicate detection should return existing clip");
+        result.Id.ShouldBe(clip1.Id, "duplicate detection should return existing clip");
         
         var allClips = await _clipRepository.GetRecentAsync(100);
-        allClips.Count(c => c.ContentHash == "duplicate-hash").Should().Be(1, 
+        allClips.Count(c => c.ContentHash == "duplicate-hash").ShouldBe(1, 
             "only one clip with this hash should exist");
     }
 
@@ -189,7 +189,7 @@ public class ClipboardIntegrationTests : IDisposable
 
         // Assert
         var savedClips = await _clipRepository.GetRecentAsync(10);
-        savedClips.Should().NotContain(c => c.ContentHash == "cancelled-hash",
+        savedClips.ShouldNotContain(c => c.ContentHash == "cancelled-hash",
             "cancelled clips should not be saved");
     }
 
