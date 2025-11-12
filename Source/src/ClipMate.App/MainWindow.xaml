@@ -146,43 +146,62 @@
                         <!-- Search Panel (moved from top of window) -->
                         <views:SearchPanel Grid.Row="0" x:Name="SearchPanel" Margin="0,0,0,5"/>
 
-                        <!-- Clip List - Will be upgraded to DataGrid in next task -->
-                        <ListBox Grid.Row="1" 
-                                x:Name="ClipListBox"
-                                ItemsSource="{Binding Clips}"
-                                BorderThickness="0"
-                                Background="Transparent"
-                                HorizontalContentAlignment="Stretch">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#E0E0E0" 
-                                           BorderThickness="0,0,0,1" 
-                                           Padding="5"
-                                           Margin="0,0,0,2">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock Grid.Column="0"
-                                                      Text="{Binding TextContent}" 
-                                                      FontWeight="Normal"
-                                                      TextTrimming="CharacterEllipsis"
-                                                      MaxHeight="40"
-                                                      TextWrapping="Wrap"/>
-                                            
-                                            <TextBlock Grid.Column="1"
-                                                      Text="{Binding CapturedAt, StringFormat='{}{0:g}'}" 
-                                                      FontSize="10"
-                                                      Foreground="Gray"
-                                                      Margin="10,0,0,0"
-                                                      VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <!-- Clip List - DataGrid with sortable columns (ClipMate 7.5 style) -->
+                        <DataGrid Grid.Row="1" 
+                                 x:Name="ClipDataGrid"
+                                 ItemsSource="{Binding Clips}"
+                                 AutoGenerateColumns="False"
+                                 SelectionMode="Single"
+                                 CanUserAddRows="False"
+                                 CanUserDeleteRows="False"
+                                 GridLinesVisibility="Horizontal"
+                                 HeadersVisibility="Column"
+                                 RowHeight="24"
+                                 BorderThickness="0"
+                                 Background="White"
+                                 AlternatingRowBackground="#F9F9F9"
+                                 SelectionChanged="ClipDataGrid_SelectionChanged">
+                            <DataGrid.Columns>
+                                <!-- Title Column (Clip Content Preview) -->
+                                <DataGridTextColumn Header="Title" 
+                                                   Binding="{Binding TextContent}" 
+                                                   Width="*" 
+                                                   CanUserSort="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="ToolTip" Value="{Binding TextContent}"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                
+                                <!-- SortKey Column -->
+                                <DataGridTextColumn Header="SortKey" 
+                                                   Binding="{Binding Id}" 
+                                                   Width="80" 
+                                                   CanUserSort="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#666666"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                
+                                <!-- Date/Time Column -->
+                                <DataGridTextColumn Header="Date/Time" 
+                                                   Binding="{Binding CapturedAt, StringFormat='{}{0:M/d/yyyy h:mm tt}'}" 
+                                                   Width="140" 
+                                                   CanUserSort="True"
+                                                   SortDirection="Descending">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#666666"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
                     </Grid>
                 </Border>
 

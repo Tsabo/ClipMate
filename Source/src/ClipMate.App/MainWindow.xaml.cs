@@ -55,9 +55,6 @@ public partial class MainWindow : Window
         // Load initial data
         Loaded += MainWindow_Loaded;
         
-        // Wire up selection changed event
-        ClipListBox.SelectionChanged += ClipListBox_SelectionChanged;
-        
         // Wire up search results to clip list
         _searchViewModel.PropertyChanged += SearchViewModel_PropertyChanged;
         
@@ -253,8 +250,8 @@ public partial class MainWindow : Window
             _logger?.LogError(ex, "Failed to load collections and folders");
         }
         
-        // Set the DataContext for ClipListBox to enable binding
-        ClipListBox.DataContext = _clipListViewModel;
+        // Set the DataContext for ClipDataGrid to enable binding
+        ClipDataGrid.DataContext = _clipListViewModel;
         
         // Load clips when window is loaded
         await _clipListViewModel.LoadClipsAsync(50);
@@ -313,9 +310,8 @@ public partial class MainWindow : Window
         if (FindName("StatusBarRight") is System.Windows.Controls.TextBlock statusText)
         {
             var count = _clipListViewModel.Clips.Count;
-            var selectedClip = ClipListBox.SelectedItem as Clip;
             
-            if (selectedClip != null)
+            if (ClipDataGrid.SelectedItem is Clip selectedClip)
             {
                 var bytes = selectedClip.TextContent?.Length ?? 0;
                 var chars = selectedClip.TextContent?.Length ?? 0;
@@ -330,18 +326,20 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClipListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ClipDataGrid_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         // Update preview when selection changes
-        if (ClipListBox.SelectedItem is Clip selectedClip)
+        if (ClipDataGrid.SelectedItem is Clip selectedClip)
         {
             _previewPaneViewModel.SetClip(selectedClip);
             UpdatePreviewPane(selectedClip);
+            UpdateClipCount(); // Update status bar with selected clip info
         }
         else
         {
             _previewPaneViewModel.SetClip(null);
             PreviewTextBlock.Text = "Select a clip to preview...";
+            UpdateClipCount();
         }
     }
 
@@ -353,19 +351,19 @@ public partial class MainWindow : Window
             if (_searchViewModel.SearchResults.Count > 0)
             {
                 // Display search results in the clip list
-                ClipListBox.ItemsSource = _searchViewModel.SearchResults;
+                ClipDataGrid.ItemsSource = _searchViewModel.SearchResults;
                 UpdateSearchClipCount();
             }
             else if (!string.IsNullOrEmpty(_searchViewModel.SearchText))
             {
                 // Search was performed but no results found
-                ClipListBox.ItemsSource = _searchViewModel.SearchResults;
+                ClipDataGrid.ItemsSource = _searchViewModel.SearchResults;
                 UpdateSearchClipCount();
             }
             else
             {
                 // Search was cleared, restore original clip list
-                ClipListBox.ItemsSource = _clipListViewModel.Clips;
+                ClipDataGrid.ItemsSource = _clipListViewModel.Clips;
                 UpdateClipCount();
             }
         }
@@ -413,7 +411,7 @@ public partial class MainWindow : Window
 
     private void CopyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ClipListBox.SelectedItem is Clip selectedClip && !string.IsNullOrEmpty(selectedClip.TextContent))
+        if (ClipDataGrid.SelectedItem is Clip selectedClip && !string.IsNullOrEmpty(selectedClip.TextContent))
         {
             try
             {
@@ -439,7 +437,7 @@ public partial class MainWindow : Window
         }
 
         // Update preview based on selected tab
-        if (ClipListBox.SelectedItem is Clip selectedClip)
+        if (ClipDataGrid.SelectedItem is Clip selectedClip)
         {
             switch (tabType)
             {
@@ -458,7 +456,7 @@ public partial class MainWindow : Window
 
     private void DeleteButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ClipListBox.SelectedItem is Clip selectedClip)
+        if (ClipDataGrid.SelectedItem is Clip selectedClip)
         {
             var result = MessageBox.Show(
                 "Are you sure you want to delete this clip?",
