@@ -5,12 +5,12 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "g:\\_brownie\\ClipMate"
+        "f:\\_brownie\\ClipMate"
       ]
     },
     "git": {
       "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "g:\\_brownie\\ClipMate"]
+      "args": ["mcp-server-git", "--repository", "f:\\_brownie\\ClipMate"]
     },
     "memory": {
       "command": "npx",

@@ -10,7 +10,6 @@ using Shouldly;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ClipMate.Tests.Integration.Services;
 

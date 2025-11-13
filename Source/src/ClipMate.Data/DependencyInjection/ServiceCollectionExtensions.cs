@@ -39,7 +39,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISoundEventRepository, SoundEventRepository>();
 
         // Register services
+        // Note: IClipboardService implementation is in Platform layer
         services.AddScoped<IClipService, ClipService>();
+        services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
         services.AddSingleton<ICollectionService, CollectionService>();
         services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching

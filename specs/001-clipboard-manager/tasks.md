@@ -138,10 +138,10 @@ ClipMate uses a multi-project structure under `Source/`:
 
 ### Testing Infrastructure
 
-- [ ] T068 [P] Create TestFixtureBase class with common setup in Source/tests/ClipMate.Tests.Unit/TestFixtureBase.cs
-- [ ] T069 [P] Create MockRepositoryFactory for test data in Source/tests/ClipMate.Tests.Unit/Mocks/MockRepositoryFactory.cs
-- [ ] T070 [P] Create TestDataBuilder for entity creation in Source/tests/ClipMate.Tests.Unit/Builders/TestDataBuilder.cs
-- [ ] T071 [P] Create IntegrationTestBase with real database in Source/tests/ClipMate.Tests.Integration/IntegrationTestBase.cs
+- [x] T068 [P] Create TestFixtureBase class with common setup in Source/tests/ClipMate.Tests.Unit/TestFixtureBase.cs
+- [x] T069 [P] Create MockRepositoryFactory for test data in Source/tests/ClipMate.Tests.Unit/Mocks/MockRepositoryFactory.cs
+- [x] T070 [P] Create TestDataBuilder for entity creation in Source/tests/ClipMate.Tests.Unit/Builders/TestDataBuilder.cs
+- [x] T071 [P] Create IntegrationTestBase with real database in Source/tests/ClipMate.Tests.Integration/IntegrationTestBase.cs
 
 ### Error Handling & Logging
 
@@ -167,14 +167,14 @@ ClipMate uses a multi-project structure under `Source/`:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T077 [P] [US1] Unit test for ClipboardService.StartMonitoringAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T078 [P] [US1] Unit test for ClipboardService text capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T079 [P] [US1] Unit test for ClipboardService image capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T080 [P] [US1] Unit test for ClipboardService duplicate detection via ContentHash in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
-- [ ] T081 [P] [US1] Unit test for ClipService.GetRecentAsync with timestamp ordering in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
-- [ ] T082 [P] [US1] Integration test for clipboard monitoring lifecycle in Source/tests/ClipMate.Tests.Integration/ClipboardMonitoringTests.cs
-- [ ] T083 [P] [US1] Integration test for clip persistence after app restart in Source/tests/ClipMate.Tests.Integration/ClipPersistenceTests.cs
-- [ ] T084 [P] [US1] Integration test for application filter exclusion in Source/tests/ClipMate.Tests.Integration/ApplicationFilterTests.cs
+- [x] T077 [P] [US1] Unit test for ClipboardService.StartMonitoringAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [x] T078 [P] [US1] Unit test for ClipboardService text capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [x] T079 [P] [US1] Unit test for ClipboardService image capture in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [x] T080 [P] [US1] Unit test for ClipboardService duplicate detection via ContentHash in Source/tests/ClipMate.Tests.Unit/Services/ClipboardServiceTests.cs
+- [x] T081 [P] [US1] Unit test for ClipService.GetRecentAsync with timestamp ordering in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
+- [x] T082 [P] [US1] Integration test for clipboard monitoring lifecycle in Source/tests/ClipMate.Tests.Integration/Services/ClipboardMonitoringTests.cs
+- [x] T083 [P] [US1] Integration test for clip persistence after app restart in Source/tests/ClipMate.Tests.Integration/Services/ClipPersistenceTests.cs
+- [x] T084 [P] [US1] Integration test for application filter exclusion in Source/tests/ClipMate.Tests.Integration/Services/ApplicationFilterTests.cs
 
 ### Implementation for User Story 1
 

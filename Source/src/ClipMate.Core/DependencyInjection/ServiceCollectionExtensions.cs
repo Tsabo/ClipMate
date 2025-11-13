@@ -22,18 +22,8 @@ public static class ServiceCollectionExtensions
         // Register text transform service as singleton
         services.AddSingleton<TextTransformService>();
 
-        // Service interfaces will be registered here as they are implemented
-        // Example:
-        // services.AddSingleton<IClipboardService, ClipboardService>();
-        // services.AddSingleton<IClipService, ClipService>();
-        // services.AddSingleton<ICollectionService, CollectionService>();
-        // services.AddSingleton<IFolderService, FolderService>();
-        // services.AddSingleton<ISearchService, SearchService>();
-        // services.AddSingleton<ITemplateService, TemplateService>();
-        // services.AddSingleton<IHotkeyService, HotkeyService>();
-        // services.AddSingleton<ISoundService, SoundService>();
-        // services.AddSingleton<ISettingsService, SettingsService>();
-        // services.AddSingleton<IApplicationFilterService, ApplicationFilterService>();
+        // Note: Service implementations are registered in ClipMate.Data
+        // via AddClipMateData() extension method
 
         return services;
     }
