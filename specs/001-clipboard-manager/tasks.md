@@ -178,24 +178,24 @@ ClipMate uses a multi-project structure under `Source/`:
 
 ### Implementation for User Story 1
 
-- [ ] T085 [US1] Implement ClipboardService with Win32 RegisterClipboardFormatListener in Source/src/ClipMate.Core/Services/ClipboardService.cs (depends on T057, T045)
-- [ ] T086 [US1] Add clipboard format detection and prioritization logic to ClipboardService
-- [ ] T087 [US1] Add text capture with multiple format support (plain, RTF, HTML) to ClipboardService
-- [ ] T088 [US1] Add image capture with bitmap handling to ClipboardService
-- [ ] T089 [US1] Add file list capture from Windows Explorer to ClipboardService
-- [ ] T090 [US1] Add ContentHash calculation using SHA256 for duplicate detection to ClipboardService
-- [ ] T091 [US1] Add thread-safe clipboard data extraction with retry logic to ClipboardService
-- [ ] T092 [US1] Add ClipCaptured event with ClipCapturedEventArgs to ClipboardService
-- [ ] T093 [US1] Implement ClipService with clip CRUD operations in Source/src/ClipMate.Core/Services/ClipService.cs (depends on T049, T028)
-- [ ] T094 [US1] Add GetRecentAsync method with timestamp DESC ordering to ClipService
-- [ ] T095 [US1] Add duplicate detection check before saving in ClipService
-- [ ] T096 [US1] Implement ApplicationFilterService with exclusion rules in Source/src/ClipMate.Core/Services/ApplicationFilterService.cs (depends on T054, T033)
-- [ ] T097 [US1] Add filter matching logic (ProcessName, WindowTitle) to ApplicationFilterService
-- [ ] T098 [US1] Wire ClipboardService.ClipCaptured event to ClipService.CreateAsync in App.xaml.cs
-- [ ] T099 [US1] Add application filter check before saving clip in ClipboardService event handler
-- [ ] T100 [US1] Add error handling and logging for clipboard capture failures
-- [ ] T101 [US1] Add background thread processing to avoid UI blocking in ClipboardService
-- [ ] T102 [US1] Add debouncing (50ms window) for rapid clipboard changes in ClipboardService
+- [x] T085 [US1] Implement ClipboardService with Win32 RegisterClipboardFormatListener in Source/src/ClipMate.Platform/Services/ClipboardService.cs (depends on T057, T045)
+- [x] T086 [US1] Add clipboard format detection and prioritization logic to ClipboardService
+- [x] T087 [US1] Add text capture with multiple format support (plain, RTF, HTML) to ClipboardService
+- [x] T088 [US1] Add image capture with bitmap handling to ClipboardService
+- [x] T089 [US1] Add file list capture from Windows Explorer to ClipboardService
+- [x] T090 [US1] Add ContentHash calculation using SHA256 for duplicate detection to ClipboardService
+- [x] T091 [US1] Add thread-safe clipboard data extraction with retry logic to ClipboardService
+- [x] T092 [US1] Add ClipCaptured event with ClipCapturedEventArgs to ClipboardService
+- [x] T093 [US1] Implement ClipService with clip CRUD operations in Source/src/ClipMate.Data/Services/ClipService.cs (depends on T049, T028)
+- [x] T094 [US1] Add GetRecentAsync method with timestamp DESC ordering to ClipService
+- [x] T095 [US1] Add duplicate detection check before saving in ClipService
+- [x] T096 [US1] Implement ApplicationFilterService with exclusion rules in Source/src/ClipMate.Data/Services/ApplicationFilterService.cs (depends on T054, T033)
+- [x] T097 [US1] Add filter matching logic (ProcessName, WindowTitle) to ApplicationFilterService
+- [x] T098 [US1] Wire ClipboardService.ClipCaptured event to ClipService.CreateAsync via ClipboardCoordinator in Source/src/ClipMate.Data/Services/ClipboardCoordinator.cs
+- [x] T099 [US1] Add application filter check before saving clip in ClipboardService event handler
+- [x] T100 [US1] Add error handling and logging for clipboard capture failures
+- [x] T101 [US1] Add background thread processing to avoid UI blocking in ClipboardService
+- [x] T102 [US1] Add debouncing (50ms window) for rapid clipboard changes in ClipboardService
 - [ ] T103 [US1] Run all US1 unit tests and verify 90%+ coverage for ClipboardService and ClipService
 - [ ] T104 [US1] Run all US1 integration tests and verify clipboard monitoring works end-to-end
 
