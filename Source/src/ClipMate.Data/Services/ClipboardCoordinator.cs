@@ -12,6 +12,7 @@ public class ClipboardCoordinator : IDisposable
 {
     private readonly IClipboardService _clipboardService;
     private readonly IClipService _clipService;
+    private readonly ICollectionService _collectionService;
     private readonly IApplicationFilterService _filterService;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private bool _disposed;
@@ -19,11 +20,13 @@ public class ClipboardCoordinator : IDisposable
     public ClipboardCoordinator(
         IClipboardService clipboardService,
         IClipService clipService,
+        ICollectionService collectionService,
         IApplicationFilterService filterService,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -78,6 +81,19 @@ public class ClipboardCoordinator : IDisposable
                 e.Clip.Type,
                 e.Clip.ContentHash,
                 e.Clip.TextContent?.Length ?? 0);
+
+            // Assign clip to the active collection
+            try
+            {
+                var activeCollection = await _collectionService.GetActiveAsync();
+                e.Clip.CollectionId = activeCollection.Id;
+                _logger.LogDebug("Assigning clip to active collection: {CollectionId}", activeCollection.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get active collection, clip will not be assigned to a collection");
+                // Continue saving the clip even if we can't get active collection
+            }
 
             // ClipService handles duplicate detection via content hash
             var savedClip = await _clipService.CreateAsync(e.Clip);

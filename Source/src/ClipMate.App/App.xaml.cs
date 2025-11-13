@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ClipMate.Core.DependencyInjection;
 using ClipMate.Core.Exceptions;
+using ClipMate.Core.Services;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
@@ -81,6 +82,19 @@ public partial class App : Application
             var dbInitService = _serviceProvider.GetRequiredService<DatabaseInitializationService>();
             dbInitService.InitializeAsync().Wait(); // Synchronous wait during startup
             _logger?.LogInformation("Database default data initialization complete");
+            
+            // Set the first collection as active (or create default if none exist)
+            var collectionService = _serviceProvider.GetRequiredService<ICollectionService>();
+            var collections = collectionService.GetAllAsync().Result;
+            if (collections.Count > 0)
+            {
+                collectionService.SetActiveAsync(collections[0].Id).Wait();
+                _logger?.LogInformation("Active collection set to: {CollectionName}", collections[0].Name);
+            }
+            else
+            {
+                _logger?.LogWarning("No collections found to set as active");
+            }
         }
         catch (Exception ex)
         {
