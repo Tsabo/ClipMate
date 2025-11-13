@@ -67,7 +67,10 @@ public class SystemTrayService : IDisposable
             Visible = true
         };
 
-        // Set the icon - TODO: Replace with actual ClipMate icon resource
+        // Set the icon
+        // TODO: Replace with actual ClipMate icon from embedded resource
+        // See: Source/src/ClipMate.App/Resources/README.md for icon requirements
+        // Current: Using Windows default application icon as placeholder
         _notifyIcon.Icon = SystemIcons.Application;
 
         // Wire up events
