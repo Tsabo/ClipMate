@@ -6,21 +6,25 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Coordinates clipboard monitoring and clip persistence.
 /// Wires ClipboardService events to ClipService for automatic saving.
+/// Includes application filtering to exclude clips from specific applications.
 /// </summary>
 public class ClipboardCoordinator : IDisposable
 {
     private readonly IClipboardService _clipboardService;
     private readonly IClipService _clipService;
+    private readonly IApplicationFilterService _filterService;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private bool _disposed;
 
     public ClipboardCoordinator(
         IClipboardService clipboardService,
         IClipService clipService,
+        IApplicationFilterService filterService,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Subscribe to clipboard capture events
@@ -55,6 +59,20 @@ public class ClipboardCoordinator : IDisposable
 
         try
         {
+            // Check if clip should be filtered based on source application
+            var shouldFilter = await _filterService.ShouldFilterAsync(
+                e.Clip.SourceApplicationName,
+                e.Clip.SourceApplicationTitle);
+
+            if (shouldFilter)
+            {
+                _logger.LogDebug(
+                    "Clip filtered out: Process={ProcessName}, Title={WindowTitle}",
+                    e.Clip.SourceApplicationName,
+                    e.Clip.SourceApplicationTitle);
+                return;
+            }
+
             _logger.LogDebug(
                 "Saving clip: Type={ClipType}, Hash={ContentHash}, Length={Length}",
                 e.Clip.Type,
