@@ -46,6 +46,11 @@ public class Folder
     public bool IsSystemFolder { get; set; }
 
     /// <summary>
+    /// The type of folder, which defines its special behavior and rules.
+    /// </summary>
+    public FolderType FolderType { get; set; } = FolderType.Normal;
+
+    /// <summary>
     /// Icon identifier for displaying in the tree view (optional).
     /// </summary>
     public string? IconName { get; set; }

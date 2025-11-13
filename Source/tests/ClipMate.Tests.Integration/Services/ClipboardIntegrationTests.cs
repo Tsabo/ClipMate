@@ -54,8 +54,11 @@ public class ClipboardIntegrationTests : IDisposable
         var collectionRepository = new CollectionRepository(_dbContext);
         var collectionService = new CollectionService(collectionRepository);
         
+        var folderRepository = new FolderRepository(_dbContext);
+        var folderService = new FolderService(folderRepository);
+        
         _clipboardService = new ClipboardService(clipboardLogger);
-        _coordinator = new ClipboardCoordinator(_clipboardService, _clipService, collectionService, _filterService, coordinatorLogger);
+        _coordinator = new ClipboardCoordinator(_clipboardService, _clipService, collectionService, folderService, _filterService, coordinatorLogger);
     }
 
     [StaFact]

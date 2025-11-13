@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly SearchViewModel _searchViewModel;
     private readonly ClipboardCoordinator _clipboardCoordinator;
     private readonly SystemTrayService _systemTrayService;
+    private readonly IFolderService _folderService;
     private readonly ILogger<MainWindow>? _logger;
     private readonly IServiceProvider _serviceProvider;
     private bool _isExiting = false;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
         CollectionTreeViewModel collectionTreeViewModel,
         SearchViewModel searchViewModel,
         IClipService clipService,
+        IFolderService folderService,
         ClipboardCoordinator clipboardCoordinator,
         SystemTrayService systemTrayService,
         IServiceProvider serviceProvider,
@@ -38,6 +40,7 @@ public partial class MainWindow : Window
         
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipboardCoordinator = clipboardCoordinator ?? throw new ArgumentNullException(nameof(clipboardCoordinator));
         _systemTrayService = systemTrayService ?? throw new ArgumentNullException(nameof(systemTrayService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -85,6 +88,9 @@ public partial class MainWindow : Window
         {
             _logger?.LogInformation("Collection tree selection changed: Collection={CollectionId}, Folder={FolderId}", 
                 e.CollectionId, e.FolderId);
+
+            // Set the active folder for new clipboard captures
+            await _folderService.SetActiveAsync(e.FolderId);
 
             if (e.FolderId.HasValue)
             {
@@ -307,6 +313,33 @@ public partial class MainWindow : Window
             // Load collections and folders
             _logger?.LogInformation("Loading collections and folders");
             await _collectionTreeViewModel.LoadAsync();
+            
+            // Expand the first collection and select Inbox folder
+            if (_collectionTreeViewModel.Collections.Count > 0)
+            {
+                var firstCollection = _collectionTreeViewModel.Collections[0];
+                firstCollection.IsExpanded = true;
+                
+                // Find and select the Inbox folder
+                var inboxFolder = firstCollection.Folders.FirstOrDefault(f => f.Name == "Inbox");
+                if (inboxFolder != null)
+                {
+                    inboxFolder.IsSelected = true;
+                    _collectionTreeViewModel.SelectedNode = inboxFolder;
+                    
+                    // Set Inbox as the active folder for new clips
+                    await _folderService.SetActiveAsync(inboxFolder.Folder.Id);
+                    
+                    _logger?.LogInformation("Inbox folder selected and set as active for new clips");
+                }
+                else
+                {
+                    // If no Inbox, select the collection itself
+                    firstCollection.IsSelected = true;
+                    _collectionTreeViewModel.SelectedNode = firstCollection;
+                    _logger?.LogInformation("First collection selected by default");
+                }
+            }
         }
         catch (Exception ex)
         {

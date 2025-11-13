@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +14,7 @@ public class ClipboardCoordinator : IDisposable
     private readonly IClipboardService _clipboardService;
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
+    private readonly IFolderService _folderService;
     private readonly IApplicationFilterService _filterService;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private bool _disposed;
@@ -21,12 +23,14 @@ public class ClipboardCoordinator : IDisposable
         IClipboardService clipboardService,
         IClipService clipService,
         ICollectionService collectionService,
+        IFolderService folderService,
         IApplicationFilterService filterService,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -82,17 +86,51 @@ public class ClipboardCoordinator : IDisposable
                 e.Clip.ContentHash,
                 e.Clip.TextContent?.Length ?? 0);
 
-            // Assign clip to the active collection
+            // Assign clip to the active collection and folder
             try
             {
                 var activeCollection = await _collectionService.GetActiveAsync();
                 e.Clip.CollectionId = activeCollection.Id;
-                _logger.LogDebug("Assigning clip to active collection: {CollectionId}", activeCollection.Id);
+                
+                // Get the active folder (or default to Inbox folder)
+                var activeFolder = await _folderService.GetActiveAsync();
+                if (activeFolder != null)
+                {
+                    // Check if folder accepts clipboard captures
+                    if (activeFolder.FolderType == FolderType.SearchResults)
+                    {
+                        _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
+                        activeFolder = null; // Fall through to Inbox
+                    }
+                }
+                
+                if (activeFolder != null)
+                {
+                    e.Clip.FolderId = activeFolder.Id;
+                    _logger.LogDebug("Assigning clip to folder: CollectionId={CollectionId}, FolderId={FolderId}, FolderName={FolderName}, FolderType={FolderType}",
+                        activeCollection.Id, activeFolder.Id, activeFolder.Name, activeFolder.FolderType);
+                }
+                else
+                {
+                    // Fallback: Find the Inbox folder in the active collection
+                    var rootFolders = await _folderService.GetRootFoldersAsync(activeCollection.Id);
+                    var inboxFolder = rootFolders.FirstOrDefault(f => f.FolderType == FolderType.Inbox);
+                    if (inboxFolder != null)
+                    {
+                        e.Clip.FolderId = inboxFolder.Id;
+                        _logger.LogDebug("No active folder, using Inbox: CollectionId={CollectionId}, FolderId={FolderId}",
+                            activeCollection.Id, inboxFolder.Id);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No active folder and no Inbox folder found, clip will not be assigned to a folder");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to get active collection, clip will not be assigned to a collection");
-                // Continue saving the clip even if we can't get active collection
+                _logger.LogWarning(ex, "Failed to assign clip to collection/folder, clip will be saved without assignment");
+                // Continue saving the clip even if we can't get active collection/folder
             }
 
             // ClipService handles duplicate detection via content hash

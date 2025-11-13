@@ -10,6 +10,7 @@ namespace ClipMate.Data.Services;
 public class FolderService : IFolderService
 {
     private readonly IFolderRepository _repository;
+    private Guid? _activeFolderId;
 
     public FolderService(IFolderRepository repository)
     {
@@ -71,5 +72,21 @@ public class FolderService : IFolderService
         {
             throw new InvalidOperationException($"Failed to delete folder {id}.");
         }
+    }
+
+    public Task<Folder?> GetActiveAsync(CancellationToken cancellationToken = default)
+    {
+        if (_activeFolderId == null)
+        {
+            return Task.FromResult<Folder?>(null);
+        }
+
+        return _repository.GetByIdAsync(_activeFolderId.Value, cancellationToken);
+    }
+
+    public Task SetActiveAsync(Guid? folderId, CancellationToken cancellationToken = default)
+    {
+        _activeFolderId = folderId;
+        return Task.CompletedTask;
     }
 }

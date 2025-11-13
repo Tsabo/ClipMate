@@ -62,4 +62,18 @@ public interface IFolderService
     /// <param name="id">The folder ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the currently active folder (where new clips will be saved).
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The active folder if set; otherwise, null.</returns>
+    Task<Folder?> GetActiveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the active folder (where new clips will be saved).
+    /// </summary>
+    /// <param name="folderId">The folder ID to set as active, or null to clear.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SetActiveAsync(Guid? folderId, CancellationToken cancellationToken = default);
 }

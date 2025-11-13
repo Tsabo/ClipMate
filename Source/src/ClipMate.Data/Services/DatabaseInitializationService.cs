@@ -40,8 +40,8 @@ public class DatabaseInitializationService
             {
                 _logger?.LogInformation("No collections found, creating default collection");
                 
-                // Create default "My Clips" collection
-                var defaultCollection = await _collectionService.CreateAsync("My Clips", null, cancellationToken);
+                // Create default "Default" collection
+                var defaultCollection = await _collectionService.CreateAsync("Default", "Default clipboard collection", cancellationToken);
                 
                 // Create default folders in the collection
                 await CreateDefaultFoldersAsync(defaultCollection.Id, cancellationToken);
@@ -80,13 +80,13 @@ public class DatabaseInitializationService
     {
         var defaultFolders = new[]
         {
-            new { Name = "InBox", SortOrder = 1, Icon = "📥" },
-            new { Name = "Safe", SortOrder = 2, Icon = "🔒" },
-            new { Name = "Overflow", SortOrder = 3, Icon = "📦" },
-            new { Name = "Samples", SortOrder = 4, Icon = "📄" },
-            new { Name = "Virtual", SortOrder = 5, Icon = "🔗" },
-            new { Name = "Trash Can", SortOrder = 6, Icon = "🗑️" },
-            new { Name = "Search Results", SortOrder = 7, Icon = "🔍" }
+            new { Name = "Inbox", SortOrder = 1, Icon = "📥", Type = FolderType.Inbox },
+            new { Name = "Safe", SortOrder = 2, Icon = "🔒", Type = FolderType.Safe },
+            new { Name = "Overflow", SortOrder = 3, Icon = "📦", Type = FolderType.Overflow },
+            new { Name = "Samples", SortOrder = 4, Icon = "📄", Type = FolderType.Samples },
+            new { Name = "Virtual", SortOrder = 5, Icon = "🔗", Type = FolderType.Virtual },
+            new { Name = "Trash Can", SortOrder = 6, Icon = "🗑️", Type = FolderType.TrashCan },
+            new { Name = "Search Results", SortOrder = 7, Icon = "🔍", Type = FolderType.SearchResults }
         };
 
         foreach (var folderDef in defaultFolders)
@@ -99,6 +99,7 @@ public class DatabaseInitializationService
                 ParentFolderId = null, // Root level
                 SortOrder = folderDef.SortOrder,
                 IsSystemFolder = true, // Mark as system folder (cannot be deleted)
+                FolderType = folderDef.Type, // Set the folder type for special behavior
                 IconName = folderDef.Icon,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow
@@ -106,8 +107,8 @@ public class DatabaseInitializationService
 
             await _folderRepository.CreateAsync(folder, cancellationToken);
             
-            _logger?.LogDebug("Created default folder: {FolderName} in collection {CollectionId}", 
-                folder.Name, collectionId);
+            _logger?.LogDebug("Created default folder: {FolderName} (Type: {FolderType}) in collection {CollectionId}", 
+                folder.Name, folderDef.Type, collectionId);
         }
     }
 }
