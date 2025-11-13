@@ -2,7 +2,8 @@
 
 **Date**: 2025-11-12  
 **Branch**: 001-clipboard-manager  
-**Feature**: Phase 4 - System Tray Integration (T139-T147)
+**Feature**: Phase 4 - System Tray Integration (T139-T147)  
+**Status**: ✅ Exit bugs fixed (File→Exit + tray Exit notification)
 
 ## Running the Application
 
@@ -83,11 +84,21 @@ dotnet run -- --show
 - Right-click tray icon
 - Click "Exit"
 - Expected:
-  - Application exits completely
+  - Application **exits completely** (no balloon notification)
   - Tray icon disappears
   - All resources cleaned up
 
-### 6. Clipboard Monitoring (Background) ✅
+### 6. File → Exit Menu ✅
+
+**Test menu exit**:
+- Show main window (double-click tray icon)
+- Click **File → Exit** in menu bar
+- Expected:
+  - Application **exits completely** (no balloon notification)
+  - Tray icon disappears
+  - Window closes without minimize-to-tray behavior
+
+### 7. Clipboard Monitoring (Background) ✅
 
 **Test clipboard capture while minimized**:
 - Ensure app is running (tray icon visible)
@@ -104,9 +115,18 @@ dotnet run -- --show
 1. **NU1510**: System.Drawing.Common package warning
    - Safe to ignore - package is needed for image clipboard support
 
-2. **CS0067**: `HideWindowRequested` event never used
-   - This event is reserved for future use
-   - Can be safely ignored for now
+### ~~Fixed Issues~~ ✅
+
+1. ~~**File → Exit not working**~~ - **FIXED**
+   - Added click handler to Exit menu item
+   - Now properly closes application
+
+2. ~~**Tray Exit showing "still running" balloon**~~ - **FIXED**
+   - Added `_isExiting` flag to prevent balloon on intentional exit
+   - Balloon only shows when minimizing via X button
+   - Clean exit with File→Exit, Tray→Exit, or Shift+Close
+
+See `BUGFIX-EXIT-BEHAVIOR.md` for details.
 
 ### Icon Placeholder
 
