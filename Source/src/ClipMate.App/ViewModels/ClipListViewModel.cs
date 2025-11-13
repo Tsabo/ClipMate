@@ -28,6 +28,12 @@ public partial class ClipListViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading = false;
 
+    [ObservableProperty]
+    private Guid? _currentCollectionId;
+
+    [ObservableProperty]
+    private Guid? _currentFolderId;
+
     public ClipListViewModel(IClipService clipService)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
@@ -63,11 +69,87 @@ public partial class ClipListViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Loads clips for a specific collection.
+    /// </summary>
+    /// <param name="collectionId">The collection ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task LoadClipsByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            CurrentCollectionId = collectionId;
+            CurrentFolderId = null;
+
+            var clips = await _clipService.GetByCollectionAsync(collectionId, cancellationToken);
+            
+            // Clear and repopulate
+            Clips.Clear();
+            foreach (var clip in clips)
+            {
+                Clips.Add(clip);
+            }
+        }
+        catch
+        {
+            Clips.Clear();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads clips for a specific folder.
+    /// </summary>
+    /// <param name="collectionId">The collection ID (for tracking).</param>
+    /// <param name="folderId">The folder ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task LoadClipsByFolderAsync(Guid collectionId, Guid folderId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            CurrentCollectionId = collectionId;
+            CurrentFolderId = folderId;
+
+            var clips = await _clipService.GetByFolderAsync(folderId, cancellationToken);
+            
+            // Clear and repopulate
+            Clips.Clear();
+            foreach (var clip in clips)
+            {
+                Clips.Add(clip);
+            }
+        }
+        catch
+        {
+            Clips.Clear();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
     /// Refreshes the clip list by reloading from the service.
     /// </summary>
     public async Task RefreshAsync()
     {
-        await LoadClipsAsync();
+        if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
+        {
+            await LoadClipsByFolderAsync(CurrentCollectionId.Value, CurrentFolderId.Value);
+        }
+        else if (CurrentCollectionId.HasValue)
+        {
+            await LoadClipsByCollectionAsync(CurrentCollectionId.Value);
+        }
+        else
+        {
+            await LoadClipsAsync();
+        }
     }
 
     /// <summary>

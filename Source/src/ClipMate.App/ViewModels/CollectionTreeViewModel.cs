@@ -18,6 +18,12 @@ public partial class CollectionTreeViewModel : ObservableObject
     private object? _selectedNode;
 
     /// <summary>
+    /// Raised when the selected node changes. Args: (collectionId, folderId)
+    /// If only collection is selected, folderId is null.
+    /// </summary>
+    public event EventHandler<(Guid CollectionId, Guid? FolderId)>? SelectedNodeChanged;
+
+    /// <summary>
     /// Collection of all collections with their folder hierarchies.
     /// </summary>
     public ObservableCollection<CollectionTreeNode> Collections { get; } = new();
@@ -26,6 +32,19 @@ public partial class CollectionTreeViewModel : ObservableObject
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+    }
+
+    partial void OnSelectedNodeChanged(object? value)
+    {
+        // Raise event with collection/folder IDs
+        if (value is CollectionTreeNode collectionNode)
+        {
+            SelectedNodeChanged?.Invoke(this, (collectionNode.Collection.Id, null));
+        }
+        else if (value is FolderTreeNode folderNode)
+        {
+            SelectedNodeChanged?.Invoke(this, (folderNode.Folder.CollectionId, folderNode.Folder.Id));
+        }
     }
 
     /// <summary>

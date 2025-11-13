@@ -66,8 +66,55 @@ public partial class MainWindow : Window
         // Wire up search results to clip list
         _searchViewModel.PropertyChanged += SearchViewModel_PropertyChanged;
         
+        // Wire collection tree selection to clip list
+        _collectionTreeViewModel.SelectedNodeChanged += CollectionTreeViewModel_SelectedNodeChanged;
+        
+        // Wire clip list selection to preview pane
+        _clipListViewModel.PropertyChanged += ClipListViewModel_PropertyChanged;
+        
         // Add keyboard shortcut for Text Tools (Ctrl+T)
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+    }
+
+    /// <summary>
+    /// Handles collection tree selection changes to load clips
+    /// </summary>
+    private async void CollectionTreeViewModel_SelectedNodeChanged(object? sender, (Guid CollectionId, Guid? FolderId) e)
+    {
+        try
+        {
+            _logger?.LogInformation("Collection tree selection changed: Collection={CollectionId}, Folder={FolderId}", 
+                e.CollectionId, e.FolderId);
+
+            if (e.FolderId.HasValue)
+            {
+                // Load clips for the selected folder
+                await _clipListViewModel.LoadClipsByFolderAsync(e.CollectionId, e.FolderId.Value);
+            }
+            else
+            {
+                // Load clips for the selected collection
+                await _clipListViewModel.LoadClipsByCollectionAsync(e.CollectionId);
+            }
+
+            UpdateClipCount();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load clips for selected node");
+        }
+    }
+
+    /// <summary>
+    /// Handles clip list selection changes to update preview pane
+    /// </summary>
+    private void ClipListViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ClipListViewModel.SelectedClip))
+        {
+            _logger?.LogDebug("Clip selection changed");
+            _previewPaneViewModel.SetClip(_clipListViewModel.SelectedClip);
+        }
     }
 
     /// <summary>
@@ -388,16 +435,17 @@ public partial class MainWindow : Window
 
     private void ClipDataGrid_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        // Update the ViewModel's SelectedClip property (this will trigger the PropertyChanged event)
+        _clipListViewModel.SelectedClip = ClipDataGrid.SelectedItem as Clip;
+        
         // Update preview when selection changes
         if (ClipDataGrid.SelectedItem is Clip selectedClip)
         {
-            _previewPaneViewModel.SetClip(selectedClip);
             UpdatePreviewPane(selectedClip);
             UpdateClipCount(); // Update status bar with selected clip info
         }
         else
         {
-            _previewPaneViewModel.SetClip(null);
             PreviewTextBlock.Text = "Select a clip to preview...";
             UpdateClipCount();
         }
