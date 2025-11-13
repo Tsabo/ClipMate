@@ -203,58 +203,114 @@ ClipMate uses a multi-project structure under `Source/`:
 
 ---
 
-## Phase 4: User Story 2 - Three-Pane Interface Organization (Priority: P1)
+## Phase 4: User Story 2 - ClipMate Explorer Interface (Priority: P1)
 
-**Goal**: Visual interface with tree navigation, list views, and content preview for efficient browsing.
+**Goal**: Full-featured ClipMate Explorer with tree navigation, clip list, preview pane, and system tray integration.
 
-**Independent Test**: Open app, navigate collections/folders in tree, select items in list, view content in preview pane.
+**Independent Test**: Launch app to tray, open from tray, navigate collections/folders, view clips in multiple formats, minimize to tray.
+
+**Note**: Phase 4 focuses on ClipMate Explorer mode. ClipMate Classic (compact/rollable) mode deferred to MVP2/MVP3.
+
+### Already Implemented (from earlier work)
+
+**UI Structure**:
+- ✅ MainWindow.xaml: Three-pane grid layout (left tree + right split list/preview)
+- ✅ MainWindow.xaml: MenuBar (File, Edit, Tools, Templates, Help)
+- ✅ MainWindow.xaml: ToolBar with placeholder buttons
+- ✅ MainWindow.xaml: StatusBar with left/right sections
+- ✅ MainWindow.xaml: GridSplitters (horizontal + vertical)
+- ✅ MainWindow.xaml: Preview tabs (Text, Rich Text, HTML)
+- ✅ MainWindow.xaml: DataGrid for clip list with sortable columns
+- ✅ CollectionTreeView.xaml: Tree view control
+
+**ViewModels**:
+- ✅ MainWindowViewModel: Window state, status, busy indicator, pane widths
+- ✅ ClipListViewModel: Exists but needs review/completion
+- ✅ CollectionTreeViewModel: Exists but needs review/completion
+- ✅ PreviewPaneViewModel: Exists but needs review/completion
+- ✅ SearchViewModel: Exists but needs review/completion
+- ✅ PowerPasteViewModel: Exists (for later phase)
+- ✅ TemplateEditorViewModel: Exists (for later phase)
+- ✅ TextToolsViewModel: Exists (for later phase)
 
 ### Tests for User Story 2 (MANDATORY per Constitution) ⚠️
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T105 [P] [US2] Unit test for MainWindowViewModel initialization in Source/tests/ClipMate.Tests.Unit/ViewModels/MainWindowViewModelTests.cs
+- [ ] T105 [P] [US2] Unit test for MainWindowViewModel window state persistence in Source/tests/ClipMate.Tests.Unit/ViewModels/MainWindowViewModelTests.cs
 - [ ] T106 [P] [US2] Unit test for CollectionTreeViewModel.LoadCollectionsAsync in Source/tests/ClipMate.Tests.Unit/ViewModels/CollectionTreeViewModelTests.cs
 - [ ] T107 [P] [US2] Unit test for ClipListViewModel.LoadClipsAsync with collection filter in Source/tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
 - [ ] T108 [P] [US2] Unit test for ClipListViewModel view mode switching in Source/tests/ClipMate.Tests.Unit/ViewModels/ClipListViewModelTests.cs
 - [ ] T109 [P] [US2] Unit test for PreviewPaneViewModel content type selection in Source/tests/ClipMate.Tests.Unit/ViewModels/PreviewPaneViewModelTests.cs
 - [ ] T110 [P] [US2] Integration test for main window initialization and layout in Source/tests/ClipMate.Tests.Integration/UI/MainWindowTests.cs
-- [ ] T111 [P] [US2] UI automation test for collection selection in Source/tests/ClipMate.Tests.Integration/UI/CollectionNavigationTests.cs
+- [ ] T111 [P] [US2] UI automation test for collection selection updates clip list in Source/tests/ClipMate.Tests.Integration/UI/CollectionNavigationTests.cs
+- [ ] T111A [P] [US2] Unit test for SystemTrayService show/hide window in Source/tests/ClipMate.Tests.Unit/Services/SystemTrayServiceTests.cs
+- [ ] T111B [P] [US2] Unit test for SystemTrayService collection quick-switch in Source/tests/ClipMate.Tests.Unit/Services/SystemTrayServiceTests.cs
 
 ### Implementation for User Story 2
 
-- [ ] T112 [P] [US2] Create MainWindow.xaml with three-pane grid layout in Source/src/ClipMate.App/Views/MainWindow.xaml
-- [ ] T113 [P] [US2] Add GridSplitter controls with position persistence in MainWindow.xaml
-- [ ] T114 [P] [US2] Create MenuBar with File, Edit, View, Tools, Help menus in MainWindow.xaml
-- [ ] T115 [P] [US2] Create ToolBar with icon buttons in MainWindow.xaml
-- [ ] T116 [P] [US2] Create StatusBar with dynamic content in MainWindow.xaml
-- [ ] T117 [US2] Create MainWindowViewModel in Source/src/ClipMate.App/ViewModels/MainWindowViewModel.cs (depends on T060)
-- [ ] T118 [US2] Add window state persistence (size, position, splitter) to MainWindowViewModel
-- [ ] T119 [US2] Create CollectionTreeView.xaml with HierarchicalDataTemplate in Source/src/ClipMate.App/Views/Controls/CollectionTreeView.xaml
-- [ ] T120 [US2] Create CollectionTreeViewModel in Source/src/ClipMate.App/ViewModels/CollectionTreeViewModel.cs (depends on T060, T047)
-- [ ] T121 [US2] Add SelectedCollectionChanged event to CollectionTreeViewModel
-- [ ] T122 [US2] Implement CollectionService with CRUD operations in Source/src/ClipMate.Core/Services/CollectionService.cs (depends on T047, T029)
-- [ ] T123 [US2] Implement FolderService with hierarchy management in Source/src/ClipMate.Core/Services/FolderService.cs (depends on T048, T030)
-- [ ] T124 [US2] Create ClipListView.xaml with VirtualizingStackPanel in Source/src/ClipMate.App/Views/Controls/ClipListView.xaml
-- [ ] T125 [US2] Add multiple view modes (List, Details, Icons) to ClipListView.xaml using DataTemplate selectors
-- [ ] T126 [US2] Create ClipListViewModel in Source/src/ClipMate.App/ViewModels/ClipListViewModel.cs (depends on T060, T049)
-- [ ] T127 [US2] Add LoadClipsAsync with collection/folder filtering to ClipListViewModel
-- [ ] T128 [US2] Add view mode switching command to ClipListViewModel
-- [ ] T129 [US2] Add clip selection with multi-select support to ClipListViewModel
-- [ ] T130 [US2] Add right-click context menu to ClipListView.xaml
-- [ ] T131 [US2] Create PreviewPane.xaml with ContentPresenter in Source/src/ClipMate.App/Views/Controls/PreviewPane.xaml
-- [ ] T132 [US2] Create PreviewPaneViewModel in Source/src/ClipMate.App/ViewModels/PreviewPaneViewModel.cs (depends on T060)
-- [ ] T133 [US2] Add DataTemplate for text preview in PreviewPane.xaml
-- [ ] T134 [US2] Add DataTemplate for image preview in PreviewPane.xaml
-- [ ] T135 [US2] Add DataTemplate for file list preview in PreviewPane.xaml
-- [ ] T136 [US2] Wire CollectionTreeViewModel selection to ClipListViewModel refresh
-- [ ] T137 [US2] Wire ClipListViewModel selection to PreviewPaneViewModel content update
-- [ ] T138 [US2] Add high DPI support using DpiHelper in MainWindow.xaml.cs (depends on T059)
-- [ ] T139 [US2] Add WPF theme integration with SystemParameters in App.xaml
-- [ ] T140 [US2] Run all US2 unit tests and verify 90%+ coverage
-- [ ] T141 [US2] Run all US2 integration tests and UI automation tests
+#### Backend Services (Data Layer)
 
-**Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
+- [ ] T112 [US2] Review and complete CollectionService with CRUD operations in Source/src/ClipMate.Data/Services/CollectionService.cs
+- [ ] T113 [US2] Review and complete FolderService with hierarchy management in Source/src/ClipMate.Data/Services/FolderService.cs
+- [ ] T114 [US2] Add GetRootFoldersAsync to FolderService for tree view root items
+- [ ] T115 [US2] Add GetChildFoldersAsync to FolderService for lazy loading tree nodes
+
+#### ViewModels (App Layer)
+
+- [ ] T116 [US2] Review and complete MainWindowViewModel with proper DI and initialization
+- [ ] T117 [US2] Add window state persistence to MainWindowViewModel (size, position, splitter positions)
+- [ ] T118 [US2] Add WindowClosing handler to MainWindowViewModel (minimize to tray vs exit)
+- [ ] T119 [US2] Review and complete CollectionTreeViewModel with LoadCollectionsAsync
+- [ ] T120 [US2] Add SelectedCollectionChanged event to CollectionTreeViewModel
+- [ ] T121 [US2] Add folder expand/collapse with lazy loading to CollectionTreeViewModel
+- [ ] T122 [US2] Review and complete ClipListViewModel with LoadClipsAsync
+- [ ] T123 [US2] Add collection/folder filtering to ClipListViewModel.LoadClipsAsync
+- [ ] T124 [US2] Add view mode switching command to ClipListViewModel (List/Details/Icons)
+- [ ] T125 [US2] Add multi-select support to ClipListViewModel with SelectedClips collection
+- [ ] T126 [US2] Review and complete PreviewPaneViewModel with content type switching
+- [ ] T127 [US2] Add preview format commands (Text, RichText, HTML, Image, Raw) to PreviewPaneViewModel
+- [ ] T128 [US2] Wire CollectionTreeViewModel.SelectedCollectionChanged to ClipListViewModel.LoadClipsAsync
+- [ ] T129 [US2] Wire ClipListViewModel.SelectedClip to PreviewPaneViewModel.UpdatePreview
+
+#### UI Views (App Layer)
+
+- [ ] T130 [US2] Add right-click context menu to ClipDataGrid (Copy, Delete, Move to Folder, Add to Favorites)
+- [ ] T131 [US2] Add DataTemplate for image preview in PreviewPane (use WPF Image control with bitmap source)
+- [ ] T132 [US2] Add DataTemplate for file list preview in PreviewPane (show file names, sizes, icons)
+- [ ] T133 [US2] Add DataTemplate for HTML preview in PreviewPane (use WebBrowser control or WebView2)
+- [ ] T134 [US2] Implement view mode switching in ClipDataGrid (List vs Details columns)
+- [ ] T135 [US2] Add icon/thumbnail view mode with ItemsControl + WrapPanel
+- [ ] T136 [US2] Update ToolBar with proper icon buttons (use Segoe MDL2 Assets font for icons)
+- [ ] T137 [US2] Wire menu items to ViewModel commands (File > New Collection, Edit > Copy/Delete, etc.)
+- [ ] T138 [US2] Implement high DPI support using DpiHelper in MainWindow.xaml.cs
+
+#### System Tray Integration (CRITICAL for clipboard manager)
+
+- [ ] T139 [P] [US2] Create SystemTrayService in Source/src/ClipMate.Platform/Services/SystemTrayService.cs
+- [ ] T140 [P] [US2] Add NotifyIcon with ClipMate icon to SystemTrayService
+- [ ] T141 [P] [US2] Add system tray context menu (Show/Hide, Collections, Exit) to SystemTrayService
+- [ ] T142 [P] [US2] Add collection quick-switch submenu to tray context menu
+- [ ] T143 [P] [US2] Wire MainWindow.Closing to minimize to tray (don't exit unless Shift+Close or Exit menu)
+- [ ] T144 [P] [US2] Add double-click tray icon to show/hide main window
+- [ ] T145 [P] [US2] Add tray balloon notification for clipboard captures (optional, with setting to disable)
+- [ ] T146 [P] [US2] Register SystemTrayService in DI container and inject into App.xaml.cs
+
+#### Application Lifecycle
+
+- [ ] T147 [US2] Update App.xaml.cs to start application minimized to tray (no window on startup)
+- [ ] T148 [US2] Add command-line argument support for /show (launch with window visible)
+- [ ] T149 [US2] Ensure single instance (prevent multiple ClipMate.exe processes)
+- [ ] T150 [US2] Add startup with Windows registry integration (optional via settings)
+
+#### Testing & Polish
+
+- [ ] T151 [US2] Run all US2 unit tests and verify 90%+ coverage
+- [ ] T152 [US2] Run all US2 integration tests and UI automation tests
+- [ ] T153 [US2] Manual testing: Launch to tray, open window, navigate collections, preview clips, close to tray
+- [ ] T154 [US2] Manual testing: System tray menu, collection switching, exit from tray
+
+**Checkpoint**: At this point, ClipMate Explorer with system tray integration should be fully functional.
 
 ---
 
@@ -268,33 +324,33 @@ ClipMate uses a multi-project structure under `Source/`:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T142 [P] [US3] Unit test for HotkeyService.RegisterAsync with conflict detection in Source/tests/ClipMate.Tests.Unit/Services/HotkeyServiceTests.cs
-- [ ] T143 [P] [US3] Unit test for PowerPasteViewModel initialization in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
-- [ ] T144 [P] [US3] Unit test for PowerPasteViewModel.FilterItems search-as-you-type in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
-- [ ] T145 [P] [US3] Integration test for global hotkey registration in Source/tests/ClipMate.Tests.Integration/HotkeyIntegrationTests.cs
-- [ ] T146 [P] [US3] Integration test for PowerPaste window activation in Source/tests/ClipMate.Tests.Integration/UI/PowerPasteTests.cs
+- [ ] T155 [P] [US3] Unit test for HotkeyService.RegisterAsync with conflict detection in Source/tests/ClipMate.Tests.Unit/Services/HotkeyServiceTests.cs
+- [ ] T156 [P] [US3] Unit test for PowerPasteViewModel initialization in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
+- [ ] T157 [P] [US3] Unit test for PowerPasteViewModel.FilterItems search-as-you-type in Source/tests/ClipMate.Tests.Unit/ViewModels/PowerPasteViewModelTests.cs
+- [ ] T158 [P] [US3] Integration test for global hotkey registration in Source/tests/ClipMate.Tests.Integration/HotkeyIntegrationTests.cs
+- [ ] T159 [P] [US3] Integration test for PowerPaste window activation in Source/tests/ClipMate.Tests.Integration/UI/PowerPasteTests.cs
 
 ### Implementation for User Story 3
 
-- [ ] T147 [US3] Implement HotkeyService with Win32 RegisterHotKey in Source/src/ClipMate.Core/Services/HotkeyService.cs (depends on T050, T058)
-- [ ] T148 [US3] Add hotkey conflict detection to HotkeyService
-- [ ] T149 [US3] Add HotkeyPressed event to HotkeyService
-- [ ] T150 [US3] Add ComponentDispatcher.ThreadFilterMessage integration in HotkeyService
-- [ ] T151 [P] [US3] Create PowerPasteWindow.xaml borderless popup window in Source/src/ClipMate.App/Views/PowerPasteWindow.xaml
-- [ ] T152 [P] [US3] Add window positioning logic (near cursor) in PowerPasteWindow.xaml.cs
-- [ ] T153 [P] [US3] Add ListBox with keyboard navigation in PowerPasteWindow.xaml
-- [ ] T154 [US3] Create PowerPasteViewModel in Source/src/ClipMate.App/ViewModels/PowerPasteViewModel.cs (depends on T060, T049)
-- [ ] T155 [US3] Add LoadRecentItemsAsync (configurable count) to PowerPasteViewModel
-- [ ] T156 [US3] Add FilterItems instant search with <50ms response to PowerPasteViewModel
-- [ ] T157 [US3] Add PasteSelectedCommand with clipboard setting to PowerPasteViewModel
-- [ ] T158 [US3] Add CancelCommand to close window to PowerPasteViewModel
-- [ ] T159 [US3] Wire HotkeyService.HotkeyPressed to PowerPasteWindow.Show()
-- [ ] T160 [US3] Add keyboard navigation (arrow keys, Enter, Escape) to PowerPasteWindow
-- [ ] T161 [US3] Add hover preview tooltip in PowerPasteWindow.xaml
-- [ ] T162 [US3] Add proper focus management and window deactivation in PowerPasteWindow
-- [ ] T163 [US3] Add PowerPaste settings (hotkey, item count) to SettingsService
-- [ ] T164 [US3] Run all US3 unit tests and verify 90%+ coverage
-- [ ] T165 [US3] Run all US3 integration tests
+- [ ] T160 [US3] Implement HotkeyService with Win32 RegisterHotKey in Source/src/ClipMate.Platform/Services/HotkeyService.cs
+- [ ] T161 [US3] Add hotkey conflict detection to HotkeyService
+- [ ] T162 [US3] Add HotkeyPressed event to HotkeyService
+- [ ] T163 [US3] Add ComponentDispatcher.ThreadFilterMessage integration in HotkeyService
+- [ ] T164 [P] [US3] Review and complete PowerPasteWindow.xaml borderless popup window in Source/src/ClipMate.App/Views/PowerPasteWindow.xaml
+- [ ] T165 [P] [US3] Add window positioning logic (near cursor) in PowerPasteWindow.xaml.cs
+- [ ] T166 [P] [US3] Add ListBox with keyboard navigation in PowerPasteWindow.xaml
+- [ ] T167 [US3] Review and complete PowerPasteViewModel in Source/src/ClipMate.App/ViewModels/PowerPasteViewModel.cs
+- [ ] T168 [US3] Add LoadRecentItemsAsync (configurable count) to PowerPasteViewModel
+- [ ] T169 [US3] Add FilterItems instant search with <50ms response to PowerPasteViewModel
+- [ ] T170 [US3] Add PasteSelectedCommand with clipboard setting to PowerPasteViewModel
+- [ ] T171 [US3] Add CancelCommand to close window to PowerPasteViewModel
+- [ ] T172 [US3] Wire HotkeyService.HotkeyPressed to PowerPasteWindow.Show()
+- [ ] T173 [US3] Add keyboard navigation (arrow keys, Enter, Escape) to PowerPasteWindow
+- [ ] T174 [US3] Add hover preview tooltip in PowerPasteWindow.xaml
+- [ ] T175 [US3] Add proper focus management and window deactivation in PowerPasteWindow
+- [ ] T176 [US3] Add PowerPaste settings (hotkey, item count) to SettingsService
+- [ ] T177 [US3] Run all US3 unit tests and verify 90%+ coverage
+- [ ] T178 [US3] Run all US3 integration tests
 
 **Checkpoint**: User Stories 1, 2, AND 3 should all work independently
 
@@ -310,18 +366,18 @@ ClipMate uses a multi-project structure under `Source/`:
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (TDD required)**
 
-- [ ] T166 [P] [US4] Unit test for CollectionService.CreateAsync with validation in Source/tests/ClipMate.Tests.Unit/Services/CollectionServiceTests.cs
-- [ ] T167 [P] [US4] Unit test for FolderService.CreateAsync with hierarchy in Source/tests/ClipMate.Tests.Unit/Services/FolderServiceTests.cs
-- [ ] T168 [P] [US4] Unit test for ClipService.MoveToFolderAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
-- [ ] T169 [P] [US4] Integration test for collection switching in Source/tests/ClipMate.Tests.Integration/CollectionManagementTests.cs
-- [ ] T170 [P] [US4] UI automation test for drag-drop between folders in Source/tests/ClipMate.Tests.Integration/UI/DragDropTests.cs
+- [ ] T179 [P] [US4] Unit test for CollectionService.CreateAsync with validation in Source/tests/ClipMate.Tests.Unit/Services/CollectionServiceTests.cs
+- [ ] T180 [P] [US4] Unit test for FolderService.CreateAsync with hierarchy in Source/tests/ClipMate.Tests.Unit/Services/FolderServiceTests.cs
+- [ ] T181 [P] [US4] Unit test for ClipService.MoveToFolderAsync in Source/tests/ClipMate.Tests.Unit/Services/ClipServiceTests.cs
+- [ ] T182 [P] [US4] Integration test for collection switching in Source/tests/ClipMate.Tests.Integration/CollectionManagementTests.cs
+- [ ] T183 [P] [US4] UI automation test for drag-drop between folders in Source/tests/ClipMate.Tests.Integration/UI/DragDropTests.cs
 
 ### Implementation for User Story 4
 
-- [ ] T171 [US4] Add CreateAsync, UpdateAsync, DeleteAsync to CollectionService (depends on T122)
-- [ ] T172 [US4] Add GetAllAsync, GetByIdAsync to CollectionService
-- [ ] T173 [US4] Add retention policy enforcement to CollectionService
-- [ ] T174 [US4] Add CreateAsync, UpdateAsync, DeleteAsync to FolderService (depends on T123)
+- [ ] T184 [US4] Add CreateAsync, UpdateAsync, DeleteAsync to CollectionService (depends on T112)
+- [ ] T185 [US4] Add GetAllAsync, GetByIdAsync to CollectionService
+- [ ] T186 [US4] Add retention policy enforcement to CollectionService
+- [ ] T187 [US4] Add CreateAsync, UpdateAsync, DeleteAsync to FolderService (depends on T113)
 - [ ] T175 [US4] Add GetByCollectionAsync with hierarchy to FolderService
 - [ ] T176 [US4] Add circular reference validation to FolderService
 - [ ] T177 [US4] Add MoveToFolderAsync to ClipService (depends on T093)
