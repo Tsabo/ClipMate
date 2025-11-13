@@ -54,7 +54,7 @@
                 <MenuItem Header="_New Collection..." />
                 <MenuItem Header="_Open Collection..." />
                 <Separator/>
-                <MenuItem Header="_Exit" />
+                <MenuItem Header="_Exit" Click="Exit_Click" />
             </MenuItem>
             <MenuItem Header="_Edit">
                 <MenuItem Header="_Copy" InputGestureText="Ctrl+C"/>

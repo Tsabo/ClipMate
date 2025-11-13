@@ -108,6 +108,7 @@ public partial class App : Application
         systemTray.ExitRequested += (_, _) =>
         {
             _logger?.LogInformation("Exit requested from system tray");
+            mainWindow.PrepareForExit();
             Shutdown();
         };
         _logger?.LogInformation("System tray initialized");

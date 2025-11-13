@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private readonly SystemTrayService _systemTrayService;
     private readonly ILogger<MainWindow>? _logger;
     private readonly IServiceProvider _serviceProvider;
+    private bool _isExiting = false;
 
     public MainWindow(
         CollectionTreeViewModel collectionTreeViewModel,
@@ -67,6 +68,14 @@ public partial class MainWindow : Window
         
         // Add keyboard shortcut for Text Tools (Ctrl+T)
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+    }
+
+    /// <summary>
+    /// Prepares the window for application exit (skips minimize to tray behavior)
+    /// </summary>
+    public void PrepareForExit()
+    {
+        _isExiting = true;
     }
     
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -277,15 +286,33 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Handles File → Exit menu click
+    /// </summary>
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        _logger?.LogInformation("Exit menu clicked - shutting down application");
+        _isExiting = true;
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    /// <summary>
     /// Handles the Closing event to minimize to tray instead of exiting.
     /// Hold Shift while closing to force exit.
     /// </summary>
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // If already exiting (from File→Exit or tray menu), allow it
+        if (_isExiting)
+        {
+            _logger?.LogInformation("MainWindow closing - application is exiting");
+            return;
+        }
+
         // Check if Shift key is held - if so, allow actual exit
         if ((Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == System.Windows.Input.ModifierKeys.Shift)
         {
             _logger?.LogInformation("MainWindow closing with Shift key - allowing exit");
+            _isExiting = true;
             return;
         }
 
@@ -294,8 +321,7 @@ public partial class MainWindow : Window
         Hide();
         _logger?.LogInformation("MainWindow minimized to system tray");
         
-        // Optional: Show a balloon tip the first time
-        // (In production, you'd want to track if this is the first time and show it once)
+        // Show a balloon tip to inform user app is still running
         _systemTrayService.ShowBalloonNotification(
             "ClipMate",
             "ClipMate is still running in the system tray. Double-click the icon to restore. Hold Shift while closing to exit.",
