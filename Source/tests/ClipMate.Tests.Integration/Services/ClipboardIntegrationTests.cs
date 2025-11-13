@@ -49,8 +49,7 @@ public class ClipboardIntegrationTests : IDisposable
         _coordinator = new ClipboardCoordinator(_clipboardService, _clipService, coordinatorLogger);
     }
 
-    [Fact]
-    [STAThread]
+    [StaFact]
     public async Task ClipboardCapture_ShouldSaveToDatabase()
     {
         // Arrange
@@ -142,8 +141,7 @@ public class ClipboardIntegrationTests : IDisposable
             "only one clip with this hash should exist");
     }
 
-    [Fact]
-    [STAThread]
+    [StaFact]
     public async Task ClipboardCoordinator_Start_ShouldEnableMonitoring()
     {
         // Act
@@ -156,8 +154,7 @@ public class ClipboardIntegrationTests : IDisposable
         Assert.True(true);
     }
 
-    [Fact]
-    [STAThread]
+    [StaFact]
     public async Task ClipboardCoordinator_EventCancelled_ShouldNotSaveClip()
     {
         // Arrange

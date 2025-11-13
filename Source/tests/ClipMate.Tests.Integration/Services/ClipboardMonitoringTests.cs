@@ -14,7 +14,7 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ClipboardMonitoringTests : IntegrationTestBase
 {
-    [Fact]
+    [StaFact]
     public async Task StartMonitoring_ShouldActivateClipboardListener()
     {
         // Arrange
@@ -30,7 +30,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
     }
 
-    [Fact]
+    [StaFact]
     public async Task StopMonitoring_ShouldDeactivateClipboardListener()
     {
         // Arrange
@@ -44,7 +44,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         service.IsMonitoring.ShouldBeFalse();
     }
 
-    [Fact]
+    [StaFact]
     public async Task ClipboardChange_ShouldRaiseClipCapturedEvent()
     {
         // Arrange
@@ -71,7 +71,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         capturedClip.ShouldNotBeNull();
     }
 
-    [Fact]
+    [StaFact]
     public async Task MultipleStartCalls_ShouldNotThrow()
     {
         // Arrange
@@ -85,7 +85,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
     }
 
-    [Fact]
+    [StaFact]
     public async Task MultipleStopCalls_ShouldNotThrow()
     {
         // Arrange

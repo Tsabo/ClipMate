@@ -1,6 +1,9 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Repositories;
+using ClipMate.Data.Services;
+using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
 
@@ -29,12 +32,16 @@ public class ClipPersistenceTests : IntegrationTestBase
         var savedClip = await clipService.CreateAsync(clip);
         var savedId = savedClip.Id;
 
-        // Dispose and create new context (simulates app restart)
+        // Save changes to ensure data is persisted
         await DbContext.SaveChangesAsync();
-        Dispose();
         
-        // Create new context and service
-        var newContext = CreateNewDbContext();
+        // Create new context and service (simulates app restart)
+        // Keep the connection alive by getting it before disposing
+        var connection = DbContext.Database.GetDbConnection();
+        var newContext = new ClipMateDbContext(
+            new DbContextOptionsBuilder<ClipMateDbContext>()
+                .UseSqlite(connection)
+                .Options);
         var newClipService = CreateClipServiceWithContext(newContext);
 
         // Assert - Retrieve in new context
@@ -42,6 +49,9 @@ public class ClipPersistenceTests : IntegrationTestBase
         retrievedClip.ShouldNotBeNull();
         retrievedClip.TextContent.ShouldBe("Test persistence content");
         retrievedClip.ContentHash.ShouldBe("test_hash_123");
+        
+        // Cleanup the new context
+        newContext.Dispose();
     }
 
     [Fact]
@@ -168,31 +178,19 @@ public class ClipPersistenceTests : IntegrationTestBase
 
     /// <summary>
     /// Creates a clip service instance for testing.
-    /// NOTE: This will fail until ClipService is implemented.
     /// </summary>
     private IClipService CreateClipService()
     {
         var repository = new ClipRepository(DbContext);
-        throw new NotImplementedException(
-            "ClipService not yet implemented. " +
-            "This integration test is written first per TDD requirement (T083).");
+        return new ClipService(repository);
     }
 
     /// <summary>
     /// Creates a clip service with a specific DbContext.
     /// </summary>
-    private IClipService CreateClipServiceWithContext(Microsoft.EntityFrameworkCore.DbContext context)
+    private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        throw new NotImplementedException(
-            "ClipService not yet implemented.");
-    }
-
-    /// <summary>
-    /// Creates a new DbContext instance (simulates app restart).
-    /// </summary>
-    private Microsoft.EntityFrameworkCore.DbContext CreateNewDbContext()
-    {
-        throw new NotImplementedException(
-            "Need to create new DbContext with same connection.");
+        var repository = new ClipRepository(context);
+        return new ClipService(repository);
     }
 }
