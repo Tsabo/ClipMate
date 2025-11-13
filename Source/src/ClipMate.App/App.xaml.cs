@@ -20,6 +20,8 @@ public partial class App : Application
 {
     private IServiceProvider? _serviceProvider;
     private ILogger<App>? _logger;
+    private Mutex? _singleInstanceMutex;
+    private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
 
     /// <summary>
     /// Gets the service provider for the application.
@@ -33,6 +35,24 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Enforce single instance - check if another instance is already running
+        bool createdNew;
+        _singleInstanceMutex = new Mutex(true, _mutexName, out createdNew);
+
+        if (!createdNew)
+        {
+            // Another instance is already running
+            MessageBox.Show(
+                "ClipMate is already running. Please check the system tray.",
+                "ClipMate",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            
+            // Try to activate the existing instance (future enhancement: use IPC to signal existing instance)
+            Shutdown(0);
+            return;
+        }
 
         // Initialize DPI awareness (Windows 8.1+)
         if (OperatingSystem.IsWindowsVersionAtLeast(8, 1))
@@ -246,6 +266,10 @@ public partial class App : Application
         {
             disposable.Dispose();
         }
+
+        // Release single instance mutex
+        _singleInstanceMutex?.ReleaseMutex();
+        _singleInstanceMutex?.Dispose();
 
         base.OnExit(e);
     }
