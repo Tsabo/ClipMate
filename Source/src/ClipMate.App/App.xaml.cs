@@ -8,6 +8,7 @@ using ClipMate.Core.Exceptions;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
+using ClipMate.Platform.Services;
 
 namespace ClipMate.App;
 
@@ -95,7 +96,37 @@ public partial class App : Application
 
         // Create and show main window
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-        mainWindow.Show();
+        
+        // Initialize system tray
+        var systemTray = _serviceProvider.GetRequiredService<SystemTrayService>();
+        systemTray.Initialize();
+        systemTray.ShowWindowRequested += (_, _) =>
+        {
+            mainWindow.Show();
+            mainWindow.Activate();
+        };
+        systemTray.ExitRequested += (_, _) =>
+        {
+            _logger?.LogInformation("Exit requested from system tray");
+            Shutdown();
+        };
+        _logger?.LogInformation("System tray initialized");
+        
+        // Check command-line arguments for /show flag
+        bool showWindow = e.Args.Any(arg => 
+            arg.Equals("/show", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("--show", StringComparison.OrdinalIgnoreCase));
+        
+        if (showWindow)
+        {
+            mainWindow.Show();
+            _logger?.LogInformation("Main window shown (command-line flag)");
+        }
+        else
+        {
+            // Start minimized to tray
+            _logger?.LogInformation("Application started minimized to system tray");
+        }
 
         // Initialize PowerPaste coordinator
         var powerPasteCoordinator = _serviceProvider.GetRequiredService<PowerPasteCoordinator>();
@@ -179,6 +210,10 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("ClipMate application shutting down");
+
+        // Dispose system tray
+        var systemTray = _serviceProvider?.GetService<SystemTrayService>();
+        systemTray?.Dispose();
 
         // Dispose PowerPaste coordinator
         var powerPasteCoordinator = _serviceProvider?.GetService<PowerPasteCoordinator>();

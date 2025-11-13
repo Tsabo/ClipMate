@@ -4,6 +4,9 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 
+// Alias to resolve WPF vs WinForms ambiguity
+using WpfApplication = System.Windows.Application;
+
 namespace ClipMate.Platform;
 
 /// <summary>
@@ -166,7 +169,7 @@ public class HotkeyManager : IDisposable
             if (_registeredHotkeys.TryGetValue(hotkeyId, out var registration))
             {
                 // Execute callback on the UI thread
-                Application.Current?.Dispatcher.BeginInvoke(registration.Callback);
+                WpfApplication.Current?.Dispatcher.BeginInvoke(registration.Callback);
                 handled = true;
             }
         }

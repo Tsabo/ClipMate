@@ -5,6 +5,9 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.HiDpi;
 
+// Alias to resolve WPF vs WinForms ambiguity
+using WpfApplication = System.Windows.Application;
+
 namespace ClipMate.Platform;
 
 /// <summary>
@@ -142,7 +145,7 @@ public static class DpiHelper
     public static double GetScreenWidth()
     {
         var physicalWidth = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXSCREEN);
-        var source = PresentationSource.FromVisual(Application.Current?.MainWindow);
+        var source = PresentationSource.FromVisual(WpfApplication.Current?.MainWindow);
         var scaleFactor = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
         return physicalWidth * scaleFactor;
     }
@@ -154,7 +157,7 @@ public static class DpiHelper
     public static double GetScreenHeight()
     {
         var physicalHeight = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYSCREEN);
-        var source = PresentationSource.FromVisual(Application.Current?.MainWindow);
+        var source = PresentationSource.FromVisual(WpfApplication.Current?.MainWindow);
         var scaleFactor = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
         return physicalHeight * scaleFactor;
     }

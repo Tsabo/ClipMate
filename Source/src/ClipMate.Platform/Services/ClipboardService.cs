@@ -11,6 +11,10 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 
+// Aliases to resolve WPF vs WinForms ambiguity
+using WpfClipboard = System.Windows.Clipboard;
+using WpfApplication = System.Windows.Application;
+
 namespace ClipMate.Platform.Services;
 
 /// <summary>
@@ -255,9 +259,9 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Use WPF Clipboard API which is safer and simpler
-            if (Clipboard.ContainsText())
+            if (WpfClipboard.ContainsText())
             {
-                var text = Clipboard.GetText();
+                var text = WpfClipboard.GetText();
                 if (string.IsNullOrEmpty(text))
                 {
                     return null;
@@ -288,7 +292,7 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Use WPF Clipboard API which handles all the complexity
-            Clipboard.SetText(text);
+            WpfClipboard.SetText(text);
         }
         catch (Exception ex)
         {
