@@ -8,6 +8,11 @@ namespace ClipMate.Core.Services;
 public interface IClipService
 {
     /// <summary>
+    /// Event raised when a new clip is added to the database.
+    /// </summary>
+    event EventHandler<Clip>? ClipAdded;
+
+    /// <summary>
     /// Gets a clip by ID.
     /// </summary>
     /// <param name="id">The clip ID.</param>

@@ -11,6 +11,9 @@ public class ClipService : IClipService
 {
     private readonly IClipRepository _repository;
 
+    /// <inheritdoc/>
+    public event EventHandler<Clip>? ClipAdded;
+
     public ClipService(IClipRepository repository)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -62,7 +65,12 @@ public class ClipService : IClipService
             return existing;
         }
 
-        return await _repository.CreateAsync(clip, cancellationToken);
+        var createdClip = await _repository.CreateAsync(clip, cancellationToken);
+        
+        // Raise the ClipAdded event
+        ClipAdded?.Invoke(this, createdClip);
+        
+        return createdClip;
     }
 
     /// <inheritdoc/>

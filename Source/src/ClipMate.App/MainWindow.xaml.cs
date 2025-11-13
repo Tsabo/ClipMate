@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly SearchViewModel _searchViewModel;
     private readonly ClipboardCoordinator _clipboardCoordinator;
     private readonly SystemTrayService _systemTrayService;
+    private readonly IClipService _clipService;
     private readonly IFolderService _folderService;
     private readonly ILogger<MainWindow>? _logger;
     private readonly IServiceProvider _serviceProvider;
@@ -40,6 +41,7 @@ public partial class MainWindow : Window
         
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipboardCoordinator = clipboardCoordinator ?? throw new ArgumentNullException(nameof(clipboardCoordinator));
         _systemTrayService = systemTrayService ?? throw new ArgumentNullException(nameof(systemTrayService));
@@ -59,6 +61,9 @@ public partial class MainWindow : Window
         
         // Set SearchPanel DataContext
         SearchPanel.DataContext = _searchViewModel;
+        
+        // Set ClipDataGrid DataContext
+        ClipDataGrid.DataContext = _clipListViewModel;
         
         // Load initial data
         Loaded += MainWindow_Loaded;
@@ -385,6 +390,10 @@ public partial class MainWindow : Window
         if (_isExiting)
         {
             _logger?.LogInformation("MainWindow closing - application is exiting");
+            
+            // Unsubscribe from events to prevent memory leaks
+            _clipService.ClipAdded -= OnClipAdded;
+            
             return;
         }
 
@@ -393,6 +402,10 @@ public partial class MainWindow : Window
         {
             _logger?.LogInformation("MainWindow closing with Shift key - allowing exit");
             _isExiting = true;
+            
+            // Unsubscribe from events to prevent memory leaks
+            _clipService.ClipAdded -= OnClipAdded;
+            
             return;
         }
 
@@ -414,34 +427,52 @@ public partial class MainWindow : Window
     /// </summary>
     private void SubscribeToClipboardEvents()
     {
-        // The ClipboardCoordinator saves clips to the database via ClipService
-        // We need to poll or listen for new clips. For now, we'll implement a simple polling mechanism.
-        // TODO: Consider implementing an event on ClipService when clips are added.
-        
-        // For immediate feedback, we can use a DispatcherTimer to periodically refresh
-        var refreshTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(2) // Refresh every 2 seconds
-        };
-        
-        refreshTimer.Tick += async (s, e) =>
+        // Subscribe to the ClipAdded event to update the UI in real-time
+        _clipService.ClipAdded += OnClipAdded;
+        _logger?.LogInformation("Subscribed to ClipService.ClipAdded event");
+    }
+
+    /// <summary>
+    /// Handles the ClipAdded event by adding the new clip to the observable collection.
+    /// </summary>
+    private void OnClipAdded(object? sender, Clip clip)
+    {
+        // Ensure we're on the UI thread
+        Dispatcher.Invoke(() =>
         {
             try
             {
-                // Only refresh if we're not already loading
-                if (!_clipListViewModel.IsLoading)
+                // Only add the clip if it belongs to the currently displayed collection/folder
+                bool shouldAdd = false;
+
+                if (_clipListViewModel.CurrentFolderId.HasValue)
                 {
-                    await _clipListViewModel.RefreshAsync();
+                    // We're viewing a specific folder - only add if clip is in that folder
+                    shouldAdd = clip.FolderId == _clipListViewModel.CurrentFolderId.Value;
+                }
+                else if (_clipListViewModel.CurrentCollectionId.HasValue)
+                {
+                    // We're viewing a collection - only add if clip is in that collection
+                    shouldAdd = clip.CollectionId == _clipListViewModel.CurrentCollectionId.Value;
+                }
+                else
+                {
+                    // We're viewing "all clips" - always add
+                    shouldAdd = true;
+                }
+
+                if (shouldAdd)
+                {
+                    // Insert at the beginning since clips are ordered by date descending
+                    _clipListViewModel.Clips.Insert(0, clip);
+                    _logger?.LogDebug("Added new clip {ClipId} to UI", clip.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Failed to refresh clip list");
+                _logger?.LogError(ex, "Failed to add clip to UI");
             }
-        };
-        
-        refreshTimer.Start();
-        _logger?.LogInformation("Clipboard event subscription active (polling mode)");
+        });
     }
 
     private void UpdateClipCount()
@@ -624,6 +655,8 @@ public partial class MainWindow : Window
 /// </summary>
 internal class MockClipService : IClipService
 {
+    public event EventHandler<Clip>? ClipAdded;
+
     private readonly List<Clip> _sampleClips = new()
     {
         new Clip

@@ -37,8 +37,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         // Enforce single instance - check if another instance is already running
-        bool createdNew;
-        _singleInstanceMutex = new Mutex(true, _mutexName, out createdNew);
+        _singleInstanceMutex = new Mutex(true, _mutexName, out var createdNew);
 
         if (!createdNew)
         {
