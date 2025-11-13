@@ -5,6 +5,7 @@ using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
+using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App;
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly SearchViewModel _searchViewModel;
     private readonly ClipboardCoordinator _clipboardCoordinator;
+    private readonly SystemTrayService _systemTrayService;
     private readonly ILogger<MainWindow>? _logger;
     private readonly IServiceProvider _serviceProvider;
 
@@ -27,6 +29,7 @@ public partial class MainWindow : Window
         SearchViewModel searchViewModel,
         IClipService clipService,
         ClipboardCoordinator clipboardCoordinator,
+        SystemTrayService systemTrayService,
         IServiceProvider serviceProvider,
         ILogger<MainWindow>? logger = null)
     {
@@ -35,6 +38,7 @@ public partial class MainWindow : Window
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         _clipboardCoordinator = clipboardCoordinator ?? throw new ArgumentNullException(nameof(clipboardCoordinator));
+        _systemTrayService = systemTrayService ?? throw new ArgumentNullException(nameof(systemTrayService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
         
@@ -54,6 +58,9 @@ public partial class MainWindow : Window
         
         // Load initial data
         Loaded += MainWindow_Loaded;
+        
+        // Wire up closing event to minimize to tray
+        Closing += MainWindow_Closing;
         
         // Wire up search results to clip list
         _searchViewModel.PropertyChanged += SearchViewModel_PropertyChanged;
@@ -267,6 +274,33 @@ public partial class MainWindow : Window
 
         // Load template menu
         LoadTemplateMenu();
+    }
+
+    /// <summary>
+    /// Handles the Closing event to minimize to tray instead of exiting.
+    /// Hold Shift while closing to force exit.
+    /// </summary>
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // Check if Shift key is held - if so, allow actual exit
+        if ((Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == System.Windows.Input.ModifierKeys.Shift)
+        {
+            _logger?.LogInformation("MainWindow closing with Shift key - allowing exit");
+            return;
+        }
+
+        // Cancel the close and hide the window instead
+        e.Cancel = true;
+        Hide();
+        _logger?.LogInformation("MainWindow minimized to system tray");
+        
+        // Optional: Show a balloon tip the first time
+        // (In production, you'd want to track if this is the first time and show it once)
+        _systemTrayService.ShowBalloonNotification(
+            "ClipMate",
+            "ClipMate is still running in the system tray. Double-click the icon to restore. Hold Shift while closing to exit.",
+            System.Windows.Forms.ToolTipIcon.Info,
+            3000);
     }
 
     /// <summary>
