@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.Versioning;
 using System.Windows.Forms;
 using Microsoft.Extensions.Logging;
 using ClipMate.Core.Models;
@@ -135,6 +136,30 @@ public class SystemTrayService : IDisposable
     {
         _contextMenu?.Dispose();
         _contextMenu = new ContextMenuStrip();
+
+        // Apply DPI scaling to context menu font if main window is available
+        // DPI scaling is only available on Windows 10 Anniversary Update (14393) or later
+        if (_mainWindow != null && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 14393))
+        {
+            try
+            {
+                var scaleFactor = DpiHelper.GetScaleFactor(_mainWindow);
+                if (scaleFactor > 1.0)
+                {
+                    // Scale the font size for high DPI displays
+                    var baseFontSize = _contextMenu.Font.Size;
+                    var scaledFontSize = (float)(baseFontSize * scaleFactor);
+                    _contextMenu.Font = new Font(_contextMenu.Font.FontFamily, scaledFontSize, _contextMenu.Font.Style);
+                    
+                    _logger.LogDebug("Applied DPI scaling to context menu: scale factor {ScaleFactor}, font size {FontSize}pt", 
+                        scaleFactor, scaledFontSize);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to apply DPI scaling to context menu, using default scaling");
+            }
+        }
 
         // Show/Hide menu item
         var showHideItem = new ToolStripMenuItem("Show ClipMate", null, OnShowHideClick)
