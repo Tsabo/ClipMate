@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly SearchViewModel _searchViewModel;
     private readonly ClipboardCoordinator _clipboardCoordinator;
     private readonly SystemTrayService _systemTrayService;
+    private readonly PowerPasteCoordinator _powerPasteCoordinator;
     private readonly IClipService _clipService;
     private readonly IFolderService _folderService;
     private readonly ILogger<MainWindow>? _logger;
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
         IFolderService folderService,
         ClipboardCoordinator clipboardCoordinator,
         SystemTrayService systemTrayService,
+        PowerPasteCoordinator powerPasteCoordinator,
         IServiceProvider serviceProvider,
         ILogger<MainWindow>? logger = null)
     {
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipboardCoordinator = clipboardCoordinator ?? throw new ArgumentNullException(nameof(clipboardCoordinator));
         _systemTrayService = systemTrayService ?? throw new ArgumentNullException(nameof(systemTrayService));
+        _powerPasteCoordinator = powerPasteCoordinator ?? throw new ArgumentNullException(nameof(powerPasteCoordinator));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
         

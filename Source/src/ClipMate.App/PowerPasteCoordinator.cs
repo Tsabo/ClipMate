@@ -35,9 +35,8 @@ public class PowerPasteCoordinator : IDisposable
 
     /// <summary>
     /// Initializes PowerPaste with hotkey registration.
-    /// Must be called after the main window is loaded.
     /// </summary>
-    /// <param name="mainWindow">The main application window for receiving hotkey messages.</param>
+    /// <param name="mainWindow">The main window for hotkey message routing.</param>
     public void Initialize(Window mainWindow)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -49,17 +48,21 @@ public class PowerPasteCoordinator : IDisposable
 
         try
         {
+            _logger.LogInformation("Initializing PowerPaste coordinator");
+            
             // Initialize HotkeyService with the main window
             if (_hotkeyService is Platform.Services.HotkeyService platformHotkeyService)
             {
                 platformHotkeyService.Initialize(mainWindow);
             }
-
+            
             // Register Ctrl+Shift+V hotkey for PowerPaste
+            // Use KeyInterop to convert WPF Key to Windows Virtual-Key code
+            var virtualKey = KeyInterop.VirtualKeyFromKey(Key.V);
             var registered = _hotkeyService.RegisterHotkey(
                 PowerPasteHotkeyId,
                 Core.Models.ModifierKeys.Control | Core.Models.ModifierKeys.Shift,
-                (int)Key.V,
+                virtualKey,
                 OnPowerPasteHotkeyPressed);
 
             if (registered)
@@ -82,7 +85,7 @@ public class PowerPasteCoordinator : IDisposable
     /// </summary>
     private void OnPowerPasteHotkeyPressed()
     {
-        _logger.LogDebug("PowerPaste hotkey pressed (Ctrl+Shift+V)");
+        _logger.LogInformation("PowerPaste hotkey pressed (Ctrl+Shift+V)");
 
         try
         {

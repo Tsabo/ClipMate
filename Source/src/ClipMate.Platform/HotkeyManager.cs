@@ -46,22 +46,30 @@ public class HotkeyManager : IDisposable
             throw new ArgumentNullException(nameof(window));
         }
 
-        // Get the window handle
+        // Ensure window handle is created
         var windowInteropHelper = new WindowInteropHelper(window);
+        if (windowInteropHelper.Handle == IntPtr.Zero)
+        {
+            // Force handle creation without showing the window
+            _ = windowInteropHelper.EnsureHandle();
+        }
+
         var hwnd = windowInteropHelper.Handle;
 
         if (hwnd == IntPtr.Zero)
         {
-            throw new InvalidOperationException("Window handle is not available. Ensure the window is loaded.");
+            throw new InvalidOperationException("Window handle is not available even after EnsureHandle().");
         }
 
-        // Create HwndSource to intercept Windows messages
-        _hwndSource = HwndSource.FromHwnd(hwnd);
+        // Get the HwndSource from the window's PresentationSource
+        // This gets the actual HwndSource that WPF uses internally for message routing
+        _hwndSource = System.Windows.PresentationSource.FromVisual(window) as HwndSource;
+        
         if (_hwndSource == null)
         {
-            throw new InvalidOperationException("Failed to create HwndSource from window handle.");
+            throw new InvalidOperationException("Failed to get HwndSource from window.");
         }
-
+        
         // Add hook to process WM_HOTKEY messages
         _hwndSource.AddHook(WndProc);
     }
@@ -168,9 +176,23 @@ public class HotkeyManager : IDisposable
 
             if (_registeredHotkeys.TryGetValue(hotkeyId, out var registration))
             {
-                // Execute callback on the UI thread
-                WpfApplication.Current?.Dispatcher.BeginInvoke(registration.Callback);
-                handled = true;
+                try
+                {
+                    // Execute callback on the UI thread
+                    if (WpfApplication.Current != null)
+                    {
+                        WpfApplication.Current.Dispatcher.BeginInvoke(registration.Callback);
+                    }
+                    else
+                    {
+                        registration.Callback();
+                    }
+                    handled = true;
+                }
+                catch (Exception)
+                {
+                    // Suppress exceptions in hotkey callback to prevent crashes
+                }
             }
         }
 

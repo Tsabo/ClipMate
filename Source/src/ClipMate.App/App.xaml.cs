@@ -127,12 +127,22 @@ public partial class App : Application
             return;
         }
 
-        // Create and show main window
+        // Create dedicated hidden window for hotkey messages
+        // This window must be "shown" to receive WM_HOTKEY messages, but it's completely invisible
+        var hotkeyWindow = new HotkeyWindow();
+        hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
+        
+        // Initialize PowerPaste with the hotkey window
+        var powerPasteCoordinator = _serviceProvider.GetRequiredService<PowerPasteCoordinator>();
+        powerPasteCoordinator.Initialize(hotkeyWindow);
+        _logger?.LogInformation("PowerPaste coordinator initialized");
+        
+        // Create main window
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         
-        // Initialize system tray
+        // Initialize system tray (pass mainWindow for DPI-aware context menu positioning)
         var systemTray = _serviceProvider.GetRequiredService<SystemTrayService>();
-        systemTray.Initialize();
+        systemTray.Initialize(mainWindow);
         systemTray.ShowWindowRequested += (_, _) =>
         {
             mainWindow.Show();
@@ -158,14 +168,8 @@ public partial class App : Application
         }
         else
         {
-            // Start minimized to tray
             _logger?.LogInformation("Application started minimized to system tray");
         }
-
-        // Initialize PowerPaste coordinator
-        var powerPasteCoordinator = _serviceProvider.GetRequiredService<PowerPasteCoordinator>();
-        powerPasteCoordinator.Initialize(mainWindow);
-        _logger?.LogInformation("PowerPaste coordinator initialized");
 
         // Start clipboard monitoring
         var coordinator = _serviceProvider.GetRequiredService<ClipboardCoordinator>();
@@ -194,7 +198,8 @@ public partial class App : Application
         // Configure logging
         services.AddLogging(builder =>
         {
-            builder.SetMinimumLevel(LogLevel.Debug); // Changed to Debug for troubleshooting
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Information); // Reduce EF Core verbosity
             builder.AddDebug();
             builder.AddConsole();
         });

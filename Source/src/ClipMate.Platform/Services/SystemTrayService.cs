@@ -17,6 +17,7 @@ public class SystemTrayService : IDisposable
 {
     private readonly ICollectionService _collectionService;
     private readonly ILogger<SystemTrayService> _logger;
+    private System.Windows.Window? _mainWindow;
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
     private bool _disposed;
@@ -50,13 +51,16 @@ public class SystemTrayService : IDisposable
     /// <summary>
     /// Initializes the system tray icon and context menu.
     /// </summary>
-    public void Initialize()
+    /// <param name="mainWindow">Optional main window for DPI-aware context menu positioning.</param>
+    public void Initialize(System.Windows.Window? mainWindow = null)
     {
         if (_notifyIcon != null)
         {
             _logger.LogWarning("SystemTrayService already initialized");
             return;
         }
+        
+        _mainWindow = mainWindow;
 
         _logger.LogInformation("Initializing system tray icon");
 
