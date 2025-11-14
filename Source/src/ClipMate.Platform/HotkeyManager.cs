@@ -61,13 +61,13 @@ public class HotkeyManager : IDisposable
             throw new InvalidOperationException("Window handle is not available even after EnsureHandle().");
         }
 
-        // Get the HwndSource from the window's PresentationSource
-        // This gets the actual HwndSource that WPF uses internally for message routing
-        _hwndSource = System.Windows.PresentationSource.FromVisual(window) as HwndSource;
+        // Get the HwndSource directly from the window handle
+        // This is more reliable than FromVisual() for windows that may not be fully loaded yet
+        _hwndSource = HwndSource.FromHwnd(hwnd);
         
         if (_hwndSource == null)
         {
-            throw new InvalidOperationException("Failed to get HwndSource from window.");
+            throw new InvalidOperationException($"Failed to get HwndSource from window handle 0x{hwnd:X}.");
         }
         
         // Add hook to process WM_HOTKEY messages
