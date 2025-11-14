@@ -18,11 +18,11 @@
     </Window.InputBindings>
     
     <Window.Resources>
-        <!-- Common Styles -->
+        <!-- Common Styles - Compact Utility Style -->
         <Style x:Key="PaneHeaderStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="9"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="5,5,5,10"/>
+            <Setter Property="Margin" Value="4,4,4,6"/>
             <Setter Property="Foreground" Value="#333333"/>
         </Style>
 
@@ -30,8 +30,8 @@
             <Setter Property="BorderBrush" Value="#CCCCCC"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="White"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="4"/>
         </Style>
     </Window.Resources>
 
@@ -48,46 +48,46 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Menu Bar -->
-        <Menu Grid.Row="0">
-            <MenuItem Header="_File">
-                <MenuItem Header="_New Collection..." />
-                <MenuItem Header="_Open Collection..." />
+        <!-- Menu Bar - Compact Style -->
+        <Menu Grid.Row="0" FontSize="9" FontFamily="Segoe UI" Padding="2,1">
+            <MenuItem Header="_File" FontSize="9">
+                <MenuItem Header="_New Collection..." FontSize="9" Padding="6,3"/>
+                <MenuItem Header="_Open Collection..." FontSize="9" Padding="6,3"/>
                 <Separator/>
-                <MenuItem Header="_Exit" Click="Exit_Click" />
+                <MenuItem Header="_Exit" Click="Exit_Click" FontSize="9" Padding="6,3"/>
             </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem Header="_Copy" InputGestureText="Ctrl+C"/>
-                <MenuItem Header="_Paste" InputGestureText="Ctrl+V"/>
-                <MenuItem Header="_Delete" InputGestureText="Del"/>
+            <MenuItem Header="_Edit" FontSize="9">
+                <MenuItem Header="_Copy" InputGestureText="Ctrl+C" FontSize="9" Padding="6,3"/>
+                <MenuItem Header="_Paste" InputGestureText="Ctrl+V" FontSize="9" Padding="6,3"/>
+                <MenuItem Header="_Delete" InputGestureText="Del" FontSize="9" Padding="6,3"/>
             </MenuItem>
-            <MenuItem Header="_Tools">
-                <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T"/>
-                <MenuItem Header="_PowerPaste" InputGestureText="Ctrl+Shift+V"/>
+            <MenuItem Header="_Tools" FontSize="9">
+                <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T" FontSize="9" Padding="6,3"/>
+                <MenuItem Header="_Quick Access" InputGestureText="Ctrl+Shift+V" FontSize="9" Padding="6,3"/>
             </MenuItem>
-            <MenuItem Header="T_emplates">
-                <MenuItem Header="_Manage Templates..." Click="ManageTemplates_Click" InputGestureText="Ctrl+Shift+T"/>
+            <MenuItem Header="T_emplates" FontSize="9">
+                <MenuItem Header="_Manage Templates..." Click="ManageTemplates_Click" InputGestureText="Ctrl+Shift+T" FontSize="9" Padding="6,3"/>
                 <Separator/>
-                <MenuItem Header="_Insert Template" x:Name="InsertTemplateMenu">
+                <MenuItem Header="_Insert Template" x:Name="InsertTemplateMenu" FontSize="9" Padding="6,3">
                     <!-- Template items will be populated dynamically -->
                 </MenuItem>
             </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="_About ClipMate" />
+            <MenuItem Header="_Help" FontSize="9">
+                <MenuItem Header="_About ClipMate" FontSize="9" Padding="6,3"/>
             </MenuItem>
         </Menu>
         
-        <!-- Toolbar (Placeholder - will add icons in next task) -->
+        <!-- Toolbar - Compact Style (Placeholder - will add proper 16x16 icons later) -->
         <ToolBarTray Grid.Row="1" Background="#F0F0F0">
-            <ToolBar>
-                <Button Content="New" ToolTip="New Collection" Padding="5"/>
-                <Button Content="Folder" ToolTip="New Folder" Padding="5"/>
+            <ToolBar Height="26" Padding="2,1" FontSize="9" FontFamily="Segoe UI">
+                <Button Content="New" ToolTip="New Collection" Height="22" Width="45" Padding="4,2"/>
+                <Button Content="Folder" ToolTip="New Folder" Height="22" Width="50" Padding="4,2"/>
                 <Separator/>
-                <Button Content="Copy" ToolTip="Copy to Clipboard" Padding="5"/>
-                <Button Content="Paste" ToolTip="Paste" Padding="5"/>
-                <Button Content="Delete" ToolTip="Delete Clip" Padding="5"/>
+                <Button Content="Copy" ToolTip="Copy to Clipboard" Height="22" Width="45" Padding="4,2"/>
+                <Button Content="Paste" ToolTip="Paste" Height="22" Width="45" Padding="4,2"/>
+                <Button Content="Delete" ToolTip="Delete Clip" Height="22" Width="50" Padding="4,2"/>
                 <Separator/>
-                <Button Content="Search" ToolTip="Search Clips" Padding="5"/>
+                <Button Content="Search" ToolTip="Search Clips" Height="22" Width="55" Padding="4,2"/>
             </ToolBar>
         </ToolBarTray>
         
@@ -117,9 +117,9 @@
                 </Grid>
             </Border>
 
-            <!-- Splitter between Left and Right -->
+            <!-- Splitter between Left and Right - Compact -->
             <GridSplitter Grid.Column="1" 
-                         Width="5" 
+                         Width="3" 
                          HorizontalAlignment="Center" 
                          VerticalAlignment="Stretch"
                          Background="#E0E0E0"
@@ -146,7 +146,7 @@
                         <!-- Search Panel (moved from top of window) -->
                         <views:SearchPanel Grid.Row="0" x:Name="SearchPanel" Margin="0,0,0,5"/>
 
-                        <!-- Clip List - DataGrid with sortable columns (ClipMate 7.5 style) -->
+                        <!-- Clip List - DataGrid with sortable columns (Windows utility compact style) -->
                         <DataGrid Grid.Row="1" 
                                  x:Name="ClipDataGrid"
                                  ItemsSource="{Binding Clips}"
@@ -156,11 +156,37 @@
                                  CanUserDeleteRows="False"
                                  GridLinesVisibility="Horizontal"
                                  HeadersVisibility="Column"
-                                 RowHeight="24"
+                                 FontSize="9"
+                                 FontFamily="Segoe UI"
+                                 RowHeight="18"
+                                 ColumnHeaderHeight="20"
                                  BorderThickness="0"
                                  Background="White"
                                  AlternatingRowBackground="#F9F9F9"
                                  SelectionChanged="ClipDataGrid_SelectionChanged">
+                            <!-- Compact Row Style -->
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="MinHeight" Value="18"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <!-- Compact Column Header Style -->
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Height" Value="20"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="FontSize" Value="9"/>
+                                    <Setter Property="FontWeight" Value="Normal"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <!-- Compact Cell Style -->
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                </Style>
+                            </DataGrid.CellStyle>
                             <DataGrid.Columns>
                                 <!-- Title Column (Clip Content Preview) -->
                                 <DataGridTextColumn Header="Title" 
@@ -206,9 +232,9 @@
                     </Grid>
                 </Border>
 
-                <!-- Splitter between List and Preview -->
+                <!-- Splitter between List and Preview - Compact -->
                 <GridSplitter Grid.Row="1" 
-                             Height="5" 
+                             Height="3" 
                              HorizontalAlignment="Stretch" 
                              VerticalAlignment="Center"
                              Background="#E0E0E0"
@@ -256,22 +282,26 @@
                                       FontFamily="Consolas"/>
                         </ScrollViewer>
 
-                        <!-- Preview Actions -->
+                        <!-- Preview Actions - Compact Style -->
                         <StackPanel Grid.Row="2" 
                                    Orientation="Horizontal" 
                                    HorizontalAlignment="Right"
-                                   Margin="0,5,0,0">
+                                   Margin="0,4,0,0">
                             <Button Content="Copy" 
                                    x:Name="CopyButton"
-                                   Width="80" 
-                                   Height="28" 
-                                   Margin="5,0"
+                                   Width="70" 
+                                   Height="22" 
+                                   FontSize="9"
+                                   Padding="8,2"
+                                   Margin="4,0"
                                    Click="CopyButton_Click"/>
                             <Button Content="Delete" 
                                    x:Name="DeleteButton"
-                                   Width="80" 
-                                   Height="28" 
-                                   Margin="5,0"
+                                   Width="70" 
+                                   Height="22" 
+                                   FontSize="9"
+                                   Padding="8,2"
+                                   Margin="4,0"
                                    Background="#FFEBEE"
                                    Foreground="#C62828"
                                    Click="DeleteButton_Click"/>
@@ -281,12 +311,13 @@
             </Grid>
         </Grid>
         
-        <!-- Status Bar -->
+        <!-- Status Bar - Compact Style -->
         <Border Grid.Row="3" 
                x:Name="StatusBar"
                BorderBrush="#CCCCCC" 
                BorderThickness="0,1,0,0" 
-               Padding="5"
+               Height="20"
+               Padding="4,2"
                Background="#F0F0F0">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -298,14 +329,14 @@
                 <TextBlock Grid.Column="0" 
                           x:Name="StatusBarLeft"
                           Text="Ready" 
-                          FontSize="11" 
+                          FontSize="9" 
                           Foreground="#666666"
-                          Margin="0,0,20,0"/>
+                          Margin="0,0,12,0"/>
                 
                 <TextBlock Grid.Column="2" 
                           x:Name="StatusBarRight"
                           Text="0 clips | 0 bytes, 0 chars, 0 words" 
-                          FontSize="11" 
+                          FontSize="9" 
                           Foreground="#666666"/>
             </Grid>
         </Border>
