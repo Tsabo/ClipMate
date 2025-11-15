@@ -1,26 +1,24 @@
-<Window
+<ui:FluentWindow
     x:Class="ClipMate.App.Views.PowerPasteWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
     d:DataContext="{d:DesignInstance Type=vm:PowerPasteViewModel}"
     mc:Ignorable="d"
     Title="PowerPaste"
     Width="600"
     Height="400"
-    AllowsTransparency="True"
-    Background="Transparent"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
     Topmost="True"
     WindowStartupLocation="CenterScreen"
-    WindowStyle="None"
     Loaded="Window_Loaded"
     PreviewKeyDown="Window_PreviewKeyDown">
 
-    <Window.Resources>
+    <ui:FluentWindow.Resources>
         <!--  Clip Item Style  -->
         <Style x:Key="ClipItemStyle" TargetType="ListBoxItem">
             <Setter Property="Background" Value="#2D2D30" />
@@ -59,7 +57,7 @@
                 </MultiTrigger>
             </Style.Triggers>
         </Style>
-    </Window.Resources>
+    </ui:FluentWindow.Resources>
 
     <Border
         Background="#1E1E1E"
@@ -178,4 +176,4 @@
             </Grid>
         </Grid>
     </Border>
-</Window>
+</ui:FluentWindow>

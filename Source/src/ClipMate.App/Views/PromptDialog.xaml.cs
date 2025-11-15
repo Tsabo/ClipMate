@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using Wpf.Ui.Controls;
 
 namespace ClipMate.App.Views;
 
@@ -7,7 +8,7 @@ namespace ClipMate.App.Views;
 /// Interaction logic for PromptDialog.xaml
 /// Provides a simple input dialog for {PROMPT:label} template variables.
 /// </summary>
-public partial class PromptDialog : Window
+public partial class PromptDialog : FluentWindow
 {
     /// <summary>
     /// Gets the user's input value. Null if dialog was cancelled.

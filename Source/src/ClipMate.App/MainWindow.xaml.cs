@@ -7,13 +7,17 @@ using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
+using Wpf.Ui.Controls;
+using MessageBox = System.Windows.MessageBox;
+using MessageBoxButton = System.Windows.MessageBoxButton;
+using MessageBoxResult = System.Windows.MessageBoxResult;
 
 namespace ClipMate.App;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private readonly ClipListViewModel _clipListViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;

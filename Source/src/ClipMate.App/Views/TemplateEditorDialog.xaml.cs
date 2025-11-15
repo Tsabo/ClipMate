@@ -1,12 +1,13 @@
 using System.Windows;
 using ClipMate.App.ViewModels;
+using Wpf.Ui.Controls;
 
 namespace ClipMate.App.Views;
 
 /// <summary>
 /// Interaction logic for TemplateEditorDialog.xaml
 /// </summary>
-public partial class TemplateEditorDialog : Window
+public partial class TemplateEditorDialog : FluentWindow
 {
     public TemplateEditorDialog()
     {

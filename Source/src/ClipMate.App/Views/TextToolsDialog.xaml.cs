@@ -1,12 +1,13 @@
 using System.Windows;
 using ClipMate.App.ViewModels;
+using Wpf.Ui.Controls;
 
 namespace ClipMate.App.Views;
 
 /// <summary>
 /// Interaction logic for TextToolsDialog.xaml
 /// </summary>
-public partial class TextToolsDialog : Window
+public partial class TextToolsDialog : FluentWindow
 {
     public TextToolsDialog()
     {

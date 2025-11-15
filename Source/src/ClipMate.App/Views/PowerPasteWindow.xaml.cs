@@ -1,13 +1,14 @@
 using System.Windows;
 using System.Windows.Input;
 using ClipMate.App.ViewModels;
+using Wpf.Ui.Controls;
 
 namespace ClipMate.App.Views;
 
 /// <summary>
 /// PowerPaste quick access window for clipboard history.
 /// </summary>
-public partial class PowerPasteWindow : Window
+public partial class PowerPasteWindow : FluentWindow
 {
     private readonly PowerPasteViewModel _viewModel;
 

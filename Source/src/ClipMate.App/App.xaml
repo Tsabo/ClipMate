@@ -1,101 +1,15 @@
 ﻿<Application x:Class="ClipMate.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:ClipMate.App">
+             xmlns:local="clr-namespace:ClipMate.App"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     <Application.Resources>
-        <!-- Windows Utility Style - Compact, Dense UI -->
-        <!-- Reference: Windows Explorer detail view, Windows system dialogs -->
-        
-        <!-- Global Font Settings -->
-        <Style TargetType="Window">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="9"/>
-        </Style>
-        
-        <!-- Compact Button Style -->
-        <Style x:Key="CompactButton" TargetType="Button">
-            <Setter Property="Height" Value="22"/>
-            <Setter Property="Padding" Value="8,2"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-        
-        <!-- Compact TextBox Style -->
-        <Style x:Key="CompactTextBox" TargetType="TextBox">
-            <Setter Property="Height" Value="20"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-        
-        <!-- Compact ListBox Style -->
-        <Style x:Key="CompactListBox" TargetType="ListBox">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        
-        <!-- Compact ListBoxItem Style -->
-        <Style x:Key="CompactListBoxItem" TargetType="ListBoxItem">
-            <Setter Property="Height" Value="20"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-        
-        <!-- Compact TreeView Style -->
-        <Style x:Key="CompactTreeView" TargetType="TreeView">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        
-        <!-- Compact TreeViewItem Style -->
-        <Style x:Key="CompactTreeViewItem" TargetType="TreeViewItem">
-            <Setter Property="Padding" Value="2,1"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-        
-        <!-- Compact DataGrid Style -->
-        <Style x:Key="CompactDataGrid" TargetType="DataGrid">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="RowHeight" Value="18"/>
-            <Setter Property="ColumnHeaderHeight" Value="20"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        
-        <!-- Compact Menu Style -->
-        <Style x:Key="CompactMenu" TargetType="Menu">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Padding" Value="2,1"/>
-        </Style>
-        
-        <!-- Compact MenuItem Style -->
-        <Style x:Key="CompactMenuItem" TargetType="MenuItem">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="Padding" Value="6,3"/>
-        </Style>
-        
-        <!-- Compact ToolBar Style -->
-        <Style x:Key="CompactToolBar" TargetType="ToolBar">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Padding" Value="2,1"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-        
-        <!-- Compact StatusBar Style -->
-        <Style x:Key="CompactStatusBar" TargetType="StatusBar">
-            <Setter Property="Height" Value="20"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- WPF UI Theme - Modern Fluent Design -->
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
