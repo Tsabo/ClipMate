@@ -1,170 +1,232 @@
-using ClipMate.Core.Models;
+using System.Windows;
+using ClipMate.Core.Events;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
 
 /// <summary>
-/// Coordinates clipboard monitoring and clip persistence.
-/// Wires ClipboardService events to ClipService for automatic saving.
-/// Includes application filtering to exclude clips from specific applications.
+/// Background service that coordinates clipboard monitoring and clip persistence.
+/// Consumes clips from the clipboard service channel and saves them to the database.
 /// </summary>
-public class ClipboardCoordinator : IDisposable
+public class ClipboardCoordinator : IHostedService
 {
     private readonly IClipboardService _clipboardService;
-    private readonly IClipService _clipService;
-    private readonly ICollectionService _collectionService;
-    private readonly IFolderService _folderService;
-    private readonly IApplicationFilterService _filterService;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IMessenger _messenger;
     private readonly ILogger<ClipboardCoordinator> _logger;
-    private bool _disposed;
+    private Task? _processingTask;
+    private CancellationTokenSource? _cts;
 
     public ClipboardCoordinator(
         IClipboardService clipboardService,
-        IClipService clipService,
-        ICollectionService collectionService,
-        IFolderService folderService,
-        IApplicationFilterService filterService,
+        IServiceProvider serviceProvider,
+        IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
-        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
-        _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        // Subscribe to clipboard capture events
-        _clipboardService.ClipCaptured += OnClipCaptured;
     }
 
-    /// <summary>
-    /// Starts clipboard monitoring and automatic clip saving.
-    /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting clipboard coordinator");
-        await _clipboardService.StartMonitoringAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Stops clipboard monitoring.
-    /// </summary>
-    public async Task StopAsync()
-    {
-        _logger.LogInformation("Stopping clipboard coordinator");
-        await _clipboardService.StopMonitoringAsync();
-    }
-
-    private async void OnClipCaptured(object? sender, ClipCapturedEventArgs e)
-    {
-        if (e.Cancel)
-        {
-            _logger.LogDebug("Clip capture cancelled by event handler");
-            return;
-        }
 
         try
         {
-            // Check if clip should be filtered based on source application
-            var shouldFilter = await _filterService.ShouldFilterAsync(
-                e.Clip.SourceApplicationName,
-                e.Clip.SourceApplicationTitle);
-
-            if (shouldFilter)
+            // Start clipboard monitoring
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                _logger.LogDebug(
-                    "Clip filtered out: Process={ProcessName}, Title={WindowTitle}",
-                    e.Clip.SourceApplicationName,
-                    e.Clip.SourceApplicationTitle);
-                return;
+                _clipboardService.StartMonitoringAsync(cancellationToken);
+            });
+
+            // Start background task to process clips from channel
+            _cts = new CancellationTokenSource();
+            _processingTask = ProcessClipsAsync(_cts.Token);
+
+            _logger.LogInformation("Clipboard coordinator started successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to start clipboard coordinator");
+            throw;
+        }
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping clipboard coordinator");
+
+        try
+        {
+            // Stop clipboard monitoring (completes the channel)
+            await _clipboardService.StopMonitoringAsync();
+
+            // Cancel processing and wait for it to finish
+            _cts?.Cancel();
+
+            if (_processingTask != null)
+            {
+                await _processingTask;
             }
 
+            _cts?.Dispose();
+            _logger.LogInformation("Clipboard coordinator stopped");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error stopping clipboard coordinator");
+        }
+    }
+
+    /// <summary>
+    /// Background task that consumes clips from the channel and persists them.
+    /// Runs until the channel is completed or cancellation is requested.
+    /// </summary>
+    private async Task ProcessClipsAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Clip processing loop started");
+
+        try
+        {
+            // Read all clips from the channel until it's completed
+            await foreach (var clip in _clipboardService.ClipsChannel.ReadAllAsync(cancellationToken))
+            {
+                try
+                {
+                    await ProcessClipAsync(clip, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Log error but continue processing other clips
+                    _logger.LogError(ex,
+                        "Failed to process clip: Type={ClipType}, Hash={ContentHash}",
+                        clip.Type,
+                        clip.ContentHash);
+                }
+            }
+
+            _logger.LogInformation("Clip processing loop completed (channel closed)");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Clip processing loop cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in clip processing loop");
+        }
+    }
+
+    /// <summary>
+    /// Processes a single clip: applies filters, assigns to collection/folder, and persists.
+    /// </summary>
+    private async Task ProcessClipAsync(Core.Models.Clip clip, CancellationToken cancellationToken)
+    {
+        // Create a scope to resolve scoped services
+        using var scope = _serviceProvider.CreateScope();
+        var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+        var filterService = scope.ServiceProvider.GetRequiredService<IApplicationFilterService>();
+
+        // Check if clip should be filtered based on source application
+        var shouldFilter = await filterService.ShouldFilterAsync(
+            clip.SourceApplicationName,
+            clip.SourceApplicationTitle,
+            cancellationToken);
+
+        if (shouldFilter)
+        {
             _logger.LogDebug(
-                "Saving clip: Type={ClipType}, Hash={ContentHash}, Length={Length}",
-                e.Clip.Type,
-                e.Clip.ContentHash,
-                e.Clip.TextContent?.Length ?? 0);
+                "Clip filtered out: Process={ProcessName}, Title={WindowTitle}",
+                clip.SourceApplicationName,
+                clip.SourceApplicationTitle);
+            return;
+        }
 
-            // Assign clip to the active collection and folder
-            try
+        _logger.LogDebug(
+            "Processing clip: Type={ClipType}, Hash={ContentHash}, Length={Length}",
+            clip.Type,
+            clip.ContentHash,
+            clip.TextContent?.Length ?? 0);
+
+        // Assign clip to the active collection and folder
+        try
+        {
+            var activeCollection = await collectionService.GetActiveAsync(cancellationToken);
+            clip.CollectionId = activeCollection.Id;
+
+            // Get the active folder (or default to Inbox folder)
+            var activeFolder = await folderService.GetActiveAsync(cancellationToken);
+            if (activeFolder != null)
             {
-                var activeCollection = await _collectionService.GetActiveAsync();
-                e.Clip.CollectionId = activeCollection.Id;
-                
-                // Get the active folder (or default to Inbox folder)
-                var activeFolder = await _folderService.GetActiveAsync();
-                if (activeFolder != null)
+                // Check if folder accepts clipboard captures
+                if (activeFolder.FolderType == Core.Models.FolderType.SearchResults)
                 {
-                    // Check if folder accepts clipboard captures
-                    if (activeFolder.FolderType == FolderType.SearchResults)
-                    {
-                        _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
-                        activeFolder = null; // Fall through to Inbox
-                    }
-                }
-                
-                if (activeFolder != null)
-                {
-                    e.Clip.FolderId = activeFolder.Id;
-                    _logger.LogDebug("Assigning clip to folder: CollectionId={CollectionId}, FolderId={FolderId}, FolderName={FolderName}, FolderType={FolderType}",
-                        activeCollection.Id, activeFolder.Id, activeFolder.Name, activeFolder.FolderType);
-                }
-                else
-                {
-                    // Fallback: Find the Inbox folder in the active collection
-                    var rootFolders = await _folderService.GetRootFoldersAsync(activeCollection.Id);
-                    var inboxFolder = rootFolders.FirstOrDefault(f => f.FolderType == FolderType.Inbox);
-                    if (inboxFolder != null)
-                    {
-                        e.Clip.FolderId = inboxFolder.Id;
-                        _logger.LogDebug("No active folder, using Inbox: CollectionId={CollectionId}, FolderId={FolderId}",
-                            activeCollection.Id, inboxFolder.Id);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("No active folder and no Inbox folder found, clip will not be assigned to a folder");
-                    }
+                    _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
+                    activeFolder = null; // Fall through to Inbox
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to assign clip to collection/folder, clip will be saved without assignment");
-                // Continue saving the clip even if we can't get active collection/folder
-            }
 
-            // ClipService handles duplicate detection via content hash
-            var savedClip = await _clipService.CreateAsync(e.Clip);
-
-            if (savedClip.Id == e.Clip.Id)
+            if (activeFolder != null)
             {
-                _logger.LogInformation("Clip saved successfully: {ClipId}", savedClip.Id);
+                clip.FolderId = activeFolder.Id;
+                _logger.LogDebug("Assigning clip to folder: CollectionId={CollectionId}, FolderId={FolderId}, FolderName={FolderName}, FolderType={FolderType}",
+                    activeCollection.Id, activeFolder.Id, activeFolder.Name, activeFolder.FolderType);
             }
             else
             {
-                _logger.LogDebug(
-                    "Duplicate clip detected, using existing: {ExistingId}",
-                    savedClip.Id);
+                // Fallback: Find the Inbox folder in the active collection
+                var rootFolders = await folderService.GetRootFoldersAsync(activeCollection.Id, cancellationToken);
+                var inboxFolder = rootFolders.FirstOrDefault(f => f.FolderType == Core.Models.FolderType.Inbox);
+                if (inboxFolder != null)
+                {
+                    clip.FolderId = inboxFolder.Id;
+                    _logger.LogDebug("No active folder, using Inbox: CollectionId={CollectionId}, FolderId={FolderId}",
+                        activeCollection.Id, inboxFolder.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("No active folder and no Inbox folder found, clip will not be assigned to a folder");
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Failed to save clip: Type={ClipType}, Hash={ContentHash}",
-                e.Clip.Type,
-                e.Clip.ContentHash);
+            _logger.LogWarning(ex, "Failed to assign clip to collection/folder, clip will be saved without assignment");
+            // Continue saving the clip even if we can't get active collection/folder
         }
-    }
 
-    public void Dispose()
-    {
-        if (_disposed)
+        // ClipService handles duplicate detection via content hash
+        var savedClip = await clipService.CreateAsync(clip, cancellationToken);
+
+        var wasDuplicate = savedClip.Id != clip.Id;
+
+        if (!wasDuplicate)
         {
-            return;
+            _logger.LogInformation("Clip saved successfully: {ClipId}", savedClip.Id);
+        }
+        else
+        {
+            _logger.LogDebug(
+                "Duplicate clip detected, using existing: {ExistingId}",
+                savedClip.Id);
         }
 
-        _clipboardService.ClipCaptured -= OnClipCaptured;
-        _disposed = true;
+        // Send message to notify UI - always send, even for duplicates
+        // UI can decide how to handle duplicates (update timestamp, bring to top, etc.)
+        var clipAddedEvent = new ClipAddedEvent(
+            savedClip,
+            wasDuplicate,
+            savedClip.CollectionId,
+            savedClip.FolderId);
+
+        _messenger.Send(clipAddedEvent);
     }
 }

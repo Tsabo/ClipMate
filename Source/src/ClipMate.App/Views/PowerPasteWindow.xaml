@@ -21,8 +21,6 @@
     <ui:FluentWindow.Resources>
         <!--  Clip Item Style  -->
         <Style x:Key="ClipItemStyle" TargetType="ListBoxItem">
-            <Setter Property="Background" Value="#2D2D30" />
-            <Setter Property="Foreground" Value="#CCCCCC" />
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="Margin" Value="0,0,0,2" />
             <Setter Property="BorderThickness" Value="0" />
@@ -40,22 +38,6 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#0078D4" />
-                    <Setter Property="Foreground" Value="White" />
-                </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3E3E42" />
-                </Trigger>
-                <MultiTrigger>
-                    <MultiTrigger.Conditions>
-                        <Condition Property="IsSelected" Value="True" />
-                        <Condition Property="IsMouseOver" Value="True" />
-                    </MultiTrigger.Conditions>
-                    <Setter Property="Background" Value="#1C97EA" />
-                </MultiTrigger>
-            </Style.Triggers>
         </Style>
     </ui:FluentWindow.Resources>
 
@@ -84,9 +66,7 @@
             <TextBlock
                 Grid.Row="0"
                 Margin="0,0,0,12"
-                FontSize="16"
                 FontWeight="SemiBold"
-                Foreground="#CCCCCC"
                 Text="PowerPaste" />
 
             <!--  Search Box  -->
@@ -95,11 +75,7 @@
                 Grid.Row="1"
                 Height="36"
                 Padding="12,8"
-                Background="#2D2D30"
-                BorderBrush="#3F3F46"
                 BorderThickness="1"
-                FontSize="14"
-                Foreground="#CCCCCC"
                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
                 <TextBox.Resources>
                     <Style TargetType="Border">
@@ -113,7 +89,6 @@
                 x:Name="ClipList"
                 Grid.Row="2"
                 Margin="0,12,0,0"
-                Background="Transparent"
                 BorderThickness="0"
                 ItemContainerStyle="{StaticResource ClipItemStyle}"
                 ItemsSource="{Binding FilteredClips}"
@@ -131,7 +106,6 @@
                             <!--  Clip Content  -->
                             <TextBlock
                                 Grid.Column="0"
-                                FontSize="13"
                                 Text="{Binding TextContent}"
                                 TextTrimming="CharacterEllipsis"
                                 TextWrapping="NoWrap"
@@ -141,8 +115,6 @@
                             <TextBlock
                                 Grid.Column="1"
                                 Margin="12,0,0,0"
-                                FontSize="11"
-                                Foreground="#808080"
                                 Text="{Binding SourceApplicationName}"
                                 TextTrimming="CharacterEllipsis" />
                         </Grid>
@@ -159,14 +131,10 @@
 
                 <TextBlock
                     Grid.Column="0"
-                    FontSize="11"
-                    Foreground="#808080"
                     Text="↑↓ Navigate  •  Enter to Paste  •  Esc to Cancel" />
 
                 <TextBlock
-                    Grid.Column="1"
-                    FontSize="11"
-                    Foreground="#808080">
+                    Grid.Column="1">
                     <Run Text="Showing" />
                     <Run Text="{Binding FilteredClips.Count, Mode=OneWay}" />
                     <Run Text="of" />

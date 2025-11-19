@@ -19,71 +19,6 @@
     <Window.Resources>
         <!-- Converters -->
         <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
-        
-        <!-- Dark Theme Styles -->
-        <Style x:Key="DarkButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#007ACC"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#1C97EA"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#3E3E42"/>
-                                <Setter Property="Foreground" Value="#656565"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="DarkTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="#1E1E1E"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="BorderBrush" Value="#3E3E42"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <Style x:Key="DarkLabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-        </Style>
-
-        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="#3E3E42"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="8,4"/>
-        </Style>
-
-        <Style x:Key="DarkCheckBoxStyle" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="Margin" Value="0,4"/>
-        </Style>
     </Window.Resources>
 
     <Grid Margin="12">
@@ -103,13 +38,11 @@
 
             <TextBlock Grid.Column="0" 
                       Text="Select Tool:" 
-                      Style="{StaticResource DarkLabelStyle}"
                       VerticalAlignment="Center"
                       Margin="0,0,12,0"/>
 
             <ComboBox Grid.Column="1" 
                      SelectedItem="{Binding SelectedTool}"
-                     Style="{StaticResource DarkComboBoxStyle}"
                      Height="32">
                 <models:TextTool>ConvertCase</models:TextTool>
                 <models:TextTool>SortLines</models:TextTool>
@@ -123,16 +56,14 @@
 
         <!-- Tool Options Panel -->
         <Border Grid.Row="1" 
-                Background="#1E1E1E" 
-                BorderBrush="#3E3E42" 
                 BorderThickness="1"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel>
                 <!-- ConvertCase Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=ConvertCase}">
-                    <TextBlock Text="Case Conversion Mode:" Style="{StaticResource DarkLabelStyle}"/>
-                    <ComboBox SelectedItem="{Binding CaseConversionMode}" Style="{StaticResource DarkComboBoxStyle}">
+                    <TextBlock Text="Case Conversion Mode:" />
+                    <ComboBox SelectedItem="{Binding CaseConversionMode}" >
                         <models:CaseConversion>Uppercase</models:CaseConversion>
                         <models:CaseConversion>Lowercase</models:CaseConversion>
                         <models:CaseConversion>TitleCase</models:CaseConversion>
@@ -142,8 +73,8 @@
 
                 <!-- SortLines Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=SortLines}">
-                    <TextBlock Text="Sort Mode:" Style="{StaticResource DarkLabelStyle}"/>
-                    <ComboBox SelectedItem="{Binding SortMode}" Style="{StaticResource DarkComboBoxStyle}">
+                    <TextBlock Text="Sort Mode:" />
+                    <ComboBox SelectedItem="{Binding SortMode}" >
                         <models:SortMode>Alphabetical</models:SortMode>
                         <models:SortMode>Numerical</models:SortMode>
                         <models:SortMode>Reverse</models:SortMode>
@@ -152,36 +83,34 @@
 
                 <!-- RemoveDuplicateLines Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=RemoveDuplicateLines}">
-                    <CheckBox Content="Case Sensitive" IsChecked="{Binding CaseSensitive}" Style="{StaticResource DarkCheckBoxStyle}"/>
+                    <CheckBox Content="Case Sensitive" IsChecked="{Binding CaseSensitive}" />
                 </StackPanel>
 
                 <!-- AddLineNumbers Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=AddLineNumbers}">
-                    <TextBlock Text="Line Number Format:" Style="{StaticResource DarkLabelStyle}"/>
-                    <TextBox Text="{Binding LineNumberFormat}" Style="{StaticResource DarkTextBoxStyle}"/>
+                    <TextBlock Text="Line Number Format:" />
+                    <TextBox Text="{Binding LineNumberFormat}" />
                     <TextBlock Text="Examples: '{0}. ' or '[{0:D3}] '" 
-                              Foreground="#858585" 
-                              FontSize="10" 
                               Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <!-- FindAndReplace Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=FindAndReplace}">
-                    <TextBlock Text="Find:" Style="{StaticResource DarkLabelStyle}"/>
-                    <TextBox Text="{Binding FindText}" Style="{StaticResource DarkTextBoxStyle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Find:" />
+                    <TextBox Text="{Binding FindText}" Margin="0,0,0,8"/>
                     
-                    <TextBlock Text="Replace:" Style="{StaticResource DarkLabelStyle}"/>
-                    <TextBox Text="{Binding ReplaceText}" Style="{StaticResource DarkTextBoxStyle}" Margin="0,0,0,8"/>
+                    <TextBlock Text="Replace:" />
+                    <TextBox Text="{Binding ReplaceText}" Margin="0,0,0,8"/>
                     
-                    <CheckBox Content="Use Regular Expression" IsChecked="{Binding UseRegex}" Style="{StaticResource DarkCheckBoxStyle}"/>
-                    <CheckBox Content="Case Sensitive" IsChecked="{Binding CaseSensitive}" Style="{StaticResource DarkCheckBoxStyle}"/>
+                    <CheckBox Content="Use Regular Expression" IsChecked="{Binding UseRegex}" />
+                    <CheckBox Content="Case Sensitive" IsChecked="{Binding CaseSensitive}" />
                 </StackPanel>
 
                 <!-- CleanUpText Options -->
                 <StackPanel Visibility="{Binding SelectedTool, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=CleanUpText}">
-                    <CheckBox Content="Remove Extra Spaces" IsChecked="{Binding RemoveExtraSpaces}" Style="{StaticResource DarkCheckBoxStyle}"/>
-                    <CheckBox Content="Remove Extra Line Breaks" IsChecked="{Binding RemoveExtraLineBreaks}" Style="{StaticResource DarkCheckBoxStyle}"/>
-                    <CheckBox Content="Trim Lines" IsChecked="{Binding TrimLines}" Style="{StaticResource DarkCheckBoxStyle}"/>
+                    <CheckBox Content="Remove Extra Spaces" IsChecked="{Binding RemoveExtraSpaces}" />
+                    <CheckBox Content="Remove Extra Line Breaks" IsChecked="{Binding RemoveExtraLineBreaks}" />
+                    <CheckBox Content="Trim Lines" IsChecked="{Binding TrimLines}" />
                 </StackPanel>
 
                 <!-- ConvertFormat Options -->
@@ -194,8 +123,8 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="From:" Style="{StaticResource DarkLabelStyle}"/>
-                            <ComboBox SelectedItem="{Binding SourceFormat}" Style="{StaticResource DarkComboBoxStyle}">
+                            <TextBlock Text="From:" />
+                            <ComboBox SelectedItem="{Binding SourceFormat}" >
                                 <models:TextFormat>Plain</models:TextFormat>
                                 <models:TextFormat>Html</models:TextFormat>
                                 <models:TextFormat>Rtf</models:TextFormat>
@@ -203,14 +132,12 @@
                         </StackPanel>
 
                         <TextBlock Grid.Column="1" Text="→" 
-                                  Foreground="#CCCCCC" 
-                                  FontSize="20" 
                                   VerticalAlignment="Center" 
                                   Margin="12,24,12,0"/>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="To:" Style="{StaticResource DarkLabelStyle}"/>
-                            <ComboBox SelectedItem="{Binding TargetFormat}" Style="{StaticResource DarkComboBoxStyle}">
+                            <TextBlock Text="To:" />
+                            <ComboBox SelectedItem="{Binding TargetFormat}" >
                                 <models:TextFormat>Plain</models:TextFormat>
                                 <models:TextFormat>Html</models:TextFormat>
                                 <models:TextFormat>Rtf</models:TextFormat>
@@ -237,12 +164,10 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" 
-                          Text="Input:" 
-                          Style="{StaticResource DarkLabelStyle}"/>
+                          Text="Input:"/>
 
                 <TextBox Grid.Row="1"
                         Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
-                        Style="{StaticResource DarkTextBoxStyle}"
                         AcceptsReturn="True"
                         TextWrapping="Wrap"
                         VerticalScrollBarVisibility="Auto"/>
@@ -256,12 +181,10 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" 
-                          Text="Output:" 
-                          Style="{StaticResource DarkLabelStyle}"/>
+                          Text="Output:" />
 
                 <TextBox Grid.Row="1"
                         Text="{Binding OutputText}"
-                        Style="{StaticResource DarkTextBoxStyle}"
                         AcceptsReturn="True"
                         TextWrapping="Wrap"
                         IsReadOnly="True"
@@ -276,33 +199,27 @@
                    Margin="0,12,0,0">
             <Button Content="Apply Transform" 
                    Command="{Binding ApplyTransformCommand}"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="120"/>
             
             <Button Content="Preview" 
                    Command="{Binding PreviewTransformCommand}"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="80"/>
             
             <Button Content="Copy Output" 
                    Command="{Binding CopyToClipboardCommand}"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="100"/>
             
             <Button Content="Swap ⇄" 
                    Command="{Binding SwapInputOutputCommand}"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="80"
                    ToolTip="Swap input and output"/>
             
             <Button Content="Clear" 
                    Command="{Binding ClearCommand}"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="70"/>
             
             <Button Content="Close" 
                    Click="CloseButton_Click"
-                   Style="{StaticResource DarkButtonStyle}"
                    Width="70"/>
         </StackPanel>
     </Grid>

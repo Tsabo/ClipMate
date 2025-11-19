@@ -1,22 +1,25 @@
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.App.Services;
 using ClipMate.App.Views;
+using ClipMate.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App;
 
 /// <summary>
 /// Coordinates PowerPaste functionality including hotkey registration and window lifecycle.
 /// </summary>
-public class PowerPasteCoordinator : IDisposable
+public class PowerPasteCoordinator : IHostedService, IDisposable
 {
     private const int PowerPasteHotkeyId = 1001;
     private readonly IServiceProvider _serviceProvider;
     private readonly IHotkeyService _hotkeyService;
     private readonly ILogger<PowerPasteCoordinator> _logger;
+    private HotkeyWindow? _hotkeyWindow;
     private PowerPasteWindow? _powerPasteWindow;
     private bool _disposed;
 
@@ -34,30 +37,28 @@ public class PowerPasteCoordinator : IDisposable
     }
 
     /// <summary>
-    /// Initializes PowerPaste with hotkey registration.
+    /// Initializes PowerPaste with hotkey registration when the host starts.
     /// </summary>
-    /// <param name="mainWindow">The main window for hotkey message routing.</param>
-    public void Initialize(Window mainWindow)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        if (mainWindow == null)
-        {
-            throw new ArgumentNullException(nameof(mainWindow));
-        }
-
         try
         {
-            _logger.LogInformation("Initializing PowerPaste coordinator");
-            
-            // Initialize HotkeyService with the main window
-            if (_hotkeyService is Platform.Services.HotkeyService platformHotkeyService)
+            _logger.LogInformation("Starting PowerPaste coordinator");
+
+            // Create and show the hidden hotkey window on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                platformHotkeyService.Initialize(mainWindow);
-            }
+                _hotkeyWindow = new HotkeyWindow();
+                _hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
+                
+                // Initialize HotkeyService with the hotkey window (must be on UI thread)
+                if (_hotkeyService is Platform.Services.HotkeyService platformHotkeyService)
+                {
+                    platformHotkeyService.Initialize(_hotkeyWindow);
+                }
+            });
             
             // Register Ctrl+Shift+V hotkey for PowerPaste
-            // Use KeyInterop to convert WPF Key to Windows Virtual-Key code
             var virtualKey = KeyInterop.VirtualKeyFromKey(Key.V);
             var registered = _hotkeyService.RegisterHotkey(
                 PowerPasteHotkeyId,
@@ -76,8 +77,41 @@ public class PowerPasteCoordinator : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error initializing PowerPaste coordinator");
+            _logger.LogError(ex, "Error starting PowerPaste coordinator");
         }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Stops PowerPaste and unregisters hotkeys when the host stops.
+    /// </summary>
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping PowerPaste coordinator");
+
+        try
+        {
+            // Unregister hotkey
+            _hotkeyService.UnregisterHotkey(PowerPasteHotkeyId);
+            _logger.LogInformation("PowerPaste hotkey unregistered");
+
+            // Close windows on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _powerPasteWindow?.Close();
+                _powerPasteWindow = null;
+
+                _hotkeyWindow?.Close();
+                _hotkeyWindow = null;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error stopping PowerPaste coordinator");
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -89,29 +123,33 @@ public class PowerPasteCoordinator : IDisposable
 
         try
         {
-            // If window is already open, just activate it
-            if (_powerPasteWindow != null && _powerPasteWindow.IsVisible)
+            // Ensure we're on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
             {
+                // If window is already open, just activate it
+                if (_powerPasteWindow != null && _powerPasteWindow.IsVisible)
+                {
+                    _powerPasteWindow.Activate();
+                    _powerPasteWindow.Focus();
+                    _logger.LogDebug("PowerPaste window already open, activating");
+                    return;
+                }
+
+                // Create new window instance from DI
+                _powerPasteWindow = _serviceProvider.GetRequiredService<PowerPasteWindow>();
+
+                // Close window when user is done
+                _powerPasteWindow.Closed += (s, e) =>
+                {
+                    _logger.LogDebug("PowerPaste window closed");
+                    _powerPasteWindow = null;
+                };
+
+                // Show the window
+                _powerPasteWindow.Show();
                 _powerPasteWindow.Activate();
-                _powerPasteWindow.Focus();
-                _logger.LogDebug("PowerPaste window already open, activating");
-                return;
-            }
-
-            // Create new window instance from DI
-            _powerPasteWindow = _serviceProvider.GetRequiredService<PowerPasteWindow>();
-
-            // Close window when user is done
-            _powerPasteWindow.Closed += (s, e) =>
-            {
-                _logger.LogDebug("PowerPaste window closed");
-                _powerPasteWindow = null;
-            };
-
-            // Show the window
-            _powerPasteWindow.Show();
-            _powerPasteWindow.Activate();
-            _logger.LogDebug("PowerPaste window shown");
+                _logger.LogDebug("PowerPaste window shown");
+            });
         }
         catch (Exception ex)
         {
@@ -120,7 +158,7 @@ public class PowerPasteCoordinator : IDisposable
     }
 
     /// <summary>
-    /// Disposes the coordinator and unregisters hotkeys.
+    /// Disposes the coordinator and cleans up resources.
     /// </summary>
     public void Dispose()
     {
@@ -131,13 +169,14 @@ public class PowerPasteCoordinator : IDisposable
 
         try
         {
-            // Unregister hotkey
-            _hotkeyService.UnregisterHotkey(PowerPasteHotkeyId);
-            _logger.LogInformation("PowerPaste hotkey unregistered");
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _powerPasteWindow?.Close();
+                _powerPasteWindow = null;
 
-            // Close window if open
-            _powerPasteWindow?.Close();
-            _powerPasteWindow = null;
+                _hotkeyWindow?.Close();
+                _hotkeyWindow = null;
+            });
         }
         catch (Exception ex)
         {

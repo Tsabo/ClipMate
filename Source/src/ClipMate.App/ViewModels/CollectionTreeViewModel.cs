@@ -8,14 +8,16 @@ namespace ClipMate.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the collection/folder tree view.
+/// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject
 {
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
+    private readonly IConfigurationService _configurationService;
 
     [ObservableProperty]
-    private object? _selectedNode;
+    private TreeNodeBase? _selectedNode;
 
     /// <summary>
     /// Raised when the selected node changes. Args: (collectionId, folderId)
@@ -24,43 +26,134 @@ public partial class CollectionTreeViewModel : ObservableObject
     public event EventHandler<(Guid CollectionId, Guid? FolderId)>? SelectedNodeChanged;
 
     /// <summary>
-    /// Collection of all collections with their folder hierarchies.
+    /// Root nodes of the tree (typically Database nodes).
     /// </summary>
-    public ObservableCollection<CollectionTreeNode> Collections { get; } = new();
+    public ObservableCollection<TreeNodeBase> RootNodes { get; } = new();
 
-    public CollectionTreeViewModel(ICollectionService collectionService, IFolderService folderService)
+    public CollectionTreeViewModel(
+        ICollectionService collectionService, 
+        IFolderService folderService,
+        IConfigurationService configurationService)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
     }
 
-    partial void OnSelectedNodeChanged(object? value)
+    partial void OnSelectedNodeChanged(TreeNodeBase? value)
     {
-        // Raise event with collection/folder IDs
-        if (value is CollectionTreeNode collectionNode)
+        // Raise event with collection/folder IDs based on node type
+        switch (value)
         {
-            SelectedNodeChanged?.Invoke(this, (collectionNode.Collection.Id, null));
-        }
-        else if (value is FolderTreeNode folderNode)
-        {
-            SelectedNodeChanged?.Invoke(this, (folderNode.Folder.CollectionId, folderNode.Folder.Id));
+            case CollectionTreeNode collectionNode:
+                SelectedNodeChanged?.Invoke(this, (collectionNode.Collection.Id, null));
+                break;
+            
+            case FolderTreeNode folderNode:
+                SelectedNodeChanged?.Invoke(this, (folderNode.Folder.CollectionId, folderNode.Folder.Id));
+                break;
+            
+            case VirtualCollectionTreeNode virtualNode:
+                SelectedNodeChanged?.Invoke(this, (virtualNode.VirtualCollection.Id, null));
+                break;
+            
+            // Database and VirtualCollectionsContainer nodes don't trigger selection changes
         }
     }
 
     /// <summary>
-    /// Loads all collections and their folder hierarchies.
+    /// Loads the complete tree hierarchy: Database -> Collections/Virtual Collections -> Folders.
+    /// Creates a database node for each configured database.
     /// </summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        Collections.Clear();
+        RootNodes.Clear();
 
-        var collections = await _collectionService.GetAllAsync(cancellationToken);
+        // Load configuration to get database definitions
+        var configuration = _configurationService.Configuration;
+        
+        // Load all collections (currently from the active database)
+        var allCollections = await _collectionService.GetAllAsync(cancellationToken);
+        
+        // Separate regular collections from virtual ones
+        var regularCollections = allCollections.Where(c => !c.IsVirtual).ToList();
+        var virtualCollections = allCollections.Where(c => c.IsVirtual).ToList();
 
-        foreach (var collection in collections)
+        // Create a database node for each configured database
+        if (configuration.Databases.Any())
         {
-            var collectionNode = new CollectionTreeNode(collection);
-            await LoadFoldersAsync(collectionNode, cancellationToken);
-            Collections.Add(collectionNode);
+            foreach (var dbEntry in configuration.Databases)
+            {
+                var databaseId = dbEntry.Key;
+                var databaseConfig = dbEntry.Value;
+                
+                // Create database node with title from configuration
+                var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId);
+                
+                // Only load collections for the default/active database
+                // TODO: In the future, support loading collections from multiple databases
+                if (databaseId == configuration.DefaultDatabase)
+                {
+                    // Add regular collections to database node
+                    foreach (var collection in regularCollections.OrderBy(c => c.SortKey))
+                    {
+                        var collectionNode = new CollectionTreeNode(collection);
+                        await LoadFoldersAsync(collectionNode, cancellationToken);
+                        
+                        databaseNode.Children.Add(collectionNode);
+                    }
+
+                    // Add virtual collections container if any virtual collections exist
+                    if (virtualCollections.Any())
+                    {
+                        var virtualContainer = new VirtualCollectionsContainerNode();
+                        
+                        foreach (var virtualCollection in virtualCollections.OrderBy(c => c.SortKey))
+                        {
+                            var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
+                            virtualContainer.Children.Add(virtualNode);
+                        }
+                        
+                        databaseNode.Children.Add(virtualContainer);
+                    }
+                    
+                    // Expand the active database node by default
+                    databaseNode.IsExpanded = true;
+                }
+                
+                RootNodes.Add(databaseNode);
+            }
+        }
+        else
+        {
+            // Fallback: If no databases configured, create a default node
+            var databaseNode = new DatabaseTreeNode("My Clips", "default");
+            
+            // Add regular collections to database node
+            foreach (var collection in regularCollections.OrderBy(c => c.SortKey))
+            {
+                var collectionNode = new CollectionTreeNode(collection);
+                await LoadFoldersAsync(collectionNode, cancellationToken);
+                
+                databaseNode.Children.Add(collectionNode);
+            }
+
+            // Add virtual collections container if any virtual collections exist
+            if (virtualCollections.Any())
+            {
+                var virtualContainer = new VirtualCollectionsContainerNode();
+                
+                foreach (var virtualCollection in virtualCollections.OrderBy(c => c.SortKey))
+                {
+                    var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
+                    virtualContainer.Children.Add(virtualNode);
+                }
+                
+                databaseNode.Children.Add(virtualContainer);
+            }
+
+            RootNodes.Add(databaseNode);
+            databaseNode.IsExpanded = true;
         }
     }
 
@@ -75,7 +168,8 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var folderNode = new FolderTreeNode(folder);
             await LoadSubFoldersAsync(folderNode, cancellationToken);
-            collectionNode.Folders.Add(folderNode);
+            
+            collectionNode.Children.Add(folderNode);
         }
     }
 
@@ -90,7 +184,8 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var subFolderNode = new FolderTreeNode(subFolder);
             await LoadSubFoldersAsync(subFolderNode, cancellationToken);
-            folderNode.SubFolders.Add(subFolderNode);
+            
+            folderNode.Children.Add(subFolderNode);
         }
     }
 

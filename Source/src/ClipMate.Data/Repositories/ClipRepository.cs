@@ -6,6 +6,7 @@ namespace ClipMate.Data.Repositories;
 
 /// <summary>
 /// Entity Framework Core implementation of the clip repository.
+/// Handles ClipMate storage architecture: Clip metadata + ClipData formats + BLOB content.
 /// </summary>
 public class ClipRepository : IClipRepository
 {
@@ -40,6 +41,7 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
     {
         return await _context.Clips
+            .Where(c => !c.Del) // Exclude soft-deleted clips
             .OrderByDescending(p => p.CapturedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
@@ -48,7 +50,7 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
         return await _context.Clips
-            .Where(p => p.CollectionId == collectionId)
+            .Where(p => p.CollectionId == collectionId && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
     }
@@ -56,7 +58,7 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default)
     {
         return await _context.Clips
-            .Where(p => p.FolderId == folderId)
+            .Where(p => p.FolderId == folderId && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
     }
@@ -64,17 +66,15 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Clips
-            .Where(p => p.IsFavorite)
+            .Where(p => p.IsFavorite && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<Clip>> GetPinnedAsync(CancellationToken cancellationToken = default)
     {
-        // Note: Clip model doesn't have IsPinned property yet
-        // Return empty list for now, or filter by Label == "Pinned" if that's the approach
         return await _context.Clips
-            .Where(p => p.Label == "Pinned")
+            .Where(p => p.Label == "Pinned" && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
     }
@@ -98,7 +98,7 @@ public class ClipRepository : IClipRepository
         }
 
         return await _context.Clips
-            .Where(p => EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
+            .Where(p => !p.Del && EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
     }
@@ -110,9 +110,182 @@ public class ClipRepository : IClipRepository
             throw new ArgumentNullException(nameof(clip));
         }
 
+        // Generate auto-increment SortKey for ClipMate 7.5 compatibility
+        // SortKey = (count + 1) * 100 to allow manual re-ordering between clips
+        var clipCount = await _context.Clips.CountAsync(cancellationToken);
+        clip.SortKey = (clipCount + 1) * 100;
+
+        // Set denormalized GUIDs for ClipMate 7.5 compatibility
+        // CLIP_GUID = Clip.Id (already set)
+        // COLL_GUID = CollectionId (denormalized for performance)
+        if (clip.CollectionId != Guid.Empty)
+        {
+            // Store collection GUID in a way that matches ClipMate's COLL_GUID field
+            // This would require adding a COLL_GUID navigation property, but for now
+            // we'll rely on CollectionId FK
+        }
+
+        // Add the clip metadata
         _context.Clips.Add(clip);
+
+        // Create ClipData entries and store in BLOB tables
+        await StoreClipContentAsync(clip, cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
         return clip;
+    }
+
+    /// <summary>
+    /// Stores clip content in the appropriate BLOB tables based on available formats.
+    /// Creates ClipData entries for each format and stores actual content separately.
+    /// Transient properties (TextContent, ImageData, etc.) are NOT persisted to Clips table.
+    /// </summary>
+    private async Task StoreClipContentAsync(Clip clip, CancellationToken cancellationToken)
+    {
+        var clipDataEntries = new List<ClipData>();
+
+        // Handle text formats (CF_TEXT = 1, CF_UNICODETEXT = 13)
+        if (!string.IsNullOrEmpty(clip.TextContent))
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = "CF_UNICODETEXT",
+                Format = 13, // CF_UNICODETEXT
+                Size = clip.TextContent.Length * 2, // Unicode bytes
+                StorageType = 1 // TEXT
+            };
+            clipDataEntries.Add(clipData);
+
+            // Store in BlobTxt table
+            var blobTxt = new BlobTxt
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id, // Denormalized for performance
+                Data = clip.TextContent
+            };
+            _context.BlobTxt.Add(blobTxt);
+        }
+
+        // Handle RTF format (CF_RTF)
+        if (!string.IsNullOrEmpty(clip.RtfContent))
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = "CF_RTF",
+                Format = RegisterClipboardFormat("Rich Text Format"), // ~0x0082
+                Size = clip.RtfContent.Length * 2,
+                StorageType = 1 // TEXT
+            };
+            clipDataEntries.Add(clipData);
+
+            var blobTxt = new BlobTxt
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id,
+                Data = clip.RtfContent
+            };
+            _context.BlobTxt.Add(blobTxt);
+        }
+
+        // Handle HTML format (CF_HTML)
+        if (!string.IsNullOrEmpty(clip.HtmlContent))
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = "HTML Format",
+                Format = RegisterClipboardFormat("HTML Format"), // ~0x0080
+                Size = clip.HtmlContent.Length * 2,
+                StorageType = 1 // TEXT
+            };
+            clipDataEntries.Add(clipData);
+
+            var blobTxt = new BlobTxt
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id,
+                Data = clip.HtmlContent
+            };
+            _context.BlobTxt.Add(blobTxt);
+        }
+
+        // Handle image format (CF_BITMAP = 2, CF_DIB = 8)
+        if (clip.ImageData is { Length: > 0 })
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = "CF_DIB",
+                Format = 8, // CF_DIB
+                Size = clip.ImageData.Length,
+                StorageType = 3 // PNG (we store as PNG)
+            };
+            clipDataEntries.Add(clipData);
+
+            // Store in BlobPng table (we converted to PNG in ClipboardService)
+            var blobPng = new BlobPng
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id,
+                Data = clip.ImageData
+            };
+            _context.BlobPng.Add(blobPng);
+        }
+
+        // Handle files format (CF_HDROP = 15)
+        if (!string.IsNullOrEmpty(clip.FilePathsJson))
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = "CF_HDROP",
+                Format = 15, // CF_HDROP
+                Size = clip.FilePathsJson.Length * 2,
+                StorageType = 4 // BLOB (generic)
+            };
+            clipDataEntries.Add(clipData);
+
+            var blobBlob = new BlobBlob
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id,
+                Data = System.Text.Encoding.UTF8.GetBytes(clip.FilePathsJson)
+            };
+            _context.BlobBlob.Add(blobBlob);
+        }
+
+        // Add all ClipData entries
+        if (clipDataEntries.Count > 0)
+        {
+            await _context.ClipData.AddRangeAsync(clipDataEntries, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Helper to get registered clipboard format IDs (approximation for now).
+    /// In real implementation, would call Win32 RegisterClipboardFormat.
+    /// </summary>
+    private static int RegisterClipboardFormat(string formatName)
+    {
+        // Standard format codes (approximation)
+        return formatName switch
+        {
+            "Rich Text Format" => 0x0082,
+            "HTML Format" => 0x0080,
+            _ => 0x00FF // Custom format
+        };
     }
 
     public async Task<Clip> AddAsync(Clip clip, CancellationToken cancellationToken = default)
@@ -134,15 +307,34 @@ public class ClipRepository : IClipRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var clip = await _context.Clips.FindAsync(new object[] { id }, cancellationToken);
+        var clip = await _context.Clips.FindAsync([id], cancellationToken);
         if (clip == null)
         {
             return false;
         }
 
-        _context.Clips.Remove(clip);
+        // Soft delete (ClipMate style)
+        clip.Del = true;
+        clip.DelDate = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
+        
+        // Hard delete BLOB data to save space
+        await DeleteClipBlobsAsync(id, cancellationToken);
+        
         return true;
+    }
+
+    /// <summary>
+    /// Deletes all BLOB data associated with a clip (cascades to ClipData and all BLOB tables).
+    /// </summary>
+    private async Task DeleteClipBlobsAsync(Guid clipId, CancellationToken cancellationToken)
+    {
+        // EF Core will cascade delete BLOBs when we delete ClipData (configured in OnModelCreating)
+        var clipDataEntries = await _context.ClipData
+            .Where(cd => cd.ClipId == clipId)
+            .ToListAsync(cancellationToken);
+
+        _context.ClipData.RemoveRange(clipDataEntries);
     }
 
     public async Task<int> DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken cancellationToken = default)
@@ -151,7 +343,13 @@ public class ClipRepository : IClipRepository
             .Where(p => p.CapturedAt < cutoffDate && !p.IsFavorite)
             .ToListAsync(cancellationToken);
 
-        _context.Clips.RemoveRange(clipsToDelete);
+        foreach (var clip in clipsToDelete)
+        {
+            clip.Del = true;
+            clip.DelDate = DateTime.UtcNow;
+            await DeleteClipBlobsAsync(clip.Id, cancellationToken);
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
         
         return clipsToDelete.Count;
@@ -159,6 +357,6 @@ public class ClipRepository : IClipRepository
 
     public async Task<long> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Clips.LongCountAsync(cancellationToken);
+        return await _context.Clips.Where(c => !c.Del).LongCountAsync(cancellationToken);
     }
 }

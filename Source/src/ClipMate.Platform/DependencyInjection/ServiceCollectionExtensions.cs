@@ -25,8 +25,7 @@ public static class ServiceCollectionExtensions
         // Register PasteService for PowerPaste functionality
         services.AddSingleton<IPasteService, PasteService>();
 
-        // Register SystemTrayService as singleton (manages system tray icon lifecycle)
-        services.AddSingleton<SystemTrayService>();
+        // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         // Future platform services will be registered here
         // services.AddSingleton<ISoundService, SoundService>();

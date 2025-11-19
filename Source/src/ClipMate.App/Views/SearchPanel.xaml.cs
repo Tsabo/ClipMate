@@ -6,7 +6,7 @@ namespace ClipMate.App.Views;
 /// <summary>
 /// Interaction logic for SearchPanel.xaml
 /// </summary>
-public partial class SearchPanel : UserControl
+public partial class SearchPanel : System.Windows.Controls.UserControl
 {
     public SearchPanel()
     {

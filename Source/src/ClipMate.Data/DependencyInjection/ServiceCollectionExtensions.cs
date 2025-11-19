@@ -1,9 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using System.IO;
 
 namespace ClipMate.Data.DependencyInjection;
 
@@ -37,6 +39,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISearchQueryRepository, SearchQueryRepository>();
         services.AddScoped<IApplicationFilterRepository, ApplicationFilterRepository>();
         services.AddScoped<ISoundEventRepository, SoundEventRepository>();
+        
+        // Register ClipMate 7.5 compatibility repositories
+        services.AddScoped<IClipDataRepository, ClipDataRepository>();
+        services.AddScoped<IBlobRepository, BlobRepository>();
+        services.AddScoped<IShortcutRepository, ShortcutRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         // Register services
         // Note: IClipboardService implementation is in Platform layer
@@ -46,8 +54,25 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching
         services.AddSingleton<ITemplateService, TemplateService>(); // Singleton for template management
-        services.AddSingleton<ClipboardCoordinator>();
         services.AddSingleton<DatabaseInitializationService>(); // Database initialization
+
+        // Register configuration service
+        // Extract directory from database path
+        var configDirectory = Path.GetDirectoryName(databasePath) ?? 
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
+        services.AddSingleton<IConfigurationService>(sp => 
+            new ConfigurationService(configDirectory, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConfigurationService>>()));
+
+        // Register multi-database management
+        services.AddSingleton<DatabaseContextFactory>();
+        services.AddSingleton<DatabaseManager>();
+
+        // Register ClipboardCoordinator as singleton first (so it can be injected)
+        services.AddSingleton<ClipboardCoordinator>();
+        
+        // Register hosted services (use the singleton instance)
+        services.AddHostedService<DatabaseInitializationHostedService>();
+        services.AddHostedService(sp => sp.GetRequiredService<ClipboardCoordinator>());
 
         return services;
     }

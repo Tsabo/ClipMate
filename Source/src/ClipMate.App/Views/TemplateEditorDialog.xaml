@@ -15,11 +15,8 @@
         MinWidth="800"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        Loaded="Window_Loaded">
-
-    <ui:FluentWindow.DataContext>
-        <vm:TemplateEditorViewModel/>
-    </ui:FluentWindow.DataContext>
+        Loaded="Window_Loaded"
+        d:DataContext="{d:DesignInstance Type=vm:TemplateEditorViewModel}">
 
     <ui:FluentWindow.Resources>
         <!-- Converters -->

@@ -1,0 +1,30 @@
+<Window x:Class="ClipMate.App.TrayIconWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+        xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+        xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+        Title="TrayIconWindow" 
+        Width="0" 
+        Height="0"
+        WindowStyle="None"
+        ShowInTaskbar="False"
+        Visibility="Hidden"
+        AllowsTransparency="True"
+        Background="Transparent">
+    
+    <dxmvvm:Interaction.Behaviors>
+        <dx:NotifyIconService 
+            Icon="pack://application:,,,/ClipMate.App;component/Assets/icon.ico"
+            Tooltip="ClipMate - Clipboard Manager"
+            LeftClickCommand="{Binding ShowMainWindowCommand}">
+            <dx:NotifyIconService.ContextMenu>
+                <dxb:PopupMenu>
+                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowMainWindowCommand}" />
+                    <dxb:BarItemSeparator/>
+                    <dxb:BarButtonItem Content="Exit" Command="{Binding ExitApplicationCommand}" />
+                </dxb:PopupMenu>
+            </dx:NotifyIconService.ContextMenu>
+        </dx:NotifyIconService>
+    </dxmvvm:Interaction.Behaviors>
+</Window>

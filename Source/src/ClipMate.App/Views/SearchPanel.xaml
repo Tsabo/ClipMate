@@ -8,59 +8,10 @@
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              xmlns:converters="clr-namespace:ClipMate.App.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="120" d:DesignWidth="800"
-             Background="#252526">
+             d:DesignHeight="120" d:DesignWidth="800">
     <UserControl.Resources>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <Style x:Key="SearchButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#007ACC"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#1C97EA"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#3E3E42"/>
-                                <Setter Property="Foreground" Value="#656565"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="FilterCheckBoxStyle" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="Margin" Value="8,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="8,0,4,0"/>
-        </Style>
     </UserControl.Resources>
 
     <Grid Margin="8">
@@ -80,8 +31,6 @@
 
             <!-- Search TextBox with Icon -->
             <Border Grid.Column="0" 
-                    Background="#3E3E42" 
-                    BorderBrush="#555555" 
                     BorderThickness="1" 
                     CornerRadius="2"
                     Height="32">
@@ -94,20 +43,15 @@
 
                     <!-- Search Icon -->
                     <TextBlock Grid.Column="0" 
-                              Text="🔍" 
-                              FontSize="14"
-                              Foreground="#858585"
+                              Text="🔍"
                               VerticalAlignment="Center"
                               Margin="8,0,4,0"/>
 
                     <!-- Search TextBox -->
                     <TextBox Grid.Column="1"
                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                            Background="Transparent"
-                            Foreground="#CCCCCC"
                             BorderThickness="0"
                             VerticalAlignment="Center"
-                            FontSize="13"
                             Padding="4,0">
                         <TextBox.InputBindings>
                             <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
@@ -118,44 +62,21 @@
                     <Button Grid.Column="2"
                            Content="✕"
                            Command="{Binding ClearSearchCommand}"
-                           Background="Transparent"
-                           Foreground="#858585"
                            BorderThickness="0"
                            Padding="8,0"
                            Cursor="Hand"
-                           FontSize="14"
                            ToolTip="Clear search"
-                           Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <ContentPresenter/>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Foreground" Value="White"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                           Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}}"/>
                 </Grid>
             </Border>
 
             <!-- Search Button -->
             <Button Grid.Column="1" 
                     Content="Search"
-                    Command="{Binding SearchCommand}"
-                    Style="{StaticResource SearchButtonStyle}"/>
+                    Command="{Binding SearchCommand}"/>
 
             <!-- Results Count -->
             <TextBlock Grid.Column="2"
-                      Foreground="#CCCCCC"
-                      FontSize="12"
                       VerticalAlignment="Center"
                       Margin="12,0,0,0">
                 <Run Text="{Binding TotalMatches, Mode=OneWay}"/>
@@ -166,42 +87,34 @@
         <!-- Filters Row -->
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <!-- Content Type Filters -->
-            <TextBlock Text="Type:" Style="{StaticResource LabelStyle}"/>
-            <CheckBox Content="Text" IsChecked="{Binding FilterByText}" Style="{StaticResource FilterCheckBoxStyle}"/>
-            <CheckBox Content="Image" IsChecked="{Binding FilterByImage}" Style="{StaticResource FilterCheckBoxStyle}"/>
-            <CheckBox Content="Files" IsChecked="{Binding FilterByFiles}" Style="{StaticResource FilterCheckBoxStyle}"/>
+            <TextBlock Text="Type:" />
+            <CheckBox Content="Text" IsChecked="{Binding FilterByText}" />
+            <CheckBox Content="Image" IsChecked="{Binding FilterByImage}" />
+            <CheckBox Content="Files" IsChecked="{Binding FilterByFiles}" />
 
             <!-- Separator -->
-            <Border Width="1" Height="20" Background="#555555" Margin="12,0"/>
+            <Border Width="1" Height="20" Margin="12,0"/>
 
             <!-- Date Range -->
-            <TextBlock Text="From:" Style="{StaticResource LabelStyle}"/>
+            <TextBlock Text="From:" />
             <DatePicker SelectedDate="{Binding DateFrom}"
                        Width="120"
-                       Margin="4,0,8,0"
-                       Background="#3E3E42"
-                       Foreground="#CCCCCC"
-                       BorderBrush="#555555"/>
+                       Margin="4,0,8,0"/>
 
-            <TextBlock Text="To:" Style="{StaticResource LabelStyle}"/>
+            <TextBlock Text="To:" />
             <DatePicker SelectedDate="{Binding DateTo}"
                        Width="120"
-                       Margin="4,0,8,0"
-                       Background="#3E3E42"
-                       Foreground="#CCCCCC"
-                       BorderBrush="#555555"/>
+                       Margin="4,0,8,0"/>
 
             <!-- Separator -->
-            <Border Width="1" Height="20" Background="#555555" Margin="12,0"/>
+            <Border Width="1" Height="20" Margin="12,0"/>
 
             <!-- Search Options -->
-            <CheckBox Content="Case Sensitive" IsChecked="{Binding IsCaseSensitive}" Style="{StaticResource FilterCheckBoxStyle}"/>
-            <CheckBox Content="Regex" IsChecked="{Binding IsRegex}" Style="{StaticResource FilterCheckBoxStyle}"/>
+            <CheckBox Content="Case Sensitive" IsChecked="{Binding IsCaseSensitive}" />
+            <CheckBox Content="Regex" IsChecked="{Binding IsRegex}" />
 
             <!-- Loading Indicator -->
             <TextBlock Text="🔄 Searching..." 
-                      Foreground="#007ACC"
-                      FontSize="12"
                       VerticalAlignment="Center"
                       Margin="12,0,0,0"
                       Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}"/>

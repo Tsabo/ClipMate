@@ -1,0 +1,93 @@
+# ClipMate Configuration File
+# This file is automatically created and managed by ClipMate.
+# You can edit this file manually while ClipMate is not running.
+
+Version = 1
+DefaultDatabase = "MyClips"
+
+[Preferences]
+AutoCaptureAtStartup = true
+HideTaskbarIcon = true
+ShowSystemTrayIcon = true
+CaptureExistingClipboard = true
+DelayAfterCopy = 999
+DelayOnClipboardUpdate = 250
+BeepOnUpdate = true
+BeepOnAppend = true
+BeepOnErase = true
+BeepOnFilter = true
+BeepOnIgnore = true
+ShowHint = true
+HintHidePause = 4500
+Language = "English"
+LogLevel = 3
+IsRegistered = false
+PowerPasteDelay = 100
+PowerPasteShield = true
+PowerPasteDelimiter = ",.;:\\n\\t"
+PowerPasteTrim = true
+PowerPasteIncludeDelimiter = false
+PowerPasteLoop = false
+PowerPasteExplode = false
+
+[Hotkeys]
+Activate = "Ctrl+Alt+C"
+Capture = "Win+C"
+AutoCapture = "Win+Shift+C"
+QuickPaste = "Ctrl+Shift+V"
+ScreenCapture = "Ctrl+Alt+F12"
+ScreenCaptureObject = "Ctrl+Alt+F11"
+SelectNext = "Ctrl+Alt+N"
+SelectPrevious = "Ctrl+Alt+P"
+ViewClip = "Ctrl+Alt+F2"
+
+[Databases.MyClips]
+Name = "My Clips"
+Directory = "C:\\Users\\YourUsername\\AppData\\Local\\ClipMate"
+AutoLoad = true
+AllowBackup = true
+ReadOnly = false
+CleanupMethod = 3
+PurgeDays = 7
+UserName = "YourUsername"
+IsRemote = false
+MultiUser = false
+IsCommandLineDatabase = false
+UseModificationTimeStamp = true
+
+# Example of a second database configuration
+# [Databases.WorkClips]
+# Name = "Work Clips"
+# Directory = "C:\\Users\\YourUsername\\Documents\\ClipMate\\Work"
+# AutoLoad = false
+# AllowBackup = true
+# ReadOnly = false
+# CleanupMethod = 3
+# PurgeDays = 30
+# UserName = "YourUsername"
+# IsRemote = false
+# MultiUser = false
+
+# Application-specific clipboard format profiles
+# These control which clipboard formats are captured from specific applications
+
+[ApplicationProfiles.DEVENV]
+ApplicationName = "DEVENV"
+Enabled = true
+
+[ApplicationProfiles.DEVENV.Formats]
+TEXT = 1
+Rich Text Format = 1
+HTML Format = 0
+DataObject = 0
+
+[ApplicationProfiles.MSEDGE]
+ApplicationName = "MSEDGE"
+Enabled = true
+
+[ApplicationProfiles.MSEDGE.Formats]
+TEXT = 1
+HTML Format = 1
+Rich Text Format = 0
+
+# More application profiles can be added here as they are discovered

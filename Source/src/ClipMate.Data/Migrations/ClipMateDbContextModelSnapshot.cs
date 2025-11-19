@@ -57,6 +57,114 @@ namespace ClipMate.Data.Migrations
                     b.ToTable("ApplicationFilters");
                 });
 
+            modelBuilder.Entity("ClipMate.Core.Models.BlobBlob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipDataId")
+                        .HasDatabaseName("IX_BlobBlob_ClipDataId");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_BlobBlob_ClipId");
+
+                    b.ToTable("BlobBlob");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobJpg", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipDataId")
+                        .HasDatabaseName("IX_BlobJpg_ClipDataId");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_BlobJpg_ClipId");
+
+                    b.ToTable("BlobJpg");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobPng", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipDataId")
+                        .HasDatabaseName("IX_BlobPng_ClipDataId");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_BlobPng_ClipId");
+
+                    b.ToTable("BlobPng");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobTxt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipDataId")
+                        .HasDatabaseName("IX_BlobTxt_ClipDataId");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_BlobTxt_ClipId");
+
+                    b.ToTable("BlobTxt");
+                });
+
             modelBuilder.Entity("ClipMate.Core.Models.Clip", b =>
                 {
                     b.Property<Guid>("Id")
@@ -66,6 +174,9 @@ namespace ClipMate.Data.Migrations
                     b.Property<DateTime>("CapturedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Checksum")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid?>("CollectionId")
                         .HasColumnType("TEXT");
 
@@ -74,17 +185,27 @@ namespace ClipMate.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FilePathsJson")
+                    b.Property<string>("Creator")
+                        .HasMaxLength(60)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("CustomTitle")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Del")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DelDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Encrypted")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("FolderId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("HtmlContent")
-                        .HasColumnType("TEXT");
-
-                    b.Property<byte[]>("ImageData")
-                        .HasColumnType("BLOB");
+                    b.Property<int>("Icons")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
@@ -92,17 +213,23 @@ namespace ClipMate.Data.Migrations
                     b.Property<string>("Label")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("LastAccessedAt")
+                    b.Property<DateTime?>("LastModified")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Locale")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Macro")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("PasteCount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("RtfContent")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Size")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortKey")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("SourceApplicationName")
                         .HasColumnType("TEXT");
@@ -110,10 +237,24 @@ namespace ClipMate.Data.Migrations
                     b.Property<string>("SourceApplicationTitle")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TextContent")
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(60)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ViewTab")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("WrapCheck")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -121,17 +262,26 @@ namespace ClipMate.Data.Migrations
                     b.HasIndex("CapturedAt")
                         .HasDatabaseName("IX_Clips_CapturedAt");
 
+                    b.HasIndex("Checksum")
+                        .HasDatabaseName("IX_Clips_Checksum");
+
                     b.HasIndex("CollectionId")
                         .HasDatabaseName("IX_Clips_CollectionId");
 
                     b.HasIndex("ContentHash")
                         .HasDatabaseName("IX_Clips_ContentHash");
 
+                    b.HasIndex("Del")
+                        .HasDatabaseName("IX_Clips_Del");
+
                     b.HasIndex("FolderId")
                         .HasDatabaseName("IX_Clips_FolderId");
 
                     b.HasIndex("IsFavorite")
                         .HasDatabaseName("IX_Clips_IsFavorite");
+
+                    b.HasIndex("SortKey")
+                        .HasDatabaseName("IX_Clips_SortKey");
 
                     b.HasIndex("SourceApplicationName")
                         .HasDatabaseName("IX_Clips_SourceApplicationName");
@@ -142,11 +292,54 @@ namespace ClipMate.Data.Migrations
                     b.ToTable("Clips");
                 });
 
+            modelBuilder.Entity("ClipMate.Core.Models.ClipData", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Format")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FormatName")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Size")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("StorageType")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_ClipData_ClipId");
+
+                    b.HasIndex("Format")
+                        .HasDatabaseName("IX_ClipData_Format");
+
+                    b.HasIndex("StorageType")
+                        .HasDatabaseName("IX_ClipData_StorageType");
+
+                    b.ToTable("ClipData");
+                });
+
             modelBuilder.Entity("ClipMate.Core.Models.Collection", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("AcceptDuplicates")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AcceptNewClips")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
@@ -154,81 +347,103 @@ namespace ClipMate.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Encrypted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Favorite")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IlIndex")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("LastKnownCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastUpdateTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LastUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ListType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LmType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("NewClipsGo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("ParentGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ReadOnly")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RetentionLimit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SortAscending")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortColumn")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortKey")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Sql")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VirtualCollectionQuery")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_Collections_IsActive");
+                    b.HasIndex("Favorite")
+                        .HasDatabaseName("IX_Collections_Favorite");
 
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_Collections_Name");
+                    b.HasIndex("LmType")
+                        .HasDatabaseName("IX_Collections_LmType");
+
+                    b.HasIndex("NewClipsGo")
+                        .HasDatabaseName("IX_Collections_NewClipsGo");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("IX_Collections_ParentId");
+
+                    b.HasIndex("SortKey")
+                        .HasDatabaseName("IX_Collections_SortKey");
+
+                    b.HasIndex("Title")
+                        .HasDatabaseName("IX_Collections_Title");
 
                     b.ToTable("Collections");
-                });
-
-            modelBuilder.Entity("ClipMate.Core.Models.Folder", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("CollectionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("FolderType")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("IconName")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsSystemFolder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ParentFolderId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CollectionId")
-                        .HasDatabaseName("IX_Folders_CollectionId");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_Folders_Name");
-
-                    b.HasIndex("ParentFolderId")
-                        .HasDatabaseName("IX_Folders_ParentFolderId");
-
-                    b.HasIndex("SortOrder")
-                        .HasDatabaseName("IX_Folders_SortOrder");
-
-                    b.ToTable("Folders");
                 });
 
             modelBuilder.Entity("ClipMate.Core.Models.SearchQuery", b =>
@@ -271,6 +486,35 @@ namespace ClipMate.Data.Migrations
                         .HasDatabaseName("IX_SearchQueries_QueryText");
 
                     b.ToTable("SearchQueries");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.Shortcut", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipId")
+                        .HasDatabaseName("IX_Shortcuts_ClipId");
+
+                    b.HasIndex("Nickname")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Shortcuts_Nickname");
+
+                    b.ToTable("Shortcuts");
                 });
 
             modelBuilder.Entity("ClipMate.Core.Models.SoundEvent", b =>
@@ -357,12 +601,115 @@ namespace ClipMate.Data.Migrations
                     b.ToTable("Templates");
                 });
 
-            modelBuilder.Entity("ClipMate.Core.Models.Folder", b =>
+            modelBuilder.Entity("ClipMate.Core.Models.User", b =>
                 {
-                    b.HasOne("ClipMate.Core.Models.Folder", null)
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Workstation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .HasDatabaseName("IX_Users_Username");
+
+                    b.HasIndex("Workstation")
+                        .HasDatabaseName("IX_Users_Workstation");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobBlob", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.ClipData", "ClipData")
                         .WithMany()
-                        .HasForeignKey("ParentFolderId")
+                        .HasForeignKey("ClipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClipData");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobJpg", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.ClipData", "ClipData")
+                        .WithMany()
+                        .HasForeignKey("ClipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClipData");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobPng", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.ClipData", "ClipData")
+                        .WithMany()
+                        .HasForeignKey("ClipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClipData");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.BlobTxt", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.ClipData", "ClipData")
+                        .WithMany()
+                        .HasForeignKey("ClipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClipData");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.ClipData", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.Clip", "Clip")
+                        .WithMany()
+                        .HasForeignKey("ClipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Clip");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.Collection", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.Collection", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.Shortcut", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.Clip", "Clip")
+                        .WithMany()
+                        .HasForeignKey("ClipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Clip");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.Collection", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

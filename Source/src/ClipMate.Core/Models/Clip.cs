@@ -1,47 +1,125 @@
 namespace ClipMate.Core.Models;
 
 /// <summary>
-/// Represents a single clipboard entry with content, metadata, and relationships.
+/// Represents a single clipboard entry with metadata and relationships.
+/// Content is stored in BLOB tables (BlobTxt, BlobPng, BlobJpg, BlobBlob) via ClipData entries.
+/// Schema matches ClipMate 7.5 CLIP table structure.
 /// </summary>
-public class Clip
+public partial class Clip
 {
     /// <summary>
-    /// Unique identifier for the clip.
+    /// Unique identifier for the clip (CLIP_GUID in ClipMate 7.5).
     /// </summary>
     public Guid Id { get; set; }
 
     /// <summary>
-    /// Type of content stored in this clip.
+    /// Foreign key to the collection this clip belongs to (COLL_GUID).
     /// </summary>
-    public ClipType Type { get; set; }
+    public Guid? CollectionId { get; set; }
 
     /// <summary>
-    /// Plaintext content (always stored for indexing/searching).
+    /// Foreign key to the folder within a collection (optional).
     /// </summary>
-    public string? TextContent { get; set; }
+    public Guid? FolderId { get; set; }
 
     /// <summary>
-    /// Rich text format content (if Type is RichText).
+    /// Foreign key to the user who created this clip (USER_ID).
     /// </summary>
-    public string? RtfContent { get; set; }
+    public int? UserId { get; set; }
+
+    // ==================== ClipMate 7.5 Metadata Fields ====================
 
     /// <summary>
-    /// HTML formatted content (if Type is Html).
+    /// Title of the clip - first line of text or custom title (TITLE, 60 chars max).
     /// </summary>
-    public string? HtmlContent { get; set; }
+    public string? Title { get; set; }
 
     /// <summary>
-    /// Binary image data (if Type is Image).
+    /// Username/workstation that created this clip (CREATOR, 60 chars max).
     /// </summary>
-    public byte[]? ImageData { get; set; }
+    public string? Creator { get; set; }
 
     /// <summary>
-    /// File paths (if Type is Files), stored as JSON array.
+    /// Timestamp when the clip was captured (TIMESTAMP).
     /// </summary>
-    public string? FilePathsJson { get; set; }
+    public DateTime CapturedAt { get; set; }
 
     /// <summary>
-    /// SHA256 hash of content for duplicate detection.
+    /// Manual sort order for user-defined ordering (SORTKEY).
+    /// Auto-generated as ID * 100 to allow manual re-ordering.
+    /// </summary>
+    public int SortKey { get; set; }
+
+    /// <summary>
+    /// Source URL if captured from browser (SOURCEURL, 250 chars max).
+    /// </summary>
+    public string? SourceUrl { get; set; }
+
+    /// <summary>
+    /// Whether user has customized the title (CUSTOMTITLE).
+    /// </summary>
+    public bool CustomTitle { get; set; }
+
+    /// <summary>
+    /// Language/locale setting (LOCALE).
+    /// </summary>
+    public int Locale { get; set; }
+
+    /// <summary>
+    /// Text wrapping preference (WRAPCHECK).
+    /// </summary>
+    public bool WrapCheck { get; set; }
+
+    /// <summary>
+    /// Whether content is encrypted (ENCRYPTED).
+    /// </summary>
+    public bool Encrypted { get; set; }
+
+    /// <summary>
+    /// Icon index for display (ICONS).
+    /// </summary>
+    public int Icons { get; set; }
+
+    /// <summary>
+    /// Soft delete flag (DEL).
+    /// </summary>
+    public bool Del { get; set; }
+
+    /// <summary>
+    /// Total size in bytes of all formats combined (SIZE).
+    /// </summary>
+    public int Size { get; set; }
+
+    /// <summary>
+    /// Timestamp when deleted (DELDATE).
+    /// </summary>
+    public DateTime? DelDate { get; set; }
+
+    /// <summary>
+    /// Checksum for duplicate detection (CHECKSUM).
+    /// Integer hash of ContentHash for ClipMate 7.5 compatibility.
+    /// </summary>
+    public int Checksum { get; set; }
+
+    /// <summary>
+    /// Which tab to show by default (VIEWTAB): 0=Text, 1=RichText, 2=HTML.
+    /// </summary>
+    public int ViewTab { get; set; }
+
+    /// <summary>
+    /// Whether this is a keystroke macro (MACRO).
+    /// </summary>
+    public bool Macro { get; set; }
+
+    /// <summary>
+    /// Timestamp of last modification (LASTMODIFIED).
+    /// </summary>
+    public DateTime? LastModified { get; set; }
+
+    // ==================== Additional Modern Fields ====================
+
+    /// <summary>
+    /// SHA256 hash of content for robust duplicate detection.
     /// </summary>
     public string ContentHash { get; set; } = string.Empty;
 
@@ -54,21 +132,6 @@ public class Clip
     /// Window title of the application that created this clip.
     /// </summary>
     public string? SourceApplicationTitle { get; set; }
-
-    /// <summary>
-    /// Timestamp when the clip was captured.
-    /// </summary>
-    public DateTime CapturedAt { get; set; }
-
-    /// <summary>
-    /// Timestamp of last modification (for favoriting, labeling, etc.).
-    /// </summary>
-    public DateTime? ModifiedAt { get; set; }
-
-    /// <summary>
-    /// Timestamp of last access (for usage tracking).
-    /// </summary>
-    public DateTime? LastAccessedAt { get; set; }
 
     /// <summary>
     /// Number of times this clip has been pasted.
@@ -86,53 +149,50 @@ public class Clip
     public string? Label { get; set; }
 
     /// <summary>
-    /// Foreign key to the collection this clip belongs to.
+    /// Type of content (Text, Image, Files, etc.).
+    /// Derived from ClipData format entries.
     /// </summary>
-    public Guid? CollectionId { get; set; }
+    public ClipType Type { get; set; }
+
+    // ==================== Navigation Properties ====================
+    // These are loaded on-demand when content is needed
 
     /// <summary>
-    /// Foreign key to the folder within a collection (optional).
+    /// ClipData entries describing available formats for this clip.
+    /// Each format has associated BLOB data in BlobTxt/BlobPng/etc.
     /// </summary>
-    public Guid? FolderId { get; set; }
+    public ICollection<ClipData>? ClipDataFormats { get; set; }
+
+    // ==================== Transient Properties (Not Stored) ====================
+    // These are populated on-demand from BLOB tables via ClipData
 
     /// <summary>
-    /// Gets a display-friendly title for the clip (first line, max 100 chars).
-    /// Used in grid/list views to show preview of multi-line content.
+    /// Plain text content (loaded from BlobTxt when needed).
+    /// NOT stored in Clips table.
     /// </summary>
-    public string DisplayTitle
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(TextContent))
-            {
-                return Type switch
-                {
-                    ClipType.Image => "[Image]",
-                    ClipType.Files => "[Files]",
-                    ClipType.Html => "[HTML]",
-                    ClipType.RichText => "[Rich Text]",
-                    _ => "(Empty)"
-                };
-            }
+    public string? TextContent { get; set; }
 
-            // Get first line only
-            var lines = TextContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var firstLine = lines.Length > 0 ? lines[0].Trim() : TextContent.Trim();
+    /// <summary>
+    /// Rich text format content (loaded from BlobTxt when needed).
+    /// NOT stored in Clips table.
+    /// </summary>
+    public string? RtfContent { get; set; }
 
-            // Truncate to reasonable length for grid display
-            const int maxLength = 100;
-            if (firstLine.Length > maxLength)
-            {
-                return firstLine[..maxLength] + "...";
-            }
+    /// <summary>
+    /// HTML formatted content (loaded from BlobTxt when needed).
+    /// NOT stored in Clips table.
+    /// </summary>
+    public string? HtmlContent { get; set; }
 
-            // Add indicator if multi-line
-            if (lines.Length > 1)
-            {
-                return firstLine + " ↵"; // Down arrow with hook symbol indicates more lines
-            }
+    /// <summary>
+    /// Binary image data (loaded from BlobPng/BlobJpg when needed).
+    /// NOT stored in Clips table.
+    /// </summary>
+    public byte[]? ImageData { get; set; }
 
-            return firstLine;
-        }
-    }
+    /// <summary>
+    /// File paths JSON (loaded from BlobBlob when needed).
+    /// NOT stored in Clips table.
+    /// </summary>
+    public string? FilePathsJson { get; set; }
 }

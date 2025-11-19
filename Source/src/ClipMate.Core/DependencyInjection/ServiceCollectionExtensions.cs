@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using ClipMate.Core.Events;
+using CommunityToolkit.Mvvm.Messaging;
 using ClipMate.Core.Services;
 
 namespace ClipMate.Core.DependencyInjection;
@@ -16,8 +16,9 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddClipMateCore(this IServiceCollection services)
     {
-        // Register event aggregator as singleton
-        services.AddSingleton<IEventAggregator, EventAggregator>();
+        // Register MVVM Community Toolkit messenger as singleton
+        // Using WeakReferenceMessenger for automatic memory management
+        services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
         // Register text transform service as singleton
         services.AddSingleton<TextTransformService>();

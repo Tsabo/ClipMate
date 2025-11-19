@@ -4,94 +4,68 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:local="clr-namespace:ClipMate.App.Views"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="250"
-             Background="#1E1E1E">
+             d:DesignHeight="450" d:DesignWidth="250">
     <UserControl.Resources>
-        <!-- TreeView Item Style -->
-        <Style x:Key="TreeViewItemStyle" TargetType="{x:Type TreeViewItem}">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-        </Style>
-
-        <!-- Collection Template -->
-        <HierarchicalDataTemplate DataType="{x:Type vm:CollectionTreeNode}" 
-                                  ItemsSource="{Binding Folders}">
-            <StackPanel Orientation="Horizontal" Margin="2">
-                <TextBlock Text="📁" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-            </StackPanel>
-        </HierarchicalDataTemplate>
-
-        <!-- Folder Template -->
-        <HierarchicalDataTemplate DataType="{x:Type vm:FolderTreeNode}" 
-                                  ItemsSource="{Binding SubFolders}">
-            <StackPanel Orientation="Horizontal" Margin="2">
-                <TextBlock Text="📂" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-            </StackPanel>
-        </HierarchicalDataTemplate>
+        <!-- Styles are handled in cell template directly -->
     </UserControl.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <!-- Toolbar -->
-        <Border Grid.Row="0" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="0,0,0,1" Padding="8,6">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="➕ Collection" 
-                        Command="{Binding CreateCollectionCommand}"
-                        ToolTip="Create new collection"
-                        Style="{StaticResource {x:Type Button}}"
-                        Background="#007ACC"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Padding="8,4"
-                        Margin="0,0,4,0"
-                        Cursor="Hand"/>
-                <Button Content="➕ Folder" 
-                        ToolTip="Create new folder in selected collection"
-                        Style="{StaticResource {x:Type Button}}"
-                        Background="#0E639C"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Padding="8,4"
-                        Cursor="Hand"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Tree View -->
-        <TreeView Grid.Row="1" 
-                  ItemsSource="{Binding Collections}"
-                  SelectedItemChanged="TreeView_SelectedItemChanged"
-                  Background="#1E1E1E"
-                  BorderThickness="0"
-                  Padding="4"
-                  ItemContainerStyle="{StaticResource TreeViewItemStyle}">
-            <TreeView.Resources>
-                <!-- Context Menu for Collections -->
-                <ContextMenu x:Key="CollectionContextMenu">
-                    <MenuItem Header="Add Folder" Command="{Binding CreateFolderCommand}"/>
+        <!-- DevExpress TreeViewControl for hierarchical collection tree -->
+        <dxg:TreeViewControl x:Name="TreeView"
+                             ItemsSource="{Binding RootNodes}"
+                             TreeViewFieldName="Name"
+                             ChildNodesPath="Children"
+                             ShowBorder="False"
+                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+            
+            <!-- Context Menu -->
+            <dxg:TreeViewControl.ContextMenu>
+                <ContextMenu>
+                    <!-- Collection Context Menu Items -->
+                    <MenuItem Header="Add Folder">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PlacementTarget.DataContext.SelectedNode.NodeType, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="Collection">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                    </MenuItem>
+                    
+                    <!-- Folder Context Menu Items -->
+                    <MenuItem Header="Add Subfolder">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding PlacementTarget.DataContext.SelectedNode.NodeType, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="Folder">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                    </MenuItem>
+                    
                     <Separator/>
-                    <MenuItem Header="Rename" />
-                    <MenuItem Header="Delete" Command="{Binding DeleteCollectionCommand}"/>
-                </ContextMenu>
-
-                <!-- Context Menu for Folders -->
-                <ContextMenu x:Key="FolderContextMenu">
-                    <MenuItem Header="Add Subfolder"/>
+                    
+                    <!-- Common Menu Items -->
+                    <MenuItem Header="Move Up" InputGestureText="+"/>
+                    <MenuItem Header="Move Down" InputGestureText="-"/>
                     <Separator/>
                     <MenuItem Header="Rename"/>
-                    <MenuItem Header="Delete" Command="{Binding DeleteFolderCommand}"/>
+                    <MenuItem Header="Properties"/>
+                    <Separator/>
+                    <MenuItem Header="Delete"/>
                 </ContextMenu>
-            </TreeView.Resources>
-        </TreeView>
+            </dxg:TreeViewControl.ContextMenu>
+        </dxg:TreeViewControl>
     </Grid>
 </UserControl>

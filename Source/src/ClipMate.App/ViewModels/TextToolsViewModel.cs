@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Windows;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 

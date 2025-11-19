@@ -1,38 +1,46 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using ClipMate.App.Services;
+using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
-using ClipMate.Core.Exceptions;
-using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
-using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
-using ClipMate.Platform.Services;
+using DevExpress.Xpf.Core;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App;
 
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
-    private IServiceProvider? _serviceProvider;
+    static App()
+    {
+        //CompatibilitySettings.UseLightweightThemes = true;
+        //ApplicationThemeHelper.ApplicationThemeName = LightweightTheme.Win11SystemColors.Name;
+    }
+
     private ILogger<App>? _logger;
     private Mutex? _singleInstanceMutex;
     private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
-
-    /// <summary>
-    /// Gets the service provider for the application.
-    /// </summary>
-    public static IServiceProvider Services => ((App)Current)._serviceProvider 
-        ?? throw new InvalidOperationException("Service provider is not initialized.");
+    private IHost? _host;
+    private string? _databasePath;
+    private TrayIconWindow? _trayIconWindow;
 
     /// <summary>
     /// Called when the application starts.
     /// </summary>
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -48,15 +56,8 @@ public partial class App : Application
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             
-            // Try to activate the existing instance (future enhancement: use IPC to signal existing instance)
             Shutdown(0);
             return;
-        }
-
-        // Initialize DPI awareness (Windows 8.1+)
-        if (OperatingSystem.IsWindowsVersionAtLeast(8, 1))
-        {
-            ClipMate.Platform.DpiHelper.InitializeDpiAwareness();
         }
 
         // Setup global exception handlers
@@ -64,56 +65,26 @@ public partial class App : Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        // Get application data path for logging
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
-        var databasePath = Path.Combine(appDataPath, "clipmate.db");
-
-        // Configure services
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-        _serviceProvider = services.BuildServiceProvider();
-
-        // Initialize logger
-        _logger = _serviceProvider.GetService<ILogger<App>>();
-
-        // Initialize database
         try
         {
-            var initialized = _serviceProvider.InitializeDatabase();
-            if (!initialized)
+            // Check if database exists, if not show setup wizard
+            if (!await CheckDatabaseAndRunSetupIfNeededAsync())
             {
-                _logger?.LogError("Failed to initialize database schema.");
-                MessageBox.Show(
-                    "Failed to initialize the database. The application will now exit.",
-                    "Database Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-                Shutdown(1);
+                // User cancelled setup
+                Shutdown(0);
                 return;
             }
 
-            _logger?.LogInformation("ClipMate application started successfully");
-            _logger?.LogInformation("Database path: {DatabasePath}", databasePath);
-
-            // Initialize default collections and folders
-            var dbInitService = _serviceProvider.GetRequiredService<DatabaseInitializationService>();
-            dbInitService.InitializeAsync().Wait(); // Synchronous wait during startup
-            _logger?.LogInformation("Database default data initialization complete");
+            // Build and start the host (now with confirmed database path)
+            _host = CreateHostBuilder(_databasePath!).Build();
             
-            // Set the first collection as active (or create default if none exist)
-            var collectionService = _serviceProvider.GetRequiredService<ICollectionService>();
-            var collections = collectionService.GetAllAsync().Result;
-            if (collections.Count > 0)
-            {
-                collectionService.SetActiveAsync(collections[0].Id).Wait();
-                _logger?.LogInformation("Active collection set to: {CollectionName}", collections[0].Name);
-            }
-            else
-            {
-                _logger?.LogWarning("No collections found to set as active");
-            }
+            // Start all hosted services (database initialization, clipboard monitoring, PowerPaste)
+            await _host.StartAsync();
+
+            // Create and show the hidden tray icon window
+            _trayIconWindow = new TrayIconWindow();
+            _trayIconWindow.Show();
+
         }
         catch (Exception ex)
         {
@@ -124,151 +95,158 @@ public partial class App : Application
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(1);
-            return;
         }
-
-        // Create dedicated hidden window for hotkey messages
-        // This window must be "shown" to receive WM_HOTKEY messages, but it's completely invisible
-        var hotkeyWindow = new HotkeyWindow();
-        hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
-        
-        // Initialize PowerPaste with the hotkey window
-        var powerPasteCoordinator = _serviceProvider.GetRequiredService<PowerPasteCoordinator>();
-        powerPasteCoordinator.Initialize(hotkeyWindow);
-        _logger?.LogInformation("PowerPaste coordinator initialized");
-        
-        // Create main window
-        var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-        
-        // Initialize system tray (pass mainWindow for DPI-aware context menu positioning)
-        var systemTray = _serviceProvider.GetRequiredService<SystemTrayService>();
-        systemTray.Initialize(mainWindow);
-        systemTray.ShowWindowRequested += (_, _) =>
-        {
-            mainWindow.Show();
-            mainWindow.Activate();
-        };
-        systemTray.ExitRequested += (_, _) =>
-        {
-            _logger?.LogInformation("Exit requested from system tray");
-            mainWindow.PrepareForExit();
-            Shutdown();
-        };
-        _logger?.LogInformation("System tray initialized");
-        
-        // Check command-line arguments for /show flag
-        bool showWindow = e.Args.Any(arg => 
-            arg.Equals("/show", StringComparison.OrdinalIgnoreCase) ||
-            arg.Equals("--show", StringComparison.OrdinalIgnoreCase));
-        
-        if (showWindow)
-        {
-            mainWindow.Show();
-            _logger?.LogInformation("Main window shown (command-line flag)");
-        }
-        else
-        {
-            _logger?.LogInformation("Application started minimized to system tray");
-        }
-
-        // Start clipboard monitoring
-        var coordinator = _serviceProvider.GetRequiredService<ClipboardCoordinator>();
-        _logger?.LogInformation("Starting clipboard monitoring coordinator");
-        _ = coordinator.StartAsync(); // Fire and forget - runs in background
-        _logger?.LogInformation("Clipboard monitoring coordinator started");
     }
 
     /// <summary>
-    /// Configures the dependency injection container.
+    /// Checks if database exists and is valid. If not, runs the setup wizard.
     /// </summary>
-    private void ConfigureServices(IServiceCollection services)
+    /// <returns>True if database is ready, false if user cancelled setup.</returns>
+    private async Task<bool> CheckDatabaseAndRunSetupIfNeededAsync()
     {
-        // Get application data path
+        // Default database path
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
-        if (!Directory.Exists(appDataPath))
+        _databasePath = Path.Combine(appDataPath, "clipmate.db");
+
+        // Check if database file exists and has tables
+        var databaseExists = File.Exists(_databasePath);
+        var databaseValid = false;
+
+        if (databaseExists)
         {
-            Directory.CreateDirectory(appDataPath);
+            try
+            {
+                // Check if database has the required tables
+                var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
+                optionsBuilder.UseSqlite($"Data Source={_databasePath}");
+
+                await using var context = new ClipMateDbContext(optionsBuilder.Options);
+                
+                // Try to query Collections table (will throw if doesn't exist)
+                await context.Collections.AnyAsync();
+                databaseValid = true;
+            }
+            catch
+            {
+                // Database exists but is invalid/empty
+                databaseValid = false;
+            }
         }
 
-        var databasePath = Path.Combine(appDataPath, "clipmate.db");
-
-        // Configure logging
-        services.AddLogging(builder =>
+        if (!databaseValid)
         {
-            builder.SetMinimumLevel(LogLevel.Debug);
-            builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Information); // Reduce EF Core verbosity
-            builder.AddDebug();
-            builder.AddConsole();
-        });
+            // Show setup wizard
+            // Create a minimal logger for the wizard
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddDebug();
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
 
-        // Register Core services
-        services.AddClipMateCore();
+            var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
+            var setupWizard = new SetupWizard(setupLogger, appDataPath);
+            
+            var result = setupWizard.ShowDialog();
+            
+            if (result != true || !setupWizard.SetupCompleted)
+            {
+                // User cancelled setup
+                return false;
+            }
 
-        // Register Data services
-        services.AddClipMateData(databasePath);
+            // Use the path chosen in setup wizard
+            _databasePath = setupWizard.DatabasePath;
+            
+            // Configuration has been saved by the wizard
+        }
 
-        // Register Platform services
-        services.AddClipMatePlatform();
+        return true;
+    }
 
-        // Register MainWindow
-        services.AddTransient<MainWindow>();
+    /// <summary>
+    /// Creates and configures the host builder.
+    /// </summary>
+    private static IHostBuilder CreateHostBuilder(string databasePath)
+    {
+        return Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration(config =>
+            {
+                config.SetBasePath(AppContext.BaseDirectory);
+            })
+            .ConfigureServices(services =>
+            {
+                // Configure logging
+                services.AddLogging(builder =>
+                {
+                    builder.SetMinimumLevel(LogLevel.Debug);
+                    builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Information);
+                    builder.AddDebug();
+                    builder.AddConsole();
+                });
 
-        // Register PowerPaste components
-        services.AddTransient<ViewModels.PowerPasteViewModel>();
-        services.AddTransient<Views.PowerPasteWindow>();
-        services.AddSingleton<PowerPasteCoordinator>();
+                // App Host
+                services.AddHostedService<ApplicationHostService>();
 
-        // Register Collections/Folders ViewModel
-        services.AddSingleton<ViewModels.CollectionTreeViewModel>();
+                // Register Core services
+                services.AddClipMateCore();
 
-        // Register Search ViewModel
-        services.AddSingleton<ViewModels.SearchViewModel>(); // Singleton to maintain search state
+                // Register Data services (includes hosted services for database init and clipboard monitoring)
+                services.AddClipMateData(databasePath);
 
-        // Register Text Tools components
-        services.AddTransient<ViewModels.TextToolsViewModel>();
-        services.AddTransient<Views.TextToolsDialog>();
+                // Register Platform services
+                services.AddClipMatePlatform();
 
-        // Register Template components
-        services.AddTransient<ViewModels.TemplateEditorViewModel>();
-        services.AddTransient<Views.TemplateEditorDialog>();
-        services.AddTransient<Views.PromptDialog>();
+                // Register PowerPaste as hosted service
+                services.AddSingleton<PowerPasteCoordinator>();
+                services.AddHostedService(sp => sp.GetRequiredService<PowerPasteCoordinator>());
 
-        // ViewModels will be registered here as they are created
-        // Example:
-        // services.AddTransient<MainViewModel>();
-        // services.AddTransient<HistoryViewModel>();
-        // services.AddTransient<SearchViewModel>();
+                // Register MainWindow as singleton (always exists, just hidden/shown)
+                services.AddSingleton<MainWindow>();
+                services.AddSingleton<IWindow, MainWindow>(p => p.GetRequiredService<MainWindow>());
+
+                // Register PowerPaste components
+                services.AddTransient<ViewModels.PowerPasteViewModel>();
+                services.AddTransient<PowerPasteWindow>();
+
+                // Register ViewModels
+                services.AddSingleton<ViewModels.MainWindowViewModel>();
+                services.AddSingleton<ViewModels.CollectionTreeViewModel>();
+                services.AddSingleton<ViewModels.SearchViewModel>();
+
+                // Register Text Tools components
+                services.AddTransient<ViewModels.TextToolsViewModel>();
+                services.AddTransient<TextToolsDialog>();
+
+                // Register Template components
+                services.AddTransient<ViewModels.TemplateEditorViewModel>();
+                services.AddTransient<TemplateEditorDialog>();
+                services.AddTransient<PromptDialog>();
+            });
     }
 
     /// <summary>
     /// Called when the application exits.
     /// </summary>
-    protected override void OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("ClipMate application shutting down");
 
-        // Dispose system tray
-        var systemTray = _serviceProvider?.GetService<SystemTrayService>();
-        systemTray?.Dispose();
-
-        // Dispose PowerPaste coordinator
-        var powerPasteCoordinator = _serviceProvider?.GetService<PowerPasteCoordinator>();
-        powerPasteCoordinator?.Dispose();
-
-        // Stop clipboard monitoring
-        var coordinator = _serviceProvider?.GetService<ClipboardCoordinator>();
-        if (coordinator != null)
+        try
         {
-            _ = coordinator.StopAsync(); // Fire and forget
+            if (_host != null)
+            {
+                // Stop all hosted services gracefully
+                await _host.StopAsync(TimeSpan.FromSeconds(5));
+                _host.Dispose();
+            }
         }
-
-        // Dispose service provider
-        if (_serviceProvider is IDisposable disposable)
+        catch (Exception ex)
         {
-            disposable.Dispose();
+            _logger?.LogError(ex, "Error during application shutdown");
         }
 
         // Release single instance mutex
@@ -324,4 +302,3 @@ public partial class App : Application
         e.SetObserved();
     }
 }
-

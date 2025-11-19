@@ -15,88 +15,6 @@
         ResizeMode="NoResize"
         Loaded="Window_Loaded">
 
-    <ui:FluentWindow.Resources>
-        <!-- Dark Theme Styles -->
-        <Style x:Key="DarkButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#007ACC"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,6"/>
-            <Setter Property="Margin" Value="4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="MinWidth" Value="80"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#1C97EA"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#3E3E42"/>
-                                <Setter Property="Foreground" Value="#656565"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource DarkButtonStyle}">
-            <Setter Property="Background" Value="#3E3E42"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="2">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#505050"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#2A2A2A"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="DarkTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="#3E3E42"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="CaretBrush" Value="White"/>
-        </Style>
-
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
-    </ui:FluentWindow.Resources>
-
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -109,13 +27,11 @@
         <!-- Prompt Label -->
         <TextBlock x:Name="PromptLabel" 
                   Grid.Row="0"
-                  Style="{StaticResource LabelStyle}"
                   TextWrapping="Wrap"/>
 
         <!-- Input TextBox -->
         <TextBox x:Name="InputTextBox"
                 Grid.Row="2"
-                Style="{StaticResource DarkTextBoxStyle}"
                 KeyDown="InputTextBox_KeyDown"/>
 
         <!-- Buttons -->
@@ -124,11 +40,9 @@
                    HorizontalAlignment="Right"
                    Margin="0,16,0,0">
             <Button Content="OK" 
-                   Style="{StaticResource DarkButtonStyle}"
                    Click="OkButton_Click"
                    IsDefault="True"/>
             <Button Content="Cancel" 
-                   Style="{StaticResource SecondaryButtonStyle}"
                    Click="CancelButton_Click"
                    IsCancel="True"/>
         </StackPanel>

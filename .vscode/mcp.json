@@ -1,16 +1,8 @@
 {
   "servers": {
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "g:\\_brownie\\ClipMate"
-      ]
-    },
-    "git": {
-      "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "g:\\_brownie\\ClipMate"]
+    "dxdocs": {
+      "url": "https://api.devexpress.com/mcp/docs",
+      "type": "http"
     },
     "memory": {
       "command": "npx",

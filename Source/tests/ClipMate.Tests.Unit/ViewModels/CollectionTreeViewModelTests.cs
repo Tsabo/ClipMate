@@ -1,5 +1,6 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Moq;
 using Shouldly;
@@ -14,13 +15,35 @@ public class CollectionTreeViewModelTests
 {
     private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IFolderService> _mockFolderService;
+    private readonly Mock<IConfigurationService> _mockConfigurationService;
     private readonly CollectionTreeViewModel _viewModel;
 
     public CollectionTreeViewModelTests()
     {
         _mockCollectionService = new Mock<ICollectionService>();
         _mockFolderService = new Mock<IFolderService>();
-        _viewModel = new CollectionTreeViewModel(_mockCollectionService.Object, _mockFolderService.Object);
+        _mockConfigurationService = new Mock<IConfigurationService>();
+        
+        // Setup default configuration with a single database
+        var config = new ClipMateConfiguration
+        {
+            Databases = new Dictionary<string, DatabaseConfiguration>
+            {
+                ["default"] = new DatabaseConfiguration
+                {
+                    Name = "My Clips",
+                    Directory = "C:\\test",
+                    AutoLoad = true
+                }
+            },
+            DefaultDatabase = "default"
+        };
+        _mockConfigurationService.Setup(x => x.Configuration).Returns(config);
+        
+        _viewModel = new CollectionTreeViewModel(
+            _mockCollectionService.Object, 
+            _mockFolderService.Object,
+            _mockConfigurationService.Object);
     }
 
     [Fact]
@@ -28,7 +51,7 @@ public class CollectionTreeViewModelTests
     {
         // Act & Assert
         Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(null!, _mockFolderService.Object));
+            new CollectionTreeViewModel(null!, _mockFolderService.Object, _mockConfigurationService.Object));
     }
 
     [Fact]
@@ -36,7 +59,7 @@ public class CollectionTreeViewModelTests
     {
         // Act & Assert
         Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(_mockCollectionService.Object, null!));
+            new CollectionTreeViewModel(_mockCollectionService.Object, null!, _mockConfigurationService.Object));
     }
 
     [Fact]
@@ -91,12 +114,18 @@ public class CollectionTreeViewModelTests
         await _viewModel.LoadAsync();
 
         // Assert
-        _viewModel.Collections.Count.ShouldBe(2);
-        _viewModel.Collections[0].Name.ShouldBe("Work");
-        _viewModel.Collections[0].Folders.Count.ShouldBe(1);
-        _viewModel.Collections[0].Folders[0].Name.ShouldBe("Projects");
-        _viewModel.Collections[1].Name.ShouldBe("Personal");
-        _viewModel.Collections[1].Folders.Count.ShouldBe(0);
+        _viewModel.RootNodes.Count.ShouldBe(1);
+        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
+        database.Children.Count.ShouldBe(2);
+        
+        var workCollection = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
+        workCollection.Name.ShouldBe("Work");
+        workCollection.Children.OfType<FolderTreeNode>().Count().ShouldBe(1);
+        workCollection.Children.OfType<FolderTreeNode>().First().Name.ShouldBe("Projects");
+        
+        var personalCollection = database.Children[1].ShouldBeOfType<CollectionTreeNode>();
+        personalCollection.Name.ShouldBe("Personal");
+        personalCollection.Children.OfType<FolderTreeNode>().Count().ShouldBe(0);
     }
 
     [Fact]
@@ -150,13 +179,18 @@ public class CollectionTreeViewModelTests
         await _viewModel.LoadAsync();
 
         // Assert
-        _viewModel.Collections.Count.ShouldBe(1);
-        var collectionNode = _viewModel.Collections[0];
-        collectionNode.Folders.Count.ShouldBe(1);
-        var rootFolderNode = collectionNode.Folders[0];
+        _viewModel.RootNodes.Count.ShouldBe(1);
+        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
+        var collectionNode = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
+        
+        var folders = collectionNode.Children.OfType<FolderTreeNode>().ToList();
+        folders.Count.ShouldBe(1);
+        var rootFolderNode = folders[0];
         rootFolderNode.Name.ShouldBe("Projects");
-        rootFolderNode.SubFolders.Count.ShouldBe(1);
-        rootFolderNode.SubFolders[0].Name.ShouldBe("2024");
+        
+        var subFolders = rootFolderNode.Children.OfType<FolderTreeNode>().ToList();
+        subFolders.Count.ShouldBe(1);
+        subFolders[0].Name.ShouldBe("2024");
     }
 
     [Fact]
@@ -187,8 +221,10 @@ public class CollectionTreeViewModelTests
         await _viewModel.CreateCollectionCommand.ExecuteAsync(("New Collection", "Test description"));
 
         // Assert
-        _viewModel.Collections.Count.ShouldBe(1);
-        _viewModel.Collections[0].Name.ShouldBe("New Collection");
+        _viewModel.RootNodes.Count.ShouldBe(1);
+        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
+        var collection = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
+        collection.Name.ShouldBe("New Collection");
         _mockCollectionService.Verify(s => s.CreateAsync("New Collection", "Test description", It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -234,8 +270,10 @@ public class CollectionTreeViewModelTests
 
         // Assert
         _mockFolderService.Verify(s => s.CreateAsync("New Folder", collection.Id, null, It.IsAny<CancellationToken>()), Times.Once);
-        _viewModel.Collections.Count.ShouldBe(1);
-        _viewModel.Collections[0].Folders.Count.ShouldBe(1);
+        _viewModel.RootNodes.Count.ShouldBe(1);
+        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
+        var collectionNode = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
+        collectionNode.Children.OfType<FolderTreeNode>().Count().ShouldBe(1);
     }
 
     [Fact]
@@ -291,7 +329,9 @@ public class CollectionTreeViewModelTests
 
         // Assert
         _mockCollectionService.Verify(s => s.DeleteAsync(collection.Id, It.IsAny<CancellationToken>()), Times.Once);
-        _viewModel.Collections.Count.ShouldBe(0);
+        _viewModel.RootNodes.Count.ShouldBe(1);
+        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
+        database.Children.OfType<CollectionTreeNode>().Count().ShouldBe(0);
     }
 
     [Fact]

@@ -1,60 +1,52 @@
+using System.Threading.Channels;
 using ClipMate.Core.Models;
 
 namespace ClipMate.Core.Services;
 
 /// <summary>
-/// Service for monitoring and capturing clipboard changes.
+/// Service interface for clipboard monitoring and manipulation.
+/// Uses a channel-based pattern for captured clips to enable proper async handling and backpressure.
 /// </summary>
 public interface IClipboardService
 {
     /// <summary>
-    /// Event raised when a new clip is captured from the clipboard.
+    /// Gets a channel reader for consuming captured clipboard clips.
+    /// The consumer reads from this channel to process clipboard changes asynchronously.
     /// </summary>
-    event EventHandler<ClipCapturedEventArgs>? ClipCaptured;
+    ChannelReader<Clip> ClipsChannel { get; }
 
     /// <summary>
-    /// Starts monitoring the clipboard for changes.
+    /// Gets a value indicating whether clipboard monitoring is active.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    bool IsMonitoring { get; }
+
+    /// <summary>
+    /// Starts monitoring the system clipboard for changes.
+    /// Captured clips are published to the <see cref="ClipsChannel"/>.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to stop monitoring.</param>
+    /// <returns>A task that completes when monitoring has started.</returns>
     Task StartMonitoringAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stops monitoring the clipboard.
+    /// Stops monitoring the system clipboard.
+    /// Completes the clips channel, preventing further writes.
     /// </summary>
+    /// <returns>A task that completes when monitoring has stopped.</returns>
     Task StopMonitoringAsync();
 
     /// <summary>
-    /// Gets the current clipboard content as a Clip entity (without saving).
+    /// Gets the current clipboard content without starting monitoring.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The clipboard content as a Clip; null if clipboard is empty.</returns>
+    /// <returns>The current clipboard content, or null if clipboard is empty or an error occurs.</returns>
     Task<Clip?> GetCurrentClipboardContentAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sets the clipboard content from a Clip entity.
+    /// Sets the system clipboard content from a clip.
     /// </summary>
-    /// <param name="clip">The clip to set to the clipboard.</param>
+    /// <param name="clip">The clip to place on the clipboard.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that completes when the clipboard has been updated.</returns>
     Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets whether clipboard monitoring is currently active.
-    /// </summary>
-    bool IsMonitoring { get; }
-}
-
-/// <summary>
-/// Event args for the ClipCaptured event.
-/// </summary>
-public class ClipCapturedEventArgs : EventArgs
-{
-    /// <summary>
-    /// The captured clip.
-    /// </summary>
-    public required Clip Clip { get; init; }
-
-    /// <summary>
-    /// Whether to cancel saving this clip (set by event handlers).
-    /// </summary>
-    public bool Cancel { get; set; }
 }
