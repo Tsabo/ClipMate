@@ -13,13 +13,13 @@
     <Resource Include="Assets\icon.ico" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Label="Project References">
     <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />
     <ProjectReference Include="..\ClipMate.Platform\ClipMate.Platform.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Label="Package References">
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="DevExpress.Wpf" />
     <PackageReference Include="DevExpress.Mvvm.CodeGenerators" />

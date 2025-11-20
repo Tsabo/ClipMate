@@ -117,4 +117,10 @@ public class ClipService : IClipService
         var existing = await _repository.GetByContentHashAsync(contentHash, cancellationToken);
         return existing != null;
     }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default)
+    {
+        return await _repository.GetClipFormatsAsync(clipId, cancellationToken);
+    }
 }

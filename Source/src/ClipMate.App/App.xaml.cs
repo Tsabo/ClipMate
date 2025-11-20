@@ -38,6 +38,11 @@ public partial class App : System.Windows.Application
     private TrayIconWindow? _trayIconWindow;
 
     /// <summary>
+    /// Gets the service provider for dependency injection.
+    /// </summary>
+    public IServiceProvider ServiceProvider => _host?.Services ?? throw new InvalidOperationException("Host not initialized");
+
+    /// <summary>
     /// Called when the application starts.
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
@@ -200,6 +205,9 @@ public partial class App : System.Windows.Application
                 // Register Platform services
                 services.AddClipMatePlatform();
 
+                // Register MVVM Toolkit Messenger as singleton
+                services.AddSingleton<CommunityToolkit.Mvvm.Messaging.IMessenger>(CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default);
+
                 // Register PowerPaste as hosted service
                 services.AddSingleton<PowerPasteCoordinator>();
                 services.AddHostedService(sp => sp.GetRequiredService<PowerPasteCoordinator>());
@@ -215,7 +223,10 @@ public partial class App : System.Windows.Application
                 // Register ViewModels
                 services.AddSingleton<ViewModels.MainWindowViewModel>();
                 services.AddSingleton<ViewModels.CollectionTreeViewModel>();
+                services.AddSingleton<ViewModels.ClipListViewModel>();
+                services.AddSingleton<ViewModels.PreviewPaneViewModel>();
                 services.AddSingleton<ViewModels.SearchViewModel>();
+                services.AddTransient<ViewModels.ClipPropertiesViewModel>();
 
                 // Register Text Tools components
                 services.AddTransient<ViewModels.TextToolsViewModel>();

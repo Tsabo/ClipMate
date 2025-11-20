@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Repositories;
 
@@ -11,10 +12,12 @@ namespace ClipMate.Data.Repositories;
 public class ClipRepository : IClipRepository
 {
     private readonly ClipMateDbContext _context;
+    private readonly ILogger<ClipRepository> _logger;
 
-    public ClipRepository(ClipMateDbContext context)
+    public ClipRepository(ClipMateDbContext context, ILogger<ClipRepository> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<Clip?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -40,43 +43,68 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
     {
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(c => !c.Del) // Exclude soft-deleted clips
             .OrderByDescending(p => p.CapturedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(p => p.CollectionId == collectionId && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default)
     {
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(p => p.FolderId == folderId && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(p => p.IsFavorite && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<IReadOnlyList<Clip>> GetPinnedAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(p => p.Label == "Pinned" && !p.Del)
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default)
@@ -97,10 +125,15 @@ public class ClipRepository : IClipRepository
             return new List<Clip>();
         }
 
-        return await _context.Clips
+        var clips = await _context.Clips
             .Where(p => !p.Del && EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
             .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+        
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        
+        return clips;
     }
 
     public async Task<Clip> CreateAsync(Clip clip, CancellationToken cancellationToken = default)
@@ -358,5 +391,100 @@ public class ClipRepository : IClipRepository
     public async Task<long> GetCountAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Clips.Where(c => !c.Del).LongCountAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads format availability flags for a list of clips by checking ClipData table.
+    /// Directly queries and aggregates format information to populate transient properties.
+    /// This is much faster than loading actual content from BLOB tables.
+    /// </summary>
+    private async Task LoadFormatFlagsAsync(IEnumerable<Clip> clips, CancellationToken cancellationToken)
+    {
+        var clipsList = clips.ToList();
+        if (!clipsList.Any()) return;
+
+        var clipIds = clipsList.Select(c => c.Id).ToList();
+
+        // Query ClipData and aggregate format flags by ClipId in a single database query
+        var formatFlags = await _context.ClipData
+            .Where(cd => clipIds.Contains(cd.ClipId))
+            .GroupBy(cd => cd.ClipId)
+            .Select(g => new
+            {
+                ClipId = g.Key,
+                HasText = g.Any(cd => cd.Format == 1 || cd.Format == 13 || 
+                                      cd.FormatName == "CF_TEXT" || cd.FormatName == "CF_UNICODETEXT"),
+                HasRtf = g.Any(cd => cd.FormatName == "CF_RTF" || cd.Format == 0x0082),
+                HasHtml = g.Any(cd => cd.FormatName == "HTML Format" || cd.Format == 0x0080),
+                HasBitmap = g.Any(cd => cd.Format == 2 || cd.Format == 8 || 
+                                        cd.FormatName == "CF_BITMAP" || cd.FormatName == "CF_DIB"),
+                HasFiles = g.Any(cd => cd.Format == 15 || cd.FormatName == "CF_HDROP"),
+                FormatNames = string.Join(", ", g.Select(cd => cd.FormatName))
+            })
+            .ToListAsync(cancellationToken);
+
+        _logger.LogDebug("LoadFormatFlagsAsync: Loaded format flags for {ClipCount} clips from ClipData", 
+            formatFlags.Count);
+
+        var formatFlagsDict = formatFlags.ToDictionary(f => f.ClipId);
+
+        // Apply format flags to clips
+        foreach (var clip in clipsList)
+        {
+            if (formatFlagsDict.TryGetValue(clip.Id, out var flags))
+            {
+                // Set cached flags directly
+                clip.CachedHasText = flags.HasText;
+                clip.CachedHasRtf = flags.HasRtf;
+                clip.CachedHasHtml = flags.HasHtml;
+                clip.CachedHasBitmap = flags.HasBitmap;
+                clip.CachedHasFiles = flags.HasFiles;
+                
+                // Pre-compute and cache the icon string
+                var icons = new System.Collections.Generic.List<string>();
+                if (flags.HasBitmap) icons.Add("🖼");
+                if (flags.HasRtf) icons.Add("🅰");
+                if (flags.HasHtml) icons.Add("🌐");
+                if (flags.HasFiles) icons.Add("📁");
+                if (flags.HasText) icons.Add("📄");
+                clip.CachedIconGlyph = icons.Count > 0 ? string.Join("", icons) : "❓";
+                
+                _logger.LogDebug("Clip {ClipId}: Formats loaded - {FormatNames}, Icon: {Icon}", 
+                    clip.Id, flags.FormatNames, clip.CachedIconGlyph);
+            }
+            else
+            {
+                _logger.LogDebug("Clip {ClipId}: No ClipData found, using Type={ClipType} fallback", 
+                    clip.Id, clip.Type);
+                
+                // Fallback for clips created before ClipData implementation
+                switch (clip.Type)
+                {
+                    case ClipType.Text:
+                        clip.CachedHasText = true;
+                        clip.CachedIconGlyph = "📄";
+                        break;
+                    case ClipType.Image:
+                        clip.CachedHasBitmap = true;
+                        clip.CachedIconGlyph = "🖼";
+                        break;
+                    case ClipType.Files:
+                        clip.CachedHasFiles = true;
+                        clip.CachedIconGlyph = "📁";
+                        break;
+                    default:
+                        clip.CachedIconGlyph = "❓";
+                        break;
+                }
+            }
+        }
+    }
+
+    public async Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ClipData
+            .Where(cd => cd.ClipId == clipId)
+            .OrderBy(cd => cd.FormatName)
+            .ToListAsync(cancellationToken);
     }
 }

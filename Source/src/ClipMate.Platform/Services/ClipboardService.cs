@@ -647,10 +647,9 @@ public class ClipboardService : IClipboardService, IDisposable
 
             var url = htmlContent.Substring(urlStart, urlEnd - urlStart).Trim();
 
-            // Validate it looks like a URL
-            if (!string.IsNullOrEmpty(url) && (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                                               url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                                               url.StartsWith("file://", StringComparison.OrdinalIgnoreCase)))
+            // Accept any non-empty value from SourceURL field
+            // Applications put various URL schemes here (http, https, file, vscode-file, etc.)
+            if (!string.IsNullOrEmpty(url))
             {
                 // Truncate to 250 chars (database field limit)
                 if (url.Length > 250)

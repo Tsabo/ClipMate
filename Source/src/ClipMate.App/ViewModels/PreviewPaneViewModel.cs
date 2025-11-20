@@ -2,6 +2,8 @@ using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 
 namespace ClipMate.App.ViewModels;
@@ -9,9 +11,17 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// ViewModel for the preview pane (right pane).
 /// Displays detailed content preview based on clip type (text, HTML, image, etc.).
+/// Implements IRecipient to receive ClipSelectedEvent messages via MVVM Toolkit Messenger.
 /// </summary>
-public partial class PreviewPaneViewModel : ObservableObject
+public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSelectedEvent>
 {
+    private readonly IMessenger _messenger;
+
+    public PreviewPaneViewModel(IMessenger messenger)
+    {
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _messenger.Register(this);
+    }
     [ObservableProperty]
     private Clip? _selectedClip;
 
@@ -34,10 +44,19 @@ public partial class PreviewPaneViewModel : ObservableObject
     private bool _hasImagePreview = false;
 
     /// <summary>
+    /// Receives ClipSelectedEvent messages from the messenger.
+    /// Updates the preview pane when a clip is selected.
+    /// </summary>
+    public void Receive(ClipSelectedEvent message)
+    {
+        SetClip(message.SelectedClip);
+    }
+
+    /// <summary>
     /// Sets the clip to preview and updates the preview content.
     /// </summary>
     /// <param name="clip">The clip to preview, or null to clear.</param>
-    public void SetClip(Clip? clip)
+    private void SetClip(Clip? clip)
     {
         SelectedClip = clip;
         

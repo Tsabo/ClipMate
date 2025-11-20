@@ -88,4 +88,12 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if duplicate exists; otherwise, false.</returns>
     Task<bool> IsDuplicateAsync(string contentHash, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the clipboard format data for a clip.
+    /// </summary>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clipboard formats stored for the clip.</returns>
+    Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default);
 }

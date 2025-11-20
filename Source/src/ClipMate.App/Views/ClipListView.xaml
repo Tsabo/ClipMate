@@ -1,0 +1,367 @@
+<UserControl x:Class="ClipMate.App.Views.ClipListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:converters="clr-namespace:ClipMate.App.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    
+    <UserControl.Resources>
+        <!-- Converters -->
+        <converters:BoolToIconConverter x:Key="BoolToIconConverter"/>
+    </UserControl.Resources>
+    
+    <dxg:GridControl x:Name="ClipDataGrid"
+                    ItemsSource="{Binding Items, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    AutoGenerateColumns="None"
+                    SelectionMode="Row"
+                    CurrentItemChanged="ClipDataGrid_CurrentItemChanged">
+        
+        <!-- Context Menu -->
+        <dxg:GridControl.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Clip Properties" InputGestureText="Alt+Enter" Click="ClipProperties_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📋" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="QuickPaste Tools">
+                    <MenuItem.Icon>
+                        <TextBlock Text="➤" FontSize="14"/>
+                    </MenuItem.Icon>
+                    <MenuItem Header="Paste Now" Click="PasteNow_Click">
+                        <MenuItem.Icon>
+                            <TextBlock Text="➤" FontSize="14" Foreground="Green"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="TAB" InputGestureText="F9"/>
+                    <MenuItem Header="ENTER" InputGestureText="Shift+F9"/>
+                    <Separator/>
+                    <MenuItem Header="Lock QuickPaste Target">
+                        <MenuItem.Icon>
+                            <TextBlock Text="🔒" FontSize="14" Foreground="Red"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="QuickPaste GoBack">
+                        <MenuItem.Icon>
+                            <TextBlock Text="↩" FontSize="14"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray"/>
+                    <MenuItem Header="Reset Sequence"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Create New, Empty Clip" InputGestureText="Ctrl+N" Click="CreateNewClip_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📄" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="View Clip" InputGestureText="F2" Click="ViewClip_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="👁" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Export Clips (Save To Individual Files)" Click="ExportClips_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="💾" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Change Title and Shortcut" InputGestureText="Ctrl+R" Click="ChangeTitle_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="✏" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Delete Selected Items" InputGestureText="Del" Click="DeleteItems_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🗑" FontSize="14" Foreground="Red"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray"/>
+                <Separator/>
+                <MenuItem Header="Encrypt selected clips">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔒" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Decrypt and remove encryption on selected clips" IsEnabled="False" Foreground="Gray">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔓" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Toggle Macros On/Off For This Clip">
+                    <MenuItem.Icon>
+                        <TextBlock Text="⚙" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔗" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Convert File Pointer To Text"/>
+                <Separator/>
+                <MenuItem Header="Open Source URL In Browser" InputGestureText="Ctrl+O" Click="OpenSourceUrl_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🌐" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Place Source URL On Clipboard">
+                    <MenuItem.Icon>
+                        <TextBlock Text="➕" FontSize="14" Foreground="Green"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Move To Top Of Sort Order"/>
+                <MenuItem Header="Move To Bottom Of Sort Order"/>
+                <Separator/>
+                <MenuItem Header="Tack (lock) this window onto this collection"/>
+                <MenuItem Header="Select Another Collection"/>
+                <Separator/>
+                <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True"/>
+                <Separator/>
+                <MenuItem Header="Cancel"/>
+            </ContextMenu>
+        </dxg:GridControl.ContextMenu>
+        
+        <dxg:GridControl.View>
+            <dxg:TableView AllowEditing="False"
+                          ShowGroupPanel="False"
+                          AutoWidth="False"
+                          NavigationStyle="Row"
+                          ShowIndicator="False"
+                          HorizontalScrollbarVisibility="Auto"/>
+        </dxg:GridControl.View>
+        <dxg:GridControl.Columns>
+            <!-- Icon Column - Shows all format types present -->
+            <dxg:GridColumn FieldName="IconGlyph" 
+                           Header=""
+                           Width="80"
+                           AllowSorting="False"
+                           FixedWidth="True"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.IconGlyph}" 
+                                  FontSize="16"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Center"
+                                  Margin="3,0,0,0"
+                                  ToolTip="{Binding RowData.Row.IconType}"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Title Column -->
+            <dxg:GridColumn FieldName="DisplayTitle" 
+                           Header="Title"
+                           Width="400"
+                           MinWidth="200">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.DisplayTitle}" 
+                                  TextTrimming="CharacterEllipsis"
+                                  VerticalAlignment="Center"
+                                  Padding="2,0"
+                                  ToolTip="{Binding RowData.Row.TextContent}"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- SortKey Column - For manual ordering -->
+            <dxg:GridColumn FieldName="SortKey" 
+                           Header="SortKey"
+                           Width="60"/>
+
+            <!-- Date/Time Column -->
+            <dxg:GridColumn FieldName="CapturedAt" 
+                           Header="Date/Time"
+                           Width="140">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.CapturedAt, StringFormat='M/d/yyyy h:mm tt'}" 
+                                  VerticalAlignment="Center"
+                                  Padding="2,0"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Size Column -->
+            <dxg:GridColumn FieldName="SizeDisplay" 
+                           Header="Size"
+                           Width="60"
+                           HorizontalHeaderContentAlignment="Right">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.SizeDisplay}" 
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  Padding="2,0"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Source Column -->
+            <dxg:GridColumn FieldName="SourceDisplay" 
+                           Header="Source"
+                           Width="120">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.SourceDisplay}" 
+                                  TextTrimming="CharacterEllipsis"
+                                  VerticalAlignment="Center"
+                                  Padding="2,0"
+                                  ToolTip="{Binding RowData.Row.SourceApplicationName}"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Encrypted Indicator Column -->
+            <dxg:GridColumn FieldName="Encrypted" 
+                           Header="🔒"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.Encrypted, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#F44336"
+                                  ToolTip="Encrypted"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Text Format Indicator -->
+            <dxg:GridColumn FieldName="HasText" 
+                           Header="📄"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasText, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#2196F3"
+                                  ToolTip="Text Format"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- HTML Format Indicator -->
+            <dxg:GridColumn FieldName="HasHtml" 
+                           Header="🌐"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasHtml, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#FF9800"
+                                  ToolTip="HTML Format"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- RTF Format Indicator -->
+            <dxg:GridColumn FieldName="HasRtf" 
+                           Header="🅰"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasRtf, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#9C27B0"
+                                  ToolTip="Rich Text Format"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Bitmap Format Indicator -->
+            <dxg:GridColumn FieldName="HasBitmap" 
+                           Header="🖼"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasBitmap, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#4CAF50"
+                                  ToolTip="Bitmap Format"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Picture/Metafile Format Indicator -->
+            <dxg:GridColumn FieldName="HasPicture" 
+                           Header="🎨"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasPicture, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#00BCD4"
+                                  ToolTip="Picture/Metafile"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- Files Format Indicator -->
+            <dxg:GridColumn FieldName="HasFiles" 
+                           Header="📁"
+                           Width="24"
+                           FixedWidth="True"
+                           AllowSorting="False"
+                           HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.CellTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding RowData.Row.HasFiles, Converter={StaticResource BoolToIconConverter}}" 
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  FontSize="14"
+                                  Foreground="#795548"
+                                  ToolTip="File List"/>
+                    </DataTemplate>
+                </dxg:GridColumn.CellTemplate>
+            </dxg:GridColumn>
+
+            <!-- User Column -->
+            <dxg:GridColumn FieldName="UserDisplay" 
+                           Header="User"
+                           Width="80"/>
+
+            <!-- Source URL Column -->
+            <dxg:GridColumn FieldName="SourceUrl" 
+                           Header="Source URL"
+                           Width="200"/>
+        </dxg:GridControl.Columns>
+    </dxg:GridControl>
+</UserControl>

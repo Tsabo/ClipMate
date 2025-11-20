@@ -1,5 +1,8 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Events;
+using CommunityToolkit.Mvvm.Messaging;
+using Moq;
 using Shouldly;
 
 namespace ClipMate.Tests.Unit.ViewModels;
@@ -10,7 +13,8 @@ public class PreviewPaneViewModelTests
     public void Constructor_ShouldInitializeWithDefaults()
     {
         // Arrange & Act
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
 
         // Assert
         viewModel.SelectedClip.ShouldBeNull();
@@ -23,10 +27,11 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
-    public void SetClip_WithTextClip_ShouldSetPreviewText()
+    public void Receive_WithTextClip_ShouldSetPreviewText()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -36,7 +41,7 @@ public class PreviewPaneViewModelTests
         };
 
         // Act
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
         viewModel.SelectedClip.ShouldBe(clip);
@@ -47,10 +52,11 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
-    public void SetClip_WithHtmlClip_ShouldSetPreviewHtml()
+    public void Receive_WithHtmlClip_ShouldSetPreviewHtml()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -61,7 +67,7 @@ public class PreviewPaneViewModelTests
         };
 
         // Act
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
         viewModel.SelectedClip.ShouldBe(clip);
@@ -72,10 +78,11 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
-    public void SetClip_WithRichTextClip_ShouldSetPreviewText()
+    public void Receive_WithRichTextClip_ShouldSetPreviewText()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -86,7 +93,7 @@ public class PreviewPaneViewModelTests
         };
 
         // Act
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
         viewModel.SelectedClip.ShouldBe(clip);
@@ -95,10 +102,11 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
-    public void SetClip_WithImageClip_ShouldSetImagePreview()
+    public void Receive_WithImageClip_ShouldSetImagePreview()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         // Note: Creating a valid image in memory is complex for unit tests
         // We test the logic path, but image loading may fail with invalid data
         var imageData = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG header bytes (not a complete image)
@@ -111,7 +119,7 @@ public class PreviewPaneViewModelTests
         };
 
         // Act
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert - We set HasImagePreview even if image loading fails
         viewModel.SelectedClip.ShouldBe(clip);
@@ -122,10 +130,11 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
-    public void SetClip_WithNull_ShouldClearPreview()
+    public void Receive_WithNull_ShouldClearPreview()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -133,10 +142,10 @@ public class PreviewPaneViewModelTests
             TextContent = "Test",
             CapturedAt = DateTime.UtcNow
         };
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Act
-        viewModel.SetClip(null);
+        viewModel.Receive(new ClipSelectedEvent(null));
 
         // Assert
         viewModel.SelectedClip.ShouldBeNull();
@@ -152,7 +161,8 @@ public class PreviewPaneViewModelTests
     public void SelectedClip_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -168,17 +178,18 @@ public class PreviewPaneViewModelTests
         };
 
         // Act
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
         propertyChangedRaised.ShouldBeTrue();
     }
 
     [Fact]
-    public void Clear_ShouldClearAllPreviewData()
+    public void Receive_WithNullClip_ShouldClearAllPreviewData()
     {
         // Arrange
-        var viewModel = new PreviewPaneViewModel();
+        var mockMessenger = new Mock<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -186,10 +197,10 @@ public class PreviewPaneViewModelTests
             TextContent = "Test",
             CapturedAt = DateTime.UtcNow
         };
-        viewModel.SetClip(clip);
+        viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Act
-        viewModel.Clear();
+        viewModel.Receive(new ClipSelectedEvent(null));
 
         // Assert
         viewModel.SelectedClip.ShouldBeNull();

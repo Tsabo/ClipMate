@@ -1,4 +1,8 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Shouldly;
 using Xunit;
 
@@ -10,11 +14,50 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class MainWindowViewModelTests
 {
+    private MainWindowViewModel CreateViewModel()
+    {
+        var mockMessenger = new Mock<IMessenger>();
+        var mockClipService = new Mock<IClipService>();
+        var mockFolderService = new Mock<IFolderService>();
+        var mockCollectionService = new Mock<ICollectionService>();
+        var mockConfigurationService = new Mock<IConfigurationService>();
+        var mockSearchService = new Mock<ISearchService>();
+        var mockLogger = new Mock<ILogger<ClipListViewModel>>();
+        var mockTreeLogger = new Mock<ILogger<CollectionTreeViewModel>>();
+        var mockMainLogger = new Mock<ILogger<MainWindowViewModel>>();
+
+        var collectionTreeVM = new CollectionTreeViewModel(
+            mockCollectionService.Object,
+            mockFolderService.Object,
+            mockConfigurationService.Object,
+            mockMessenger.Object,
+            mockTreeLogger.Object);
+
+        var clipListVM = new ClipListViewModel(
+            mockClipService.Object,
+            mockMessenger.Object,
+            mockFolderService.Object,
+            mockCollectionService.Object,
+            mockLogger.Object);
+
+        var previewVM = new PreviewPaneViewModel(mockMessenger.Object);
+        var searchVM = new SearchViewModel(mockSearchService.Object, mockMessenger.Object);
+
+        return new MainWindowViewModel(
+            collectionTreeVM,
+            clipListVM,
+            previewVM,
+            searchVM,
+            mockCollectionService.Object,
+            mockFolderService.Object,
+            mockMainLogger.Object);
+    }
+
     [Fact]
     public void Constructor_ShouldInitializeWithDefaultValues()
     {
         // Arrange & Act
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
 
         // Assert
         viewModel.ShouldNotBeNull();
@@ -29,7 +72,7 @@ public class MainWindowViewModelTests
     public void WindowWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -49,7 +92,7 @@ public class MainWindowViewModelTests
     public void WindowHeight_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -69,7 +112,7 @@ public class MainWindowViewModelTests
     public void IsBusy_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -89,7 +132,7 @@ public class MainWindowViewModelTests
     public void StatusMessage_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -109,7 +152,7 @@ public class MainWindowViewModelTests
     public void SetStatus_ShouldUpdateStatusMessage()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
         viewModel.SetStatus("Ready");
@@ -122,7 +165,7 @@ public class MainWindowViewModelTests
     public void SetBusy_WithTrue_ShouldSetIsBusyAndShowMessage()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
 
         // Act
         viewModel.SetBusy(true, "Processing...");
@@ -136,7 +179,7 @@ public class MainWindowViewModelTests
     public void SetBusy_WithFalse_ShouldClearIsBusyAndMessage()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         viewModel.SetBusy(true, "Processing...");
 
         // Act
@@ -151,7 +194,7 @@ public class MainWindowViewModelTests
     public void LeftPaneWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -171,7 +214,7 @@ public class MainWindowViewModelTests
     public void RightPaneWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {

@@ -93,4 +93,12 @@ public interface IClipRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Number of clips deleted.</returns>
     Task<int> DeleteOlderThanAsync(DateTime olderThan, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves the clipboard format data for a clip.
+    /// </summary>
+    /// <param name="clipId">The clip's unique identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clipboard formats stored for the clip.</returns>
+    Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default);
 }

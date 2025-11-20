@@ -2,6 +2,8 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -16,6 +18,8 @@ public class CollectionTreeViewModelTests
     private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IFolderService> _mockFolderService;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
+    private readonly Mock<IMessenger> _mockMessenger;
+    private readonly Mock<ILogger<CollectionTreeViewModel>> _mockLogger;
     private readonly CollectionTreeViewModel _viewModel;
 
     public CollectionTreeViewModelTests()
@@ -23,6 +27,8 @@ public class CollectionTreeViewModelTests
         _mockCollectionService = new Mock<ICollectionService>();
         _mockFolderService = new Mock<IFolderService>();
         _mockConfigurationService = new Mock<IConfigurationService>();
+        _mockMessenger = new Mock<IMessenger>();
+        _mockLogger = new Mock<ILogger<CollectionTreeViewModel>>();
         
         // Setup default configuration with a single database
         var config = new ClipMateConfiguration
@@ -43,7 +49,9 @@ public class CollectionTreeViewModelTests
         _viewModel = new CollectionTreeViewModel(
             _mockCollectionService.Object, 
             _mockFolderService.Object,
-            _mockConfigurationService.Object);
+            _mockConfigurationService.Object,
+            _mockMessenger.Object,
+            _mockLogger.Object);
     }
 
     [Fact]
@@ -51,7 +59,7 @@ public class CollectionTreeViewModelTests
     {
         // Act & Assert
         Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(null!, _mockFolderService.Object, _mockConfigurationService.Object));
+            new CollectionTreeViewModel(null!, _mockFolderService.Object, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object));
     }
 
     [Fact]
@@ -59,7 +67,7 @@ public class CollectionTreeViewModelTests
     {
         // Act & Assert
         Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(_mockCollectionService.Object, null!, _mockConfigurationService.Object));
+            new CollectionTreeViewModel(_mockCollectionService.Object, null!, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object));
     }
 
     [Fact]

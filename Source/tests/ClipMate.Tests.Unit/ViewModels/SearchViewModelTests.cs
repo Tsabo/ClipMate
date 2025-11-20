@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -14,19 +15,21 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public class SearchViewModelTests
 {
     private readonly Mock<ISearchService> _mockSearchService;
+    private readonly Mock<IMessenger> _mockMessenger;
     private readonly SearchViewModel _viewModel;
 
     public SearchViewModelTests()
     {
         _mockSearchService = new Mock<ISearchService>();
-        _viewModel = new SearchViewModel(_mockSearchService.Object);
+        _mockMessenger = new Mock<IMessenger>();
+        _viewModel = new SearchViewModel(_mockSearchService.Object, _mockMessenger.Object);
     }
 
     [Fact]
     public void Constructor_WithNullSearchService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new SearchViewModel(null!));
+        Should.Throw<ArgumentNullException>(() => new SearchViewModel(null!, _mockMessenger.Object));
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 
@@ -8,10 +10,12 @@ namespace ClipMate.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the search panel with advanced filtering.
+/// Sends SearchResultsChangedEvent via messenger when results change.
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
     private readonly ISearchService _searchService;
+    private readonly IMessenger _messenger;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -56,9 +60,10 @@ public partial class SearchViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<string> SearchHistory { get; } = new();
 
-    public SearchViewModel(ISearchService searchService)
+    public SearchViewModel(ISearchService searchService, IMessenger messenger)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
     }
 
     /// <summary>
@@ -88,6 +93,9 @@ public partial class SearchViewModel : ObservableObject
             }
 
             TotalMatches = results.TotalMatches;
+
+            // Send messenger event with search results
+            _messenger.Send(new SearchResultsChangedEvent(SearchText, SearchResults.ToList()));
         }
         finally
         {
@@ -104,6 +112,10 @@ public partial class SearchViewModel : ObservableObject
         SearchText = string.Empty;
         SearchResults.Clear();
         TotalMatches = 0;
+
+        // Send messenger event indicating search was cleared
+        _messenger.Send(new SearchResultsChangedEvent(null, []));
+
         return Task.CompletedTask;
     }
 

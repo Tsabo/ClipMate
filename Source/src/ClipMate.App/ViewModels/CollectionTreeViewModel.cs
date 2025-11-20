@@ -1,29 +1,29 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the collection/folder tree view.
 /// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
+/// Sends CollectionNodeSelectedEvent via messenger when selection changes.
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject
 {
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
     private readonly IConfigurationService _configurationService;
+    private readonly IMessenger _messenger;
+    private readonly ILogger<CollectionTreeViewModel> _logger;
 
     [ObservableProperty]
     private TreeNodeBase? _selectedNode;
-
-    /// <summary>
-    /// Raised when the selected node changes. Args: (collectionId, folderId)
-    /// If only collection is selected, folderId is null.
-    /// </summary>
-    public event EventHandler<(Guid CollectionId, Guid? FolderId)>? SelectedNodeChanged;
 
     /// <summary>
     /// Root nodes of the tree (typically Database nodes).
@@ -33,28 +33,40 @@ public partial class CollectionTreeViewModel : ObservableObject
     public CollectionTreeViewModel(
         ICollectionService collectionService, 
         IFolderService folderService,
-        IConfigurationService configurationService)
+        IConfigurationService configurationService,
+        IMessenger messenger,
+        ILogger<CollectionTreeViewModel> logger)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     partial void OnSelectedNodeChanged(TreeNodeBase? value)
     {
-        // Raise event with collection/folder IDs based on node type
+        _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
+        
+        // Send messenger event with collection/folder IDs based on node type
         switch (value)
         {
             case CollectionTreeNode collectionNode:
-                SelectedNodeChanged?.Invoke(this, (collectionNode.Collection.Id, null));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", 
+                    collectionNode.Collection.Id);
+                _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null));
                 break;
             
             case FolderTreeNode folderNode:
-                SelectedNodeChanged?.Invoke(this, (folderNode.Folder.CollectionId, folderNode.Folder.Id));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", 
+                    folderNode.Folder.CollectionId, folderNode.Folder.Id);
+                _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id));
                 break;
             
             case VirtualCollectionTreeNode virtualNode:
-                SelectedNodeChanged?.Invoke(this, (virtualNode.VirtualCollection.Id, null));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", 
+                    virtualNode.VirtualCollection.Id);
+                _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null));
                 break;
             
             // Database and VirtualCollectionsContainer nodes don't trigger selection changes

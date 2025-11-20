@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+        xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
         xmlns:local="clr-namespace:ClipMate.App"
         xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
         xmlns:views="clr-namespace:ClipMate.App.Views"
@@ -19,7 +20,9 @@
         StateChanged="Window_StateChanged">
 
     <Window.Resources>
-        <!-- Converters will be added when implemented -->
+        <!-- Converters -->
+        <converters:BoolToIconConverter x:Key="BoolToIconConverter"/>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
     <Window.InputBindings>
@@ -31,6 +34,12 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="_Exit" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Dual ClipList Mode" 
+                         IsCheckable="True"
+                         IsChecked="{Binding IsDualClipListMode}"
+                         InputGestureText="Ctrl+D"/>
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T"/>
@@ -60,7 +69,8 @@
 
             <!-- Left Pane: Collection Tree -->
             <GroupBox Grid.Column="0" Header="Collections">
-                <views:CollectionTreeView x:Name="CollectionTree"/>
+                <views:CollectionTreeView x:Name="CollectionTree" 
+                                         DataContext="{Binding CollectionTree}"/>
             </GroupBox>
 
             <!-- Splitter -->
@@ -69,47 +79,41 @@
                          HorizontalAlignment="Stretch"
                          Background="Transparent"/>
 
-            <!-- Center: DevExpress GridControl -->
-            <GroupBox Grid.Column="2" Header="Clips">
-                <dxg:GridControl x:Name="ClipDataGrid"
-                                ItemsSource="{Binding Clips}"
-                                AutoGenerateColumns="None"
-                                SelectionMode="Row"
-                                CurrentItemChanged="ClipDataGrid_SelectionChanged">
-                    <dxg:GridControl.View>
-                        <dxg:TableView AllowEditing="False"
-                                      ShowGroupPanel="False"
-                                      AutoWidth="True"
-                                      NavigationStyle="Row"
-                                      ShowIndicator="False"/>
-                    </dxg:GridControl.View>
-                    <dxg:GridControl.Columns>
-                        <!-- Title Column -->
-                        <dxg:GridColumn FieldName="DisplayTitle" 
-                                       Header="Title"
-                                       Width="*">
-                            <dxg:GridColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayTitle}" 
-                                              TextTrimming="CharacterEllipsis"
-                                              ToolTip="{Binding TextContent}"/>
-                                </DataTemplate>
-                            </dxg:GridColumn.CellTemplate>
-                        </dxg:GridColumn>
+            <!-- Center: ClipList Component(s) -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <!-- Primary ClipList - always visible -->
+                    <RowDefinition Height="*"/>
+                    <!-- Splitter - visible only in dual mode -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Secondary ClipList - visible only in dual mode -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                        <!-- Date/Time Column -->
-                        <dxg:GridColumn FieldName="CapturedAt" 
-                                       Header="Date/Time"
-                                       Width="140">
-                            <dxg:GridColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding CapturedAt, StringFormat='{}{0:M/d/yyyy h:mm tt}'}"/>
-                                </DataTemplate>
-                            </dxg:GridColumn.CellTemplate>
-                        </dxg:GridColumn>
-                    </dxg:GridControl.Columns>
-                </dxg:GridControl>
-            </GroupBox>
+                <!-- Primary ClipList -->
+                <GroupBox Grid.Row="0" Header="Clips (Primary)">
+                    <views:ClipListView x:Name="ClipListView"
+                                       Items="{Binding PrimaryClipList.Clips}"
+                                       SelectionChanged="ClipListView_SelectionChanged"/>
+                </GroupBox>
+
+                <!-- Splitter for dual ClipList mode -->
+                <GridSplitter Grid.Row="1"
+                             Height="5"
+                             HorizontalAlignment="Stretch"
+                             Background="Transparent"
+                             Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- Secondary ClipList (TODO: Low priority - needs keyed services) -->
+                <!--<GroupBox Grid.Row="2" 
+                         Header="Clips (Secondary - Click to Change)"
+                         Height="350"
+                         Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <views:ClipListView x:Name="SecondaryClipListView"
+                                       Items="{Binding SecondaryClips}"
+                                       SelectionChanged="SecondaryClipListView_SelectionChanged"/>
+                </GroupBox>-->
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>

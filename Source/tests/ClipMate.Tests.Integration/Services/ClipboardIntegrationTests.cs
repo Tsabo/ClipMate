@@ -47,8 +47,9 @@ public class ClipboardIntegrationTests : IDisposable
         var clipboardLogger = Mock.Of<ILogger<ClipboardService>>();
         var filterLogger = Mock.Of<ILogger<ApplicationFilterService>>();
         var coordinatorLogger = Mock.Of<ILogger<ClipboardCoordinator>>();
+        var clipRepoLogger = Mock.Of<ILogger<ClipRepository>>();
 
-        _clipRepository = new ClipRepository(_dbContext);
+        _clipRepository = new ClipRepository(_dbContext, clipRepoLogger);
         _clipService = new ClipService(_clipRepository);
         
         var filterRepository = new ApplicationFilterRepository(_dbContext);

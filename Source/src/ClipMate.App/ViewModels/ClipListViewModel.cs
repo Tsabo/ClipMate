@@ -14,18 +14,27 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// ViewModel for the clip list pane (middle pane).
 /// Displays clips in list or grid view, handles selection, and loading.
-/// Implements IRecipient to receive ClipAddedEvent messages via MVVM Toolkit Messenger.
+/// Implements IRecipient to receive ClipAddedEvent and CollectionNodeSelectedEvent messages via MVVM Toolkit Messenger.
 /// </summary>
-public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>
+public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>
 {
     private readonly IClipService _clipService;
     private readonly IMessenger _messenger;
+    private readonly IFolderService _folderService;
+    private readonly ICollectionService _collectionService;
+    private readonly ILogger<ClipListViewModel> _logger;
 
     [ObservableProperty]
     private ObservableCollection<Clip> _clips = [];
 
     [ObservableProperty]
     private Clip? _selectedClip;
+
+    partial void OnSelectedClipChanged(Clip? value)
+    {
+        // Send messenger event when selection changes
+        _messenger.Send(new ClipSelectedEvent(value));
+    }
 
     [ObservableProperty]
     private bool _isListView = true;
@@ -42,14 +51,51 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     [ObservableProperty]
     private Guid? _currentFolderId;
 
-    public ClipListViewModel(IClipService clipService, IMessenger messenger)
+    public ClipListViewModel(
+        IClipService clipService, 
+        IMessenger messenger, 
+        IFolderService folderService,
+        ICollectionService collectionService,
+        ILogger<ClipListViewModel> logger)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Register this ViewModel as a recipient for ClipAddedEvent
+        // Register this ViewModel as a recipient for clipboard and selection events
         // The messenger will automatically handle weak references and cleanup
-        _messenger.Register(this);
+        _messenger.Register<ClipAddedEvent>(this);
+        _messenger.Register<CollectionNodeSelectedEvent>(this);
+    }
+
+    /// <summary>
+    /// Receives CollectionNodeSelectedEvent messages from the messenger.
+    /// Loads clips for the selected collection/folder.
+    /// </summary>
+    public async void Receive(CollectionNodeSelectedEvent message)
+    {
+        _logger.LogInformation("CollectionNodeSelectedEvent received: CollectionId={CollectionId}, FolderId={FolderId}", 
+            message.CollectionId, message.FolderId);
+        
+        // Set the active collection and folder for new clipboard captures
+        await _collectionService.SetActiveAsync(message.CollectionId);
+        await _folderService.SetActiveAsync(message.FolderId);
+        
+        _logger.LogInformation("Active collection and folder updated for new clipboard captures");
+
+        // Load clips for the selected node
+        if (message.FolderId.HasValue)
+        {
+            // Load clips for the selected folder
+            await LoadClipsByFolderAsync(message.CollectionId, message.FolderId.Value);
+        }
+        else
+        {
+            // Load clips for the selected collection
+            await LoadClipsByCollectionAsync(message.CollectionId);
+        }
     }
 
     /// <summary>
@@ -127,19 +173,26 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         try
         {
             IsLoading = true;
+            _logger.LogInformation("Loading recent {Count} clips (no collection filter)", count);
             var clips = await _clipService.GetRecentAsync(count);
+            _logger.LogInformation("Retrieved {Count} recent clips. First clip CollectionId: {CollectionId}", 
+                clips.Count(), clips.FirstOrDefault()?.CollectionId);
             
-            // Clear and repopulate the existing collection to maintain binding
-            Clips.Clear();
-            foreach (var clip in clips)
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                Clips.Add(clip);
-            }
+                Clips.Clear();
+                foreach (var clip in clips)
+                {
+                    Clips.Add(clip);
+                }
+                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+            });
         }
-        catch
+        catch (Exception ex)
         {
-            // Handle exceptions gracefully - don't crash the UI
-            Clips.Clear();
+            _logger.LogError(ex, "Error loading recent clips");
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally
         {
@@ -160,18 +213,26 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             CurrentCollectionId = collectionId;
             CurrentFolderId = null;
 
+            _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
             var clips = await _clipService.GetByCollectionAsync(collectionId, cancellationToken);
+            _logger.LogInformation("Retrieved {Count} clips from database", clips.Count());
             
-            // Clear and repopulate
-            Clips.Clear();
-            foreach (var clip in clips)
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                Clips.Add(clip);
-            }
+                Clips.Clear();
+                var clipList = clips.ToList();
+                foreach (var clip in clipList)
+                {
+                    Clips.Add(clip);
+                }
+                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+            });
         }
-        catch
+        catch (Exception ex)
         {
-            Clips.Clear();
+            _logger.LogError(ex, "Error loading clips for collection {CollectionId}", collectionId);
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally
         {
@@ -195,16 +256,19 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
 
             var clips = await _clipService.GetByFolderAsync(folderId, cancellationToken);
             
-            // Clear and repopulate
-            Clips.Clear();
-            foreach (var clip in clips)
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                Clips.Add(clip);
-            }
+                Clips.Clear();
+                foreach (var clip in clips)
+                {
+                    Clips.Add(clip);
+                }
+            });
         }
         catch
         {
-            Clips.Clear();
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally
         {

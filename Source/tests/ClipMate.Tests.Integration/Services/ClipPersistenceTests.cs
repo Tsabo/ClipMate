@@ -4,6 +4,8 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Shouldly;
 using Xunit;
 
@@ -181,7 +183,8 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipService()
     {
-        var repository = new ClipRepository(DbContext);
+        var logger = Mock.Of<ILogger<ClipRepository>>();
+        var repository = new ClipRepository(DbContext, logger);
         return new ClipService(repository);
     }
 
@@ -190,7 +193,8 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        var repository = new ClipRepository(context);
+        var logger = Mock.Of<ILogger<ClipRepository>>();
+        var repository = new ClipRepository(context, logger);
         return new ClipService(repository);
     }
 }

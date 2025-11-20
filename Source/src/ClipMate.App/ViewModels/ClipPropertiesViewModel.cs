@@ -1,0 +1,221 @@
+using System.Collections.ObjectModel;
+using ClipMate.Core.Models;
+using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace ClipMate.App.ViewModels;
+
+/// <summary>
+/// ViewModel for the Clip Properties dialog.
+/// </summary>
+public partial class ClipPropertiesViewModel : ObservableObject
+{
+    private readonly IClipService _clipService;
+    private readonly IFolderService _folderService;
+    private readonly ICollectionService _collectionService;
+    private Clip? _originalClip;
+
+    [ObservableProperty]
+    private string _statusText = "Status: No updates since read from disk.";
+
+    [ObservableProperty]
+    private string _clipId = string.Empty;
+
+    [ObservableProperty]
+    private string _collectionId = string.Empty;
+
+    [ObservableProperty]
+    private string _folderName = string.Empty;
+
+    [ObservableProperty]
+    private string? _title;
+
+    [ObservableProperty]
+    private string? _sourceUrl;
+
+    [ObservableProperty]
+    private string _creator = string.Empty;
+
+    [ObservableProperty]
+    private DateTime _capturedAt;
+
+    [ObservableProperty]
+    private DateTime? _lastModified;
+
+    [ObservableProperty]
+    private int _sortKey;
+
+    [ObservableProperty]
+    private int _locale;
+
+    [ObservableProperty]
+    private bool _encrypted;
+
+    [ObservableProperty]
+    private bool _macro;
+
+    [ObservableProperty]
+    private int _size;
+
+    [ObservableProperty]
+    private int? _userId;
+
+    [ObservableProperty]
+    private string? _shortcut;
+
+    [ObservableProperty]
+    private ObservableCollection<DataFormatInfo> _dataFormats = [];
+
+    public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService)
+    {
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+    }
+
+    /// <summary>
+    /// Loads clip data into the view model.
+    /// </summary>
+    public async Task LoadClipAsync(Clip clip, CancellationToken cancellationToken = default)
+    {
+        if (clip == null)
+            throw new ArgumentNullException(nameof(clip));
+
+        _originalClip = clip;
+
+        ClipId = clip.Id.ToString();
+        CollectionId = clip.CollectionId?.ToString() ?? string.Empty;
+        
+        // Load folder name or collection name
+        if (clip.FolderId.HasValue)
+        {
+            var folder = await _folderService.GetByIdAsync(clip.FolderId.Value, cancellationToken);
+            FolderName = folder?.Name ?? "Unknown";
+        }
+        else if (clip.CollectionId.HasValue)
+        {
+            // When no folder is assigned, show the collection name
+            var collection = await _collectionService.GetByIdAsync(clip.CollectionId.Value, cancellationToken);
+            FolderName = collection?.Name ?? "(Unknown Collection)";
+        }
+        else
+        {
+            FolderName = "(No Collection)";
+        }
+
+        Title = clip.Title;
+        SourceUrl = clip.SourceUrl;
+        Creator = clip.Creator ?? string.Empty;
+        CapturedAt = clip.CapturedAt;
+        LastModified = clip.LastModified;
+        SortKey = clip.SortKey;
+        Locale = clip.Locale;
+        Encrypted = clip.Encrypted;
+        Macro = clip.Macro;
+        Size = clip.Size;
+        UserId = clip.UserId;
+        Shortcut = string.Empty; // TODO: Load from shortcuts table
+
+        // Load data formats through service layer
+        DataFormats.Clear();
+        var clipDataFormats = await _clipService.GetClipFormatsAsync(clip.Id, cancellationToken);
+        
+        foreach (var format in clipDataFormats.OrderBy(f => f.FormatName))
+        {
+            var icon = GetIconForFormat(format.FormatName, format.Format);
+            DataFormats.Add(new DataFormatInfo 
+            { 
+                Icon = icon,
+                FormatName = $"{format.FormatName} (Format: {format.Format}, Size: {format.Size} bytes)"
+            });
+        }
+    }
+
+    [RelayCommand]
+    private async Task OkAsync()
+    {
+        if (_originalClip == null)
+            return;
+
+        // Update the clip with edited values
+        _originalClip.Title = Title;
+        _originalClip.SourceUrl = SourceUrl;
+        _originalClip.SortKey = SortKey;
+        _originalClip.Locale = Locale;
+        _originalClip.Encrypted = Encrypted;
+        _originalClip.Macro = Macro;
+        _originalClip.LastModified = DateTime.UtcNow;
+
+        await _clipService.UpdateAsync(_originalClip);
+
+        StatusText = "Status: Clip updated successfully.";
+    }
+
+    [RelayCommand]
+    private void Cancel()
+    {
+        // Dialog will be closed by IsCancel binding
+    }
+
+    [RelayCommand]
+    private void Help()
+    {
+        // TODO: Open help documentation
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "https://clipmate.com/help/clip-properties",
+            UseShellExecute = true
+        });
+    }
+
+    /// <summary>
+    /// Gets the appropriate icon for a clipboard format.
+    /// </summary>
+    private static string GetIconForFormat(string formatName, int formatCode)
+    {
+        // Text formats
+        if (formatCode == 1 || formatCode == 13 || 
+            formatName == "CF_TEXT" || formatName == "CF_UNICODETEXT")
+        {
+            return "📄"; // Document
+        }
+
+        // RTF format
+        if (formatName == "CF_RTF" || formatCode == 0x0082)
+        {
+            return "🅰"; // Letter A (formatted)
+        }
+
+        // HTML format
+        if (formatName == "HTML Format" || formatCode == 0x0080)
+        {
+            return "🌐"; // Globe (web)
+        }
+
+        // Image formats
+        if (formatCode == 2 || formatCode == 8 || 
+            formatName == "CF_BITMAP" || formatName == "CF_DIB" || formatName == "CF_ENHMETAFILE")
+        {
+            return "🖼"; // Picture frame
+        }
+
+        // File list format
+        if (formatCode == 15 || formatName == "CF_HDROP")
+        {
+            return "📁"; // Folder
+        }
+
+        // Unknown format
+        return "❓";
+    }
+}
+
+/// <summary>
+/// Represents a data format available in a clip.
+/// </summary>
+public class DataFormatInfo
+{
+    public string Icon { get; set; } = "📄";
+    public string FormatName { get; set; } = string.Empty;
+}
