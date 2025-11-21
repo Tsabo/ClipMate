@@ -120,13 +120,13 @@ public class ClipMateDbContext : DbContext
             entity.Ignore(e => e.ImageData);
             entity.Ignore(e => e.FilePathsJson);
             
-            // Cached display properties - NOT stored in Clips table
-            entity.Ignore(e => e.CachedIconGlyph);
-            entity.Ignore(e => e.CachedHasText);
-            entity.Ignore(e => e.CachedHasRtf);
-            entity.Ignore(e => e.CachedHasHtml);
-            entity.Ignore(e => e.CachedHasBitmap);
-            entity.Ignore(e => e.CachedHasFiles);
+            // Format flag properties - NOT stored in Clips table
+            entity.Ignore(e => e.IconGlyph);
+            entity.Ignore(e => e.HasText);
+            entity.Ignore(e => e.HasRtf);
+            entity.Ignore(e => e.HasHtml);
+            entity.Ignore(e => e.HasBitmap);
+            entity.Ignore(e => e.HasFiles);
             
             // Navigation properties
             entity.Ignore(e => e.ClipDataFormats); // For now, explicit queries

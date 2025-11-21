@@ -196,20 +196,4 @@ public partial class Clip
     /// </summary>
     public string? FilePathsJson { get; set; }
 
-    /// <summary>
-    /// Cached icon glyph string (set during LoadFormatFlagsAsync).
-    /// Used to avoid re-computing icons during grid binding.
-    /// NOT stored in Clips table.
-    /// </summary>
-    public string? CachedIconGlyph { get; set; }
-
-    /// <summary>
-    /// Cached format flags (set during LoadFormatFlagsAsync).
-    /// Used for efficient grid display. NOT stored in Clips table.
-    /// </summary>
-    public bool? CachedHasText { get; set; }
-    public bool? CachedHasRtf { get; set; }
-    public bool? CachedHasHtml { get; set; }
-    public bool? CachedHasBitmap { get; set; }
-    public bool? CachedHasFiles { get; set; }
 }

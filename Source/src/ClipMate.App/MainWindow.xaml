@@ -93,7 +93,7 @@
                 <!-- Primary ClipList -->
                 <GroupBox Grid.Row="0" Header="Clips (Primary)">
                     <views:ClipListView x:Name="ClipListView"
-                                       Items="{Binding PrimaryClipList.Clips}"
+                                       Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
                                        SelectionChanged="ClipListView_SelectionChanged"/>
                 </GroupBox>
 

@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using ClipMate.Core.Events;
-using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -52,20 +51,17 @@ public partial class CollectionTreeViewModel : ObservableObject
         switch (value)
         {
             case CollectionTreeNode collectionNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", 
-                    collectionNode.Collection.Id);
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", collectionNode.Collection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null));
                 break;
             
             case FolderTreeNode folderNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", 
-                    folderNode.Folder.CollectionId, folderNode.Folder.Id);
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", folderNode.Folder.CollectionId, folderNode.Folder.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id));
                 break;
             
             case VirtualCollectionTreeNode virtualNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", 
-                    virtualNode.VirtualCollection.Id);
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", virtualNode.VirtualCollection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null));
                 break;
             
@@ -88,8 +84,8 @@ public partial class CollectionTreeViewModel : ObservableObject
         var allCollections = await _collectionService.GetAllAsync(cancellationToken);
         
         // Separate regular collections from virtual ones
-        var regularCollections = allCollections.Where(c => !c.IsVirtual).ToList();
-        var virtualCollections = allCollections.Where(c => c.IsVirtual).ToList();
+        var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
+        var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
 
         // Create a database node for each configured database
         if (configuration.Databases.Any())
@@ -107,7 +103,7 @@ public partial class CollectionTreeViewModel : ObservableObject
                 if (databaseId == configuration.DefaultDatabase)
                 {
                     // Add regular collections to database node
-                    foreach (var collection in regularCollections.OrderBy(c => c.SortKey))
+                    foreach (var collection in regularCollections.OrderBy(p => p.SortKey))
                     {
                         var collectionNode = new CollectionTreeNode(collection);
                         await LoadFoldersAsync(collectionNode, cancellationToken);
@@ -120,7 +116,7 @@ public partial class CollectionTreeViewModel : ObservableObject
                     {
                         var virtualContainer = new VirtualCollectionsContainerNode();
                         
-                        foreach (var virtualCollection in virtualCollections.OrderBy(c => c.SortKey))
+                        foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
                         {
                             var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
                             virtualContainer.Children.Add(virtualNode);
@@ -142,7 +138,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             var databaseNode = new DatabaseTreeNode("My Clips", "default");
             
             // Add regular collections to database node
-            foreach (var collection in regularCollections.OrderBy(c => c.SortKey))
+            foreach (var collection in regularCollections.OrderBy(p => p.SortKey))
             {
                 var collectionNode = new CollectionTreeNode(collection);
                 await LoadFoldersAsync(collectionNode, cancellationToken);
@@ -155,7 +151,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             {
                 var virtualContainer = new VirtualCollectionsContainerNode();
                 
-                foreach (var virtualCollection in virtualCollections.OrderBy(c => c.SortKey))
+                foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
                 {
                     var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
                     virtualContainer.Children.Add(virtualNode);

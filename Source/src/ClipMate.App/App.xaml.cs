@@ -1,49 +1,44 @@
 using System.IO;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Threading;
 using ClipMate.App.Services;
+using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Platform.DependencyInjection;
-using DevExpress.Xpf.Core;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
+using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App;
 
 /// <summary>
-/// Interaction logic for App.xaml
+///     Interaction logic for App.xaml
 /// </summary>
-public partial class App : System.Windows.Application
+public partial class App
 {
-    static App()
-    {
-        //CompatibilitySettings.UseLightweightThemes = true;
-        //ApplicationThemeHelper.ApplicationThemeName = LightweightTheme.Win11SystemColors.Name;
-    }
+    private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
+    private string? _databasePath;
+    private IHost? _host;
 
     private ILogger<App>? _logger;
     private Mutex? _singleInstanceMutex;
-    private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
-    private IHost? _host;
-    private string? _databasePath;
     private TrayIconWindow? _trayIconWindow;
 
     /// <summary>
-    /// Gets the service provider for dependency injection.
+    ///     Gets the service provider for dependency injection.
     /// </summary>
     public IServiceProvider ServiceProvider => _host?.Services ?? throw new InvalidOperationException("Host not initialized");
 
     /// <summary>
-    /// Called when the application starts.
+    ///     Called when the application starts.
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -60,8 +55,9 @@ public partial class App : System.Windows.Application
                 "ClipMate",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
-            
+
             Shutdown(0);
+
             return;
         }
 
@@ -77,19 +73,19 @@ public partial class App : System.Windows.Application
             {
                 // User cancelled setup
                 Shutdown(0);
+
                 return;
             }
 
             // Build and start the host (now with confirmed database path)
             _host = CreateHostBuilder(_databasePath!).Build();
-            
+
             // Start all hosted services (database initialization, clipboard monitoring, PowerPaste)
             await _host.StartAsync();
 
             // Create and show the hidden tray icon window
             _trayIconWindow = new TrayIconWindow();
             _trayIconWindow.Show();
-
         }
         catch (Exception ex)
         {
@@ -99,12 +95,13 @@ public partial class App : System.Windows.Application
                 "Startup Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+
             Shutdown(1);
         }
     }
 
     /// <summary>
-    /// Checks if database exists and is valid. If not, runs the setup wizard.
+    ///     Checks if database exists and is valid. If not, runs the setup wizard.
     /// </summary>
     /// <returns>True if database is ready, false if user cancelled setup.</returns>
     private async Task<bool> CheckDatabaseAndRunSetupIfNeededAsync()
@@ -129,7 +126,7 @@ public partial class App : System.Windows.Application
                 optionsBuilder.UseSqlite($"Data Source={_databasePath}");
 
                 await using var context = new ClipMateDbContext(optionsBuilder.Options);
-                
+
                 // Try to query Collections table (will throw if doesn't exist)
                 await context.Collections.AnyAsync();
                 databaseValid = true;
@@ -154,9 +151,9 @@ public partial class App : System.Windows.Application
 
             var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
             var setupWizard = new SetupWizard(setupLogger, appDataPath);
-            
+
             var result = setupWizard.ShowDialog();
-            
+
             if (result != true || !setupWizard.SetupCompleted)
             {
                 // User cancelled setup
@@ -165,7 +162,7 @@ public partial class App : System.Windows.Application
 
             // Use the path chosen in setup wizard
             _databasePath = setupWizard.DatabasePath;
-            
+
             // Configuration has been saved by the wizard
         }
 
@@ -173,7 +170,7 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
-    /// Creates and configures the host builder.
+    ///     Creates and configures the host builder.
     /// </summary>
     private static IHostBuilder CreateHostBuilder(string databasePath)
     {
@@ -206,7 +203,7 @@ public partial class App : System.Windows.Application
                 services.AddClipMatePlatform();
 
                 // Register MVVM Toolkit Messenger as singleton
-                services.AddSingleton<CommunityToolkit.Mvvm.Messaging.IMessenger>(CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default);
+                services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
                 // Register PowerPaste as hosted service
                 services.AddSingleton<PowerPasteCoordinator>();
@@ -217,30 +214,30 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<IWindow, MainWindow>(p => p.GetRequiredService<MainWindow>());
 
                 // Register PowerPaste components
-                services.AddTransient<ViewModels.PowerPasteViewModel>();
+                services.AddTransient<PowerPasteViewModel>();
                 services.AddTransient<PowerPasteWindow>();
 
                 // Register ViewModels
-                services.AddSingleton<ViewModels.MainWindowViewModel>();
-                services.AddSingleton<ViewModels.CollectionTreeViewModel>();
-                services.AddSingleton<ViewModels.ClipListViewModel>();
-                services.AddSingleton<ViewModels.PreviewPaneViewModel>();
-                services.AddSingleton<ViewModels.SearchViewModel>();
-                services.AddTransient<ViewModels.ClipPropertiesViewModel>();
+                services.AddSingleton<MainWindowViewModel>();
+                services.AddSingleton<CollectionTreeViewModel>();
+                services.AddSingleton<ClipListViewModel>();
+                services.AddSingleton<PreviewPaneViewModel>();
+                services.AddSingleton<SearchViewModel>();
+                services.AddTransient<ClipPropertiesViewModel>();
 
                 // Register Text Tools components
-                services.AddTransient<ViewModels.TextToolsViewModel>();
+                services.AddTransient<TextToolsViewModel>();
                 services.AddTransient<TextToolsDialog>();
 
                 // Register Template components
-                services.AddTransient<ViewModels.TemplateEditorViewModel>();
+                services.AddTransient<TemplateEditorViewModel>();
                 services.AddTransient<TemplateEditorDialog>();
                 services.AddTransient<PromptDialog>();
             });
     }
 
     /// <summary>
-    /// Called when the application exits.
+    ///     Called when the application exits.
     /// </summary>
     protected override async void OnExit(ExitEventArgs e)
     {
@@ -268,7 +265,7 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
-    /// Handles unhandled exceptions from the AppDomain.
+    ///     Handles unhandled exceptions from the AppDomain.
     /// </summary>
     private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
@@ -286,7 +283,7 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
-    /// Handles unhandled exceptions from the UI thread.
+    ///     Handles unhandled exceptions from the UI thread.
     /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
@@ -303,7 +300,7 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>
-    /// Handles unobserved task exceptions.
+    ///     Handles unobserved task exceptions.
     /// </summary>
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {

@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Grid;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.App.Views;
 
@@ -12,6 +11,11 @@ namespace ClipMate.App.Views;
 /// </summary>
 public partial class ClipListView
 {
+    public ClipListView()
+    {
+        InitializeComponent();
+    }
+
     /// <summary>
     /// Dependency property for the collection of clips to display
     /// </summary>
@@ -93,11 +97,6 @@ public partial class ClipListView
     {
         add => AddHandler(SelectionChangedEvent, value);
         remove => RemoveHandler(SelectionChangedEvent, value);
-    }
-
-    public ClipListView()
-    {
-        InitializeComponent();
     }
 
     /// <summary>

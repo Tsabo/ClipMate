@@ -146,12 +146,11 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.IconGlyph}" 
-                                  FontSize="16"
+                        <TextBlock Text="{Binding Value}" 
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Center"
                                   Margin="3,0,0,0"
-                                  ToolTip="{Binding RowData.Row.IconType}"/>
+                                  ToolTip="{Binding Value}"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -163,11 +162,11 @@
                            MinWidth="200">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.DisplayTitle}" 
+                        <TextBlock Text="{Binding Value}" 
                                   TextTrimming="CharacterEllipsis"
                                   VerticalAlignment="Center"
                                   Padding="2,0"
-                                  ToolTip="{Binding RowData.Row.TextContent}"/>
+                                  ToolTip="{Binding Value}"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -183,7 +182,7 @@
                            Width="140">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.CapturedAt, StringFormat='M/d/yyyy h:mm tt'}" 
+                        <TextBlock Text="{Binding Value, StringFormat='M/d/yyyy h:mm tt'}" 
                                   VerticalAlignment="Center"
                                   Padding="2,0"/>
                     </DataTemplate>
@@ -197,7 +196,7 @@
                            HorizontalHeaderContentAlignment="Right">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.SizeDisplay}" 
+                        <TextBlock Text="{Binding Value}" 
                                   HorizontalAlignment="Right"
                                   VerticalAlignment="Center"
                                   Padding="2,0"/>
@@ -211,11 +210,11 @@
                            Width="120">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.SourceDisplay}" 
+                        <TextBlock Text="{Binding Value}" 
                                   TextTrimming="CharacterEllipsis"
                                   VerticalAlignment="Center"
                                   Padding="2,0"
-                                  ToolTip="{Binding RowData.Row.SourceApplicationName}"/>
+                                  ToolTip="{Binding Value}"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -229,10 +228,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.Encrypted, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#F44336"
                                   ToolTip="Encrypted"/>
                     </DataTemplate>
@@ -248,10 +246,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasText, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#2196F3"
                                   ToolTip="Text Format"/>
                     </DataTemplate>
@@ -267,10 +264,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasHtml, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#FF9800"
                                   ToolTip="HTML Format"/>
                     </DataTemplate>
@@ -286,10 +282,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasRtf, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#9C27B0"
                                   ToolTip="Rich Text Format"/>
                     </DataTemplate>
@@ -305,10 +300,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasBitmap, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#4CAF50"
                                   ToolTip="Bitmap Format"/>
                     </DataTemplate>
@@ -324,10 +318,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasPicture, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#00BCD4"
                                   ToolTip="Picture/Metafile"/>
                     </DataTemplate>
@@ -343,10 +336,9 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding RowData.Row.HasFiles, Converter={StaticResource BoolToIconConverter}}" 
+                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  FontSize="14"
                                   Foreground="#795548"
                                   ToolTip="File List"/>
                     </DataTemplate>

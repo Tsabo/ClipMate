@@ -1,14 +1,13 @@
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-/// ViewModel for the main application window.
-/// Orchestrates child ViewModels and coordinates the three-pane interface.
-/// Manages window state and application-level concerns.
+///     ViewModel for the main application window.
+///     Orchestrates child ViewModels and coordinates the three-pane interface.
+///     Manages window state and application-level concerns.
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
@@ -16,63 +15,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IFolderService _folderService;
     private readonly ILogger<MainWindowViewModel>? _logger;
 
-    #region Child ViewModels
-
-    /// <summary>
-    /// ViewModel for the collection tree (left pane).
-    /// </summary>
-    public CollectionTreeViewModel CollectionTree { get; }
-
-    /// <summary>
-    /// ViewModel for the primary clip list (middle pane).
-    /// </summary>
-    public ClipListViewModel PrimaryClipList { get; }
-
-    /// <summary>
-    /// ViewModel for the preview pane (right pane).
-    /// </summary>
-    public PreviewPaneViewModel PreviewPane { get; }
-
-    /// <summary>
-    /// ViewModel for the search panel.
-    /// </summary>
-    public SearchViewModel Search { get; }
-
-    #endregion
-
-    #region Window State
-
-    [ObservableProperty]
-    private string _title = "ClipMate";
-
-    [ObservableProperty]
-    private double _windowWidth = 1200;
-
-    [ObservableProperty]
-    private double _windowHeight = 800;
-
-    [ObservableProperty]
-    private bool _isBusy;
-
-    [ObservableProperty]
-    private string _statusMessage = string.Empty;
-
-    [ObservableProperty]
-    private double _leftPaneWidth = 250;
-
-    [ObservableProperty]
-    private double _rightPaneWidth = 400;
-
-    [ObservableProperty]
-    private bool _isDualClipListMode = false;
-
-    [ObservableProperty]
-    private double _primaryClipListHeight = 350;
-
-    #endregion
-
-    public MainWindowViewModel(
-        CollectionTreeViewModel collectionTreeViewModel,
+    public MainWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
         PreviewPaneViewModel previewPaneViewModel,
         SearchViewModel searchViewModel,
@@ -90,8 +33,8 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Initializes the main window and all child ViewModels.
-    /// Should be called after the window is loaded.
+    ///     Initializes the main window and all child ViewModels.
+    ///     Should be called after the window is loaded.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -121,7 +64,7 @@ public partial class MainWindowViewModel : ObservableObject
                     targetCollection.IsExpanded = true;
 
                     // Check if this is a default collection (Inbox, Safe, Overflow)
-                    bool isDefaultCollection = targetCollection.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase) ||
+                    var isDefaultCollection = targetCollection.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase) ||
                                               targetCollection.Name.Equals("Safe", StringComparison.OrdinalIgnoreCase) ||
                                               targetCollection.Name.Equals("Overflow", StringComparison.OrdinalIgnoreCase);
 
@@ -161,10 +104,6 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
-            // Load initial clips
-            SetBusy(true, "Loading clips...");
-            await PrimaryClipList.LoadClipsAsync(50);
-
             _logger?.LogInformation("MainWindow initialization completed successfully");
         }
         catch (Exception ex)
@@ -179,22 +118,76 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Sets the status message displayed in the status bar.
+    ///     Sets the status message displayed in the status bar.
     /// </summary>
     /// <param name="message">The status message to display.</param>
-    public void SetStatus(string message)
-    {
-        StatusMessage = message ?? string.Empty;
-    }
+    public void SetStatus(string message) => StatusMessage = message ?? string.Empty;
 
     /// <summary>
-    /// Sets the busy state and optional status message.
+    ///     Sets the busy state and optional status message.
     /// </summary>
     /// <param name="isBusy">Whether the application is busy.</param>
     /// <param name="message">Optional status message to display when busy.</param>
     public void SetBusy(bool isBusy, string? message = null)
     {
         IsBusy = isBusy;
-        StatusMessage = isBusy ? (message ?? string.Empty) : string.Empty;
+        StatusMessage = isBusy
+            ? message ?? string.Empty
+            : string.Empty;
     }
+
+    #region Child ViewModels
+
+    /// <summary>
+    ///     ViewModel for the collection tree (left pane).
+    /// </summary>
+    public CollectionTreeViewModel CollectionTree { get; }
+
+    /// <summary>
+    ///     ViewModel for the primary clip list (middle pane).
+    /// </summary>
+    public ClipListViewModel PrimaryClipList { get; }
+
+    /// <summary>
+    ///     ViewModel for the preview pane (right pane).
+    /// </summary>
+    public PreviewPaneViewModel PreviewPane { get; }
+
+    /// <summary>
+    ///     ViewModel for the search panel.
+    /// </summary>
+    public SearchViewModel Search { get; }
+
+    #endregion
+
+    #region Window State
+
+    [ObservableProperty]
+    private string _title = "ClipMate";
+
+    [ObservableProperty]
+    private double _windowWidth = 1200;
+
+    [ObservableProperty]
+    private double _windowHeight = 800;
+
+    [ObservableProperty]
+    private bool _isBusy;
+
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
+    [ObservableProperty]
+    private double _leftPaneWidth = 250;
+
+    [ObservableProperty]
+    private double _rightPaneWidth = 400;
+
+    [ObservableProperty]
+    private bool _isDualClipListMode;
+
+    [ObservableProperty]
+    private double _primaryClipListHeight = 350;
+
+    #endregion
 }
