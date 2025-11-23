@@ -22,8 +22,15 @@ public class TextTransformService
     /// <exception cref="ArgumentNullException">Thrown when text is null.</exception>
     public string ConvertCase(string text, CaseConversion conversion)
     {
-        if (text == null) throw new ArgumentNullException(nameof(text));
-        if (string.IsNullOrEmpty(text)) return text;
+        if (text == null)
+        {
+            throw new ArgumentNullException(nameof(text));
+        }
+        
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
 
         return conversion switch
         {
@@ -43,7 +50,10 @@ public class TextTransformService
     /// <returns>The text with sorted lines.</returns>
     public string SortLines(string text, SortMode mode)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
 
         var lines = text.Split('\n');
 
@@ -55,7 +65,7 @@ public class TextTransformService
                 var trimmed = l.Trim();
                 return int.TryParse(trimmed, out var num) ? num : int.MaxValue;
             }).ToArray(),
-            SortMode.Reverse => lines.Reverse().ToArray(),
+            SortMode.Reverse => lines.AsEnumerable().Reverse().ToArray(),
             _ => lines
         };
 
@@ -70,7 +80,10 @@ public class TextTransformService
     /// <returns>The text with duplicate lines removed.</returns>
     public string RemoveDuplicateLines(string text, bool caseSensitive = false)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
 
         var lines = text.Split('\n');
         var comparer = caseSensitive 
@@ -100,7 +113,10 @@ public class TextTransformService
     /// <returns>The text with line numbers added.</returns>
     public string AddLineNumbers(string text, string format = "{0}. ", int startNumber = 1)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
 
         var lines = text.Split('\n');
         var result = new StringBuilder();
@@ -136,8 +152,15 @@ public class TextTransformService
         bool isRegex = false, 
         bool caseSensitive = true)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
-        if (string.IsNullOrEmpty(find)) return text;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
+        
+        if (string.IsNullOrEmpty(find))
+        {
+            return text;
+        }
 
         if (isRegex)
         {
@@ -176,7 +199,10 @@ public class TextTransformService
         bool removeExtraLineBreaks = false, 
         bool trimLines = false)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
 
         var result = text;
 
@@ -208,8 +234,15 @@ public class TextTransformService
     /// <returns>The converted text.</returns>
     public string ConvertFormat(string text, TextFormat sourceFormat, TextFormat targetFormat)
     {
-        if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
-        if (sourceFormat == targetFormat) return text;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text ?? string.Empty;
+        }
+        
+        if (sourceFormat == targetFormat)
+        {
+            return text;
+        }
 
         // Plain to HTML
         if (sourceFormat == TextFormat.Plain && targetFormat == TextFormat.Html)
@@ -238,7 +271,10 @@ public class TextTransformService
 
     private static string ConvertToSentenceCase(string text)
     {
-        if (string.IsNullOrEmpty(text)) return text;
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
 
         var result = new StringBuilder();
         bool capitalizeNext = true;

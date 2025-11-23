@@ -94,7 +94,9 @@ public class FolderRepository : IFolderRepository
     {
         var collection = await _context.Collections.FindAsync(new object[] { folder.Id }, cancellationToken);
         if (collection == null)
+        {
             return false;
+        }
 
         UpdateCollectionFromFolder(collection, folder);
         _context.Collections.Update(collection);
@@ -107,11 +109,15 @@ public class FolderRepository : IFolderRepository
     {
         var collection = await _context.Collections.FindAsync(new object[] { id }, cancellationToken);
         if (collection == null)
+        {
             return false;
+        }
 
         // Only allow deleting folders (LmType = 2), not regular collections
         if (collection.LmType != 2)
+        {
             throw new InvalidOperationException("Cannot delete a non-folder collection through FolderRepository");
+        }
 
         _context.Collections.Remove(collection);
         await _context.SaveChangesAsync(cancellationToken);

@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClipMate.Data.Migrations
 {
     [DbContext(typeof(ClipMateDbContext))]
-    [Migration("20251119023524_ClipMate75Schema")]
+    [Migration("20251122035429_ClipMate75Schema")]
     partial class ClipMate75Schema
     {
         /// <inheritdoc />

@@ -114,10 +114,12 @@ public class ConfigurationService : Core.Services.IConfigurationService
             throw new ArgumentException("Database ID cannot be null or empty.", nameof(databaseId));
         }
 
+#pragma warning disable IDE0016
         if (database == null)
         {
             throw new ArgumentNullException(nameof(database));
         }
+#pragma warning restore IDE0016
 
         _configuration.Databases[databaseId] = database;
         _logger.LogInformation("Database configuration '{DatabaseId}' updated", databaseId);
@@ -147,10 +149,12 @@ public class ConfigurationService : Core.Services.IConfigurationService
             throw new ArgumentException("Application name cannot be null or empty.", nameof(applicationName));
         }
 
+#pragma warning disable IDE0016
         if (profile == null)
         {
             throw new ArgumentNullException(nameof(profile));
         }
+#pragma warning restore IDE0016
 
         _configuration.ApplicationProfiles[applicationName] = profile;
         _logger.LogInformation("Application profile '{ApplicationName}' updated", applicationName);

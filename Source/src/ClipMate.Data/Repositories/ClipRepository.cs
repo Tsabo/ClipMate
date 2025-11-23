@@ -27,7 +27,9 @@ public class ClipRepository : IClipRepository
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (clip != null)
+        {
             await LoadFormatFlagsAsync([clip], cancellationToken);
+        }
 
         return clip;
     }
@@ -70,15 +72,25 @@ public class ClipRepository : IClipRepository
             // Pre-compute and cache the icon string
             var icons = new List<string>();
             if (item.HasBitmap)
+            {
                 icons.Add("🖼");
+            }
             if (item.HasRtf)
+            {
                 icons.Add("🅰");
+            }
             if (item.HasHtml)
+            {
                 icons.Add("🌐");
+            }
             if (item.HasFiles)
+            {
                 icons.Add("📁");
+            }
             if (item.HasText)
+            {
                 icons.Add("📄");
+            }
 
             clip.IconGlyph = icons.Count > 0 ? string.Join("", icons) : "❓";
 
@@ -153,13 +165,17 @@ public class ClipRepository : IClipRepository
     public async Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentHash))
+        {
             return null;
+        }
 
         var clip = await _context.Clips
             .FirstOrDefaultAsync(p => p.ContentHash == contentHash, cancellationToken);
 
         if (clip != null)
+        {
             await LoadFormatFlagsAsync([clip], cancellationToken);
+        }
 
         return clip;
     }
@@ -167,7 +183,9 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> SearchAsync(string searchText, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchText))
+        {
             return new List<Clip>();
+        }
 
         var clips = await _context.Clips
             .Where(p => !p.Del && EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
@@ -183,7 +201,9 @@ public class ClipRepository : IClipRepository
     public async Task<Clip> CreateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
+        {
             throw new ArgumentNullException(nameof(clip));
+        }
 
         // Generate auto-increment SortKey for ClipMate 7.5 compatibility
         // SortKey = (count + 1) * 100 to allow manual re-ordering between clips
@@ -218,7 +238,9 @@ public class ClipRepository : IClipRepository
     public async Task<bool> UpdateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
+        {
             throw new ArgumentNullException(nameof(clip));
+        }
 
         _context.Clips.Update(clip);
         await _context.SaveChangesAsync(cancellationToken);
@@ -231,7 +253,9 @@ public class ClipRepository : IClipRepository
         var clip = await _context.Clips.FindAsync([id], cancellationToken);
 
         if (clip == null)
+        {
             return false;
+        }
 
         // Soft delete (ClipMate style)
         clip.Del = true;
@@ -449,7 +473,9 @@ public class ClipRepository : IClipRepository
 
         // Add all ClipData entries
         if (clipDataEntries.Count > 0)
+        {
             await _context.ClipData.AddRangeAsync(clipDataEntries, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -494,7 +520,9 @@ public class ClipRepository : IClipRepository
         var clipsList = clips.ToList();
 
         if (!clipsList.Any())
+        {
             return;
+        }
 
         var clipIds = clipsList.Select(p => p.Id).ToList();
 
@@ -533,19 +561,29 @@ public class ClipRepository : IClipRepository
                 // Pre-compute and cache the icon string
                 var icons = new List<string>();
                 if (flags.HasBitmap)
+                {
                     icons.Add("🖼");
+                }
 
                 if (flags.HasRtf)
+                {
                     icons.Add("🅰");
+                }
 
                 if (flags.HasHtml)
+                {
                     icons.Add("🌐");
+                }
 
                 if (flags.HasFiles)
+                {
                     icons.Add("📁");
+                }
 
                 if (flags.HasText)
+                {
                     icons.Add("📄");
+                }
 
                 clip.IconGlyph = icons.Count > 0
                     ? string.Join("", icons)

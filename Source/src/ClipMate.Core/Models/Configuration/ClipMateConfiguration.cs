@@ -36,6 +36,11 @@ public class ClipMateConfiguration
     /// Gets or sets the name of the default/active database.
     /// </summary>
     public string? DefaultDatabase { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of recently used emojis with usage statistics.
+    /// </summary>
+    public List<RecentEmoji> RecentEmojis { get; set; } = new();
 }
 
 /// <summary>

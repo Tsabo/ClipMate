@@ -41,7 +41,7 @@ public class Folder
     public DateTime? ModifiedAt { get; set; }
 
     /// <summary>
-    /// Whether this is a system-defined folder (InBox, Safe, Trash, etc.) that cannot be deleted.
+    /// Whether this is a system-defined folder (Inbox, Safe, Trash, etc.) that cannot be deleted.
     /// </summary>
     public bool IsSystemFolder { get; set; }
 

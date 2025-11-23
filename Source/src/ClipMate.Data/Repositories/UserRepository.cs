@@ -62,7 +62,9 @@ public class UserRepository : IUserRepository
     {
         var user = await _context.Users.FindAsync(new object[] { id }, cancellationToken);
         if (user == null)
+        {
             return false;
+        }
 
         user.LastDate = lastDate;
         _context.Users.Update(user);
@@ -74,7 +76,9 @@ public class UserRepository : IUserRepository
     {
         var user = await _context.Users.FindAsync(new object[] { id }, cancellationToken);
         if (user == null)
+        {
             return false;
+        }
 
         _context.Users.Remove(user);
         await _context.SaveChangesAsync(cancellationToken);

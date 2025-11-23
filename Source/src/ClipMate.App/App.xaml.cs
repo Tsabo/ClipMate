@@ -28,7 +28,9 @@ public partial class App
     private string? _databasePath;
     private IHost? _host;
 
+#pragma warning disable CS0649 // Field is assigned via dependency injection
     private ILogger<App>? _logger;
+#pragma warning restore CS0649
     private Mutex? _singleInstanceMutex;
     private TrayIconWindow? _trayIconWindow;
 
@@ -175,10 +177,7 @@ public partial class App
     private static IHostBuilder CreateHostBuilder(string databasePath)
     {
         return Host.CreateDefaultBuilder()
-            .ConfigureAppConfiguration(config =>
-            {
-                config.SetBasePath(AppContext.BaseDirectory);
-            })
+            .ConfigureAppConfiguration(config => config.SetBasePath(AppContext.BaseDirectory))
             .ConfigureServices(services =>
             {
                 // Configure logging

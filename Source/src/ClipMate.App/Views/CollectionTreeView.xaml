@@ -6,6 +6,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              xmlns:local="clr-namespace:ClipMate.App.Views"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              mc:Ignorable="d" 
@@ -19,51 +20,56 @@
         <dxg:TreeViewControl x:Name="TreeView"
                              ItemsSource="{Binding RootNodes}"
                              TreeViewFieldName="Name"
+                             ImageFieldName="IconImage"
                              ChildNodesPath="Children"
                              ShowBorder="False"
-                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}" ShowNodeImages="True">
             
             <!-- Context Menu -->
             <dxg:TreeViewControl.ContextMenu>
-                <ContextMenu>
-                    <!-- Collection Context Menu Items -->
-                    <MenuItem Header="Add Folder">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding PlacementTarget.DataContext.SelectedNode.NodeType, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="Collection">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <!-- Move Up/Down -->
+                    <MenuItem Header="Move Up In Sort Order" InputGestureText="(+)">
+                        <MenuItem.Icon>
+                            <emoji:TextBlock Text="⬆️" FontSize="14"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Move Down In Sort Order" InputGestureText="(-)">
+                        <MenuItem.Icon>
+                            <emoji:TextBlock Text="⬇️" FontSize="14"/>
+                        </MenuItem.Icon>
                     </MenuItem>
                     
-                    <!-- Folder Context Menu Items -->
-                    <MenuItem Header="Add Subfolder">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding PlacementTarget.DataContext.SelectedNode.NodeType, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Value="Folder">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
+                    <!-- Add New Collection -->
+                    <MenuItem Header="Add New Collection">
+                        <MenuItem.Icon>
+                            <emoji:TextBlock Text="📁" FontSize="14"/>
+                        </MenuItem.Icon>
                     </MenuItem>
                     
+                    <!-- Delete Collection -->
+                    <MenuItem Header="Delete Collection"/>
+                    
+                    <!-- Database Operations -->
+                    <MenuItem Header="Activate Database"/>
+                    <MenuItem Header="De-Activate Database"/>
+                    
+                    <!-- Tree Operations -->
+                    <MenuItem Header="Expand All"/>
+                    <MenuItem Header="Collapse All"/>
+                    <MenuItem Header="Show All Clips In All Children"/>
+                    
+                    <MenuItem Header="Cancel"/>
+                    
                     <Separator/>
                     
-                    <!-- Common Menu Items -->
-                    <MenuItem Header="Move Up" InputGestureText="+"/>
-                    <MenuItem Header="Move Down" InputGestureText="-"/>
-                    <Separator/>
-                    <MenuItem Header="Rename"/>
-                    <MenuItem Header="Properties"/>
-                    <Separator/>
-                    <MenuItem Header="Delete"/>
+                    <!-- Properties -->
+                    <MenuItem Header="Properties" 
+                              Command="{Binding ShowPropertiesCommand}">
+                        <MenuItem.Icon>
+                            <emoji:TextBlock Text="📁" FontSize="14"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
                 </ContextMenu>
             </dxg:TreeViewControl.ContextMenu>
         </dxg:TreeViewControl>

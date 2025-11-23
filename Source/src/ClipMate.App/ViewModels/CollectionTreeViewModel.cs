@@ -236,4 +236,62 @@ public partial class CollectionTreeViewModel : ObservableObject
         await _folderService.DeleteAsync(folderId);
         await LoadAsync();
     }
+
+    /// <summary>
+    /// Shows properties dialog for the selected collection or folder.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowPropertiesAsync()
+    {
+        if (SelectedNode == null)
+        {
+            return;
+        }
+
+        switch (SelectedNode)
+        {
+            case CollectionTreeNode collectionNode:
+                await ShowCollectionPropertiesAsync(collectionNode.Collection.Id);
+                break;
+
+            case VirtualCollectionTreeNode virtualNode:
+                await ShowCollectionPropertiesAsync(virtualNode.VirtualCollection.Id);
+                break;
+
+            // Folders don't have properties yet, but could be added in the future
+            case FolderTreeNode folderNode:
+                _logger.LogInformation("Folder properties not yet implemented for: {FolderName}", folderNode.Name);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Shows the collection properties dialog.
+    /// </summary>
+    private async Task ShowCollectionPropertiesAsync(Guid collectionId)
+    {
+        var collection = await _collectionService.GetByIdAsync(collectionId);
+        if (collection == null)
+        {
+            _logger.LogWarning("Collection not found: {CollectionId}", collectionId);
+            return;
+        }
+
+        var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
+        var window = new Views.CollectionPropertiesWindow(viewModel)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            // Sync SQL editor text to ViewModel before saving
+            window.SyncSqlEditorToViewModel();
+            viewModel.SaveToModel();
+            
+            // Save changes to database
+            await _collectionService.UpdateAsync(collection);
+            await LoadAsync(); // Reload tree to reflect changes
+        }
+    }
 }

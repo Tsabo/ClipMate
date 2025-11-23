@@ -42,13 +42,14 @@ public class DefaultDataSeeder
             // Create root collections
             var collections = new List<Collection>
             {
-                // InBox - Where new clips go by default
-                new Collection
+                // Inbox - Where new clips go by default
+                new()
                 {
                     Id = Guid.Parse("E21B62F2-4CFA-4913-9B79-4F955F4F202D"),
                     ParentId = null,
                     ParentGuid = emptyGuid,
-                    Title = "InBox",
+                    Title = "Inbox",
+                    Icon = "📥",
                     LmType = 0,      // Normal collection
                     ListType = 0,    // Normal list
                     SortKey = 100,
@@ -70,12 +71,13 @@ public class DefaultDataSeeder
                 },
 
                 // Safe - For important clips (folder type)
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("C297C388-B07F-40B8-9E81-FB668F1562AD"),
                     ParentId = null,
                     ParentGuid = emptyGuid,
                     Title = "Safe",
+                    Icon = "🔒",
                     LmType = 2,      // Folder type
                     ListType = 0,
                     SortKey = 200,
@@ -96,13 +98,14 @@ public class DefaultDataSeeder
                     CreatedAt = now
                 },
 
-                // Overflow - Where clips go when InBox is full
-                new Collection
+                // Overflow - Where clips go when Inbox is full
+                new()
                 {
                     Id = Guid.Parse("A4FF1FD1-2E7E-426C-8C1D-715E54D1ABC6"),
                     ParentId = null,
                     ParentGuid = emptyGuid,
                     Title = "Overflow",
+                    Icon = "📤",
                     LmType = 0,
                     ListType = 0,
                     SortKey = 300,
@@ -124,12 +127,13 @@ public class DefaultDataSeeder
                 },
 
                 // Samples - Sample clips folder
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("253CB828-DF18-4833-ACF8-304DF0511122"),
                     ParentId = null,
                     ParentGuid = emptyGuid,
                     Title = "Samples",
+                    Icon = "📋",
                     LmType = 2,      // Folder type
                     ListType = 0,
                     SortKey = 350,
@@ -151,12 +155,13 @@ public class DefaultDataSeeder
                 },
 
                 // Virtual - Parent folder for virtual/smart collections
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("A82DA2A6-86AA-4FC6-A660-2543E7FE900D"),
                     ParentId = null,
                     ParentGuid = emptyGuid,
                     Title = "Virtual",
+                    Icon = "✨",
                     LmType = 2,      // Folder type
                     ListType = 1,    // Virtual collection
                     SortKey = 400,
@@ -188,12 +193,13 @@ public class DefaultDataSeeder
             var virtualCollections = new List<Collection>
             {
                 // Today - Clips captured today
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("27EBB8C8-FE43-4199-BD92-C953717C4066"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Today",
+                    Icon = "📅",
                     LmType = 1,      // Virtual collection
                     ListType = 3,    // SQL-based
                     SortKey = 500,
@@ -215,12 +221,13 @@ public class DefaultDataSeeder
                 },
 
                 // This Week
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("962983D5-9C1D-43FA-9B70-D258F5AE54E6"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "This Week",
+                    Icon = "🗓️",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 510,
@@ -242,12 +249,13 @@ public class DefaultDataSeeder
                 },
 
                 // This Month
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("360D9460-6A7F-48C7-9554-D8E8D36FBFE9"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "This Month",
+                    Icon = "📆",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 520,
@@ -269,12 +277,13 @@ public class DefaultDataSeeder
                 },
 
                 // Everything - All clips
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("36418363-48C2-4B71-8157-2000553ACABC"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Everything",
+                    Icon = "🌐",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 530,
@@ -296,12 +305,13 @@ public class DefaultDataSeeder
                 },
 
                 // Since Last Import
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("09FB405E-6AC9-4500-9384-F7A801AB231C"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Since Last Import",
+                    Icon = "📥",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 540,
@@ -323,12 +333,13 @@ public class DefaultDataSeeder
                 },
 
                 // Since Last Export
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("BCB43DAE-6ACC-4FED-B4E3-49E70F192BF7"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Since Last Export",
+                    Icon = "📤",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 550,
@@ -350,12 +361,13 @@ public class DefaultDataSeeder
                 },
 
                 // Bitmaps - Only bitmap clips
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("A0FBA33A-D501-411D-BCE4-AB1522F6A141"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Bitmaps",
+                    Icon = "🖼️",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 610,
@@ -377,12 +389,13 @@ public class DefaultDataSeeder
                 },
 
                 // Keystroke Macros
-                new Collection
+                new()
                 {
                     Id = Guid.Parse("1B9F6564-2A21-4500-B46D-7B3A4A40C554"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
                     Title = "Keystroke Macros",
+                    Icon = "⌨️",
                     LmType = 1,
                     ListType = 3,
                     SortKey = 620,

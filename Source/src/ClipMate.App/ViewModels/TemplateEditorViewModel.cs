@@ -138,7 +138,9 @@ public partial class TemplateEditorViewModel : ObservableObject
     private async Task UpdateTemplateAsync()
     {
         if (SelectedTemplate == null)
+        {
             return;
+        }
 
         try
         {
@@ -167,7 +169,9 @@ public partial class TemplateEditorViewModel : ObservableObject
     private async Task DeleteTemplateAsync()
     {
         if (SelectedTemplate == null)
+        {
             return;
+        }
 
         try
         {
@@ -208,7 +212,9 @@ public partial class TemplateEditorViewModel : ObservableObject
     private async Task PreviewTemplateAsync()
     {
         if (SelectedTemplate == null)
+        {
             return;
+        }
 
         try
         {

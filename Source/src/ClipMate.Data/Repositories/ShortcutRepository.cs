@@ -62,7 +62,9 @@ public class ShortcutRepository : IShortcutRepository
     {
         var existing = await _context.Shortcuts.FindAsync(new object[] { shortcut.Id }, cancellationToken);
         if (existing == null)
+        {
             return false;
+        }
 
         existing.Nickname = shortcut.Nickname;
         existing.ClipId = shortcut.ClipId;
@@ -77,7 +79,9 @@ public class ShortcutRepository : IShortcutRepository
     {
         var shortcut = await _context.Shortcuts.FindAsync(new object[] { id }, cancellationToken);
         if (shortcut == null)
+        {
             return false;
+        }
 
         _context.Shortcuts.Remove(shortcut);
         await _context.SaveChangesAsync(cancellationToken);

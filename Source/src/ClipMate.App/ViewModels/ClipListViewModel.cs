@@ -75,7 +75,9 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             var shouldDisplay = ShouldDisplayClip(message.Clip, message.CollectionId, message.FolderId);
 
             if (!shouldDisplay)
+            {
                 return;
+            }
 
             // Check if clip already exists in the collection (duplicate handling)
             var existingClip = Clips.FirstOrDefault(c => c.Id == message.Clip.Id);
@@ -146,11 +148,15 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     {
         // If viewing a specific folder, only show clips in that folder
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
+        {
             return clipFolderId == CurrentFolderId && clipCollectionId == CurrentCollectionId;
+        }
 
         // If viewing a specific collection, only show clips in that collection
         if (CurrentCollectionId.HasValue)
+        {
             return clipCollectionId == CurrentCollectionId;
+        }
 
         // Default view - show all clips (or implement your default logic)
         return true;
@@ -174,7 +180,9 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             {
                 Clips.Clear();
                 foreach (var clip in clips)
+                {
                     Clips.Add(clip);
+                }
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
             });
@@ -213,7 +221,9 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
                 Clips.Clear();
                 var clipList = clips.ToList();
                 foreach (var clip in clipList)
+                {
                     Clips.Add(clip);
+                }
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
             });
@@ -250,7 +260,9 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             {
                 Clips.Clear();
                 foreach (var clip in clips)
+                {
                     Clips.Add(clip);
+                }
             });
         }
         catch
@@ -269,11 +281,17 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     public async Task RefreshAsync()
     {
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
+        {
             await LoadClipsByFolderAsync(CurrentCollectionId.Value, CurrentFolderId.Value);
+        }
         else if (CurrentCollectionId.HasValue)
+        {
             await LoadClipsByCollectionAsync(CurrentCollectionId.Value);
+        }
         else
+        {
             await LoadClipsAsync();
+        }
     }
 
     /// <summary>

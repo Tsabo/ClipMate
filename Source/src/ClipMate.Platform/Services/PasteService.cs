@@ -49,10 +49,7 @@ public class PasteService : IPasteService
         try
         {
             // Set clipboard content
-            await Task.Run(() =>
-            {
-                System.Windows.Clipboard.SetText(text);
-            }, cancellationToken);
+            await Task.Run(() => System.Windows.Clipboard.SetText(text), cancellationToken);
 
             // Small delay to ensure clipboard is set
             await Task.Delay(50, cancellationToken);

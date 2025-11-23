@@ -17,7 +17,9 @@ public partial class Clip
         {
             // If user has set a custom title, use that
             if (CustomTitle && !string.IsNullOrWhiteSpace(Title))
+            {
                 return Title;
+            }
 
             // For text-based clips, use first 50 characters
             if (!string.IsNullOrWhiteSpace(TextContent))
@@ -31,11 +33,15 @@ public partial class Clip
 
             // For images
             if (Type == ClipType.Image)
+            {
                 return "[Image]";
+            }
 
             // For files
             if (Type == ClipType.Files && !string.IsNullOrWhiteSpace(FilePathsJson))
+            {
                 return "[Files]";
+            }
 
             // Fallback
             return Title ?? "[Empty Clip]";
@@ -93,10 +99,14 @@ public partial class Clip
         get
         {
             if (Size < 1024)
+            {
                 return Size.ToString();
+            }
 
             if (Size < 1024 * 1024)
+            {
                 return $"{Size / 1024}K";
+            }
 
             return $"{Size / (1024 * 1024)}M";
         }
@@ -118,22 +128,34 @@ public partial class Clip
         get
         {
             if (HasBitmap)
+            {
                 return "Bitmap";
+            }
 
             if (HasPicture)
+            {
                 return "Picture";
+            }
 
             if (HasRtf)
+            {
                 return "RichText";
+            }
 
             if (HasHtml)
+            {
                 return "HTML";
+            }
 
             if (HasFiles)
+            {
                 return "Files";
+            }
 
             if (HasText)
+            {
                 return "Text";
+            }
 
             return "Unknown";
         }

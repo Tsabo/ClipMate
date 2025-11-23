@@ -57,7 +57,7 @@ SELECT Title, LmType, NewClipsGo FROM Collections ORDER BY SortKey;
 ```
 
 Should show:
-- InBox (LmType=0, NewClipsGo=1) ← Active
+- Inbox (LmType=0, NewClipsGo=1) ← Active
 - Safe (LmType=2)
 - Overflow (LmType=0)
 - Samples (LmType=2)
@@ -126,6 +126,6 @@ dotnet tool install --global dotnet-ef
 1. ✅ Run application
 2. ✅ Verify collections appear in tree view
 3. ✅ Test clipboard capture
-4. ✅ Verify clips go to InBox
+4. ✅ Verify clips go to Inbox
 5. 🔨 Implement ClipData/BLOB storage (future)
 6. 🔨 Implement PowerPaste shortcuts (future)

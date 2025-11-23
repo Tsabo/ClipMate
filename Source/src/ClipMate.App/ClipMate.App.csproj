@@ -22,9 +22,9 @@
   <ItemGroup Label="Package References">
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="DevExpress.Wpf" />
-    <PackageReference Include="DevExpress.Mvvm.CodeGenerators" />
     <PackageReference Include="DevExpress.Mvvm" />
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
+    <PackageReference Include="Emoji.Wpf" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -34,6 +34,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+    <PackageReference Include="Scintilla5.NET" />
   </ItemGroup>
 
 </Project>

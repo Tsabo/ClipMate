@@ -209,7 +209,7 @@ dotnet ef database update 0  # Removes all migrations
 ## Default Data Seeding
 
 After migration, `DefaultDataSeeder` will run and create:
-- 5 root collections (InBox, Safe, Overflow, Samples, Virtual)
+- 5 root collections (Inbox, Safe, Overflow, Samples, Virtual)
 - 8 virtual collections (Today, This Week, This Month, Everything, etc.)
 
 All with **exact ClipMate 7.5 GUIDs** for compatibility.
@@ -272,7 +272,7 @@ PRAGMA table_info(Collections);
 -- Should return 13 collections
 SELECT COUNT(*) FROM Collections;
 
--- Should show InBox as active (NewClipsGo = 1)
+-- Should show Inbox as active (NewClipsGo = 1)
 SELECT Title, NewClipsGo FROM Collections WHERE LmType = 0;
 
 -- Should show 8 virtual collections with SQL

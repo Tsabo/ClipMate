@@ -36,7 +36,7 @@
 Seeds exact ClipMate 7.5 default collection structure:
 
 **Root Collections (5):**
-1. **InBox** (E21B62F2...) - Default destination for new clips, retention: 200
+1. **Inbox** (E21B62F2...) - Default destination for new clips, retention: 200
 2. **Safe** (C297C388...) - Long-term storage folder, unlimited retention
 3. **Overflow** (A4FF1FD1...) - Overflow storage, retention: 800
 4. **Samples** (253CB828...) - Sample clips folder, retention: 200
@@ -183,7 +183,7 @@ Verify:
 - All 13 collections created with correct GUIDs
 - Virtual collection hierarchy (parent/child relationships)
 - SQL queries stored correctly
-- InBox marked as active (NewClipsGo = 1)
+- Inbox marked as active (NewClipsGo = 1)
 
 ## Build Status
 ✅ **Build Successful**

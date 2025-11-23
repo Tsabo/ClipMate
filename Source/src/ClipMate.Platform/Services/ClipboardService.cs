@@ -106,7 +106,9 @@ public class ClipboardService : IClipboardService, IDisposable
     public Task StopMonitoringAsync()
     {
         if (!IsMonitoring)
+        {
             return Task.CompletedTask;
+        }
 
         try
         {
@@ -142,11 +144,7 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Must run on STA thread (UI thread) for WPF Clipboard API
-            return await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                return ExtractClipboardData();
-            });
+            return await Application.Current.Dispatcher.InvokeAsync(() => ExtractClipboardData());
         }
         catch (Exception ex)
         {
@@ -159,7 +157,9 @@ public class ClipboardService : IClipboardService, IDisposable
     public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
+        {
             throw new ArgumentNullException(nameof(clip));
+        }
 
         try
         {
@@ -216,13 +216,17 @@ public class ClipboardService : IClipboardService, IDisposable
             // Debouncing: ignore if too soon after last change
             var now = DateTime.UtcNow;
             if ((now - _lastClipboardChange).TotalMilliseconds < _debounceMilliseconds)
+            {
                 return;
+            }
 
             _lastClipboardChange = now;
 
             var clip = await GetCurrentClipboardContentAsync();
             if (clip == null)
+            {
                 return;
+            }
 
             // Duplicate detection: ignore if same content hash
             if (clip.ContentHash == _lastContentHash)
@@ -273,17 +277,25 @@ public class ClipboardService : IClipboardService, IDisposable
         // Priority 1: Text formats (includes RTF and HTML)
         if (hasText || WpfClipboard.ContainsData(DataFormats.Rtf) ||
             WpfClipboard.ContainsData(DataFormats.Html))
+        {
             clip = ExtractTextClip();
+        }
         // Priority 2: Images
         else if (hasImage)
+        {
             clip = ExtractImageClip();
+        }
         // Priority 3: Files
         else if (hasFiles)
+        {
             clip = ExtractFilesClip();
+        }
 
         // Populate standard fields
         if (clip != null)
+        {
             PopulateStandardFields(clip);
+        }
 
         return clip;
     }
@@ -304,14 +316,18 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Extract Plain Text (CF_UNICODETEXT = 13)
             if (WpfClipboard.ContainsText())
+            {
                 clip.TextContent = WpfClipboard.GetText();
+            }
 
             // Extract RTF (CF_RTF)
             if (WpfClipboard.ContainsData(DataFormats.Rtf))
             {
                 clip.RtfContent = WpfClipboard.GetData(DataFormats.Rtf) as string;
                 if (!string.IsNullOrEmpty(clip.RtfContent))
+                {
                     clip.Type = ClipType.RichText;
+                }
             }
 
             // Extract HTML (CF_HTML) and Source URL
@@ -330,7 +346,9 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Must have at least some text content
             if (string.IsNullOrEmpty(clip.TextContent))
+            {
                 return null;
+            }
 
             // Generate content hash from primary content
             clip.ContentHash = ContentHasher.HashText(clip.TextContent);
@@ -358,16 +376,22 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (!WpfClipboard.ContainsImage())
+            {
                 return null;
+            }
 
             var image = WpfClipboard.GetImage();
             if (image == null)
+            {
                 return null;
+            }
 
             // Convert BitmapSource to byte array (PNG format for storage)
             var imageData = ConvertBitmapSourceToBytes(image);
             if (imageData == null || imageData.Length == 0)
+            {
                 return null;
+            }
 
             var clip = new Clip
             {
@@ -404,22 +428,30 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (!WpfClipboard.ContainsFileDropList())
+            {
                 return null;
+            }
 
             var fileDropList = WpfClipboard.GetFileDropList();
             if (fileDropList.Count == 0)
+            {
                 return null;
+            }
 
             // Convert to string array and serialize to JSON
             var filePaths = new List<string>();
             foreach (var path in fileDropList)
             {
                 if (!string.IsNullOrEmpty(path))
+                {
                     filePaths.Add(path);
+                }
             }
 
             if (filePaths.Count == 0)
+            {
                 return null;
+            }
 
             var filePathsJson = JsonSerializer.Serialize(filePaths);
 
@@ -493,13 +525,19 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         var size = 0;
         if (!string.IsNullOrEmpty(clip.TextContent))
+        {
             size += clip.TextContent.Length * 2; // Unicode
+        }
 
         if (!string.IsNullOrEmpty(clip.RtfContent))
+        {
             size += clip.RtfContent.Length * 2;
+        }
 
         if (!string.IsNullOrEmpty(clip.HtmlContent))
+        {
             size += clip.HtmlContent.Length * 2;
+        }
 
         return size;
     }
@@ -510,7 +548,9 @@ public class ClipboardService : IClipboardService, IDisposable
     private static string GenerateTitleFromText(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
+        {
             return "(Empty)";
+        }
 
         // Get first line
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
@@ -521,7 +561,9 @@ public class ClipboardService : IClipboardService, IDisposable
         // Truncate to 60 chars (database field limit)
         const int maxLength = 60;
         if (firstLine.Length > maxLength)
+        {
             return string.Concat(firstLine.AsSpan(0, maxLength - 3), "...");
+        }
 
         return firstLine;
     }
@@ -555,15 +597,21 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Set plain text (always)
             if (!string.IsNullOrEmpty(clip.TextContent))
+            {
                 dataObject.SetText(clip.TextContent);
+            }
 
             // Set RTF if available
             if (!string.IsNullOrEmpty(clip.RtfContent))
+            {
                 dataObject.SetData(DataFormats.Rtf, clip.RtfContent);
+            }
 
             // Set HTML if available
             if (!string.IsNullOrEmpty(clip.HtmlContent))
+            {
                 dataObject.SetData(DataFormats.Html, clip.HtmlContent);
+            }
 
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -579,7 +627,9 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (clip.ImageData == null || clip.ImageData.Length == 0)
+            {
                 throw new InvalidOperationException("Image data is empty");
+            }
 
             // Convert byte array back to BitmapSource
             using var memoryStream = new MemoryStream(clip.ImageData);
@@ -588,7 +638,9 @@ public class ClipboardService : IClipboardService, IDisposable
                 BitmapCacheOption.OnLoad);
 
             if (decoder.Frames.Count > 0)
+            {
                 WpfClipboard.SetImage(decoder.Frames[0]);
+            }
         }
         catch (Exception ex)
         {
@@ -602,11 +654,15 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (string.IsNullOrEmpty(clip.FilePathsJson))
+            {
                 throw new InvalidOperationException("File paths are empty");
+            }
 
             var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
             if (filePaths == null || filePaths.Count == 0)
+            {
                 throw new InvalidOperationException("No file paths found");
+            }
 
             var fileDropList = new StringCollection();
             fileDropList.AddRange(filePaths.ToArray());
@@ -629,23 +685,29 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (string.IsNullOrEmpty(htmlContent))
+            {
                 return null;
+            }
 
             // Look for SourceURL: in the header
             const string sourceUrlMarker = "SourceURL:";
             var sourceUrlIndex = htmlContent.IndexOf(sourceUrlMarker, StringComparison.OrdinalIgnoreCase);
 
             if (sourceUrlIndex == -1)
+            {
                 return null;
+            }
 
             // Extract URL from the line
             var urlStart = sourceUrlIndex + sourceUrlMarker.Length;
             var urlEnd = htmlContent.IndexOfAny(['\r', '\n'], urlStart);
 
             if (urlEnd == -1)
+            {
                 urlEnd = htmlContent.Length;
+            }
 
-            var url = htmlContent.Substring(urlStart, urlEnd - urlStart).Trim();
+            var url = htmlContent[urlStart..urlEnd].Trim();
 
             // Accept any non-empty value from SourceURL field
             // Applications put various URL schemes here (http, https, file, vscode-file, etc.)
@@ -653,7 +715,9 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 // Truncate to 250 chars (database field limit)
                 if (url.Length > 250)
+                {
                     url = url[..250];
+                }
 
                 _logger.LogDebug("Extracted source URL: {Url}", url);
                 return url;
@@ -695,14 +759,18 @@ public class ClipboardService : IClipboardService, IDisposable
         {
             var length = PInvoke.GetWindowTextLength(hwnd);
             if (length == 0)
+            {
                 return null;
+            }
 
             var buffer = new char[length + 1];
             fixed (char* pBuffer = buffer)
             {
                 var result = PInvoke.GetWindowText(hwnd, pBuffer, length + 1);
                 if (result > 0)
+                {
                     return new string(buffer, 0, result);
+                }
             }
         }
         catch (Exception ex)

@@ -49,7 +49,9 @@ public partial class TrayIconWindow : Window
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         }
 
+#pragma warning disable CS0067 // Event is required by ICommand interface but never raised in this simple implementation
         public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
 
         public bool CanExecute(object? parameter) => true;
 

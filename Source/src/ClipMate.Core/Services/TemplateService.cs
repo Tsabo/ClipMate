@@ -45,10 +45,14 @@ public partial class TemplateService : ITemplateService
     public async Task<Template> CreateAsync(string name, string content, string? description = null, Guid? collectionId = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException("Template name cannot be null or whitespace.", nameof(name));
+        }
 
         if (string.IsNullOrEmpty(content))
+        {
             throw new ArgumentException("Template content cannot be null or empty.", nameof(content));
+        }
 
         var template = new Template
         {
@@ -85,7 +89,9 @@ public partial class TemplateService : ITemplateService
     {
         var template = await _repository.GetByIdAsync(templateId, cancellationToken);
         if (template == null)
+        {
             throw new KeyNotFoundException($"Template with ID {templateId} not found.");
+        }
 
         var expandedContent = template.Content;
 

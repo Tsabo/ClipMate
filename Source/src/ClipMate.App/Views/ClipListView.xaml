@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              xmlns:converters="clr-namespace:ClipMate.App.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
@@ -146,11 +147,11 @@
                            HorizontalHeaderContentAlignment="Center">
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value}" 
-                                  HorizontalAlignment="Left"
-                                  VerticalAlignment="Center"
-                                  Margin="3,0,0,0"
-                                  ToolTip="{Binding Value}"/>
+                        <emoji:TextBlock Text="{Binding Value}" 
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="3,0,0,0"
+                                        ToolTip="{Binding Value}"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -226,13 +227,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#F44336"
-                                  ToolTip="Encrypted"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#F44336"
+                                        ToolTip="Encrypted"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -244,13 +251,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#2196F3"
-                                  ToolTip="Text Format"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#2196F3"
+                                        ToolTip="Text Format"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -262,13 +275,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#FF9800"
-                                  ToolTip="HTML Format"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#FF9800"
+                                        ToolTip="HTML Format"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -280,13 +299,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#9C27B0"
-                                  ToolTip="Rich Text Format"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#9C27B0"
+                                        ToolTip="Rich Text Format"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -298,13 +323,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#4CAF50"
-                                  ToolTip="Bitmap Format"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#4CAF50"
+                                        ToolTip="Bitmap Format"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -316,13 +347,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#00BCD4"
-                                  ToolTip="Picture/Metafile"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#00BCD4"
+                                        ToolTip="Picture/Metafile"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>
@@ -334,13 +371,19 @@
                            FixedWidth="True"
                            AllowSorting="False"
                            HorizontalHeaderContentAlignment="Center">
+                <dxg:GridColumn.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" 
+                                        HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dxg:GridColumn.HeaderTemplate>
                 <dxg:GridColumn.CellTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Foreground="#795548"
-                                  ToolTip="File List"/>
+                        <emoji:TextBlock Text="{Binding Value, Converter={StaticResource BoolToIconConverter}}" 
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="#795548"
+                                        ToolTip="File List"/>
                     </DataTemplate>
                 </dxg:GridColumn.CellTemplate>
             </dxg:GridColumn>

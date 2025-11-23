@@ -23,10 +23,7 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ApplicationFilters", x => x.Id);
-                });
+                constraints: table => table.PrimaryKey("PK_ApplicationFilters", x => x.Id));
 
             migrationBuilder.CreateTable(
                 name: "Clips",
@@ -61,10 +58,7 @@ namespace ClipMate.Data.Migrations
                     Label = table.Column<string>(type: "TEXT", nullable: true),
                     Type = table.Column<int>(type: "INTEGER", nullable: false)
                 },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Clips", x => x.Id);
-                });
+                constraints: table => table.PrimaryKey("PK_Clips", x => x.Id));
 
             migrationBuilder.CreateTable(
                 name: "Collections",
@@ -124,10 +118,7 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     LastExecutedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SearchQueries", x => x.Id);
-                });
+                constraints: table => table.PrimaryKey("PK_SearchQueries", x => x.Id));
 
             migrationBuilder.CreateTable(
                 name: "SoundEvents",
@@ -141,10 +132,7 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SoundEvents", x => x.Id);
-                });
+                constraints: table => table.PrimaryKey("PK_SoundEvents", x => x.Id));
 
             migrationBuilder.CreateTable(
                 name: "Templates",
@@ -161,10 +149,7 @@ namespace ClipMate.Data.Migrations
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
                     LastUsedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Templates", x => x.Id);
-                });
+                constraints: table => table.PrimaryKey("PK_Templates", x => x.Id));
 
             migrationBuilder.CreateTable(
                 name: "Users",

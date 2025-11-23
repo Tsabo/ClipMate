@@ -6,9 +6,10 @@
   <ItemGroup Label="UI Frameworks">
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="DevExpress.Wpf" Version="25.1.6" />
-    <PackageVersion Include="DevExpress.Mvvm.CodeGenerators" Version="22.1.1" />
     <PackageVersion Include="DevExpress.Mvvm" Version="25.1.6" />
     <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.1.6" />
+    <PackageVersion Include="Emoji.Wpf" Version="0.3.4" />
+    <PackageVersion Include="Scintilla5.NET" Version="6.1.0" />
     <PackageVersion Include="Tomlyn" Version="0.17.0" />
     <PackageVersion Include="WPF-UI" Version="4.0.3" />
     <PackageVersion Include="WPF-UI.Tray" Version="4.0.3" />

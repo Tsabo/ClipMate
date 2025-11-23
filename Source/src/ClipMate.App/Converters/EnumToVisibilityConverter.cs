@@ -13,7 +13,9 @@ public class EnumToVisibilityConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value == null || parameter == null)
+        {
             return Visibility.Collapsed;
+        }
 
         var enumValue = value.ToString();
         var parameterValue = parameter.ToString();

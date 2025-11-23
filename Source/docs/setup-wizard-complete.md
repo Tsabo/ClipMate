@@ -203,9 +203,9 @@ If setup fails:
 The setup wizard creates the ClipMate 7.5 collection structure:
 
 **Root Collections (5):**
-1. **InBox** - Default destination for new clips
+1. **Inbox** - Default destination for new clips
 2. **Safe** - Important clips folder
-3. **Overflow** - When InBox is full
+3. **Overflow** - When Inbox is full
 4. **Samples** - Sample clips
 5. **Virtual** - Parent for smart collections
 

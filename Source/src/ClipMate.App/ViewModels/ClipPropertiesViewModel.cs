@@ -77,10 +77,13 @@ public partial class ClipPropertiesViewModel : ObservableObject
     /// <summary>
     /// Loads clip data into the view model.
     /// </summary>
+#pragma warning disable IDE0016 // Null-coalescing is more readable than pattern matching in this method
     public async Task LoadClipAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
+        {
             throw new ArgumentNullException(nameof(clip));
+        }
 
         _originalClip = clip;
 
@@ -91,13 +94,13 @@ public partial class ClipPropertiesViewModel : ObservableObject
         if (clip.FolderId.HasValue)
         {
             var folder = await _folderService.GetByIdAsync(clip.FolderId.Value, cancellationToken);
-            FolderName = folder?.Name ?? "Unknown";
+            FolderName = folder is not null ? folder.Name : "Unknown";
         }
         else if (clip.CollectionId.HasValue)
         {
             // When no folder is assigned, show the collection name
             var collection = await _collectionService.GetByIdAsync(clip.CollectionId.Value, cancellationToken);
-            FolderName = collection?.Name ?? "(Unknown Collection)";
+            FolderName = collection is not null ? collection.Name : "(Unknown Collection)";
         }
         else
         {
@@ -131,12 +134,15 @@ public partial class ClipPropertiesViewModel : ObservableObject
             });
         }
     }
+#pragma warning restore IDE0016
 
     [RelayCommand]
     private async Task OkAsync()
     {
         if (_originalClip == null)
+        {
             return;
+        }
 
         // Update the clip with edited values
         _originalClip.Title = Title;
