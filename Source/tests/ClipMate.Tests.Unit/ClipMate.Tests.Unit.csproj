@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Suppress test-specific analyzer warnings -->
     <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892</NoWarn>
   </PropertyGroup>
