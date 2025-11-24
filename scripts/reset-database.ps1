@@ -35,6 +35,19 @@ if (Test-Path $dbWal) { Remove-Item -Path $dbWal -Force }
 # Step 3: Create new migration
 Write-Host ""
 Write-Host "Step 3: Creating new ClipMate 7.5 migration..." -ForegroundColor Yellow
+
+# Create global.json to force .NET 9 SDK usage
+$globalJsonPath = "..\Source\global.json"
+$globalJsonContent = @{
+    sdk = @{
+        version = "9.0.307"
+        rollForward = "latestMinor"
+    }
+} | ConvertTo-Json -Depth 10
+
+Write-Host "  Creating global.json to use .NET 9 SDK..." -ForegroundColor Gray
+Set-Content -Path $globalJsonPath -Value $globalJsonContent
+
 Push-Location "..\Source\src\ClipMate.Data"
 try {
     dotnet ef migrations add ClipMate75Schema --output-dir Migrations
@@ -42,10 +55,16 @@ try {
         Write-Host "  ✓ Migration 'ClipMate75Schema' created successfully" -ForegroundColor Green
     } else {
         Write-Host "  ✗ Migration creation failed" -ForegroundColor Red
+        Write-Host "  Tip: Ensure .NET 9 SDK is installed (dotnet --list-sdks)" -ForegroundColor Yellow
         exit 1
     }
 } finally {
     Pop-Location
+    # Clean up global.json
+    if (Test-Path $globalJsonPath) {
+        Remove-Item -Path $globalJsonPath -Force
+        Write-Host "  Cleaned up global.json" -ForegroundColor Gray
+    }
 }
 
 # Step 4: Summary

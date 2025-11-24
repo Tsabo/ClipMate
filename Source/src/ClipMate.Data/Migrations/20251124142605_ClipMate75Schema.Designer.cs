@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClipMate.Data.Migrations
 {
     [DbContext(typeof(ClipMateDbContext))]
-    [Migration("20251122035429_ClipMate75Schema")]
+    [Migration("20251124142605_ClipMate75Schema")]
     partial class ClipMate75Schema
     {
         /// <inheritdoc />
@@ -449,6 +449,35 @@ namespace ClipMate.Data.Migrations
                     b.ToTable("Collections");
                 });
 
+            modelBuilder.Entity("ClipMate.Core.Models.MonacoEditorState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ClipDataId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ViewState")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipDataId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MonacoEditorStates_ClipDataId");
+
+                    b.ToTable("MonacoEditorStates");
+                });
+
             modelBuilder.Entity("ClipMate.Core.Models.SearchQuery", b =>
                 {
                     b.Property<Guid>("Id")
@@ -697,6 +726,17 @@ namespace ClipMate.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("ClipMate.Core.Models.MonacoEditorState", b =>
+                {
+                    b.HasOne("ClipMate.Core.Models.ClipData", "ClipData")
+                        .WithMany()
+                        .HasForeignKey("ClipDataId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClipData");
                 });
 
             modelBuilder.Entity("ClipMate.Core.Models.Shortcut", b =>

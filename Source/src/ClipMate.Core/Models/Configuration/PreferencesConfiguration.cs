@@ -119,4 +119,10 @@ public class PreferencesConfiguration
     /// Gets or sets whether PowerPaste should explode (split) items.
     /// </summary>
     public bool PowerPasteExplode { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets how timestamps should be displayed in the UI.
+    /// True = show in local timezone, False = show in original captured timezone with offset.
+    /// </summary>
+    public bool ShowTimestampsInLocalTime { get; set; } = true;
 }

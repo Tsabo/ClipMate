@@ -166,4 +166,23 @@ public partial class Clip
     ///     Set during repository load operations. NOT stored in Clips table.
     /// </summary>
     public string IconGlyph { get; set; } = "❓";
+
+    /// <summary>
+    ///     Gets the CapturedAt timestamp formatted for display based on user preferences.
+    ///     By default, shows the time in the viewer's local timezone.
+    ///     Can be configured to show original captured timezone via ShowTimestampsInLocalTime setting.
+    /// </summary>
+    public DateTimeOffset CapturedAtDisplay
+    {
+        get
+        {
+            // TODO: Read ShowTimestampsInLocalTime from configuration service
+            // For now, default to showing in local time (most common use case)
+            bool showInLocalTime = true;
+
+            return showInLocalTime
+                ? CapturedAt.ToLocalTime()
+                : CapturedAt;
+        }
+    }
 }

@@ -39,10 +39,10 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private string _creator = string.Empty;
 
     [ObservableProperty]
-    private DateTime _capturedAt;
+    private DateTimeOffset _capturedAt;
 
     [ObservableProperty]
-    private DateTime? _lastModified;
+    private DateTimeOffset? _lastModified;
 
     [ObservableProperty]
     private int _sortKey;
@@ -152,7 +152,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
         _originalClip.Locale = Locale;
         _originalClip.Encrypted = Encrypted;
         _originalClip.Macro = Macro;
-        _originalClip.LastModified = DateTime.UtcNow;
+        _originalClip.LastModified = DateTimeOffset.Now;
 
         await _clipService.UpdateAsync(_originalClip);
 

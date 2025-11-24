@@ -41,8 +41,9 @@ public partial class Clip
 
     /// <summary>
     /// Timestamp when the clip was captured (TIMESTAMP).
+    /// Stored as DateTimeOffset to preserve the original timezone/offset.
     /// </summary>
-    public DateTime CapturedAt { get; set; }
+    public DateTimeOffset CapturedAt { get; set; }
 
     /// <summary>
     /// Manual sort order for user-defined ordering (SORTKEY).
@@ -92,8 +93,9 @@ public partial class Clip
 
     /// <summary>
     /// Timestamp when deleted (DELDATE).
+    /// Stored as DateTimeOffset to preserve the original timezone/offset.
     /// </summary>
-    public DateTime? DelDate { get; set; }
+    public DateTimeOffset? DelDate { get; set; }
 
     /// <summary>
     /// Checksum for duplicate detection (CHECKSUM).
@@ -113,8 +115,9 @@ public partial class Clip
 
     /// <summary>
     /// Timestamp of last modification (LASTMODIFIED).
+    /// Stored as DateTimeOffset to preserve the original timezone/offset.
     /// </summary>
-    public DateTime? LastModified { get; set; }
+    public DateTimeOffset? LastModified { get; set; }
 
     // ==================== Additional Modern Fields ====================
 

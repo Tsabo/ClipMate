@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ClipMate.Data.Migrations
 {
     [DbContext(typeof(ClipMateDbContext))]
-    [Migration("20251123034050_AddMonacoEditorState")]
-    partial class AddMonacoEditorState
+    [Migration("20251124161603_MigrateTimestampsToDateTimeOffset")]
+    partial class MigrateTimestampsToDateTimeOffset
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -174,7 +174,7 @@ namespace ClipMate.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CapturedAt")
+                    b.Property<DateTimeOffset>("CapturedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Checksum")
@@ -198,7 +198,7 @@ namespace ClipMate.Data.Migrations
                     b.Property<bool>("Del")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("DelDate")
+                    b.Property<DateTimeOffset?>("DelDate")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("Encrypted")
@@ -216,7 +216,7 @@ namespace ClipMate.Data.Migrations
                     b.Property<string>("Label")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("LastModified")
+                    b.Property<DateTimeOffset?>("LastModified")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Locale")

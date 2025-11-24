@@ -23,7 +23,10 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table => table.PrimaryKey("PK_ApplicationFilters", x => x.Id));
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ApplicationFilters", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Clips",
@@ -58,7 +61,10 @@ namespace ClipMate.Data.Migrations
                     Label = table.Column<string>(type: "TEXT", nullable: true),
                     Type = table.Column<int>(type: "INTEGER", nullable: false)
                 },
-                constraints: table => table.PrimaryKey("PK_Clips", x => x.Id));
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Clips", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Collections",
@@ -118,7 +124,10 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     LastExecutedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table => table.PrimaryKey("PK_SearchQueries", x => x.Id));
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SearchQueries", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "SoundEvents",
@@ -132,7 +141,10 @@ namespace ClipMate.Data.Migrations
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table => table.PrimaryKey("PK_SoundEvents", x => x.Id));
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SoundEvents", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Templates",
@@ -149,7 +161,10 @@ namespace ClipMate.Data.Migrations
                     ModifiedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
                     LastUsedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
-                constraints: table => table.PrimaryKey("PK_Templates", x => x.Id));
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Templates", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Users",
@@ -281,6 +296,27 @@ namespace ClipMate.Data.Migrations
                     table.PrimaryKey("PK_BlobTxt", x => x.Id);
                     table.ForeignKey(
                         name: "FK_BlobTxt_ClipData_ClipDataId",
+                        column: x => x.ClipDataId,
+                        principalTable: "ClipData",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonacoEditorStates",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ClipDataId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Language = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    ViewState = table.Column<string>(type: "TEXT", nullable: true),
+                    LastModified = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonacoEditorStates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonacoEditorStates_ClipData_ClipDataId",
                         column: x => x.ClipDataId,
                         principalTable: "ClipData",
                         principalColumn: "Id",
@@ -438,6 +474,12 @@ namespace ClipMate.Data.Migrations
                 column: "Title");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MonacoEditorStates_ClipDataId",
+                table: "MonacoEditorStates",
+                column: "ClipDataId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SearchQueries_LastExecutedAt",
                 table: "SearchQueries",
                 column: "LastExecutedAt");
@@ -509,6 +551,9 @@ namespace ClipMate.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Collections");
+
+            migrationBuilder.DropTable(
+                name: "MonacoEditorStates");
 
             migrationBuilder.DropTable(
                 name: "SearchQueries");

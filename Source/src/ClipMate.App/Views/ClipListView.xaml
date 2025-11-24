@@ -178,7 +178,7 @@
                            Width="60"/>
 
             <!-- Date/Time Column -->
-            <dxg:GridColumn FieldName="CapturedAt" 
+            <dxg:GridColumn FieldName="CapturedAtDisplay" 
                            Header="Date/Time"
                            Width="140">
                 <dxg:GridColumn.CellTemplate>

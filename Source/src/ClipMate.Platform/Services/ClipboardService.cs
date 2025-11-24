@@ -310,7 +310,7 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 Id = Guid.NewGuid(),
                 Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow,
+                CapturedAt = DateTimeOffset.Now,
             };
 
             // Extract Plain Text (CF_UNICODETEXT = 13)
@@ -419,7 +419,7 @@ public class ClipboardService : IClipboardService, IDisposable
                     Id = Guid.NewGuid(),
                     Type = ClipType.Image,
                     ImageData = pngData,
-                    CapturedAt = DateTime.UtcNow,
+                    CapturedAt = DateTimeOffset.Now,
                     ContentHash = ContentHasher.HashBytes(pngData),
                     Size = pngData.Length,
                     Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
@@ -471,7 +471,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 Id = Guid.NewGuid(),
                 Type = ClipType.Image,
                 ImageData = imageData,
-                CapturedAt = DateTime.UtcNow,
+                CapturedAt = DateTimeOffset.Now,
                 // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
                 ContentHash = ContentHasher.HashBytes(imageData),
                 Size = imageData.Length,
@@ -555,7 +555,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 Type = ClipType.Files,
                 FilePathsJson = filePathsJson,
                 TextContent = string.Join(Environment.NewLine, filePaths), // For search
-                CapturedAt = DateTime.UtcNow,
+                CapturedAt = DateTimeOffset.Now,
                 // Generate content hash from file paths
                 ContentHash = ContentHasher.HashText(filePathsJson),
                 // Size is just the JSON length (actual file sizes not counted)
