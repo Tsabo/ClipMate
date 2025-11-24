@@ -6,21 +6,20 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <!-- Suppress test-specific analyzer warnings -->
-    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+    <NoWarn>$(NoWarn);xUnit1051;CS8892</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="TUnit" />
     <PackageReference Include="Moq" />
-    <PackageReference Include="Shouldly" />
-    <PackageReference Include="Xunit.StaFact" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
+    <Using Include="TUnit.Core" />
+    <Using Include="TUnit.Assertions" />
+    <Using Include="TUnit.Assertions.Extensions" />
   </ItemGroup>
 
   <ItemGroup>

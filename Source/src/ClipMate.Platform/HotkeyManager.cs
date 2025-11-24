@@ -3,6 +3,7 @@ using System.Windows.Interop;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
+using ClipMate.Platform.Interop;
 
 // Alias to resolve WPF vs WinForms ambiguity
 using WpfApplication = System.Windows.Application;
@@ -14,6 +15,7 @@ namespace ClipMate.Platform;
 /// </summary>
 public class HotkeyManager : IDisposable
 {
+    private readonly IWin32HotkeyInterop _win32;
     private HwndSource? _hwndSource;
     private readonly Dictionary<int, HotkeyRegistration> _registeredHotkeys;
     private int _nextHotkeyId;
@@ -22,8 +24,9 @@ public class HotkeyManager : IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="HotkeyManager"/> class.
     /// </summary>
-    public HotkeyManager()
+    public HotkeyManager(IWin32HotkeyInterop win32Interop)
     {
+        _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _registeredHotkeys = new Dictionary<int, HotkeyRegistration>();
         _nextHotkeyId = 1;
     }
@@ -99,7 +102,7 @@ public class HotkeyManager : IDisposable
         var hotkeyId = _nextHotkeyId++;
         var modifierFlags = ConvertModifiers(modifiers);
 
-        if (!PInvoke.RegisterHotKey(new HWND(hwnd), hotkeyId, (HOT_KEY_MODIFIERS)modifierFlags, (uint)key))
+        if (!_win32.RegisterHotKey(new HWND(hwnd), hotkeyId, (HOT_KEY_MODIFIERS)modifierFlags, (uint)key))
         {
             throw new InvalidOperationException(
                 $"Failed to register hotkey (Modifiers: {modifiers}, Key: {key}). " +
@@ -132,7 +135,7 @@ public class HotkeyManager : IDisposable
         }
 
         var hwnd = _hwndSource.Handle;
-        var result = PInvoke.UnregisterHotKey(new HWND(hwnd), hotkeyId);
+        var result = _win32.UnregisterHotKey(new HWND(hwnd), hotkeyId);
 
         if (result)
         {
@@ -157,7 +160,7 @@ public class HotkeyManager : IDisposable
 
         foreach (var hotkeyId in hotkeyIds)
         {
-            PInvoke.UnregisterHotKey(new HWND(hwnd), hotkeyId);
+            _win32.UnregisterHotKey(new HWND(hwnd), hotkeyId);
         }
 
         _registeredHotkeys.Clear();

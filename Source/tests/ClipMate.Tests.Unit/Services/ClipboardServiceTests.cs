@@ -1,11 +1,14 @@
+using System.Threading;
 using System.Threading.Channels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Core;
+using TUnit.Core.Executors;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,7 +18,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class ClipboardServiceTests : TestFixtureBase
 {
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task StartMonitoringAsync_ShouldSetIsMonitoringToTrue()
     {
         // Arrange
@@ -25,12 +29,13 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StartMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.ShouldBeTrue();
+        await Assert.That(service.IsMonitoring).IsTrue();
 
         await service.StopMonitoringAsync();
     }
 
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task StopMonitoringAsync_ShouldSetIsMonitoringToFalse()
     {
         // Arrange
@@ -41,10 +46,11 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StopMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.ShouldBeFalse();
+        await Assert.That(service.IsMonitoring).IsFalse();
     }
 
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task StartMonitoringAsync_WhenAlreadyMonitoring_ShouldNotThrow()
     {
         // Arrange
@@ -52,44 +58,13 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StartMonitoringAsync();
 
         // Act & Assert
-        await Should.NotThrowAsync(async () => await service.StartMonitoringAsync());
+        await Assert.That(async () => await service.StartMonitoringAsync()).ThrowsNothing();
 
         await service.StopMonitoringAsync();
     }
 
-    [StaFact(Skip = "Requires actual clipboard access - should be integration test")]
-    public async Task GetCurrentClipboardContentAsync_WithTextContent_ShouldReturnClipWithTextType()
-    {
-        // Arrange
-        var service = CreateClipboardService();
-        // TODO: Need to mock clipboard content
-
-        // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
-
-        // Assert
-        clip.ShouldNotBeNull();
-        clip.Type.ShouldBe(ClipType.Text);
-        clip.TextContent.ShouldNotBeNullOrEmpty();
-    }
-
-    [StaFact(Skip = "Requires actual clipboard access - should be integration test")]
-    public async Task GetCurrentClipboardContentAsync_WithImageContent_ShouldReturnClipWithImageType()
-    {
-        // Arrange
-        var service = CreateClipboardService();
-        // TODO: Need to mock clipboard with image data
-
-        // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
-
-        // Assert
-        clip.ShouldNotBeNull();
-        clip.Type.ShouldBe(ClipType.Image);
-        clip.ImageData.ShouldNotBeNull();
-    }
-
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task GetCurrentClipboardContentAsync_WithEmptyClipboard_ShouldReturnNull()
     {
         // Arrange
@@ -100,28 +75,11 @@ public class ClipboardServiceTests : TestFixtureBase
         var clip = await service.GetCurrentClipboardContentAsync();
 
         // Assert
-        clip.ShouldBeNull();
+        await Assert.That(clip).IsNull();
     }
 
-    [StaFact(Skip = "Requires actual clipboard access - should be integration test")]
-    public async Task SetClipboardContentAsync_WithTextClip_ShouldSetClipboardText()
-    {
-        // Arrange
-        var service = CreateClipboardService();
-        var clip = new Clip
-        {
-            Type = ClipType.Text,
-            TextContent = "Test clipboard content"
-        };
-
-        // Act
-        await service.SetClipboardContentAsync(clip);
-
-        // Assert
-        // TODO: Verify clipboard contains the text
-    }
-
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task ClipsChannel_WhenClipboardChanges_ShouldPublishClip()
     {
         // Arrange
@@ -142,7 +100,8 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StopMonitoringAsync();
     }
 
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task ClipsChannel_WithDuplicateContent_ShouldCalculateCorrectContentHash()
     {
         // Arrange
@@ -175,7 +134,8 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StopMonitoringAsync();
     }
 
-    [StaFact]
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task ClipsChannel_ShouldCompleteWhenMonitoringStopped()
     {
         // Arrange
@@ -187,7 +147,7 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Assert
         // Channel should be completed
-        service.ClipsChannel.Completion.IsCompleted.ShouldBeTrue();
+        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
     }
 
     /// <summary>
@@ -196,6 +156,12 @@ public class ClipboardServiceTests : TestFixtureBase
     private IClipboardService CreateClipboardService()
     {
         var logger = CreateLogger<ClipboardService>();
-        return new ClipboardService(logger);
+        var win32Mock = CreateWin32ClipboardMock();
+        
+        // Setup basic Win32 mock expectations
+        win32Mock.Setup(w => w.AddClipboardFormatListener(It.IsAny<Windows.Win32.Foundation.HWND>())).Returns(true);
+        win32Mock.Setup(w => w.RemoveClipboardFormatListener(It.IsAny<Windows.Win32.Foundation.HWND>())).Returns(true);
+        
+        return new ClipboardService(logger, win32Mock.Object);
     }
 }

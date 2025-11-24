@@ -3,8 +3,9 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Core;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -24,23 +25,23 @@ public class SearchServiceTests
         _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object);
     }
 
-    [Fact]
-    public void Constructor_WithNullClipRepository_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullClipRepository_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() =>
-            new SearchService(null!, _mockSearchQueryRepository.Object));
+        await Assert.That(() =>
+            new SearchService(null!, _mockSearchQueryRepository.Object)).Throws<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Constructor_WithNullSearchQueryRepository_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullSearchQueryRepository_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() =>
-            new SearchService(_mockClipRepository.Object, null!));
+        await Assert.That(() =>
+            new SearchService(_mockClipRepository.Object, null!)).Throws<ArgumentNullException>();
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithEmptyQuery_ShouldReturnAllClips()
     {
         // Arrange
@@ -58,12 +59,12 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync(string.Empty);
 
         // Assert
-        results.Clips.Count.ShouldBe(2);
-        results.TotalMatches.ShouldBe(2);
-        results.Query.ShouldBe(string.Empty);
+        await Assert.That(results.Clips.Count).IsEqualTo(2);
+        await Assert.That(results.TotalMatches).IsEqualTo(2);
+        await Assert.That(results.Query).IsEqualTo(string.Empty);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithTextQuery_ShouldReturnMatchingClips()
     {
         // Arrange
@@ -78,12 +79,12 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync("World");
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Clips[0].TextContent.ShouldBe("Hello World");
-        results.TotalMatches.ShouldBe(1);
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Clips[0].TextContent).IsEqualTo("Hello World");
+        await Assert.That(results.TotalMatches).IsEqualTo(1);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithCaseSensitiveFilter_ShouldRespectCase()
     {
         // Arrange
@@ -103,11 +104,11 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync("Hello", filters);
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Clips[0].TextContent.ShouldBe("Hello World");
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Clips[0].TextContent).IsEqualTo("Hello World");
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithContentTypeFilter_ShouldFilterByType()
     {
         // Arrange
@@ -124,11 +125,11 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync("", filters);
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Clips[0].Type.ShouldBe(ClipType.Text);
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Clips[0].Type).IsEqualTo(ClipType.Text);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithDateRangeFilter_ShouldFilterByDate()
     {
         // Arrange
@@ -149,11 +150,11 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync("", filters);
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Clips[0].TextContent.ShouldBe("Recent");
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Clips[0].TextContent).IsEqualTo("Recent");
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithRegexFilter_ShouldMatchPattern()
     {
         // Arrange
@@ -170,22 +171,22 @@ public class SearchServiceTests
         var results = await _searchService.SearchAsync(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", filters);
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Clips[0].TextContent.ShouldContain("@example.com");
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Clips[0].TextContent).Contains("@example.com");
     }
 
-    [Fact]
+    [Test]
     public async Task SearchAsync_WithInvalidRegex_ShouldThrowArgumentException()
     {
         // Arrange
         var filters = new SearchFilters { IsRegex = true };
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () =>
-            await _searchService.SearchAsync("[Invalid(Regex", filters));
+        await Assert.That(async () =>
+            await _searchService.SearchAsync("[Invalid(Regex", filters)).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task SaveSearchQueryAsync_ShouldCreateAndReturnSearchQuery()
     {
         // Arrange
@@ -207,14 +208,14 @@ public class SearchServiceTests
         var result = await _searchService.SaveSearchQueryAsync("My Search", "test", true, false);
 
         // Assert
-        result.Name.ShouldBe("My Search");
-        result.QueryText.ShouldBe("test");
-        result.IsCaseSensitive.ShouldBeTrue();
-        result.IsRegex.ShouldBeFalse();
+        await Assert.That(result.Name).IsEqualTo("My Search");
+        await Assert.That(result.QueryText).IsEqualTo("test");
+        await Assert.That(result.IsCaseSensitive).IsTrue();
+        await Assert.That(result.IsRegex).IsFalse();
         _mockSearchQueryRepository.Verify(r => r.CreateAsync(It.IsAny<SearchQuery>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task ExecuteSavedSearchAsync_ShouldExecuteQueryAndReturnResults()
     {
         // Arrange
@@ -246,11 +247,11 @@ public class SearchServiceTests
         var results = await _searchService.ExecuteSavedSearchAsync(searchQueryId);
 
         // Assert
-        results.Clips.Count.ShouldBe(1);
-        results.Query.ShouldBe("important");
+        await Assert.That(results.Clips.Count).IsEqualTo(1);
+        await Assert.That(results.Query).IsEqualTo("important");
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteSearchQueryAsync_ShouldDeleteQuery()
     {
         // Arrange
@@ -266,7 +267,7 @@ public class SearchServiceTests
         _mockSearchQueryRepository.Verify(r => r.DeleteAsync(queryId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task GetSearchHistoryAsync_ShouldReturnRecentSearches()
     {
         // Arrange - This would typically be stored in a settings/history service
@@ -276,7 +277,7 @@ public class SearchServiceTests
         var history = await _searchService.GetSearchHistoryAsync(10);
 
         // Assert
-        history.ShouldNotBeNull();
-        history.Count.ShouldBe(0); // Empty until we implement history tracking
+        await Assert.That(history).IsNotNull();
+        await Assert.That(history.Count).IsEqualTo(0); // Empty until we implement history tracking
     }
 }

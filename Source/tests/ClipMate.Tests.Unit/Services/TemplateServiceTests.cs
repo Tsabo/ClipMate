@@ -2,8 +2,9 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Core;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -28,26 +29,26 @@ public class TemplateServiceTests
 
     #region Constructor Tests
 
-    [Fact]
-    public void Constructor_WithNullRepository_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullRepository_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        Should.Throw<ArgumentNullException>(() => new TemplateService(null!));
+        await Assert.That(() => new TemplateService(null!)).Throws<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Constructor_WithValidRepository_ShouldNotThrow()
+    [Test]
+    public async Task Constructor_WithValidRepository_ShouldNotThrow()
     {
         // Arrange & Act & Assert
-        Should.NotThrow(() => new TemplateService(_mockRepository.Object));
+        await Assert.That(() => new TemplateService(_mockRepository.Object)).ThrowsNothing();
     }
 
     #endregion
 
     #region ExtractVariables Tests
 
-    [Fact]
-    public void ExtractVariables_WithNoVariables_ShouldReturnEmptyList()
+    [Test]
+    public async Task ExtractVariables_WithNoVariables_ShouldReturnEmptyList()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -57,11 +58,11 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.ShouldBeEmpty();
+        await Assert.That(variables).IsEmpty();
     }
 
-    [Fact]
-    public void ExtractVariables_WithSingleVariable_ShouldReturnVariable()
+    [Test]
+    public async Task ExtractVariables_WithSingleVariable_ShouldReturnVariable()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -71,12 +72,12 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.Count.ShouldBe(1);
-        variables[0].ShouldBe("NAME");
+        await Assert.That(variables.Count).IsEqualTo(1);
+        await Assert.That(variables[0]).IsEqualTo("NAME");
     }
 
-    [Fact]
-    public void ExtractVariables_WithMultipleVariables_ShouldReturnAllVariables()
+    [Test]
+    public async Task ExtractVariables_WithMultipleVariables_ShouldReturnAllVariables()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -86,14 +87,14 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.Count.ShouldBe(3);
-        variables.ShouldContain("DATE");
-        variables.ShouldContain("TIME");
-        variables.ShouldContain("USERNAME");
+        await Assert.That(variables.Count).IsEqualTo(3);
+        await Assert.That(variables).Contains("DATE");
+        await Assert.That(variables).Contains("TIME");
+        await Assert.That(variables).Contains("USERNAME");
     }
 
-    [Fact]
-    public void ExtractVariables_WithDuplicateVariables_ShouldReturnUniqueVariables()
+    [Test]
+    public async Task ExtractVariables_WithDuplicateVariables_ShouldReturnUniqueVariables()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -103,12 +104,12 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.Count.ShouldBe(1);
-        variables[0].ShouldBe("NAME");
+        await Assert.That(variables.Count).IsEqualTo(1);
+        await Assert.That(variables[0]).IsEqualTo("NAME");
     }
 
-    [Fact]
-    public void ExtractVariables_WithFormattedVariable_ShouldExtractVariableName()
+    [Test]
+    public async Task ExtractVariables_WithFormattedVariable_ShouldExtractVariableName()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -118,12 +119,12 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.Count.ShouldBe(1);
-        variables[0].ShouldBe("DATE");
+        await Assert.That(variables.Count).IsEqualTo(1);
+        await Assert.That(variables[0]).IsEqualTo("DATE");
     }
 
-    [Fact]
-    public void ExtractVariables_WithPromptVariable_ShouldExtractVariableName()
+    [Test]
+    public async Task ExtractVariables_WithPromptVariable_ShouldExtractVariableName()
     {
         // Arrange
         var service = CreateTemplateService();
@@ -133,15 +134,15 @@ public class TemplateServiceTests
         var variables = service.ExtractVariables(content);
 
         // Assert
-        variables.Count.ShouldBe(1);
-        variables[0].ShouldBe("PROMPT");
+        await Assert.That(variables.Count).IsEqualTo(1);
+        await Assert.That(variables[0]).IsEqualTo("PROMPT");
     }
 
     #endregion
 
     #region ExpandTemplateAsync Tests - Built-in Variables
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithDateVariable_ShouldReplaceWithCurrentDate()
     {
         // Arrange
@@ -158,10 +159,10 @@ public class TemplateServiceTests
 
         // Assert
         var today = DateTime.Now.ToShortDateString();
-        result.ShouldContain(today);
+        await Assert.That(result).Contains(today);
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithDateFormat_ShouldRespectFormatString()
     {
         // Arrange
@@ -178,10 +179,10 @@ public class TemplateServiceTests
 
         // Assert
         var expected = DateTime.Now.ToString("yyyy-MM-dd");
-        result.ShouldBe($"Date: {expected}");
+        await Assert.That(result).IsEqualTo($"Date: {expected}");
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithTimeVariable_ShouldReplaceWithCurrentTime()
     {
         // Arrange
@@ -197,11 +198,11 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldStartWith("Current time: ");
+        await Assert.That(result).StartsWith("Current time: ");
         // Time should be present (cannot assert exact match due to timing)
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithTimeFormat_ShouldRespectFormatString()
     {
         // Arrange
@@ -217,11 +218,11 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldStartWith("Time: ");
-        result.Length.ShouldBe("Time: ".Length + 8); // HH:mm:ss is 8 characters
+        await Assert.That(result).StartsWith("Time: ");
+        await Assert.That(result.Length).IsEqualTo("Time: ".Length + 8); // HH:mm:ss is 8 characters
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithUsernameVariable_ShouldReplaceWithCurrentUser()
     {
         // Arrange
@@ -237,11 +238,11 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldStartWith("User: ");
-        result.ShouldNotBe("User: {USERNAME}"); // Should be replaced
+        await Assert.That(result).StartsWith("User: ");
+        await Assert.That(result).IsNotEqualTo("User: {USERNAME}"); // Should be replaced
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithComputerNameVariable_ShouldReplaceWithMachineName()
     {
         // Arrange
@@ -257,15 +258,15 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldStartWith("Machine: ");
-        result.ShouldNotBe("Machine: {COMPUTERNAME}"); // Should be replaced
+        await Assert.That(result).StartsWith("Machine: ");
+        await Assert.That(result).IsNotEqualTo("Machine: {COMPUTERNAME}"); // Should be replaced
     }
 
     #endregion
 
     #region ExpandTemplateAsync Tests - Custom Variables
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithCustomVariable_ShouldReplaceWithProvidedValue()
     {
         // Arrange
@@ -287,10 +288,10 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, variables);
 
         // Assert
-        result.ShouldBe("Hello John Doe, welcome to Acme Corp!");
+        await Assert.That(result).IsEqualTo("Hello John Doe, welcome to Acme Corp!");
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithMissingCustomVariable_ShouldLeaveVariableUnchanged()
     {
         // Arrange
@@ -306,10 +307,10 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldBe("Hello {NAME}!");
+        await Assert.That(result).IsEqualTo("Hello {NAME}!");
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithMixedVariables_ShouldReplaceAllCorrectly()
     {
         // Arrange
@@ -330,17 +331,17 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, variables);
 
         // Assert
-        result.ShouldContain("ClipMate v1.0");
-        result.ShouldNotContain("{PROJECT}");
-        result.ShouldNotContain("{USERNAME}"); // Built-in should be replaced
-        result.ShouldNotContain("{DATE}"); // Built-in should be replaced
+        await Assert.That(result).Contains("ClipMate v1.0");
+        await Assert.That(result).DoesNotContain("{PROJECT}");
+        await Assert.That(result).DoesNotContain("{USERNAME}"); // Built-in should be replaced
+        await Assert.That(result).DoesNotContain("{DATE}"); // Built-in should be replaced
     }
 
     #endregion
 
     #region ExpandTemplateAsync Tests - Error Cases
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithNonExistentTemplate_ShouldThrowKeyNotFoundException()
     {
         // Arrange
@@ -349,11 +350,11 @@ public class TemplateServiceTests
         _mockRepository.Setup(r => r.GetByIdAsync(templateId, default)).ReturnsAsync((Template?)null);
 
         // Act & Assert
-        await Should.ThrowAsync<KeyNotFoundException>(async () =>
-            await service.ExpandTemplateAsync(templateId, new Dictionary<string, string>()));
+        await Assert.That(async () =>
+            await service.ExpandTemplateAsync(templateId, new Dictionary<string, string>())).Throws<KeyNotFoundException>();
     }
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WithInvalidDateFormat_ShouldUseDefaultFormat()
     {
         // Arrange
@@ -369,15 +370,15 @@ public class TemplateServiceTests
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
 
         // Assert
-        result.ShouldStartWith("Date: ");
-        result.ShouldNotContain("INVALID_FORMAT");
+        await Assert.That(result).StartsWith("Date: ");
+        await Assert.That(result).DoesNotContain("INVALID_FORMAT");
     }
 
     #endregion
 
     #region CRUD Operation Tests
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithValidData_ShouldCreateTemplate()
     {
         // Arrange
@@ -392,41 +393,41 @@ public class TemplateServiceTests
         var result = await service.CreateAsync(name, content);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Name.ShouldBe(name);
-        result.Content.ShouldBe(content);
-        result.Id.ShouldNotBe(Guid.Empty);
-        result.CreatedAt.ShouldBeGreaterThan(DateTime.MinValue);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Name).IsEqualTo(name);
+        await Assert.That(result.Content).IsEqualTo(content);
+        await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
+        await Assert.That(result.CreatedAt).IsGreaterThan(DateTime.MinValue);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    [Arguments("   ")]
     public async Task CreateAsync_WithInvalidName_ShouldThrowArgumentException(string? invalidName)
     {
         // Arrange
         var service = CreateTemplateService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () =>
-            await service.CreateAsync(invalidName!, "content"));
+        await Assert.That(async () =>
+            await service.CreateAsync(invalidName!, "content")).Throws<ArgumentException>();
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
     public async Task CreateAsync_WithInvalidContent_ShouldThrowArgumentException(string? invalidContent)
     {
         // Arrange
         var service = CreateTemplateService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () =>
-            await service.CreateAsync("name", invalidContent!));
+        await Assert.That(async () =>
+            await service.CreateAsync("name", invalidContent!)).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithValidTemplate_ShouldUpdateTemplate()
     {
         // Arrange
@@ -450,7 +451,7 @@ public class TemplateServiceTests
             t.Content == template.Content), default), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WithValidId_ShouldDeleteTemplate()
     {
         // Arrange
@@ -466,7 +467,7 @@ public class TemplateServiceTests
         _mockRepository.Verify(r => r.DeleteAsync(templateId, default), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithValidId_ShouldReturnTemplate()
     {
         // Arrange
@@ -484,12 +485,12 @@ public class TemplateServiceTests
         var result = await service.GetByIdAsync(template.Id);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Id.ShouldBe(template.Id);
-        result.Name.ShouldBe(template.Name);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Id).IsEqualTo(template.Id);
+        await Assert.That(result.Name).IsEqualTo(template.Name);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAllAsync_ShouldReturnAllTemplates()
     {
         // Arrange
@@ -507,10 +508,10 @@ public class TemplateServiceTests
         var result = await service.GetAllAsync();
 
         // Assert
-        result.Count.ShouldBe(3);
+        await Assert.That(result.Count).IsEqualTo(3);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByCollectionAsync_WithValidCollection_ShouldReturnTemplatesInCollection()
     {
         // Arrange
@@ -528,15 +529,15 @@ public class TemplateServiceTests
         var result = await service.GetByCollectionAsync(collectionId);
 
         // Assert
-        result.Count.ShouldBe(2);
-        result.ShouldAllBe(t => t.CollectionId == collectionId);
+        await Assert.That(result.Count).IsEqualTo(2);
+        await Assert.That(result.All(t => t.CollectionId == collectionId)).IsTrue();
     }
 
     #endregion
 
     #region UseCount Tracking Tests
 
-    [Fact]
+    [Test]
     public async Task ExpandTemplateAsync_WhenCalled_ShouldIncrementUseCount()
     {
         // Arrange

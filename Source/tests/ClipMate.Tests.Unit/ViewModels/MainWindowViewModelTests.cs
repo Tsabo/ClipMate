@@ -3,7 +3,8 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -52,23 +53,23 @@ public class MainWindowViewModelTests
             mockMainLogger.Object);
     }
 
-    [Fact]
-    public void Constructor_ShouldInitializeWithDefaultValues()
+    [Test]
+    public async Task Constructor_ShouldInitializeWithDefaultValues()
     {
         // Arrange & Act
         var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.ShouldNotBeNull();
-        viewModel.Title.ShouldBe("ClipMate");
-        viewModel.WindowWidth.ShouldBeGreaterThan(0);
-        viewModel.WindowHeight.ShouldBeGreaterThan(0);
-        viewModel.IsBusy.ShouldBeFalse();
-        viewModel.StatusMessage.ShouldBeEmpty();
+        await Assert.That(viewModel).IsNotNull();
+        await Assert.That(viewModel.Title).IsEqualTo("ClipMate");
+        await Assert.That(viewModel.WindowWidth).IsGreaterThan(0);
+        await Assert.That(viewModel.WindowHeight).IsGreaterThan(0);
+        await Assert.That(viewModel.IsBusy).IsFalse();
+        await Assert.That(viewModel.StatusMessage).IsEmpty();
     }
 
-    [Fact]
-    public void WindowWidth_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task WindowWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -83,12 +84,12 @@ public class MainWindowViewModelTests
         viewModel.WindowWidth = 1500;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.WindowWidth.ShouldBe(1500);
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.WindowWidth).IsEqualTo(1500);
     }
 
-    [Fact]
-    public void WindowHeight_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task WindowHeight_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -103,12 +104,12 @@ public class MainWindowViewModelTests
         viewModel.WindowHeight = 900;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.WindowHeight.ShouldBe(900);
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.WindowHeight).IsEqualTo(900);
     }
 
-    [Fact]
-    public void IsBusy_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task IsBusy_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -123,12 +124,12 @@ public class MainWindowViewModelTests
         viewModel.IsBusy = true;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.IsBusy.ShouldBeTrue();
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.IsBusy).IsTrue();
     }
 
-    [Fact]
-    public void StatusMessage_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task StatusMessage_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -143,12 +144,12 @@ public class MainWindowViewModelTests
         viewModel.StatusMessage = "Loading clips...";
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.StatusMessage.ShouldBe("Loading clips...");
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.StatusMessage).IsEqualTo("Loading clips...");
     }
 
-    [Fact]
-    public void SetStatus_ShouldUpdateStatusMessage()
+    [Test]
+    public async Task SetStatus_ShouldUpdateStatusMessage()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -157,11 +158,11 @@ public class MainWindowViewModelTests
         viewModel.SetStatus("Ready");
 
         // Assert
-        viewModel.StatusMessage.ShouldBe("Ready");
+        await Assert.That(viewModel.StatusMessage).IsEqualTo("Ready");
     }
 
-    [Fact]
-    public void SetBusy_WithTrue_ShouldSetIsBusyAndShowMessage()
+    [Test]
+    public async Task SetBusy_WithTrue_ShouldSetIsBusyAndShowMessage()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -170,12 +171,12 @@ public class MainWindowViewModelTests
         viewModel.SetBusy(true, "Processing...");
 
         // Assert
-        viewModel.IsBusy.ShouldBeTrue();
-        viewModel.StatusMessage.ShouldBe("Processing...");
+        await Assert.That(viewModel.IsBusy).IsTrue();
+        await Assert.That(viewModel.StatusMessage).IsEqualTo("Processing...");
     }
 
-    [Fact]
-    public void SetBusy_WithFalse_ShouldClearIsBusyAndMessage()
+    [Test]
+    public async Task SetBusy_WithFalse_ShouldClearIsBusyAndMessage()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -185,12 +186,12 @@ public class MainWindowViewModelTests
         viewModel.SetBusy(false);
 
         // Assert
-        viewModel.IsBusy.ShouldBeFalse();
-        viewModel.StatusMessage.ShouldBeEmpty();
+        await Assert.That(viewModel.IsBusy).IsFalse();
+        await Assert.That(viewModel.StatusMessage).IsEmpty();
     }
 
-    [Fact]
-    public void LeftPaneWidth_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task LeftPaneWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -205,12 +206,12 @@ public class MainWindowViewModelTests
         viewModel.LeftPaneWidth = 300;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.LeftPaneWidth.ShouldBe(300);
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.LeftPaneWidth).IsEqualTo(300);
     }
 
-    [Fact]
-    public void RightPaneWidth_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task RightPaneWidth_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -225,7 +226,7 @@ public class MainWindowViewModelTests
         viewModel.RightPaneWidth = 350;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        viewModel.RightPaneWidth.ShouldBe(350);
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(viewModel.RightPaneWidth).IsEqualTo(350);
     }
 }

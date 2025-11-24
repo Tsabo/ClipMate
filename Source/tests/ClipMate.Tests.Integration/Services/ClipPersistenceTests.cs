@@ -6,8 +6,6 @@ using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
-using Xunit;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -17,7 +15,7 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ClipPersistenceTests : IntegrationTestBase
 {
-    [Fact]
+    [Test]
     public async Task SavedClip_ShouldPersistAcrossDbContextInstances()
     {
         // Arrange
@@ -48,15 +46,15 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         // Assert - Retrieve in new context
         var retrievedClip = await newClipService.GetByIdAsync(savedId);
-        retrievedClip.ShouldNotBeNull();
-        retrievedClip.TextContent.ShouldBe("Test persistence content");
-        retrievedClip.ContentHash.ShouldBe("test_hash_123");
+        await Assert.That(retrievedClip).IsNotNull();
+        await Assert.That(retrievedClip!.TextContent).IsEqualTo("Test persistence content");
+        await Assert.That(retrievedClip.ContentHash).IsEqualTo("test_hash_123");
         
         // Cleanup the new context
         newContext.Dispose();
     }
 
-    [Fact]
+    [Test]
     public async Task MultipleClips_ShouldPersistInCorrectOrder()
     {
         // Arrange
@@ -95,13 +93,13 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         // Assert
         var recentClips = await clipService.GetRecentAsync(10);
-        recentClips.Count.ShouldBe(3);
-        recentClips[0].TextContent.ShouldBe("Third");  // Most recent first
-        recentClips[1].TextContent.ShouldBe("Second");
-        recentClips[2].TextContent.ShouldBe("First");
+        await Assert.That(recentClips.Count).IsEqualTo(3);
+        await Assert.That(recentClips[0].TextContent).IsEqualTo("Third");  // Most recent first
+        await Assert.That(recentClips[1].TextContent).IsEqualTo("Second");
+        await Assert.That(recentClips[2].TextContent).IsEqualTo("First");
     }
 
-    [Fact]
+    [Test]
     public async Task ImageClip_ShouldPersistBinaryData()
     {
         // Arrange
@@ -122,12 +120,12 @@ public class ClipPersistenceTests : IntegrationTestBase
         var retrievedClip = await clipService.GetByIdAsync(savedClip.Id);
 
         // Assert
-        retrievedClip.ShouldNotBeNull();
-        retrievedClip.ImageData.ShouldNotBeNull();
-        retrievedClip.ImageData.ShouldBe(imageData);
+        await Assert.That(retrievedClip).IsNotNull();
+        await Assert.That(retrievedClip!.ImageData).IsNotNull();
+        await Assert.That(retrievedClip.ImageData!).IsEqualTo(imageData);
     }
 
-    [Fact]
+    [Test]
     public async Task DeletedClip_ShouldNotPersist()
     {
         // Arrange
@@ -150,10 +148,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         var deletedClip = await clipService.GetByIdAsync(savedClip.Id);
 
         // Assert
-        deletedClip.ShouldBeNull();
+        await Assert.That(deletedClip).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task DuplicateCheck_ShouldWorkAcrossContexts()
     {
         // Arrange
@@ -175,7 +173,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         var isDuplicate = await clipService.IsDuplicateAsync(contentHash);
 
         // Assert
-        isDuplicate.ShouldBeTrue();
+        await Assert.That(isDuplicate).IsTrue();
     }
 
     /// <summary>

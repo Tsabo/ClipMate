@@ -222,23 +222,24 @@ public class ConfigurationService : Core.Services.IConfigurationService
             Preferences = new PreferencesConfiguration(),
             Hotkeys = new HotkeyConfiguration(),
             MonacoEditor = new MonacoEditorConfiguration(),
-            DefaultDatabase = "MyClips"
-        };
-
-        // Add default database
-        config.Databases["MyClips"] = new DatabaseConfiguration
-        {
-            Name = "My Clips",
-            Directory = appDataPath,
-            AutoLoad = true,
-            AllowBackup = true,
-            ReadOnly = false,
-            CleanupMethod = 3,
-            PurgeDays = 7,
-            UserName = Environment.UserName,
-            IsRemote = false,
-            MultiUser = false,
-            UseModificationTimeStamp = true
+            DefaultDatabase = "MyClips",
+            Databases = {
+                // Add default database
+                ["MyClips"] = new DatabaseConfiguration
+                {
+                    Name = "My Clips",
+                    Directory = appDataPath,
+                    AutoLoad = true,
+                    AllowBackup = true,
+                    ReadOnly = false,
+                    CleanupMethod = 3,
+                    PurgeDays = 7,
+                    UserName = Environment.UserName,
+                    IsRemote = false,
+                    MultiUser = false,
+                    UseModificationTimeStamp = true
+                }
+            }
         };
 
         return config;

@@ -13,6 +13,7 @@ using ClipMate.Core.Exceptions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
+using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using DataFormats = System.Windows.DataFormats;
@@ -33,14 +34,16 @@ public class ClipboardService : IClipboardService, IDisposable
     private const int _channelCapacity = 100; // Max queued clips before backpressure
     
     private readonly ILogger<ClipboardService> _logger;
+    private readonly IWin32ClipboardInterop _win32;
     private readonly Channel<Clip> _clipsChannel;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private string _lastContentHash = string.Empty;
 
-    public ClipboardService(ILogger<ClipboardService> logger)
+    public ClipboardService(ILogger<ClipboardService> logger, IWin32ClipboardInterop win32Interop)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
@@ -84,7 +87,7 @@ public class ClipboardService : IClipboardService, IDisposable
             var hwnd = new HWND(_hwndSource.Handle);
 
             // Register for clipboard notifications
-            if (!PInvoke.AddClipboardFormatListener(hwnd))
+            if (!_win32.AddClipboardFormatListener(hwnd))
             {
                 var error = Marshal.GetLastWin32Error();
                 throw new ClipboardException($"Failed to register clipboard listener. Error: {error}");
@@ -115,7 +118,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (_hwndSource != null)
             {
                 var hwnd = new HWND(_hwndSource.Handle);
-                PInvoke.RemoveClipboardFormatListener(hwnd);
+                _win32.RemoveClipboardFormatListener(hwnd);
 
                 _hwndSource.RemoveHook(WndProc);
                 _hwndSource.Dispose();
@@ -238,7 +241,7 @@ public class ClipboardService : IClipboardService, IDisposable
             _lastContentHash = clip.ContentHash;
 
             // Get source application info
-            var foregroundWindow = PInvoke.GetForegroundWindow();
+            var foregroundWindow = _win32.GetForegroundWindow();
             if (!foregroundWindow.IsNull)
             {
                 clip.SourceApplicationName = GetProcessName(foregroundWindow);
@@ -930,7 +933,7 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            var length = PInvoke.GetWindowTextLength(hwnd);
+            var length = _win32.GetWindowTextLength(hwnd);
             if (length == 0)
             {
                 return null;
@@ -939,7 +942,7 @@ public class ClipboardService : IClipboardService, IDisposable
             var buffer = new char[length + 1];
             fixed (char* pBuffer = buffer)
             {
-                var result = PInvoke.GetWindowText(hwnd, pBuffer, length + 1);
+                var result = _win32.GetWindowText(hwnd, pBuffer, length + 1);
                 if (result > 0)
                 {
                     return new string(buffer, 0, result);

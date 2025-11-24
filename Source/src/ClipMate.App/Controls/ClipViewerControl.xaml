@@ -8,6 +8,7 @@
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:wpfHex="clr-namespace:WpfHexaEditor;assembly=WpfHexaEditor"
              xmlns:lmimgz="clr-namespace:LinkingMountains.ImageZoom;assembly=LinkingMountains.ImageZoom"
+             xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800">
     <Grid>
@@ -16,10 +17,14 @@
                 <dx:TabControlMultiLineView HeaderLocation="Bottom"/>
             </dx:DXTabControl.View>
             <!-- Text Tab -->
-            <dx:DXTabItem x:Name="TextTab" Header="Text">
+            <dx:DXTabItem x:Name="TextTab" Header="📄 Text">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
-                    <controls:MonacoEditorControl x:Name="TextEditor"
-                                                  IsReadOnly="True"/>
+                    <controls:MonacoEditorControl x:Name="TextEditor" IsReadOnly="True"/>
                     <TextBlock x:Name="NoTextMessage"
                                Text="No text format available"
                                HorizontalAlignment="Center"
@@ -31,7 +36,12 @@
             </dx:DXTabItem>
 
             <!-- HTML Tab -->
-            <dx:DXTabItem x:Name="HtmlTab" Header="HTML">
+            <dx:DXTabItem x:Name="HtmlTab" Header="🌐 HTML">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -78,7 +88,12 @@
             </dx:DXTabItem>
 
             <!-- RTF Tab -->
-            <dx:DXTabItem x:Name="RtfTab" Header="RTF">
+            <dx:DXTabItem x:Name="RtfTab" Header="🅰 RTF">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
                     <RichTextBox x:Name="RtfViewer"
                                 IsReadOnly="True"
@@ -95,7 +110,12 @@
             </dx:DXTabItem>
 
             <!-- Bitmap Tab (CF_BITMAP, CF_DIB) -->
-            <dx:DXTabItem x:Name="BitmapTab" Header="Bitmap">
+            <dx:DXTabItem x:Name="BitmapTab" Header="🖼 Bitmap">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
                     <lmimgz:ImageZoom x:Name="BitmapViewer" />
                     <TextBlock x:Name="NoBitmapMessage"
@@ -109,7 +129,12 @@
             </dx:DXTabItem>
 
             <!-- Picture Tab (PNG, JPG files) -->
-            <dx:DXTabItem x:Name="PictureTab" Header="Picture">
+            <dx:DXTabItem x:Name="PictureTab" Header="🖼 Picture">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
                     <lmimgz:ImageZoom x:Name="PictureViewer" />
                     <TextBlock x:Name="NoPictureMessage"
@@ -123,7 +148,12 @@
             </dx:DXTabItem>
 
             <!-- Binary Tab (Hex Viewer) -->
-            <dx:DXTabItem x:Name="BinaryTab" Header="Binary">
+            <dx:DXTabItem x:Name="BinaryTab" Header="🔢 Binary">
+                <dx:DXTabItem.HeaderTemplate>
+                    <DataTemplate>
+                        <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                    </DataTemplate>
+                </dx:DXTabItem.HeaderTemplate>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

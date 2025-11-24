@@ -3,8 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
-using Xunit;
+using ClipMate.Platform.Interop;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -14,7 +13,7 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ClipboardMonitoringTests : IntegrationTestBase
 {
-    [StaFact]
+    [Test]
     public async Task StartMonitoring_ShouldActivateClipboardListener()
     {
         // Arrange
@@ -24,13 +23,13 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StartMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.ShouldBeTrue();
+        await Assert.That(service.IsMonitoring).IsTrue();
 
         // Cleanup
         await service.StopMonitoringAsync();
     }
 
-    [StaFact]
+    [Test]
     public async Task StopMonitoring_ShouldDeactivateClipboardListener()
     {
         // Arrange
@@ -41,38 +40,14 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
 
         // Assert
-        service.IsMonitoring.ShouldBeFalse();
+        await Assert.That(service.IsMonitoring).IsFalse();
     }
 
-    [StaFact(Skip = "Requires actual clipboard interaction - cannot be automated without Win32 clipboard simulation")]
-    public async Task ClipboardChange_ShouldPublishToChannel()
-    {
-        // Arrange
-        var service = CreateClipboardService();
-        Clip? capturedClip = null;
+    // Note: ClipboardChange_ShouldPublishToChannel test removed
+    // Requires actual Win32 clipboard interaction which cannot be automated in integration tests.
+    // The clipboard monitoring lifecycle is tested by Start/Stop tests above.
 
-        // Act
-        await service.StartMonitoringAsync();
-        
-        // Try to read from channel with timeout
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try
-        {
-            capturedClip = await service.ClipsChannel.ReadAsync(cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Timeout - OK for this test since we're not actually changing clipboard
-        }
-        
-        await service.StopMonitoringAsync();
-
-        // Assert
-        // Note: This test requires actual clipboard interaction
-        // capturedClip.ShouldNotBeNull();
-    }
-
-    [StaFact]
+    [Test]
     public async Task MultipleStartCalls_ShouldNotThrow()
     {
         // Arrange
@@ -80,13 +55,13 @@ public class ClipboardMonitoringTests : IntegrationTestBase
 
         // Act & Assert
         await service.StartMonitoringAsync();
-        await Should.NotThrowAsync(async () => await service.StartMonitoringAsync());
+        await Assert.That(async () => await service.StartMonitoringAsync()).ThrowsNothing();
 
         // Cleanup
         await service.StopMonitoringAsync();
     }
 
-    [StaFact]
+    [Test]
     public async Task MultipleStopCalls_ShouldNotThrow()
     {
         // Arrange
@@ -95,10 +70,10 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
 
         // Act & Assert
-        await Should.NotThrowAsync(async () => await service.StopMonitoringAsync());
+        await Assert.That(async () => await service.StopMonitoringAsync()).ThrowsNothing();
     }
 
-    [StaFact]
+    [Test]
     public async Task StopMonitoring_ShouldCompleteChannel()
     {
         // Arrange
@@ -109,7 +84,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
 
         // Assert
-        service.ClipsChannel.Completion.IsCompleted.ShouldBeTrue();
+        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
     }
 
     /// <summary>
@@ -118,6 +93,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     private IClipboardService CreateClipboardService()
     {
         var logger = Mock.Of<ILogger<ClipboardService>>();
-        return new ClipboardService(logger);
+        var win32Mock = new Mock<Platform.Interop.IWin32ClipboardInterop>();
+        return new ClipboardService(logger, win32Mock.Object);
     }
 }

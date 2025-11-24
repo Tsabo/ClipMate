@@ -1,3 +1,4 @@
+using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -21,6 +22,30 @@ public abstract class TestFixtureBase
     protected ILogger<T> CreateLogger<T>()
     {
         return new Mock<ILogger<T>>(MockBehavior.Loose).Object;
+    }
+
+    /// <summary>
+    /// Creates a mock IWin32ClipboardInterop for testing.
+    /// </summary>
+    protected Mock<IWin32ClipboardInterop> CreateWin32ClipboardMock()
+    {
+        return MockRepository.Create<IWin32ClipboardInterop>();
+    }
+
+    /// <summary>
+    /// Creates a mock IWin32HotkeyInterop for testing.
+    /// </summary>
+    protected Mock<IWin32HotkeyInterop> CreateWin32HotkeyMock()
+    {
+        return MockRepository.Create<IWin32HotkeyInterop>();
+    }
+
+    /// <summary>
+    /// Creates a mock IWin32InputInterop for testing.
+    /// </summary>
+    protected Mock<IWin32InputInterop> CreateWin32InputMock()
+    {
+        return MockRepository.Create<IWin32InputInterop>();
     }
 
     /// <summary>

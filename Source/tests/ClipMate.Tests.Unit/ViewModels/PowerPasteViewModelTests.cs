@@ -2,8 +2,8 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -20,7 +20,7 @@ public class PowerPasteViewModelTests
         _viewModel = new PowerPasteViewModel(_mockClipService.Object, _mockPasteService.Object);
     }
 
-    [Fact]
+    [Test]
     public async Task LoadRecentClipsAsync_ShouldLoadSpecifiedNumberOfClips()
     {
         // Arrange
@@ -32,11 +32,11 @@ public class PowerPasteViewModelTests
         await _viewModel.LoadRecentClipsAsync(20);
 
         // Assert
-        _viewModel.Clips.Count.ShouldBe(20);
+        await Assert.That(_viewModel.Clips.Count).IsEqualTo(20);
         _mockClipService.Verify(x => x.GetRecentAsync(20, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task LoadRecentClipsAsync_WithDefaultCount_ShouldLoad20Clips()
     {
         // Arrange
@@ -48,11 +48,11 @@ public class PowerPasteViewModelTests
         await _viewModel.LoadRecentClipsAsync();
 
         // Assert
-        _viewModel.Clips.Count.ShouldBe(20);
+        await Assert.That(_viewModel.Clips.Count).IsEqualTo(20);
     }
 
-    [Fact]
-    public void FilterCommand_WithSearchText_ShouldFilterClips()
+    [Test]
+    public async Task FilterCommand_WithSearchText_ShouldFilterClips()
     {
         // Arrange
         _viewModel.Clips.Clear();
@@ -64,12 +64,12 @@ public class PowerPasteViewModelTests
         _viewModel.SearchText = "Hello";
 
         // Assert
-        _viewModel.FilteredClips.Count.ShouldBe(2);
-        _viewModel.FilteredClips.ShouldAllBe(c => (c.TextContent ?? string.Empty).Contains("Hello", StringComparison.OrdinalIgnoreCase));
+        await Assert.That(_viewModel.FilteredClips.Count).IsEqualTo(2);
+        await Assert.That(_viewModel.FilteredClips.All(c => (c.TextContent ?? string.Empty).Contains("Hello", StringComparison.OrdinalIgnoreCase))).IsTrue();
     }
 
-    [Fact]
-    public void FilterCommand_WithEmptySearchText_ShouldShowAllClips()
+    [Test]
+    public async Task FilterCommand_WithEmptySearchText_ShouldShowAllClips()
     {
         // Arrange
         _viewModel.Clips.Clear();
@@ -82,10 +82,10 @@ public class PowerPasteViewModelTests
         _viewModel.SearchText = "";
 
         // Assert
-        _viewModel.FilteredClips.Count.ShouldBe(2);
+        await Assert.That(_viewModel.FilteredClips.Count).IsEqualTo(2);
     }
 
-    [Fact]
+    [Test]
     public async Task SelectClipCommand_ShouldPasteClipContent()
     {
         // Arrange
@@ -98,10 +98,10 @@ public class PowerPasteViewModelTests
 
         // Assert
         _mockPasteService.Verify(x => x.PasteToActiveWindowAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
-        _viewModel.ShouldCloseWindow.ShouldBeTrue();
+        await Assert.That(_viewModel.ShouldCloseWindow).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task SelectClipCommand_WithNullClip_ShouldNotPaste()
     {
         // Act
@@ -109,21 +109,21 @@ public class PowerPasteViewModelTests
 
         // Assert
         _mockPasteService.Verify(x => x.PasteToActiveWindowAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
-        _viewModel.ShouldCloseWindow.ShouldBeFalse();
+        await Assert.That(_viewModel.ShouldCloseWindow).IsFalse();
     }
 
-    [Fact]
-    public void CancelCommand_ShouldSetCloseWindowFlag()
+    [Test]
+    public async Task CancelCommand_ShouldSetCloseWindowFlag()
     {
         // Act
         _viewModel.CancelCommand.Execute(null);
 
         // Assert
-        _viewModel.ShouldCloseWindow.ShouldBeTrue();
+        await Assert.That(_viewModel.ShouldCloseWindow).IsTrue();
     }
 
-    [Fact]
-    public void NavigateUpCommand_ShouldSelectPreviousItem()
+    [Test]
+    public async Task NavigateUpCommand_ShouldSelectPreviousItem()
     {
         // Arrange
         _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
@@ -135,11 +135,11 @@ public class PowerPasteViewModelTests
         _viewModel.NavigateUpCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedIndex.ShouldBe(1);
+        await Assert.That(_viewModel.SelectedIndex).IsEqualTo(1);
     }
 
-    [Fact]
-    public void NavigateDownCommand_ShouldSelectNextItem()
+    [Test]
+    public async Task NavigateDownCommand_ShouldSelectNextItem()
     {
         // Arrange
         _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
@@ -151,11 +151,11 @@ public class PowerPasteViewModelTests
         _viewModel.NavigateDownCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedIndex.ShouldBe(1);
+        await Assert.That(_viewModel.SelectedIndex).IsEqualTo(1);
     }
 
-    [Fact]
-    public void NavigateUpCommand_AtFirstItem_ShouldWrapToLast()
+    [Test]
+    public async Task NavigateUpCommand_AtFirstItem_ShouldWrapToLast()
     {
         // Arrange
         _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
@@ -166,11 +166,11 @@ public class PowerPasteViewModelTests
         _viewModel.NavigateUpCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedIndex.ShouldBe(1); // Wrap to last
+        await Assert.That(_viewModel.SelectedIndex).IsEqualTo(1); // Wrap to last
     }
 
-    [Fact]
-    public void NavigateDownCommand_AtLastItem_ShouldWrapToFirst()
+    [Test]
+    public async Task NavigateDownCommand_AtLastItem_ShouldWrapToFirst()
     {
         // Arrange
         _viewModel.FilteredClips.Add(new Clip { Id = Guid.NewGuid(), TextContent = "First", Type = ClipType.Text });
@@ -181,7 +181,7 @@ public class PowerPasteViewModelTests
         _viewModel.NavigateDownCommand.Execute(null);
 
         // Assert
-        _viewModel.SelectedIndex.ShouldBe(0); // Wrap to first
+        await Assert.That(_viewModel.SelectedIndex).IsEqualTo(0); // Wrap to first
     }
 
     private static List<Clip> CreateSampleClips(int count)

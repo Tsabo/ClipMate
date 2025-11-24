@@ -5,6 +5,7 @@ using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Interop;
 
 namespace ClipMate.Platform.Services;
 
@@ -13,6 +14,16 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class PasteService : IPasteService
 {
+    private readonly IWin32InputInterop _win32;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PasteService"/> class.
+    /// </summary>
+    public PasteService(IWin32InputInterop win32Interop)
+    {
+        _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+    }
+
     /// <inheritdoc/>
     public async Task<bool> PasteToActiveWindowAsync(Clip clip, CancellationToken cancellationToken = default)
     {
@@ -70,7 +81,7 @@ public class PasteService : IPasteService
     {
         try
         {
-            HWND foregroundWindow = PInvoke.GetForegroundWindow();
+            HWND foregroundWindow = _win32.GetForegroundWindow();
             if (foregroundWindow.IsNull)
             {
                 return string.Empty;
@@ -80,7 +91,7 @@ public class PasteService : IPasteService
             unsafe
             {
                 char* buffer = stackalloc char[maxLength];
-                int length = PInvoke.GetWindowText(foregroundWindow, buffer, maxLength);
+                int length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
                 if (length > 0)
                 {
                     return new string(buffer, 0, length);
@@ -100,17 +111,14 @@ public class PasteService : IPasteService
     {
         try
         {
-            HWND foregroundWindow = PInvoke.GetForegroundWindow();
+            HWND foregroundWindow = _win32.GetForegroundWindow();
             if (foregroundWindow.IsNull)
             {
                 return string.Empty;
             }
 
-            uint processId;
-            unsafe
-            {
-                PInvoke.GetWindowThreadProcessId(foregroundWindow, &processId);
-            }
+            uint processId = 0;
+            _win32.GetWindowThreadProcessId(foregroundWindow, out processId);
 
             if (processId == 0)
             {
@@ -129,7 +137,7 @@ public class PasteService : IPasteService
     /// <summary>
     /// Sends Ctrl+V key combination to the active window using SendInput.
     /// </summary>
-    private static void SendCtrlV()
+    private void SendCtrlV()
     {
         const int inputCount = 4; // Ctrl down, V down, V up, Ctrl up
         unsafe
@@ -205,7 +213,7 @@ public class PasteService : IPasteService
             };
 
             // Send the inputs
-            PInvoke.SendInput((uint)inputCount, inputs, Marshal.SizeOf<INPUT>());
+            _win32.SendInput((uint)inputCount, inputs, Marshal.SizeOf<INPUT>());
         }
     }
 }

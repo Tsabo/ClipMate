@@ -4,8 +4,8 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -25,15 +25,16 @@ public class SearchViewModelTests
         _viewModel = new SearchViewModel(_mockSearchService.Object, _mockMessenger.Object);
     }
 
-    [Fact]
-    public void Constructor_WithNullSearchService_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullSearchService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new SearchViewModel(null!, _mockMessenger.Object));
+        await Assert.That(() => new SearchViewModel(null!, _mockMessenger.Object))
+            .Throws<ArgumentNullException>();
     }
 
-    [Fact]
-    public void SearchText_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task SearchText_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var propertyChangedRaised = false;
@@ -49,11 +50,11 @@ public class SearchViewModelTests
         _viewModel.SearchText = "test query";
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        _viewModel.SearchText.ShouldBe("test query");
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(_viewModel.SearchText).IsEqualTo("test query");
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithValidQuery_ShouldReturnResults()
     {
         // Arrange
@@ -79,12 +80,12 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        _viewModel.SearchResults.Count.ShouldBe(1);
-        _viewModel.TotalMatches.ShouldBe(1);
+        await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(1);
+        await Assert.That(_viewModel.TotalMatches).IsEqualTo(1);
         _mockSearchService.Verify(s => s.SearchAsync("test", It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithEmptyQuery_ShouldClearResults()
     {
         // Arrange
@@ -94,12 +95,12 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        _viewModel.SearchResults.Count.ShouldBe(0);
-        _viewModel.TotalMatches.ShouldBe(0);
+        await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(0);
+        await Assert.That(_viewModel.TotalMatches).IsEqualTo(0);
         _mockSearchService.Verify(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithContentTypeFilter_ShouldPassFilters()
     {
         // Arrange
@@ -124,13 +125,13 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        capturedFilters.ShouldNotBeNull();
-        capturedFilters.ContentTypes.ShouldNotBeNull();
-        capturedFilters.ContentTypes.ShouldContain(ClipType.Text);
-        capturedFilters.ContentTypes.ShouldNotContain(ClipType.Image);
+        await Assert.That(capturedFilters).IsNotNull();
+        await Assert.That(capturedFilters!.ContentTypes).IsNotNull();
+        await Assert.That(capturedFilters.ContentTypes!.Contains(ClipType.Text)).IsTrue();
+        await Assert.That(capturedFilters.ContentTypes.Contains(ClipType.Image)).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithDateRangeFilter_ShouldPassDateRange()
     {
         // Arrange
@@ -158,13 +159,13 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        capturedFilters.ShouldNotBeNull();
-        capturedFilters.DateRange.ShouldNotBeNull();
-        capturedFilters.DateRange.From.ShouldBe(fromDate);
-        capturedFilters.DateRange.To.ShouldBe(toDate);
+        await Assert.That(capturedFilters).IsNotNull();
+        await Assert.That(capturedFilters!.DateRange).IsNotNull();
+        await Assert.That(capturedFilters.DateRange!.From).IsEqualTo(fromDate);
+        await Assert.That(capturedFilters.DateRange.To).IsEqualTo(toDate);
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithCaseSensitiveEnabled_ShouldPassCaseSensitiveFlag()
     {
         // Arrange
@@ -188,11 +189,11 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        capturedFilters.ShouldNotBeNull();
-        capturedFilters.CaseSensitive.ShouldBeTrue();
+        await Assert.That(capturedFilters).IsNotNull();
+        await Assert.That(capturedFilters!.CaseSensitive).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task SearchCommand_WithRegexEnabled_ShouldPassRegexFlag()
     {
         // Arrange
@@ -216,11 +217,11 @@ public class SearchViewModelTests
         await _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert
-        capturedFilters.ShouldNotBeNull();
-        capturedFilters.IsRegex.ShouldBeTrue();
+        await Assert.That(capturedFilters).IsNotNull();
+        await Assert.That(capturedFilters!.IsRegex).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task ClearSearchCommand_ShouldClearSearchTextAndResults()
     {
         // Arrange
@@ -231,11 +232,11 @@ public class SearchViewModelTests
         await _viewModel.ClearSearchCommand.ExecuteAsync(null);
 
         // Assert
-        _viewModel.SearchText.ShouldBe(string.Empty);
-        _viewModel.SearchResults.Count.ShouldBe(0);
+        await Assert.That(_viewModel.SearchText).IsEqualTo(string.Empty);
+        await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(0);
     }
 
-    [Fact]
+    [Test]
     public async Task LoadSearchHistoryCommand_ShouldLoadHistoryFromService()
     {
         // Arrange
@@ -248,12 +249,12 @@ public class SearchViewModelTests
         await _viewModel.LoadSearchHistoryCommand.ExecuteAsync(null);
 
         // Assert
-        _viewModel.SearchHistory.Count.ShouldBe(3);
-        _viewModel.SearchHistory[0].ShouldBe("query 1");
+        await Assert.That(_viewModel.SearchHistory.Count).IsEqualTo(3);
+        await Assert.That(_viewModel.SearchHistory[0]).IsEqualTo("query 1");
     }
 
-    [Fact]
-    public void IsSearching_WhenSearchCommandExecuting_ShouldBeTrue()
+    [Test]
+    public async Task IsSearching_WhenSearchCommandExecuting_ShouldBeTrue()
     {
         // Arrange
         var tcs = new TaskCompletionSource<SearchResults>();
@@ -275,8 +276,8 @@ public class SearchViewModelTests
         var task = _viewModel.SearchCommand.ExecuteAsync(null);
 
         // Assert - IsSearching should be true while executing
-        _viewModel.IsSearching.ShouldBeTrue();
-        propertyChangedCount.ShouldBeGreaterThan(0);
+        await Assert.That(_viewModel.IsSearching).IsTrue();
+        await Assert.That(propertyChangedCount).IsGreaterThan(0);
 
         // Complete the search
         tcs.SetResult(new SearchResults { Clips = new List<Clip>(), TotalMatches = 0, Query = "test" });

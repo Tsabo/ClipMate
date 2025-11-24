@@ -2,8 +2,8 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -27,33 +27,34 @@ public class TemplateEditorViewModelTests
 
     #region Constructor Tests
 
-    [Fact]
-    public void Constructor_WithNullTemplateService_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullTemplateService_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        Should.Throw<ArgumentNullException>(() => new TemplateEditorViewModel(null!));
+        await Assert.That(() => new TemplateEditorViewModel(null!))
+            .Throws<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Constructor_WithValidService_ShouldInitializeProperties()
+    [Test]
+    public async Task Constructor_WithValidService_ShouldInitializeProperties()
     {
         // Arrange & Act
         var viewModel = CreateViewModel();
 
         // Assert
-        viewModel.TemplateName.ShouldBeEmpty();
-        viewModel.TemplateContent.ShouldBeEmpty();
-        viewModel.TemplateDescription.ShouldBeEmpty();
-        viewModel.Templates.ShouldNotBeNull();
-        viewModel.Templates.ShouldBeEmpty();
+        await Assert.That(viewModel.TemplateName).IsEmpty();
+        await Assert.That(viewModel.TemplateContent).IsEmpty();
+        await Assert.That(viewModel.TemplateDescription).IsEmpty();
+        await Assert.That(viewModel.Templates).IsNotNull();
+        await Assert.That(viewModel.Templates.Count).IsEqualTo(0);
     }
 
     #endregion
 
     #region Property Change Tests
 
-    [Fact]
-    public void TemplateName_WhenSet_ShouldUpdateProperty()
+    [Test]
+    public async Task TemplateName_WhenSet_ShouldUpdateProperty()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -63,11 +64,11 @@ public class TemplateEditorViewModelTests
         viewModel.TemplateName = newName;
 
         // Assert
-        viewModel.TemplateName.ShouldBe(newName);
+        await Assert.That(viewModel.TemplateName).IsEqualTo(newName);
     }
 
-    [Fact]
-    public void TemplateContent_WhenSet_ShouldUpdateProperty()
+    [Test]
+    public async Task TemplateContent_WhenSet_ShouldUpdateProperty()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -77,11 +78,11 @@ public class TemplateEditorViewModelTests
         viewModel.TemplateContent = newContent;
 
         // Assert
-        viewModel.TemplateContent.ShouldBe(newContent);
+        await Assert.That(viewModel.TemplateContent).IsEqualTo(newContent);
     }
 
-    [Fact]
-    public void SelectedTemplate_WhenSet_ShouldPopulateFormFields()
+    [Test]
+    public async Task SelectedTemplate_WhenSet_ShouldPopulateFormFields()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -97,16 +98,16 @@ public class TemplateEditorViewModelTests
         viewModel.SelectedTemplate = template;
 
         // Assert
-        viewModel.TemplateName.ShouldBe(template.Name);
-        viewModel.TemplateContent.ShouldBe(template.Content);
-        viewModel.TemplateDescription.ShouldBe(template.Description);
+        await Assert.That(viewModel.TemplateName).IsEqualTo(template.Name);
+        await Assert.That(viewModel.TemplateContent).IsEqualTo(template.Content);
+        await Assert.That(viewModel.TemplateDescription).IsEqualTo(template.Description);
     }
 
     #endregion
 
     #region LoadTemplatesCommand Tests
 
-    [Fact]
+    [Test]
     public async Task LoadTemplatesCommand_ShouldLoadAllTemplates()
     {
         // Arrange
@@ -124,10 +125,10 @@ public class TemplateEditorViewModelTests
         await viewModel.LoadTemplatesCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.Templates.Count.ShouldBe(3);
+        await Assert.That(viewModel.Templates.Count).IsEqualTo(3);
     }
 
-    [Fact]
+    [Test]
     public async Task LoadTemplatesCommand_WhenError_ShouldSetErrorMessage()
     {
         // Arrange
@@ -140,15 +141,15 @@ public class TemplateEditorViewModelTests
         await viewModel.LoadTemplatesCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.ErrorMessage.ShouldNotBeNullOrEmpty();
-        viewModel.ErrorMessage.ShouldContain("error", Case.Insensitive);
+        await Assert.That(viewModel.ErrorMessage).IsNotEmpty();
+        await Assert.That(viewModel.ErrorMessage!.ToLower().Contains("error")).IsTrue();
     }
 
     #endregion
 
     #region CreateTemplateCommand Tests
 
-    [Fact]
+    [Test]
     public async Task CreateTemplateCommand_WithValidData_ShouldCreateTemplate()
     {
         // Arrange
@@ -183,8 +184,8 @@ public class TemplateEditorViewModelTests
             default), Times.Once);
     }
 
-    [Fact]
-    public void CreateTemplateCommand_WithEmptyName_ShouldNotBeExecutable()
+    [Test]
+    public async Task CreateTemplateCommand_WithEmptyName_ShouldNotBeExecutable()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -195,11 +196,11 @@ public class TemplateEditorViewModelTests
         var canExecute = viewModel.CreateTemplateCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
-    [Fact]
-    public void CreateTemplateCommand_WithEmptyContent_ShouldNotBeExecutable()
+    [Test]
+    public async Task CreateTemplateCommand_WithEmptyContent_ShouldNotBeExecutable()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -210,10 +211,10 @@ public class TemplateEditorViewModelTests
         var canExecute = viewModel.CreateTemplateCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task CreateTemplateCommand_AfterCreation_ShouldReloadTemplates()
     {
         // Arrange
@@ -244,7 +245,7 @@ public class TemplateEditorViewModelTests
 
     #region UpdateTemplateCommand Tests
 
-    [Fact]
+    [Test]
     public async Task UpdateTemplateCommand_WithSelectedTemplate_ShouldUpdateTemplate()
     {
         // Arrange
@@ -272,8 +273,8 @@ public class TemplateEditorViewModelTests
             default), Times.Once);
     }
 
-    [Fact]
-    public void UpdateTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
+    [Test]
+    public async Task UpdateTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -283,14 +284,14 @@ public class TemplateEditorViewModelTests
         var canExecute = viewModel.UpdateTemplateCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
     #endregion
 
     #region DeleteTemplateCommand Tests
 
-    [Fact]
+    [Test]
     public async Task DeleteTemplateCommand_WithSelectedTemplate_ShouldDeleteTemplate()
     {
         // Arrange
@@ -314,8 +315,8 @@ public class TemplateEditorViewModelTests
         _mockTemplateService.Verify(s => s.DeleteAsync(template.Id, default), Times.Once);
     }
 
-    [Fact]
-    public void DeleteTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
+    [Test]
+    public async Task DeleteTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -325,10 +326,10 @@ public class TemplateEditorViewModelTests
         var canExecute = viewModel.DeleteTemplateCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteTemplateCommand_AfterDeletion_ShouldClearFormAndReloadTemplates()
     {
         // Arrange
@@ -351,17 +352,17 @@ public class TemplateEditorViewModelTests
         await viewModel.DeleteTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.SelectedTemplate.ShouldBeNull();
-        viewModel.TemplateName.ShouldBeEmpty();
-        viewModel.TemplateContent.ShouldBeEmpty();
+        await Assert.That(viewModel.SelectedTemplate).IsNull();
+        await Assert.That(viewModel.TemplateName).IsEmpty();
+        await Assert.That(viewModel.TemplateContent).IsEmpty();
     }
 
     #endregion
 
     #region ClearFormCommand Tests
 
-    [Fact]
-    public void ClearFormCommand_ShouldClearAllFormFields()
+    [Test]
+    public async Task ClearFormCommand_ShouldClearAllFormFields()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -374,17 +375,17 @@ public class TemplateEditorViewModelTests
         viewModel.ClearFormCommand.Execute(null);
 
         // Assert
-        viewModel.TemplateName.ShouldBeEmpty();
-        viewModel.TemplateContent.ShouldBeEmpty();
-        viewModel.TemplateDescription.ShouldBeEmpty();
-        viewModel.SelectedTemplate.ShouldBeNull();
+        await Assert.That(viewModel.TemplateName).IsEmpty();
+        await Assert.That(viewModel.TemplateContent).IsEmpty();
+        await Assert.That(viewModel.TemplateDescription).IsEmpty();
+        await Assert.That(viewModel.SelectedTemplate).IsNull();
     }
 
     #endregion
 
     #region PreviewTemplateCommand Tests
 
-    [Fact]
+    [Test]
     public async Task PreviewTemplateCommand_WithValidContent_ShouldExpandVariables()
     {
         // Arrange
@@ -405,11 +406,11 @@ public class TemplateEditorViewModelTests
         await viewModel.PreviewTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        viewModel.PreviewText.ShouldNotBeNullOrEmpty();
+        await Assert.That(viewModel.PreviewText).IsNotEmpty();
     }
 
-    [Fact]
-    public void PreviewTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
+    [Test]
+    public async Task PreviewTemplateCommand_WithNoSelectedTemplate_ShouldNotBeExecutable()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -419,15 +420,15 @@ public class TemplateEditorViewModelTests
         var canExecute = viewModel.PreviewTemplateCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
     #endregion
 
     #region Variable Extraction Tests
 
-    [Fact]
-    public void ExtractedVariables_ShouldUpdateWhenContentChanges()
+    [Test]
+    public async Task ExtractedVariables_ShouldUpdateWhenContentChanges()
     {
         // Arrange
         _mockTemplateService.Setup(s => s.ExtractVariables(It.IsAny<string>()))
@@ -441,16 +442,16 @@ public class TemplateEditorViewModelTests
         viewModel.TemplateContent = "Hello {NAME}, today is {DATE}";
 
         // Assert
-        viewModel.ExtractedVariables.ShouldNotBeNull();
-        viewModel.ExtractedVariables.Count.ShouldBeGreaterThan(0);
+        await Assert.That(viewModel.ExtractedVariables).IsNotNull();
+        await Assert.That(viewModel.ExtractedVariables.Count).IsGreaterThan(0);
     }
 
     #endregion
 
     #region Validation Tests
 
-    [Fact]
-    public void IsFormValid_WithValidNameAndContent_ShouldBeTrue()
+    [Test]
+    public async Task IsFormValid_WithValidNameAndContent_ShouldBeTrue()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -461,11 +462,11 @@ public class TemplateEditorViewModelTests
         var isValid = viewModel.IsFormValid;
 
         // Assert
-        isValid.ShouldBeTrue();
+        await Assert.That(isValid).IsTrue();
     }
 
-    [Fact]
-    public void IsFormValid_WithEmptyName_ShouldBeFalse()
+    [Test]
+    public async Task IsFormValid_WithEmptyName_ShouldBeFalse()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -476,11 +477,11 @@ public class TemplateEditorViewModelTests
         var isValid = viewModel.IsFormValid;
 
         // Assert
-        isValid.ShouldBeFalse();
+        await Assert.That(isValid).IsFalse();
     }
 
-    [Fact]
-    public void IsFormValid_WithEmptyContent_ShouldBeFalse()
+    [Test]
+    public async Task IsFormValid_WithEmptyContent_ShouldBeFalse()
     {
         // Arrange
         var viewModel = CreateViewModel();
@@ -491,7 +492,7 @@ public class TemplateEditorViewModelTests
         var isValid = viewModel.IsFormValid;
 
         // Assert
-        isValid.ShouldBeFalse();
+        await Assert.That(isValid).IsFalse();
     }
 
     #endregion

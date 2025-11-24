@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 
 namespace ClipMate.Platform.DependencyInjection;
@@ -16,8 +17,16 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddClipMatePlatform(this IServiceCollection services)
     {
+        // Register Win32 interop wrappers for testability
+        services.AddSingleton<IWin32ClipboardInterop, Win32ClipboardInterop>();
+        services.AddSingleton<IWin32HotkeyInterop, Win32HotkeyInterop>();
+        services.AddSingleton<IWin32InputInterop, Win32InputInterop>();
+
         // Register ClipboardService as singleton since it manages Win32 resources
         services.AddSingleton<IClipboardService, ClipboardService>();
+
+        // Register HotkeyManager as singleton for global hotkey management
+        services.AddSingleton<HotkeyManager>();
 
         // Register HotkeyService as singleton for global hotkey management
         services.AddSingleton<IHotkeyService, HotkeyService>();

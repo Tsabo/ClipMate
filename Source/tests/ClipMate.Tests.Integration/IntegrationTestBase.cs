@@ -1,5 +1,6 @@
 using ClipMate.Data;
 using Microsoft.EntityFrameworkCore;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Integration;
 
@@ -7,11 +8,12 @@ namespace ClipMate.Tests.Integration;
 /// Base class for integration tests with real database setup.
 /// Uses in-memory SQLite database for isolated test execution.
 /// </summary>
-public abstract class IntegrationTestBase : IDisposable
+public abstract class IntegrationTestBase
 {
-    protected ClipMateDbContext DbContext { get; private set; }
+    protected ClipMateDbContext DbContext { get; private set; } = null!;
 
-    protected IntegrationTestBase()
+    [Before(Test)]
+    public async Task SetupAsync()
     {
         // Use in-memory SQLite database for fast, isolated tests
         var options = new DbContextOptionsBuilder<ClipMateDbContext>()
@@ -21,21 +23,16 @@ public abstract class IntegrationTestBase : IDisposable
         DbContext = new ClipMateDbContext(options);
         
         // Ensure database is created for each test
-        DbContext.Database.OpenConnection();
-        DbContext.Database.EnsureCreated();
+        await DbContext.Database.OpenConnectionAsync();
+        await DbContext.Database.EnsureCreatedAsync();
     }
 
-    public void Dispose()
+    [After(Test)]
+    public async Task CleanupAsync()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
+        if (DbContext != null)
         {
-            DbContext.Dispose();
+            await DbContext.DisposeAsync();
         }
     }
 }

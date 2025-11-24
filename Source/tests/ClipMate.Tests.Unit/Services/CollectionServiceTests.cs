@@ -3,8 +3,6 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Moq;
-using Shouldly;
-using Xunit;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -33,7 +31,7 @@ public class CollectionServiceTests
         };
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithValidName_ShouldCreateAndReturnCollection()
     {
         // Arrange
@@ -49,35 +47,35 @@ public class CollectionServiceTests
         var result = await service.CreateAsync(name, description);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Name.ShouldBe(name);
-        result.Description.ShouldBe(description);
-        result.Id.ShouldNotBe(Guid.Empty);
-        result.CreatedAt.ShouldBeInRange(DateTime.UtcNow.AddSeconds(-5), DateTime.UtcNow);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Name).IsEqualTo(name);
+        await Assert.That(result.Description).IsEqualTo(description);
+        await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
+        await Assert.That(result.CreatedAt).IsGreaterThan(DateTime.UtcNow.AddSeconds(-5));
         _mockRepository.Verify(r => r.CreateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithNullName_ShouldThrowArgumentException()
     {
         // Arrange
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () => await service.CreateAsync(null!));
+        await Assert.That(async () => await service.CreateAsync(null!)).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithEmptyName_ShouldThrowArgumentException()
     {
         // Arrange
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () => await service.CreateAsync(""));
+        await Assert.That(async () => await service.CreateAsync("")).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithValidId_ShouldReturnCollection()
     {
         // Arrange
@@ -92,11 +90,11 @@ public class CollectionServiceTests
         var result = await service.GetByIdAsync(collectionId);
 
         // Assert
-        result.ShouldNotBeNull();
-        result!.Id.ShouldBe(collectionId);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Id).IsEqualTo(collectionId);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithInvalidId_ShouldReturnNull()
     {
         // Arrange
@@ -110,10 +108,10 @@ public class CollectionServiceTests
         var result = await service.GetByIdAsync(collectionId);
 
         // Assert
-        result.ShouldBeNull();
+        await Assert.That(result).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task GetAllAsync_ShouldReturnAllCollections()
     {
         // Arrange
@@ -133,13 +131,13 @@ public class CollectionServiceTests
         var result = await service.GetAllAsync();
 
         // Assert
-        result.Count.ShouldBe(3);
-        result[0].Name.ShouldBe("Collection 1");
-        result[1].Name.ShouldBe("Collection 2");
-        result[2].Name.ShouldBe("Collection 3");
+        await Assert.That(result.Count).IsEqualTo(3);
+        await Assert.That(result[0].Name).IsEqualTo("Collection 1");
+        await Assert.That(result[1].Name).IsEqualTo("Collection 2");
+        await Assert.That(result[2].Name).IsEqualTo("Collection 3");
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithValidCollection_ShouldUpdate()
     {
         // Arrange
@@ -155,22 +153,22 @@ public class CollectionServiceTests
         await service.UpdateAsync(collection);
 
         // Assert
-        collection.Name.ShouldBe("Updated Name");
-        collection.ModifiedAt.ShouldNotBeNull();
+        await Assert.That(collection.Name).IsEqualTo("Updated Name");
+        await Assert.That(collection.ModifiedAt).IsNotNull();
         _mockRepository.Verify(r => r.UpdateAsync(collection, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithNullCollection_ShouldThrowArgumentNullException()
     {
         // Arrange
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentNullException>(async () => await service.UpdateAsync(null!));
+        await Assert.That(async () => await service.UpdateAsync(null!)).Throws<ArgumentNullException>();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WhenRepositoryFails_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -181,10 +179,10 @@ public class CollectionServiceTests
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<InvalidOperationException>(async () => await service.UpdateAsync(collection));
+        await Assert.That(async () => await service.UpdateAsync(collection)).Throws<InvalidOperationException>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WithValidId_ShouldDeleteCollection()
     {
         // Arrange
@@ -201,7 +199,7 @@ public class CollectionServiceTests
         _mockRepository.Verify(r => r.DeleteAsync(collectionId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WhenRepositoryFails_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -212,20 +210,20 @@ public class CollectionServiceTests
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<InvalidOperationException>(async () => await service.DeleteAsync(collectionId));
+        await Assert.That(async () => await service.DeleteAsync(collectionId)).Throws<InvalidOperationException>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetActiveAsync_WhenNoActiveSet_ShouldThrowInvalidOperationException()
     {
         // Arrange
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<InvalidOperationException>(async () => await service.GetActiveAsync());
+        await Assert.That(async () => await service.GetActiveAsync()).Throws<InvalidOperationException>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetActiveAsync_WithActiveSet_ShouldReturnActiveCollection()
     {
         // Arrange
@@ -242,11 +240,11 @@ public class CollectionServiceTests
         var result = await service.GetActiveAsync();
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Id.ShouldBe(collectionId);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Id).IsEqualTo(collectionId);
     }
 
-    [Fact]
+    [Test]
     public async Task SetActiveAsync_WithValidId_ShouldSetActive()
     {
         // Arrange
@@ -263,10 +261,10 @@ public class CollectionServiceTests
 
         // Assert - GetActiveAsync should return the collection
         var active = await service.GetActiveAsync();
-        active.Id.ShouldBe(collectionId);
+        await Assert.That(active.Id).IsEqualTo(collectionId);
     }
 
-    [Fact]
+    [Test]
     public async Task SetActiveAsync_WithInvalidId_ShouldThrowArgumentException()
     {
         // Arrange
@@ -277,10 +275,10 @@ public class CollectionServiceTests
         var service = CreateCollectionService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () => await service.SetActiveAsync(collectionId));
+        await Assert.That(async () => await service.SetActiveAsync(collectionId)).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WithActiveCollection_ShouldClearActive()
     {
         // Arrange
@@ -299,6 +297,6 @@ public class CollectionServiceTests
         await service.DeleteAsync(collectionId);
 
         // Assert - GetActiveAsync should throw since active was cleared
-        await Should.ThrowAsync<InvalidOperationException>(async () => await service.GetActiveAsync());
+        await Assert.That(async () => await service.GetActiveAsync()).Throws<InvalidOperationException>();
     }
 }

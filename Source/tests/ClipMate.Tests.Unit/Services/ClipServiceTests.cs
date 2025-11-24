@@ -2,9 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
-using Shouldly;
 using Moq;
-using Xunit;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -21,7 +19,7 @@ public class ClipServiceTests
         _mockRepository = new Mock<IClipRepository>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithValidId_ShouldReturnClip()
     {
         // Arrange
@@ -36,11 +34,11 @@ public class ClipServiceTests
         var result = await service.GetByIdAsync(clipId);
 
         // Assert
-        result.ShouldNotBeNull();
-        result!.Id.ShouldBe(clipId);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Id).IsEqualTo(clipId);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithInvalidId_ShouldReturnNull()
     {
         // Arrange
@@ -54,10 +52,10 @@ public class ClipServiceTests
         var result = await service.GetByIdAsync(clipId);
 
         // Assert
-        result.ShouldBeNull();
+        await Assert.That(result).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task GetRecentAsync_ShouldReturnClipsOrderedByDateDescending()
     {
         // Arrange
@@ -78,13 +76,13 @@ public class ClipServiceTests
         var result = await service.GetRecentAsync(10);
 
         // Assert
-        result.Count.ShouldBe(3);
-        result[0].CapturedAt.ShouldBe(now);
-        result[1].CapturedAt.ShouldBe(now.AddMinutes(-1));
-        result[2].CapturedAt.ShouldBe(now.AddMinutes(-2));
+        await Assert.That(result.Count).IsEqualTo(3);
+        await Assert.That(result[0].CapturedAt).IsEqualTo(now);
+        await Assert.That(result[1].CapturedAt).IsEqualTo(now.AddMinutes(-1));
+        await Assert.That(result[2].CapturedAt).IsEqualTo(now.AddMinutes(-2));
     }
 
-    [Fact]
+    [Test]
     public async Task GetRecentAsync_WithCount_ShouldLimitResults()
     {
         // Arrange
@@ -101,11 +99,11 @@ public class ClipServiceTests
         var result = await service.GetRecentAsync(3);
 
         // Assert
-        result.Count.ShouldBe(3);
+        await Assert.That(result.Count).IsEqualTo(3);
         _mockRepository.Verify(p => p.GetRecentAsync(3, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithValidClip_ShouldSaveAndReturnClip()
     {
         // Arrange
@@ -119,12 +117,12 @@ public class ClipServiceTests
         var result = await service.CreateAsync(clip);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Id.ShouldBe(clip.Id);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Id).IsEqualTo(clip.Id);
         _mockRepository.Verify(p => p.CreateAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithDuplicateContentHash_ShouldNotSaveDuplicate()
     {
         // Arrange
@@ -140,12 +138,12 @@ public class ClipServiceTests
         var result = await service.CreateAsync(newClip);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Id.ShouldBe(existingClip.Id); // Should return existing clip
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Id).IsEqualTo(existingClip.Id); // Should return existing clip
         _mockRepository.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithValidClip_ShouldUpdateSuccessfully()
     {
         // Arrange
@@ -162,7 +160,7 @@ public class ClipServiceTests
         _mockRepository.Verify(p => p.UpdateAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WithValidId_ShouldDeleteSuccessfully()
     {
         // Arrange
@@ -179,7 +177,7 @@ public class ClipServiceTests
         _mockRepository.Verify(p => p.DeleteAsync(clipId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByCollectionAsync_ShouldReturnClipsInCollection()
     {
         // Arrange
@@ -199,11 +197,11 @@ public class ClipServiceTests
         var result = await service.GetByCollectionAsync(collectionId);
 
         // Assert
-        result.Count.ShouldBe(2);
-        result.ShouldAllBe(clip => clip.CollectionId == collectionId);
+        await Assert.That(result.Count).IsEqualTo(2);
+        await Assert.That(result.All(clip => clip.CollectionId == collectionId)).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task GetFavoritesAsync_ShouldReturnOnlyFavoriteClips()
     {
         // Arrange
@@ -222,18 +220,18 @@ public class ClipServiceTests
         var result = await service.GetFavoritesAsync();
 
         // Assert
-        result.Count.ShouldBe(2);
-        result.ShouldAllBe(clip => clip.IsFavorite == true);
+        await Assert.That(result.Count).IsEqualTo(2);
+        await Assert.That(result.All(clip => clip.IsFavorite == true)).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithNullClip_ShouldThrowArgumentNullException()
     {
         // Arrange
         var service = CreateClipService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentNullException>(async () => await service.CreateAsync(null!));
+        await Assert.That(async () => await service.CreateAsync(null!)).Throws<ArgumentNullException>();
     }
 
     private IClipService CreateClipService()

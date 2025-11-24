@@ -3,8 +3,6 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Moq;
-using Shouldly;
-using Xunit;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -35,7 +33,7 @@ public class FolderServiceTests
         };
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithValidParameters_ShouldCreateAndReturnFolder()
     {
         // Arrange
@@ -51,15 +49,15 @@ public class FolderServiceTests
         var result = await service.CreateAsync(name, collectionId);
 
         // Assert
-        result.ShouldNotBeNull();
-        result.Name.ShouldBe(name);
-        result.CollectionId.ShouldBe(collectionId);
-        result.ParentFolderId.ShouldBeNull();
-        result.Id.ShouldNotBe(Guid.Empty);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result.Name).IsEqualTo(name);
+        await Assert.That(result.CollectionId).IsEqualTo(collectionId);
+        await Assert.That(result.ParentFolderId).IsNull();
+        await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
         _mockRepository.Verify(r => r.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithParentFolder_ShouldSetParentFolderId()
     {
         // Arrange
@@ -76,20 +74,20 @@ public class FolderServiceTests
         var result = await service.CreateAsync(name, collectionId, parentFolderId);
 
         // Assert
-        result.ParentFolderId.ShouldBe(parentFolderId);
+        await Assert.That(result.ParentFolderId).IsEqualTo(parentFolderId);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateAsync_WithNullName_ShouldThrowArgumentException()
     {
         // Arrange
         var service = CreateFolderService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentException>(async () => await service.CreateAsync(null!, Guid.NewGuid()));
+        await Assert.That(async () => await service.CreateAsync(null!, Guid.NewGuid())).Throws<ArgumentException>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithValidId_ShouldReturnFolder()
     {
         // Arrange
@@ -104,11 +102,11 @@ public class FolderServiceTests
         var result = await service.GetByIdAsync(folderId);
 
         // Assert
-        result.ShouldNotBeNull();
-        result!.Id.ShouldBe(folderId);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Id).IsEqualTo(folderId);
     }
 
-    [Fact]
+    [Test]
     public async Task GetByIdAsync_WithInvalidId_ShouldReturnNull()
     {
         // Arrange
@@ -122,10 +120,10 @@ public class FolderServiceTests
         var result = await service.GetByIdAsync(folderId);
 
         // Assert
-        result.ShouldBeNull();
+        await Assert.That(result).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByCollectionAsync_ShouldReturnAllFoldersInCollection()
     {
         // Arrange
@@ -146,11 +144,11 @@ public class FolderServiceTests
         var result = await service.GetByCollectionAsync(collectionId);
 
         // Assert
-        result.Count.ShouldBe(3);
-        result.ShouldAllBe(f => f.CollectionId == collectionId);
+        await Assert.That(result.Count).IsEqualTo(3);
+        await Assert.That(result.All(f => f.CollectionId == collectionId)).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task GetRootFoldersAsync_ShouldReturnOnlyRootFolders()
     {
         // Arrange
@@ -170,11 +168,11 @@ public class FolderServiceTests
         var result = await service.GetRootFoldersAsync(collectionId);
 
         // Assert
-        result.Count.ShouldBe(2);
-        result.ShouldAllBe(f => f.ParentFolderId == null);
+        await Assert.That(result.Count).IsEqualTo(2);
+        await Assert.That(result.All(f => f.ParentFolderId == null)).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task GetChildFoldersAsync_ShouldReturnChildFolders()
     {
         // Arrange
@@ -194,11 +192,11 @@ public class FolderServiceTests
         var result = await service.GetChildFoldersAsync(parentFolderId);
 
         // Assert
-        result.Count.ShouldBe(2);
-        result.ShouldAllBe(f => f.ParentFolderId == parentFolderId);
+        await Assert.That(result.Count).IsEqualTo(2);
+        await Assert.That(result.All(f => f.ParentFolderId == parentFolderId)).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithValidFolder_ShouldUpdate()
     {
         // Arrange
@@ -214,21 +212,21 @@ public class FolderServiceTests
         await service.UpdateAsync(folder);
 
         // Assert
-        folder.ModifiedAt.ShouldNotBeNull();
+        await Assert.That(folder.ModifiedAt).IsNotNull();
         _mockRepository.Verify(r => r.UpdateAsync(folder, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateAsync_WithNullFolder_ShouldThrowArgumentNullException()
     {
         // Arrange
         var service = CreateFolderService();
 
         // Act & Assert
-        await Should.ThrowAsync<ArgumentNullException>(async () => await service.UpdateAsync(null!));
+        await Assert.That(async () => await service.UpdateAsync(null!)).Throws<ArgumentNullException>();
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteAsync_WithValidId_ShouldDeleteFolder()
     {
         // Arrange

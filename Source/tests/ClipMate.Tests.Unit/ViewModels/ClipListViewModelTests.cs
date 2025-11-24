@@ -3,7 +3,8 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -31,8 +32,8 @@ public class ClipListViewModelTests
             _mockLogger.Object);
     }
 
-    [Fact]
-    public void IsListView_DefaultValue_IsTrue()
+    [Test]
+    public async Task IsListView_DefaultValue_IsTrue()
     {
         var viewModel = new ClipListViewModel(
             _mockClipService.Object, 
@@ -40,11 +41,11 @@ public class ClipListViewModelTests
             _mockFolderService.Object,
             _mockCollectionService.Object,
             _mockLogger.Object);
-        Assert.True(viewModel.IsListView);
+        await Assert.That(viewModel.IsListView).IsTrue();
     }
 
-    [Fact]
-    public void IsGridView_DefaultValue_IsFalse()
+    [Test]
+    public async Task IsGridView_DefaultValue_IsFalse()
     {
         var viewModel = new ClipListViewModel(
             _mockClipService.Object, 
@@ -52,11 +53,11 @@ public class ClipListViewModelTests
             _mockFolderService.Object,
             _mockCollectionService.Object,
             _mockLogger.Object);
-        Assert.False(viewModel.IsGridView);
+        await Assert.That(viewModel.IsGridView).IsFalse();
     }
 
-    [Fact]
-    public void Constructor_ShouldRegisterWithMessenger()
+    [Test]
+    public async Task Constructor_ShouldRegisterWithMessenger()
     {
         // Note: Cannot verify extension method calls with Moq
         // The constructor should successfully complete, which implies registration worked
@@ -68,6 +69,6 @@ public class ClipListViewModelTests
             _mockCollectionService.Object,
             _mockLogger.Object);
         
-        viewModel.ShouldNotBeNull();
+        await Assert.That(viewModel).IsNotNull();
     }
 }

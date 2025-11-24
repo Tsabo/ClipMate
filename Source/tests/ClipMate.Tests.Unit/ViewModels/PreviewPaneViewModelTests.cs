@@ -3,31 +3,32 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Events;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
-using Shouldly;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
 public class PreviewPaneViewModelTests
 {
-    [Fact]
-    public void Constructor_ShouldInitializeWithDefaults()
+    [Test]
+    public async Task Constructor_ShouldInitializeWithDefaults()
     {
         // Arrange & Act
         var mockMessenger = new Mock<IMessenger>();
         var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
 
         // Assert
-        viewModel.SelectedClip.ShouldBeNull();
-        viewModel.PreviewText.ShouldBeEmpty();
-        viewModel.PreviewHtml.ShouldBeEmpty();
-        viewModel.PreviewImageSource.ShouldBeNull();
-        viewModel.HasTextPreview.ShouldBeFalse();
-        viewModel.HasHtmlPreview.ShouldBeFalse();
-        viewModel.HasImagePreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsNull();
+        await Assert.That(viewModel.PreviewText).IsEmpty();
+        await Assert.That(viewModel.PreviewHtml).IsEmpty();
+        await Assert.That(viewModel.PreviewImageSource).IsNull();
+        await Assert.That(viewModel.HasTextPreview).IsFalse();
+        await Assert.That(viewModel.HasHtmlPreview).IsFalse();
+        await Assert.That(viewModel.HasImagePreview).IsFalse();
     }
 
-    [Fact]
-    public void Receive_WithTextClip_ShouldSetPreviewText()
+    [Test]
+    public async Task Receive_WithTextClip_ShouldSetPreviewText()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -44,15 +45,15 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
-        viewModel.SelectedClip.ShouldBe(clip);
-        viewModel.PreviewText.ShouldBe("Test content");
-        viewModel.HasTextPreview.ShouldBeTrue();
-        viewModel.HasHtmlPreview.ShouldBeFalse();
-        viewModel.HasImagePreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(clip);
+        await Assert.That(viewModel.PreviewText).IsEqualTo("Test content");
+        await Assert.That(viewModel.HasTextPreview).IsTrue();
+        await Assert.That(viewModel.HasHtmlPreview).IsFalse();
+        await Assert.That(viewModel.HasImagePreview).IsFalse();
     }
 
-    [Fact]
-    public void Receive_WithHtmlClip_ShouldSetPreviewHtml()
+    [Test]
+    public async Task Receive_WithHtmlClip_ShouldSetPreviewHtml()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -70,15 +71,15 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
-        viewModel.SelectedClip.ShouldBe(clip);
-        viewModel.PreviewHtml.ShouldBe("<h1>Test</h1>");
-        viewModel.HasHtmlPreview.ShouldBeTrue();
-        viewModel.HasTextPreview.ShouldBeFalse();
-        viewModel.HasImagePreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(clip);
+        await Assert.That(viewModel.PreviewHtml).IsEqualTo("<h1>Test</h1>");
+        await Assert.That(viewModel.HasHtmlPreview).IsTrue();
+        await Assert.That(viewModel.HasTextPreview).IsFalse();
+        await Assert.That(viewModel.HasImagePreview).IsFalse();
     }
 
-    [Fact]
-    public void Receive_WithRichTextClip_ShouldSetPreviewText()
+    [Test]
+    public async Task Receive_WithRichTextClip_ShouldSetPreviewText()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -96,13 +97,13 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
-        viewModel.SelectedClip.ShouldBe(clip);
-        viewModel.PreviewText.ShouldBe("Test RTF");
-        viewModel.HasTextPreview.ShouldBeTrue();
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(clip);
+        await Assert.That(viewModel.PreviewText).IsEqualTo("Test RTF");
+        await Assert.That(viewModel.HasTextPreview).IsTrue();
     }
 
-    [Fact]
-    public void Receive_WithImageClip_ShouldSetImagePreview()
+    [Test]
+    public async Task Receive_WithImageClip_ShouldSetImagePreview()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -122,15 +123,15 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert - We set HasImagePreview even if image loading fails
-        viewModel.SelectedClip.ShouldBe(clip);
-        viewModel.HasImagePreview.ShouldBeTrue();
-        viewModel.HasTextPreview.ShouldBeFalse();
-        viewModel.HasHtmlPreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(clip);
+        await Assert.That(viewModel.HasImagePreview).IsTrue();
+        await Assert.That(viewModel.HasTextPreview).IsFalse();
+        await Assert.That(viewModel.HasHtmlPreview).IsFalse();
         // Note: PreviewImageSource may be null if image data is invalid, which is OK for this test
     }
 
-    [Fact]
-    public void Receive_WithNull_ShouldClearPreview()
+    [Test]
+    public async Task Receive_WithNull_ShouldClearPreview()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -148,17 +149,17 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(null));
 
         // Assert
-        viewModel.SelectedClip.ShouldBeNull();
-        viewModel.PreviewText.ShouldBeEmpty();
-        viewModel.PreviewHtml.ShouldBeEmpty();
-        viewModel.PreviewImageSource.ShouldBeNull();
-        viewModel.HasTextPreview.ShouldBeFalse();
-        viewModel.HasHtmlPreview.ShouldBeFalse();
-        viewModel.HasImagePreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsNull();
+        await Assert.That(viewModel.PreviewText).IsEmpty();
+        await Assert.That(viewModel.PreviewHtml).IsEmpty();
+        await Assert.That(viewModel.PreviewImageSource).IsNull();
+        await Assert.That(viewModel.HasTextPreview).IsFalse();
+        await Assert.That(viewModel.HasHtmlPreview).IsFalse();
+        await Assert.That(viewModel.HasImagePreview).IsFalse();
     }
 
-    [Fact]
-    public void SelectedClip_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task SelectedClip_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -181,11 +182,11 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
+        await Assert.That(propertyChangedRaised).IsTrue();
     }
 
-    [Fact]
-    public void Receive_WithNullClip_ShouldClearAllPreviewData()
+    [Test]
+    public async Task Receive_WithNullClip_ShouldClearAllPreviewData()
     {
         // Arrange
         var mockMessenger = new Mock<IMessenger>();
@@ -203,12 +204,12 @@ public class PreviewPaneViewModelTests
         viewModel.Receive(new ClipSelectedEvent(null));
 
         // Assert
-        viewModel.SelectedClip.ShouldBeNull();
-        viewModel.PreviewText.ShouldBeEmpty();
-        viewModel.PreviewHtml.ShouldBeEmpty();
-        viewModel.PreviewImageSource.ShouldBeNull();
-        viewModel.HasTextPreview.ShouldBeFalse();
-        viewModel.HasHtmlPreview.ShouldBeFalse();
-        viewModel.HasImagePreview.ShouldBeFalse();
+        await Assert.That(viewModel.SelectedClip).IsNull();
+        await Assert.That(viewModel.PreviewText).IsEmpty();
+        await Assert.That(viewModel.PreviewHtml).IsEmpty();
+        await Assert.That(viewModel.PreviewImageSource).IsNull();
+        await Assert.That(viewModel.HasTextPreview).IsFalse();
+        await Assert.That(viewModel.HasHtmlPreview).IsFalse();
+        await Assert.That(viewModel.HasImagePreview).IsFalse();
     }
 }

@@ -1,8 +1,6 @@
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Xunit;
-using Shouldly;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -17,7 +15,7 @@ public class ConfigurationServiceTests
         _testConfigDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ClipMateTests", Guid.NewGuid().ToString());
     }
 
-    [Fact]
+    [Test]
     public async Task LoadAsync_CreatesDefaultConfiguration_WhenFileDoesNotExist()
     {
         // Arrange
@@ -27,15 +25,15 @@ public class ConfigurationServiceTests
         var config = await service.LoadAsync();
 
         // Assert
-        config.ShouldNotBeNull();
-        config.Version.ShouldBe(1);
-        config.Databases.ShouldContainKey("MyClips");
-        config.DefaultDatabase.ShouldBe("MyClips");
-        config.Hotkeys.ShouldNotBeNull();
-        config.Preferences.ShouldNotBeNull();
+        await Assert.That(config).IsNotNull();
+        await Assert.That(config.Version).IsEqualTo(1);
+        await Assert.That(config.Databases.ContainsKey("MyClips")).IsTrue();
+        await Assert.That(config.DefaultDatabase).IsEqualTo("MyClips");
+        await Assert.That(config.Hotkeys).IsNotNull();
+        await Assert.That(config.Preferences).IsNotNull();
     }
 
-    [Fact]
+    [Test]
     public async Task SaveAsync_CreatesTomlFile()
     {
         // Arrange
@@ -46,14 +44,14 @@ public class ConfigurationServiceTests
         await service.SaveAsync();
 
         // Assert
-        System.IO.File.Exists(service.ConfigurationFilePath).ShouldBeTrue();
+        await Assert.That(System.IO.File.Exists(service.ConfigurationFilePath)).IsTrue();
         var content = await System.IO.File.ReadAllTextAsync(service.ConfigurationFilePath);
-        content.ShouldContain("[Preferences]");
-        content.ShouldContain("[Hotkeys]");
-        content.ShouldContain("[Databases.MyClips]");
+        await Assert.That(content).Contains("[Preferences]");
+        await Assert.That(content).Contains("[Hotkeys]");
+        await Assert.That(content).Contains("[Databases.MyClips]");
     }
 
-    [Fact]
+    [Test]
     public async Task AddOrUpdateDatabaseAsync_AddsNewDatabase()
     {
         // Arrange
@@ -72,12 +70,12 @@ public class ConfigurationServiceTests
         await service.AddOrUpdateDatabaseAsync("WorkClips", newDatabase);
 
         // Assert
-        service.Configuration.Databases.ShouldContainKey("WorkClips");
-        service.Configuration.Databases["WorkClips"].Name.ShouldBe("Work Clips");
-        service.Configuration.Databases["WorkClips"].PurgeDays.ShouldBe(30);
+        await Assert.That(service.Configuration.Databases.ContainsKey("WorkClips")).IsTrue();
+        await Assert.That(service.Configuration.Databases["WorkClips"].Name).IsEqualTo("Work Clips");
+        await Assert.That(service.Configuration.Databases["WorkClips"].PurgeDays).IsEqualTo(30);
     }
 
-    [Fact]
+    [Test]
     public async Task RemoveDatabaseAsync_RemovesDatabase()
     {
         // Arrange
@@ -88,10 +86,10 @@ public class ConfigurationServiceTests
         await service.RemoveDatabaseAsync("MyClips");
 
         // Assert
-        service.Configuration.Databases.ShouldNotContainKey("MyClips");
+        await Assert.That(service.Configuration.Databases.ContainsKey("MyClips")).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task AddOrUpdateApplicationProfileAsync_AddsNewProfile()
     {
         // Arrange
@@ -113,11 +111,11 @@ public class ConfigurationServiceTests
         await service.AddOrUpdateApplicationProfileAsync("NOTEPAD", profile);
 
         // Assert
-        service.Configuration.ApplicationProfiles.ShouldContainKey("NOTEPAD");
-        service.Configuration.ApplicationProfiles["NOTEPAD"].Formats.ShouldContainKey("TEXT");
+        await Assert.That(service.Configuration.ApplicationProfiles.ContainsKey("NOTEPAD")).IsTrue();
+        await Assert.That(service.Configuration.ApplicationProfiles["NOTEPAD"].Formats.ContainsKey("TEXT")).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task LoadAsync_LoadsExistingConfiguration()
     {
         // Arrange
@@ -136,11 +134,11 @@ public class ConfigurationServiceTests
         var loadedConfig = await service2.LoadAsync();
 
         // Assert
-        loadedConfig.Preferences.LogLevel.ShouldBe(5);
-        loadedConfig.Hotkeys.QuickPaste.ShouldBe("Ctrl+Shift+Q");
+        await Assert.That(loadedConfig.Preferences.LogLevel).IsEqualTo(5);
+        await Assert.That(loadedConfig.Hotkeys.QuickPaste).IsEqualTo("Ctrl+Shift+Q");
     }
 
-    [Fact]
+    [Test]
     public async Task ResetToDefaultsAsync_RestoresDefaultConfiguration()
     {
         // Arrange
@@ -155,6 +153,6 @@ public class ConfigurationServiceTests
         await service.ResetToDefaultsAsync();
 
         // Assert
-        service.Configuration.Preferences.LogLevel.ShouldBe(3); // Default value
+        await Assert.That(service.Configuration.Preferences.LogLevel).IsEqualTo(3); // Default value
     }
 }

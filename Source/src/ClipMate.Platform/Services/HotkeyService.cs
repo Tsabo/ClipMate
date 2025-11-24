@@ -16,9 +16,9 @@ public class HotkeyService : IHotkeyService, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="HotkeyService"/> class.
     /// </summary>
-    public HotkeyService()
+    public HotkeyService(HotkeyManager hotkeyManager)
     {
-        _hotkeyManager = new HotkeyManager();
+        _hotkeyManager = hotkeyManager ?? throw new ArgumentNullException(nameof(hotkeyManager));
         _registeredIds = new HashSet<int>();
     }
 

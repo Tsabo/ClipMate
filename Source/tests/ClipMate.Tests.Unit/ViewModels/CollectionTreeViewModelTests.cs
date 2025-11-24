@@ -5,8 +5,8 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
-using Xunit;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -54,23 +54,25 @@ public class CollectionTreeViewModelTests
             _mockLogger.Object);
     }
 
-    [Fact]
-    public void Constructor_WithNullCollectionService_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullCollectionService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(null!, _mockFolderService.Object, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object));
+        await Assert.That(() => 
+            new CollectionTreeViewModel(null!, _mockFolderService.Object, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object))
+            .Throws<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Constructor_WithNullFolderService_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullFolderService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => 
-            new CollectionTreeViewModel(_mockCollectionService.Object, null!, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object));
+        await Assert.That(() => 
+            new CollectionTreeViewModel(_mockCollectionService.Object, null!, _mockConfigurationService.Object, _mockMessenger.Object, _mockLogger.Object))
+            .Throws<ArgumentNullException>();
     }
 
-    [Fact]
+    [Test]
     public async Task LoadAsync_ShouldLoadCollectionsAndRootFolders()
     {
         // Arrange
@@ -122,21 +124,24 @@ public class CollectionTreeViewModelTests
         await _viewModel.LoadAsync();
 
         // Assert
-        _viewModel.RootNodes.Count.ShouldBe(1);
-        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
-        database.Children.Count.ShouldBe(2);
+        await Assert.That(_viewModel.RootNodes.Count).IsEqualTo(1);
+        var database = _viewModel.RootNodes[0];
+        await Assert.That(database).IsTypeOf<DatabaseTreeNode>();
+        await Assert.That(database.Children.Count).IsEqualTo(2);
         
-        var workCollection = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
-        workCollection.Name.ShouldBe("Work");
-        workCollection.Children.OfType<FolderTreeNode>().Count().ShouldBe(1);
-        workCollection.Children.OfType<FolderTreeNode>().First().Name.ShouldBe("Projects");
+        var workCollection = database.Children[0];
+        await Assert.That(workCollection).IsTypeOf<CollectionTreeNode>();
+        await Assert.That(((CollectionTreeNode)workCollection).Name).IsEqualTo("Work");
+        await Assert.That(((CollectionTreeNode)workCollection).Children.OfType<FolderTreeNode>().Count()).IsEqualTo(1);
+        await Assert.That(((CollectionTreeNode)workCollection).Children.OfType<FolderTreeNode>().First().Name).IsEqualTo("Projects");
         
-        var personalCollection = database.Children[1].ShouldBeOfType<CollectionTreeNode>();
-        personalCollection.Name.ShouldBe("Personal");
-        personalCollection.Children.OfType<FolderTreeNode>().Count().ShouldBe(0);
+        var personalCollection = database.Children[1];
+        await Assert.That(personalCollection).IsTypeOf<CollectionTreeNode>();
+        await Assert.That(((CollectionTreeNode)personalCollection).Name).IsEqualTo("Personal");
+        await Assert.That(((CollectionTreeNode)personalCollection).Children.OfType<FolderTreeNode>().Count()).IsEqualTo(0);
     }
 
-    [Fact]
+    [Test]
     public async Task LoadAsync_ShouldLoadNestedFolders()
     {
         // Arrange
@@ -187,21 +192,23 @@ public class CollectionTreeViewModelTests
         await _viewModel.LoadAsync();
 
         // Assert
-        _viewModel.RootNodes.Count.ShouldBe(1);
-        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
-        var collectionNode = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
+        await Assert.That(_viewModel.RootNodes.Count).IsEqualTo(1);
+        var database = _viewModel.RootNodes[0];
+        await Assert.That(database).IsTypeOf<DatabaseTreeNode>();
+        var collectionNode = database.Children[0];
+        await Assert.That(collectionNode).IsTypeOf<CollectionTreeNode>();
         
-        var folders = collectionNode.Children.OfType<FolderTreeNode>().ToList();
-        folders.Count.ShouldBe(1);
+        var folders = ((CollectionTreeNode)collectionNode).Children.OfType<FolderTreeNode>().ToList();
+        await Assert.That(folders.Count).IsEqualTo(1);
         var rootFolderNode = folders[0];
-        rootFolderNode.Name.ShouldBe("Projects");
+        await Assert.That(rootFolderNode.Name).IsEqualTo("Projects");
         
         var subFolders = rootFolderNode.Children.OfType<FolderTreeNode>().ToList();
-        subFolders.Count.ShouldBe(1);
-        subFolders[0].Name.ShouldBe("2024");
+        await Assert.That(subFolders.Count).IsEqualTo(1);
+        await Assert.That(subFolders[0].Name).IsEqualTo("2024");
     }
 
-    [Fact]
+    [Test]
     public async Task CreateCollectionCommand_ShouldCreateCollectionAndReload()
     {
         // Arrange
@@ -229,14 +236,16 @@ public class CollectionTreeViewModelTests
         await _viewModel.CreateCollectionCommand.ExecuteAsync(("New Collection", "Test description"));
 
         // Assert
-        _viewModel.RootNodes.Count.ShouldBe(1);
-        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
-        var collection = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
-        collection.Name.ShouldBe("New Collection");
+        await Assert.That(_viewModel.RootNodes.Count).IsEqualTo(1);
+        var database = _viewModel.RootNodes[0];
+        await Assert.That(database).IsTypeOf<DatabaseTreeNode>();
+        var collection = database.Children[0];
+        await Assert.That(collection).IsTypeOf<CollectionTreeNode>();
+        await Assert.That(((CollectionTreeNode)collection).Name).IsEqualTo("New Collection");
         _mockCollectionService.Verify(s => s.CreateAsync("New Collection", "Test description", It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact]
+    [Test]
     public async Task CreateFolderCommand_ShouldCreateFolderAndReload()
     {
         // Arrange
@@ -278,14 +287,16 @@ public class CollectionTreeViewModelTests
 
         // Assert
         _mockFolderService.Verify(s => s.CreateAsync("New Folder", collection.Id, null, It.IsAny<CancellationToken>()), Times.Once);
-        _viewModel.RootNodes.Count.ShouldBe(1);
-        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
-        var collectionNode = database.Children[0].ShouldBeOfType<CollectionTreeNode>();
-        collectionNode.Children.OfType<FolderTreeNode>().Count().ShouldBe(1);
+        await Assert.That(_viewModel.RootNodes.Count).IsEqualTo(1);
+        var database = _viewModel.RootNodes[0];
+        await Assert.That(database).IsTypeOf<DatabaseTreeNode>();
+        var collectionNode = database.Children[0];
+        await Assert.That(collectionNode).IsTypeOf<CollectionTreeNode>();
+        await Assert.That(((CollectionTreeNode)collectionNode).Children.OfType<FolderTreeNode>().Count()).IsEqualTo(1);
     }
 
-    [Fact]
-    public void SelectedNode_WhenSet_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task SelectedNode_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
         var collection = new Collection
@@ -309,11 +320,11 @@ public class CollectionTreeViewModelTests
         _viewModel.SelectedNode = collectionNode;
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        _viewModel.SelectedNode.ShouldBe(collectionNode);
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(_viewModel.SelectedNode).IsEqualTo(collectionNode);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteCollectionCommand_ShouldDeleteCollectionAndReload()
     {
         // Arrange
@@ -337,12 +348,13 @@ public class CollectionTreeViewModelTests
 
         // Assert
         _mockCollectionService.Verify(s => s.DeleteAsync(collection.Id, It.IsAny<CancellationToken>()), Times.Once);
-        _viewModel.RootNodes.Count.ShouldBe(1);
-        var database = _viewModel.RootNodes[0].ShouldBeOfType<DatabaseTreeNode>();
-        database.Children.OfType<CollectionTreeNode>().Count().ShouldBe(0);
+        await Assert.That(_viewModel.RootNodes.Count).IsEqualTo(1);
+        var database = _viewModel.RootNodes[0];
+        await Assert.That(database).IsTypeOf<DatabaseTreeNode>();
+        await Assert.That(database.Children.OfType<CollectionTreeNode>().Count()).IsEqualTo(0);
     }
 
-    [Fact]
+    [Test]
     public async Task DeleteFolderCommand_ShouldDeleteFolderAndReload()
     {
         // Arrange

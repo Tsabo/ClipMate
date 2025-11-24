@@ -1,8 +1,8 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using Shouldly;
-using Xunit;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -23,31 +23,32 @@ public class TextToolsViewModelTests
 
     #region Constructor Tests
 
-    [Fact]
-    public void Constructor_WithValidService_ShouldCreateInstance()
+    [Test]
+    public async Task Constructor_WithValidService_ShouldCreateInstance()
     {
         // Arrange & Act
         var vm = new TextToolsViewModel(_textTransformService);
 
         // Assert
-        vm.ShouldNotBeNull();
-        vm.InputText.ShouldBeEmpty();
-        vm.OutputText.ShouldBeEmpty();
+        await Assert.That(vm).IsNotNull();
+        await Assert.That(vm.InputText).IsEmpty();
+        await Assert.That(vm.OutputText).IsEmpty();
     }
 
-    [Fact]
-    public void Constructor_WithNullService_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task Constructor_WithNullService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => new TextToolsViewModel(null!));
+        await Assert.That(() => new TextToolsViewModel(null!))
+            .Throws<ArgumentNullException>();
     }
 
     #endregion
 
     #region Property Change Tests
 
-    [Fact]
-    public void InputText_WhenChanged_ShouldRaisePropertyChanged()
+    [Test]
+    public async Task InputText_WhenChanged_ShouldRaisePropertyChanged()
     {
         // Arrange
         var propertyChangedRaised = false;
@@ -61,12 +62,12 @@ public class TextToolsViewModelTests
         _viewModel.InputText = "Test input";
 
         // Assert
-        propertyChangedRaised.ShouldBeTrue();
-        _viewModel.InputText.ShouldBe("Test input");
+        await Assert.That(propertyChangedRaised).IsTrue();
+        await Assert.That(_viewModel.InputText).IsEqualTo("Test input");
     }
 
-    [Fact]
-    public void SelectedTool_WhenChanged_ShouldUpdateProperty()
+    [Test]
+    public async Task SelectedTool_WhenChanged_ShouldUpdateProperty()
     {
         // Arrange
         var initialTool = _viewModel.SelectedTool;
@@ -75,16 +76,16 @@ public class TextToolsViewModelTests
         _viewModel.SelectedTool = TextTool.SortLines;
 
         // Assert
-        _viewModel.SelectedTool.ShouldBe(TextTool.SortLines);
-        _viewModel.SelectedTool.ShouldNotBe(initialTool);
+        await Assert.That(_viewModel.SelectedTool).IsEqualTo(TextTool.SortLines);
+        await Assert.That(_viewModel.SelectedTool).IsNotEqualTo(initialTool);
     }
 
     #endregion
 
     #region ConvertCase Tests
 
-    [Fact]
-    public void ApplyTransform_ConvertCaseUppercase_ShouldConvertToUppercase()
+    [Test]
+    public async Task ApplyTransform_ConvertCaseUppercase_ShouldConvertToUppercase()
     {
         // Arrange
         _viewModel.InputText = "hello world";
@@ -95,11 +96,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("HELLO WORLD");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("HELLO WORLD");
     }
 
-    [Fact]
-    public void ApplyTransform_ConvertCaseLowercase_ShouldConvertToLowercase()
+    [Test]
+    public async Task ApplyTransform_ConvertCaseLowercase_ShouldConvertToLowercase()
     {
         // Arrange
         _viewModel.InputText = "HELLO WORLD";
@@ -110,11 +111,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("hello world");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("hello world");
     }
 
-    [Fact]
-    public void ApplyTransform_ConvertCaseTitleCase_ShouldConvertToTitleCase()
+    [Test]
+    public async Task ApplyTransform_ConvertCaseTitleCase_ShouldConvertToTitleCase()
     {
         // Arrange
         _viewModel.InputText = "hello world";
@@ -125,15 +126,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Hello World");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Hello World");
     }
 
     #endregion
 
     #region SortLines Tests
 
-    [Fact]
-    public void ApplyTransform_SortLinesAlphabetically_ShouldSortLines()
+    [Test]
+    public async Task ApplyTransform_SortLinesAlphabetically_ShouldSortLines()
     {
         // Arrange
         _viewModel.InputText = "Zebra\nApple\nBanana";
@@ -144,11 +145,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Apple\nBanana\nZebra");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Apple\nBanana\nZebra");
     }
 
-    [Fact]
-    public void ApplyTransform_SortLinesNumerically_ShouldSortNumerically()
+    [Test]
+    public async Task ApplyTransform_SortLinesNumerically_ShouldSortNumerically()
     {
         // Arrange
         _viewModel.InputText = "10\n2\n100\n21";
@@ -159,15 +160,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("2\n10\n21\n100");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("2\n10\n21\n100");
     }
 
     #endregion
 
     #region RemoveDuplicateLines Tests
 
-    [Fact]
-    public void ApplyTransform_RemoveDuplicateLines_ShouldRemoveDuplicates()
+    [Test]
+    public async Task ApplyTransform_RemoveDuplicateLines_ShouldRemoveDuplicates()
     {
         // Arrange
         _viewModel.InputText = "Apple\nBanana\nApple\nCherry";
@@ -177,11 +178,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Apple\nBanana\nCherry");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Apple\nBanana\nCherry");
     }
 
-    [Fact]
-    public void ApplyTransform_RemoveDuplicateLinesCaseSensitive_ShouldKeepDifferentCase()
+    [Test]
+    public async Task ApplyTransform_RemoveDuplicateLinesCaseSensitive_ShouldKeepDifferentCase()
     {
         // Arrange
         _viewModel.InputText = "Apple\napple\nAPPLE";
@@ -192,15 +193,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Apple\napple\nAPPLE");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Apple\napple\nAPPLE");
     }
 
     #endregion
 
     #region AddLineNumbers Tests
 
-    [Fact]
-    public void ApplyTransform_AddLineNumbers_ShouldAddNumbers()
+    [Test]
+    public async Task ApplyTransform_AddLineNumbers_ShouldAddNumbers()
     {
         // Arrange
         _viewModel.InputText = "Line one\nLine two\nLine three";
@@ -210,11 +211,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("1. Line one\n2. Line two\n3. Line three");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("1. Line one\n2. Line two\n3. Line three");
     }
 
-    [Fact]
-    public void ApplyTransform_AddLineNumbersWithCustomFormat_ShouldUseFormat()
+    [Test]
+    public async Task ApplyTransform_AddLineNumbersWithCustomFormat_ShouldUseFormat()
     {
         // Arrange
         _viewModel.InputText = "Line one\nLine two";
@@ -225,15 +226,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("[001] Line one\n[002] Line two");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("[001] Line one\n[002] Line two");
     }
 
     #endregion
 
     #region FindAndReplace Tests
 
-    [Fact]
-    public void ApplyTransform_FindAndReplaceLiteral_ShouldReplaceText()
+    [Test]
+    public async Task ApplyTransform_FindAndReplaceLiteral_ShouldReplaceText()
     {
         // Arrange
         _viewModel.InputText = "The quick brown fox";
@@ -245,11 +246,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("The fast brown fox");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("The fast brown fox");
     }
 
-    [Fact]
-    public void ApplyTransform_FindAndReplaceRegex_ShouldReplacePattern()
+    [Test]
+    public async Task ApplyTransform_FindAndReplaceRegex_ShouldReplacePattern()
     {
         // Arrange
         _viewModel.InputText = "Contact: john@example.com";
@@ -262,15 +263,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Contact: [EMAIL]");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Contact: [EMAIL]");
     }
 
     #endregion
 
     #region CleanUpText Tests
 
-    [Fact]
-    public void ApplyTransform_CleanUpTextRemoveSpaces_ShouldCollapseSpaces()
+    [Test]
+    public async Task ApplyTransform_CleanUpTextRemoveSpaces_ShouldCollapseSpaces()
     {
         // Arrange
         _viewModel.InputText = "Text  with   multiple    spaces";
@@ -281,11 +282,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Text with multiple spaces");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Text with multiple spaces");
     }
 
-    [Fact]
-    public void ApplyTransform_CleanUpTextTrimLines_ShouldTrimLines()
+    [Test]
+    public async Task ApplyTransform_CleanUpTextTrimLines_ShouldTrimLines()
     {
         // Arrange
         _viewModel.InputText = "  Line 1  \n  Line 2  ";
@@ -296,15 +297,15 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("Line 1\nLine 2");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("Line 1\nLine 2");
     }
 
     #endregion
 
     #region Command Tests
 
-    [Fact]
-    public void ApplyTransformCommand_WithEmptyInput_ShouldSetOutputToEmpty()
+    [Test]
+    public async Task ApplyTransformCommand_WithEmptyInput_ShouldSetOutputToEmpty()
     {
         // Arrange
         _viewModel.InputText = string.Empty;
@@ -314,11 +315,11 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBeEmpty();
+        await Assert.That(_viewModel.OutputText).IsEmpty();
     }
 
-    [Fact]
-    public void ClearCommand_ShouldClearInputAndOutput()
+    [Test]
+    public async Task ClearCommand_ShouldClearInputAndOutput()
     {
         // Arrange
         _viewModel.InputText = "Test input";
@@ -328,12 +329,12 @@ public class TextToolsViewModelTests
         _viewModel.ClearCommand.Execute(null);
 
         // Assert
-        _viewModel.InputText.ShouldBeEmpty();
-        _viewModel.OutputText.ShouldBeEmpty();
+        await Assert.That(_viewModel.InputText).IsEmpty();
+        await Assert.That(_viewModel.OutputText).IsEmpty();
     }
 
-    [Fact]
-    public void CopyToClipboardCommand_WithOutput_ShouldCopyOutput()
+    [Test]
+    public async Task CopyToClipboardCommand_WithOutput_ShouldCopyOutput()
     {
         // Arrange
         _viewModel.OutputText = "Test output";
@@ -342,11 +343,11 @@ public class TextToolsViewModelTests
         var canExecute = _viewModel.CopyToClipboardCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeTrue();
+        await Assert.That(canExecute).IsTrue();
     }
 
-    [Fact]
-    public void CopyToClipboardCommand_WithEmptyOutput_ShouldNotExecute()
+    [Test]
+    public async Task CopyToClipboardCommand_WithEmptyOutput_ShouldNotExecute()
     {
         // Arrange
         _viewModel.OutputText = string.Empty;
@@ -355,15 +356,15 @@ public class TextToolsViewModelTests
         var canExecute = _viewModel.CopyToClipboardCommand.CanExecute(null);
 
         // Assert
-        canExecute.ShouldBeFalse();
+        await Assert.That(canExecute).IsFalse();
     }
 
     #endregion
 
     #region Preview Tests
 
-    [Fact]
-    public void PreviewTransform_ShouldUpdateOutputWithoutApplying()
+    [Test]
+    public async Task PreviewTransform_ShouldUpdateOutputWithoutApplying()
     {
         // Arrange
         _viewModel.InputText = "hello world";
@@ -374,11 +375,11 @@ public class TextToolsViewModelTests
         _viewModel.PreviewTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("HELLO WORLD");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("HELLO WORLD");
     }
 
-    [Fact]
-    public void SelectedTool_WhenChanged_ShouldAllowTransformation()
+    [Test]
+    public async Task SelectedTool_WhenChanged_ShouldAllowTransformation()
     {
         // Arrange
         _viewModel.InputText = "hello world";
@@ -389,7 +390,7 @@ public class TextToolsViewModelTests
         _viewModel.ApplyTransformCommand.Execute(null);
 
         // Assert
-        _viewModel.OutputText.ShouldBe("HELLO WORLD");
+        await Assert.That(_viewModel.OutputText).IsEqualTo("HELLO WORLD");
     }
 
     #endregion

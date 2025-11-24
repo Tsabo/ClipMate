@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using Shouldly;
-using Xunit;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -20,59 +18,59 @@ public class TextTransformServiceTests
 
     #region Constructor Tests
 
-    [Fact]
-    public void Constructor_ShouldCreateInstance()
+    [Test]
+    public async Task Constructor_ShouldCreateInstance()
     {
         // Arrange & Act
         var service = new TextTransformService();
 
         // Assert
-        service.ShouldNotBeNull();
+        await Assert.That(service).IsNotNull();
     }
 
     #endregion
 
     #region ConvertCase Tests
 
-    [Theory]
-    [InlineData("hello world", CaseConversion.Uppercase, "HELLO WORLD")]
-    [InlineData("HELLO WORLD", CaseConversion.Lowercase, "hello world")]
-    [InlineData("hello world", CaseConversion.TitleCase, "Hello World")]
-    [InlineData("hello. world! how are you?", CaseConversion.SentenceCase, "Hello. World! How are you?")]
-    public void ConvertCase_WithValidInput_ShouldConvertCorrectly(
+    [Test]
+    [Arguments("hello world", CaseConversion.Uppercase, "HELLO WORLD")]
+    [Arguments("HELLO WORLD", CaseConversion.Lowercase, "hello world")]
+    [Arguments("hello world", CaseConversion.TitleCase, "Hello World")]
+    [Arguments("hello. world! how are you?", CaseConversion.SentenceCase, "Hello. World! How are you?")]
+    public async Task ConvertCase_WithValidInput_ShouldConvertCorrectly(
         string input, CaseConversion conversion, string expected)
     {
         // Act
         var result = _service.ConvertCase(input, conversion);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void ConvertCase_WithEmptyString_ShouldReturnEmpty()
+    [Test]
+    public async Task ConvertCase_WithEmptyString_ShouldReturnEmpty()
     {
         // Act
         var result = _service.ConvertCase(string.Empty, CaseConversion.Uppercase);
 
         // Assert
-        result.ShouldBe(string.Empty);
+        await Assert.That(result).IsEqualTo(string.Empty);
     }
 
-    [Fact]
-    public void ConvertCase_WithNull_ShouldThrowArgumentNullException()
+    [Test]
+    public async Task ConvertCase_WithNull_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Should.Throw<ArgumentNullException>(() => 
-            _service.ConvertCase(null!, CaseConversion.Uppercase));
+        await Assert.That(() => 
+            _service.ConvertCase(null!, CaseConversion.Uppercase)).Throws<ArgumentNullException>();
     }
 
     #endregion
 
     #region SortLines Tests
 
-    [Fact]
-    public void SortLines_Alphabetically_ShouldSortCorrectly()
+    [Test]
+    public async Task SortLines_Alphabetically_ShouldSortCorrectly()
     {
         // Arrange
         var input = "Zebra\nApple\nBanana\nCherry";
@@ -82,11 +80,11 @@ public class TextTransformServiceTests
         var result = _service.SortLines(input, SortMode.Alphabetical);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void SortLines_Numerically_ShouldSortCorrectly()
+    [Test]
+    public async Task SortLines_Numerically_ShouldSortCorrectly()
     {
         // Arrange
         var input = "10\n2\n100\n21";
@@ -96,11 +94,11 @@ public class TextTransformServiceTests
         var result = _service.SortLines(input, SortMode.Numerical);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void SortLines_Reverse_ShouldReverseLines()
+    [Test]
+    public async Task SortLines_Reverse_ShouldReverseLines()
     {
         // Arrange
         var input = "Line 1\nLine 2\nLine 3";
@@ -110,11 +108,11 @@ public class TextTransformServiceTests
         var result = _service.SortLines(input, SortMode.Reverse);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void SortLines_WithEmptyLines_ShouldPreserveEmptyLines()
+    [Test]
+    public async Task SortLines_WithEmptyLines_ShouldPreserveEmptyLines()
     {
         // Arrange
         var input = "Apple\n\nBanana\n\nCherry";
@@ -124,15 +122,15 @@ public class TextTransformServiceTests
         var result = _service.SortLines(input, SortMode.Alphabetical);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
     #endregion
 
     #region RemoveDuplicateLines Tests
 
-    [Fact]
-    public void RemoveDuplicateLines_WithDuplicates_ShouldRemoveThem()
+    [Test]
+    public async Task RemoveDuplicateLines_WithDuplicates_ShouldRemoveThem()
     {
         // Arrange
         var input = "Apple\nBanana\nApple\nCherry\nBanana";
@@ -142,11 +140,11 @@ public class TextTransformServiceTests
         var result = _service.RemoveDuplicateLines(input);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void RemoveDuplicateLines_CaseInsensitive_ShouldRemoveDuplicates()
+    [Test]
+    public async Task RemoveDuplicateLines_CaseInsensitive_ShouldRemoveDuplicates()
     {
         // Arrange
         var input = "Apple\napple\nAPPLE\nBanana";
@@ -156,11 +154,11 @@ public class TextTransformServiceTests
         var result = _service.RemoveDuplicateLines(input, caseSensitive: false);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void RemoveDuplicateLines_CaseSensitive_ShouldKeepDifferentCase()
+    [Test]
+    public async Task RemoveDuplicateLines_CaseSensitive_ShouldKeepDifferentCase()
     {
         // Arrange
         var input = "Apple\napple\nAPPLE\nBanana";
@@ -170,11 +168,11 @@ public class TextTransformServiceTests
         var result = _service.RemoveDuplicateLines(input, caseSensitive: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void RemoveDuplicateLines_WithEmptyLines_ShouldKeepOneEmptyLine()
+    [Test]
+    public async Task RemoveDuplicateLines_WithEmptyLines_ShouldKeepOneEmptyLine()
     {
         // Arrange
         var input = "Apple\n\nBanana\n\nCherry\n";
@@ -184,15 +182,15 @@ public class TextTransformServiceTests
         var result = _service.RemoveDuplicateLines(input);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
     #endregion
 
     #region AddLineNumbers Tests
 
-    [Fact]
-    public void AddLineNumbers_WithDefaultFormat_ShouldAddNumbers()
+    [Test]
+    public async Task AddLineNumbers_WithDefaultFormat_ShouldAddNumbers()
     {
         // Arrange
         var input = "Line one\nLine two\nLine three";
@@ -202,11 +200,11 @@ public class TextTransformServiceTests
         var result = _service.AddLineNumbers(input);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void AddLineNumbers_WithCustomFormat_ShouldUseFormat()
+    [Test]
+    public async Task AddLineNumbers_WithCustomFormat_ShouldUseFormat()
     {
         // Arrange
         var input = "Line one\nLine two";
@@ -216,11 +214,11 @@ public class TextTransformServiceTests
         var result = _service.AddLineNumbers(input, format: "[{0:D3}] ");
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void AddLineNumbers_WithStartNumber_ShouldStartFromNumber()
+    [Test]
+    public async Task AddLineNumbers_WithStartNumber_ShouldStartFromNumber()
     {
         // Arrange
         var input = "Line one\nLine two";
@@ -230,15 +228,15 @@ public class TextTransformServiceTests
         var result = _service.AddLineNumbers(input, startNumber: 10);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
     #endregion
 
     #region FindAndReplace Tests
 
-    [Fact]
-    public void FindAndReplace_Literal_ShouldReplaceAll()
+    [Test]
+    public async Task FindAndReplace_Literal_ShouldReplaceAll()
     {
         // Arrange
         var input = "The quick brown fox jumps over the lazy dog";
@@ -248,11 +246,11 @@ public class TextTransformServiceTests
         var result = _service.FindAndReplace(input, "quick", "fast", isRegex: false);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void FindAndReplace_LiteralCaseInsensitive_ShouldReplaceAll()
+    [Test]
+    public async Task FindAndReplace_LiteralCaseInsensitive_ShouldReplaceAll()
     {
         // Arrange
         var input = "Apple apple APPLE";
@@ -262,11 +260,11 @@ public class TextTransformServiceTests
         var result = _service.FindAndReplace(input, "apple", "Orange", isRegex: false, caseSensitive: false);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void FindAndReplace_Regex_ShouldReplacePattern()
+    [Test]
+    public async Task FindAndReplace_Regex_ShouldReplacePattern()
     {
         // Arrange
         var input = "Contact: john@example.com or jane@example.com";
@@ -276,11 +274,11 @@ public class TextTransformServiceTests
         var result = _service.FindAndReplace(input, @"\S+@\S+\.\S+", "[EMAIL]", isRegex: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void FindAndReplace_RegexWithGroups_ShouldReplaceWithCapture()
+    [Test]
+    public async Task FindAndReplace_RegexWithGroups_ShouldReplaceWithCapture()
     {
         // Arrange
         var input = "Name: John Doe, Age: 30";
@@ -294,26 +292,26 @@ public class TextTransformServiceTests
             isRegex: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void FindAndReplace_InvalidRegex_ShouldThrowArgumentException()
+    [Test]
+    public async Task FindAndReplace_InvalidRegex_ShouldThrowArgumentException()
     {
         // Arrange
         var input = "Test text";
 
         // Act & Assert
-        Should.Throw<ArgumentException>(() => 
-            _service.FindAndReplace(input, "[invalid(regex", "replacement", isRegex: true));
+        await Assert.That(() => 
+            _service.FindAndReplace(input, "[invalid(regex", "replacement", isRegex: true)).Throws<ArgumentException>();
     }
 
     #endregion
 
     #region CleanUpText Tests
 
-    [Fact]
-    public void CleanUpText_RemoveExtraSpaces_ShouldCollapseSpaces()
+    [Test]
+    public async Task CleanUpText_RemoveExtraSpaces_ShouldCollapseSpaces()
     {
         // Arrange
         var input = "Text  with   multiple    spaces";
@@ -323,11 +321,11 @@ public class TextTransformServiceTests
         var result = _service.CleanUpText(input, removeExtraSpaces: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void CleanUpText_RemoveExtraLineBreaks_ShouldCollapseBreaks()
+    [Test]
+    public async Task CleanUpText_RemoveExtraLineBreaks_ShouldCollapseBreaks()
     {
         // Arrange
         var input = "Line 1\n\n\nLine 2\n\n\n\nLine 3";
@@ -337,11 +335,11 @@ public class TextTransformServiceTests
         var result = _service.CleanUpText(input, removeExtraLineBreaks: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void CleanUpText_TrimLines_ShouldTrimEachLine()
+    [Test]
+    public async Task CleanUpText_TrimLines_ShouldTrimEachLine()
     {
         // Arrange
         var input = "  Line 1  \n  Line 2  \n  Line 3  ";
@@ -351,11 +349,11 @@ public class TextTransformServiceTests
         var result = _service.CleanUpText(input, trimLines: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void CleanUpText_AllOptions_ShouldApplyAll()
+    [Test]
+    public async Task CleanUpText_AllOptions_ShouldApplyAll()
     {
         // Arrange
         var input = "  Line  1  \n\n\n  Line   2  ";
@@ -369,15 +367,15 @@ public class TextTransformServiceTests
             trimLines: true);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
     #endregion
 
     #region ConvertFormat Tests
 
-    [Fact]
-    public void ConvertFormat_PlainToPlain_ShouldReturnSame()
+    [Test]
+    public async Task ConvertFormat_PlainToPlain_ShouldReturnSame()
     {
         // Arrange
         var input = "Plain text";
@@ -386,11 +384,11 @@ public class TextTransformServiceTests
         var result = _service.ConvertFormat(input, TextFormat.Plain, TextFormat.Plain);
 
         // Assert
-        result.ShouldBe(input);
+        await Assert.That(result).IsEqualTo(input);
     }
 
-    [Fact]
-    public void ConvertFormat_PlainToHtml_ShouldWrapInParagraph()
+    [Test]
+    public async Task ConvertFormat_PlainToHtml_ShouldWrapInParagraph()
     {
         // Arrange
         var input = "Line 1\nLine 2";
@@ -400,11 +398,11 @@ public class TextTransformServiceTests
         var result = _service.ConvertFormat(input, TextFormat.Plain, TextFormat.Html);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void ConvertFormat_HtmlToPlain_ShouldStripTags()
+    [Test]
+    public async Task ConvertFormat_HtmlToPlain_ShouldStripTags()
     {
         // Arrange
         var input = "<p>Hello <strong>world</strong>!</p>";
@@ -414,7 +412,7 @@ public class TextTransformServiceTests
         var result = _service.ConvertFormat(input, TextFormat.Html, TextFormat.Plain);
 
         // Assert
-        result.ShouldBe(expected);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
     #endregion

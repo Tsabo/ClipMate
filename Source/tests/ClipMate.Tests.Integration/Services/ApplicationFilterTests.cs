@@ -4,7 +4,6 @@ using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Shouldly;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -14,7 +13,7 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ApplicationFilterTests : IntegrationTestBase
 {
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithExactProcessName_ShouldReturnTrue()
     {
         // Arrange
@@ -25,10 +24,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter = await filterService.ShouldFilterAsync("notepad.exe", null);
 
         // Assert
-        shouldFilter.ShouldBeTrue();
+        await Assert.That(shouldFilter).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithDifferentProcessName_ShouldReturnFalse()
     {
         // Arrange
@@ -39,10 +38,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter = await filterService.ShouldFilterAsync("chrome.exe", null);
 
         // Assert
-        shouldFilter.ShouldBeFalse();
+        await Assert.That(shouldFilter).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithWindowTitlePattern_ShouldReturnTrue()
     {
         // Arrange
@@ -53,10 +52,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter = await filterService.ShouldFilterAsync(null, "Change Password - Windows Security");
 
         // Assert
-        shouldFilter.ShouldBeTrue();
+        await Assert.That(shouldFilter).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithNonMatchingWindowTitle_ShouldReturnFalse()
     {
         // Arrange
@@ -67,10 +66,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter = await filterService.ShouldFilterAsync(null, "Notepad - Untitled");
 
         // Assert
-        shouldFilter.ShouldBeFalse();
+        await Assert.That(shouldFilter).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithDisabledFilter_ShouldReturnFalse()
     {
         // Arrange
@@ -81,10 +80,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter = await filterService.ShouldFilterAsync("notepad.exe", null);
 
         // Assert
-        shouldFilter.ShouldBeFalse();
+        await Assert.That(shouldFilter).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task ShouldMatchFilter_WithBothProcessAndTitle_ShouldMatchBoth()
     {
         // Arrange
@@ -101,12 +100,12 @@ public class ApplicationFilterTests : IntegrationTestBase
         var shouldFilter3 = await filterService.ShouldFilterAsync("chrome.exe", "password manager");
 
         // Assert
-        shouldFilter1.ShouldBeTrue();   // Both match - should filter
-        shouldFilter2.ShouldBeFalse();  // Only process matches - should not filter
-        shouldFilter3.ShouldBeFalse();  // Only title matches - should not filter
+        await Assert.That(shouldFilter1).IsTrue();   // Both match - should filter
+        await Assert.That(shouldFilter2).IsFalse();  // Only process matches - should not filter
+        await Assert.That(shouldFilter3).IsFalse();  // Only title matches - should not filter
     }
 
-    [Fact]
+    [Test]
     public async Task GetAllFilters_ShouldReturnAllFilters()
     {
         // Arrange
@@ -119,10 +118,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var filters = await filterService.GetAllFiltersAsync();
 
         // Assert
-        filters.Count.ShouldBe(2);
+        await Assert.That(filters.Count).IsEqualTo(2);
     }
 
-    [Fact]
+    [Test]
     public async Task WildcardPattern_ShouldSupportAsterisk()
     {
         // Arrange
@@ -136,10 +135,10 @@ public class ApplicationFilterTests : IntegrationTestBase
         var match4 = await filterService.ShouldFilterAsync(null, "document.txt");
 
         // Assert
-        match1.ShouldBeTrue();
-        match2.ShouldBeTrue();  // Case-insensitive
-        match3.ShouldBeTrue();
-        match4.ShouldBeFalse();
+        await Assert.That(match1).IsTrue();
+        await Assert.That(match2).IsTrue();  // Case-insensitive
+        await Assert.That(match3).IsTrue();
+        await Assert.That(match4).IsFalse();
     }
 
     /// <summary>

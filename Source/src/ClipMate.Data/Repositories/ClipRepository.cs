@@ -35,11 +35,10 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         // Single query: fetch clips with their format flags in one database round-trip
         var clipsWithFormats = await _context.Clips
             .Where(p => !p.Del) // Exclude soft-deleted clips
-            .OrderByDescending(p => p.CapturedAt)
-            .Take(count)
             .GroupJoin(
                 _context.ClipData,
                 clip => clip.Id,
@@ -55,6 +54,12 @@ public class ClipRepository : IClipRepository
                     FormatNames = string.Join(", ", clipDataGroup.Select(cd => cd.FormatName)),
                 })
             .ToListAsync(cancellationToken);
+
+        // Sort in memory and take the requested count
+        clipsWithFormats = clipsWithFormats
+            .OrderByDescending(p => p.Clip.CapturedAt)
+            .Take(count)
+            .ToList();
 
         // Apply format flags to clips in memory
         foreach (var item in clipsWithFormats)
@@ -120,10 +125,13 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => p.CollectionId == collectionId && !p.Del)
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -133,10 +141,13 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => p.FolderId == folderId && !p.Del)
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -146,10 +157,13 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => p.IsFavorite && !p.Del)
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -176,10 +190,13 @@ public class ClipRepository : IClipRepository
         if (string.IsNullOrWhiteSpace(searchText))
             return new List<Clip>();
 
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => !p.Del && EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -253,14 +270,20 @@ public class ClipRepository : IClipRepository
 
     public async Task<int> DeleteOlderThanAsync(DateTime cutoffDate, CancellationToken cancellationToken = default)
     {
-        var clipsToDelete = await _context.Clips
-            .Where(p => p.CapturedAt < cutoffDate && !p.IsFavorite)
+        // Fetch all non-favorite clips without date filtering (SQLite doesn't support DateTimeOffset comparisons well)
+        var allClips = await _context.Clips
+            .Where(p => !p.IsFavorite)
             .ToListAsync(cancellationToken);
+
+        // Filter by date in memory
+        var clipsToDelete = allClips
+            .Where(p => p.CapturedAt.DateTime < cutoffDate)
+            .ToList();
 
         foreach (var clip in clipsToDelete)
         {
             clip.Del = true;
-            clip.DelDate = DateTime.UtcNow;
+            clip.DelDate = DateTimeOffset.Now;
             await DeleteClipBlobsAsync(clip.Id, cancellationToken);
         }
 
@@ -279,9 +302,12 @@ public class ClipRepository : IClipRepository
 
     public async Task<IEnumerable<Clip>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         await LoadFormatFlagsAsync(clips, cancellationToken);
 
@@ -290,10 +316,13 @@ public class ClipRepository : IClipRepository
 
     public async Task<IEnumerable<Clip>> GetByTypeAsync(ClipType type, CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => p.Type == type)
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         await LoadFormatFlagsAsync(clips, cancellationToken);
 
@@ -302,10 +331,13 @@ public class ClipRepository : IClipRepository
 
     public async Task<IReadOnlyList<Clip>> GetPinnedAsync(CancellationToken cancellationToken = default)
     {
+        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
         var clips = await _context.Clips
             .Where(p => p.Label == "Pinned" && !p.Del)
-            .OrderByDescending(p => p.CapturedAt)
             .ToListAsync(cancellationToken);
+
+        // Sort in memory after fetching
+        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
