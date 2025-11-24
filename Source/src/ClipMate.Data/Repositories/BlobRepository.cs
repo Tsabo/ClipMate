@@ -77,6 +77,14 @@ public class BlobRepository : IBlobRepository
             .ToListAsync(cancellationToken);
     }
 
+    // ==================== Update Operations ====================
+
+    public async Task UpdateTextAsync(BlobTxt blobTxt, CancellationToken cancellationToken = default)
+    {
+        _context.BlobTxt.Update(blobTxt);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     // ==================== Delete Operations ====================
 
     public async Task<int> DeleteByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)

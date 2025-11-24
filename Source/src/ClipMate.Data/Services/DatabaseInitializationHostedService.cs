@@ -32,9 +32,22 @@ public class DatabaseInitializationHostedService : IHostedService
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
 
-            // Ensure database is created
-            await context.Database.EnsureCreatedAsync(cancellationToken);
-            _logger.LogInformation("Database ensured");
+            // Apply any pending migrations (this will create the database if it doesn't exist)
+            // This is the proper way to handle database schema updates for customers
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync(cancellationToken);
+            if (pendingMigrations.Any())
+            {
+                _logger.LogInformation("Applying {Count} pending migrations: {Migrations}", 
+                    pendingMigrations.Count(), 
+                    string.Join(", ", pendingMigrations));
+                    
+                await context.Database.MigrateAsync(cancellationToken);
+                _logger.LogInformation("Migrations applied successfully");
+            }
+            else
+            {
+                _logger.LogInformation("Database is up to date, no migrations needed");
+            }
 
             // Seed default ClipMate 7.5 collection structure
             var seeder = new DefaultDataSeeder(context, scope.ServiceProvider.GetService<ILogger<DefaultDataSeeder>>());

@@ -1,0 +1,164 @@
+<UserControl x:Class="ClipMate.App.Controls.ClipViewerControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:ClipMate.App.Controls"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+             xmlns:wpfHex="clr-namespace:WpfHexaEditor;assembly=WpfHexaEditor"
+             xmlns:lmimgz="clr-namespace:LinkingMountains.ImageZoom;assembly=LinkingMountains.ImageZoom"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid>
+        <dx:DXTabControl x:Name="FormatTabControl">
+            <dx:DXTabControl.View>
+                <dx:TabControlMultiLineView HeaderLocation="Bottom"/>
+            </dx:DXTabControl.View>
+            <!-- Text Tab -->
+            <dx:DXTabItem x:Name="TextTab" Header="Text">
+                <Grid>
+                    <controls:MonacoEditorControl x:Name="TextEditor"
+                                                  IsReadOnly="True"/>
+                    <TextBlock x:Name="NoTextMessage"
+                               Text="No text format available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+
+            <!-- HTML Tab -->
+            <dx:DXTabItem x:Name="HtmlTab" Header="HTML">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- HTML View Toggle -->
+                    <Border Grid.Row="0" Background="#2D2D30" Padding="5">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="HtmlPreviewRadio"
+                                       Content="Preview"
+                                       IsChecked="True"
+                                       Foreground="#CCCCCC"
+                                       Margin="0,0,15,0"
+                                       Checked="OnHtmlViewChanged"/>
+                            <RadioButton x:Name="HtmlSourceRadio"
+                                       Content="Source"
+                                       Foreground="#CCCCCC"
+                                       Checked="OnHtmlViewChanged"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Grid Grid.Row="1">
+                        <!-- HTML Preview -->
+                        <wv2:WebView2 x:Name="HtmlPreview"
+                                     Visibility="Visible"/>
+                        
+                        <!-- HTML Source -->
+                        <controls:MonacoEditorControl x:Name="HtmlEditor"
+                                                      IsReadOnly="True"
+                                                      Language="html"
+                                                      Visibility="Collapsed"/>
+                    </Grid>
+                    
+                    <TextBlock x:Name="NoHtmlMessage"
+                               Grid.Row="1"
+                               Text="No HTML format available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+
+            <!-- RTF Tab -->
+            <dx:DXTabItem x:Name="RtfTab" Header="RTF">
+                <Grid>
+                    <RichTextBox x:Name="RtfViewer"
+                                IsReadOnly="True"
+                                VerticalScrollBarVisibility="Auto"
+                                HorizontalScrollBarVisibility="Auto"/>
+                    <TextBlock x:Name="NoRtfMessage"
+                               Text="No RTF format available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+
+            <!-- Bitmap Tab (CF_BITMAP, CF_DIB) -->
+            <dx:DXTabItem x:Name="BitmapTab" Header="Bitmap">
+                <Grid>
+                    <lmimgz:ImageZoom x:Name="BitmapViewer" />
+                    <TextBlock x:Name="NoBitmapMessage"
+                               Text="No bitmap format available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+
+            <!-- Picture Tab (PNG, JPG files) -->
+            <dx:DXTabItem x:Name="PictureTab" Header="Picture">
+                <Grid>
+                    <lmimgz:ImageZoom x:Name="PictureViewer" />
+                    <TextBlock x:Name="NoPictureMessage"
+                               Text="No picture format available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+
+            <!-- Binary Tab (Hex Viewer) -->
+            <dx:DXTabItem x:Name="BinaryTab" Header="Binary">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Format Selector -->
+                    <Border Grid.Row="0" Background="#2D2D30" Padding="5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Format:" 
+                                     VerticalAlignment="Center" 
+                                     Margin="0,0,10,0"
+                                     Foreground="#CCCCCC"/>
+                            <ComboBox x:Name="BinaryFormatComboBox"
+                                    Width="250"
+                                    VerticalAlignment="Center"
+                                    SelectionChanged="OnBinaryFormatChanged"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <wpfHex:HexEditor x:Name="HexViewer"
+                                     Grid.Row="1"
+                                     ReadOnlyMode="True"/>
+                    
+                    <TextBlock x:Name="NoBinaryMessage"
+                               Grid.Row="1"
+                               Text="No binary formats available"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               Foreground="Gray"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </dx:DXTabItem>
+        </dx:DXTabControl>
+        
+    </Grid>
+</UserControl>

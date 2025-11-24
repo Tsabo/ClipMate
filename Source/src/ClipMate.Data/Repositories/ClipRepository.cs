@@ -1,4 +1,5 @@
 using System.Text;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -27,9 +28,7 @@ public class ClipRepository : IClipRepository
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (clip != null)
-        {
             await LoadFormatFlagsAsync([clip], cancellationToken);
-        }
 
         return clip;
     }
@@ -48,12 +47,12 @@ public class ClipRepository : IClipRepository
                 (clip, clipDataGroup) => new
                 {
                     Clip = clip,
-                    HasText = clipDataGroup.Any(p => p.Format == 1 || p.Format == 13 || p.FormatName == "CF_TEXT" || p.FormatName == "CF_UNICODETEXT"),
-                    HasRtf = clipDataGroup.Any(p => p.FormatName == "CF_RTF" || p.Format == 0x0082),
-                    HasHtml = clipDataGroup.Any(p => p.FormatName == "HTML Format" || p.Format == 0x0080),
-                    HasBitmap = clipDataGroup.Any(p => p.Format == 2 || p.Format == 8 || p.FormatName == "CF_BITMAP" || p.FormatName == "CF_DIB"),
-                    HasFiles = clipDataGroup.Any(p => p.Format == 15 || p.FormatName == "CF_HDROP"),
-                    FormatNames = string.Join(", ", clipDataGroup.Select(cd => cd.FormatName))
+                    HasText = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_TEXT || p.Format == ClipboardConstants.Format.CF_UNICODETEXT || p.FormatName == "CF_TEXT" || p.FormatName == "CF_UNICODETEXT"),
+                    HasRtf = clipDataGroup.Any(p => p.FormatName == "CF_RTF" || p.Format == ClipboardConstants.Format.CF_RTF),
+                    HasHtml = clipDataGroup.Any(p => p.FormatName == "HTML Format" || p.Format == ClipboardConstants.Format.CF_HTML || p.Format == ClipboardConstants.Format.CF_HTML_ALT),
+                    HasBitmap = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_BITMAP || p.Format == ClipboardConstants.Format.CF_DIB || p.FormatName == "CF_BITMAP" || p.FormatName == "CF_DIB"),
+                    HasFiles = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_HDROP || p.FormatName == "CF_HDROP"),
+                    FormatNames = string.Join(", ", clipDataGroup.Select(cd => cd.FormatName)),
                 })
             .ToListAsync(cancellationToken);
 
@@ -61,7 +60,7 @@ public class ClipRepository : IClipRepository
         foreach (var item in clipsWithFormats)
         {
             var clip = item.Clip;
-            
+
             // Set format flags directly
             clip.HasText = item.HasText;
             clip.HasRtf = item.HasRtf;
@@ -72,27 +71,23 @@ public class ClipRepository : IClipRepository
             // Pre-compute and cache the icon string
             var icons = new List<string>();
             if (item.HasBitmap)
-            {
                 icons.Add("🖼");
-            }
-            if (item.HasRtf)
-            {
-                icons.Add("🅰");
-            }
-            if (item.HasHtml)
-            {
-                icons.Add("🌐");
-            }
-            if (item.HasFiles)
-            {
-                icons.Add("📁");
-            }
-            if (item.HasText)
-            {
-                icons.Add("📄");
-            }
 
-            clip.IconGlyph = icons.Count > 0 ? string.Join("", icons) : "❓";
+            if (item.HasRtf)
+                icons.Add("🅰");
+
+            if (item.HasHtml)
+                icons.Add("🌐");
+
+            if (item.HasFiles)
+                icons.Add("📁");
+
+            if (item.HasText)
+                icons.Add("📄");
+
+            clip.IconGlyph = icons.Count > 0
+                ? string.Join("", icons)
+                : "❓";
 
             // Fallback for clips with no ClipData
             if (!item.HasText && !item.HasRtf && !item.HasHtml && !item.HasBitmap && !item.HasFiles)
@@ -165,17 +160,13 @@ public class ClipRepository : IClipRepository
     public async Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentHash))
-        {
             return null;
-        }
 
         var clip = await _context.Clips
             .FirstOrDefaultAsync(p => p.ContentHash == contentHash, cancellationToken);
 
         if (clip != null)
-        {
             await LoadFormatFlagsAsync([clip], cancellationToken);
-        }
 
         return clip;
     }
@@ -183,9 +174,7 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<Clip>> SearchAsync(string searchText, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchText))
-        {
             return new List<Clip>();
-        }
 
         var clips = await _context.Clips
             .Where(p => !p.Del && EF.Functions.Like(p.TextContent ?? "", $"%{searchText}%"))
@@ -201,9 +190,7 @@ public class ClipRepository : IClipRepository
     public async Task<Clip> CreateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
-        {
             throw new ArgumentNullException(nameof(clip));
-        }
 
         // Generate auto-increment SortKey for ClipMate 7.5 compatibility
         // SortKey = (count + 1) * 100 to allow manual re-ordering between clips
@@ -238,9 +225,7 @@ public class ClipRepository : IClipRepository
     public async Task<bool> UpdateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
-        {
             throw new ArgumentNullException(nameof(clip));
-        }
 
         _context.Clips.Update(clip);
         await _context.SaveChangesAsync(cancellationToken);
@@ -253,9 +238,7 @@ public class ClipRepository : IClipRepository
         var clip = await _context.Clips.FindAsync([id], cancellationToken);
 
         if (clip == null)
-        {
             return false;
-        }
 
         // Soft delete (ClipMate style)
         clip.Del = true;
@@ -289,8 +272,8 @@ public class ClipRepository : IClipRepository
     public async Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.ClipData
-            .Where(cd => cd.ClipId == clipId)
-            .OrderBy(cd => cd.FormatName)
+            .Where(p => p.ClipId == clipId)
+            .OrderBy(p => p.FormatName)
             .ToListAsync(cancellationToken);
     }
 
@@ -347,9 +330,9 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
                 FormatName = "CF_UNICODETEXT",
-                Format = 13, // CF_UNICODETEXT
+                Format = ClipboardConstants.Format.CF_UNICODETEXT,
                 Size = clip.TextContent.Length * 2, // Unicode bytes
-                StorageType = 1 // TEXT
+                StorageType = 1, // TEXT
             };
 
             clipDataEntries.Add(clipData);
@@ -360,7 +343,7 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipDataId = clipData.Id,
                 ClipId = clip.Id, // Denormalized for performance
-                Data = clip.TextContent
+                Data = clip.TextContent,
             };
 
             _context.BlobTxt.Add(blobTxt);
@@ -376,7 +359,7 @@ public class ClipRepository : IClipRepository
                 FormatName = "CF_RTF",
                 Format = RegisterClipboardFormat("Rich Text Format"), // ~0x0082
                 Size = clip.RtfContent.Length * 2,
-                StorageType = 1 // TEXT
+                StorageType = 1, // TEXT
             };
 
             clipDataEntries.Add(clipData);
@@ -386,7 +369,7 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipDataId = clipData.Id,
                 ClipId = clip.Id,
-                Data = clip.RtfContent
+                Data = clip.RtfContent,
             };
 
             _context.BlobTxt.Add(blobTxt);
@@ -402,7 +385,7 @@ public class ClipRepository : IClipRepository
                 FormatName = "HTML Format",
                 Format = RegisterClipboardFormat("HTML Format"), // ~0x0080
                 Size = clip.HtmlContent.Length * 2,
-                StorageType = 1 // TEXT
+                StorageType = 1, // TEXT
             };
 
             clipDataEntries.Add(clipData);
@@ -412,37 +395,53 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipDataId = clipData.Id,
                 ClipId = clip.Id,
-                Data = clip.HtmlContent
+                Data = clip.HtmlContent,
             };
 
             _context.BlobTxt.Add(blobTxt);
         }
 
-        // Handle image format (CF_BITMAP = 2, CF_DIB = 8)
+        // Handle image format - detect and store in original format
         if (clip.ImageData is { Length: > 0 })
         {
+            var imageFormat = DetectImageFormat(clip.ImageData);
+            var storageType = imageFormat == ImageFormat.Jpeg ? 2 : 3; // 2=JPEG, 3=PNG
+            
             var clipData = new ClipData
             {
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
                 FormatName = "CF_DIB",
-                Format = 8, // CF_DIB
+                Format = ClipboardConstants.Format.CF_DIB,
                 Size = clip.ImageData.Length,
-                StorageType = 3 // PNG (we store as PNG)
+                StorageType = storageType,
             };
 
             clipDataEntries.Add(clipData);
 
-            // Store in BlobPng table (we converted to PNG in ClipboardService)
-            var blobPng = new BlobPng
+            // Store in appropriate blob table based on detected format
+            if (imageFormat == ImageFormat.Jpeg)
             {
-                Id = Guid.NewGuid(),
-                ClipDataId = clipData.Id,
-                ClipId = clip.Id,
-                Data = clip.ImageData
-            };
-
-            _context.BlobPng.Add(blobPng);
+                var blobJpg = new BlobJpg
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = clipData.Id,
+                    ClipId = clip.Id,
+                    Data = clip.ImageData,
+                };
+                _context.BlobJpg.Add(blobJpg);
+            }
+            else // PNG or fallback
+            {
+                var blobPng = new BlobPng
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = clipData.Id,
+                    ClipId = clip.Id,
+                    Data = clip.ImageData,
+                };
+                _context.BlobPng.Add(blobPng);
+            }
         }
 
         // Handle files format (CF_HDROP = 15)
@@ -453,9 +452,9 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
                 FormatName = "CF_HDROP",
-                Format = 15, // CF_HDROP
+                Format = ClipboardConstants.Format.CF_HDROP,
                 Size = clip.FilePathsJson.Length * 2,
-                StorageType = 4 // BLOB (generic)
+                StorageType = 4, // BLOB (generic)
             };
 
             clipDataEntries.Add(clipData);
@@ -465,7 +464,7 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipDataId = clipData.Id,
                 ClipId = clip.Id,
-                Data = Encoding.UTF8.GetBytes(clip.FilePathsJson)
+                Data = Encoding.UTF8.GetBytes(clip.FilePathsJson),
             };
 
             _context.BlobBlob.Add(blobBlob);
@@ -473,9 +472,7 @@ public class ClipRepository : IClipRepository
 
         // Add all ClipData entries
         if (clipDataEntries.Count > 0)
-        {
             await _context.ClipData.AddRangeAsync(clipDataEntries, cancellationToken);
-        }
     }
 
     /// <summary>
@@ -489,7 +486,7 @@ public class ClipRepository : IClipRepository
         {
             "Rich Text Format" => 0x0082,
             "HTML Format" => 0x0080,
-            _ => 0x00FF // Custom format
+            var _ => 0x00FF, // Custom format
         };
     }
 
@@ -520,9 +517,7 @@ public class ClipRepository : IClipRepository
         var clipsList = clips.ToList();
 
         if (!clipsList.Any())
-        {
             return;
-        }
 
         var clipIds = clipsList.Select(p => p.Id).ToList();
 
@@ -533,12 +528,12 @@ public class ClipRepository : IClipRepository
             .Select(p => new
             {
                 ClipId = p.Key,
-                HasText = p.Any(cd => cd.Format == 1 || cd.Format == 13 || cd.FormatName == "CF_TEXT" || cd.FormatName == "CF_UNICODETEXT"),
-                HasRtf = p.Any(cd => cd.FormatName == "CF_RTF" || cd.Format == 0x0082),
-                HasHtml = p.Any(cd => cd.FormatName == "HTML Format" || cd.Format == 0x0080),
-                HasBitmap = p.Any(cd => cd.Format == 2 || cd.Format == 8 || cd.FormatName == "CF_BITMAP" || cd.FormatName == "CF_DIB"),
-                HasFiles = p.Any(cd => cd.Format == 15 || cd.FormatName == "CF_HDROP"),
-                FormatNames = string.Join(", ", p.Select(cd => cd.FormatName))
+                HasText = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_TEXT || cd.Format == ClipboardConstants.Format.CF_UNICODETEXT || cd.FormatName == "CF_TEXT" || cd.FormatName == "CF_UNICODETEXT"),
+                HasRtf = p.Any(cd => cd.FormatName == "CF_RTF" || cd.Format == ClipboardConstants.Format.CF_RTF),
+                HasHtml = p.Any(cd => cd.FormatName == "HTML Format" || cd.Format == ClipboardConstants.Format.CF_HTML || cd.Format == ClipboardConstants.Format.CF_HTML_ALT),
+                HasBitmap = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_BITMAP || cd.Format == ClipboardConstants.Format.CF_DIB || cd.FormatName == "CF_BITMAP" || cd.FormatName == "CF_DIB"),
+                HasFiles = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_HDROP || cd.FormatName == "CF_HDROP"),
+                FormatNames = string.Join(", ", p.Select(cd => cd.FormatName)),
             })
             .ToListAsync(cancellationToken);
 
@@ -561,29 +556,19 @@ public class ClipRepository : IClipRepository
                 // Pre-compute and cache the icon string
                 var icons = new List<string>();
                 if (flags.HasBitmap)
-                {
                     icons.Add("🖼");
-                }
 
                 if (flags.HasRtf)
-                {
                     icons.Add("🅰");
-                }
 
                 if (flags.HasHtml)
-                {
                     icons.Add("🌐");
-                }
 
                 if (flags.HasFiles)
-                {
                     icons.Add("📁");
-                }
 
                 if (flags.HasText)
-                {
                     icons.Add("📄");
-                }
 
                 clip.IconGlyph = icons.Count > 0
                     ? string.Join("", icons)
@@ -620,5 +605,68 @@ public class ClipRepository : IClipRepository
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     Detects image format from byte array by examining magic bytes.
+    /// </summary>
+    private static ImageFormat DetectImageFormat(byte[] imageData)
+    {
+        if (imageData.Length < 4)
+            return ImageFormat.Unknown;
+
+        // Check PNG signature: 89 50 4E 47 (‰PNG)
+        if (imageData.Length >= 8 &&
+            imageData[0] == 0x89 &&
+            imageData[1] == 0x50 &&
+            imageData[2] == 0x4E &&
+            imageData[3] == 0x47 &&
+            imageData[4] == 0x0D &&
+            imageData[5] == 0x0A &&
+            imageData[6] == 0x1A &&
+            imageData[7] == 0x0A)
+        {
+            return ImageFormat.Png;
+        }
+
+        // Check JPEG signature: FF D8 FF
+        if (imageData.Length >= 3 &&
+            imageData[0] == 0xFF &&
+            imageData[1] == 0xD8 &&
+            imageData[2] == 0xFF)
+        {
+            return ImageFormat.Jpeg;
+        }
+
+        // Check GIF signature: GIF87a or GIF89a
+        if (imageData.Length >= 6 &&
+            imageData[0] == 0x47 && // G
+            imageData[1] == 0x49 && // I
+            imageData[2] == 0x46 && // F
+            imageData[3] == 0x38 && // 8
+            (imageData[4] == 0x37 || imageData[4] == 0x39) && // 7 or 9
+            imageData[5] == 0x61) // a
+        {
+            return ImageFormat.Gif;
+        }
+
+        // Check BMP signature: BM
+        if (imageData.Length >= 2 &&
+            imageData[0] == 0x42 && // B
+            imageData[1] == 0x4D)   // M
+        {
+            return ImageFormat.Bmp;
+        }
+
+        return ImageFormat.Unknown;
+    }
+
+    private enum ImageFormat
+    {
+        Unknown,
+        Png,
+        Jpeg,
+        Gif,
+        Bmp
     }
 }

@@ -9,6 +9,7 @@
         xmlns:local="clr-namespace:ClipMate.App"
         xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
         xmlns:views="clr-namespace:ClipMate.App.Views"
+        xmlns:controls="clr-namespace:ClipMate.App.Controls"
         xmlns:converters="clr-namespace:ClipMate.App.Converters"
         mc:Ignorable="d"
         Title="ClipMate - Clipboard Manager"
@@ -79,40 +80,61 @@
                          HorizontalAlignment="Stretch"
                          Background="Transparent"/>
 
-            <!-- Center: ClipList Component(s) -->
+            <!-- Center: ClipList Component(s) and ClipViewer -->
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
-                    <!-- Primary ClipList - always visible -->
-                    <RowDefinition Height="*"/>
-                    <!-- Splitter - visible only in dual mode -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Secondary ClipList - visible only in dual mode -->
-                    <RowDefinition Height="Auto"/>
+                    <!-- ClipList area (dual mode support) -->
+                    <RowDefinition Height="*" MinHeight="200"/>
+                    <!-- Splitter between ClipList and ClipViewer -->
+                    <RowDefinition Height="5"/>
+                    <!-- ClipViewer area -->
+                    <RowDefinition Height="*" MinHeight="200"/>
                 </Grid.RowDefinitions>
 
-                <!-- Primary ClipList -->
-                <GroupBox Grid.Row="0" Header="Clips (Primary)">
-                    <views:ClipListView x:Name="ClipListView"
-                                       Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                       SelectionChanged="ClipListView_SelectionChanged"/>
-                </GroupBox>
+                <!-- ClipList area with dual mode support -->
+                <Grid Grid.Row="0">
+                    <Grid.RowDefinitions>
+                        <!-- Primary ClipList - always visible -->
+                        <RowDefinition Height="*"/>
+                        <!-- Splitter - visible only in dual mode -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Secondary ClipList - visible only in dual mode -->
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <!-- Splitter for dual ClipList mode -->
+                    <!-- Primary ClipList -->
+                    <GroupBox Grid.Row="0" Header="Clips (Primary)">
+                        <views:ClipListView x:Name="ClipListView"
+                                           Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
+                                           SelectedItem="{Binding PrimaryClipList.SelectedClip}"/>
+                    </GroupBox>
+
+                    <!-- Splitter for dual ClipList mode -->
+                    <GridSplitter Grid.Row="1"
+                                 Height="5"
+                                 HorizontalAlignment="Stretch"
+                                 Background="Transparent"
+                                 Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                    <!-- Secondary ClipList (TODO: Low priority - needs keyed services) -->
+                    <!--<GroupBox Grid.Row="2" 
+                             Header="Clips (Secondary - Click to Change)"
+                             Height="350"
+                             Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <views:ClipListView x:Name="SecondaryClipListView"
+                                           Items="{Binding SecondaryClips}"
+                                           SelectionChanged="SecondaryClipListView_SelectionChanged"/>
+                    </GroupBox>-->
+                </Grid>
+
+                <!-- Vertical Splitter between ClipList and ClipViewer -->
                 <GridSplitter Grid.Row="1"
                              Height="5"
                              HorizontalAlignment="Stretch"
-                             Background="Transparent"
-                             Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                             Background="Transparent"/>
 
-                <!-- Secondary ClipList (TODO: Low priority - needs keyed services) -->
-                <!--<GroupBox Grid.Row="2" 
-                         Header="Clips (Secondary - Click to Change)"
-                         Height="350"
-                         Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <views:ClipListView x:Name="SecondaryClipListView"
-                                       Items="{Binding SecondaryClips}"
-                                       SelectionChanged="SecondaryClipListView_SelectionChanged"/>
-                </GroupBox>-->
+                <!-- ClipViewer area -->
+                <controls:ClipViewerControl Grid.Row="2"  x:Name="ClipViewer"/>
             </Grid>
         </Grid>
     </DockPanel>

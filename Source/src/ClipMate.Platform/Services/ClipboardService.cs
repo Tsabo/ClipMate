@@ -275,8 +275,7 @@ public class ClipboardService : IClipboardService, IDisposable
         var hasFiles = WpfClipboard.ContainsFileDropList();
 
         // Priority 1: Text formats (includes RTF and HTML)
-        if (hasText || WpfClipboard.ContainsData(DataFormats.Rtf) ||
-            WpfClipboard.ContainsData(DataFormats.Html))
+        if (hasText || WpfClipboard.ContainsData(DataFormats.Rtf) || WpfClipboard.ContainsData(DataFormats.Html))
         {
             clip = ExtractTextClip();
         }
@@ -369,7 +368,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Extracts image clipboard content (CF_BITMAP = 2, CF_DIB = 8).
+    ///     Extracts image clipboard content, converting to proper PNG or JPEG format.
     /// </summary>
     private Clip? ExtractImageClip()
     {
@@ -380,16 +379,90 @@ public class ClipboardService : IClipboardService, IDisposable
                 return null;
             }
 
+            // Check if PNG format is available directly in the clipboard
+            // If PNG exists, use it directly to preserve transparency
+            bool hasPngFormat = WpfClipboard.ContainsData("PNG");
+            byte[]? pngData = null;
+            
+            if (hasPngFormat)
+            {
+                try
+                {
+                    var pngStream = WpfClipboard.GetData("PNG") as MemoryStream;
+                    if (pngStream != null)
+                    {
+                        pngData = pngStream.ToArray();
+                        _logger.LogDebug("Found PNG format in clipboard: {Size} bytes", pngData.Length);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to retrieve PNG data from clipboard, falling back to BitmapSource");
+                }
+            }
+
+            // If we have valid PNG data, use it directly
+            if (pngData != null && pngData.Length > 0 && DetectImageFormatFromBytes(pngData) == "PNG")
+            {
+                _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
+                
+                // Decode PNG to get dimensions for the title
+                var decoder = BitmapDecoder.Create(
+                    new MemoryStream(pngData),
+                    BitmapCreateOptions.DelayCreation,
+                    BitmapCacheOption.None);
+                
+                var frame = decoder.Frames[0];
+                
+                var pngClip = new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    Type = ClipType.Image,
+                    ImageData = pngData,
+                    CapturedAt = DateTime.UtcNow,
+                    ContentHash = ContentHasher.HashBytes(pngData),
+                    Size = pngData.Length,
+                    Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
+                };
+
+                _logger.LogDebug("Captured PNG image from clipboard PNG format: {Width}x{Height}, {Size} bytes",
+                    frame.PixelWidth, frame.PixelHeight, pngData.Length);
+
+                return pngClip;
+            }
+
+            // No PNG format or failed to retrieve it - use standard BitmapSource approach
+            // This will be InteropBitmap for screenshots (needs alpha fix)
             var image = WpfClipboard.GetImage();
             if (image == null)
             {
                 return null;
             }
 
-            // Convert BitmapSource to byte array (PNG format for storage)
-            var imageData = ConvertBitmapSourceToBytes(image);
+            // InteropBitmap is specifically used for DIB/DIBv5 clipboard formats (screenshots, screen captures)
+            // These have the known alpha=0 bug.
+            bool isInteropBitmap = image is InteropBitmap;
+            
+            _logger.LogDebug("Extracting image from clipboard: {Width}x{Height}, Format: {Format}, DpiX: {DpiX}, DpiY: {DpiY}, Type: {BitmapType}, IsInteropBitmap: {IsInterop}",
+                image.PixelWidth, image.PixelHeight, image.Format, image.DpiX, image.DpiY, image.GetType().Name, isInteropBitmap);
+
+            // Convert BitmapSource to byte array
+            // Pass whether this is an InteropBitmap (which needs alpha channel fixing)
+            var imageData = ConvertBitmapSourceToBytes(image, isInteropBitmap);
             if (imageData == null || imageData.Length == 0)
             {
+                _logger.LogError("Failed to convert bitmap to bytes");
+                return null;
+            }
+
+            // Verify the generated image is valid by checking magic bytes
+            var detectedFormat = DetectImageFormatFromBytes(imageData);
+            _logger.LogDebug("Generated image format: {Format}, Size: {Size} bytes", detectedFormat, imageData.Length);
+
+            if (detectedFormat == "Unknown")
+            {
+                _logger.LogError("Generated image data is not a valid PNG. First 16 bytes: {Bytes}",
+                    BitConverter.ToString(imageData.Take(16).ToArray()));
                 return null;
             }
 
@@ -399,16 +472,13 @@ public class ClipboardService : IClipboardService, IDisposable
                 Type = ClipType.Image,
                 ImageData = imageData,
                 CapturedAt = DateTime.UtcNow,
-                TextContent = $"[Image: {image.PixelWidth}x{image.PixelHeight}]",
-                // Generate content hash from image data
+                // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
                 ContentHash = ContentHasher.HashBytes(imageData),
-                // Size in bytes
                 Size = imageData.Length,
-                // Title for image
-                Title = $"Image {image.PixelWidth}×{image.PixelHeight}", // For search/display
+                Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
             };
 
-            _logger.LogDebug("Captured image: {Width}x{Height}, {Size} bytes",
+            _logger.LogDebug("Captured PNG image: {Width}x{Height}, {Size} bytes",
                 image.PixelWidth, image.PixelHeight, imageData.Length);
 
             return clip;
@@ -418,6 +488,30 @@ public class ClipboardService : IClipboardService, IDisposable
             _logger.LogError(ex, "Error extracting image from clipboard");
             return null;
         }
+    }
+
+    /// <summary>
+    ///     Detects image format from byte array.
+    /// </summary>
+    private string DetectImageFormatFromBytes(byte[] imageData)
+    {
+        if (imageData.Length < 8)
+            return "Unknown";
+
+        // Check PNG signature: 89 50 4E 47 0D 0A 1A 0A
+        if (imageData[0] == 0x89 && imageData[1] == 0x50 && imageData[2] == 0x4E && imageData[3] == 0x47 &&
+            imageData[4] == 0x0D && imageData[5] == 0x0A && imageData[6] == 0x1A && imageData[7] == 0x0A)
+        {
+            return "PNG";
+        }
+
+        // Check JPEG signature: FF D8 FF
+        if (imageData[0] == 0xFF && imageData[1] == 0xD8 && imageData[2] == 0xFF)
+        {
+            return "JPEG";
+        }
+
+        return "Unknown";
     }
 
     /// <summary>
@@ -571,12 +665,86 @@ public class ClipboardService : IClipboardService, IDisposable
     /// <summary>
     ///     Converts BitmapSource to PNG byte array for storage.
     /// </summary>
-    private byte[]? ConvertBitmapSourceToBytes(BitmapSource image)
+    /// <param name="image">The BitmapSource to convert</param>
+    /// <param name="isInteropBitmap">True if the image is an InteropBitmap (DIB format from screenshots), which has the alpha=0 bug</param>
+    private byte[]? ConvertBitmapSourceToBytes(BitmapSource image, bool isInteropBitmap)
     {
         try
         {
+            // Calculate the stride (bytes per row)
+            int stride = (image.PixelWidth * image.Format.BitsPerPixel + 7) / 8;
+            byte[] pixelData = new byte[stride * image.PixelHeight];
+            
+            // Copy pixel data from the source image
+            image.CopyPixels(pixelData, stride, 0);
+            
+            // Fix alpha channel transparency bug ONLY for InteropBitmap sources
+            // InteropBitmap is used for DIB/DIBv5 (Device Independent Bitmap) from Windows screenshots
+            // which often incorrectly sets alpha=0 for all pixels even though the image is opaque.
+            // Other bitmap types (from PNG files, etc.) should preserve transparency exactly as-is.
+            if (isInteropBitmap && 
+                (image.Format == System.Windows.Media.PixelFormats.Bgra32 || 
+                 image.Format == System.Windows.Media.PixelFormats.Pbgra32))
+            {
+                // Check if any alpha bytes are non-zero
+                bool hasNonZeroAlpha = false;
+                for (int i = 3; i < pixelData.Length; i += 4)
+                {
+                    if (pixelData[i] != 0)
+                    {
+                        hasNonZeroAlpha = true;
+                        break;
+                    }
+                }
+                
+                // If ALL alpha bytes are 0, this is the InteropBitmap transparency bug
+                // Fix by setting all alpha to 255 (fully opaque)
+                if (!hasNonZeroAlpha)
+                {
+                    // Check if RGB channels have data (not a truly blank image)
+                    bool hasColorData = false;
+                    for (int i = 0; i < Math.Min(1000 * 4, pixelData.Length) && !hasColorData; i++)
+                    {
+                        if (i % 4 != 3 && pixelData[i] != 0) // Skip alpha channel, check B, G, R
+                        {
+                            hasColorData = true;
+                        }
+                    }
+                    
+                    if (hasColorData)
+                    {
+                        // This is the InteropBitmap transparency bug - image has color but all alpha=0
+                        // Fix by setting all alpha to 255 (opaque)
+                        for (int i = 3; i < pixelData.Length; i += 4)
+                        {
+                            pixelData[i] = 255;
+                        }
+                        _logger.LogInformation("Fixed InteropBitmap transparency bug: all alpha was 0, set to 255 (opaque)");
+                    }
+                }
+            }
+
+            // Create a new WriteableBitmap from the pixel data
+            var writableBitmap = new WriteableBitmap(
+                image.PixelWidth,
+                image.PixelHeight,
+                image.DpiX,
+                image.DpiY,
+                image.Format,
+                image.Palette);
+
+            // Write the pixel data to the writable bitmap
+            writableBitmap.WritePixels(
+                new System.Windows.Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
+                pixelData,
+                stride,
+                0);
+            
+            writableBitmap.Freeze();
+
+            // Encode to PNG
             var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(image));
+            encoder.Frames.Add(BitmapFrame.Create(writableBitmap));
 
             using var memoryStream = new MemoryStream();
             encoder.Save(memoryStream);
@@ -639,7 +807,12 @@ public class ClipboardService : IClipboardService, IDisposable
 
             if (decoder.Frames.Count > 0)
             {
-                WpfClipboard.SetImage(decoder.Frames[0]);
+                // Create a writable copy to ensure pixel data is fully accessible
+                // This prevents issues when pasting into some applications
+                var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
+                writableBitmap.Freeze(); // Make immutable for clipboard
+                
+                WpfClipboard.SetImage(writableBitmap);
             }
         }
         catch (Exception ex)

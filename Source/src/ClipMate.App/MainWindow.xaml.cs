@@ -300,14 +300,6 @@ public partial class MainWindow : Window, IWindow
         _logger?.LogInformation("MainWindow minimized to system tray");
     }
 
-    private void ClipListView_SelectionChanged(object sender, RoutedEventArgs e)
-    {
-        // Selection changes are handled by ClipListViewModel sending ClipSelectedEvent via messenger
-        // PreviewPaneViewModel receives the event automatically
-        var selectedClip = ClipListView.SelectedItem;
-        _viewModel.PrimaryClipList.SelectedClip = selectedClip;
-    }
-
     private void SecondaryClipListView_SelectionChanged(object sender, RoutedEventArgs e)
     {
         // Selection changes in secondary list (if dual mode is implemented)

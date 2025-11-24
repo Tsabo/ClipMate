@@ -5,6 +5,7 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
+using ClipMate.Core.ViewModels;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Platform.DependencyInjection;
@@ -81,6 +82,11 @@ public partial class App
 
             // Build and start the host (now with confirmed database path)
             _host = CreateHostBuilder(_databasePath!).Build();
+
+            // Load configuration BEFORE starting hosted services
+            var configService = ServiceProvider.GetRequiredService<Core.Services.IConfigurationService>();
+            await configService.LoadAsync();
+            _logger?.LogInformation("Configuration loaded from disk");
 
             // Start all hosted services (database initialization, clipboard monitoring, PowerPaste)
             await _host.StartAsync();
@@ -184,7 +190,7 @@ public partial class App
                 services.AddLogging(builder =>
                 {
                     builder.SetMinimumLevel(LogLevel.Debug);
-                    builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Information);
+                    builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
                     builder.AddDebug();
                     builder.AddConsole();
                 });
@@ -223,6 +229,11 @@ public partial class App
                 services.AddSingleton<PreviewPaneViewModel>();
                 services.AddSingleton<SearchViewModel>();
                 services.AddTransient<ClipPropertiesViewModel>();
+                services.AddTransient<ClipViewerViewModel>();
+
+                // Register Clip Viewer
+                services.AddSingleton<IClipViewerWindowManager>(sp => 
+                    new ClipViewerWindowManager(() => sp.GetRequiredService<ClipViewerViewModel>()));
 
                 // Register Text Tools components
                 services.AddTransient<TextToolsViewModel>();

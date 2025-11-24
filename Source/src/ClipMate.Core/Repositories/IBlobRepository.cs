@@ -73,6 +73,13 @@ public interface IBlobRepository
     Task<IReadOnlyList<BlobBlob>> GetBlobByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates an existing text BLOB.
+    /// </summary>
+    /// <param name="blobTxt">The text BLOB to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateTextAsync(BlobTxt blobTxt, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes all BLOBs for a specific clip across all BLOB tables.
     /// </summary>
     /// <param name="clipId">The clip's unique identifier.</param>

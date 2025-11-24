@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -181,33 +182,33 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private static string GetIconForFormat(string formatName, int formatCode)
     {
         // Text formats
-        if (formatCode == 1 || formatCode == 13 || 
+        if (formatCode == ClipboardConstants.Format.CF_TEXT || formatCode == ClipboardConstants.Format.CF_UNICODETEXT || 
             formatName == "CF_TEXT" || formatName == "CF_UNICODETEXT")
         {
             return "📄"; // Document
         }
 
         // RTF format
-        if (formatName == "CF_RTF" || formatCode == 0x0082)
+        if (formatName == "CF_RTF" || formatCode == ClipboardConstants.Format.CF_RTF)
         {
             return "🅰"; // Letter A (formatted)
         }
 
         // HTML format
-        if (formatName == "HTML Format" || formatCode == 0x0080)
+        if (formatName == "HTML Format" || formatCode == ClipboardConstants.Format.CF_HTML || formatCode == ClipboardConstants.Format.CF_HTML_ALT)
         {
             return "🌐"; // Globe (web)
         }
 
         // Image formats
-        if (formatCode == 2 || formatCode == 8 || 
+        if (formatCode == ClipboardConstants.Format.CF_BITMAP || formatCode == ClipboardConstants.Format.CF_DIB || 
             formatName == "CF_BITMAP" || formatName == "CF_DIB" || formatName == "CF_ENHMETAFILE")
         {
             return "🖼"; // Picture frame
         }
 
         // File list format
-        if (formatCode == 15 || formatName == "CF_HDROP")
+        if (formatCode == ClipboardConstants.Format.CF_HDROP || formatName == "CF_HDROP")
         {
             return "📁"; // Folder
         }

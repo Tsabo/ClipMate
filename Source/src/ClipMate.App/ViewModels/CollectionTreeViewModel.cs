@@ -278,7 +278,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         }
 
         var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
-        var window = new Views.CollectionPropertiesWindow(viewModel)
+        var window = new Views.CollectionPropertiesWindow(viewModel, _configurationService)
         {
             Owner = System.Windows.Application.Current.MainWindow
         };

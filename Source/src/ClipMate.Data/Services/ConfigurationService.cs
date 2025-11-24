@@ -29,9 +29,9 @@ public class ConfigurationService : Core.Services.IConfigurationService
         }
 
         // Ensure directory exists
-        System.IO.Directory.CreateDirectory(configurationDirectory);
+        Directory.CreateDirectory(configurationDirectory);
 
-        _configurationFilePath = System.IO.Path.Combine(configurationDirectory, "clipmate.toml");
+        _configurationFilePath = Path.Combine(configurationDirectory, "clipmate.toml");
         _configuration = CreateDefaultConfiguration();
     }
 
@@ -47,7 +47,7 @@ public class ConfigurationService : Core.Services.IConfigurationService
         await _fileLock.WaitAsync(cancellationToken);
         try
         {
-            if (!System.IO.File.Exists(_configurationFilePath))
+            if (!File.Exists(_configurationFilePath))
             {
                 _logger.LogInformation("Configuration file not found at {Path}. Creating default configuration.", _configurationFilePath);
                 _configuration = CreateDefaultConfiguration();
@@ -56,12 +56,15 @@ public class ConfigurationService : Core.Services.IConfigurationService
             }
 
             _logger.LogInformation("Loading configuration from {Path}", _configurationFilePath);
-            var tomlContent = await System.IO.File.ReadAllTextAsync(_configurationFilePath, cancellationToken);
+            var tomlContent = await File.ReadAllTextAsync(_configurationFilePath, cancellationToken);
+            _logger.LogDebug("TOML file length: {Length} chars", tomlContent.Length);
 
             try
             {
                 _configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent);
-                _logger.LogInformation("Configuration loaded successfully");
+                _logger.LogInformation("Configuration parsed successfully");
+                _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", _configuration.MonacoEditor.EnableDebug);
+                _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", _configuration.MonacoEditor.Theme);
                 return _configuration;
             }
             catch (Exception ex)
@@ -186,17 +189,17 @@ public class ConfigurationService : Core.Services.IConfigurationService
             
             // Write to temporary file first, then rename for atomicity
             var tempPath = _configurationFilePath + ".tmp";
-            await System.IO.File.WriteAllTextAsync(tempPath, tomlContent, System.Text.Encoding.UTF8, cancellationToken);
+            await File.WriteAllTextAsync(tempPath, tomlContent, System.Text.Encoding.UTF8, cancellationToken);
             
             // Backup existing file if it exists
-            if (System.IO.File.Exists(_configurationFilePath))
+            if (File.Exists(_configurationFilePath))
             {
                 var backupPath = _configurationFilePath + ".bak";
-                System.IO.File.Copy(_configurationFilePath, backupPath, overwrite: true);
+                File.Copy(_configurationFilePath, backupPath, overwrite: true);
             }
 
             // Replace with new file
-            System.IO.File.Move(tempPath, _configurationFilePath, overwrite: true);
+            File.Move(tempPath, _configurationFilePath, overwrite: true);
             
             _logger.LogInformation("Configuration saved successfully");
         }
@@ -209,8 +212,8 @@ public class ConfigurationService : Core.Services.IConfigurationService
 
     private ClipMateConfiguration CreateDefaultConfiguration()
     {
-        var appDataPath = System.IO.Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+        var appDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
         var config = new ClipMateConfiguration
@@ -218,6 +221,7 @@ public class ConfigurationService : Core.Services.IConfigurationService
             Version = 1,
             Preferences = new PreferencesConfiguration(),
             Hotkeys = new HotkeyConfiguration(),
+            MonacoEditor = new MonacoEditorConfiguration(),
             DefaultDatabase = "MyClips"
         };
 
@@ -231,7 +235,7 @@ public class ConfigurationService : Core.Services.IConfigurationService
             ReadOnly = false,
             CleanupMethod = 3,
             PurgeDays = 7,
-            UserName = System.Environment.UserName,
+            UserName = Environment.UserName,
             IsRemote = false,
             MultiUser = false,
             UseModificationTimeStamp = true

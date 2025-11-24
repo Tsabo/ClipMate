@@ -1,21 +1,20 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
-using System.IO;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.DependencyInjection;
 
 /// <summary>
-/// Extension methods for registering Data layer services with the DI container.
+///     Extension methods for registering Data layer services with the DI container.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds ClipMate Data services to the service collection.
+    ///     Adds ClipMate Data services to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="databasePath">The path to the SQLite database file.</param>
@@ -23,9 +22,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddClipMateData(this IServiceCollection services, string databasePath)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
-        {
             throw new ArgumentException("Database path cannot be null or empty.", nameof(databasePath));
-        }
 
         // Register EF Core DbContext with SQLite
         services.AddDbContext<ClipMateDbContext>(options =>
@@ -39,12 +36,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISearchQueryRepository, SearchQueryRepository>();
         services.AddScoped<IApplicationFilterRepository, ApplicationFilterRepository>();
         services.AddScoped<ISoundEventRepository, SoundEventRepository>();
-        
+
         // Register ClipMate 7.5 compatibility repositories
         services.AddScoped<IClipDataRepository, ClipDataRepository>();
         services.AddScoped<IBlobRepository, BlobRepository>();
         services.AddScoped<IShortcutRepository, ShortcutRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IMonacoEditorStateRepository, MonacoEditorStateRepository>();
 
         // Register services
         // Note: IClipboardService implementation is in Platform layer
@@ -58,10 +56,11 @@ public static class ServiceCollectionExtensions
 
         // Register configuration service
         // Extract directory from database path
-        var configDirectory = Path.GetDirectoryName(databasePath) ?? 
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
-        services.AddSingleton<IConfigurationService>(sp => 
-            new ConfigurationService(configDirectory, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConfigurationService>>()));
+        var configDirectory = Path.GetDirectoryName(databasePath) ??
+                              Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
+
+        services.AddSingleton<IConfigurationService>(sp =>
+            new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
 
         // Register multi-database management
         services.AddSingleton<DatabaseContextFactory>();
@@ -69,7 +68,7 @@ public static class ServiceCollectionExtensions
 
         // Register ClipboardCoordinator as singleton first (so it can be injected)
         services.AddSingleton<ClipboardCoordinator>();
-        
+
         // Register hosted services (use the singleton instance)
         services.AddHostedService<DatabaseInitializationHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ClipboardCoordinator>());
@@ -78,7 +77,7 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Initializes the database schema and applies migrations.
+    ///     Initializes the database schema and applies migrations.
     /// </summary>
     /// <param name="serviceProvider">The service provider.</param>
     /// <returns>True if initialization was successful.</returns>
@@ -86,7 +85,7 @@ public static class ServiceCollectionExtensions
     {
         using var scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
-        
+
         try
         {
             // Apply any pending migrations

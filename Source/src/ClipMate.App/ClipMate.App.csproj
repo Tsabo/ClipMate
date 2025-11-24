@@ -13,6 +13,12 @@
     <Resource Include="Assets\icon.ico" />
   </ItemGroup>
 
+  <ItemGroup Label="Monaco Editor Assets">
+    <Content Include="Assets\monaco\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />
@@ -25,6 +31,7 @@
     <PackageReference Include="DevExpress.Mvvm" />
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
     <PackageReference Include="Emoji.Wpf" />
+    <PackageReference Include="LinkingMountains.ImageZoom" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -34,7 +41,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
-    <PackageReference Include="Scintilla5.NET" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+    <PackageReference Include="WpfHexaEditor" />
   </ItemGroup>
 
 </Project>

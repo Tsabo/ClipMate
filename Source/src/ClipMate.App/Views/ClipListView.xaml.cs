@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Grid;
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.Views;
 
@@ -119,9 +121,8 @@ public partial class ClipListView
         }
 
         var dialog = new ClipPropertiesDialog();
-        var app = (App)System.Windows.Application.Current;
-        if (app.ServiceProvider.GetService(typeof(ViewModels.ClipPropertiesViewModel)) 
-            is ViewModels.ClipPropertiesViewModel viewModel)
+        var app = (App)Application.Current;
+        if (app.ServiceProvider.GetService(typeof(ViewModels.ClipPropertiesViewModel)) is ViewModels.ClipPropertiesViewModel viewModel)
         {
             await viewModel.LoadClipAsync(SelectedItem);
             dialog.DataContext = viewModel;
@@ -174,7 +175,7 @@ public partial class ClipListView
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Failed to open URL: {ex.Message}", "Error", 
+                MessageBox.Show($"Failed to open URL: {ex.Message}", "Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

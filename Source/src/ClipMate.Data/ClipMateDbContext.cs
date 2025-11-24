@@ -74,6 +74,11 @@ public class ClipMateDbContext : DbContext
     /// </summary>
     public DbSet<SoundEvent> SoundEvents => Set<SoundEvent>();
 
+    /// <summary>
+    /// Gets or sets the Monaco Editor states.
+    /// </summary>
+    public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
+
     public ClipMateDbContext(DbContextOptions<ClipMateDbContext> options)
         : base(options)
     {
@@ -96,6 +101,7 @@ public class ClipMateDbContext : DbContext
         ConfigureSearchQuery(modelBuilder);
         ConfigureApplicationFilter(modelBuilder);
         ConfigureSoundEvent(modelBuilder);
+        ConfigureMonacoEditorState(modelBuilder);
     }
 
     private static void ConfigureClip(ModelBuilder modelBuilder)
@@ -387,6 +393,31 @@ public class ClipMateDbContext : DbContext
             
             entity.HasIndex(e => e.EventType).HasDatabaseName("IX_SoundEvents_EventType");
             entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_SoundEvents_IsEnabled");
+        });
+    }
+
+    private static void ConfigureMonacoEditorState(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<MonacoEditorState>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+
+            entity.Property(e => e.ClipDataId).IsRequired();
+            entity.Property(e => e.Language).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ViewState);
+            entity.Property(e => e.LastModified).IsRequired();
+
+            // One-to-one relationship with ClipData
+            entity.HasOne(e => e.ClipData)
+                .WithMany()
+                .HasForeignKey(e => e.ClipDataId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint on ClipDataId (one-to-one)
+            entity.HasIndex(e => e.ClipDataId)
+                .IsUnique()
+                .HasDatabaseName("IX_MonacoEditorStates_ClipDataId");
         });
     }
 }

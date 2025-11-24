@@ -12,6 +12,7 @@
             <!-- Global Converters -->
             <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:InvertedBooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
             <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
             <converters:ObjectEqualityConverter x:Key="ObjectEqualityConverter"/>
         </ResourceDictionary>

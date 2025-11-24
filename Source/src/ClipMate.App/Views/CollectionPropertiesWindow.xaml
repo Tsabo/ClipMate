@@ -6,7 +6,7 @@
                  xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
                  xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
-                 xmlns:scintillaNet="clr-namespace:ScintillaNET;assembly=Scintilla.NET"
+                 xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  Title="Collection Properties"
                  Width="550"
                  Height="Auto"
@@ -169,13 +169,11 @@
         <dxlc:LayoutGroup Header="SQL" 
                           View="GroupBox"
                           Visibility="{Binding ShowSqlEditor, Converter={StaticResource BooleanToVisibilityConverter}}" ItemSpace="0" Panel.ZIndex="4">
-
-            <WindowsFormsHost>
-                <scintillaNet:Scintilla x:Name="SqlEditor"
-                                        LexerName="sql"
-                                        Enabled="True"
-                                        Height="120"/>
-            </WindowsFormsHost>
+            <controls:MonacoEditorControl x:Name="SqlEditor"
+                                          Text="{Binding SqlQuery, Mode=TwoWay}"
+                                          Language="sql"
+                                          Height="200"
+                                          ShowToolbar="True" />
         </dxlc:LayoutGroup>
 
     </dxlc:LayoutControl>
