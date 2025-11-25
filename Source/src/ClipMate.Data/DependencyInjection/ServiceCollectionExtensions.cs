@@ -48,11 +48,11 @@ public static class ServiceCollectionExtensions
         // Note: IClipboardService implementation is in Platform layer
         services.AddScoped<IClipService, ClipService>();
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
-        services.AddSingleton<ICollectionService, CollectionService>();
-        services.AddSingleton<IFolderService, FolderService>();
-        services.AddSingleton<ISearchService, SearchService>(); // Singleton for search history caching
-        services.AddSingleton<ITemplateService, TemplateService>(); // Singleton for template management
-        services.AddSingleton<DatabaseInitializationService>(); // Database initialization
+        services.AddScoped<ICollectionService, CollectionService>();
+        services.AddScoped<IFolderService, FolderService>();
+        services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<ITemplateService, TemplateService>();
+        services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
 
         // Register configuration service
         // Extract directory from database path
@@ -70,7 +70,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ClipboardCoordinator>();
 
         // Register hosted services (use the singleton instance)
-        services.AddHostedService<DatabaseInitializationHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ClipboardCoordinator>());
 
         return services;

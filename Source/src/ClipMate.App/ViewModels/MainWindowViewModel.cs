@@ -63,6 +63,9 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     targetCollection.IsExpanded = true;
 
+                    // Set this collection as the active collection for new clips
+                    await _collectionService.SetActiveAsync(targetCollection.Collection.Id);
+
                     // Check if this is a default collection (Inbox, Safe, Overflow)
                     var isDefaultCollection = targetCollection.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase) ||
                                               targetCollection.Name.Equals("Safe", StringComparison.OrdinalIgnoreCase) ||
@@ -74,7 +77,7 @@ public partial class MainWindowViewModel : ObservableObject
                         targetCollection.IsSelected = true;
                         CollectionTree.SelectedNode = targetCollection;
 
-                        _logger?.LogInformation("{CollectionName} collection selected (default collection, no folders)", targetCollection.Name);
+                        _logger?.LogInformation("{CollectionName} collection selected and set as active (default collection, no folders)", targetCollection.Name);
                     }
                     else
                     {

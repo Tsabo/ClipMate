@@ -80,15 +80,23 @@ public partial class App
                 return;
             }
 
-            // Build and start the host (now with confirmed database path)
+            // Build the host (now with confirmed database path)
             _host = CreateHostBuilder(_databasePath!).Build();
+
+            // Get logger
+            _logger = ServiceProvider.GetRequiredService<ILogger<App>>();
+
+            // Initialize database schema FIRST (before starting hosted services that depend on it)
+            await InitializeDatabaseSchemaAsync();
+            _logger.LogInformation("Database schema initialized");
 
             // Load configuration BEFORE starting hosted services
             var configService = ServiceProvider.GetRequiredService<Core.Services.IConfigurationService>();
             await configService.LoadAsync();
             _logger?.LogInformation("Configuration loaded from disk");
 
-            // Start all hosted services (database initialization, clipboard monitoring, PowerPaste)
+            // Start all hosted services (clipboard monitoring, PowerPaste, etc)
+            // Note: DatabaseInitializationHostedService will skip schema migration since we already did it
             await _host.StartAsync();
 
             // Create and show the hidden tray icon window
@@ -106,6 +114,22 @@ public partial class App
 
             Shutdown(1);
         }
+    }
+
+    /// <summary>
+    ///     Initializes the database schema before starting hosted services.
+    /// </summary>
+    private async Task InitializeDatabaseSchemaAsync()
+    {
+        using var scope = ServiceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
+        
+        // Ensure database file exists
+        await dbContext.Database.EnsureCreatedAsync();
+        
+        // Migrate schema to match EF Core model
+        var migrationService = scope.ServiceProvider.GetRequiredService<Data.Services.DatabaseSchemaMigrationService>();
+        await migrationService.MigrateAsync(dbContext);
     }
 
     /// <summary>
