@@ -13,9 +13,12 @@ public class SqliteSchemaValidator : ISchemaValidator
         var result = new ValidationResult();
 
         ValidateTableNames(schema, result);
+        ValidateColumnNames(schema, result);
         ValidateCircularForeignKeys(schema, result);
+        ValidateForeignKeyReferences(schema, result);
         ValidateColumnTypes(schema, result);
         ValidateDuplicateNames(schema, result);
+        ValidatePrimaryKeys(schema, result);
 
         return result;
     }
@@ -32,6 +35,51 @@ public class SqliteSchemaValidator : ISchemaValidator
             {
                 result.Errors.Add($"Table name '{table.Name}' is reserved by SQLite");
             }
+            else if (!IsValidIdentifier(table.Name))
+            {
+                result.Errors.Add($"Invalid table name '{table.Name}': must start with a letter or underscore");
+            }
+        }
+    }
+
+    private void ValidateColumnNames(SchemaDefinition schema, ValidationResult result)
+    {
+        foreach (var table in schema.Tables.Values)
+        {
+            foreach (var column in table.Columns)
+            {
+                if (string.IsNullOrWhiteSpace(column.Name))
+                {
+                    result.Errors.Add($"Column name cannot be empty in table '{table.Name}'");
+                }
+                else if (!IsValidIdentifier(column.Name))
+                {
+                    result.Errors.Add($"Invalid column name '{column.Name}' in table '{table.Name}': must start with a letter or underscore");
+                }
+            }
+        }
+    }
+
+    private static bool IsValidIdentifier(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return false;
+
+        var firstChar = name[0];
+        return char.IsLetter(firstChar) || firstChar == '_';
+    }
+
+    private void ValidateForeignKeyReferences(SchemaDefinition schema, ValidationResult result)
+    {
+        foreach (var table in schema.Tables.Values)
+        {
+            foreach (var fk in table.ForeignKeys)
+            {
+                if (!schema.Tables.ContainsKey(fk.ReferencedTable))
+                {
+                    result.Errors.Add($"Foreign key in table '{table.Name}' references table '{fk.ReferencedTable}' which does not exist");
+                }
+            }
         }
     }
 
@@ -44,7 +92,7 @@ public class SqliteSchemaValidator : ISchemaValidator
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (HasCircularReference(tableName, tableName, graph, visited, isStart: true))
             {
-                result.Errors.Add($"Circular foreign key reference detected involving table '{tableName}'");
+                result.Errors.Add($"Detected circular foreign key reference involving table '{tableName}'");
             }
         }
     }
@@ -121,11 +169,17 @@ public class SqliteSchemaValidator : ISchemaValidator
         {
             foreach (var column in table.Columns)
             {
+                if (string.IsNullOrWhiteSpace(column.Type))
+                {
+                    result.Errors.Add($"Column '{column.Name}' in table '{table.Name}' has no type specified");
+                    continue;
+                }
+
                 var baseType = column.Type.Split('(')[0].Trim().ToUpperInvariant();
 
                 if (!validTypes.Contains(baseType))
                 {
-                    result.Warnings.Add($"Column '{column.Name}' in table '{table.Name}' has non-standard type '{column.Type}'");
+                    result.Errors.Add($"Column '{column.Name}' in table '{table.Name}' has invalid type '{column.Type}'");
                 }
             }
         }
@@ -140,7 +194,7 @@ public class SqliteSchemaValidator : ISchemaValidator
             {
                 if (!columnNames.Add(column.Name))
                 {
-                    result.Errors.Add($"Duplicate column name '{column.Name}' in table '{table.Name}'");
+                    result.Errors.Add($"Table '{table.Name}' has duplicate column name '{column.Name}'");
                 }
             }
 
@@ -149,8 +203,20 @@ public class SqliteSchemaValidator : ISchemaValidator
             {
                 if (!indexNames.Add(index.Name))
                 {
-                    result.Errors.Add($"Duplicate index name '{index.Name}' in table '{table.Name}'");
+                    result.Errors.Add($"Table '{table.Name}' has duplicate index name '{index.Name}'");
                 }
+            }
+        }
+    }
+
+    private void ValidatePrimaryKeys(SchemaDefinition schema, ValidationResult result)
+    {
+        foreach (var table in schema.Tables.Values)
+        {
+            var hasPrimaryKey = table.Columns.Any(c => c.IsPrimaryKey);
+            if (!hasPrimaryKey)
+            {
+                result.Warnings.Add($"Table '{table.Name}' does not have a primary key");
             }
         }
     }

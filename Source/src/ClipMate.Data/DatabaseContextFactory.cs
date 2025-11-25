@@ -8,7 +8,7 @@ namespace ClipMate.Data;
 /// Factory for creating ClipMateDbContext instances for multiple databases.
 /// Supports the multi-database architecture from ClipMate 7.5.
 /// </summary>
-public class DatabaseContextFactory : IDisposable
+public class DatabaseContextFactory : IDatabaseContextFactory
 {
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly Dictionary<string, ClipMateDbContext> _contexts;

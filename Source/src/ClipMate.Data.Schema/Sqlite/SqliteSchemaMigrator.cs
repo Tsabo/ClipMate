@@ -56,7 +56,13 @@ public class SqliteSchemaMigrator : ISchemaMigrator
             }
             else
             {
-                await ApplyMigrationsAsync(diff, result, cancellationToken);
+                result = await ApplyMigrationsAsync(diff, result, cancellationToken);
+            }
+
+            // Copy warnings from SchemaDiff to result
+            foreach (var warning in diff.Warnings)
+            {
+                result.Warnings.Add(warning);
             }
 
             if (_hook != null && result.Success)
@@ -72,7 +78,7 @@ public class SqliteSchemaMigrator : ISchemaMigrator
         return result;
     }
 
-    private async Task ApplyMigrationsAsync(
+    private async Task<MigrationResult> ApplyMigrationsAsync(
         SchemaDiff diff,
         MigrationResult result,
         CancellationToken cancellationToken)
@@ -97,7 +103,7 @@ public class SqliteSchemaMigrator : ISchemaMigrator
             }
 
             await transaction.CommitAsync(cancellationToken);
-            result = result with { Success = true };
+            return result with { Success = true };
         }
         catch (Exception ex)
         {

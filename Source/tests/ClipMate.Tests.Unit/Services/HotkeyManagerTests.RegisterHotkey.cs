@@ -27,7 +27,7 @@ public partial class HotkeyManagerTests
         var callback = () => { };
 
         // Act
-        var hotkeyId = manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback); // Ctrl+V
+        var hotkeyId = manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback); // Ctrl+V
 
         // Assert
         await Assert.That(hotkeyId).IsGreaterThan(0);
@@ -48,11 +48,12 @@ public partial class HotkeyManagerTests
         var callback = () => { };
 
         // Act & Assert
-        await Assert.That(() => manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback))
+        await Assert.That(() => manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback))
             .Throws<InvalidOperationException>();
     }
 
     [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task RegisterHotkey_WithNullCallback_ShouldThrowArgumentNullException()
     {
         // Arrange
@@ -64,7 +65,7 @@ public partial class HotkeyManagerTests
         manager.Initialize(window);
 
         // Act & Assert
-        await Assert.That(() => manager.RegisterHotkey(ModifierKeys.Control, 0x56, null!))
+        await Assert.That(() => manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -77,7 +78,7 @@ public partial class HotkeyManagerTests
         var callback = () => { };
 
         // Act & Assert
-        await Assert.That(() => manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback))
+        await Assert.That(() => manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback))
             .Throws<InvalidOperationException>();
     }
 
@@ -91,7 +92,7 @@ public partial class HotkeyManagerTests
         var callback = () => { };
 
         // Act & Assert
-        await Assert.That(() => manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback))
+        await Assert.That(() => manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback))
             .Throws<ObjectDisposedException>();
     }
 
@@ -110,9 +111,9 @@ public partial class HotkeyManagerTests
         var callback = () => { };
 
         // Act
-        var id1 = manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback);
-        var id2 = manager.RegisterHotkey(ModifierKeys.Alt, 0x43, callback);
-        var id3 = manager.RegisterHotkey(ModifierKeys.Shift, 0x46, callback);
+        var id1 = manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback);
+        var id2 = manager.RegisterHotkey(Core.Models.ModifierKeys.Alt, 0x43, callback);
+        var id3 = manager.RegisterHotkey(Core.Models.ModifierKeys.Shift, 0x46, callback);
 
         // Assert
         await Assert.That(id1).IsNotEqualTo(id2);

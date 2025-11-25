@@ -1,5 +1,7 @@
 using ClipMate.App.Services;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.ViewModels;
+using Microsoft.Extensions.Logging;
 using Moq;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -8,6 +10,13 @@ namespace ClipMate.Tests.Unit.Services;
 
 public class ClipViewerWindowManagerTests
 {
+    private ClipViewerViewModel CreateMockViewModel()
+    {
+        var clipRepository = new Mock<IClipRepository>();
+        var logger = new Mock<ILogger<ClipViewerViewModel>>();
+        return new ClipViewerViewModel(clipRepository.Object, logger.Object);
+    }
+
     // Constructor Tests
     [Test]
     public async Task Constructor_WithNullViewModelFactory_ThrowsArgumentNullException()
@@ -21,7 +30,7 @@ public class ClipViewerWindowManagerTests
     public async Task Constructor_WithValidFactory_CreatesInstance()
     {
         // Arrange
-        var viewModelFactory = new Func<ClipViewerViewModel>(() => new Mock<ClipViewerViewModel>().Object);
+        var viewModelFactory = new Func<ClipViewerViewModel>(() => CreateMockViewModel());
 
         // Act
         var manager = new ClipViewerWindowManager(viewModelFactory);
@@ -35,7 +44,7 @@ public class ClipViewerWindowManagerTests
     public async Task IsOpen_WhenNoWindowCreated_ReturnsFalse()
     {
         // Arrange
-        var viewModelFactory = new Func<ClipViewerViewModel>(() => new Mock<ClipViewerViewModel>().Object);
+        var viewModelFactory = new Func<ClipViewerViewModel>(() => CreateMockViewModel());
         var manager = new ClipViewerWindowManager(viewModelFactory);
 
         // Act
@@ -50,7 +59,7 @@ public class ClipViewerWindowManagerTests
     public async Task ShowClipViewer_WithValidClipId_CreatesWindow()
     {
         // Arrange
-        var viewModelFactory = new Func<ClipViewerViewModel>(() => new Mock<ClipViewerViewModel>().Object);
+        var viewModelFactory = new Func<ClipViewerViewModel>(() => CreateMockViewModel());
         var manager = new ClipViewerWindowManager(viewModelFactory);
         var clipId = Guid.NewGuid();
 
@@ -75,7 +84,7 @@ public class ClipViewerWindowManagerTests
         var viewModelFactory = new Func<ClipViewerViewModel>(() =>
         {
             viewModelCallCount++;
-            return new Mock<ClipViewerViewModel>().Object;
+            return CreateMockViewModel();
         });
         var manager = new ClipViewerWindowManager(viewModelFactory);
         var clipId1 = Guid.NewGuid();
@@ -101,7 +110,7 @@ public class ClipViewerWindowManagerTests
     public async Task CloseClipViewer_WhenNoWindow_DoesNotThrow()
     {
         // Arrange
-        var viewModelFactory = new Func<ClipViewerViewModel>(() => new Mock<ClipViewerViewModel>().Object);
+        var viewModelFactory = new Func<ClipViewerViewModel>(() => CreateMockViewModel());
         var manager = new ClipViewerWindowManager(viewModelFactory);
 
         // Act & Assert - should not throw
@@ -112,7 +121,7 @@ public class ClipViewerWindowManagerTests
     public async Task CloseClipViewer_AfterShowClipViewer_HidesWindow()
     {
         // Arrange
-        var viewModelFactory = new Func<ClipViewerViewModel>(() => new Mock<ClipViewerViewModel>().Object);
+        var viewModelFactory = new Func<ClipViewerViewModel>(() => CreateMockViewModel());
         var manager = new ClipViewerWindowManager(viewModelFactory);
         var clipId = Guid.NewGuid();
 

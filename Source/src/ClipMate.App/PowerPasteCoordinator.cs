@@ -52,9 +52,9 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
                 _hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
                 
                 // Initialize HotkeyService with the hotkey window (must be on UI thread)
-                if (_hotkeyService is Platform.Services.HotkeyService platformHotkeyService)
+                if (_hotkeyService is Platform.Services.HotkeyService platformService)
                 {
-                    platformHotkeyService.Initialize(_hotkeyWindow);
+                    platformService.Initialize(_hotkeyWindow);
                 }
             });
             

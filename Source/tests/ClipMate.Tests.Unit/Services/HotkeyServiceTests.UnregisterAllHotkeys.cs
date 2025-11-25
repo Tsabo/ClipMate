@@ -13,7 +13,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Platform.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
         
         var service = new HotkeyService(mockManager.Object);

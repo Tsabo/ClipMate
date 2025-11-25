@@ -63,7 +63,7 @@ public static class ServiceCollectionExtensions
             new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
 
         // Register multi-database management
-        services.AddSingleton<DatabaseContextFactory>();
+        services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
         services.AddSingleton<DatabaseManager>();
 
         // Register ClipboardCoordinator as singleton first (so it can be injected)

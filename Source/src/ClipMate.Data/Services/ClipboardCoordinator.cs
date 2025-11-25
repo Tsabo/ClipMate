@@ -40,10 +40,19 @@ public class ClipboardCoordinator : IHostedService
         try
         {
             // Start clipboard monitoring
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            // Check if we have an Application dispatcher (UI thread), otherwise start directly
+            if (Application.Current?.Dispatcher != null)
             {
-                _clipboardService.StartMonitoringAsync(cancellationToken);
-            });
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _clipboardService.StartMonitoringAsync(cancellationToken);
+                });
+            }
+            else
+            {
+                // No dispatcher available (e.g., in tests), start directly
+                await _clipboardService.StartMonitoringAsync(cancellationToken);
+            }
 
             // Start background task to process clips from channel
             _cts = new CancellationTokenSource();

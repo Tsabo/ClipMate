@@ -25,6 +25,7 @@ public class ClipRepository : IClipRepository
     public async Task<Clip?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var clip = await _context.Clips
+            .Where(p => !p.Del) // Exclude soft-deleted clips
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (clip != null)

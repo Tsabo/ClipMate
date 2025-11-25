@@ -11,14 +11,14 @@ namespace ClipMate.Data.Services;
 public class DatabaseManager : IDisposable
 {
     private readonly IConfigurationService _configService;
-    private readonly DatabaseContextFactory _contextFactory;
+    private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<DatabaseManager> _logger;
     private ClipMateConfiguration? _configuration;
     private bool _disposed;
 
     public DatabaseManager(
         IConfigurationService configService,
-        DatabaseContextFactory contextFactory,
+        IDatabaseContextFactory contextFactory,
         ILogger<DatabaseManager> logger)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));

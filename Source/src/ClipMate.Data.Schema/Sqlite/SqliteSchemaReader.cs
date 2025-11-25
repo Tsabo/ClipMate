@@ -96,13 +96,15 @@ public class SqliteSchemaReader : ISchemaReader
             if (ignoredColumns?.Contains(columnName) == true)
                 continue;
 
+            var isPrimaryKey = reader.GetInt32(5) > 0;
             var column = new ColumnDefinition
             {
                 Position = reader.GetInt32(0),
                 Name = columnName,
                 Type = reader.GetString(2),
-                IsNullable = reader.GetInt32(3) == 0,
-                IsPrimaryKey = reader.GetInt32(5) > 0,
+                // PRIMARY KEY columns are always NOT NULL in SQLite, even if PRAGMA shows notnull=0
+                IsNullable = isPrimaryKey ? false : reader.GetInt32(3) == 0,
+                IsPrimaryKey = isPrimaryKey,
                 DefaultValue = reader.IsDBNull(4) ? null : reader.GetString(4)
             };
 

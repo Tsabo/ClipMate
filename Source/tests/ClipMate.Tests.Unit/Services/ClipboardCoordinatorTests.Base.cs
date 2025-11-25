@@ -31,33 +31,50 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         Mock<IFolderService>? folderService = null,
         Mock<IApplicationFilterService>? filterService = null)
     {
+        var clipServiceProvided = clipService != null;
+        var collectionServiceProvided = collectionService != null;
+        var folderServiceProvided = folderService != null;
+        var filterServiceProvided = filterService != null;
+
         clipService ??= new Mock<IClipService>();
         collectionService ??= new Mock<ICollectionService>();
         folderService ??= new Mock<IFolderService>();
         filterService ??= new Mock<IApplicationFilterService>();
 
-        // Setup default behaviors
-        clipService.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip clip, CancellationToken ct) => clip);
+        // Setup default behaviors only if not provided by caller
+        if (!clipServiceProvided)
+        {
+            clipService.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Clip clip, CancellationToken ct) => clip);
+        }
 
-        collectionService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Collection
-            {
-                Id = Guid.NewGuid(),
-                Title = "Default Collection",
-                LmType = 0 // Normal collection
-            });
+        if (!collectionServiceProvided)
+        {
+            collectionService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Collection
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Default Collection",
+                    LmType = 0 // Normal collection
+                });
+        }
 
-        folderService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Folder
-            {
-                Id = Guid.NewGuid(),
-                Name = "Inbox",
-                FolderType = FolderType.Inbox
-            });
+        if (!folderServiceProvided)
+        {
+            folderService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Folder
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Inbox",
+                    FolderType = FolderType.Inbox
+                });
+        }
 
-        filterService.Setup(s => s.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        if (!filterServiceProvided)
+        {
+            filterService.Setup(s => s.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+        }
 
         var services = new ServiceCollection();
         services.AddScoped(_ => clipService.Object);

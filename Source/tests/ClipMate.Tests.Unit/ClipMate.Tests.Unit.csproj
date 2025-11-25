@@ -1,20 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Suppress test-specific analyzer warnings -->
-    <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892</NoWarn>
+    <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892;CS1998</NoWarn>
+    <OutputType>Exe</OutputType>
+    <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+    <IsTestProject>true</IsTestProject>
+    <UseTestingPlatformProtocol>true</UseTestingPlatformProtocol>
+    <IsTestingPlatformEnabled>true</IsTestingPlatformEnabled>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="TUnit" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>

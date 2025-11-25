@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClipboardService, ClipboardService>();
 
         // Register HotkeyManager as singleton for global hotkey management
-        services.AddSingleton<HotkeyManager>();
+        services.AddSingleton<IHotkeyManager, HotkeyManager>();
 
         // Register HotkeyService as singleton for global hotkey management
         services.AddSingleton<IHotkeyService, HotkeyService>();

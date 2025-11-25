@@ -13,7 +13,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Platform.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
         
         var service = new HotkeyService(mockManager.Object);
@@ -44,7 +44,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Platform.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
         
         var service = new HotkeyService(mockManager.Object);
@@ -80,10 +80,10 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var capturedModifiers = Platform.ModifierKeys.None;
+        var capturedModifiers = Core.Models.ModifierKeys.None;
         
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Platform.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
-            .Callback<Platform.ModifierKeys, int, Action>((mods, key, action) => capturedModifiers = mods)
+        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+            .Callback<Core.Models.ModifierKeys, int, Action>((mods, key, action) => capturedModifiers = mods)
             .Returns(1);
         
         var service = new HotkeyService(mockManager.Object);
@@ -94,7 +94,7 @@ public partial class HotkeyServiceTests
         service.RegisterHotkey(100, modifiers, 0x56, action);
 
         // Assert
-        var expectedModifiers = Platform.ModifierKeys.Control | Platform.ModifierKeys.Alt | Platform.ModifierKeys.Shift;
+        var expectedModifiers = Core.Models.ModifierKeys.Control | Core.Models.ModifierKeys.Alt | Core.Models.ModifierKeys.Shift;
         await Assert.That(capturedModifiers).IsEqualTo(expectedModifiers);
     }
 

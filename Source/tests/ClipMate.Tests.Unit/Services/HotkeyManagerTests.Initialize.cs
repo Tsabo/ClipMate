@@ -49,6 +49,7 @@ public partial class HotkeyManagerTests
     }
 
     [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task Initialize_WhenDisposed_ShouldThrowObjectDisposedException()
     {
         // Arrange

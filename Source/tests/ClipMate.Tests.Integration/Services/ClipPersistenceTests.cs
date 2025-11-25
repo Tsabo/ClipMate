@@ -23,8 +23,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         var clip = new Clip
         {
             Type = ClipType.Text,
-            TextContent = "Test persistence content",
+            // Note: TextContent is transient and not persisted directly to Clips table
+            // It would be stored in BlobTxt table via ClipData in production
             ContentHash = "test_hash_123",
+            SourceApplicationName = "TestApp",
             CapturedAt = DateTime.UtcNow
         };
 
@@ -47,8 +49,9 @@ public class ClipPersistenceTests : IntegrationTestBase
         // Assert - Retrieve in new context
         var retrievedClip = await newClipService.GetByIdAsync(savedId);
         await Assert.That(retrievedClip).IsNotNull();
-        await Assert.That(retrievedClip!.TextContent).IsEqualTo("Test persistence content");
-        await Assert.That(retrievedClip.ContentHash).IsEqualTo("test_hash_123");
+        await Assert.That(retrievedClip!.ContentHash).IsEqualTo("test_hash_123");
+        await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
+        await Assert.That(retrievedClip.Type).IsEqualTo(ClipType.Text);
         
         // Cleanup the new context
         newContext.Dispose();
@@ -133,8 +136,9 @@ public class ClipPersistenceTests : IntegrationTestBase
         var clip = new Clip
         {
             Type = ClipType.Text,
-            TextContent = "To be deleted",
+            // Note: TextContent is transient and not persisted
             ContentHash = "delete_hash",
+            SourceApplicationName = "TestApp",
             CapturedAt = DateTime.UtcNow
         };
 

@@ -13,7 +13,7 @@ namespace ClipMate.Platform;
 /// <summary>
 /// Manages global hotkey registration and handling.
 /// </summary>
-public class HotkeyManager : IDisposable
+public class HotkeyManager : IHotkeyManager
 {
     private readonly IWin32HotkeyInterop _win32;
     private HwndSource? _hwndSource;
@@ -80,11 +80,11 @@ public class HotkeyManager : IDisposable
     /// <summary>
     /// Registers a global hotkey.
     /// </summary>
-    /// <param name="modifiers">The modifier keys (Alt, Ctrl, Shift, Win).</param>
-    /// <param name="key">The virtual key code.</param>
-    /// <param name="callback">The action to execute when the hotkey is pressed.</param>
+    /// <param name=\"modifiers\">The modifier keys (Alt, Ctrl, Shift, Win).</param>
+    /// <param name=\"key\">The virtual key code.</param>
+    /// <param name=\"callback\">The action to execute when the hotkey is pressed.</param>
     /// <returns>The hotkey ID that can be used to unregister the hotkey.</returns>
-    public int RegisterHotkey(ModifierKeys modifiers, int key, Action callback)
+    public int RegisterHotkey(Core.Models.ModifierKeys modifiers, int key, Action callback)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -150,6 +150,8 @@ public class HotkeyManager : IDisposable
     /// </summary>
     public void UnregisterAll()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        
         if (_hwndSource == null)
         {
             return;
@@ -205,7 +207,7 @@ public class HotkeyManager : IDisposable
     /// <summary>
     /// Converts ModifierKeys enum to Win32 modifier flags.
     /// </summary>
-    private static uint ConvertModifiers(ModifierKeys modifiers)
+    private static uint ConvertModifiers(Core.Models.ModifierKeys modifiers)
     {
         const uint MOD_ALT = 0x0001;
         const uint MOD_CONTROL = 0x0002;
@@ -214,22 +216,22 @@ public class HotkeyManager : IDisposable
         
         uint flags = 0;
 
-        if (modifiers.HasFlag(ModifierKeys.Alt))
+        if (modifiers.HasFlag(Core.Models.ModifierKeys.Alt))
         {
             flags |= MOD_ALT;
         }
         
-        if (modifiers.HasFlag(ModifierKeys.Control))
+        if (modifiers.HasFlag(Core.Models.ModifierKeys.Control))
         {
             flags |= MOD_CONTROL;
         }
         
-        if (modifiers.HasFlag(ModifierKeys.Shift))
+        if (modifiers.HasFlag(Core.Models.ModifierKeys.Shift))
         {
             flags |= MOD_SHIFT;
         }
         
-        if (modifiers.HasFlag(ModifierKeys.Windows))
+        if (modifiers.HasFlag(Core.Models.ModifierKeys.Windows))
         {
             flags |= MOD_WIN;
         }
@@ -265,40 +267,8 @@ public class HotkeyManager : IDisposable
     private class HotkeyRegistration
     {
         public int Id { get; set; }
-        public ModifierKeys Modifiers { get; set; }
+        public Core.Models.ModifierKeys Modifiers { get; set; }
         public int Key { get; set; }
         public Action Callback { get; set; } = null!;
     }
-}
-
-/// <summary>
-/// Modifier keys for hotkeys.
-/// </summary>
-[Flags]
-public enum ModifierKeys
-{
-    /// <summary>
-    /// No modifier.
-    /// </summary>
-    None = 0,
-
-    /// <summary>
-    /// Alt key.
-    /// </summary>
-    Alt = 1,
-
-    /// <summary>
-    /// Control key.
-    /// </summary>
-    Control = 2,
-
-    /// <summary>
-    /// Shift key.
-    /// </summary>
-    Shift = 4,
-
-    /// <summary>
-    /// Windows key.
-    /// </summary>
-    Windows = 8
 }

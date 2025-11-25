@@ -34,7 +34,7 @@ public partial class EmojiPickerViewModel : ObservableObject
 
     public EmojiPickerViewModel(IConfigurationService configurationService)
     {
-        _configurationService = configurationService;
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         LoadRecentEmojis();
         
         // Default to first category (usually Smileys & Emotion)

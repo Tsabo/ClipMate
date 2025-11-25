@@ -1,6 +1,7 @@
 using ClipMate.Platform.Services;
 using Moq;
 using System.Windows;
+using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -9,6 +10,7 @@ public partial class HotkeyServiceTests
     #region Initialize Tests
 
     [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task Initialize_WithValidWindow_ShouldCallManagerInitialize()
     {
         // Arrange
@@ -36,6 +38,7 @@ public partial class HotkeyServiceTests
     }
 
     [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task Initialize_WhenDisposed_ShouldThrowObjectDisposedException()
     {
         // Arrange

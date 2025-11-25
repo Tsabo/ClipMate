@@ -13,6 +13,15 @@ public class SqliteSchemaComparer : ISchemaComparer
     {
         var diff = new SchemaDiff();
 
+        // Check for removed tables
+        foreach (var currentTable in current.Tables.Values)
+        {
+            if (!expected.Tables.ContainsKey(currentTable.Name))
+            {
+                diff.Warnings.Add($"Table '{currentTable.Name}' exists in current schema but not in expected schema (will be removed)");
+            }
+        }
+
         foreach (var expectedTable in expected.Tables.Values)
         {
             if (!current.Tables.ContainsKey(expectedTable.Name))
@@ -38,6 +47,17 @@ public class SqliteSchemaComparer : ISchemaComparer
     private void CompareColumns(TableDefinition current, TableDefinition expected, SchemaDiff diff)
     {
         var currentColumnNames = current.Columns.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currentColumnsDict = current.Columns.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
+        var expectedColumnNames = expected.Columns.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Check for removed columns
+        foreach (var currentColumn in current.Columns)
+        {
+            if (!expectedColumnNames.Contains(currentColumn.Name))
+            {
+                diff.Warnings.Add($"Column '{currentColumn.Name}' in table '{expected.Name}' exists in current schema but not in expected schema (will be removed)");
+            }
+        }
 
         foreach (var expectedColumn in expected.Columns)
         {
@@ -50,6 +70,14 @@ public class SqliteSchemaComparer : ISchemaComparer
                     ColumnName = expectedColumn.Name,
                     Sql = GenerateAddColumnSql(expected.Name, expectedColumn)
                 });
+            }
+            else if (currentColumnsDict.TryGetValue(expectedColumn.Name, out var currentColumn))
+            {
+                // Check for type changes
+                if (!string.Equals(currentColumn.Type, expectedColumn.Type, StringComparison.OrdinalIgnoreCase))
+                {
+                    diff.Warnings.Add($"Column '{expectedColumn.Name}' in table '{expected.Name}' has type change from '{currentColumn.Type}' to '{expectedColumn.Type}'");
+                }
             }
         }
     }

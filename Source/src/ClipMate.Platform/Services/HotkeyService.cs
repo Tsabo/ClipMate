@@ -9,14 +9,14 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class HotkeyService : IHotkeyService, IDisposable
 {
-    private readonly HotkeyManager _hotkeyManager;
+    private readonly IHotkeyManager _hotkeyManager;
     private readonly HashSet<int> _registeredIds;
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="HotkeyService"/> class.
+    /// Initializes a new instance of the <see cref=\"HotkeyService\"/> class.
     /// </summary>
-    public HotkeyService(HotkeyManager hotkeyManager)
+    public HotkeyService(IHotkeyManager hotkeyManager)
     {
         _hotkeyManager = hotkeyManager ?? throw new ArgumentNullException(nameof(hotkeyManager));
         _registeredIds = new HashSet<int>();
@@ -29,6 +29,7 @@ public class HotkeyService : IHotkeyService, IDisposable
     /// <param name="window">The WPF window to use for receiving hotkey messages.</param>
     public void Initialize(Window window)
     {
+        ArgumentNullException.ThrowIfNull(window);
         ObjectDisposedException.ThrowIf(_disposed, this);
         _hotkeyManager.Initialize(window);
     }
@@ -52,8 +53,7 @@ public class HotkeyService : IHotkeyService, IDisposable
             }
 
             // Register with HotkeyManager (which returns its own internal ID)
-            var systemModifiers = ConvertModifiers(modifiers);
-            var internalId = _hotkeyManager.RegisterHotkey(systemModifiers, key, action);
+            var internalId = _hotkeyManager.RegisterHotkey(modifiers, key, action);
 
             // Track our logical ID
             _registeredIds.Add(id);
@@ -98,35 +98,7 @@ public class HotkeyService : IHotkeyService, IDisposable
         return _registeredIds.Contains(id);
     }
 
-    /// <summary>
-    /// Converts Core.Models.ModifierKeys to Platform.ModifierKeys.
-    /// </summary>
-    private static Platform.ModifierKeys ConvertModifiers(Core.Models.ModifierKeys modifiers)
-    {
-        var result = Platform.ModifierKeys.None;
 
-        if (modifiers.HasFlag(Core.Models.ModifierKeys.Control))
-        {
-            result |= Platform.ModifierKeys.Control;
-        }
-
-        if (modifiers.HasFlag(Core.Models.ModifierKeys.Alt))
-        {
-            result |= Platform.ModifierKeys.Alt;
-        }
-
-        if (modifiers.HasFlag(Core.Models.ModifierKeys.Shift))
-        {
-            result |= Platform.ModifierKeys.Shift;
-        }
-
-        if (modifiers.HasFlag(Core.Models.ModifierKeys.Windows))
-        {
-            result |= Platform.ModifierKeys.Windows;
-        }
-
-        return result;
-    }
 
     /// <summary>
     /// Disposes the hotkey service and unregisters all hotkeys.

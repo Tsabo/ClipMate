@@ -8,11 +8,9 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class HotkeyServiceTests : TestFixtureBase
 {
-    private Mock<HotkeyManager> CreateMockHotkeyManager()
+    private Mock<IHotkeyManager> CreateMockHotkeyManager()
     {
-        // HotkeyManager doesn't have an interface, so we mock it directly
-        // Note: This requires HotkeyManager methods to be virtual for mocking
-        var mock = new Mock<HotkeyManager>(MockBehavior.Loose);
+        var mock = new Mock<IHotkeyManager>();
         return mock;
     }
 }

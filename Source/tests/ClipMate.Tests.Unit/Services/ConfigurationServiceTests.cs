@@ -46,9 +46,9 @@ public class ConfigurationServiceTests
         // Assert
         await Assert.That(System.IO.File.Exists(service.ConfigurationFilePath)).IsTrue();
         var content = await System.IO.File.ReadAllTextAsync(service.ConfigurationFilePath);
-        await Assert.That(content).Contains("[Preferences]");
-        await Assert.That(content).Contains("[Hotkeys]");
-        await Assert.That(content).Contains("[Databases.MyClips]");
+        await Assert.That(content).Contains("[preferences]");
+        await Assert.That(content).Contains("[hotkeys]");
+        await Assert.That(content).Contains("[databases.MyClips]");
     }
 
     [Test]

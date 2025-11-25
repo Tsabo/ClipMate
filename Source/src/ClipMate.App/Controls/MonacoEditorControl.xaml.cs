@@ -56,17 +56,17 @@ public partial class MonacoEditorControl
 
     private static async void OnEnableDebugChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MonacoEditorControl { IsInitialized: true } control)
-        {
-            var enabled = (bool)e.NewValue;
-            await control.EditorWebView.ExecuteScriptAsync($"setDebugMode({enabled.ToString().ToLower()});");
+        if (d is not MonacoEditorControl { IsInitialized: true } control)
+            return;
 
-            if (enabled && control.EditorWebView.CoreWebView2 != null)
-                control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
-        }
+        var enabled = (bool)e.NewValue;
+        await control.EditorWebView.ExecuteScriptAsync($"setDebugMode({enabled.ToString().ToLower()});");
+
+        if (enabled && control.EditorWebView.CoreWebView2 != null)
+            control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (IsInitialized)
             return;

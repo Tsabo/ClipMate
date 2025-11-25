@@ -28,8 +28,8 @@ public partial class HotkeyManagerTests
         manager.Initialize(window);
         var callback = () => { };
         
-        manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback);
-        manager.RegisterHotkey(ModifierKeys.Alt, 0x43, callback);
+        manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback);
+        manager.RegisterHotkey(Core.Models.ModifierKeys.Alt, 0x43, callback);
 
         // Act
         manager.Dispose();

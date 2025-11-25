@@ -27,7 +27,7 @@ public partial class HotkeyManagerTests
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };
-        var hotkeyId = manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback);
+        var hotkeyId = manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback);
 
         // Act
         var result = manager.UnregisterHotkey(hotkeyId);
@@ -38,6 +38,7 @@ public partial class HotkeyManagerTests
     }
 
     [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task UnregisterHotkey_WithUnregisteredId_ShouldReturnFalse()
     {
         // Arrange
