@@ -1,0 +1,180 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.CollectionPropertiesWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+                 xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
+                 xmlns:controls="clr-namespace:ClipMate.App.Controls"
+                 Title="Collection Properties"
+                 Width="550"
+                 Height="Auto"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False">
+
+    <!-- DevExpress Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK" 
+                                     Command="{Binding OkCommand}"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80"/>
+        <dx:ThemedWindowDialogButton Content="Cancel" 
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80"/>
+        <dx:ThemedWindowDialogButton Content="Help" 
+                                     Command="{Binding HelpCommand}"
+                                     DialogResult="None"
+                                     MinWidth="80"/>
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical">
+        
+        <!-- Header: Item Count and Database Info -->
+        <dxlc:LayoutGroup View="Group" Header="" Orientation="Vertical">
+            <TextBlock FontSize="11" FontWeight="SemiBold" Height="22">
+                <Run Text="# of Items:"/>
+                <Run Text="{Binding ItemCount, Mode=OneWay}"/>
+            </TextBlock>
+            <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="Gray" Height="22">
+                <Run Text="Database:"/>
+                <Run Text="{Binding DatabaseInfo, Mode=OneWay}"/>
+            </TextBlock>
+        </dxlc:LayoutGroup>
+
+        <!-- ID -->
+        <dxlc:LayoutItem Label="ID:" LabelPosition="Left">
+            <dxe:TextEdit Text="{Binding Id, Mode=OneWay}" 
+                          IsReadOnly="True"/>
+        </dxlc:LayoutItem>
+
+        <!-- Parent ID -->
+        <dxlc:LayoutItem Label="Parent ID:" LabelPosition="Left">
+            <dxe:TextEdit Text="{Binding ParentId, Mode=OneWay}" 
+                          IsReadOnly="True"/>
+        </dxlc:LayoutItem>
+
+        <!-- Title -->
+        <dxlc:LayoutItem Label="Title:" LabelPosition="Left">
+            <dxe:TextEdit Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"/>
+        </dxlc:LayoutItem>
+
+        <!-- Icon, Favorite, Sort Key Row -->
+        <dxlc:LayoutGroup Orientation="Horizontal" View="Group" ItemSpace="2" Height="40">
+            <dx:SimpleButton Content="Change Icon" Command="{Binding ChangeIconCommand}" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+
+            <emoji:TextBlock Text="{Binding Icon}" 
+                             FontSize="18" 
+                             VerticalAlignment="Center"
+                             Margin="5,0"/>
+
+            <dxe:CheckEdit Content="Favorite" 
+                           IsChecked="{Binding IsFavorite}"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"/>
+
+            <TextBlock Text="Sort Key" 
+                       VerticalAlignment="Center"
+                       Margin="15,0,5,0"/>
+            <dxe:SpinEdit Value="{Binding SortKey}" 
+                          MinValue="0" 
+                          MaxValue="10000"
+                          IsFloatValue="False"
+                          Width="80"
+                          VerticalAlignment="Center"/>
+        </dxlc:LayoutGroup>
+
+        <!-- Collection Type -->
+        <dxlc:LayoutGroup Header="Collection Type" 
+                          View="GroupBox"
+                          Orientation="Horizontal"
+                          Height="67"
+                          >
+            <RadioButton Content="Normal" 
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Normal}}"/>
+            <RadioButton Content="Folder" 
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Folder}}"/>
+            <RadioButton Content="Trashcan" 
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Trashcan}}"/>
+            <RadioButton Content="Virtual" 
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Virtual}}"/>
+        </dxlc:LayoutGroup>
+
+        <!-- Purging Rules (Visible for Normal, Folder, Trashcan) -->
+        <dxlc:LayoutGroup Header="Purging Rules" 
+                          View="GroupBox"
+                          Orientation="Vertical"
+                          Height="117"
+                          Visibility="{Binding ShowPurgingRules, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <RadioButton Grid.Row="0" Grid.Column="0"
+                             Content="By number of items in collection" 
+                             IsChecked="{Binding SelectedPurgingRule, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:PurgingRule.ByNumberOfItems}}"
+                             VerticalAlignment="Center"
+                             Margin="0,0,10,5"/>
+                <dxe:SpinEdit Grid.Row="0" Grid.Column="1" 
+                              Value="{Binding PurgingValue}" 
+                              MinValue="1" 
+                              MaxValue="100000"
+                              IsFloatValue="False"
+                              IsEnabled="{Binding IsPurgingValueEnabled}"
+                              Margin="0,0,0,5"/>
+
+                <RadioButton Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                             Content="By age of clips (days)" 
+                             IsChecked="{Binding SelectedPurgingRule, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:PurgingRule.ByAge}}"
+                             Margin="0,0,0,5"/>
+                <dxe:SpinEdit Grid.Row="1" Grid.Column="1" 
+                              Value="{Binding PurgingValue}" 
+                              MinValue="1" 
+                              MaxValue="100000"
+                              IsFloatValue="False"
+                              IsEnabled="{Binding IsPurgingValueEnabled}"
+                              Margin="0,0,0,5"/>
+
+                <RadioButton Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                             Content="Never - No automatic deletion. (&quot;Safe&quot; Collection)" 
+                             IsChecked="{Binding SelectedPurgingRule, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:PurgingRule.Never}}"/>
+            </Grid>
+        </dxlc:LayoutGroup>
+
+        <!-- Garbage Avoidance (Visible for Normal only) -->
+        <dxlc:LayoutGroup Header="Garbage Avoidance" 
+                          View="GroupBox"
+                          Orientation="Vertical"
+                          Height="119"
+                          Visibility="{Binding ShowGarbageAvoidance, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <dxe:CheckEdit Content="Accept New Clips (capture from clipboard)?" 
+                           IsChecked="{Binding AcceptNewClips}"/>
+            <dxe:CheckEdit Content="Accept Duplicates" 
+                           IsChecked="{Binding AcceptDuplicates}"/>
+            <dxe:CheckEdit Content="Read Only" 
+                           IsChecked="{Binding IsReadOnly}"/>
+        </dxlc:LayoutGroup>
+
+        <!-- SQL Query Editor (Visible for Virtual only) -->
+        <dxlc:LayoutGroup Header="SQL" 
+                          View="GroupBox"
+                          Visibility="{Binding ShowSqlEditor, Converter={StaticResource BooleanToVisibilityConverter}}" ItemSpace="0" Panel.ZIndex="4">
+            <controls:MonacoEditorControl x:Name="SqlEditor"
+                                          Text="{Binding SqlQuery, Mode=TwoWay}"
+                                          Language="sql"
+                                          Height="200"
+                                          ShowToolbar="True" />
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

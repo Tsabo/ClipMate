@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Suppress test-specific analyzer warnings -->
+    <NoWarn>$(NoWarn);xUnit1051;CS8892</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Moq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit.Core" />
+    <Using Include="TUnit.Assertions" />
+    <Using Include="TUnit.Assertions.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ClipMate.Core\ClipMate.Core.csproj" />
+    <ProjectReference Include="..\..\src\ClipMate.Data\ClipMate.Data.csproj" />
+    <ProjectReference Include="..\..\src\ClipMate.Platform\ClipMate.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

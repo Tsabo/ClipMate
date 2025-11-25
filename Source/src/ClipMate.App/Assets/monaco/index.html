@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="./min/vs/editor/editor.main.css" />
+    <style>
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            overflow: hidden; 
+            background: transparent; 
+        }
+        #container { height: 100%; }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <script src="./min/vs/loader.js"></script>
+    <script>
+        require.config({ paths: { 'vs': './min/vs' } });
+    </script>
+    <script src="./min/vs/editor/editor.main.js"></script>
+    <script>
+        // Global editor instance
+        var monacoEditor = null;
+        var debugMode = false;
+        var suppressChangeEvents = false;
+        var changeListener = null;
+
+        // Helper function to escape strings for Monaco
+        function escapeText(text) {
+            return text
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        }
+
+        // Initialize Monaco editor with given options
+        function initializeEditor(options) {
+            try {
+                if (debugMode) {
+                    console.log('[Monaco] Initializing editor with options:', options);
+                }
+                
+                monacoEditor = monaco.editor.create(document.getElementById('container'), {
+                    value: options.value || '',
+                    language: options.language || 'plaintext',
+                    theme: options.theme || 'vs-light',
+                    fontSize: options.fontSize || 14,
+                    fontFamily: options.fontFamily || 'Consolas, "Courier New", monospace',
+                    wordWrap: options.wordWrap || 'off',
+                    lineNumbers: options.lineNumbers || 'on',
+                    minimap: { enabled: options.minimapEnabled !== false },
+                    tabSize: options.tabSize || 4,
+                    smoothScrolling: options.smoothScrolling !== false,
+                    readOnly: options.readOnly || false,
+                    automaticLayout: true
+                });
+
+                // Notify content changes (store listener for disposal)
+                changeListener = monacoEditor.onDidChangeModelContent(() => {
+                    if (suppressChangeEvents) {
+                        if (debugMode) console.log('[Monaco] Content changed (suppressed)');
+                        return;
+                    }
+                    if (debugMode) console.log('[Monaco] Content changed');
+                    window.chrome.webview.postMessage({ type: 'textChanged' });
+                });
+
+                if (debugMode) {
+                    console.log('[Monaco] Editor initialized successfully');
+                }
+                window.chrome.webview.postMessage({ type: 'initialized', success: true });
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Initialization error:', error);
+                window.chrome.webview.postMessage({ 
+                    type: 'initialized', 
+                    success: false, 
+                    error: error.message 
+                });
+                return false;
+            }
+        }
+
+        // Load content atomically (text, language, viewState)
+        function loadContent(text, languageId, viewStateJson) {
+            try {
+                if (!monacoEditor) {
+                    throw new Error('Editor not initialized');
+                }
+
+                if (debugMode) {
+                    console.log('[Monaco] Loading content:', {
+                        textLength: text ? text.length : 0,
+                        language: languageId,
+                        hasViewState: !!viewStateJson
+                    });
+                }
+
+                // Suppress change events during load
+                suppressChangeEvents = true;
+                try {
+                    // 1. Set text (creates new model)
+                    monacoEditor.setValue(text || '');
+
+                    // 2. Set language (must be after setValue)
+                    if (languageId) {
+                        monaco.editor.setModelLanguage(monacoEditor.getModel(), languageId);
+                    }
+
+                    // 3. Restore view state (must be last)
+                    if (viewStateJson) {
+                        try {
+                            const viewState = JSON.parse(viewStateJson);
+                            monacoEditor.restoreViewState(viewState);
+                            if (debugMode) console.log('[Monaco] View state restored');
+                        } catch (e) {
+                            console.warn('[Monaco] Failed to restore view state:', e);
+                        }
+                    }
+
+                    if (debugMode) console.log('[Monaco] Content loaded successfully');
+                    return true;
+                } finally {
+                    // Always re-enable change events
+                    suppressChangeEvents = false;
+                }
+            } catch (error) {
+                console.error('[Monaco] Load content error:', error);
+                suppressChangeEvents = false;
+                return false;
+            }
+        }
+
+        // Set language only (without full content reload)
+        function setLanguage(languageId) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                if (debugMode) console.log('[Monaco] Setting language to:', languageId);
+                monaco.editor.setModelLanguage(monacoEditor.getModel(), languageId);
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Set language error:', error);
+                return false;
+            }
+        }
+
+        // Get current language
+        function getLanguage() {
+            if (!monacoEditor) {
+                return 'plaintext';
+            }
+            return monacoEditor.getModel().getLanguageId();
+        }
+
+        // Save view state
+        function saveViewState() {
+            if (!monacoEditor) {
+                return null;
+            }
+            try {
+                const viewState = monacoEditor.saveViewState();
+                return JSON.stringify(viewState);
+            } catch (error) {
+                console.error('[Monaco] Save view state error:', error);
+                return null;
+            }
+        }
+
+        // Update editor options
+        function updateOptions(options) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                monacoEditor.updateOptions(options);
+                if (debugMode) console.log('[Monaco] Options updated');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Update options error:', error);
+                return false;
+            }
+        }
+
+        // Enable/disable debug mode
+        function setDebugMode(enabled) {
+            debugMode = enabled;
+            console.log('[Monaco] Debug mode:', enabled ? 'enabled' : 'disabled');
+        }
+
+        if (debugMode) {
+            console.log('[Monaco] Script loaded, waiting for initialization');
+        }
+    </script>
+</body>
+</html>

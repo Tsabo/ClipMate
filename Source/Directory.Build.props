@@ -1,0 +1,16 @@
+<Project>
+  <!-- Common properties for all projects in the solution -->
+  <PropertyGroup>
+    <!-- Treat all warnings as errors to maintain code quality -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    
+    <!-- Enforce code style rules -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    
+    <!-- Enable nullable reference types for all projects -->
+    <Nullable>enable</Nullable>
+    
+    <!-- Use latest C# language version -->
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

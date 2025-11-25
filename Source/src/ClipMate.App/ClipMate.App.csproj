@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>assets/icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup Label="Monaco Editor Assets">
+    <Content Include="Assets\monaco\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
+    <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />
+    <ProjectReference Include="..\ClipMate.Platform\ClipMate.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Package References">
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="DevExpress.Wpf" />
+    <PackageReference Include="DevExpress.Mvvm" />
+    <PackageReference Include="DevExpress.Wpf.Themes.All" />
+    <PackageReference Include="Emoji.Wpf" />
+    <PackageReference Include="LinkingMountains.ImageZoom" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+    <PackageReference Include="WpfHexaEditor" />
+  </ItemGroup>
+
+</Project>
