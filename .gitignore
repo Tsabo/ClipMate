@@ -8,6 +8,7 @@ nupkg/
 
 # Visual Studio Code
 .vscode/
+.vscode/mcp.json
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
