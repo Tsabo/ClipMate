@@ -414,3 +414,10 @@ FodyWeavers.xsd
 *.db-shm
 *.db-wal
 clipmate-*.log
+
+# Ignore Copilot-specific files in .github
+.github/prompts/
+.github/chatmodes/
+.github/copilot*.yml
+.github/copilot*.json
+/specs/
