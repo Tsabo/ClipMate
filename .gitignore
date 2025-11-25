@@ -8,14 +8,14 @@ nupkg/
 
 # Visual Studio Code
 .vscode/
-.vscode/mcp.json
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# MCP config contains API keys - do not commit
-.vscode/mcp.json
+# MCP config contains API keys - do not commit anywhere in repo
+**/.mcp.json
+**/mcp.json
 
 # User-specific files
 *.rsuser
@@ -388,13 +388,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # VS Code files for those working on multiple tools
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# (already covered above, but keeping code snippets exception)
 !.vscode/*.code-snippets
-!.vscode/mcp.json
 
 # Local History for Visual Studio Code
 .history/
