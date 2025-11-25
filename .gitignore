@@ -418,6 +418,7 @@ clipmate-*.log
 # Ignore Copilot-specific files in .github
 .github/prompts/
 .github/chatmodes/
+.github/copilot*.md
 .github/copilot*.yml
 .github/copilot*.json
 /specs/
