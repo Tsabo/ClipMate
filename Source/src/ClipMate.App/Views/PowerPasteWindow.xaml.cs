@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using ClipMate.App.ViewModels;
 using Wpf.Ui.Controls;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace ClipMate.App.Views;
 
@@ -22,12 +24,10 @@ public partial class PowerPasteWindow : FluentWindow
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
     }
 
-    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PowerPasteViewModel.ShouldCloseWindow) && _viewModel.ShouldCloseWindow)
-        {
             Close();
-        }
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -39,7 +39,7 @@ public partial class PowerPasteWindow : FluentWindow
         SearchTextBox.Focus();
     }
 
-    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         switch (e.Key)
         {
@@ -59,6 +59,7 @@ public partial class PowerPasteWindow : FluentWindow
                     var selectedClip = _viewModel.FilteredClips[_viewModel.SelectedIndex];
                     _viewModel.SelectClipCommand.Execute(selectedClip);
                 }
+
                 e.Handled = true;
                 break;
 

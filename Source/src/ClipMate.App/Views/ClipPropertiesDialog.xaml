@@ -1,168 +1,168 @@
 <dx:ThemedWindow x:Class="ClipMate.App.Views.ClipPropertiesDialog"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
-        xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
-        xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
-        mc:Ignorable="d"
-        Title="Clip Properties"
-        Width="600"
-        Height="700"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResize"
-        ShowInTaskbar="False">
-    
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 mc:Ignorable="d"
+                 Title="Clip Properties"
+                 Width="600"
+                 Height="700"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="CanResize"
+                 ShowInTaskbar="False">
+
     <!-- DevExpress Dialog Buttons -->
     <dx:ThemedWindow.DialogButtons>
-        <dx:ThemedWindowDialogButton Content="OK" 
+        <dx:ThemedWindowDialogButton Content="OK"
                                      Command="{Binding OkCommand}"
                                      IsDefault="True"
                                      DialogResult="OK"
-                                     MinWidth="80"/>
-        <dx:ThemedWindowDialogButton Content="Cancel" 
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
                                      DialogResult="Cancel"
-                                     MinWidth="80"/>
-        <dx:ThemedWindowDialogButton Content="Help" 
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Help"
                                      Command="{Binding HelpCommand}"
                                      DialogResult="None"
-                                     MinWidth="80"/>
+                                     MinWidth="80" />
     </dx:ThemedWindow.DialogButtons>
-    
+
     <Grid Margin="15">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Status Bar -->
-        <TextBlock Grid.Row="0" 
+        <TextBlock Grid.Row="0"
                    Text="{Binding StatusText}"
                    Margin="0,0,0,10"
                    Foreground="Gray"
-                   FontSize="11"/>
+                   FontSize="11" />
 
         <!-- Properties LayoutControl -->
         <dxlc:LayoutControl Grid.Row="1" Orientation="Vertical" Padding="0">
-            
+
             <!-- ID -->
             <dxlc:LayoutItem Label="ID:">
-                <dxe:TextEdit Text="{Binding ClipId, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding ClipId, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Collection ID -->
             <dxlc:LayoutItem Label="Collection ID:">
-                <dxe:TextEdit Text="{Binding CollectionId, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding CollectionId, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Folder -->
             <dxlc:LayoutItem Label="Folder:">
-                <dxe:TextEdit Text="{Binding FolderName, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding FolderName, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Title -->
             <dxlc:LayoutItem Label="Title:">
-                <dxe:TextEdit Text="{Binding Title}" 
-                              AcceptsReturn="False"/>
+                <dxe:TextEdit Text="{Binding Title}"
+                              AcceptsReturn="False" />
             </dxlc:LayoutItem>
 
             <!-- Source URL -->
             <dxlc:LayoutItem Label="Source URL:">
-                <dxe:TextEdit Text="{Binding SourceUrl}"/>
+                <dxe:TextEdit Text="{Binding SourceUrl}" />
             </dxlc:LayoutItem>
 
             <!-- Creator -->
             <dxlc:LayoutItem Label="Creator:">
-                <dxe:TextEdit Text="{Binding Creator, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding Creator, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Timestamp -->
             <dxlc:LayoutItem Label="Timestamp:">
-                <dxe:TextEdit Text="{Binding CapturedAt, StringFormat='M/d/yyyy h:mm:ss tt'}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding CapturedAt, StringFormat='M/d/yyyy h:mm:ss tt'}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Modified -->
             <dxlc:LayoutItem Label="Modified:">
-                <dxe:TextEdit Text="{Binding LastModified, StringFormat='M/d/yyyy h:mm:ss tt'}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding LastModified, StringFormat='M/d/yyyy h:mm:ss tt'}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- Sort Key -->
             <dxlc:LayoutItem Label="Sort Key:">
                 <StackPanel Orientation="Horizontal">
-                    <dxe:TextEdit Text="{Binding SortKey}" 
+                    <dxe:TextEdit Text="{Binding SortKey}"
                                   MaskType="Numeric"
                                   Mask="d"
-                                  Width="150" 
-                                  Margin="0,0,10,0"/>
-                    <TextBlock Text="(Max: 2000000000)" 
-                               VerticalAlignment="Center" 
-                               Foreground="Gray"/>
+                                  Width="150"
+                                  Margin="0,0,10,0" />
+                    <TextBlock Text="(Max: 2000000000)"
+                               VerticalAlignment="Center"
+                               Foreground="Gray" />
                 </StackPanel>
             </dxlc:LayoutItem>
 
             <!-- Locale -->
             <dxlc:LayoutItem Label="Locale:">
-                <dxe:TextEdit Text="{Binding Locale}" 
+                <dxe:TextEdit Text="{Binding Locale}"
                               MaskType="Numeric"
-                              Mask="d"/>
+                              Mask="d" />
             </dxlc:LayoutItem>
 
             <!-- Checkboxes -->
             <dxlc:LayoutItem Label="Encrypted">
-                <dxe:CheckEdit IsChecked="{Binding Encrypted}"/>
+                <dxe:CheckEdit IsChecked="{Binding Encrypted}" />
             </dxlc:LayoutItem>
             <dxlc:LayoutItem Label="Macros?">
-                <dxe:CheckEdit IsChecked="{Binding Macro}"/>
+                <dxe:CheckEdit IsChecked="{Binding Macro}" />
             </dxlc:LayoutItem>
 
             <!-- Size -->
             <dxlc:LayoutItem Label="Size:">
-                <dxe:TextEdit Text="{Binding Size, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding Size, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- User ID -->
             <dxlc:LayoutItem Label="User ID:">
-                <dxe:TextEdit Text="{Binding UserId, Mode=OneWay}" 
-                              IsReadOnly="True" 
-                              Background="#F5F5F5"/>
+                <dxe:TextEdit Text="{Binding UserId, Mode=OneWay}"
+                              IsReadOnly="True"
+                              Background="#F5F5F5" />
             </dxlc:LayoutItem>
 
             <!-- ShortCut -->
             <dxlc:LayoutItem Label="ShortCut:">
-                <dxe:TextEdit Text="{Binding Shortcut}"/>
+                <dxe:TextEdit Text="{Binding Shortcut}" />
             </dxlc:LayoutItem>
 
             <!-- Data Formats Present -->
             <dxlc:LayoutItem Label="Data Formats Present:" VerticalAlignment="Stretch">
-                <Border BorderBrush="Gray" 
-                        BorderThickness="1" 
+                <Border BorderBrush="Gray"
+                        BorderThickness="1"
                         Background="White">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding DataFormats}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Margin="5,2">
-                                        <CheckBox IsChecked="True" IsEnabled="False" Margin="0,0,5,0"/>
+                                        <CheckBox IsChecked="True" IsEnabled="False" Margin="0,0,5,0" />
                                         <TextBlock>
-                                            <Run Text="{Binding Icon}" FontSize="14"/>
-                                            <Run Text="{Binding FormatName}"/>
+                                            <Run Text="{Binding Icon}" FontSize="14" />
+                                            <Run Text="{Binding FormatName}" />
                                         </TextBlock>
                                     </StackPanel>
                                 </DataTemplate>

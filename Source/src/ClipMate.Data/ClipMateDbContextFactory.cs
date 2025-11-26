@@ -11,7 +11,7 @@ public class ClipMateDbContextFactory : IDesignTimeDbContextFactory<ClipMateDbCo
     public ClipMateDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
-        
+
         // Use a temporary in-memory database path for design-time operations
         optionsBuilder.UseSqlite("Data Source=clipmate.db");
 

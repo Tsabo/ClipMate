@@ -50,12 +50,12 @@ public class DefaultDataSeeder
                     ParentGuid = emptyGuid,
                     Title = "Inbox",
                     Icon = "📥",
-                    LmType = 0,      // Normal collection
-                    ListType = 0,    // Normal list
+                    LmType = CollectionLmType.Normal,
+                    ListType = CollectionListType.Normal,
                     SortKey = 100,
-                    IlIndex = 7,     // Icon index
+                    IlIndex = 7, // Icon index
                     RetentionLimit = 200,
-                    NewClipsGo = 1,  // Accept new clips
+                    NewClipsGo = 1, // Accept new clips
                     AcceptNewClips = true,
                     ReadOnly = false,
                     AcceptDuplicates = false,
@@ -67,7 +67,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Safe - For important clips (folder type)
@@ -78,8 +78,8 @@ public class DefaultDataSeeder
                     ParentGuid = emptyGuid,
                     Title = "Safe",
                     Icon = "🔒",
-                    LmType = 2,      // Folder type
-                    ListType = 0,
+                    LmType = CollectionLmType.Folder,
+                    ListType = CollectionListType.Normal,
                     SortKey = 200,
                     IlIndex = 9,
                     RetentionLimit = 0, // Unlimited
@@ -95,7 +95,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Overflow - Where clips go when Inbox is full
@@ -106,8 +106,8 @@ public class DefaultDataSeeder
                     ParentGuid = emptyGuid,
                     Title = "Overflow",
                     Icon = "📤",
-                    LmType = 0,
-                    ListType = 0,
+                    LmType = CollectionLmType.Normal,
+                    ListType = CollectionListType.Normal,
                     SortKey = 300,
                     IlIndex = 8,
                     RetentionLimit = 800,
@@ -123,7 +123,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Samples - Sample clips folder
@@ -134,8 +134,8 @@ public class DefaultDataSeeder
                     ParentGuid = emptyGuid,
                     Title = "Samples",
                     Icon = "📋",
-                    LmType = 2,      // Folder type
-                    ListType = 0,
+                    LmType = CollectionLmType.Folder,
+                    ListType = CollectionListType.Normal,
                     SortKey = 350,
                     IlIndex = 40,
                     RetentionLimit = 200,
@@ -151,7 +151,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Virtual - Parent folder for virtual/smart collections
@@ -162,8 +162,8 @@ public class DefaultDataSeeder
                     ParentGuid = emptyGuid,
                     Title = "Virtual",
                     Icon = "✨",
-                    LmType = 2,      // Folder type
-                    ListType = 1,    // Virtual collection
+                    LmType = CollectionLmType.Folder,
+                    ListType = CollectionListType.Smart,
                     SortKey = 400,
                     IlIndex = 50,
                     RetentionLimit = 250,
@@ -179,8 +179,8 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "xxx", // Placeholder
-                    CreatedAt = now
-                }
+                    CreatedAt = now,
+                },
             };
 
             await _context.Collections.AddRangeAsync(collections);
@@ -200,8 +200,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "Today",
                     Icon = "📅",
-                    LmType = 1,      // Virtual collection
-                    ListType = 3,    // SQL-based
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 500,
                     IlIndex = 74,
                     RetentionLimit = 1,
@@ -217,7 +217,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATE#' and del = false order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // This Week
@@ -228,8 +228,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "This Week",
                     Icon = "🗓️",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 510,
                     IlIndex = 75,
                     RetentionLimit = 7,
@@ -245,7 +245,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // This Month
@@ -256,8 +256,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "This Month",
                     Icon = "📆",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 520,
                     IlIndex = 77,
                     RetentionLimit = 31,
@@ -273,7 +273,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Everything - All clips
@@ -284,8 +284,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "Everything",
                     Icon = "🌐",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 530,
                     IlIndex = 20,
                     RetentionLimit = 9999,
@@ -301,7 +301,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Since Last Import
@@ -312,8 +312,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "Since Last Import",
                     Icon = "📥",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 540,
                     IlIndex = 48,
                     RetentionLimit = 0,
@@ -329,7 +329,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTIMPORT#' and del = false order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Since Last Export
@@ -340,8 +340,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "Since Last Export",
                     Icon = "📤",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 550,
                     IlIndex = 48,
                     RetentionLimit = 31,
@@ -357,7 +357,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTEXPORT#' and del = false order by ID;",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Bitmaps - Only bitmap clips
@@ -366,11 +366,11 @@ public class DefaultDataSeeder
                     Id = Guid.Parse("A0FBA33A-D501-411D-BCE4-AB1522F6A141"),
                     ParentId = virtualParentId,
                     ParentGuid = virtualParentId,
-                    Title = "Bitmaps",
+                    Title = "Images",
                     Icon = "🖼️",
-                    LmType = 1,
-                    ListType = 3,
-                    SortKey = 610,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
+                    SortKey = 530,
                     IlIndex = 30,
                     RetentionLimit = 9999,
                     NewClipsGo = 1,
@@ -385,7 +385,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where del = false and clip.id in (select clip_id from clipdata where ClipData.Format = 2)",
-                    CreatedAt = now
+                    CreatedAt = now,
                 },
 
                 // Keystroke Macros
@@ -396,8 +396,8 @@ public class DefaultDataSeeder
                     ParentGuid = virtualParentId,
                     Title = "Keystroke Macros",
                     Icon = "⌨️",
-                    LmType = 1,
-                    ListType = 3,
+                    LmType = CollectionLmType.Virtual,
+                    ListType = CollectionListType.SqlBased,
                     SortKey = 620,
                     IlIndex = 38,
                     RetentionLimit = 9999,
@@ -413,8 +413,8 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where clip.macro = true",
-                    CreatedAt = now
-                }
+                    CreatedAt = now,
+                },
             };
 
             await _context.Collections.AddRangeAsync(virtualCollections);

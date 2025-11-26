@@ -19,7 +19,7 @@ public class MonacoEditorStateRepository : IMonacoEditorStateRepository
     public async Task<MonacoEditorState?> GetByClipDataIdAsync(Guid clipDataId, CancellationToken cancellationToken = default)
     {
         return await _context.MonacoEditorStates
-            .FirstOrDefaultAsync(m => m.ClipDataId == clipDataId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.ClipDataId == clipDataId, cancellationToken);
     }
 
     public async Task UpsertAsync(MonacoEditorState state, CancellationToken cancellationToken = default)

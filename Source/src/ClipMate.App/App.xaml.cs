@@ -5,9 +5,10 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
-using ClipMate.Core.ViewModels;
+using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
+using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +16,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App;
 
 /// <summary>
-///     Interaction logic for App.xaml
+/// Interaction logic for App.xaml
 /// </summary>
 public partial class App
 {
@@ -36,12 +36,12 @@ public partial class App
     private TrayIconWindow? _trayIconWindow;
 
     /// <summary>
-    ///     Gets the service provider for dependency injection.
+    /// Gets the service provider for dependency injection.
     /// </summary>
     public IServiceProvider ServiceProvider => _host?.Services ?? throw new InvalidOperationException("Host not initialized");
 
     /// <summary>
-    ///     Called when the application starts.
+    /// Called when the application starts.
     /// </summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -91,7 +91,7 @@ public partial class App
             _logger.LogInformation("Database schema initialized");
 
             // Load configuration BEFORE starting hosted services
-            var configService = ServiceProvider.GetRequiredService<Core.Services.IConfigurationService>();
+            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
             await configService.LoadAsync();
             _logger?.LogInformation("Configuration loaded from disk");
 
@@ -117,23 +117,23 @@ public partial class App
     }
 
     /// <summary>
-    ///     Initializes the database schema before starting hosted services.
+    /// Initializes the database schema before starting hosted services.
     /// </summary>
     private async Task InitializeDatabaseSchemaAsync()
     {
         using var scope = ServiceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
-        
+
         // Ensure database file exists
         await dbContext.Database.EnsureCreatedAsync();
-        
+
         // Migrate schema to match EF Core model
-        var migrationService = scope.ServiceProvider.GetRequiredService<Data.Services.DatabaseSchemaMigrationService>();
+        var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
         await migrationService.MigrateAsync(dbContext);
     }
 
     /// <summary>
-    ///     Checks if database exists and is valid. If not, runs the setup wizard.
+    /// Checks if database exists and is valid. If not, runs the setup wizard.
     /// </summary>
     /// <returns>True if database is ready, false if user cancelled setup.</returns>
     private async Task<bool> CheckDatabaseAndRunSetupIfNeededAsync()
@@ -202,7 +202,7 @@ public partial class App
     }
 
     /// <summary>
-    ///     Creates and configures the host builder.
+    /// Creates and configures the host builder.
     /// </summary>
     private static IHostBuilder CreateHostBuilder(string databasePath)
     {
@@ -236,7 +236,7 @@ public partial class App
 
                 // Register PowerPaste as hosted service
                 services.AddSingleton<PowerPasteCoordinator>();
-                services.AddHostedService(sp => sp.GetRequiredService<PowerPasteCoordinator>());
+                services.AddHostedService(p => p.GetRequiredService<PowerPasteCoordinator>());
 
                 // Register MainWindow as singleton (always exists, just hidden/shown)
                 services.AddSingleton<MainWindow>();
@@ -256,8 +256,7 @@ public partial class App
                 services.AddTransient<ClipViewerViewModel>();
 
                 // Register Clip Viewer
-                services.AddSingleton<IClipViewerWindowManager>(sp => 
-                    new ClipViewerWindowManager(() => sp.GetRequiredService<ClipViewerViewModel>()));
+                services.AddSingleton<IClipViewerWindowManager, ClipViewerWindowManager>();
 
                 // Register Text Tools components
                 services.AddTransient<TextToolsViewModel>();
@@ -271,7 +270,7 @@ public partial class App
     }
 
     /// <summary>
-    ///     Called when the application exits.
+    /// Called when the application exits.
     /// </summary>
     protected override async void OnExit(ExitEventArgs e)
     {
@@ -299,7 +298,7 @@ public partial class App
     }
 
     /// <summary>
-    ///     Handles unhandled exceptions from the AppDomain.
+    /// Handles unhandled exceptions from the AppDomain.
     /// </summary>
     private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
@@ -317,7 +316,7 @@ public partial class App
     }
 
     /// <summary>
-    ///     Handles unhandled exceptions from the UI thread.
+    /// Handles unhandled exceptions from the UI thread.
     /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
@@ -334,7 +333,7 @@ public partial class App
     }
 
     /// <summary>
-    ///     Handles unobserved task exceptions.
+    /// Handles unobserved task exceptions.
     /// </summary>
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {

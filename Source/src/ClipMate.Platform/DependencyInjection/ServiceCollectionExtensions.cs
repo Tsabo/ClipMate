@@ -1,7 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Platform.DependencyInjection;
 

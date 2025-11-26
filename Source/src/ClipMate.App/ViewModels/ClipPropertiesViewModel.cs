@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using ClipMate.App.Models;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -13,12 +15,11 @@ namespace ClipMate.App.ViewModels;
 public partial class ClipPropertiesViewModel : ObservableObject
 {
     private readonly IClipService _clipService;
-    private readonly IFolderService _folderService;
     private readonly ICollectionService _collectionService;
-    private Clip? _originalClip;
+    private readonly IFolderService _folderService;
 
     [ObservableProperty]
-    private string _statusText = "Status: No updates since read from disk.";
+    private DateTimeOffset _capturedAt;
 
     [ObservableProperty]
     private string _clipId = string.Empty;
@@ -27,46 +28,48 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private string _collectionId = string.Empty;
 
     [ObservableProperty]
-    private string _folderName = string.Empty;
-
-    [ObservableProperty]
-    private string? _title;
-
-    [ObservableProperty]
-    private string? _sourceUrl;
-
-    [ObservableProperty]
     private string _creator = string.Empty;
 
     [ObservableProperty]
-    private DateTimeOffset _capturedAt;
-
-    [ObservableProperty]
-    private DateTimeOffset? _lastModified;
-
-    [ObservableProperty]
-    private int _sortKey;
-
-    [ObservableProperty]
-    private int _locale;
+    private ObservableCollection<DataFormatInfo> _dataFormats = [];
 
     [ObservableProperty]
     private bool _encrypted;
 
     [ObservableProperty]
+    private string _folderName = string.Empty;
+
+    [ObservableProperty]
+    private DateTimeOffset? _lastModified;
+
+    [ObservableProperty]
+    private int _locale;
+
+    [ObservableProperty]
     private bool _macro;
 
-    [ObservableProperty]
-    private int _size;
-
-    [ObservableProperty]
-    private int? _userId;
+    private Clip? _originalClip;
 
     [ObservableProperty]
     private string? _shortcut;
 
     [ObservableProperty]
-    private ObservableCollection<DataFormatInfo> _dataFormats = [];
+    private int _size;
+
+    [ObservableProperty]
+    private int _sortKey;
+
+    [ObservableProperty]
+    private string? _sourceUrl;
+
+    [ObservableProperty]
+    private string _statusText = "Status: No updates since read from disk.";
+
+    [ObservableProperty]
+    private string? _title;
+
+    [ObservableProperty]
+    private int? _userId;
 
     public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService)
     {
@@ -82,31 +85,31 @@ public partial class ClipPropertiesViewModel : ObservableObject
     public async Task LoadClipAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
-        {
             throw new ArgumentNullException(nameof(clip));
-        }
 
         _originalClip = clip;
 
         ClipId = clip.Id.ToString();
         CollectionId = clip.CollectionId?.ToString() ?? string.Empty;
-        
+
         // Load folder name or collection name
         if (clip.FolderId.HasValue)
         {
             var folder = await _folderService.GetByIdAsync(clip.FolderId.Value, cancellationToken);
-            FolderName = folder is not null ? folder.Name : "Unknown";
+            FolderName = folder is not null
+                ? folder.Name
+                : "Unknown";
         }
         else if (clip.CollectionId.HasValue)
         {
             // When no folder is assigned, show the collection name
             var collection = await _collectionService.GetByIdAsync(clip.CollectionId.Value, cancellationToken);
-            FolderName = collection is not null ? collection.Name : "(Unknown Collection)";
+            FolderName = collection is not null
+                ? collection.Name
+                : "(Unknown Collection)";
         }
         else
-        {
             FolderName = "(No Collection)";
-        }
 
         Title = clip.Title;
         SourceUrl = clip.SourceUrl;
@@ -124,14 +127,14 @@ public partial class ClipPropertiesViewModel : ObservableObject
         // Load data formats through service layer
         DataFormats.Clear();
         var clipDataFormats = await _clipService.GetClipFormatsAsync(clip.Id, cancellationToken);
-        
+
         foreach (var format in clipDataFormats.OrderBy(f => f.FormatName))
         {
             var icon = GetIconForFormat(format.FormatName, format.Format);
-            DataFormats.Add(new DataFormatInfo 
-            { 
+            DataFormats.Add(new DataFormatInfo
+            {
                 Icon = icon,
-                FormatName = $"{format.FormatName} (Format: {format.Format}, Size: {format.Size} bytes)"
+                FormatName = $"{format.FormatName} (Format: {format.Format}, Size: {format.Size} bytes)",
             });
         }
     }
@@ -141,9 +144,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private async Task OkAsync()
     {
         if (_originalClip == null)
-        {
             return;
-        }
 
         // Update the clip with edited values
         _originalClip.Title = Title;
@@ -169,10 +170,10 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private void Help()
     {
         // TODO: Open help documentation
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        Process.Start(new ProcessStartInfo
         {
             FileName = "https://clipmate.com/help/clip-properties",
-            UseShellExecute = true
+            UseShellExecute = true,
         });
     }
 
@@ -182,47 +183,28 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private static string GetIconForFormat(string formatName, int formatCode)
     {
         // Text formats
-        if (formatCode == ClipboardConstants.Format.CF_TEXT || formatCode == ClipboardConstants.Format.CF_UNICODETEXT || 
+        if (formatCode == ClipboardConstants.Format.CF_TEXT || formatCode == ClipboardConstants.Format.CF_UNICODETEXT ||
             formatName == "CF_TEXT" || formatName == "CF_UNICODETEXT")
-        {
             return "📄"; // Document
-        }
 
         // RTF format
         if (formatName == "CF_RTF" || formatCode == ClipboardConstants.Format.CF_RTF)
-        {
             return "🅰"; // Letter A (formatted)
-        }
 
         // HTML format
         if (formatName == "HTML Format" || formatCode == ClipboardConstants.Format.CF_HTML || formatCode == ClipboardConstants.Format.CF_HTML_ALT)
-        {
             return "🌐"; // Globe (web)
-        }
 
         // Image formats
-        if (formatCode == ClipboardConstants.Format.CF_BITMAP || formatCode == ClipboardConstants.Format.CF_DIB || 
+        if (formatCode == ClipboardConstants.Format.CF_BITMAP || formatCode == ClipboardConstants.Format.CF_DIB ||
             formatName == "CF_BITMAP" || formatName == "CF_DIB" || formatName == "CF_ENHMETAFILE")
-        {
             return "🖼"; // Picture frame
-        }
 
         // File list format
         if (formatCode == ClipboardConstants.Format.CF_HDROP || formatName == "CF_HDROP")
-        {
             return "📁"; // Folder
-        }
 
         // Unknown format
         return "❓";
     }
-}
-
-/// <summary>
-/// Represents a data format available in a clip.
-/// </summary>
-public class DataFormatInfo
-{
-    public string Icon { get; set; } = "📄";
-    public string FormatName { get; set; } = string.Empty;
 }

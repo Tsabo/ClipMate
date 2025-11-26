@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 
@@ -10,10 +11,10 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class SearchService : ISearchService
 {
+    private const int _maxHistorySize = 50;
     private readonly IClipRepository _clipRepository;
+    private readonly List<string> _searchHistory = [];
     private readonly ISearchQueryRepository _searchQueryRepository;
-    private readonly List<string> _searchHistory = new();
-    private const int MaxHistorySize = 50;
 
     public SearchService(IClipRepository clipRepository, ISearchQueryRepository searchQueryRepository)
     {
@@ -25,9 +26,7 @@ public class SearchService : ISearchService
     {
         // Track search history (non-empty queries only)
         if (!string.IsNullOrWhiteSpace(query))
-        {
             AddToSearchHistory(query);
-        }
 
         // Get all clips (or filtered by scope)
         var allClips = await GetClipsInScopeAsync(filters, cancellationToken);
@@ -39,7 +38,7 @@ public class SearchService : ISearchService
         {
             Clips = filteredClips.ToList(),
             TotalMatches = filteredClips.Count(),
-            Query = query
+            Query = query,
         };
     }
 
@@ -47,14 +46,12 @@ public class SearchService : ISearchService
     {
         var searchQuery = await _searchQueryRepository.GetByIdAsync(searchQueryId, cancellationToken);
         if (searchQuery == null)
-        {
             throw new ArgumentException($"Search query {searchQueryId} not found", nameof(searchQueryId));
-        }
 
         var filters = new SearchFilters
         {
             CaseSensitive = searchQuery.IsCaseSensitive,
-            IsRegex = searchQuery.IsRegex
+            IsRegex = searchQuery.IsRegex,
         };
 
         return await SearchAsync(searchQuery.QueryText, filters, cancellationToken);
@@ -72,16 +69,13 @@ public class SearchService : ISearchService
             QueryText = query,
             IsCaseSensitive = isCaseSensitive,
             IsRegex = isRegex,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
         };
 
         return await _searchQueryRepository.CreateAsync(searchQuery, cancellationToken);
     }
 
-    public async Task DeleteSearchQueryAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        await _searchQueryRepository.DeleteAsync(id, cancellationToken);
-    }
+    public async Task DeleteSearchQueryAsync(Guid id, CancellationToken cancellationToken = default) => await _searchQueryRepository.DeleteAsync(id, cancellationToken);
 
     public Task<IReadOnlyList<string>> GetSearchHistoryAsync(int count = 10, CancellationToken cancellationToken = default)
     {
@@ -115,20 +109,15 @@ public class SearchService : ISearchService
         if (filters?.DateRange != null)
         {
             if (filters.DateRange.From.HasValue)
-            {
                 result = result.Where(c => c.CapturedAt >= filters.DateRange.From.Value);
-            }
+
             if (filters.DateRange.To.HasValue)
-            {
                 result = result.Where(c => c.CapturedAt <= filters.DateRange.To.Value);
-            }
         }
 
         // Apply text search
         if (!string.IsNullOrWhiteSpace(query))
-        {
             result = ApplyTextSearch(result, query, filters);
-        }
 
         return result;
     }
@@ -139,7 +128,10 @@ public class SearchService : ISearchService
         {
             try
             {
-                var regex = new Regex(query, filters.CaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase);
+                var regex = new Regex(query, filters.CaseSensitive
+                    ? RegexOptions.None
+                    : RegexOptions.IgnoreCase);
+
                 return clips.Where(c => regex.IsMatch(c.TextContent ?? string.Empty));
             }
             catch (ArgumentException ex)
@@ -153,22 +145,20 @@ public class SearchService : ISearchService
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
 
-        return clips.Where(c => 
-            (c.TextContent?.Contains(query, comparison) == true));
+        return clips.Where(c =>
+            c.TextContent?.Contains(query, comparison) == true);
     }
 
     private void AddToSearchHistory(string query)
     {
         // Remove if already exists
         _searchHistory.Remove(query);
-        
+
         // Add to front
         _searchHistory.Insert(0, query);
 
         // Trim to max size
-        if (_searchHistory.Count > MaxHistorySize)
-        {
+        if (_searchHistory.Count > _maxHistorySize)
             _searchHistory.RemoveAt(_searchHistory.Count - 1);
-        }
     }
 }

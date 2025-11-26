@@ -397,6 +397,9 @@ resharper_place_simple_embedded_statement_on_same_line = false
 resharper_space_within_single_line_array_initializer_braces = true
 resharper_treat_case_statement_with_break_as_simple = false
 resharper_wrap_object_and_collection_initializer_style = chop_always
+resharper_xmldoc_indent_text = ZeroIndent
+resharper_xmldoc_indent_child_elements = ZeroIndent
+
 
 # Spelling exclusion
 spelling_exclusion_path = ./exclusion.dic

@@ -9,16 +9,6 @@ namespace ClipMate.Core.Events;
 public class SearchResultsChangedEvent
 {
     /// <summary>
-    /// The search text that was used, or null/empty if search was cleared.
-    /// </summary>
-    public string? SearchText { get; }
-
-    /// <summary>
-    /// The search results, or empty if search was cleared or no results found.
-    /// </summary>
-    public IReadOnlyList<Clip> Results { get; }
-
-    /// <summary>
     /// Creates a new search results changed event.
     /// </summary>
     /// <param name="searchText">The search text.</param>
@@ -28,4 +18,14 @@ public class SearchResultsChangedEvent
         SearchText = searchText;
         Results = results ?? [];
     }
+
+    /// <summary>
+    /// The search text that was used, or null/empty if search was cleared.
+    /// </summary>
+    public string? SearchText { get; }
+
+    /// <summary>
+    /// The search results, or empty if search was cleared or no results found.
+    /// </summary>
+    public IReadOnlyList<Clip> Results { get; }
 }

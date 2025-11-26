@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ClipMate.Data.Schema.Models;
 
 namespace ClipMate.Data.Schema.Serialization;
@@ -8,22 +9,19 @@ namespace ClipMate.Data.Schema.Serialization;
 /// </summary>
 public class SchemaSerializer
 {
-    private static readonly JsonSerializerOptions Options = new()
+    private static readonly JsonSerializerOptions _options = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public string ToJson(SchemaDefinition schema)
-    {
-        return JsonSerializer.Serialize(schema, Options);
-    }
+    public string ToJson(SchemaDefinition schema) => JsonSerializer.Serialize(schema, _options);
 
     public SchemaDefinition FromJson(string json)
     {
-        return JsonSerializer.Deserialize<SchemaDefinition>(json, Options)
-            ?? throw new InvalidOperationException("Failed to deserialize schema");
+        return JsonSerializer.Deserialize<SchemaDefinition>(json, _options)
+               ?? throw new InvalidOperationException("Failed to deserialize schema");
     }
 
     public async Task ExportToFileAsync(SchemaDefinition schema, string filePath, CancellationToken cancellationToken = default)

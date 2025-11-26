@@ -11,13 +11,13 @@ public class TableDefinition
     public required string Name { get; set; }
 
     [JsonPropertyName("columns")]
-    public List<ColumnDefinition> Columns { get; set; } = new();
+    public List<ColumnDefinition> Columns { get; set; } = [];
 
     [JsonPropertyName("indexes")]
-    public List<IndexDefinition> Indexes { get; set; } = new();
+    public List<IndexDefinition> Indexes { get; set; } = [];
 
     [JsonPropertyName("foreignKeys")]
-    public List<ForeignKeyDefinition> ForeignKeys { get; set; } = new();
+    public List<ForeignKeyDefinition> ForeignKeys { get; set; } = [];
 
     [JsonPropertyName("createSql")]
     public string? CreateSql { get; set; }

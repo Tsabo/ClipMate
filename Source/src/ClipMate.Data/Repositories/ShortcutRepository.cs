@@ -19,29 +19,29 @@ public class ShortcutRepository : IShortcutRepository
     public async Task<Shortcut?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Shortcuts
-            .Include(s => s.Clip)
-            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+            .Include(p => p.Clip)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task<Shortcut?> GetByNicknameAsync(string nickname, CancellationToken cancellationToken = default)
     {
         return await _context.Shortcuts
-            .Include(s => s.Clip)
-            .FirstOrDefaultAsync(s => s.Nickname == nickname, cancellationToken);
+            .Include(p => p.Clip)
+            .FirstOrDefaultAsync(p => p.Nickname == nickname, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Shortcut>> GetByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.Shortcuts
-            .Where(s => s.ClipId == clipId)
-            .OrderBy(s => s.Nickname)
+            .Where(p => p.ClipId == clipId)
+            .OrderBy(p => p.Nickname)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<Shortcut>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Shortcuts
-            .OrderBy(s => s.Nickname)
+            .OrderBy(p => p.Nickname)
             .ToListAsync(cancellationToken);
     }
 
@@ -49,9 +49,7 @@ public class ShortcutRepository : IShortcutRepository
     {
         // Ensure ClipGuid is set from ClipId if not already set
         if (shortcut.ClipGuid == Guid.Empty)
-        {
             shortcut.ClipGuid = shortcut.ClipId;
-        }
 
         _context.Shortcuts.Add(shortcut);
         await _context.SaveChangesAsync(cancellationToken);
@@ -60,11 +58,9 @@ public class ShortcutRepository : IShortcutRepository
 
     public async Task<bool> UpdateAsync(Shortcut shortcut, CancellationToken cancellationToken = default)
     {
-        var existing = await _context.Shortcuts.FindAsync(new object[] { shortcut.Id }, cancellationToken);
+        var existing = await _context.Shortcuts.FindAsync([shortcut.Id], cancellationToken);
         if (existing == null)
-        {
             return false;
-        }
 
         existing.Nickname = shortcut.Nickname;
         existing.ClipId = shortcut.ClipId;
@@ -77,11 +73,9 @@ public class ShortcutRepository : IShortcutRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var shortcut = await _context.Shortcuts.FindAsync(new object[] { id }, cancellationToken);
+        var shortcut = await _context.Shortcuts.FindAsync([id], cancellationToken);
         if (shortcut == null)
-        {
             return false;
-        }
 
         _context.Shortcuts.Remove(shortcut);
         await _context.SaveChangesAsync(cancellationToken);
@@ -91,7 +85,7 @@ public class ShortcutRepository : IShortcutRepository
     public async Task<int> DeleteByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         var shortcuts = await _context.Shortcuts
-            .Where(s => s.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.Shortcuts.RemoveRange(shortcuts);
@@ -102,12 +96,10 @@ public class ShortcutRepository : IShortcutRepository
 
     public async Task<bool> NicknameExistsAsync(string nickname, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
-        var query = _context.Shortcuts.Where(s => s.Nickname == nickname);
+        var query = _context.Shortcuts.Where(p => p.Nickname == nickname);
 
         if (excludeId.HasValue)
-        {
-            query = query.Where(s => s.Id != excludeId.Value);
-        }
+            query = query.Where(p => p.Id != excludeId.Value);
 
         return await query.AnyAsync(cancellationToken);
     }

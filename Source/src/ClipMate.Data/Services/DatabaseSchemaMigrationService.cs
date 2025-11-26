@@ -61,9 +61,7 @@ public class DatabaseSchemaMigrationService
         }
 
         if (validationResult.Warnings.Count > 0)
-        {
             _logger?.LogWarning("Schema validation warnings: {Warnings}", string.Join(", ", validationResult.Warnings));
-        }
 
         // Compare schemas
         var comparer = new SqliteSchemaComparer();
@@ -78,15 +76,13 @@ public class DatabaseSchemaMigrationService
         _logger?.LogInformation("Schema changes detected: {OperationCount} operations", diff.Operations.Count);
 
         if (diff.Warnings.Count > 0)
-        {
             _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
-        }
 
         // Apply migrations with logging hook
         var hook = new LoggingMigrationHook(_logger);
         var migrator = new SqliteSchemaMigrator(connection, hook);
 
-        var result = await migrator.MigrateAsync(diff, dryRun: false, cancellationToken);
+        var result = await migrator.MigrateAsync(diff, false, cancellationToken);
 
         if (!result.Success)
         {
@@ -114,10 +110,10 @@ public class DatabaseSchemaMigrationService
             _logger?.LogInformation("Starting migration with {OperationCount} operations (Dry run: {IsDryRun})",
                 context.Diff.Operations.Count, context.IsDryRun);
 
-            foreach (var operation in context.Diff.Operations)
+            foreach (var item in context.Diff.Operations)
             {
                 _logger?.LogDebug("  {OperationType}: {Description}",
-                    operation.Type, GetOperationDescription(operation));
+                    item.Type, GetOperationDescription(item));
             }
 
             return Task.CompletedTask;
@@ -131,9 +127,7 @@ public class DatabaseSchemaMigrationService
                     result.SqlExecuted.Count);
             }
             else
-            {
                 _logger?.LogError("Migration failed: {Errors}", string.Join(", ", result.Errors));
-            }
 
             return Task.CompletedTask;
         }
@@ -145,7 +139,7 @@ public class DatabaseSchemaMigrationService
                 MigrationOperationType.CreateTable => $"Create table '{operation.TableName}'",
                 MigrationOperationType.AddColumn => $"Add column '{operation.ColumnName}' to '{operation.TableName}'",
                 MigrationOperationType.CreateIndex => $"Create index '{operation.IndexName}'",
-                _ => operation.Type.ToString()
+                var _ => operation.Type.ToString(),
             };
         }
     }

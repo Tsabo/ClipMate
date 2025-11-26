@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
@@ -10,11 +11,10 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class ApplicationFilterService : IApplicationFilterService
 {
-    private readonly IApplicationFilterRepository _repository;
     private readonly ILogger<ApplicationFilterService> _logger;
+    private readonly IApplicationFilterRepository _repository;
 
-    public ApplicationFilterService(
-        IApplicationFilterRepository repository,
+    public ApplicationFilterService(IApplicationFilterRepository repository,
         ILogger<ApplicationFilterService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
@@ -22,8 +22,7 @@ public class ApplicationFilterService : IApplicationFilterService
     }
 
     /// <inheritdoc />
-    public async Task<bool> ShouldFilterAsync(
-        string? processName,
+    public async Task<bool> ShouldFilterAsync(string? processName,
         string? windowTitle,
         CancellationToken cancellationToken = default)
     {
@@ -31,15 +30,16 @@ public class ApplicationFilterService : IApplicationFilterService
         {
             var enabledFilters = await _repository.GetEnabledAsync(cancellationToken);
 
-            foreach (var filter in enabledFilters)
+            foreach (var item in enabledFilters)
             {
-                if (MatchesFilter(filter, processName, windowTitle))
+                if (MatchesFilter(item, processName, windowTitle))
                 {
                     _logger.LogDebug(
                         "Clip filtered by rule '{FilterName}': Process={Process}, Title={Title}",
-                        filter.Name,
+                        item.Name,
                         processName,
                         windowTitle);
+
                     return true;
                 }
             }
@@ -83,8 +83,7 @@ public class ApplicationFilterService : IApplicationFilterService
     }
 
     /// <inheritdoc />
-    public async Task<ApplicationFilter> CreateFilterAsync(
-        string name,
+    public async Task<ApplicationFilter> CreateFilterAsync(string name,
         string? processName,
         string? windowTitlePattern,
         bool isEnabled = true,
@@ -93,9 +92,7 @@ public class ApplicationFilterService : IApplicationFilterService
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         if (string.IsNullOrWhiteSpace(processName) && string.IsNullOrWhiteSpace(windowTitlePattern))
-        {
             throw new ArgumentException("At least one of processName or windowTitlePattern must be specified");
-        }
 
         try
         {
@@ -106,7 +103,7 @@ public class ApplicationFilterService : IApplicationFilterService
                 ProcessName = processName,
                 WindowTitlePattern = windowTitlePattern,
                 IsEnabled = isEnabled,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             var created = await _repository.CreateAsync(filter, cancellationToken);
@@ -161,9 +158,7 @@ public class ApplicationFilterService : IApplicationFilterService
         {
             var filter = await _repository.GetByIdAsync(id, cancellationToken);
             if (filter == null)
-            {
                 throw new InvalidOperationException($"Filter with ID {id} not found");
-            }
 
             filter.IsEnabled = isEnabled;
             filter.ModifiedAt = DateTime.UtcNow;
@@ -173,7 +168,9 @@ public class ApplicationFilterService : IApplicationFilterService
                 "Filter '{FilterName}' (ID: {FilterId}) {Status}",
                 filter.Name,
                 id,
-                isEnabled ? "enabled" : "disabled");
+                isEnabled
+                    ? "enabled"
+                    : "disabled");
         }
         catch (Exception ex)
         {
@@ -185,7 +182,7 @@ public class ApplicationFilterService : IApplicationFilterService
     /// <summary>
     /// Determines if a process and window title match a filter.
     /// </summary>
-    private bool MatchesFilter(ApplicationFilter filter, string? processName, string? windowTitle)
+    private static bool MatchesFilter(ApplicationFilter filter, string? processName, string? windowTitle)
     {
         var hasProcessFilter = !string.IsNullOrWhiteSpace(filter.ProcessName);
         var hasTitleFilter = !string.IsNullOrWhiteSpace(filter.WindowTitlePattern);
@@ -200,15 +197,11 @@ public class ApplicationFilterService : IApplicationFilterService
 
         // If only process filter is specified, check process name
         if (hasProcessFilter)
-        {
             return MatchesPattern(processName, filter.ProcessName);
-        }
 
         // If only title filter is specified, check window title
         if (hasTitleFilter)
-        {
             return MatchesPattern(windowTitle, filter.WindowTitlePattern);
-        }
 
         // No filters specified (shouldn't happen due to CreateFilterAsync validation)
         return false;
@@ -217,21 +210,19 @@ public class ApplicationFilterService : IApplicationFilterService
     /// <summary>
     /// Matches a value against a pattern with wildcard support.
     /// </summary>
-    private bool MatchesPattern(string? value, string? pattern)
+    private static bool MatchesPattern(string? value, string? pattern)
     {
         if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(pattern))
-        {
             return false;
-        }
 
         // Convert wildcard pattern to regex
-        var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
+        var regexPattern = "^" + Regex.Escape(pattern)
             .Replace("\\*", ".*")
             .Replace("\\?", ".") + "$";
 
-        return System.Text.RegularExpressions.Regex.IsMatch(
+        return Regex.IsMatch(
             value,
             regexPattern,
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            RegexOptions.IgnoreCase);
     }
 }

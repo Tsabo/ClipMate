@@ -1,7 +1,7 @@
+using System.Data;
 using System.Data.Common;
 using ClipMate.Data.Schema.Abstractions;
 using ClipMate.Data.Schema.Models;
-using Microsoft.Data.Sqlite;
 
 namespace ClipMate.Data.Schema.Sqlite;
 
@@ -23,31 +23,28 @@ public class SqliteSchemaReader : ISchemaReader
     public async Task<SchemaDefinition> ReadSchemaAsync(CancellationToken cancellationToken = default)
     {
         if (_options.EnableCaching && _cache != null && _cache.TryGetValue("schema", out var cached))
-        {
             return cached;
-        }
 
         var schema = new SchemaDefinition();
 
-        if (_connection.State != System.Data.ConnectionState.Open)
-        {
+        if (_connection.State != ConnectionState.Open)
             await _connection.OpenAsync(cancellationToken);
-        }
 
         var tables = await GetTablesAsync(cancellationToken);
 
-        foreach (var tableName in tables)
+        foreach (var item in tables)
         {
-            if (_options.IgnoredTables.Contains(tableName))
+            if (_options.IgnoredTables.Contains(item))
                 continue;
 
-            var table = new TableDefinition { Name = tableName };
-            table.Columns = await GetColumnsAsync(tableName, cancellationToken);
-            table.Indexes = await GetIndexesAsync(tableName, cancellationToken);
-            table.ForeignKeys = await GetForeignKeysAsync(tableName, cancellationToken);
-            table.CreateSql = await GetCreateSqlAsync(tableName, cancellationToken);
+            var table = new TableDefinition { Name = item,
+                Columns = await GetColumnsAsync(item, cancellationToken),
+                Indexes = await GetIndexesAsync(item, cancellationToken),
+                ForeignKeys = await GetForeignKeysAsync(item, cancellationToken),
+                CreateSql = await GetCreateSqlAsync(item, cancellationToken),
+            };
 
-            schema.Tables[tableName] = table;
+            schema.Tables[item] = table;
         }
 
         if (_options.EnableCaching)
@@ -63,19 +60,18 @@ public class SqliteSchemaReader : ISchemaReader
     {
         var tables = new List<string>();
 
-        using var command = _connection.CreateCommand();
-        command.CommandText = @"
-            SELECT name 
-            FROM sqlite_master 
-            WHERE type='table' 
-              AND name NOT LIKE 'sqlite_%'
-            ORDER BY name";
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+                              SELECT name 
+                              FROM sqlite_master 
+                              WHERE type='table' 
+                                AND name NOT LIKE 'sqlite_%'
+                              ORDER BY name
+                              """;
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
-        {
             tables.Add(reader.GetString(0));
-        }
 
         return tables;
     }
@@ -85,14 +81,14 @@ public class SqliteSchemaReader : ISchemaReader
         var columns = new List<ColumnDefinition>();
         var ignoredColumns = _options.IgnoredColumns.GetValueOrDefault(tableName);
 
-        using var command = _connection.CreateCommand();
+        await using var command = _connection.CreateCommand();
         command.CommandText = $"PRAGMA table_info({tableName})";
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             var columnName = reader.GetString(1);
-            
+
             if (ignoredColumns?.Contains(columnName) == true)
                 continue;
 
@@ -103,9 +99,11 @@ public class SqliteSchemaReader : ISchemaReader
                 Name = columnName,
                 Type = reader.GetString(2),
                 // PRIMARY KEY columns are always NOT NULL in SQLite, even if PRAGMA shows notnull=0
-                IsNullable = isPrimaryKey ? false : reader.GetInt32(3) == 0,
+                IsNullable = !isPrimaryKey && reader.GetInt32(3) == 0,
                 IsPrimaryKey = isPrimaryKey,
-                DefaultValue = reader.IsDBNull(4) ? null : reader.GetString(4)
+                DefaultValue = reader.IsDBNull(4)
+                    ? null
+                    : reader.GetString(4),
             };
 
             columns.Add(column);
@@ -113,14 +111,15 @@ public class SqliteSchemaReader : ISchemaReader
 
         return columns;
     }
+
     private async Task<List<IndexDefinition>> GetIndexesAsync(string tableName, CancellationToken cancellationToken)
     {
         var indexes = new List<IndexDefinition>();
 
-        using var listCommand = _connection.CreateCommand();
+        await using var listCommand = _connection.CreateCommand();
         listCommand.CommandText = $"PRAGMA index_list({tableName})";
 
-        using var listReader = await listCommand.ExecuteReaderAsync(cancellationToken);
+        await using var listReader = await listCommand.ExecuteReaderAsync(cancellationToken);
         while (await listReader.ReadAsync(cancellationToken))
         {
             var indexName = listReader.GetString(1);
@@ -133,24 +132,25 @@ public class SqliteSchemaReader : ISchemaReader
             {
                 Name = indexName,
                 TableName = tableName,
-                IsUnique = isUnique
+                IsUnique = isUnique,
             };
 
-            using var infoCommand = _connection.CreateCommand();
+            await using var infoCommand = _connection.CreateCommand();
             infoCommand.CommandText = $"PRAGMA index_info({indexName})";
 
-            using var infoReader = await infoCommand.ExecuteReaderAsync(cancellationToken);
+            await using var infoReader = await infoCommand.ExecuteReaderAsync(cancellationToken);
             while (await infoReader.ReadAsync(cancellationToken))
             {
                 var columnName = infoReader.GetString(2);
                 index.Columns.Add(columnName);
             }
 
-            using var sqlCommand = _connection.CreateCommand();
-            sqlCommand.CommandText = @"
-                SELECT sql 
-                FROM sqlite_master 
-                WHERE type='index' AND name=@indexName";
+            await using var sqlCommand = _connection.CreateCommand();
+            sqlCommand.CommandText = """
+                                     SELECT sql 
+                                     FROM sqlite_master 
+                                     WHERE type='index' AND name=@indexName
+                                     """;
 
             var param = sqlCommand.CreateParameter();
             param.ParameterName = "@indexName";
@@ -170,10 +170,10 @@ public class SqliteSchemaReader : ISchemaReader
     {
         var foreignKeys = new List<ForeignKeyDefinition>();
 
-        using var command = _connection.CreateCommand();
+        await using var command = _connection.CreateCommand();
         command.CommandText = $"PRAGMA foreign_key_list({tableName})";
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             var fk = new ForeignKeyDefinition
@@ -181,8 +181,12 @@ public class SqliteSchemaReader : ISchemaReader
                 ColumnName = reader.GetString(3),
                 ReferencedTable = reader.GetString(2),
                 ReferencedColumn = reader.GetString(4),
-                OnDelete = reader.IsDBNull(6) ? null : reader.GetString(6),
-                OnUpdate = reader.IsDBNull(5) ? null : reader.GetString(5)
+                OnDelete = reader.IsDBNull(6)
+                    ? null
+                    : reader.GetString(6),
+                OnUpdate = reader.IsDBNull(5)
+                    ? null
+                    : reader.GetString(5),
             };
 
             foreignKeys.Add(fk);
@@ -193,11 +197,12 @@ public class SqliteSchemaReader : ISchemaReader
 
     private async Task<string?> GetCreateSqlAsync(string tableName, CancellationToken cancellationToken)
     {
-        using var command = _connection.CreateCommand();
-        command.CommandText = @"
-            SELECT sql 
-            FROM sqlite_master 
-            WHERE type='table' AND name=@tableName";
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+                              SELECT sql 
+                              FROM sqlite_master 
+                              WHERE type='table' AND name=@tableName
+                              """;
 
         var param = command.CreateParameter();
         param.ParameterName = "@tableName";

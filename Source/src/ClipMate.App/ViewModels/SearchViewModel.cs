@@ -1,10 +1,11 @@
 using System.Collections.ObjectModel;
+using ClipMate.Core.Events;
+using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using ClipMate.Core.Events;
-using ClipMate.Core.Models;
-using ClipMate.Core.Services;
 
 namespace ClipMate.App.ViewModels;
 
@@ -14,26 +15,8 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
-    private readonly ISearchService _searchService;
     private readonly IMessenger _messenger;
-
-    [ObservableProperty]
-    private string _searchText = string.Empty;
-
-    [ObservableProperty]
-    private bool _isSearching;
-
-    [ObservableProperty]
-    private int _totalMatches;
-
-    [ObservableProperty]
-    private bool _filterByText = true;
-
-    [ObservableProperty]
-    private bool _filterByImage = true;
-
-    [ObservableProperty]
-    private bool _filterByFiles = true;
+    private readonly ISearchService _searchService;
 
     [ObservableProperty]
     private DateTime? _dateFrom;
@@ -42,13 +25,37 @@ public partial class SearchViewModel : ObservableObject
     private DateTime? _dateTo;
 
     [ObservableProperty]
+    private bool _filterByFiles = true;
+
+    [ObservableProperty]
+    private bool _filterByImage = true;
+
+    [ObservableProperty]
+    private bool _filterByText = true;
+
+    [ObservableProperty]
     private bool _isCaseSensitive;
 
     [ObservableProperty]
     private bool _isRegex;
 
     [ObservableProperty]
-    private Core.Services.SearchScope _searchScope = Core.Services.SearchScope.AllCollections;
+    private bool _isSearching;
+
+    [ObservableProperty]
+    private SearchScope _searchScope = SearchScope.AllCollections;
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private int _totalMatches;
+
+    public SearchViewModel(ISearchService searchService, IMessenger messenger)
+    {
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+    }
 
     /// <summary>
     /// Collection of search results.
@@ -59,12 +66,6 @@ public partial class SearchViewModel : ObservableObject
     /// Collection of recent search queries.
     /// </summary>
     public ObservableCollection<string> SearchHistory { get; } = new();
-
-    public SearchViewModel(ISearchService searchService, IMessenger messenger)
-    {
-        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
-        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-    }
 
     /// <summary>
     /// Executes the search with current filters.
@@ -87,10 +88,8 @@ public partial class SearchViewModel : ObservableObject
             var results = await _searchService.SearchAsync(SearchText, filters);
 
             SearchResults.Clear();
-            foreach (var clip in results.Clips)
-            {
-                SearchResults.Add(clip);
-            }
+            foreach (var item in results.Clips)
+                SearchResults.Add(item);
 
             TotalMatches = results.TotalMatches;
 
@@ -125,45 +124,39 @@ public partial class SearchViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadSearchHistoryAsync()
     {
-        var history = await _searchService.GetSearchHistoryAsync(10);
-        
+        var history = await _searchService.GetSearchHistoryAsync();
+
         SearchHistory.Clear();
         foreach (var query in history)
-        {
             SearchHistory.Add(query);
-        }
     }
 
     private SearchFilters BuildSearchFilters()
     {
         var contentTypes = new List<ClipType>();
-        
+
         if (FilterByText)
-        {
             contentTypes.Add(ClipType.Text);
-        }
+
         if (FilterByImage)
-        {
             contentTypes.Add(ClipType.Image);
-        }
+
         if (FilterByFiles)
-        {
             contentTypes.Add(ClipType.Files);
-        }
 
         DateRange? dateRange = null;
         if (DateFrom.HasValue || DateTo.HasValue)
-        {
             dateRange = new DateRange(DateFrom, DateTo);
-        }
 
         return new SearchFilters
         {
-            ContentTypes = contentTypes.Any() ? contentTypes : null,
+            ContentTypes = contentTypes.Any()
+                ? contentTypes
+                : null,
             DateRange = dateRange,
             Scope = SearchScope,
             CaseSensitive = IsCaseSensitive,
-            IsRegex = IsRegex
+            IsRegex = IsRegex,
         };
     }
 }

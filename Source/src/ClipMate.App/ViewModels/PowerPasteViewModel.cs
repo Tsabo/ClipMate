@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace ClipMate.App.ViewModels;
 
@@ -24,16 +24,6 @@ public partial class PowerPasteViewModel : ObservableObject
     [ObservableProperty]
     private bool _shouldCloseWindow;
 
-    /// <summary>
-    /// Collection of all loaded clips.
-    /// </summary>
-    public ObservableCollection<Clip> Clips { get; } = new();
-
-    /// <summary>
-    /// Collection of filtered clips based on search text.
-    /// </summary>
-    public ObservableCollection<Clip> FilteredClips { get; } = new();
-
     public PowerPasteViewModel(IClipService clipService, IPasteService pasteService)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
@@ -43,6 +33,16 @@ public partial class PowerPasteViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Collection of all loaded clips.
+    /// </summary>
+    public ObservableCollection<Clip> Clips { get; } = [];
+
+    /// <summary>
+    /// Collection of filtered clips based on search text.
+    /// </summary>
+    public ObservableCollection<Clip> FilteredClips { get; } = [];
+
+    /// <summary>
     /// Loads the most recent clips.
     /// </summary>
     /// <param name="count">Number of clips to load. Defaults to 20.</param>
@@ -50,12 +50,10 @@ public partial class PowerPasteViewModel : ObservableObject
     public async Task LoadRecentClipsAsync(int count = 20, CancellationToken cancellationToken = default)
     {
         var clips = await _clipService.GetRecentAsync(count, cancellationToken);
-        
+
         Clips.Clear();
-        foreach (var clip in clips)
-        {
-            Clips.Add(clip);
-        }
+        foreach (var item in clips)
+            Clips.Add(item);
 
         UpdateFilteredClips();
         SelectedIndex = 0;
@@ -68,25 +66,18 @@ public partial class PowerPasteViewModel : ObservableObject
     private async Task SelectClipAsync(Clip? clip)
     {
         if (clip == null)
-        {
             return;
-        }
 
         var success = await _pasteService.PasteToActiveWindowAsync(clip);
         if (success)
-        {
             ShouldCloseWindow = true;
-        }
     }
 
     /// <summary>
     /// Cancels the PowerPaste operation and closes the window.
     /// </summary>
     [RelayCommand]
-    private void Cancel()
-    {
-        ShouldCloseWindow = true;
-    }
+    private void Cancel() => ShouldCloseWindow = true;
 
     /// <summary>
     /// Navigates to the previous item in the list.
@@ -95,15 +86,11 @@ public partial class PowerPasteViewModel : ObservableObject
     private void NavigateUp()
     {
         if (FilteredClips.Count == 0)
-        {
             return;
-        }
 
         SelectedIndex--;
         if (SelectedIndex < 0)
-        {
             SelectedIndex = FilteredClips.Count - 1; // Wrap to last
-        }
     }
 
     /// <summary>
@@ -113,23 +100,17 @@ public partial class PowerPasteViewModel : ObservableObject
     private void NavigateDown()
     {
         if (FilteredClips.Count == 0)
-        {
             return;
-        }
 
         SelectedIndex++;
         if (SelectedIndex >= FilteredClips.Count)
-        {
             SelectedIndex = 0; // Wrap to first
-        }
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SearchText))
-        {
             UpdateFilteredClips();
-        }
     }
 
     private void UpdateFilteredClips()
@@ -138,17 +119,15 @@ public partial class PowerPasteViewModel : ObservableObject
 
         var filteredItems = string.IsNullOrWhiteSpace(SearchText)
             ? Clips
-            : Clips.Where(c => (c.TextContent ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+            : Clips.Where(p => (p.TextContent ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase));
 
-        foreach (var clip in filteredItems)
-        {
-            FilteredClips.Add(clip);
-        }
+        foreach (var item in filteredItems)
+            FilteredClips.Add(item);
 
         // Reset selection if current index is out of range
         if (SelectedIndex >= FilteredClips.Count)
-        {
-            SelectedIndex = FilteredClips.Count > 0 ? 0 : -1;
-        }
+            SelectedIndex = FilteredClips.Count > 0
+                ? 0
+                : -1;
     }
 }

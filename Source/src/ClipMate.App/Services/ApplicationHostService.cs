@@ -1,8 +1,6 @@
 using System.Windows;
-using ClipMate.App.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
@@ -25,19 +23,13 @@ internal class ApplicationHostService : IHostedService
     /// Triggered when the application host is ready to start the service.
     /// </summary>
     /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        return HandleActivationAsync();
-    }
+    public Task StartAsync(CancellationToken cancellationToken) => HandleActivationAsync();
 
     /// <summary>
     /// Triggered when the application host is performing a graceful shutdown.
     /// </summary>
     /// <param name="cancellationToken">Indicates that the shutdown process should no longer be graceful.</param>
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>
     /// Creates main window during activation.
@@ -45,9 +37,7 @@ internal class ApplicationHostService : IHostedService
     private async Task HandleActivationAsync()
     {
         if (Application.Current.Windows.OfType<MainWindow>().Any())
-        {
             return;
-        }
 
         // Ensure we're on the UI thread when creating and showing the window
         await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -64,6 +54,7 @@ internal class ApplicationHostService : IHostedService
                     "Startup Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+
                 throw;
             }
         });

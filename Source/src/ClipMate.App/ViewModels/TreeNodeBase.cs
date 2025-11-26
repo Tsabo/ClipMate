@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Image = Emoji.Wpf.Image;
 
 namespace ClipMate.App.ViewModels;
 
@@ -38,7 +39,7 @@ public abstract partial class TreeNodeBase : ObservableObject
         get
         {
             var image = new DrawingImage();
-            Emoji.Wpf.Image.SetSource(image, Icon);
+            Image.SetSource(image, Icon);
             return image;
         }
     }
@@ -51,7 +52,7 @@ public abstract partial class TreeNodeBase : ObservableObject
     /// <summary>
     /// Child nodes of this tree node.
     /// </summary>
-    public ObservableCollection<TreeNodeBase> Children { get; } = new();
+    public ObservableCollection<TreeNodeBase> Children { get; } = [];
 
     /// <summary>
     /// Optional: Sort key for manual sorting (ClipMate 7.5 feature).

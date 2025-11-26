@@ -11,11 +11,11 @@ public record MigrationResult
     public required bool Success { get; init; }
 
     [JsonPropertyName("sqlExecuted")]
-    public List<string> SqlExecuted { get; init; } = new();
+    public List<string> SqlExecuted { get; init; } = [];
 
     [JsonPropertyName("errors")]
-    public List<string> Errors { get; init; } = new();
+    public List<string> Errors { get; init; } = [];
 
     [JsonPropertyName("warnings")]
-    public List<string> Warnings { get; init; } = new();
+    public List<string> Warnings { get; init; } = [];
 }

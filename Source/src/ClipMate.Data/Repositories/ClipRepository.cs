@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Data.Repositories;
 
 /// <summary>
-///     Entity Framework Core implementation of the clip repository.
-///     Handles ClipMate storage architecture: Clip metadata + ClipData formats + BLOB content.
+/// Entity Framework Core implementation of the clip repository.
+/// Handles ClipMate storage architecture: Clip metadata + ClipData formats + BLOB content.
 /// </summary>
 public class ClipRepository : IClipRepository
 {
@@ -347,9 +347,9 @@ public class ClipRepository : IClipRepository
     }
 
     /// <summary>
-    ///     Stores clip content in the appropriate BLOB tables based on available formats.
-    ///     Creates ClipData entries for each format and stores actual content separately.
-    ///     Transient properties (TextContent, ImageData, etc.) are NOT persisted to Clips table.
+    /// Stores clip content in the appropriate BLOB tables based on available formats.
+    /// Creates ClipData entries for each format and stores actual content separately.
+    /// Transient properties (TextContent, ImageData, etc.) are NOT persisted to Clips table.
     /// </summary>
     private async Task StoreClipContentAsync(Clip clip, CancellationToken cancellationToken)
     {
@@ -438,8 +438,10 @@ public class ClipRepository : IClipRepository
         if (clip.ImageData is { Length: > 0 })
         {
             var imageFormat = DetectImageFormat(clip.ImageData);
-            var storageType = imageFormat == ImageFormat.Jpeg ? 2 : 3; // 2=JPEG, 3=PNG
-            
+            var storageType = imageFormat == ImageFormat.Jpeg
+                ? 2
+                : 3; // 2=JPEG, 3=PNG
+
             var clipData = new ClipData
             {
                 Id = Guid.NewGuid(),
@@ -462,6 +464,7 @@ public class ClipRepository : IClipRepository
                     ClipId = clip.Id,
                     Data = clip.ImageData,
                 };
+
                 _context.BlobJpg.Add(blobJpg);
             }
             else // PNG or fallback
@@ -473,6 +476,7 @@ public class ClipRepository : IClipRepository
                     ClipId = clip.Id,
                     Data = clip.ImageData,
                 };
+
                 _context.BlobPng.Add(blobPng);
             }
         }
@@ -509,8 +513,8 @@ public class ClipRepository : IClipRepository
     }
 
     /// <summary>
-    ///     Helper to get registered clipboard format IDs (approximation for now).
-    ///     In real implementation, would call Win32 RegisterClipboardFormat.
+    /// Helper to get registered clipboard format IDs (approximation for now).
+    /// In real implementation, would call Win32 RegisterClipboardFormat.
     /// </summary>
     private static int RegisterClipboardFormat(string formatName)
     {
@@ -526,7 +530,7 @@ public class ClipRepository : IClipRepository
     public async Task<Clip> AddAsync(Clip clip, CancellationToken cancellationToken = default) => await CreateAsync(clip, cancellationToken);
 
     /// <summary>
-    ///     Deletes all BLOB data associated with a clip (cascades to ClipData and all BLOB tables).
+    /// Deletes all BLOB data associated with a clip (cascades to ClipData and all BLOB tables).
     /// </summary>
     private async Task DeleteClipBlobsAsync(Guid clipId, CancellationToken cancellationToken)
     {
@@ -541,9 +545,9 @@ public class ClipRepository : IClipRepository
     public async Task<long> GetCountAsync(CancellationToken cancellationToken = default) => await _context.Clips.Where(c => !c.Del).LongCountAsync(cancellationToken);
 
     /// <summary>
-    ///     Loads format availability flags for a list of clips by checking ClipData table.
-    ///     Directly queries and aggregates format information to populate transient properties.
-    ///     This is much faster than loading actual content from BLOB tables.
+    /// Loads format availability flags for a list of clips by checking ClipData table.
+    /// Directly queries and aggregates format information to populate transient properties.
+    /// This is much faster than loading actual content from BLOB tables.
     /// </summary>
     private async Task LoadFormatFlagsAsync(IEnumerable<Clip> clips, CancellationToken cancellationToken)
     {
@@ -641,7 +645,7 @@ public class ClipRepository : IClipRepository
     }
 
     /// <summary>
-    ///     Detects image format from byte array by examining magic bytes.
+    /// Detects image format from byte array by examining magic bytes.
     /// </summary>
     private static ImageFormat DetectImageFormat(byte[] imageData)
     {
@@ -658,18 +662,14 @@ public class ClipRepository : IClipRepository
             imageData[5] == 0x0A &&
             imageData[6] == 0x1A &&
             imageData[7] == 0x0A)
-        {
             return ImageFormat.Png;
-        }
 
         // Check JPEG signature: FF D8 FF
         if (imageData.Length >= 3 &&
             imageData[0] == 0xFF &&
             imageData[1] == 0xD8 &&
             imageData[2] == 0xFF)
-        {
             return ImageFormat.Jpeg;
-        }
 
         // Check GIF signature: GIF87a or GIF89a
         if (imageData.Length >= 6 &&
@@ -679,17 +679,13 @@ public class ClipRepository : IClipRepository
             imageData[3] == 0x38 && // 8
             (imageData[4] == 0x37 || imageData[4] == 0x39) && // 7 or 9
             imageData[5] == 0x61) // a
-        {
             return ImageFormat.Gif;
-        }
 
         // Check BMP signature: BM
         if (imageData.Length >= 2 &&
             imageData[0] == 0x42 && // B
-            imageData[1] == 0x4D)   // M
-        {
+            imageData[1] == 0x4D) // M
             return ImageFormat.Bmp;
-        }
 
         return ImageFormat.Unknown;
     }
@@ -700,6 +696,6 @@ public class ClipRepository : IClipRepository
         Png,
         Jpeg,
         Gif,
-        Bmp
+        Bmp,
     }
 }

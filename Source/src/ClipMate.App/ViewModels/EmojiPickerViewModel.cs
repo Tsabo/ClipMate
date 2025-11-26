@@ -1,10 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
+using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Emoji.Wpf;
-using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
 
 namespace ClipMate.App.ViewModels;
 
@@ -16,31 +15,31 @@ public partial class EmojiPickerViewModel : ObservableObject
     private readonly IConfigurationService _configurationService;
 
     [ObservableProperty]
-    private string _searchText = string.Empty;
-
-    [ObservableProperty]
-    private EmojiData.Group? _selectedCategory;
-
-    [ObservableProperty]
     private ObservableCollection<EmojiData.Emoji> _displayedEmojis = new();
 
     [ObservableProperty]
     private ObservableCollection<EmojiData.Emoji> _recentEmojis = new();
 
     [ObservableProperty]
-    private string? _selectedEmoji;
+    private string _searchText = string.Empty;
 
-    public IEnumerable<EmojiData.Group> Categories => EmojiData.AllGroups;
+    [ObservableProperty]
+    private EmojiData.Group? _selectedCategory;
+
+    [ObservableProperty]
+    private string? _selectedEmoji;
 
     public EmojiPickerViewModel(IConfigurationService configurationService)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         LoadRecentEmojis();
-        
+
         // Default to first category (usually Smileys & Emotion)
         _selectedCategory = EmojiData.AllGroups.FirstOrDefault();
         UpdateDisplayedEmojis();
     }
+
+    public IEnumerable<EmojiData.Group> Categories => EmojiData.AllGroups;
 
     [RelayCommand]
     private void SelectEmoji(EmojiData.Emoji emoji)
@@ -63,15 +62,9 @@ public partial class EmojiPickerViewModel : ObservableObject
         UpdateDisplayedEmojis();
     }
 
-    partial void OnSearchTextChanged(string value)
-    {
-        UpdateDisplayedEmojis();
-    }
+    partial void OnSearchTextChanged(string value) => UpdateDisplayedEmojis();
 
-    partial void OnSelectedCategoryChanged(EmojiData.Group? value)
-    {
-        UpdateDisplayedEmojis();
-    }
+    partial void OnSelectedCategoryChanged(EmojiData.Group? value) => UpdateDisplayedEmojis();
 
     private void UpdateDisplayedEmojis()
     {
@@ -82,7 +75,7 @@ public partial class EmojiPickerViewModel : ObservableObject
             // Search across all emojis
             var searchLower = SearchText.ToLowerInvariant();
             emojis = EmojiData.AllEmoji
-                .Where(e => e.Name.ToLowerInvariant().Contains(searchLower))
+                .Where(p => p.Name.ToLowerInvariant().Contains(searchLower))
                 .Take(64); // Limit search results
         }
         else if (SelectedCategory != null)
@@ -91,9 +84,7 @@ public partial class EmojiPickerViewModel : ObservableObject
             emojis = SelectedCategory.EmojiList;
         }
         else
-        {
             emojis = Enumerable.Empty<EmojiData.Emoji>();
-        }
 
         DisplayedEmojis = new ObservableCollection<EmojiData.Emoji>(emojis);
     }
@@ -101,15 +92,17 @@ public partial class EmojiPickerViewModel : ObservableObject
     private void LoadRecentEmojis()
     {
         var recentEmojiTexts = _configurationService.Configuration.RecentEmojis
-            .OrderByDescending(r => r.LastUsed)
-            .ThenByDescending(r => r.UseCount)
+            .OrderByDescending(p => p.LastUsed)
+            .ThenByDescending(p => p.UseCount)
             .Take(24)
-            .Select(r => r.Emoji)
+            .Select(p => p.Emoji)
             .ToList();
 
         var recentEmojiObjects = recentEmojiTexts
-            .Select(text => EmojiData.LookupByText.TryGetValue(text, out var emoji) ? emoji : null)
-            .Where(emoji => emoji != null)
+            .Select(p => EmojiData.LookupByText.TryGetValue(p, out var emoji)
+                ? emoji
+                : null)
+            .Where(p => p != null)
             .Cast<EmojiData.Emoji>()
             .ToList();
 
@@ -132,7 +125,7 @@ public partial class EmojiPickerViewModel : ObservableObject
             {
                 Emoji = emojiText,
                 LastUsed = DateTime.Now,
-                UseCount = 1
+                UseCount = 1,
             });
         }
 
@@ -140,15 +133,13 @@ public partial class EmojiPickerViewModel : ObservableObject
         if (config.RecentEmojis.Count > 50)
         {
             var toRemove = config.RecentEmojis
-                .OrderBy(r => r.LastUsed)
-                .ThenBy(r => r.UseCount)
+                .OrderBy(p => p.LastUsed)
+                .ThenBy(p => p.UseCount)
                 .Take(config.RecentEmojis.Count - 50)
                 .ToList();
 
             foreach (var item in toRemove)
-            {
                 config.RecentEmojis.Remove(item);
-            }
         }
 
         _ = _configurationService.SaveAsync();

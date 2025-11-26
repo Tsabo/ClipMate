@@ -7,6 +7,7 @@
         xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
         xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
         xmlns:converters="clr-namespace:ClipMate.App.Converters"
+        xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
         mc:Ignorable="d"
         Title="Template Editor" 
         Height="700" 
@@ -20,7 +21,8 @@
 
     <ui:FluentWindow.Resources>
         <!-- Converters -->
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <dxmvvm:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <!-- Keep custom null converters - DevExpress doesn't have direct null-to-visibility converters -->
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter"/>
         

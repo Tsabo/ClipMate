@@ -9,12 +9,12 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Data.DependencyInjection;
 
 /// <summary>
-///     Extension methods for registering Data layer services with the DI container.
+/// Extension methods for registering Data layer services with the DI container.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    ///     Adds ClipMate Data services to the service collection.
+    /// Adds ClipMate Data services to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="databasePath">The path to the SQLite database file.</param>
@@ -76,7 +76,7 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    ///     Initializes the database schema and applies migrations.
+    /// Initializes the database schema and applies migrations.
     /// </summary>
     /// <param name="serviceProvider">The service provider.</param>
     /// <returns>True if initialization was successful.</returns>

@@ -42,9 +42,7 @@ public class TemplateRepository : ITemplateRepository
     public async Task<Template> CreateAsync(Template template, CancellationToken cancellationToken = default)
     {
         if (template == null)
-        {
             throw new ArgumentNullException(nameof(template));
-        }
 
         _context.Templates.Add(template);
         await _context.SaveChangesAsync(cancellationToken);
@@ -54,9 +52,7 @@ public class TemplateRepository : ITemplateRepository
     public async Task<bool> UpdateAsync(Template template, CancellationToken cancellationToken = default)
     {
         if (template == null)
-        {
             throw new ArgumentNullException(nameof(template));
-        }
 
         _context.Templates.Update(template);
         await _context.SaveChangesAsync(cancellationToken);
@@ -65,11 +61,9 @@ public class TemplateRepository : ITemplateRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var template = await _context.Templates.FindAsync(new object[] { id }, cancellationToken);
+        var template = await _context.Templates.FindAsync([id], cancellationToken);
         if (template == null)
-        {
             return false;
-        }
 
         _context.Templates.Remove(template);
         await _context.SaveChangesAsync(cancellationToken);

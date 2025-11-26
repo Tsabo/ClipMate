@@ -9,6 +9,11 @@ namespace ClipMate.Data;
 /// </summary>
 public class ClipMateDbContext : DbContext
 {
+    public ClipMateDbContext(DbContextOptions<ClipMateDbContext> options)
+        : base(options)
+    {
+    }
+
     /// <summary>
     /// Gets or sets the clips collection.
     /// </summary>
@@ -79,11 +84,6 @@ public class ClipMateDbContext : DbContext
     /// </summary>
     public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
 
-    public ClipMateDbContext(DbContextOptions<ClipMateDbContext> options)
-        : base(options)
-    {
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -110,7 +110,7 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             // ClipMate 7.5 fields with max lengths
             entity.Property(e => e.Title).HasMaxLength(60);
             entity.Property(e => e.Creator).HasMaxLength(60);
@@ -118,14 +118,14 @@ public class ClipMateDbContext : DbContext
             entity.Property(e => e.CapturedAt).IsRequired();
             entity.Property(e => e.Type).IsRequired();
             entity.Property(e => e.ContentHash).IsRequired().HasMaxLength(64);
-            
+
             // Transient properties - NOT stored in Clips table (loaded from BLOB tables)
             entity.Ignore(e => e.TextContent);
             entity.Ignore(e => e.RtfContent);
             entity.Ignore(e => e.HtmlContent);
             entity.Ignore(e => e.ImageData);
             entity.Ignore(e => e.FilePathsJson);
-            
+
             // Format flag properties - NOT stored in Clips table
             entity.Ignore(e => e.IconGlyph);
             entity.Ignore(e => e.HasText);
@@ -133,10 +133,10 @@ public class ClipMateDbContext : DbContext
             entity.Ignore(e => e.HasHtml);
             entity.Ignore(e => e.HasBitmap);
             entity.Ignore(e => e.HasFiles);
-            
+
             // Navigation properties
             entity.Ignore(e => e.ClipDataFormats); // For now, explicit queries
-            
+
             // Indexes for performance - ClipMate 7.5 compatibility
             entity.HasIndex(e => e.CapturedAt).HasDatabaseName("IX_Clips_CapturedAt");
             entity.HasIndex(e => e.Type).HasDatabaseName("IX_Clips_Type");
@@ -157,11 +157,11 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             // ClipMate 7.5 fields with max lengths
             entity.Property(e => e.Title).IsRequired().HasMaxLength(60);
             entity.Property(e => e.Sql).HasMaxLength(256);
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.Title).HasDatabaseName("IX_Collections_Title");
             entity.HasIndex(e => e.ParentId).HasDatabaseName("IX_Collections_ParentId");
@@ -169,7 +169,7 @@ public class ClipMateDbContext : DbContext
             entity.HasIndex(e => e.LmType).HasDatabaseName("IX_Collections_LmType");
             entity.HasIndex(e => e.NewClipsGo).HasDatabaseName("IX_Collections_NewClipsGo");
             entity.HasIndex(e => e.Favorite).HasDatabaseName("IX_Collections_Favorite");
-            
+
             // Self-referencing relationship for hierarchy
             entity.HasOne(e => e.Parent)
                 .WithMany(e => e.Children)
@@ -184,16 +184,16 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.FormatName).IsRequired().HasMaxLength(60);
             entity.Property(e => e.ClipId).IsRequired();
             entity.Property(e => e.Format).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_ClipData_ClipId");
             entity.HasIndex(e => e.Format).HasDatabaseName("IX_ClipData_Format");
             entity.HasIndex(e => e.StorageType).HasDatabaseName("IX_ClipData_StorageType");
-            
+
             // Relationship to Clip
             entity.HasOne(e => e.Clip)
                 .WithMany()
@@ -208,15 +208,15 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.ClipDataId).IsRequired();
             entity.Property(e => e.ClipId).IsRequired(); // Denormalized
             entity.Property(e => e.Data).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobTxt_ClipId");
             entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobTxt_ClipDataId");
-            
+
             // Relationship to ClipData
             entity.HasOne(e => e.ClipData)
                 .WithMany()
@@ -231,15 +231,15 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.ClipDataId).IsRequired();
             entity.Property(e => e.ClipId).IsRequired(); // Denormalized
             entity.Property(e => e.Data).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobJpg_ClipId");
             entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobJpg_ClipDataId");
-            
+
             // Relationship to ClipData
             entity.HasOne(e => e.ClipData)
                 .WithMany()
@@ -254,15 +254,15 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.ClipDataId).IsRequired();
             entity.Property(e => e.ClipId).IsRequired(); // Denormalized
             entity.Property(e => e.Data).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobPng_ClipId");
             entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobPng_ClipDataId");
-            
+
             // Relationship to ClipData
             entity.HasOne(e => e.ClipData)
                 .WithMany()
@@ -277,15 +277,15 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.ClipDataId).IsRequired();
             entity.Property(e => e.ClipId).IsRequired(); // Denormalized
             entity.Property(e => e.Data).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobBlob_ClipId");
             entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobBlob_ClipDataId");
-            
+
             // Relationship to ClipData
             entity.HasOne(e => e.ClipData)
                 .WithMany()
@@ -300,14 +300,14 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.Nickname).IsRequired().HasMaxLength(64);
             entity.Property(e => e.ClipId).IsRequired();
-            
+
             // Unique index on Nickname - PowerPaste requires unique shortcuts
             entity.HasIndex(e => e.Nickname).IsUnique().HasDatabaseName("IX_Shortcuts_Nickname");
             entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_Shortcuts_ClipId");
-            
+
             // Relationship to Clip
             entity.HasOne(e => e.Clip)
                 .WithMany()
@@ -322,11 +322,11 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Workstation).IsRequired().HasMaxLength(50);
             entity.Property(e => e.LastDate).IsRequired();
-            
+
             // Indexes for performance
             entity.HasIndex(e => e.Username).HasDatabaseName("IX_Users_Username");
             entity.HasIndex(e => e.Workstation).HasDatabaseName("IX_Users_Workstation");
@@ -339,11 +339,11 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             entity.HasIndex(e => e.Name).HasDatabaseName("IX_Templates_Name");
             entity.HasIndex(e => e.CollectionId).HasDatabaseName("IX_Templates_CollectionId");
         });
@@ -355,11 +355,11 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.QueryText).IsRequired().HasMaxLength(500);
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             entity.HasIndex(e => e.LastExecutedAt).HasDatabaseName("IX_SearchQueries_LastExecutedAt");
             entity.HasIndex(e => e.QueryText).HasDatabaseName("IX_SearchQueries_QueryText");
         });
@@ -371,10 +371,10 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             entity.HasIndex(e => e.Name).HasDatabaseName("IX_ApplicationFilters_Name");
             entity.HasIndex(e => e.ProcessName).HasDatabaseName("IX_ApplicationFilters_ProcessName");
             entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_ApplicationFilters_IsEnabled");
@@ -387,10 +387,10 @@ public class ClipMateDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            
+
             entity.Property(e => e.EventType).IsRequired();
             entity.Property(e => e.SoundFilePath).IsRequired().HasMaxLength(500);
-            
+
             entity.HasIndex(e => e.EventType).HasDatabaseName("IX_SoundEvents_EventType");
             entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_SoundEvents_IsEnabled");
         });

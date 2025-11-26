@@ -1,8 +1,3 @@
-using System.Windows;
-using System.Windows.Controls;
-using ClipMate.App.ViewModels;
-using DevExpress.Xpf.Grid;
-
 namespace ClipMate.App.Views;
 
 /// <summary>
@@ -10,7 +5,7 @@ namespace ClipMate.App.Views;
 /// Displays hierarchical collection tree using DevExpress TreeListControl.
 /// Structure: Database -> Collections/Virtual Collections -> Folders
 /// </summary>
-public partial class CollectionTreeView : System.Windows.Controls.UserControl
+public partial class CollectionTreeView
 {
     public CollectionTreeView()
     {

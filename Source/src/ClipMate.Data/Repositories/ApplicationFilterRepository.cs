@@ -40,9 +40,7 @@ public class ApplicationFilterRepository : IApplicationFilterRepository
     public async Task<ApplicationFilter> CreateAsync(ApplicationFilter filter, CancellationToken cancellationToken = default)
     {
         if (filter == null)
-        {
             throw new ArgumentNullException(nameof(filter));
-        }
 
         _context.ApplicationFilters.Add(filter);
         await _context.SaveChangesAsync(cancellationToken);
@@ -52,9 +50,7 @@ public class ApplicationFilterRepository : IApplicationFilterRepository
     public async Task<bool> UpdateAsync(ApplicationFilter filter, CancellationToken cancellationToken = default)
     {
         if (filter == null)
-        {
             throw new ArgumentNullException(nameof(filter));
-        }
 
         _context.ApplicationFilters.Update(filter);
         await _context.SaveChangesAsync(cancellationToken);
@@ -65,9 +61,7 @@ public class ApplicationFilterRepository : IApplicationFilterRepository
     {
         var filter = await _context.ApplicationFilters.FindAsync(new object[] { id }, cancellationToken);
         if (filter == null)
-        {
             return false;
-        }
 
         _context.ApplicationFilters.Remove(filter);
         await _context.SaveChangesAsync(cancellationToken);

@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         mc:Ignorable="d"
         Title="ClipMate Setup"
         Height="620"
@@ -13,23 +12,23 @@
         Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" 
-                Padding="30,20" 
+        <Border Grid.Row="0"
+                Padding="30,20"
                 Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
             <StackPanel>
-                <TextBlock Text="Welcome to ClipMate" 
+                <TextBlock Text="Welcome to ClipMate"
                            FontSize="24"
                            FontWeight="SemiBold" />
-                <TextBlock Text="Let's set up your clipboard manager" 
+                <TextBlock Text="Let's set up your clipboard manager"
                            FontSize="14"
                            Margin="0,8,0,0"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
             </StackPanel>
         </Border>
 
@@ -39,36 +38,36 @@
                 <!-- Database Name Section -->
                 <TextBlock Text="Database Name"
                            FontSize="14"
-                           FontWeight="SemiBold" 
-                           Margin="0,0,0,10"/>
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
 
-                <TextBlock Text="Give your clipboard database a descriptive name:" 
-                           TextWrapping="Wrap" 
+                <TextBlock Text="Give your clipboard database a descriptive name:"
+                           TextWrapping="Wrap"
                            Margin="0,0,0,10"
-                           FontSize="13"/>
+                           FontSize="13" />
 
                 <TextBox x:Name="DatabaseNameTextBox"
                          Padding="8"
                          VerticalContentAlignment="Center"
                          BorderThickness="1"
                          Margin="0,0,0,25"
-                         MaxLength="100"/>
+                         MaxLength="100" />
 
                 <!-- Database Location Section -->
                 <TextBlock Text="Database Location"
                            FontSize="14"
-                           FontWeight="SemiBold" 
-                           Margin="0,0,0,10"/>
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
 
-                <TextBlock Text="Choose where ClipMate will store your clipboard history:" 
-                           TextWrapping="Wrap" 
+                <TextBlock Text="Choose where ClipMate will store your clipboard history:"
+                           TextWrapping="Wrap"
                            Margin="0,0,0,10"
-                           FontSize="13"/>
+                           FontSize="13" />
 
                 <Grid Margin="0,0,0,20">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBox x:Name="DatabasePathTextBox"
@@ -76,36 +75,36 @@
                              Padding="8"
                              VerticalContentAlignment="Center"
                              IsReadOnly="True"
-                             BorderThickness="1"/>
+                             BorderThickness="1" />
 
                     <Button x:Name="BrowseButton"
                             Grid.Column="1"
                             Content="Browse..."
                             Padding="15,8"
                             Margin="10,0,0,0"
-                            Click="BrowseButton_Click"/>
+                            Click="BrowseButton_Click" />
                 </Grid>
 
                 <!-- Info Panel -->
                 <Border Background="#F0F0F0"
                         BorderBrush="#CCCCCC"
-                        BorderThickness="1" 
-                        Padding="15" 
+                        BorderThickness="1"
+                        Padding="15"
                         CornerRadius="4"
                         Margin="0,0,0,20">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" 
+                        <TextBlock FontWeight="SemiBold"
                                    Margin="0,0,0,8"
                                    FontSize="13">
-                            <Run Text="ℹ️"/> What gets stored?
+                            <Run Text="ℹ️" /> What gets stored?
                         </TextBlock>
                         <TextBlock TextWrapping="Wrap" FontSize="12">
                             • Clipboard history (text, images, files)
-                            <LineBreak/>
+                            <LineBreak />
                             • Collections and folders
-                            <LineBreak/>
+                            <LineBreak />
                             • Templates and PowerPaste shortcuts
-                            <LineBreak/>
+                            <LineBreak />
                             • Application settings
                         </TextBlock>
                     </StackPanel>
@@ -121,9 +120,9 @@
                 Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Button x:Name="CancelButton"
@@ -132,7 +131,7 @@
                         Padding="20,8"
                         MinWidth="90"
                         Margin="0,0,10,0"
-                        Click="CancelButton_Click"/>
+                        Click="CancelButton_Click" />
 
                 <Button x:Name="ContinueButton"
                         Grid.Column="2"
@@ -140,7 +139,7 @@
                         Padding="20,8"
                         MinWidth="90"
                         Click="ContinueButton_Click"
-                        IsDefault="True"/>
+                        IsDefault="True" />
             </Grid>
         </Border>
 
@@ -149,22 +148,22 @@
                 Grid.RowSpan="3"
                 Background="#CC000000"
                 Visibility="Collapsed">
-            <StackPanel VerticalAlignment="Center" 
+            <StackPanel VerticalAlignment="Center"
                         HorizontalAlignment="Center">
-                <TextBlock Text="Setting up ClipMate..." 
-                           FontSize="18" 
-                           Foreground="White" 
-                           HorizontalAlignment="Center" 
-                           Margin="0,0,0,20"/>
-                <ProgressBar IsIndeterminate="True" 
-                             Width="200" 
-                             Height="4"/>
+                <TextBlock Text="Setting up ClipMate..."
+                           FontSize="18"
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,20" />
+                <ProgressBar IsIndeterminate="True"
+                             Width="200"
+                             Height="4" />
                 <TextBlock x:Name="ProgressText"
                            Text="Creating database..."
                            FontSize="14"
                            Foreground="White"
                            HorizontalAlignment="Center"
-                           Margin="0,15,0,0"/>
+                           Margin="0,15,0,0" />
             </StackPanel>
         </Border>
     </Grid>

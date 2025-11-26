@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Views;
+using ClipMate.Core.Events;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using ClipMate.Core.Events;
-using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -16,21 +18,15 @@ namespace ClipMate.App.ViewModels;
 public partial class CollectionTreeViewModel : ObservableObject
 {
     private readonly ICollectionService _collectionService;
-    private readonly IFolderService _folderService;
     private readonly IConfigurationService _configurationService;
-    private readonly IMessenger _messenger;
+    private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
+    private readonly IMessenger _messenger;
 
     [ObservableProperty]
     private TreeNodeBase? _selectedNode;
 
-    /// <summary>
-    /// Root nodes of the tree (typically Database nodes).
-    /// </summary>
-    public ObservableCollection<TreeNodeBase> RootNodes { get; } = new();
-
-    public CollectionTreeViewModel(
-        ICollectionService collectionService, 
+    public CollectionTreeViewModel(ICollectionService collectionService,
         IFolderService folderService,
         IConfigurationService configurationService,
         IMessenger messenger,
@@ -43,10 +39,15 @@ public partial class CollectionTreeViewModel : ObservableObject
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <summary>
+    /// Root nodes of the tree (typically Database nodes).
+    /// </summary>
+    public ObservableCollection<TreeNodeBase> RootNodes { get; } = new();
+
     partial void OnSelectedNodeChanged(TreeNodeBase? value)
     {
         _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
-        
+
         // Send messenger event with collection/folder IDs based on node type
         switch (value)
         {
@@ -54,17 +55,17 @@ public partial class CollectionTreeViewModel : ObservableObject
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", collectionNode.Collection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null));
                 break;
-            
+
             case FolderTreeNode folderNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", folderNode.Folder.CollectionId, folderNode.Folder.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id));
                 break;
-            
+
             case VirtualCollectionTreeNode virtualNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", virtualNode.VirtualCollection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null));
                 break;
-            
+
             // Database and VirtualCollectionsContainer nodes don't trigger selection changes
         }
     }
@@ -79,10 +80,10 @@ public partial class CollectionTreeViewModel : ObservableObject
 
         // Load configuration to get database definitions
         var configuration = _configurationService.Configuration;
-        
+
         // Load all collections (currently from the active database)
         var allCollections = await _collectionService.GetAllAsync(cancellationToken);
-        
+
         // Separate regular collections from virtual ones
         var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
         var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
@@ -94,10 +95,10 @@ public partial class CollectionTreeViewModel : ObservableObject
             {
                 var databaseId = dbEntry.Key;
                 var databaseConfig = dbEntry.Value;
-                
+
                 // Create database node with title from configuration
                 var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId);
-                
+
                 // Only load collections for the default/active database
                 // TODO: In the future, support loading collections from multiple databases
                 if (databaseId == configuration.DefaultDatabase)
@@ -107,7 +108,7 @@ public partial class CollectionTreeViewModel : ObservableObject
                     {
                         var collectionNode = new CollectionTreeNode(collection);
                         await LoadFoldersAsync(collectionNode, cancellationToken);
-                        
+
                         databaseNode.Children.Add(collectionNode);
                     }
 
@@ -115,20 +116,20 @@ public partial class CollectionTreeViewModel : ObservableObject
                     if (virtualCollections.Any())
                     {
                         var virtualContainer = new VirtualCollectionsContainerNode();
-                        
+
                         foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
                         {
                             var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
                             virtualContainer.Children.Add(virtualNode);
                         }
-                        
+
                         databaseNode.Children.Add(virtualContainer);
                     }
-                    
+
                     // Expand the active database node by default
                     databaseNode.IsExpanded = true;
                 }
-                
+
                 RootNodes.Add(databaseNode);
             }
         }
@@ -136,13 +137,13 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             // Fallback: If no databases configured, create a default node
             var databaseNode = new DatabaseTreeNode("My Clips", "default");
-            
+
             // Add regular collections to database node
             foreach (var collection in regularCollections.OrderBy(p => p.SortKey))
             {
                 var collectionNode = new CollectionTreeNode(collection);
                 await LoadFoldersAsync(collectionNode, cancellationToken);
-                
+
                 databaseNode.Children.Add(collectionNode);
             }
 
@@ -150,13 +151,13 @@ public partial class CollectionTreeViewModel : ObservableObject
             if (virtualCollections.Any())
             {
                 var virtualContainer = new VirtualCollectionsContainerNode();
-                
+
                 foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
                 {
                     var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
                     virtualContainer.Children.Add(virtualNode);
                 }
-                
+
                 databaseNode.Children.Add(virtualContainer);
             }
 
@@ -176,7 +177,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var folderNode = new FolderTreeNode(folder);
             await LoadSubFoldersAsync(folderNode, cancellationToken);
-            
+
             collectionNode.Children.Add(folderNode);
         }
     }
@@ -192,7 +193,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var subFolderNode = new FolderTreeNode(subFolder);
             await LoadSubFoldersAsync(subFolderNode, cancellationToken);
-            
+
             folderNode.Children.Add(subFolderNode);
         }
     }
@@ -244,9 +245,7 @@ public partial class CollectionTreeViewModel : ObservableObject
     private async Task ShowPropertiesAsync()
     {
         if (SelectedNode == null)
-        {
             return;
-        }
 
         switch (SelectedNode)
         {
@@ -278,9 +277,9 @@ public partial class CollectionTreeViewModel : ObservableObject
         }
 
         var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
-        var window = new Views.CollectionPropertiesWindow(viewModel, _configurationService)
+        var window = new CollectionPropertiesWindow(viewModel, _configurationService)
         {
-            Owner = System.Windows.Application.Current.MainWindow
+            Owner = Application.Current.MainWindow,
         };
 
         if (window.ShowDialog() == true)
@@ -288,7 +287,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             // Sync SQL editor text to ViewModel before saving
             window.SyncSqlEditorToViewModel();
             viewModel.SaveToModel();
-            
+
             // Save changes to database
             await _collectionService.UpdateAsync(collection);
             await LoadAsync(); // Reload tree to reflect changes

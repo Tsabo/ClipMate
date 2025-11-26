@@ -5,8 +5,14 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// Represents a collection node in the tree view.
 /// </summary>
-public partial class CollectionTreeNode : TreeNodeBase
+public class CollectionTreeNode : TreeNodeBase
 {
+    public CollectionTreeNode(Collection collection)
+    {
+        Collection = collection ?? throw new ArgumentNullException(nameof(collection));
+        SortKey = collection.SortKey;
+    }
+
     /// <summary>
     /// The underlying collection model.
     /// </summary>
@@ -25,10 +31,10 @@ public partial class CollectionTreeNode : TreeNodeBase
                 {
                     var name when name.Contains("trash") => "🗑️",
                     var name when name.Contains("search") => "🔍",
-                    _ => "⭐"
+                    var _ => "⭐",
                 };
             }
-            
+
             // Match ClipMate 7.5 collection icons based on common names
             return Collection.Name.ToLowerInvariant() switch
             {
@@ -36,13 +42,15 @@ public partial class CollectionTreeNode : TreeNodeBase
                 "safe" => "🔒",
                 "overflow" => "🌊",
                 "samples" => "📋",
-                _ => Collection.Icon ?? "📁"
+                var _ => Collection.Icon ?? "📁",
             };
         }
     }
 
     public override TreeNodeType NodeType =>
-        Collection.IsSpecial ? TreeNodeType.SpecialCollection : TreeNodeType.Collection;
+        Collection.IsSpecial
+            ? TreeNodeType.SpecialCollection
+            : TreeNodeType.Collection;
 
     /// <summary>
     /// Indicates if this collection rejects new clips (shown in red).
@@ -53,10 +61,4 @@ public partial class CollectionTreeNode : TreeNodeBase
     /// Indicates if this collection is "safe" (never auto-purges, shown underlined).
     /// </summary>
     public bool IsSafe => Collection.PurgePolicy == PurgePolicy.Never;
-
-    public CollectionTreeNode(Collection collection)
-    {
-        Collection = collection ?? throw new ArgumentNullException(nameof(collection));
-        SortKey = collection.SortKey;
-    }
 }

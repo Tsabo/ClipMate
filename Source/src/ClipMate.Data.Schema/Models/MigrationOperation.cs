@@ -22,14 +22,3 @@ public class MigrationOperation
     [JsonPropertyName("sql")]
     public required string Sql { get; set; }
 }
-
-/// <summary>
-/// Types of migration operations.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum MigrationOperationType
-{
-    CreateTable,
-    AddColumn,
-    CreateIndex
-}

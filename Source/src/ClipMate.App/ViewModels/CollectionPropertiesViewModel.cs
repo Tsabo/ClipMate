@@ -4,19 +4,20 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-///     ViewModel for Collection Properties dialog.
-///     Supports Normal, Folder, Trashcan, and Virtual collection types.
+/// ViewModel for Collection Properties dialog.
+/// Supports Normal, Folder, Trashcan, and Virtual collection types.
 /// </summary>
 public partial class CollectionPropertiesViewModel : ObservableObject
 {
     private readonly Collection _collection;
-    private readonly bool _isNewCollection;
     private readonly IConfigurationService _configurationService;
+    private readonly bool _isNewCollection;
 
     [ObservableProperty]
     private bool _acceptDuplicates;
@@ -73,34 +74,34 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     Whether purging rules are visible (Normal, Folder, Trashcan only).
+    /// Whether purging rules are visible (Normal, Folder, Trashcan only).
     /// </summary>
     public bool ShowPurgingRules => CollectionType == CollectionType.Normal;
 
     /// <summary>
-    ///     Whether SQL editor is visible (Virtual collections only).
+    /// Whether SQL editor is visible (Virtual collections only).
     /// </summary>
     public bool ShowSqlEditor => CollectionType == CollectionType.Virtual;
 
     /// <summary>
-    ///     Whether garbage avoidance options are visible (Normal collections only).
+    /// Whether garbage avoidance options are visible (Normal collections only).
     /// </summary>
     public bool ShowGarbageAvoidance => CollectionType == CollectionType.Normal;
 
     /// <summary>
-    ///     Whether the purging value textbox should be enabled.
+    /// Whether the purging value textbox should be enabled.
     /// </summary>
     public bool IsPurgingValueEnabled => SelectedPurgingRule != PurgingRule.Never;
 
     /// <summary>
-    ///     Label for purging value textbox (changes based on rule type).
+    /// Label for purging value textbox (changes based on rule type).
     /// </summary>
     public string PurgingValueLabel => SelectedPurgingRule == PurgingRule.ByAge
         ? "Days:"
         : "Items:";
 
     /// <summary>
-    ///     Load properties from the Collection model.
+    /// Load properties from the Collection model.
     /// </summary>
     private void LoadFromModel()
     {
@@ -147,7 +148,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     Save properties back to the Collection model.
+    /// Save properties back to the Collection model.
     /// </summary>
     public void SaveToModel()
     {
@@ -162,20 +163,20 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         // Set LmType based on collection type
         _collection.LmType = CollectionType switch
         {
-            CollectionType.Virtual => 1,
-            CollectionType.Folder => 2,
-            var _ => 0, // Normal and Trashcan
+            CollectionType.Virtual => CollectionLmType.Virtual,
+            CollectionType.Folder => CollectionLmType.Folder,
+            var _ => CollectionLmType.Normal, // Normal and Trashcan
         };
 
         // Set ListType for virtual collections
         if (CollectionType == CollectionType.Virtual)
         {
-            _collection.ListType = 3; // SQL-based
+            _collection.ListType = CollectionListType.SqlBased;
             _collection.Sql = SqlQuery;
         }
         else
         {
-            _collection.ListType = 0;
+            _collection.ListType = CollectionListType.Normal;
             _collection.Sql = null;
         }
 
@@ -204,17 +205,15 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     private void ChangeIcon()
     {
         var picker = new EmojiPickerWindow(_configurationService, Icon);
-        
+
         // Find the CollectionPropertiesWindow that owns this ViewModel
-        var owner = System.Windows.Application.Current.Windows
-            .OfType<Views.CollectionPropertiesWindow>()
+        var owner = Application.Current.Windows
+            .OfType<CollectionPropertiesWindow>()
             .FirstOrDefault(w => w.DataContext == this);
-        
+
         if (owner != null)
-        {
             picker.Owner = owner;
-        }
-        
+
         if (picker.ShowDialog() == true && !string.IsNullOrEmpty(picker.SelectedEmoji))
             Icon = picker.SelectedEmoji;
     }

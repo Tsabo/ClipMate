@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;

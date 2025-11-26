@@ -7,16 +7,6 @@ namespace ClipMate.Core.Events;
 public class CollectionNodeSelectedEvent
 {
     /// <summary>
-    /// The ID of the selected collection.
-    /// </summary>
-    public Guid CollectionId { get; }
-
-    /// <summary>
-    /// The ID of the selected folder, or null if a collection is selected.
-    /// </summary>
-    public Guid? FolderId { get; }
-
-    /// <summary>
     /// Creates a new collection node selection event.
     /// </summary>
     /// <param name="collectionId">The selected collection ID.</param>
@@ -26,4 +16,14 @@ public class CollectionNodeSelectedEvent
         CollectionId = collectionId;
         FolderId = folderId;
     }
+
+    /// <summary>
+    /// The ID of the selected collection.
+    /// </summary>
+    public Guid CollectionId { get; }
+
+    /// <summary>
+    /// The ID of the selected folder, or null if a collection is selected.
+    /// </summary>
+    public Guid? FolderId { get; }
 }

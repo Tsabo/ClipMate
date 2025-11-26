@@ -3,8 +3,14 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// Represents a database root node in the tree (e.g., "My Clips").
 /// </summary>
-public partial class DatabaseTreeNode : TreeNodeBase
+public class DatabaseTreeNode : TreeNodeBase
 {
+    public DatabaseTreeNode(string name, string databasePath)
+    {
+        Name = name ?? throw new ArgumentNullException(nameof(name));
+        DatabasePath = databasePath ?? throw new ArgumentNullException(nameof(databasePath));
+    }
+
     /// <summary>
     /// Database connection string or identifier.
     /// </summary>
@@ -15,10 +21,4 @@ public partial class DatabaseTreeNode : TreeNodeBase
     public override string Icon => "💾"; // Database icon
 
     public override TreeNodeType NodeType => TreeNodeType.Database;
-
-    public DatabaseTreeNode(string name, string databasePath)
-    {
-        Name = name ?? throw new ArgumentNullException(nameof(name));
-        DatabasePath = databasePath ?? throw new ArgumentNullException(nameof(databasePath));
-    }
 }

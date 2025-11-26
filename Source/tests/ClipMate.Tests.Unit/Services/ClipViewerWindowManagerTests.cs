@@ -1,6 +1,6 @@
 using ClipMate.App.Services;
+using ClipMate.App.ViewModels;
 using ClipMate.Core.Repositories;
-using ClipMate.Core.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using TUnit.Assertions.Extensions;

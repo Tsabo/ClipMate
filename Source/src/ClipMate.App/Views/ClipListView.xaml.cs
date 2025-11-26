@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
+using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Grid;
 using Application = System.Windows.Application;
@@ -13,11 +15,6 @@ namespace ClipMate.App.Views;
 /// </summary>
 public partial class ClipListView
 {
-    public ClipListView()
-    {
-        InitializeComponent();
-    }
-
     /// <summary>
     /// Dependency property for the collection of clips to display
     /// </summary>
@@ -27,13 +24,6 @@ public partial class ClipListView
             typeof(ObservableCollection<Clip>),
             typeof(ClipListView),
             new PropertyMetadata(null, OnItemsChanged));
-
-    private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        var view = (ClipListView)d;
-        var newCollection = e.NewValue as ObservableCollection<Clip>;
-        System.Diagnostics.Debug.WriteLine($"ClipListView.Items changed: Count={newCollection?.Count ?? 0}");
-    }
 
     /// <summary>
     /// Dependency property for the currently selected clip
@@ -65,6 +55,11 @@ public partial class ClipListView
             typeof(RoutedEventHandler),
             typeof(ClipListView));
 
+    public ClipListView()
+    {
+        InitializeComponent();
+    }
+
     /// <summary>
     /// Gets or sets the collection of clips to display
     /// </summary>
@@ -92,6 +87,13 @@ public partial class ClipListView
         set => SetValue(HeaderTextProperty, value);
     }
 
+    private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var view = (ClipListView)d;
+        var newCollection = e.NewValue as ObservableCollection<Clip>;
+        Debug.WriteLine($"ClipListView.Items changed: Count={newCollection?.Count ?? 0}");
+    }
+
     /// <summary>
     /// Event raised when the selected clip changes
     /// </summary>
@@ -116,13 +118,11 @@ public partial class ClipListView
     private async void ClipProperties_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedItem == null)
-        {
             return;
-        }
 
         var dialog = new ClipPropertiesDialog();
         var app = (App)Application.Current;
-        if (app.ServiceProvider.GetService(typeof(ViewModels.ClipPropertiesViewModel)) is ViewModels.ClipPropertiesViewModel viewModel)
+        if (app.ServiceProvider.GetService(typeof(ClipPropertiesViewModel)) is ClipPropertiesViewModel viewModel)
         {
             await viewModel.LoadClipAsync(SelectedItem);
             dialog.DataContext = viewModel;
@@ -167,15 +167,15 @@ public partial class ClipListView
         {
             try
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                Process.Start(new ProcessStartInfo
                 {
                     FileName = SelectedItem.SourceUrl,
-                    UseShellExecute = true
+                    UseShellExecute = true,
                 });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to open URL: {ex.Message}", "Error", 
+                MessageBox.Show($"Failed to open URL: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

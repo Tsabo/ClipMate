@@ -14,30 +14,27 @@ public class SqliteSchemaComparer : ISchemaComparer
         var diff = new SchemaDiff();
 
         // Check for removed tables
-        foreach (var currentTable in current.Tables.Values)
+        foreach (var item in current.Tables.Values)
         {
-            if (!expected.Tables.ContainsKey(currentTable.Name))
-            {
-                diff.Warnings.Add($"Table '{currentTable.Name}' exists in current schema but not in expected schema (will be removed)");
-            }
+            if (!expected.Tables.ContainsKey(item.Name))
+                diff.Warnings.Add($"Table '{item.Name}' exists in current schema but not in expected schema (will be removed)");
         }
 
-        foreach (var expectedTable in expected.Tables.Values)
+        foreach (var item in expected.Tables.Values)
         {
-            if (!current.Tables.ContainsKey(expectedTable.Name))
+            if (!current.Tables.TryGetValue(item.Name, out var currentTable))
             {
                 diff.Operations.Add(new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
-                    TableName = expectedTable.Name,
-                    Sql = GenerateCreateTableSql(expectedTable)
+                    TableName = item.Name,
+                    Sql = GenerateCreateTableSql(item),
                 });
             }
             else
             {
-                var currentTable = current.Tables[expectedTable.Name];
-                CompareColumns(currentTable, expectedTable, diff);
-                CompareIndexes(currentTable, expectedTable, diff);
+                CompareColumns(currentTable, item, diff);
+                CompareIndexes(currentTable, item, diff);
             }
         }
 
@@ -46,56 +43,52 @@ public class SqliteSchemaComparer : ISchemaComparer
 
     private void CompareColumns(TableDefinition current, TableDefinition expected, SchemaDiff diff)
     {
-        var currentColumnNames = current.Columns.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var currentColumnsDict = current.Columns.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
-        var expectedColumnNames = expected.Columns.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currentColumnNames = current.Columns.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currentColumnsDict = current.Columns.ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
+        var expectedColumnNames = expected.Columns.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Check for removed columns
-        foreach (var currentColumn in current.Columns)
+        foreach (var item in current.Columns)
         {
-            if (!expectedColumnNames.Contains(currentColumn.Name))
-            {
-                diff.Warnings.Add($"Column '{currentColumn.Name}' in table '{expected.Name}' exists in current schema but not in expected schema (will be removed)");
-            }
+            if (!expectedColumnNames.Contains(item.Name))
+                diff.Warnings.Add($"Column '{item.Name}' in table '{expected.Name}' exists in current schema but not in expected schema (will be removed)");
         }
 
-        foreach (var expectedColumn in expected.Columns)
+        foreach (var item in expected.Columns)
         {
-            if (!currentColumnNames.Contains(expectedColumn.Name))
+            if (!currentColumnNames.Contains(item.Name))
             {
                 diff.Operations.Add(new MigrationOperation
                 {
                     Type = MigrationOperationType.AddColumn,
                     TableName = expected.Name,
-                    ColumnName = expectedColumn.Name,
-                    Sql = GenerateAddColumnSql(expected.Name, expectedColumn)
+                    ColumnName = item.Name,
+                    Sql = GenerateAddColumnSql(expected.Name, item),
                 });
             }
-            else if (currentColumnsDict.TryGetValue(expectedColumn.Name, out var currentColumn))
+            else if (currentColumnsDict.TryGetValue(item.Name, out var currentColumn))
             {
                 // Check for type changes
-                if (!string.Equals(currentColumn.Type, expectedColumn.Type, StringComparison.OrdinalIgnoreCase))
-                {
-                    diff.Warnings.Add($"Column '{expectedColumn.Name}' in table '{expected.Name}' has type change from '{currentColumn.Type}' to '{expectedColumn.Type}'");
-                }
+                if (!string.Equals(currentColumn.Type, item.Type, StringComparison.OrdinalIgnoreCase))
+                    diff.Warnings.Add($"Column '{item.Name}' in table '{expected.Name}' has type change from '{currentColumn.Type}' to '{item.Type}'");
             }
         }
     }
 
     private void CompareIndexes(TableDefinition current, TableDefinition expected, SchemaDiff diff)
     {
-        var currentIndexNames = current.Indexes.Select(i => i.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currentIndexNames = current.Indexes.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var expectedIndex in expected.Indexes)
+        foreach (var item in expected.Indexes)
         {
-            if (!currentIndexNames.Contains(expectedIndex.Name))
+            if (!currentIndexNames.Contains(item.Name))
             {
                 diff.Operations.Add(new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateIndex,
                     TableName = expected.Name,
-                    IndexName = expectedIndex.Name,
-                    Sql = GenerateCreateIndexSql(expectedIndex)
+                    IndexName = item.Name,
+                    Sql = GenerateCreateIndexSql(item),
                 });
             }
         }
@@ -107,28 +100,28 @@ public class SqliteSchemaComparer : ISchemaComparer
         sb.AppendLine($"CREATE TABLE {table.Name} (");
 
         var columnDefs = new List<string>();
-        foreach (var column in table.Columns)
+        foreach (var item in table.Columns)
         {
-            var def = $"    {column.Name} {column.Type}";
+            var def = $"    {item.Name} {item.Type}";
 
-            if (column.IsPrimaryKey)
+            if (item.IsPrimaryKey)
                 def += " PRIMARY KEY AUTOINCREMENT";
 
-            if (!column.IsNullable && !column.IsPrimaryKey)
+            if (!item.IsNullable && !item.IsPrimaryKey)
                 def += " NOT NULL";
 
-            if (column.DefaultValue != null)
-                def += $" DEFAULT {column.DefaultValue}";
+            if (item.DefaultValue != null)
+                def += $" DEFAULT {item.DefaultValue}";
 
             columnDefs.Add(def);
         }
 
-        foreach (var fk in table.ForeignKeys)
+        foreach (var item in table.ForeignKeys)
         {
-            var fkDef = $"    FOREIGN KEY ({fk.ColumnName}) REFERENCES {fk.ReferencedTable}({fk.ReferencedColumn})";
+            var fkDef = $"    FOREIGN KEY ({item.ColumnName}) REFERENCES {item.ReferencedTable}({item.ReferencedColumn})";
 
-            if (fk.OnDelete != null)
-                fkDef += $" ON DELETE {ConvertDeleteBehavior(fk.OnDelete)}";
+            if (item.OnDelete != null)
+                fkDef += $" ON DELETE {ConvertDeleteBehavior(item.OnDelete)}";
 
             columnDefs.Add(fkDef);
         }
@@ -156,7 +149,10 @@ public class SqliteSchemaComparer : ISchemaComparer
 
     private static string GenerateCreateIndexSql(IndexDefinition index)
     {
-        var unique = index.IsUnique ? "UNIQUE " : "";
+        var unique = index.IsUnique
+            ? "UNIQUE "
+            : "";
+
         var columns = string.Join(", ", index.Columns);
         return $"CREATE {unique}INDEX {index.Name} ON {index.TableName} ({columns})";
     }
@@ -167,10 +163,13 @@ public class SqliteSchemaComparer : ISchemaComparer
 
         if (type.Contains("INT"))
             return "0";
+
         if (type.Contains("REAL") || type.Contains("FLOAT") || type.Contains("DOUBLE"))
             return "0.0";
+
         if (type.Contains("TEXT"))
             return "''";
+
         if (type.Contains("BLOB"))
             return "x''";
 
@@ -185,7 +184,7 @@ public class SqliteSchemaComparer : ISchemaComparer
             "SETNULL" => "SET NULL",
             "SETDEFAULT" => "SET DEFAULT",
             "RESTRICT" => "RESTRICT",
-            _ => "NO ACTION"
+            var _ => "NO ACTION",
         };
     }
 }

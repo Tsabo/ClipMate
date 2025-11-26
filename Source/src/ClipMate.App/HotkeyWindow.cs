@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Interop;
+using Brushes = System.Windows.Media.Brushes;
 
 namespace ClipMate.App;
 
@@ -20,10 +21,10 @@ internal class HotkeyWindow : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         Visibility = Visibility.Hidden;
-        
+
         // Ensure we don't interfere with anything
         AllowsTransparency = true;
-        Background = System.Windows.Media.Brushes.Transparent;
+        Background = Brushes.Transparent;
     }
 
     /// <summary>

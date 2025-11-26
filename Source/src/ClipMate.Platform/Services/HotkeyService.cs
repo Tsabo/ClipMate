@@ -14,46 +14,46 @@ public class HotkeyService : IHotkeyService, IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref=\"HotkeyService\"/> class.
+    /// Initializes a new instance of the <see cref=\"HotkeyService\" /> class.
     /// </summary>
     public HotkeyService(IHotkeyManager hotkeyManager)
     {
         _hotkeyManager = hotkeyManager ?? throw new ArgumentNullException(nameof(hotkeyManager));
-        _registeredIds = new HashSet<int>();
+        _registeredIds = [];
     }
+
 
     /// <summary>
-    /// Initializes the hotkey service with a window for receiving hotkey messages.
-    /// Must be called before registering any hotkeys.
+    /// Disposes the hotkey service and unregisters all hotkeys.
     /// </summary>
-    /// <param name="window">The WPF window to use for receiving hotkey messages.</param>
-    public void Initialize(Window window)
+    public void Dispose()
     {
-        ArgumentNullException.ThrowIfNull(window);
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        _hotkeyManager.Initialize(window);
+        if (_disposed)
+            return;
+
+        _hotkeyManager.Dispose();
+        _registeredIds.Clear();
+        _disposed = true;
+
+        GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc/>
-    public bool RegisterHotkey(int id, Core.Models.ModifierKeys modifiers, int key, Action action)
+    /// <inheritdoc />
+    public bool RegisterHotkey(int id, ModifierKeys modifiers, int key, Action action)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (action == null)
-        {
             throw new ArgumentNullException(nameof(action));
-        }
 
         try
         {
             // If already registered with this ID, unregister first
             if (_registeredIds.Contains(id))
-            {
                 UnregisterHotkey(id);
-            }
 
             // Register with HotkeyManager (which returns its own internal ID)
-            var internalId = _hotkeyManager.RegisterHotkey(modifiers, key, action);
+            _ = _hotkeyManager.RegisterHotkey(modifiers, key, action);
 
             // Track our logical ID
             _registeredIds.Add(id);
@@ -66,15 +66,13 @@ public class HotkeyService : IHotkeyService, IDisposable
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public bool UnregisterHotkey(int id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (!_registeredIds.Contains(id))
-        {
             return false;
-        }
 
         // Note: This is simplified - in a real implementation, we'd need to track
         // the mapping between our logical IDs and HotkeyManager's internal IDs
@@ -82,7 +80,7 @@ public class HotkeyService : IHotkeyService, IDisposable
         return true;
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public void UnregisterAllHotkeys()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -91,29 +89,22 @@ public class HotkeyService : IHotkeyService, IDisposable
         _registeredIds.Clear();
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public bool IsHotkeyRegistered(int id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         return _registeredIds.Contains(id);
     }
 
-
-
     /// <summary>
-    /// Disposes the hotkey service and unregisters all hotkeys.
+    /// Initializes the hotkey service with a window for receiving hotkey messages.
+    /// Must be called before registering any hotkeys.
     /// </summary>
-    public void Dispose()
+    /// <param name="window">The WPF window to use for receiving hotkey messages.</param>
+    public void Initialize(Window window)
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _hotkeyManager.Dispose();
-        _registeredIds.Clear();
-        _disposed = true;
-
-        GC.SuppressFinalize(this);
+        ArgumentNullException.ThrowIfNull(window);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _hotkeyManager.Initialize(window);
     }
 }

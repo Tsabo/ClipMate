@@ -33,5 +33,5 @@ public enum TreeNodeType
     /// <summary>
     /// Special collection (e.g., "Trash Can", "Search Results").
     /// </summary>
-    SpecialCollection
+    SpecialCollection,
 }

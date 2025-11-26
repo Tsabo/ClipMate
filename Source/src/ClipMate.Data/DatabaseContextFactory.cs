@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.IO;
 
 namespace ClipMate.Data;
 
@@ -10,8 +9,8 @@ namespace ClipMate.Data;
 /// </summary>
 public class DatabaseContextFactory : IDatabaseContextFactory
 {
-    private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly Dictionary<string, ClipMateDbContext> _contexts;
+    private readonly ILogger<DatabaseContextFactory> _logger;
     private bool _disposed;
 
     public DatabaseContextFactory(ILogger<DatabaseContextFactory> logger)
@@ -30,9 +29,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (string.IsNullOrWhiteSpace(databasePath))
-        {
             throw new ArgumentException("Database path cannot be null or empty.", nameof(databasePath));
-        }
 
         var normalizedPath = Path.GetFullPath(databasePath);
 
@@ -100,9 +97,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     public void Dispose()
     {
         if (_disposed)
-        {
             return;
-        }
 
         _logger.LogInformation("Disposing all database contexts ({Count} contexts)", _contexts.Count);
 

@@ -5,8 +5,13 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// Represents a folder node in the tree view.
 /// </summary>
-public partial class FolderTreeNode : TreeNodeBase
+public class FolderTreeNode : TreeNodeBase
 {
+    public FolderTreeNode(Folder folder)
+    {
+        Folder = folder ?? throw new ArgumentNullException(nameof(folder));
+    }
+
     /// <summary>
     /// The underlying folder model.
     /// </summary>
@@ -17,9 +22,4 @@ public partial class FolderTreeNode : TreeNodeBase
     public override string Icon => "📁"; // Folder icon
 
     public override TreeNodeType NodeType => TreeNodeType.Folder;
-
-    public FolderTreeNode(Folder folder)
-    {
-        Folder = folder ?? throw new ArgumentNullException(nameof(folder));
-    }
 }

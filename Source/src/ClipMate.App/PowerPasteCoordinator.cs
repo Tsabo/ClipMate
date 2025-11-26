@@ -1,12 +1,12 @@
-using System.Windows;
 using System.Windows.Input;
-using ClipMate.App.Services;
 using ClipMate.App.Views;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
+using ModifierKeys = ClipMate.Core.Models.ModifierKeys;
 
 namespace ClipMate.App;
 
@@ -16,24 +16,51 @@ namespace ClipMate.App;
 public class PowerPasteCoordinator : IHostedService, IDisposable
 {
     private const int PowerPasteHotkeyId = 1001;
-    private readonly IServiceProvider _serviceProvider;
     private readonly IHotkeyService _hotkeyService;
     private readonly ILogger<PowerPasteCoordinator> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private bool _disposed;
     private HotkeyWindow? _hotkeyWindow;
     private PowerPasteWindow? _powerPasteWindow;
-    private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PowerPasteCoordinator"/> class.
+    /// Initializes a new instance of the <see cref="PowerPasteCoordinator" /> class.
     /// </summary>
-    public PowerPasteCoordinator(
-        IServiceProvider serviceProvider,
+    public PowerPasteCoordinator(IServiceProvider serviceProvider,
         IHotkeyService hotkeyService,
         ILogger<PowerPasteCoordinator> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Disposes the coordinator and cleans up resources.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        try
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _powerPasteWindow?.Close();
+                _powerPasteWindow = null;
+
+                _hotkeyWindow?.Close();
+                _hotkeyWindow = null;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disposing PowerPaste coordinator");
+        }
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -50,30 +77,24 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
             {
                 _hotkeyWindow = new HotkeyWindow();
                 _hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
-                
+
                 // Initialize HotkeyService with the hotkey window (must be on UI thread)
-                if (_hotkeyService is Platform.Services.HotkeyService platformService)
-                {
+                if (_hotkeyService is HotkeyService platformService)
                     platformService.Initialize(_hotkeyWindow);
-                }
             });
-            
+
             // Register Ctrl+Shift+V hotkey for PowerPaste
             var virtualKey = KeyInterop.VirtualKeyFromKey(Key.V);
             var registered = _hotkeyService.RegisterHotkey(
                 PowerPasteHotkeyId,
-                Core.Models.ModifierKeys.Control | Core.Models.ModifierKeys.Shift,
+                ModifierKeys.Control | ModifierKeys.Shift,
                 virtualKey,
                 OnPowerPasteHotkeyPressed);
 
             if (registered)
-            {
                 _logger.LogInformation("PowerPaste hotkey registered successfully (Ctrl+Shift+V)");
-            }
             else
-            {
                 _logger.LogWarning("Failed to register PowerPaste hotkey (Ctrl+Shift+V). The hotkey may already be in use.");
-            }
         }
         catch (Exception ex)
         {
@@ -155,35 +176,5 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
         {
             _logger.LogError(ex, "Error showing PowerPaste window");
         }
-    }
-
-    /// <summary>
-    /// Disposes the coordinator and cleans up resources.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        try
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                _powerPasteWindow?.Close();
-                _powerPasteWindow = null;
-
-                _hotkeyWindow?.Close();
-                _hotkeyWindow = null;
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error disposing PowerPaste coordinator");
-        }
-
-        _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

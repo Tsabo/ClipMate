@@ -5,8 +5,20 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// Represents a virtual collection (pre-defined search query).
 /// </summary>
-public partial class VirtualCollectionTreeNode : TreeNodeBase
+public class VirtualCollectionTreeNode : TreeNodeBase
 {
+    public VirtualCollectionTreeNode(Collection virtualCollection)
+    {
+        if (virtualCollection == null)
+            throw new ArgumentNullException(nameof(virtualCollection));
+
+        if (!virtualCollection.IsVirtual)
+            throw new ArgumentException("Collection must be virtual", nameof(virtualCollection));
+
+        VirtualCollection = virtualCollection;
+        SortKey = virtualCollection.SortKey;
+    }
+
     /// <summary>
     /// The underlying virtual collection/saved search.
     /// </summary>
@@ -14,25 +26,20 @@ public partial class VirtualCollectionTreeNode : TreeNodeBase
 
     public override string Name => VirtualCollection.Name;
 
-    public override string Icon
-    {
-        get
+    public override string Icon =>
+        // Virtual collections have specific icons based on their purpose
+        VirtualCollection.Name.ToLowerInvariant() switch
         {
-            // Virtual collections have specific icons based on their purpose
-            return VirtualCollection.Name.ToLowerInvariant() switch
-            {
-                "today" => "📅",
-                "this week" => "📆",
-                "this month" => "🗓️",
-                "everything" => "🌐",
-                var name when name.Contains("bitmap") || name.Contains("image") => "🖼️",
-                "keystrokes macros" or "macros" => "⌨️",
-                "since last import" => "📥",
-                "since last export" => "📤",
-                _ => "🔍"
-            };
-        }
-    }
+            "today" => "📅",
+            "this week" => "📆",
+            "this month" => "🗓️",
+            "everything" => "🌐",
+            var name when name.Contains("bitmap") || name.Contains("image") => "🖼️",
+            "keystrokes macros" or "macros" => "⌨️",
+            "since last import" => "📥",
+            "since last export" => "📤",
+            var _ => "🔍",
+        };
 
     public override TreeNodeType NodeType => TreeNodeType.VirtualCollection;
 
@@ -40,20 +47,4 @@ public partial class VirtualCollectionTreeNode : TreeNodeBase
     /// SQL query for this virtual collection (if applicable).
     /// </summary>
     public string? SqlQuery => VirtualCollection.VirtualCollectionQuery;
-
-    public VirtualCollectionTreeNode(Collection virtualCollection)
-    {
-        if (virtualCollection == null)
-        {
-            throw new ArgumentNullException(nameof(virtualCollection));
-        }
-        
-        if (!virtualCollection.IsVirtual)
-        {
-            throw new ArgumentException("Collection must be virtual", nameof(virtualCollection));
-        }
-
-        VirtualCollection = virtualCollection;
-        SortKey = virtualCollection.SortKey;
-    }
 }

@@ -38,9 +38,7 @@ public class SoundEventRepository : ISoundEventRepository
     public async Task<SoundEvent> CreateAsync(SoundEvent soundEvent, CancellationToken cancellationToken = default)
     {
         if (soundEvent == null)
-        {
             throw new ArgumentNullException(nameof(soundEvent));
-        }
 
         _context.SoundEvents.Add(soundEvent);
         await _context.SaveChangesAsync(cancellationToken);
@@ -50,9 +48,7 @@ public class SoundEventRepository : ISoundEventRepository
     public async Task<bool> UpdateAsync(SoundEvent soundEvent, CancellationToken cancellationToken = default)
     {
         if (soundEvent == null)
-        {
             throw new ArgumentNullException(nameof(soundEvent));
-        }
 
         _context.SoundEvents.Update(soundEvent);
         await _context.SaveChangesAsync(cancellationToken);
@@ -61,11 +57,9 @@ public class SoundEventRepository : ISoundEventRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var soundEvent = await _context.SoundEvents.FindAsync(new object[] { id }, cancellationToken);
+        var soundEvent = await _context.SoundEvents.FindAsync([id], cancellationToken);
         if (soundEvent == null)
-        {
             return false;
-        }
 
         _context.SoundEvents.Remove(soundEvent);
         await _context.SaveChangesAsync(cancellationToken);

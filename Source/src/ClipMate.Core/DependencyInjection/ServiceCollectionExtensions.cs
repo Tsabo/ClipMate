@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
-using CommunityToolkit.Mvvm.Messaging;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Core.DependencyInjection;
 

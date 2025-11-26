@@ -4,7 +4,6 @@
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
-                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
                  Title="Select Icon"
                  Width="420"
                  Height="520"
@@ -13,22 +12,22 @@
                  ShowInTaskbar="False">
 
     <dx:ThemedWindow.DialogButtons>
-        <dx:ThemedWindowDialogButton Content="OK" 
+        <dx:ThemedWindowDialogButton Content="OK"
                                      IsDefault="True"
                                      Click="OkButton_Click"
-                                     MinWidth="80"/>
-        <dx:ThemedWindowDialogButton Content="Cancel" 
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
                                      DialogResult="Cancel"
-                                     MinWidth="80"/>
+                                     MinWidth="80" />
     </dx:ThemedWindow.DialogButtons>
 
     <Grid Margin="0">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Search Bar -->
@@ -36,38 +35,38 @@
                       Margin="10,10,10,5"
                       Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                       NullText="Find something fun"
-                      ShowBorder="True"/>
+                      ShowBorder="True" />
 
         <!-- Recent Section -->
         <Grid Grid.Row="1" Margin="10,5,10,5"
               Visibility="{Binding RecentEmojis.Count, Converter={StaticResource CountToVisibilityConverter}}">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" 
-                       Text="Recent" 
-                       FontSize="11" 
+            <TextBlock Grid.Row="0"
+                       Text="Recent"
+                       FontSize="11"
                        Foreground="Gray"
-                       Margin="0,0,0,5"/>
+                       Margin="0,0,0,5" />
 
             <ItemsControl Grid.Row="1" ItemsSource="{Binding RecentEmojis}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel/>
+                        <WrapPanel />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Width="40" Height="40" 
-                                Background="Transparent" 
+                        <Button Width="40" Height="40"
+                                Background="Transparent"
                                 BorderBrush="Transparent"
                                 Padding="0"
                                 ToolTip="{Binding Name}"
                                 Command="{Binding DataContext.SelectEmojiCommand, RelativeSource={RelativeSource AncestorType=dx:ThemedWindow}}"
                                 CommandParameter="{Binding}">
-                            <Image Width="28" Height="28" emoji:Image.Source="{Binding Text}"/>
+                            <Image Width="28" Height="28" emoji:Image.Source="{Binding Text}" />
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -75,26 +74,26 @@
         </Grid>
 
         <!-- Emoji Grid -->
-        <ScrollViewer Grid.Row="2" 
+        <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Margin="10,5,10,5">
             <ItemsControl ItemsSource="{Binding DisplayedEmojis}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel/>
+                        <WrapPanel />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Width="40" Height="40" 
-                                Background="Transparent" 
+                        <Button Width="40" Height="40"
+                                Background="Transparent"
                                 BorderBrush="Transparent"
                                 Padding="0"
                                 ToolTip="{Binding Name}"
                                 Command="{Binding DataContext.SelectEmojiCommand, RelativeSource={RelativeSource AncestorType=dx:ThemedWindow}}"
                                 CommandParameter="{Binding}">
-                            <Image Width="28" Height="28" emoji:Image.Source="{Binding Text}"/>
+                            <Image Width="28" Height="28" emoji:Image.Source="{Binding Text}" />
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -102,20 +101,20 @@
         </ScrollViewer>
 
         <!-- Category Buttons at Bottom -->
-        <Border Grid.Row="3" 
-                BorderThickness="0,1,0,0" 
+        <Border Grid.Row="3"
+                BorderThickness="0,1,0,0"
                 BorderBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
                 Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
                 Padding="5">
             <ItemsControl ItemsSource="{Binding Categories}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel HorizontalAlignment="Center"/>
+                        <WrapPanel HorizontalAlignment="Center" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Width="36" Height="36" 
+                        <Button Width="36" Height="36"
                                 Margin="2"
                                 Background="Transparent"
                                 BorderThickness="0"
@@ -125,26 +124,28 @@
                                 CommandParameter="{Binding}">
                             <Button.Style>
                                 <Style TargetType="Button">
-                                    <Setter Property="Opacity" Value="0.6"/>
+                                    <Setter Property="Opacity" Value="0.6" />
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Opacity" Value="1.0"/>
+                                            <Setter Property="Opacity" Value="1.0" />
                                         </Trigger>
                                         <DataTrigger Value="True">
                                             <DataTrigger.Binding>
                                                 <MultiBinding Converter="{StaticResource ObjectEqualityConverter}">
-                                                    <Binding RelativeSource="{RelativeSource Self}" Path="DataContext"/>
-                                                    <Binding RelativeSource="{RelativeSource AncestorType=dx:ThemedWindow}" Path="DataContext.SelectedCategory"/>
+                                                    <Binding RelativeSource="{RelativeSource Self}" Path="DataContext" />
+                                                    <Binding
+                                                        RelativeSource="{RelativeSource AncestorType=dx:ThemedWindow}"
+                                                        Path="DataContext.SelectedCategory" />
                                                 </MultiBinding>
                                             </DataTrigger.Binding>
-                                            <Setter Property="Opacity" Value="1.0"/>
-                                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                            <Setter Property="Opacity" Value="1.0" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,2" />
+                                            <Setter Property="BorderBrush" Value="#0078D4" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-                            <Image Width="24" Height="24" emoji:Image.Source="{Binding Icon}"/>
+                            <Image Width="24" Height="24" emoji:Image.Source="{Binding Icon}" />
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using System.Windows;
-using System.Windows.Input;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -18,49 +16,49 @@ public partial class TextToolsViewModel : ObservableObject
     private readonly TextTransformService _textTransformService;
 
     [ObservableProperty]
-    private string _inputText = string.Empty;
-
-    [ObservableProperty]
-    private string _outputText = string.Empty;
-
-    [ObservableProperty]
-    private TextTool _selectedTool = TextTool.ConvertCase;
-
-    [ObservableProperty]
     private CaseConversion _caseConversionMode = CaseConversion.Uppercase;
 
     [ObservableProperty]
-    private SortMode _sortMode = SortMode.Alphabetical;
-
-    [ObservableProperty]
-    private bool _caseSensitive = false;
-
-    [ObservableProperty]
-    private string _lineNumberFormat = "{0}. ";
+    private bool _caseSensitive;
 
     [ObservableProperty]
     private string _findText = string.Empty;
 
     [ObservableProperty]
+    private string _inputText = string.Empty;
+
+    [ObservableProperty]
+    private string _lineNumberFormat = "{0}. ";
+
+    [ObservableProperty]
+    private string _outputText = string.Empty;
+
+    [ObservableProperty]
+    private bool _removeExtraLineBreaks;
+
+    [ObservableProperty]
+    private bool _removeExtraSpaces;
+
+    [ObservableProperty]
     private string _replaceText = string.Empty;
 
     [ObservableProperty]
-    private bool _useRegex = false;
+    private TextTool _selectedTool = TextTool.ConvertCase;
 
     [ObservableProperty]
-    private bool _removeExtraSpaces = false;
-
-    [ObservableProperty]
-    private bool _removeExtraLineBreaks = false;
-
-    [ObservableProperty]
-    private bool _trimLines = false;
+    private SortMode _sortMode = SortMode.Alphabetical;
 
     [ObservableProperty]
     private TextFormat _sourceFormat = TextFormat.Plain;
 
     [ObservableProperty]
     private TextFormat _targetFormat = TextFormat.Html;
+
+    [ObservableProperty]
+    private bool _trimLines;
+
+    [ObservableProperty]
+    private bool _useRegex;
 
     /// <summary>
     /// Initializes a new instance of the TextToolsViewModel class.
@@ -70,7 +68,7 @@ public partial class TextToolsViewModel : ObservableObject
     public TextToolsViewModel(TextTransformService textTransformService)
     {
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
-        
+
         // Subscribe to property changes to trigger auto-preview
         PropertyChanged += OnPropertyChanged;
     }
@@ -100,7 +98,7 @@ public partial class TextToolsViewModel : ObservableObject
                 TextTool.CleanUpText => _textTransformService.CleanUpText(
                     InputText, RemoveExtraSpaces, RemoveExtraLineBreaks, TrimLines),
                 TextTool.ConvertFormat => _textTransformService.ConvertFormat(InputText, SourceFormat, TargetFormat),
-                _ => InputText
+                var _ => InputText,
             };
         }
         catch (ArgumentException ex)
@@ -114,10 +112,7 @@ public partial class TextToolsViewModel : ObservableObject
     /// Previews the transformation without applying it.
     /// </summary>
     [RelayCommand]
-    private void PreviewTransform()
-    {
-        ApplyTransform();
-    }
+    private void PreviewTransform() => ApplyTransform();
 
     /// <summary>
     /// Clears both input and output text.
@@ -148,19 +143,13 @@ public partial class TextToolsViewModel : ObservableObject
         }
     }
 
-    private bool CanCopyToClipboard()
-    {
-        return !string.IsNullOrEmpty(OutputText);
-    }
+    private bool CanCopyToClipboard() => !string.IsNullOrEmpty(OutputText);
 
     /// <summary>
     /// Swaps input and output text (useful for chaining transformations).
     /// </summary>
     [RelayCommand]
-    private void SwapInputOutput()
-    {
-        (InputText, OutputText) = (OutputText, InputText);
-    }
+    private void SwapInputOutput() => (InputText, OutputText) = (OutputText, InputText);
 
     /// <summary>
     /// Handles property changes to trigger auto-preview.
@@ -169,9 +158,7 @@ public partial class TextToolsViewModel : ObservableObject
     {
         // Auto-preview when tool selection changes or input changes
         if (e.PropertyName == nameof(SelectedTool) && !string.IsNullOrEmpty(InputText))
-        {
             ApplyTransform();
-        }
     }
 
     partial void OnOutputTextChanged(string value)

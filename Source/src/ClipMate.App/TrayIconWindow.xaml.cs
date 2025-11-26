@@ -1,29 +1,30 @@
 using System.Windows;
 using System.Windows.Input;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App;
 
 /// <summary>
 /// Hidden window that hosts the system tray icon service.
 /// </summary>
-public partial class TrayIconWindow : Window
+public partial class TrayIconWindow
 {
-    public ICommand ShowMainWindowCommand { get; }
-    public ICommand ExitApplicationCommand { get; }
-
     public TrayIconWindow()
     {
         InitializeComponent();
-        
+
         ShowMainWindowCommand = new RelayCommand(ShowMainWindowExecute);
         ExitApplicationCommand = new RelayCommand(ExitApplicationExecute);
-        
+
         DataContext = this;
     }
 
+    public ICommand ShowMainWindowCommand { get; }
+    public ICommand ExitApplicationCommand { get; }
+
     private void ShowMainWindowExecute(object? parameter)
     {
-        var mainWindow = System.Windows.Application.Current.MainWindow;
+        var mainWindow = Application.Current.MainWindow;
         if (mainWindow != null)
         {
             mainWindow.Show();
@@ -32,10 +33,7 @@ public partial class TrayIconWindow : Window
         }
     }
 
-    private void ExitApplicationExecute(object? parameter)
-    {
-        System.Windows.Application.Current.Shutdown();
-    }
+    private void ExitApplicationExecute(object? parameter) => Application.Current.Shutdown();
 
     /// <summary>
     /// Simple relay command implementation.
@@ -55,9 +53,6 @@ public partial class TrayIconWindow : Window
 
         public bool CanExecute(object? parameter) => true;
 
-        public void Execute(object? parameter)
-        {
-            _execute(parameter);
-        }
+        public void Execute(object? parameter) => _execute(parameter);
     }
 }

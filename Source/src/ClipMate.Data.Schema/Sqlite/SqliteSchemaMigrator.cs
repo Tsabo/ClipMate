@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using ClipMate.Data.Schema.Abstractions;
 using ClipMate.Data.Schema.Models;
@@ -18,8 +19,7 @@ public class SqliteSchemaMigrator : ISchemaMigrator
         _hook = hook;
     }
 
-    public async Task<MigrationResult> MigrateAsync(
-        SchemaDiff diff,
+    public async Task<MigrationResult> MigrateAsync(SchemaDiff diff,
         bool dryRun = false,
         CancellationToken cancellationToken = default)
     {
@@ -36,39 +36,32 @@ public class SqliteSchemaMigrator : ISchemaMigrator
         {
             Diff = diff,
             IsDryRun = dryRun,
-            Connection = dryRun ? null : _connection
+            Connection = dryRun
+                ? null
+                : _connection,
         };
 
         try
         {
             if (_hook != null)
-            {
                 await _hook.OnBeforeMigrationAsync(context, cancellationToken);
-            }
 
             if (dryRun)
             {
-                foreach (var operation in diff.Operations)
-                {
-                    result.SqlExecuted.Add(operation.Sql);
-                }
+                foreach (var item in diff.Operations)
+                    result.SqlExecuted.Add(item.Sql);
+
                 result = result with { Success = true };
             }
             else
-            {
                 result = await ApplyMigrationsAsync(diff, result, cancellationToken);
-            }
 
             // Copy warnings from SchemaDiff to result
-            foreach (var warning in diff.Warnings)
-            {
-                result.Warnings.Add(warning);
-            }
+            foreach (var item in diff.Warnings)
+                result.Warnings.Add(item);
 
             if (_hook != null && result.Success)
-            {
                 await _hook.OnAfterMigrationAsync(context, result, cancellationToken);
-            }
         }
         catch (Exception ex)
         {
@@ -78,28 +71,25 @@ public class SqliteSchemaMigrator : ISchemaMigrator
         return result;
     }
 
-    private async Task<MigrationResult> ApplyMigrationsAsync(
-        SchemaDiff diff,
+    private async Task<MigrationResult> ApplyMigrationsAsync(SchemaDiff diff,
         MigrationResult result,
         CancellationToken cancellationToken)
     {
-        if (_connection.State != System.Data.ConnectionState.Open)
-        {
+        if (_connection.State != ConnectionState.Open)
             await _connection.OpenAsync(cancellationToken);
-        }
 
-        using var transaction = await _connection.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await _connection.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            foreach (var operation in diff.Operations)
+            foreach (var item in diff.Operations)
             {
-                using var command = _connection.CreateCommand();
-                command.CommandText = operation.Sql;
+                await using var command = _connection.CreateCommand();
+                command.CommandText = item.Sql;
                 command.Transaction = transaction;
 
                 await command.ExecuteNonQueryAsync(cancellationToken);
-                result.SqlExecuted.Add(operation.Sql);
+                result.SqlExecuted.Add(item.Sql);
             }
 
             await transaction.CommitAsync(cancellationToken);

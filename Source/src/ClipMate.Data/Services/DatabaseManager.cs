@@ -16,14 +16,22 @@ public class DatabaseManager : IDisposable
     private ClipMateConfiguration? _configuration;
     private bool _disposed;
 
-    public DatabaseManager(
-        IConfigurationService configService,
+    public DatabaseManager(IConfigurationService configService,
         IDatabaseContextFactory contextFactory,
         ILogger<DatabaseManager> logger)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _contextFactory.Dispose();
+        _disposed = true;
     }
 
     /// <summary>
@@ -38,20 +46,20 @@ public class DatabaseManager : IDisposable
         _configuration = await _configService.LoadAsync(cancellationToken);
         var loadedCount = 0;
 
-        foreach (var dbEntry in _configuration.Databases.Where(db => db.Value.AutoLoad))
+        foreach (var item in _configuration.Databases.Where(p => p.Value.AutoLoad))
         {
-            var dbId = dbEntry.Key;
-            var dbConfig = dbEntry.Value;
-            
+            var dbId = item.Key;
+            var dbConfig = item.Value;
+
             try
             {
                 _logger.LogInformation("Auto-loading database: {Name} at {Path}", dbConfig.Name, dbConfig.Directory);
 
                 var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
-                
+
                 // Ensure database exists and is migrated
                 await context.Database.EnsureCreatedAsync(cancellationToken);
-                
+
                 loadedCount++;
                 _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
             }
@@ -61,8 +69,8 @@ public class DatabaseManager : IDisposable
             }
         }
 
-        _logger.LogInformation("Loaded {Count} of {Total} auto-load databases", 
-            loadedCount, _configuration.Databases.Count(db => db.Value.AutoLoad));
+        _logger.LogInformation("Loaded {Count} of {Total} auto-load databases",
+            loadedCount, _configuration.Databases.Count(p => p.Value.AutoLoad));
 
         return loadedCount;
     }
@@ -79,8 +87,8 @@ public class DatabaseManager : IDisposable
 
         _configuration ??= await _configService.LoadAsync(cancellationToken);
 
-        var dbEntry = _configuration.Databases.FirstOrDefault(db => 
-            db.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
+        var dbEntry = _configuration.Databases.FirstOrDefault(p =>
+            p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
 
         if (dbEntry.Key == null)
         {
@@ -117,17 +125,13 @@ public class DatabaseManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
-        {
             return false;
-        }
 
-        var dbEntry = _configuration.Databases.FirstOrDefault(db => 
-            db.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
+        var dbEntry = _configuration.Databases
+            .FirstOrDefault(p => p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
 
         if (dbEntry.Key == null)
-        {
             return false;
-        }
 
         return _contextFactory.CloseDatabase(dbEntry.Value.Directory);
     }
@@ -141,14 +145,12 @@ public class DatabaseManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
-        {
             return Enumerable.Empty<DatabaseConfiguration>();
-        }
 
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
         return _configuration.Databases
-            .Where(db => loadedPaths.Contains(db.Value.Directory, StringComparer.OrdinalIgnoreCase))
-            .Select(db => db.Value);
+            .Where(p => loadedPaths.Contains(p.Value.Directory, StringComparer.OrdinalIgnoreCase))
+            .Select(p => p.Value);
     }
 
     /// <summary>
@@ -161,24 +163,18 @@ public class DatabaseManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
-        {
             return null;
-        }
 
-        var dbEntry = _configuration.Databases.FirstOrDefault(db => 
-            db.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
+        var dbEntry = _configuration.Databases
+            .FirstOrDefault(p => p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
 
         if (dbEntry.Key == null)
-        {
             return null;
-        }
 
         var dbConfig = dbEntry.Value;
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
         if (!loadedPaths.Contains(dbConfig.Directory, StringComparer.OrdinalIgnoreCase))
-        {
             return null;
-        }
 
         return _contextFactory.GetOrCreateContext(dbConfig.Directory);
     }
@@ -192,29 +188,16 @@ public class DatabaseManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
-        {
             yield break;
-        }
 
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
-        
-        foreach (var dbEntry in _configuration.Databases.Where(db => 
-            loadedPaths.Contains(db.Value.Directory, StringComparer.OrdinalIgnoreCase)))
+
+        foreach (var item in _configuration.Databases.Where(p =>
+                     loadedPaths.Contains(p.Value.Directory, StringComparer.OrdinalIgnoreCase)))
         {
-            var dbConfig = dbEntry.Value;
+            var dbConfig = item.Value;
             var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
             yield return (dbConfig.Name, context);
         }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _contextFactory.Dispose();
-        _disposed = true;
     }
 }

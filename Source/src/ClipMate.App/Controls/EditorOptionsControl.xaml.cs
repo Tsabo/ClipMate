@@ -1,6 +1,4 @@
-using System;
 using System.Windows;
-using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 
 namespace ClipMate.App.Controls;
@@ -8,7 +6,7 @@ namespace ClipMate.App.Controls;
 /// <summary>
 /// Control for editing Monaco Editor configuration options.
 /// </summary>
-public partial class EditorOptionsControl : System.Windows.Controls.UserControl
+public partial class EditorOptionsControl
 {
     public static readonly DependencyProperty ConfigurationProperty =
         DependencyProperty.Register(
@@ -16,6 +14,14 @@ public partial class EditorOptionsControl : System.Windows.Controls.UserControl
             typeof(MonacoEditorConfiguration),
             typeof(EditorOptionsControl),
             new PropertyMetadata(null, OnConfigurationChanged));
+
+    public EditorOptionsControl()
+    {
+        InitializeComponent();
+
+        // Set default theme selection
+        ThemeComboBox.SelectedIndex = 0;
+    }
 
     public MonacoEditorConfiguration? Configuration
     {
@@ -26,20 +32,10 @@ public partial class EditorOptionsControl : System.Windows.Controls.UserControl
     public event EventHandler? ApplyClicked;
     public event EventHandler? ResetClicked;
 
-    public EditorOptionsControl()
-    {
-        InitializeComponent();
-        
-        // Set default theme selection
-        ThemeComboBox.SelectedIndex = 0;
-    }
-
     private static void OnConfigurationChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is EditorOptionsControl control && e.NewValue is MonacoEditorConfiguration config)
-        {
             control.DataContext = config;
-        }
     }
 
     private void OnResetClicked(object sender, RoutedEventArgs e)
@@ -77,8 +73,5 @@ public partial class EditorOptionsControl : System.Windows.Controls.UserControl
         ResetClicked?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnApplyClicked(object sender, RoutedEventArgs e)
-    {
-        ApplyClicked?.Invoke(this, EventArgs.Empty);
-    }
+    private void OnApplyClicked(object sender, RoutedEventArgs e) => ApplyClicked?.Invoke(this, EventArgs.Empty);
 }

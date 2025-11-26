@@ -4,9 +4,9 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
+using MessageBox = System.Windows.MessageBox;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace ClipMate.App.Views;
 
@@ -14,15 +14,10 @@ namespace ClipMate.App.Views;
 /// First-run setup wizard for ClipMate.
 /// Allows user to choose database name, location, and initializes the database with configuration.
 /// </summary>
-public partial class SetupWizard : Window
+public partial class SetupWizard
 {
-    private readonly ILogger<SetupWizard> _logger;
     private readonly string _configurationDirectory;
-    private string _databasePath;
-
-    public string DatabasePath => _databasePath;
-    public string DatabaseName { get; private set; } = "My Clips";
-    public bool SetupCompleted { get; private set; }
+    private readonly ILogger<SetupWizard> _logger;
 
     public SetupWizard(ILogger<SetupWizard> logger, string? configurationDirectory = null)
     {
@@ -39,26 +34,31 @@ public partial class SetupWizard : Window
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
-        _databasePath = Path.Combine(appDataPath, "clipmate.db");
-        DatabasePathTextBox.Text = _databasePath;
+        DatabasePath = Path.Combine(appDataPath, "clipmate.db");
+        DatabasePathTextBox.Text = DatabasePath;
         DatabaseNameTextBox.Text = "My Clips";
     }
 
+    public string DatabasePath { get; private set; }
+
+    public string DatabaseName { get; private set; } = "My Clips";
+    public bool SetupCompleted { get; private set; }
+
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.SaveFileDialog
+        var dialog = new SaveFileDialog
         {
             Title = "Choose Database Location",
             FileName = "clipmate.db",
             DefaultExt = ".db",
             Filter = "SQLite Database|*.db|All Files|*.*",
-            InitialDirectory = Path.GetDirectoryName(_databasePath)
+            InitialDirectory = Path.GetDirectoryName(DatabasePath),
         };
 
         if (dialog.ShowDialog() == true)
         {
-            _databasePath = dialog.FileName;
-            DatabasePathTextBox.Text = _databasePath;
+            DatabasePath = dialog.FileName;
+            DatabasePathTextBox.Text = DatabasePath;
         }
     }
 
@@ -75,24 +75,26 @@ public partial class SetupWizard : Window
         var databaseName = DatabaseNameTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(databaseName))
         {
-            System.Windows.MessageBox.Show(
+            MessageBox.Show(
                 "Please enter a name for your database.",
                 "Database Name Required",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
             DatabaseNameTextBox.Focus();
             return;
         }
 
         // Validate path
-        var directory = Path.GetDirectoryName(_databasePath);
+        var directory = Path.GetDirectoryName(DatabasePath);
         if (string.IsNullOrEmpty(directory))
         {
-            System.Windows.MessageBox.Show(
+            MessageBox.Show(
                 "Invalid database path. Please choose a valid location.",
                 "Invalid Path",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
             return;
         }
 
@@ -104,7 +106,7 @@ public partial class SetupWizard : Window
 
         try
         {
-            _logger.LogInformation("Starting database setup: Name={Name}, Path={Path}", databaseName, _databasePath);
+            _logger.LogInformation("Starting database setup: Name={Name}, Path={Path}", databaseName, DatabasePath);
 
             // Create directory if it doesn't exist
             if (!Directory.Exists(directory))
@@ -119,11 +121,11 @@ public partial class SetupWizard : Window
 
             // Create DbContext options
             var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
-            optionsBuilder.UseSqlite($"Data Source={_databasePath}");
+            optionsBuilder.UseSqlite($"Data Source={DatabasePath}");
 
             // Create and migrate database
             await using var context = new ClipMateDbContext(optionsBuilder.Options);
-            
+
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync();
 
@@ -160,11 +162,11 @@ public partial class SetupWizard : Window
             BrowseButton.IsEnabled = true;
             DatabaseNameTextBox.IsEnabled = true;
 
-            System.Windows.MessageBox.Show(
+            MessageBox.Show(
                 $"Failed to set up database:\n\n{ex.Message}\n\nPlease try a different location or check permissions.",
                 "Setup Error",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Error);
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -178,6 +180,7 @@ public partial class SetupWizard : Window
                 builder.AddDebug();
                 builder.SetMinimumLevel(LogLevel.Information);
             });
+
             var configLogger = loggerFactory.CreateLogger<ConfigurationService>();
             var configService = new ConfigurationService(_configurationDirectory, configLogger);
 
@@ -193,7 +196,7 @@ public partial class SetupWizard : Window
                 AllowBackup = true,
                 ReadOnly = false,
                 CleanupMethod = 3, // Daily
-                PurgeDays = 7
+                PurgeDays = 7,
             };
 
             // Use "default" as the key for the first database

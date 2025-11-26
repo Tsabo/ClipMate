@@ -7,8 +7,7 @@ namespace ClipMate.Data.Schema.Abstractions;
 /// </summary>
 public interface ISchemaMigrator
 {
-    Task<MigrationResult> MigrateAsync(
-        SchemaDiff diff,
+    Task<MigrationResult> MigrateAsync(SchemaDiff diff,
         bool dryRun = false,
         CancellationToken cancellationToken = default);
 }

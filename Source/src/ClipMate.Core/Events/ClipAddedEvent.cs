@@ -8,6 +8,14 @@ namespace ClipMate.Core.Events;
 /// </summary>
 public class ClipAddedEvent
 {
+    public ClipAddedEvent(Clip clip, bool wasDuplicate, Guid? collectionId = null, Guid? folderId = null)
+    {
+        Clip = clip ?? throw new ArgumentNullException(nameof(clip));
+        WasDuplicate = wasDuplicate;
+        CollectionId = collectionId;
+        FolderId = folderId;
+    }
+
     /// <summary>
     /// The clip that was added to the database.
     /// </summary>
@@ -27,12 +35,4 @@ public class ClipAddedEvent
     /// The folder ID the clip was assigned to.
     /// </summary>
     public Guid? FolderId { get; }
-
-    public ClipAddedEvent(Clip clip, bool wasDuplicate, Guid? collectionId = null, Guid? folderId = null)
-    {
-        Clip = clip ?? throw new ArgumentNullException(nameof(clip));
-        WasDuplicate = wasDuplicate;
-        CollectionId = collectionId;
-        FolderId = folderId;
-    }
 }

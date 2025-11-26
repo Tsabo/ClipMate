@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;

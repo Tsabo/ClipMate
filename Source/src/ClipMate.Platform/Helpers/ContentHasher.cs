@@ -16,9 +16,7 @@ public static class ContentHasher
     public static string HashText(string content)
     {
         if (string.IsNullOrEmpty(content))
-        {
             return string.Empty;
-        }
 
         using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(content);
@@ -31,12 +29,10 @@ public static class ContentHasher
     /// </summary>
     /// <param name="data">The binary data to hash.</param>
     /// <returns>SHA256 hash as a hex string (64 characters).</returns>
-    public static string HashBytes(byte[] data)
+    public static string HashBytes(byte[]? data)
     {
         if (data == null || data.Length == 0)
-        {
             return string.Empty;
-        }
 
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(data);
@@ -48,12 +44,10 @@ public static class ContentHasher
     /// </summary>
     /// <param name="filePaths">The file paths to hash.</param>
     /// <returns>SHA256 hash as a hex string (64 characters).</returns>
-    public static string HashFilePaths(IEnumerable<string> filePaths)
+    public static string HashFilePaths(IEnumerable<string>? filePaths)
     {
         if (filePaths == null || !filePaths.Any())
-        {
             return string.Empty;
-        }
 
         var combined = string.Join("|", filePaths.OrderBy(p => p));
         return HashText(combined);

@@ -54,8 +54,9 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                 .ReturnsAsync(new Collection
                 {
                     Id = Guid.NewGuid(),
-                    Title = "Default Collection",
-                    LmType = 0 // Normal collection
+                    ParentId = null,
+                    Title = "Inbox",
+                    LmType = CollectionLmType.Normal
                 });
         }
 

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Drawing;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -14,7 +13,7 @@ using MessageBox = System.Windows.MessageBox;
 namespace ClipMate.App.Controls;
 
 /// <summary>
-///     Monaco Editor control wrapper for WebView2
+/// Monaco Editor control wrapper for WebView2
 /// </summary>
 public partial class MonacoEditorControl
 {
@@ -29,7 +28,9 @@ public partial class MonacoEditorControl
 
     private readonly ILogger<MonacoEditorControl> _logger;
     private TaskCompletionSource<bool>? _initializationTcs;
+#pragma warning disable CS0649 // Field is assigned via conditional access in message handlers
     private TaskCompletionSource<string>? _pendingCommandResult;
+#pragma warning restore CS0649
     private bool _suppressLanguageChanged;
     private bool _suppressTextChanged;
 
@@ -40,7 +41,7 @@ public partial class MonacoEditorControl
         // Get logger from application service provider
         _logger = ((App)Application.Current).ServiceProvider.GetRequiredService<ILogger<MonacoEditorControl>>();
 
-        AvailableLanguages = new ObservableCollection<string>();
+        AvailableLanguages = [];
         LanguageComboBox.ItemsSource = AvailableLanguages;
 
         // Set up WebView2
@@ -130,27 +131,25 @@ public partial class MonacoEditorControl
                 _logger.LogInformation("[{ControlName}] Debug mode enabled, dev tools opened", Name ?? "Monaco");
             }
             else
-            {
                 _logger.LogDebug("[{ControlName}] Debug mode NOT enabled (EnableDebug = false)", Name ?? "Monaco");
-            }
 
             // Initialize editor using JavaScript function
             var options = EditorOptions ?? new MonacoEditorConfiguration();
-            var initScript = $@"
-                initializeEditor({{
-                    value: '',
-                    language: '{Language ?? "plaintext"}',
-                    theme: '{options.Theme}',
-                    fontSize: {options.FontSize},
-                    fontFamily: '{options.FontFamily}',
-                    wordWrap: '{(options.WordWrap ? "on" : "off")}',
-                    lineNumbers: '{(options.ShowLineNumbers ? "on" : "off")}',
-                    minimapEnabled: {options.ShowMinimap.ToString().ToLower()},
-                    tabSize: {options.TabSize},
-                    smoothScrolling: {options.SmoothScrolling.ToString().ToLower()},
-                    readOnly: {IsReadOnly.ToString().ToLower()}
-                }});
-            ";
+            var initScript = $$"""
+                               initializeEditor({
+                                   value: '',
+                                   language: '{{Language ?? "plaintext"}}',
+                                   theme: '{{options.Theme}}',
+                                   fontSize: {{options.FontSize}},
+                                   fontFamily: '{{options.FontFamily}}',
+                                   wordWrap: '{{(options.WordWrap ? "on" : "off")}}',
+                                   lineNumbers: '{{(options.ShowLineNumbers ? "on" : "off")}}',
+                                   minimapEnabled: {{options.ShowMinimap.ToString().ToLower()}},
+                                   tabSize: {{options.TabSize}},
+                                   smoothScrolling: {{options.SmoothScrolling.ToString().ToLower()}},
+                                   readOnly: {{IsReadOnly.ToString().ToLower()}}
+                               });
+                               """;
 
             _logger.LogDebug("[{ControlName}] Executing initializeEditor", Name ?? "Monaco");
             var result = await EditorWebView.ExecuteScriptAsync(initScript);
@@ -282,37 +281,6 @@ public partial class MonacoEditorControl
     {
         if (!_suppressTextChanged && IsInitialized && LanguageComboBox.SelectedItem is string language)
             _ = SetLanguageAsync(language);
-    }
-
-    private async Task<string> ExecuteCommandAsync(string commandJson)
-    {
-        if (EditorWebView.CoreWebView2 == null)
-            return string.Empty;
-
-        _pendingCommandResult = new TaskCompletionSource<string>();
-
-        try
-        {
-            EditorWebView.CoreWebView2.PostWebMessageAsJson(commandJson);
-
-            var timeout = Task.Delay(5000); // 5 second timeout
-            var completedTask = await Task.WhenAny(_pendingCommandResult.Task, timeout);
-
-            if (completedTask == timeout)
-                throw new TimeoutException($"Command execution timed out: {commandJson}");
-
-            return await _pendingCommandResult.Task;
-        }
-        finally
-        {
-            _pendingCommandResult = null;
-        }
-    }
-
-    private class LanguageInfo
-    {
-        public string Id { get; set; } = string.Empty;
-        public string[]? Aliases { get; set; }
     }
 
     #region Dependency Properties
@@ -451,9 +419,9 @@ public partial class MonacoEditorControl
         if (d is MonacoEditorControl control && e.NewValue is MonacoEditorConfiguration options)
         {
             var oldDebug = control.EnableDebug;
-            control._logger.LogInformation("[{ControlName}] OnEditorOptionsPropertyChanged - Setting EnableDebug from {OldValue} to {NewValue}", 
+            control._logger.LogInformation("[{ControlName}] OnEditorOptionsPropertyChanged - Setting EnableDebug from {OldValue} to {NewValue}",
                 control.Name ?? "Monaco", oldDebug, options.EnableDebug);
-            
+
             control.ShowToolbar = options.ShowToolbar;
             control.DisplayWordAndCharacterCounts = options.DisplayWordAndCharacterCounts;
             control.EnableDebug = options.EnableDebug;
@@ -461,21 +429,19 @@ public partial class MonacoEditorControl
             if (control.IsInitialized)
             {
                 await control.UpdateOptionsAsync();
-                
+
                 // Handle EnableDebug change at runtime
                 if (oldDebug != options.EnableDebug && control.EditorWebView.CoreWebView2 != null)
                 {
                     await control.EditorWebView.ExecuteScriptAsync($"setDebugMode({options.EnableDebug.ToString().ToLower()});");
-                    
+
                     if (options.EnableDebug)
                     {
                         control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
                         control._logger.LogInformation("[{ControlName}] Debug mode enabled at runtime", control.Name ?? "Monaco");
                     }
                     else
-                    {
                         control._logger.LogInformation("[{ControlName}] Debug mode disabled at runtime", control.Name ?? "Monaco");
-                    }
                 }
             }
         }
@@ -496,7 +462,7 @@ public partial class MonacoEditorControl
     }
 
     /// <summary>
-    ///     Sets text, language, and optionally restores view state in a single atomic operation.
+    /// Sets text, language, and optionally restores view state in a single atomic operation.
     /// </summary>
     public async Task<bool> LoadContentAsync(string text, string? languageId = null, string? viewStateJson = null)
     {
@@ -585,7 +551,7 @@ public partial class MonacoEditorControl
     public async Task SetLanguageAsync(string languageId)
     {
         var controlName = Name ?? "Monaco";
-        
+
         if (!IsInitialized)
         {
             _logger.LogWarning("[{ControlName}] SetLanguageAsync failed - editor not initialized", controlName);
@@ -596,11 +562,11 @@ public partial class MonacoEditorControl
         {
             _suppressLanguageChanged = true;
             _logger.LogDebug("[{ControlName}] Setting language to: {LanguageId}", controlName, languageId);
-            
+
             // Use JavaScript function instead of inline script
             var result = await EditorWebView.ExecuteScriptAsync($"setLanguage('{languageId}');");
             var success = result == "true";
-            
+
             if (!success)
             {
                 _logger.LogWarning("[{ControlName}] setLanguage returned false", controlName);

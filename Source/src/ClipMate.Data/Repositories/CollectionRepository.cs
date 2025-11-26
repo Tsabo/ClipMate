@@ -39,9 +39,7 @@ public class CollectionRepository : ICollectionRepository
     public async Task<Collection> CreateAsync(Collection collection, CancellationToken cancellationToken = default)
     {
         if (collection == null)
-        {
             throw new ArgumentNullException(nameof(collection));
-        }
 
         _context.Collections.Add(collection);
         await _context.SaveChangesAsync(cancellationToken);
@@ -51,9 +49,7 @@ public class CollectionRepository : ICollectionRepository
     public async Task<bool> UpdateAsync(Collection collection, CancellationToken cancellationToken = default)
     {
         if (collection == null)
-        {
             throw new ArgumentNullException(nameof(collection));
-        }
 
         _context.Collections.Update(collection);
         await _context.SaveChangesAsync(cancellationToken);
@@ -64,9 +60,7 @@ public class CollectionRepository : ICollectionRepository
     {
         var collection = await _context.Collections.FindAsync(new object[] { id }, cancellationToken);
         if (collection == null)
-        {
             return false;
-        }
 
         _context.Collections.Remove(collection);
         await _context.SaveChangesAsync(cancellationToken);

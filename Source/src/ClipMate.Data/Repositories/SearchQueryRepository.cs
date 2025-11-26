@@ -55,7 +55,7 @@ public class SearchQueryRepository : ISearchQueryRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var query = await _context.SearchQueries.FindAsync(new object[] { id }, cancellationToken);
+        var query = await _context.SearchQueries.FindAsync([id], cancellationToken);
         if (query == null)
         {
             return false;

@@ -1,10 +1,10 @@
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Messaging;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace ClipMate.App.ViewModels;
 
@@ -17,16 +17,14 @@ public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSel
 {
     private readonly IMessenger _messenger;
 
-    public PreviewPaneViewModel(IMessenger messenger)
-    {
-        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-        _messenger.Register(this);
-    }
     [ObservableProperty]
-    private Clip? _selectedClip;
+    private bool _hasHtmlPreview;
 
     [ObservableProperty]
-    private string _previewText = string.Empty;
+    private bool _hasImagePreview;
+
+    [ObservableProperty]
+    private bool _hasTextPreview;
 
     [ObservableProperty]
     private string _previewHtml = string.Empty;
@@ -35,22 +33,22 @@ public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSel
     private ImageSource? _previewImageSource;
 
     [ObservableProperty]
-    private bool _hasTextPreview = false;
+    private string _previewText = string.Empty;
 
     [ObservableProperty]
-    private bool _hasHtmlPreview = false;
+    private Clip? _selectedClip;
 
-    [ObservableProperty]
-    private bool _hasImagePreview = false;
+    public PreviewPaneViewModel(IMessenger messenger)
+    {
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _messenger.Register(this);
+    }
 
     /// <summary>
     /// Receives ClipSelectedEvent messages from the messenger.
     /// Updates the preview pane when a clip is selected.
     /// </summary>
-    public void Receive(ClipSelectedEvent message)
-    {
-        SetClip(message.SelectedClip);
-    }
+    public void Receive(ClipSelectedEvent message) => SetClip(message.SelectedClip);
 
     /// <summary>
     /// Sets the clip to preview and updates the preview content.
@@ -59,7 +57,7 @@ public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSel
     private void SetClip(Clip? clip)
     {
         SelectedClip = clip;
-        
+
         if (clip == null)
         {
             Clear();
@@ -89,11 +87,12 @@ public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSel
                 break;
 
             case ClipType.Image:
-                if (clip.ImageData != null && clip.ImageData.Length > 0)
+                if (clip.ImageData is { Length: > 0 })
                 {
                     HasImagePreview = true;
                     PreviewImageSource = LoadImageFromBytes(clip.ImageData);
                 }
+
                 break;
 
             case ClipType.Files:

@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-///     ViewModel for the main application window.
-///     Orchestrates child ViewModels and coordinates the three-pane interface.
-///     Manages window state and application-level concerns.
+/// ViewModel for the main application window.
+/// Orchestrates child ViewModels and coordinates the three-pane interface.
+/// Manages window state and application-level concerns.
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
@@ -33,8 +33,8 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     Initializes the main window and all child ViewModels.
-    ///     Should be called after the window is loaded.
+    /// Initializes the main window and all child ViewModels.
+    /// Should be called after the window is loaded.
     /// </summary>
     public async Task InitializeAsync()
     {
@@ -54,7 +54,7 @@ public partial class MainWindowViewModel : ObservableObject
 
                 // Try to find the Inbox collection (default collection)
                 var inboxCollection = firstDatabase.Children.OfType<CollectionTreeNode>()
-                    .FirstOrDefault(c => c.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(p => p.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase));
 
                 // If no Inbox collection exists, fall back to the first collection
                 var targetCollection = inboxCollection ?? firstDatabase.Children.OfType<CollectionTreeNode>().FirstOrDefault();
@@ -83,7 +83,7 @@ public partial class MainWindowViewModel : ObservableObject
                     {
                         // User-defined collection - try to find an Inbox folder within it
                         var inboxFolder = targetCollection.Children.OfType<FolderTreeNode>()
-                            .FirstOrDefault(f => f.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase));
+                            .FirstOrDefault(p => p.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase));
 
                         if (inboxFolder != null)
                         {
@@ -121,13 +121,13 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     Sets the status message displayed in the status bar.
+    /// Sets the status message displayed in the status bar.
     /// </summary>
     /// <param name="message">The status message to display.</param>
     public void SetStatus(string message) => StatusMessage = message ?? string.Empty;
 
     /// <summary>
-    ///     Sets the busy state and optional status message.
+    /// Sets the busy state and optional status message.
     /// </summary>
     /// <param name="isBusy">Whether the application is busy.</param>
     /// <param name="message">Optional status message to display when busy.</param>
@@ -142,22 +142,22 @@ public partial class MainWindowViewModel : ObservableObject
     #region Child ViewModels
 
     /// <summary>
-    ///     ViewModel for the collection tree (left pane).
+    /// ViewModel for the collection tree (left pane).
     /// </summary>
     public CollectionTreeViewModel CollectionTree { get; }
 
     /// <summary>
-    ///     ViewModel for the primary clip list (middle pane).
+    /// ViewModel for the primary clip list (middle pane).
     /// </summary>
     public ClipListViewModel PrimaryClipList { get; }
 
     /// <summary>
-    ///     ViewModel for the preview pane (right pane).
+    /// ViewModel for the preview pane (right pane).
     /// </summary>
     public PreviewPaneViewModel PreviewPane { get; }
 
     /// <summary>
-    ///     ViewModel for the search panel.
+    /// ViewModel for the search panel.
     /// </summary>
     public SearchViewModel Search { get; }
 

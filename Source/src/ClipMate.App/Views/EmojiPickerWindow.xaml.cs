@@ -1,5 +1,4 @@
 using System.Windows;
-using DevExpress.Xpf.Core;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 
@@ -8,11 +7,9 @@ namespace ClipMate.App.Views;
 /// <summary>
 /// Custom emoji picker dialog with search, categories, and recently used tracking.
 /// </summary>
-public partial class EmojiPickerWindow : ThemedWindow
+public partial class EmojiPickerWindow
 {
     private readonly EmojiPickerViewModel _viewModel;
-
-    public string? SelectedEmoji => _viewModel.SelectedEmoji;
 
     public EmojiPickerWindow(IConfigurationService configurationService)
     {
@@ -21,11 +18,13 @@ public partial class EmojiPickerWindow : ThemedWindow
         DataContext = _viewModel;
     }
 
-    public EmojiPickerWindow(IConfigurationService configurationService, string? currentEmoji) 
+    public EmojiPickerWindow(IConfigurationService configurationService, string? currentEmoji)
         : this(configurationService)
     {
         _viewModel.SelectedEmoji = currentEmoji;
     }
+
+    public string? SelectedEmoji => _viewModel.SelectedEmoji;
 
     private void OkButton_Click(object sender, RoutedEventArgs e)
     {

@@ -95,6 +95,7 @@ public class BlobRepository : IBlobRepository
         var textBlobs = await _context.BlobTxt
             .Where(b => b.ClipId == clipId)
             .ToListAsync(cancellationToken);
+
         _context.BlobTxt.RemoveRange(textBlobs);
         totalDeleted += textBlobs.Count;
 
@@ -102,6 +103,7 @@ public class BlobRepository : IBlobRepository
         var jpgBlobs = await _context.BlobJpg
             .Where(b => b.ClipId == clipId)
             .ToListAsync(cancellationToken);
+
         _context.BlobJpg.RemoveRange(jpgBlobs);
         totalDeleted += jpgBlobs.Count;
 
@@ -109,6 +111,7 @@ public class BlobRepository : IBlobRepository
         var pngBlobs = await _context.BlobPng
             .Where(b => b.ClipId == clipId)
             .ToListAsync(cancellationToken);
+
         _context.BlobPng.RemoveRange(pngBlobs);
         totalDeleted += pngBlobs.Count;
 
@@ -116,6 +119,7 @@ public class BlobRepository : IBlobRepository
         var binaryBlobs = await _context.BlobBlob
             .Where(b => b.ClipId == clipId)
             .ToListAsync(cancellationToken);
+
         _context.BlobBlob.RemoveRange(binaryBlobs);
         totalDeleted += binaryBlobs.Count;
 

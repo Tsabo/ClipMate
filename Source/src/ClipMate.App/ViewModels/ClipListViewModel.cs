@@ -10,10 +10,10 @@ using Application = System.Windows.Application;
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-///     ViewModel for the clip list pane (middle pane).
-///     Displays clips in list or grid view, handles selection, and loading.
-///     Implements IRecipient to receive ClipAddedEvent and CollectionNodeSelectedEvent messages via MVVM Toolkit
-///     Messenger.
+/// ViewModel for the clip list pane (middle pane).
+/// Displays clips in list or grid view, handles selection, and loading.
+/// Implements IRecipient to receive ClipAddedEvent and CollectionNodeSelectedEvent messages via MVVM Toolkit
+/// Messenger.
 /// </summary>
 public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>
 {
@@ -63,8 +63,8 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Receives ClipAddedEvent messages from the messenger.
-    ///     This method is called automatically by the messenger when a ClipAddedEvent is sent.
+    /// Receives ClipAddedEvent messages from the messenger.
+    /// This method is called automatically by the messenger when a ClipAddedEvent is sent.
     /// </summary>
     public void Receive(ClipAddedEvent message)
     {
@@ -75,9 +75,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             var shouldDisplay = ShouldDisplayClip(message.Clip, message.CollectionId, message.FolderId);
 
             if (!shouldDisplay)
-            {
                 return;
-            }
 
             // Check if clip already exists in the collection (duplicate handling)
             var existingClip = Clips.FirstOrDefault(c => c.Id == message.Clip.Id);
@@ -97,9 +95,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
                 // Optional: Limit list size to prevent memory issues
                 const int maxClips = 10000;
                 while (Clips.Count > maxClips)
-                {
                     Clips.RemoveAt(Clips.Count - 1);
-                }
             }
 
             // Optional: Auto-select the new clip
@@ -108,8 +104,8 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Receives CollectionNodeSelectedEvent messages from the messenger.
-    ///     Loads clips for the selected collection/folder.
+    /// Receives CollectionNodeSelectedEvent messages from the messenger.
+    /// Loads clips for the selected collection/folder.
     /// </summary>
     public async void Receive(CollectionNodeSelectedEvent message)
     {
@@ -142,28 +138,24 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Determines if a clip should be displayed in the current view based on active filters.
+    /// Determines if a clip should be displayed in the current view based on active filters.
     /// </summary>
     private bool ShouldDisplayClip(Clip clip, Guid? clipCollectionId, Guid? clipFolderId)
     {
         // If viewing a specific folder, only show clips in that folder
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
-        {
             return clipFolderId == CurrentFolderId && clipCollectionId == CurrentCollectionId;
-        }
 
         // If viewing a specific collection, only show clips in that collection
         if (CurrentCollectionId.HasValue)
-        {
             return clipCollectionId == CurrentCollectionId;
-        }
 
         // Default view - show all clips (or implement your default logic)
         return true;
     }
 
     /// <summary>
-    ///     Loads clips from the clip service.
+    /// Loads clips from the clip service.
     /// </summary>
     /// <param name="count">Maximum number of clips to load (default 1000).</param>
     public async Task LoadClipsAsync(int count = 1000)
@@ -180,9 +172,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             {
                 Clips.Clear();
                 foreach (var clip in clips)
-                {
                     Clips.Add(clip);
-                }
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
             });
@@ -199,7 +189,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Loads clips for a specific collection.
+    /// Loads clips for a specific collection.
     /// </summary>
     /// <param name="collectionId">The collection ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -221,9 +211,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
                 Clips.Clear();
                 var clipList = clips.ToList();
                 foreach (var clip in clipList)
-                {
                     Clips.Add(clip);
-                }
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
             });
@@ -240,7 +228,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Loads clips for a specific folder.
+    /// Loads clips for a specific folder.
     /// </summary>
     /// <param name="collectionId">The collection ID (for tracking).</param>
     /// <param name="folderId">The folder ID.</param>
@@ -260,9 +248,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             {
                 Clips.Clear();
                 foreach (var clip in clips)
-                {
                     Clips.Add(clip);
-                }
             });
         }
         catch
@@ -276,26 +262,20 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Refreshes the clip list by reloading from the service.
+    /// Refreshes the clip list by reloading from the service.
     /// </summary>
     public async Task RefreshAsync()
     {
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
-        {
             await LoadClipsByFolderAsync(CurrentCollectionId.Value, CurrentFolderId.Value);
-        }
         else if (CurrentCollectionId.HasValue)
-        {
             await LoadClipsByCollectionAsync(CurrentCollectionId.Value);
-        }
         else
-        {
             await LoadClipsAsync();
-        }
     }
 
     /// <summary>
-    ///     Switches the view to list mode.
+    /// Switches the view to list mode.
     /// </summary>
     public void SwitchToListView()
     {
@@ -304,7 +284,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     }
 
     /// <summary>
-    ///     Switches the view to grid mode.
+    /// Switches the view to grid mode.
     /// </summary>
     public void SwitchToGridView()
     {

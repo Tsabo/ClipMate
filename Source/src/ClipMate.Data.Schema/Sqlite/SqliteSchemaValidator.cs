@@ -25,20 +25,14 @@ public class SqliteSchemaValidator : ISchemaValidator
 
     private void ValidateTableNames(SchemaDefinition schema, ValidationResult result)
     {
-        foreach (var table in schema.Tables.Values)
+        foreach (var item in schema.Tables.Values)
         {
-            if (string.IsNullOrWhiteSpace(table.Name))
-            {
+            if (string.IsNullOrWhiteSpace(item.Name))
                 result.Errors.Add("Table name cannot be empty");
-            }
-            else if (table.Name.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase))
-            {
-                result.Errors.Add($"Table name '{table.Name}' is reserved by SQLite");
-            }
-            else if (!IsValidIdentifier(table.Name))
-            {
-                result.Errors.Add($"Invalid table name '{table.Name}': must start with a letter or underscore");
-            }
+            else if (item.Name.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase))
+                result.Errors.Add($"Table name '{item.Name}' is reserved by SQLite");
+            else if (!IsValidIdentifier(item.Name))
+                result.Errors.Add($"Invalid table name '{item.Name}': must start with a letter or underscore");
         }
     }
 
@@ -49,13 +43,9 @@ public class SqliteSchemaValidator : ISchemaValidator
             foreach (var column in table.Columns)
             {
                 if (string.IsNullOrWhiteSpace(column.Name))
-                {
                     result.Errors.Add($"Column name cannot be empty in table '{table.Name}'");
-                }
                 else if (!IsValidIdentifier(column.Name))
-                {
                     result.Errors.Add($"Invalid column name '{column.Name}' in table '{table.Name}': must start with a letter or underscore");
-                }
             }
         }
     }
@@ -76,9 +66,7 @@ public class SqliteSchemaValidator : ISchemaValidator
             foreach (var fk in table.ForeignKeys)
             {
                 if (!schema.Tables.ContainsKey(fk.ReferencedTable))
-                {
                     result.Errors.Add($"Foreign key in table '{table.Name}' references table '{fk.ReferencedTable}' which does not exist");
-                }
             }
         }
     }
@@ -90,10 +78,8 @@ public class SqliteSchemaValidator : ISchemaValidator
         foreach (var tableName in graph.Keys)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (HasCircularReference(tableName, tableName, graph, visited, isStart: true))
-            {
+            if (HasCircularReference(tableName, tableName, graph, visited, true))
                 result.Errors.Add($"Detected circular foreign key reference involving table '{tableName}'");
-            }
         }
     }
 
@@ -104,19 +90,16 @@ public class SqliteSchemaValidator : ISchemaValidator
         foreach (var table in schema.Tables.Values)
         {
             if (!graph.ContainsKey(table.Name))
-                graph[table.Name] = new List<string>();
+                graph[table.Name] = [];
 
             foreach (var fk in table.ForeignKeys)
-            {
                 graph[table.Name].Add(fk.ReferencedTable);
-            }
         }
 
         return graph;
     }
 
-    private bool HasCircularReference(
-        string startTable,
+    private bool HasCircularReference(string startTable,
         string currentTable,
         Dictionary<string, List<string>> graph,
         HashSet<string> visited,
@@ -134,7 +117,7 @@ public class SqliteSchemaValidator : ISchemaValidator
                 // If this is the starting table checking its own references, skip self-references
                 if (isStart && refTable.Equals(currentTable, StringComparison.OrdinalIgnoreCase))
                     continue;
-                
+
                 // If we've visited other tables and came back to start, it's circular
                 if (visited.Count > 0)
                     return true;
@@ -142,7 +125,7 @@ public class SqliteSchemaValidator : ISchemaValidator
 
             if (visited.Add(refTable))
             {
-                if (HasCircularReference(startTable, refTable, graph, visited, isStart: false))
+                if (HasCircularReference(startTable, refTable, graph, visited, false))
                     return true;
 
                 visited.Remove(refTable);
@@ -162,7 +145,7 @@ public class SqliteSchemaValidator : ISchemaValidator
             "NCHAR", "NATIVE CHARACTER", "NVARCHAR",
             "REAL", "DOUBLE", "DOUBLE PRECISION", "FLOAT",
             "NUMERIC", "DECIMAL", "BOOLEAN", "DATE", "DATETIME",
-            "BLOB"
+            "BLOB",
         };
 
         foreach (var table in schema.Tables.Values)
@@ -178,9 +161,7 @@ public class SqliteSchemaValidator : ISchemaValidator
                 var baseType = column.Type.Split('(')[0].Trim().ToUpperInvariant();
 
                 if (!validTypes.Contains(baseType))
-                {
                     result.Errors.Add($"Column '{column.Name}' in table '{table.Name}' has invalid type '{column.Type}'");
-                }
             }
         }
     }
@@ -193,18 +174,14 @@ public class SqliteSchemaValidator : ISchemaValidator
             foreach (var column in table.Columns)
             {
                 if (!columnNames.Add(column.Name))
-                {
                     result.Errors.Add($"Table '{table.Name}' has duplicate column name '{column.Name}'");
-                }
             }
 
             var indexNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var index in table.Indexes)
             {
                 if (!indexNames.Add(index.Name))
-                {
                     result.Errors.Add($"Table '{table.Name}' has duplicate index name '{index.Name}'");
-                }
             }
         }
     }
@@ -215,9 +192,7 @@ public class SqliteSchemaValidator : ISchemaValidator
         {
             var hasPrimaryKey = table.Columns.Any(c => c.IsPrimaryKey);
             if (!hasPrimaryKey)
-            {
                 result.Warnings.Add($"Table '{table.Name}' does not have a primary key");
-            }
         }
     }
 }

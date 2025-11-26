@@ -1,8 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Windows.Win32;
-using Windows.Win32.Foundation;
+using System.Windows;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
-using Windows.Win32.UI.WindowsAndMessaging;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
@@ -17,28 +16,24 @@ public class PasteService : IPasteService
     private readonly IWin32InputInterop _win32;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PasteService"/> class.
+    /// Initializes a new instance of the <see cref="PasteService" /> class.
     /// </summary>
     public PasteService(IWin32InputInterop win32Interop)
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
     }
 
-    /// <inheritdoc/>
-    public async Task<bool> PasteToActiveWindowAsync(Clip clip, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<bool> PasteToActiveWindowAsync(Clip? clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
-        {
             return false;
-        }
 
         try
         {
             // Set clipboard content based on clip type
             if (clip.Type == ClipType.Text && !string.IsNullOrEmpty(clip.TextContent))
-            {
                 return await PasteTextAsync(clip.TextContent, cancellationToken);
-            }
 
             // TODO: Handle other clip types (RTF, HTML, Image) in future iterations
             return false;
@@ -49,18 +44,16 @@ public class PasteService : IPasteService
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public async Task<bool> PasteTextAsync(string text, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(text))
-        {
             return false;
-        }
 
         try
         {
             // Set clipboard content
-            await Task.Run(() => System.Windows.Clipboard.SetText(text), cancellationToken);
+            await Task.Run(() => Clipboard.SetText(text), cancellationToken);
 
             // Small delay to ensure clipboard is set
             await Task.Delay(50, cancellationToken);
@@ -76,26 +69,22 @@ public class PasteService : IPasteService
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public string GetActiveWindowTitle()
     {
         try
         {
-            HWND foregroundWindow = _win32.GetForegroundWindow();
+            var foregroundWindow = _win32.GetForegroundWindow();
             if (foregroundWindow.IsNull)
-            {
                 return string.Empty;
-            }
 
             const int maxLength = 256;
             unsafe
             {
-                char* buffer = stackalloc char[maxLength];
-                int length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
+                var buffer = stackalloc char[maxLength];
+                var length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
                 if (length > 0)
-                {
                     return new string(buffer, 0, length);
-                }
             }
 
             return string.Empty;
@@ -106,26 +95,21 @@ public class PasteService : IPasteService
         }
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public string GetActiveWindowProcessName()
     {
         try
         {
-            HWND foregroundWindow = _win32.GetForegroundWindow();
+            var foregroundWindow = _win32.GetForegroundWindow();
             if (foregroundWindow.IsNull)
-            {
                 return string.Empty;
-            }
 
-            uint processId = 0;
-            _win32.GetWindowThreadProcessId(foregroundWindow, out processId);
+            _win32.GetWindowThreadProcessId(foregroundWindow, out var processId);
 
             if (processId == 0)
-            {
                 return string.Empty;
-            }
 
-            using var process = System.Diagnostics.Process.GetProcessById((int)processId);
+            using var process = Process.GetProcessById((int)processId);
             return process.ProcessName;
         }
         catch (Exception)
@@ -142,7 +126,7 @@ public class PasteService : IPasteService
         const int inputCount = 4; // Ctrl down, V down, V up, Ctrl up
         unsafe
         {
-            INPUT* inputs = stackalloc INPUT[inputCount];
+            var inputs = stackalloc INPUT[inputCount];
 
             // Ctrl key down
             inputs[0] = new INPUT
@@ -156,9 +140,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // V key down
@@ -173,9 +157,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // V key up
@@ -190,9 +174,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // Ctrl key up
@@ -207,13 +191,13 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // Send the inputs
-            _win32.SendInput((uint)inputCount, inputs, Marshal.SizeOf<INPUT>());
+            _win32.SendInput(inputCount, inputs, Marshal.SizeOf<INPUT>());
         }
     }
 }

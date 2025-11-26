@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -22,8 +21,8 @@ using MessageBox = System.Windows.MessageBox;
 namespace ClipMate.App.Controls;
 
 /// <summary>
-///     Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Bitmap, Picture, and Binary formats.
-///     Listens to ClipSelectedEvent via MVVM Toolkit Messenger.
+/// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Bitmap, Picture, and Binary formats.
+/// Listens to ClipSelectedEvent via MVVM Toolkit Messenger.
 /// </summary>
 public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
 {
@@ -45,23 +44,24 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
 
         // Load Monaco Editor configuration
         var configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
-        var monacoOptions = configurationService.Configuration.MonacoEditor ?? new Core.Models.Configuration.MonacoEditorConfiguration();
-        _logger.LogInformation("Monaco configuration loaded - EnableDebug: {EnableDebug}, Theme: {Theme}, FontSize: {FontSize}", 
+        var monacoOptions = configurationService.Configuration.MonacoEditor;
+        _logger.LogInformation("Monaco configuration loaded - EnableDebug: {EnableDebug}, Theme: {Theme}, FontSize: {FontSize}",
             monacoOptions.EnableDebug, monacoOptions.Theme, monacoOptions.FontSize);
+
         TextEditor.EditorOptions = monacoOptions;
         HtmlEditor.EditorOptions = monacoOptions;
 
         // Register for ClipSelectedEvent messages
-        Loaded += (s, e) =>
+        Loaded += (_, _) =>
         {
             _messenger.Register(this);
 
             // Set up debounced auto-save (1 second after last change)
             _textEditorSaveTimer = new Timer(1000) { AutoReset = false };
-            _textEditorSaveTimer.Elapsed += async (sender, args) => await Dispatcher.InvokeAsync(async () => await SaveTextEditorAsync());
+            _textEditorSaveTimer.Elapsed += async (_, _) => await Dispatcher.InvokeAsync(async () => await SaveTextEditorAsync());
 
             _htmlEditorSaveTimer = new Timer(1000) { AutoReset = false };
-            _htmlEditorSaveTimer.Elapsed += async (sender, args) => await Dispatcher.InvokeAsync(async () => await SaveHtmlEditorAsync());
+            _htmlEditorSaveTimer.Elapsed += async (_, _) => await Dispatcher.InvokeAsync(async () => await SaveHtmlEditorAsync());
 
             // Monitor Text property changes on editors
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
@@ -78,7 +78,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             htmlLangDescriptor?.AddValueChanged(HtmlEditor, OnHtmlEditorLanguageChanged);
         };
 
-        Unloaded += (s, e) =>
+        Unloaded += (_, _) =>
         {
             _messenger.Unregister<ClipSelectedEvent>(this);
 
@@ -106,7 +106,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
     #region Messenger Event Handlers
 
     /// <summary>
-    ///     Receives ClipSelectedEvent messages from the messenger.
+    /// Receives ClipSelectedEvent messages from the messenger.
     /// </summary>
     public void Receive(ClipSelectedEvent message)
     {
@@ -197,13 +197,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
     {
         IsLoading = true;
         _isLoadingContent = true; // Suppress save operations during load
-        
+
         // Reset dirty flags for new clip
         _textEditorTextDirty = false;
         _textEditorLanguageDirty = false;
         _htmlEditorTextDirty = false;
         _htmlEditorLanguageDirty = false;
-        
+
         _logger.LogInformation("[ClipViewer] LoadClipDataAsync START - ClipId: {ClipId}", clipId);
 
         try
@@ -352,7 +352,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
     {
         var rtfFormat = _currentClipData
             .FirstOrDefault(p => p.FormatName?.Contains("RTF", StringComparison.OrdinalIgnoreCase) == true &&
-                                  p.StorageType == ClipboardConstants.StorageType.Text);
+                                 p.StorageType == ClipboardConstants.StorageType.Text);
 
         if (rtfFormat != null && _textBlobs.TryGetValue(rtfFormat.Id, out var blobData))
         {
@@ -424,12 +424,12 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
     private Task LoadPictureFormatsAsync()
     {
         _logger.LogDebug("[LoadPicture] Looking for PNG or JPG formats in {Count} ClipData entries", _currentClipData.Count);
-        
+
         // Look for PNG or JPG formats
         var pngFormat = _currentClipData.FirstOrDefault(p => p.StorageType == ClipboardConstants.StorageType.Png);
         var jpgFormat = _currentClipData.FirstOrDefault(p => p.StorageType == ClipboardConstants.StorageType.Jpeg);
 
-        _logger.LogDebug("[LoadPicture] PNG format found: {Found}, JPG format found: {Found2}", 
+        _logger.LogDebug("[LoadPicture] PNG format found: {Found}, JPG format found: {Found2}",
             pngFormat != null, jpgFormat != null);
 
         byte[]? imageData = null;
@@ -451,21 +451,21 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             {
                 _logger.LogDebug("[LoadPicture] Creating BitmapImage from {Size} bytes", imageData.Length);
                 var bitmap = BytesToBitmapImage(imageData);
-                _logger.LogDebug("[LoadPicture] BitmapImage created successfully: {Width}x{Height}", 
+                _logger.LogDebug("[LoadPicture] BitmapImage created successfully: {Width}x{Height}",
                     bitmap.PixelWidth, bitmap.PixelHeight);
-                
+
                 PictureViewer.Source = bitmap;
                 PictureViewer.ZoomRatio = 1;
                 PictureViewer.Visibility = Visibility.Visible;
                 NoPictureMessage.Visibility = Visibility.Collapsed;
                 PictureTab.Visibility = Visibility.Visible;
-                
+
                 // Force layout update
                 PictureViewer.UpdateLayout();
-                
+
                 _logger.LogDebug("[LoadPicture] PictureViewer updated - Source set: {HasSource}, ActualWidth: {Width}, ActualHeight: {Height}, IsVisible: {IsVisible}",
                     PictureViewer.Source != null, PictureViewer.ActualWidth, PictureViewer.ActualHeight, PictureViewer.IsVisible);
-                
+
                 return Task.CompletedTask;
             }
             catch (Exception ex)
@@ -640,7 +640,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         {
             var textChanged = _textEditorTextDirty;
             var languageChanged = _textEditorLanguageDirty;
-            
+
             // Early exit if nothing changed
             if (!textChanged && !languageChanged)
             {
@@ -692,9 +692,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 }
             }
             else
-            {
                 _logger.LogDebug("[ClipViewer] Skipped view state fetch (language-only change)");
-            }
 
             editorState.LastModified = DateTime.UtcNow;
             await _monacoStateRepository.UpsertAsync(editorState);
@@ -703,7 +701,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             _textEditorTextDirty = false;
             _textEditorLanguageDirty = false;
 
-            _logger.LogInformation("[ClipViewer] Saved text editor changes (text: {TextChanged}, language: {LanguageChanged})", 
+            _logger.LogInformation("[ClipViewer] Saved text editor changes (text: {TextChanged}, language: {LanguageChanged})",
                 textChanged, languageChanged);
         }
         catch (Exception ex)
@@ -726,7 +724,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         {
             var textChanged = _htmlEditorTextDirty;
             var languageChanged = _htmlEditorLanguageDirty;
-            
+
             // Early exit if nothing changed
             if (!textChanged && !languageChanged)
             {
@@ -782,9 +780,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 }
             }
             else
-            {
                 _logger.LogDebug("[ClipViewer] Skipped view state fetch (language-only change)");
-            }
 
             editorState.LastModified = DateTime.UtcNow;
             await _monacoStateRepository.UpsertAsync(editorState);
@@ -793,7 +789,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             _htmlEditorTextDirty = false;
             _htmlEditorLanguageDirty = false;
 
-            _logger.LogInformation("[ClipViewer] Saved HTML editor changes (text: {TextChanged}, language: {LanguageChanged})", 
+            _logger.LogInformation("[ClipViewer] Saved HTML editor changes (text: {TextChanged}, language: {LanguageChanged})",
                 textChanged, languageChanged);
         }
         catch (Exception ex)

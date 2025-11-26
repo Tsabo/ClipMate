@@ -28,31 +28,19 @@ public class FolderService : IFolderService
             CollectionId = collectionId,
             ParentFolderId = parentFolderId,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow
+            ModifiedAt = DateTime.UtcNow,
         };
 
         return await _repository.CreateAsync(folder, cancellationToken);
     }
 
-    public async Task<Folder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetByIdAsync(id, cancellationToken);
-    }
+    public async Task<Folder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => await _repository.GetByIdAsync(id, cancellationToken);
 
-    public async Task<IReadOnlyList<Folder>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetByCollectionAsync(collectionId, cancellationToken);
-    }
+    public async Task<IReadOnlyList<Folder>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default) => await _repository.GetByCollectionAsync(collectionId, cancellationToken);
 
-    public async Task<IReadOnlyList<Folder>> GetRootFoldersAsync(Guid collectionId, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetRootFoldersAsync(collectionId, cancellationToken);
-    }
+    public async Task<IReadOnlyList<Folder>> GetRootFoldersAsync(Guid collectionId, CancellationToken cancellationToken = default) => await _repository.GetRootFoldersAsync(collectionId, cancellationToken);
 
-    public async Task<IReadOnlyList<Folder>> GetChildFoldersAsync(Guid parentFolderId, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetChildFoldersAsync(parentFolderId, cancellationToken);
-    }
+    public async Task<IReadOnlyList<Folder>> GetChildFoldersAsync(Guid parentFolderId, CancellationToken cancellationToken = default) => await _repository.GetChildFoldersAsync(parentFolderId, cancellationToken);
 
     public async Task UpdateAsync(Folder folder, CancellationToken cancellationToken = default)
     {
@@ -60,26 +48,20 @@ public class FolderService : IFolderService
         folder.ModifiedAt = DateTime.UtcNow;
         var updated = await _repository.UpdateAsync(folder, cancellationToken);
         if (!updated)
-        {
             throw new InvalidOperationException($"Failed to update folder {folder.Id}.");
-        }
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var deleted = await _repository.DeleteAsync(id, cancellationToken);
         if (!deleted)
-        {
             throw new InvalidOperationException($"Failed to delete folder {id}.");
-        }
     }
 
     public Task<Folder?> GetActiveAsync(CancellationToken cancellationToken = default)
     {
         if (_activeFolderId == null)
-        {
             return Task.FromResult<Folder?>(null);
-        }
 
         return _repository.GetByIdAsync(_activeFolderId.Value, cancellationToken);
     }

@@ -19,10 +19,10 @@ public class FolderRepository : IFolderRepository
 
     public async Task<IReadOnlyList<Folder>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
-        // In ClipMate 7.5, folders are Collections with LmType = 2
+        // In ClipMate 7.5, folders are Collections with LmType = Folder
         var collections = await _context.Collections
-            .Where(c => c.ParentId == collectionId && c.LmType == 2)
-            .OrderBy(c => c.SortKey)
+            .Where(p => p.ParentId == collectionId && p.LmType == CollectionLmType.Folder)
+            .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
         return collections.Select(ConvertToFolder).ToList();
@@ -31,8 +31,8 @@ public class FolderRepository : IFolderRepository
     public async Task<IReadOnlyList<Folder>> GetChildFoldersAsync(Guid parentFolderId, CancellationToken cancellationToken = default)
     {
         var collections = await _context.Collections
-            .Where(c => c.ParentId == parentFolderId && c.LmType == 2)
-            .OrderBy(c => c.SortKey)
+            .Where(p => p.ParentId == parentFolderId && p.LmType == CollectionLmType.Folder)
+            .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
         return collections.Select(ConvertToFolder).ToList();
@@ -41,8 +41,8 @@ public class FolderRepository : IFolderRepository
     public async Task<IReadOnlyList<Folder>> GetRootFoldersAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
         var collections = await _context.Collections
-            .Where(c => c.ParentId == collectionId && c.LmType == 2 && c.ParentId != null)
-            .OrderBy(c => c.SortKey)
+            .Where(p => p.ParentId == collectionId && p.LmType == CollectionLmType.Folder && p.ParentId != null)
+            .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
         return collections.Select(ConvertToFolder).ToList();
@@ -51,96 +51,94 @@ public class FolderRepository : IFolderRepository
     public async Task<Folder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var collection = await _context.Collections
-            .FirstOrDefaultAsync(c => c.Id == id && c.LmType == 2, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id && p.LmType == CollectionLmType.Folder, cancellationToken);
 
-        return collection != null ? ConvertToFolder(collection) : null;
+        return collection != null
+            ? ConvertToFolder(collection)
+            : null;
+    }
+
+    public async Task<Folder> CreateAsync(Folder folder, CancellationToken cancellationToken = default)
+    {
+        var collection = ConvertToCollection(folder);
+        collection.LmType = CollectionLmType.Folder; // Ensure it's marked as a folder
+        collection.CreatedAt = DateTime.UtcNow;
+
+        _context.Collections.Add(collection);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return ConvertToFolder(collection);
+    }
+
+    public async Task<bool> UpdateAsync(Folder folder, CancellationToken cancellationToken = default)
+    {
+        var collection = await _context.Collections.FindAsync([folder.Id], cancellationToken);
+        if (collection == null)
+            return false;
+
+        UpdateCollectionFromFolder(collection, folder);
+        _context.Collections.Update(collection);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var collection = await _context.Collections.FindAsync([id], cancellationToken);
+        if (collection == null)
+            return false;
+
+        // Only allow deleting folders (LmType = Folder), not regular collections
+        if (collection.LmType != CollectionLmType.Folder)
+            throw new InvalidOperationException("Cannot delete a non-folder collection through FolderRepository");
+
+        _context.Collections.Remove(collection);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
     public async Task<Folder?> GetByNameAsync(Guid collectionId, string name, CancellationToken cancellationToken = default)
     {
         var collection = await _context.Collections
             .FirstOrDefaultAsync(
-                c => c.ParentId == collectionId && 
-                     c.Title == name && 
-                     c.LmType == 2, 
+                p => p.ParentId == collectionId &&
+                     p.Title == name &&
+                     p.LmType == CollectionLmType.Folder,
                 cancellationToken);
 
-        return collection != null ? ConvertToFolder(collection) : null;
+        return collection != null
+            ? ConvertToFolder(collection)
+            : null;
     }
 
     public async Task<Folder?> GetActiveAsync(CancellationToken cancellationToken = default)
     {
         var collection = await _context.Collections
             .FirstOrDefaultAsync(
-                c => c.LmType == 2 && c.NewClipsGo == 1, 
+                p => p.LmType == CollectionLmType.Folder && p.NewClipsGo == 1,
                 cancellationToken);
 
-        return collection != null ? ConvertToFolder(collection) : null;
-    }
-
-    public async Task<Folder> CreateAsync(Folder folder, CancellationToken cancellationToken = default)
-    {
-        var collection = ConvertToCollection(folder);
-        collection.LmType = 2; // Ensure it's marked as a folder
-        collection.CreatedAt = DateTime.UtcNow;
-        
-        _context.Collections.Add(collection);
-        await _context.SaveChangesAsync(cancellationToken);
-        
-        return ConvertToFolder(collection);
-    }
-
-    public async Task<bool> UpdateAsync(Folder folder, CancellationToken cancellationToken = default)
-    {
-        var collection = await _context.Collections.FindAsync(new object[] { folder.Id }, cancellationToken);
-        if (collection == null)
-        {
-            return false;
-        }
-
-        UpdateCollectionFromFolder(collection, folder);
-        _context.Collections.Update(collection);
-        await _context.SaveChangesAsync(cancellationToken);
-        
-        return true;
-    }
-
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var collection = await _context.Collections.FindAsync(new object[] { id }, cancellationToken);
-        if (collection == null)
-        {
-            return false;
-        }
-
-        // Only allow deleting folders (LmType = 2), not regular collections
-        if (collection.LmType != 2)
-        {
-            throw new InvalidOperationException("Cannot delete a non-folder collection through FolderRepository");
-        }
-
-        _context.Collections.Remove(collection);
-        await _context.SaveChangesAsync(cancellationToken);
-        
-        return true;
+        return collection != null
+            ? ConvertToFolder(collection)
+            : null;
     }
 
     public async Task SetActiveAsync(Guid? folderId, CancellationToken cancellationToken = default)
     {
         // Clear all active flags
         var allFolders = await _context.Collections
-            .Where(c => c.LmType == 2)
+            .Where(p => p.LmType == CollectionLmType.Folder)
             .ToListAsync(cancellationToken);
 
-        foreach (var folder in allFolders)
-        {
-            folder.NewClipsGo = 0;
-        }
+        foreach (var item in allFolders)
+            item.NewClipsGo = 0;
 
         // Set new active folder if specified
         if (folderId.HasValue)
         {
-            var activeFolder = allFolders.FirstOrDefault(f => f.Id == folderId.Value);
+            var activeFolder = allFolders.FirstOrDefault(p => p.Id == folderId.Value);
             if (activeFolder != null)
             {
                 activeFolder.NewClipsGo = 1;
@@ -166,7 +164,7 @@ public class FolderRepository : IFolderRepository
             ModifiedAt = collection.LastUpdateTime,
             IsSystemFolder = false, // Could be derived from specific GUIDs
             FolderType = FolderType.Normal, // Default
-            IconName = collection.IlIndex.ToString()
+            IconName = collection.IlIndex.ToString(),
         };
     }
 
@@ -181,10 +179,12 @@ public class FolderRepository : IFolderRepository
             ParentId = folder.ParentFolderId ?? folder.CollectionId,
             ParentGuid = folder.ParentFolderId ?? folder.CollectionId,
             Title = folder.Name,
-            LmType = 2, // Folder
-            ListType = 0,
+            LmType = CollectionLmType.Folder,
+            ListType = CollectionListType.Normal,
             SortKey = folder.SortOrder,
-            IlIndex = int.TryParse(folder.IconName, out var iconIndex) ? iconIndex : 0,
+            IlIndex = int.TryParse(folder.IconName, out var iconIndex)
+                ? iconIndex
+                : 0,
             RetentionLimit = 0,
             NewClipsGo = 0,
             AcceptNewClips = true,
@@ -198,7 +198,7 @@ public class FolderRepository : IFolderRepository
             LastUpdateTime = folder.ModifiedAt,
             LastKnownCount = null,
             Sql = null,
-            CreatedAt = folder.CreatedAt
+            CreatedAt = folder.CreatedAt,
         };
     }
 
@@ -211,7 +211,10 @@ public class FolderRepository : IFolderRepository
         collection.ParentId = folder.ParentFolderId ?? folder.CollectionId;
         collection.ParentGuid = folder.ParentFolderId ?? folder.CollectionId;
         collection.SortKey = folder.SortOrder;
-        collection.IlIndex = int.TryParse(folder.IconName, out var iconIndex) ? iconIndex : collection.IlIndex;
+        collection.IlIndex = int.TryParse(folder.IconName, out var iconIndex)
+            ? iconIndex
+            : collection.IlIndex;
+
         collection.LastUpdateTime = DateTime.UtcNow;
     }
 }

@@ -35,19 +35,15 @@ public class Collection
 
     /// <summary>
     /// List mode type (LMTYPE in ClipMate 7.5).
-    /// - 0 = Normal collection/folder
-    /// - 1 = Virtual collection (SQL-based)
-    /// - 2 = Folder within a collection
+    /// Determines the fundamental type of collection/folder.
     /// </summary>
-    public int LmType { get; set; }
+    public CollectionLmType LmType { get; set; }
 
     /// <summary>
     /// List type (LISTTYPE in ClipMate 7.5).
-    /// - 0 = Normal list
-    /// - 1 = Smart/Virtual collection
-    /// - 3 = SQL-based collection
+    /// Determines how the collection displays and filters content.
     /// </summary>
-    public int ListType { get; set; }
+    public CollectionListType ListType { get; set; }
 
     /// <summary>
     /// Display order (SORTKEY in ClipMate 7.5).
@@ -199,14 +195,16 @@ public class Collection
     // ==================== Helper Properties ====================
 
     /// <summary>
-    /// Whether this is a folder (LmType == 2).
+    /// Whether this is a folder (LmType == Folder).
     /// </summary>
-    public bool IsFolder => LmType == 2;
+    public bool IsFolder => LmType == CollectionLmType.Folder;
 
     /// <summary>
     /// Whether this is a virtual/smart collection.
     /// </summary>
-    public bool IsVirtual => LmType == 1 || ListType == 1 || ListType == 3;
+    public bool IsVirtual => LmType == CollectionLmType.Virtual || 
+                            ListType == CollectionListType.Smart || 
+                            ListType == CollectionListType.SqlBased;
 
     /// <summary>
     /// Whether this collection is active (receives new clips).

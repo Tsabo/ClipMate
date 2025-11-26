@@ -3,18 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
-        xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
-        xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
-        xmlns:local="clr-namespace:ClipMate.App"
-        xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+        xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
         xmlns:views="clr-namespace:ClipMate.App.Views"
         xmlns:controls="clr-namespace:ClipMate.App.Controls"
         xmlns:converters="clr-namespace:ClipMate.App.Converters"
         mc:Ignorable="d"
         Title="ClipMate - Clipboard Manager"
         WindowStartupLocation="CenterScreen"
-        Height="700" 
+        Height="700"
         Width="1400"
         MinHeight="500"
         MinWidth="1000"
@@ -22,99 +18,98 @@
 
     <Window.Resources>
         <!-- Converters -->
-        <converters:BoolToIconConverter x:Key="BoolToIconConverter"/>
-        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <dxmvvm:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
 
     <Window.InputBindings>
-        <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}"/>
+        <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
     </Window.InputBindings>
 
     <DockPanel>
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="_Exit" Click="Exit_Click"/>
+                <MenuItem Header="_Exit" Click="Exit_Click" />
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="_Dual ClipList Mode" 
-                         IsCheckable="True"
-                         IsChecked="{Binding IsDualClipListMode}"
-                         InputGestureText="Ctrl+D"/>
+                <MenuItem Header="_Dual ClipList Mode"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsDualClipListMode}"
+                          InputGestureText="Ctrl+D" />
             </MenuItem>
             <MenuItem Header="_Tools">
-                <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T"/>
+                <MenuItem Header="_Text Tools" Click="TextTools_Click" InputGestureText="Ctrl+T" />
             </MenuItem>
             <MenuItem Header="T_emplates">
-                <MenuItem Header="_Manage Templates..." Click="ManageTemplates_Click" InputGestureText="Ctrl+Shift+T"/>
+                <MenuItem Header="_Manage Templates..." Click="ManageTemplates_Click" InputGestureText="Ctrl+Shift+T" />
             </MenuItem>
         </Menu>
 
         <!-- Status Bar at Bottom -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
-                <TextBlock x:Name="StatusBarLeft" Text="Ready"/>
+                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words"/>
+                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
             </StatusBarItem>
         </StatusBar>
 
         <!-- Main Content Area -->
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition Width="250" MinWidth="150" MaxWidth="400" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="*" MinWidth="400" />
             </Grid.ColumnDefinitions>
 
             <!-- Left Pane: Collection Tree -->
             <GroupBox Grid.Column="0" Header="Collections">
-                <views:CollectionTreeView x:Name="CollectionTree" 
-                                         DataContext="{Binding CollectionTree}"/>
+                <views:CollectionTreeView x:Name="CollectionTree"
+                                          DataContext="{Binding CollectionTree}" />
             </GroupBox>
 
             <!-- Splitter -->
-            <GridSplitter Grid.Column="1" 
-                         Width="5" 
-                         HorizontalAlignment="Stretch"
-                         Background="Transparent"/>
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          Background="Transparent" />
 
             <!-- Center: ClipList Component(s) and ClipViewer -->
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
                     <!-- ClipList area (dual mode support) -->
-                    <RowDefinition Height="*" MinHeight="200"/>
+                    <RowDefinition Height="*" MinHeight="200" />
                     <!-- Splitter between ClipList and ClipViewer -->
-                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="5" />
                     <!-- ClipViewer area -->
-                    <RowDefinition Height="*" MinHeight="200"/>
+                    <RowDefinition Height="*" MinHeight="200" />
                 </Grid.RowDefinitions>
 
                 <!-- ClipList area with dual mode support -->
                 <Grid Grid.Row="0">
                     <Grid.RowDefinitions>
                         <!-- Primary ClipList - always visible -->
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
                         <!-- Splitter - visible only in dual mode -->
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
                         <!-- Secondary ClipList - visible only in dual mode -->
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <!-- Primary ClipList -->
                     <GroupBox Grid.Row="0" Header="Clips (Primary)">
                         <views:ClipListView x:Name="ClipListView"
-                                           Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                           SelectedItem="{Binding PrimaryClipList.SelectedClip}"/>
+                                            Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
+                                            SelectedItem="{Binding PrimaryClipList.SelectedClip}" />
                     </GroupBox>
 
                     <!-- Splitter for dual ClipList mode -->
                     <GridSplitter Grid.Row="1"
-                                 Height="5"
-                                 HorizontalAlignment="Stretch"
-                                 Background="Transparent"
-                                 Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                  Height="5"
+                                  HorizontalAlignment="Stretch"
+                                  Background="Transparent"
+                                  Visibility="{Binding IsDualClipListMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                     <!-- Secondary ClipList (TODO: Low priority - needs keyed services) -->
                     <!--<GroupBox Grid.Row="2" 
@@ -129,12 +124,12 @@
 
                 <!-- Vertical Splitter between ClipList and ClipViewer -->
                 <GridSplitter Grid.Row="1"
-                             Height="5"
-                             HorizontalAlignment="Stretch"
-                             Background="Transparent"/>
+                              Height="5"
+                              HorizontalAlignment="Stretch"
+                              Background="Transparent" />
 
                 <!-- ClipViewer area -->
-                <controls:ClipViewerControl Grid.Row="2"  x:Name="ClipViewer"/>
+                <controls:ClipViewerControl Grid.Row="2" x:Name="ClipViewer" />
             </Grid>
         </Grid>
     </DockPanel>

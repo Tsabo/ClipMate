@@ -5,7 +5,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
+using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -24,18 +26,18 @@ using WpfDataObject = System.Windows.DataObject;
 namespace ClipMate.Platform.Services;
 
 /// <summary>
-///     Service for monitoring and capturing clipboard changes using Win32 APIs via CsWin32.
-///     Captures all formats: Text, RTF, HTML, Images, and Files.
-///     Uses a channel-based pattern for publishing captured clips.
+/// Service for monitoring and capturing clipboard changes using Win32 APIs via CsWin32.
+/// Captures all formats: Text, RTF, HTML, Images, and Files.
+/// Uses a channel-based pattern for publishing captured clips.
 /// </summary>
 public class ClipboardService : IClipboardService, IDisposable
 {
     private const int _debounceMilliseconds = 50;
     private const int _channelCapacity = 100; // Max queued clips before backpressure
-    
+    private readonly Channel<Clip> _clipsChannel;
+
     private readonly ILogger<ClipboardService> _logger;
     private readonly IWin32ClipboardInterop _win32;
-    private readonly Channel<Clip> _clipsChannel;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private string _lastContentHash = string.Empty;
@@ -44,13 +46,13 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
-        
+
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleWriter = true, // Only clipboard monitor writes
-            SingleReader = false // Multiple consumers allowed
+            SingleReader = false, // Multiple consumers allowed
         });
     }
 
@@ -117,9 +119,7 @@ public class ClipboardService : IClipboardService, IDisposable
     public Task StopMonitoringAsync()
     {
         if (!IsMonitoring)
-        {
             return Task.CompletedTask;
-        }
 
         try
         {
@@ -134,10 +134,10 @@ public class ClipboardService : IClipboardService, IDisposable
             }
 
             IsMonitoring = false;
-            
+
             // Complete the channel - no more clips will be written
             _clipsChannel.Writer.Complete();
-            
+
             _logger.LogInformation("Clipboard monitoring stopped");
         }
         catch (Exception ex)
@@ -155,7 +155,7 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Must run on STA thread (UI thread) for WPF Clipboard API
-            return await Application.Current.Dispatcher.InvokeAsync(() => ExtractClipboardData());
+            return await Application.Current.Dispatcher.InvokeAsync(ExtractClipboardData);
         }
         catch (Exception ex)
         {
@@ -168,9 +168,7 @@ public class ClipboardService : IClipboardService, IDisposable
     public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
-        {
             throw new ArgumentNullException(nameof(clip));
-        }
 
         try
         {
@@ -202,10 +200,7 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        StopMonitoringAsync().Wait();
-    }
+    public void Dispose() => StopMonitoringAsync().Wait();
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -227,17 +222,13 @@ public class ClipboardService : IClipboardService, IDisposable
             // Debouncing: ignore if too soon after last change
             var now = DateTime.UtcNow;
             if ((now - _lastClipboardChange).TotalMilliseconds < _debounceMilliseconds)
-            {
                 return;
-            }
 
             _lastClipboardChange = now;
 
             var clip = await GetCurrentClipboardContentAsync();
             if (clip == null)
-            {
                 return;
-            }
 
             // Duplicate detection: ignore if same content hash
             if (clip.ContentHash == _lastContentHash)
@@ -258,7 +249,7 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Write to channel (non-blocking, drops oldest if full)
             await _clipsChannel.Writer.WriteAsync(clip);
-            
+
             _logger.LogDebug("Published clip to channel: {ClipType}, Size: {Size} bytes, Hash: {Hash}",
                 clip.Type, clip.Size, clip.ContentHash);
         }
@@ -273,8 +264,8 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Extracts all available clipboard data in priority order.
-    ///     Priority: Text > RTF > HTML > Image > Files
+    /// Extracts all available clipboard data in priority order.
+    /// Priority: Text > RTF > HTML > Image > Files
     /// </summary>
     private Clip? ExtractClipboardData()
     {
@@ -287,31 +278,23 @@ public class ClipboardService : IClipboardService, IDisposable
 
         // Priority 1: Text formats (includes RTF and HTML)
         if (hasText || WpfClipboard.ContainsData(DataFormats.Rtf) || WpfClipboard.ContainsData(DataFormats.Html))
-        {
             clip = ExtractTextClip();
-        }
         // Priority 2: Images
         else if (hasImage)
-        {
             clip = ExtractImageClip();
-        }
         // Priority 3: Files
         else if (hasFiles)
-        {
             clip = ExtractFilesClip();
-        }
 
         // Populate standard fields
         if (clip != null)
-        {
             PopulateStandardFields(clip);
-        }
 
         return clip;
     }
 
     /// <summary>
-    ///     Extracts text-based clipboard content (Plain Text, RTF, HTML).
+    /// Extracts text-based clipboard content (Plain Text, RTF, HTML).
     /// </summary>
     private Clip? ExtractTextClip()
     {
@@ -326,18 +309,14 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Extract Plain Text (CF_UNICODETEXT = 13)
             if (WpfClipboard.ContainsText())
-            {
                 clip.TextContent = WpfClipboard.GetText();
-            }
 
             // Extract RTF (CF_RTF)
             if (WpfClipboard.ContainsData(DataFormats.Rtf))
             {
                 clip.RtfContent = WpfClipboard.GetData(DataFormats.Rtf) as string;
                 if (!string.IsNullOrEmpty(clip.RtfContent))
-                {
                     clip.Type = ClipType.RichText;
-                }
             }
 
             // Extract HTML (CF_HTML) and Source URL
@@ -356,9 +335,7 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Must have at least some text content
             if (string.IsNullOrEmpty(clip.TextContent))
-            {
                 return null;
-            }
 
             // Generate content hash from primary content
             clip.ContentHash = ContentHasher.HashText(clip.TextContent);
@@ -379,28 +356,25 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Extracts image clipboard content, converting to proper PNG or JPEG format.
+    /// Extracts image clipboard content, converting to proper PNG or JPEG format.
     /// </summary>
     private Clip? ExtractImageClip()
     {
         try
         {
             if (!WpfClipboard.ContainsImage())
-            {
                 return null;
-            }
 
             // Check if PNG format is available directly in the clipboard
             // If PNG exists, use it directly to preserve transparency
-            bool hasPngFormat = WpfClipboard.ContainsData("PNG");
+            var hasPngFormat = WpfClipboard.ContainsData("PNG");
             byte[]? pngData = null;
-            
+
             if (hasPngFormat)
             {
                 try
                 {
-                    var pngStream = WpfClipboard.GetData("PNG") as MemoryStream;
-                    if (pngStream != null)
+                    if (WpfClipboard.GetData("PNG") is MemoryStream pngStream)
                     {
                         pngData = pngStream.ToArray();
                         _logger.LogDebug("Found PNG format in clipboard: {Size} bytes", pngData.Length);
@@ -413,18 +387,18 @@ public class ClipboardService : IClipboardService, IDisposable
             }
 
             // If we have valid PNG data, use it directly
-            if (pngData != null && pngData.Length > 0 && DetectImageFormatFromBytes(pngData) == "PNG")
+            if (pngData is { Length: > 0 } && DetectImageFormatFromBytes(pngData) == "PNG")
             {
                 _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
-                
+
                 // Decode PNG to get dimensions for the title
                 var decoder = BitmapDecoder.Create(
                     new MemoryStream(pngData),
                     BitmapCreateOptions.DelayCreation,
                     BitmapCacheOption.None);
-                
+
                 var frame = decoder.Frames[0];
-                
+
                 var pngClip = new Clip
                 {
                     Id = Guid.NewGuid(),
@@ -446,14 +420,12 @@ public class ClipboardService : IClipboardService, IDisposable
             // This will be InteropBitmap for screenshots (needs alpha fix)
             var image = WpfClipboard.GetImage();
             if (image == null)
-            {
                 return null;
-            }
 
             // InteropBitmap is specifically used for DIB/DIBv5 clipboard formats (screenshots, screen captures)
             // These have the known alpha=0 bug.
-            bool isInteropBitmap = image is InteropBitmap;
-            
+            var isInteropBitmap = image is InteropBitmap;
+
             _logger.LogDebug("Extracting image from clipboard: {Width}x{Height}, Format: {Format}, DpiX: {DpiX}, DpiY: {DpiY}, Type: {BitmapType}, IsInteropBitmap: {IsInterop}",
                 image.PixelWidth, image.PixelHeight, image.Format, image.DpiX, image.DpiY, image.GetType().Name, isInteropBitmap);
 
@@ -474,6 +446,7 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 _logger.LogError("Generated image data is not a valid PNG. First 16 bytes: {Bytes}",
                     BitConverter.ToString(imageData.Take(16).ToArray()));
+
                 return null;
             }
 
@@ -502,7 +475,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Detects image format from byte array.
+    /// Detects image format from byte array.
     /// </summary>
     private string DetectImageFormatFromBytes(byte[] imageData)
     {
@@ -512,51 +485,39 @@ public class ClipboardService : IClipboardService, IDisposable
         // Check PNG signature: 89 50 4E 47 0D 0A 1A 0A
         if (imageData[0] == 0x89 && imageData[1] == 0x50 && imageData[2] == 0x4E && imageData[3] == 0x47 &&
             imageData[4] == 0x0D && imageData[5] == 0x0A && imageData[6] == 0x1A && imageData[7] == 0x0A)
-        {
             return "PNG";
-        }
 
         // Check JPEG signature: FF D8 FF
         if (imageData[0] == 0xFF && imageData[1] == 0xD8 && imageData[2] == 0xFF)
-        {
             return "JPEG";
-        }
 
         return "Unknown";
     }
 
     /// <summary>
-    ///     Extracts file list clipboard content (CF_HDROP = 15).
+    /// Extracts file list clipboard content (CF_HDROP = 15).
     /// </summary>
     private Clip? ExtractFilesClip()
     {
         try
         {
             if (!WpfClipboard.ContainsFileDropList())
-            {
                 return null;
-            }
 
             var fileDropList = WpfClipboard.GetFileDropList();
             if (fileDropList.Count == 0)
-            {
                 return null;
-            }
 
             // Convert to string array and serialize to JSON
             var filePaths = new List<string>();
             foreach (var path in fileDropList)
             {
                 if (!string.IsNullOrEmpty(path))
-                {
                     filePaths.Add(path);
-                }
             }
 
             if (filePaths.Count == 0)
-            {
                 return null;
-            }
 
             var filePathsJson = JsonSerializer.Serialize(filePaths);
 
@@ -589,7 +550,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Populates standard metadata fields on a clip.
+    /// Populates standard metadata fields on a clip.
     /// </summary>
     private void PopulateStandardFields(Clip clip)
     {
@@ -602,7 +563,7 @@ public class ClipboardService : IClipboardService, IDisposable
             ClipType.Text => 0,
             ClipType.RichText => 1,
             ClipType.Html => 2,
-            _ => 0,
+            var _ => 0,
         };
 
         // Default locale
@@ -624,38 +585,30 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Calculates total size of text-based clip (all formats combined).
+    /// Calculates total size of text-based clip (all formats combined).
     /// </summary>
     private static int CalculateTextSize(Clip clip)
     {
         var size = 0;
         if (!string.IsNullOrEmpty(clip.TextContent))
-        {
             size += clip.TextContent.Length * 2; // Unicode
-        }
 
         if (!string.IsNullOrEmpty(clip.RtfContent))
-        {
             size += clip.RtfContent.Length * 2;
-        }
 
         if (!string.IsNullOrEmpty(clip.HtmlContent))
-        {
             size += clip.HtmlContent.Length * 2;
-        }
 
         return size;
     }
 
     /// <summary>
-    ///     Generates a title from the first line of text (max 60 chars).
+    /// Generates a title from the first line of text (max 60 chars).
     /// </summary>
     private static string GenerateTitleFromText(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
-        {
             return "(Empty)";
-        }
 
         // Get first line
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
@@ -666,40 +619,41 @@ public class ClipboardService : IClipboardService, IDisposable
         // Truncate to 60 chars (database field limit)
         const int maxLength = 60;
         if (firstLine.Length > maxLength)
-        {
             return string.Concat(firstLine.AsSpan(0, maxLength - 3), "...");
-        }
 
         return firstLine;
     }
 
     /// <summary>
-    ///     Converts BitmapSource to PNG byte array for storage.
+    /// Converts BitmapSource to PNG byte array for storage.
     /// </summary>
     /// <param name="image">The BitmapSource to convert</param>
-    /// <param name="isInteropBitmap">True if the image is an InteropBitmap (DIB format from screenshots), which has the alpha=0 bug</param>
+    /// <param name="isInteropBitmap">
+    /// True if the image is an InteropBitmap (DIB format from screenshots), which has the
+    /// alpha=0 bug
+    /// </param>
     private byte[]? ConvertBitmapSourceToBytes(BitmapSource image, bool isInteropBitmap)
     {
         try
         {
             // Calculate the stride (bytes per row)
-            int stride = (image.PixelWidth * image.Format.BitsPerPixel + 7) / 8;
-            byte[] pixelData = new byte[stride * image.PixelHeight];
-            
+            var stride = (image.PixelWidth * image.Format.BitsPerPixel + 7) / 8;
+            var pixelData = new byte[stride * image.PixelHeight];
+
             // Copy pixel data from the source image
             image.CopyPixels(pixelData, stride, 0);
-            
+
             // Fix alpha channel transparency bug ONLY for InteropBitmap sources
             // InteropBitmap is used for DIB/DIBv5 (Device Independent Bitmap) from Windows screenshots
             // which often incorrectly sets alpha=0 for all pixels even though the image is opaque.
             // Other bitmap types (from PNG files, etc.) should preserve transparency exactly as-is.
-            if (isInteropBitmap && 
-                (image.Format == System.Windows.Media.PixelFormats.Bgra32 || 
-                 image.Format == System.Windows.Media.PixelFormats.Pbgra32))
+            if (isInteropBitmap &&
+                (image.Format == PixelFormats.Bgra32 ||
+                 image.Format == PixelFormats.Pbgra32))
             {
                 // Check if any alpha bytes are non-zero
-                bool hasNonZeroAlpha = false;
-                for (int i = 3; i < pixelData.Length; i += 4)
+                var hasNonZeroAlpha = false;
+                for (var i = 3; i < pixelData.Length; i += 4)
                 {
                     if (pixelData[i] != 0)
                     {
@@ -707,29 +661,26 @@ public class ClipboardService : IClipboardService, IDisposable
                         break;
                     }
                 }
-                
+
                 // If ALL alpha bytes are 0, this is the InteropBitmap transparency bug
                 // Fix by setting all alpha to 255 (fully opaque)
                 if (!hasNonZeroAlpha)
                 {
                     // Check if RGB channels have data (not a truly blank image)
-                    bool hasColorData = false;
-                    for (int i = 0; i < Math.Min(1000 * 4, pixelData.Length) && !hasColorData; i++)
+                    var hasColorData = false;
+                    for (var i = 0; i < Math.Min(1000 * 4, pixelData.Length) && !hasColorData; i++)
                     {
                         if (i % 4 != 3 && pixelData[i] != 0) // Skip alpha channel, check B, G, R
-                        {
                             hasColorData = true;
-                        }
                     }
-                    
+
                     if (hasColorData)
                     {
                         // This is the InteropBitmap transparency bug - image has color but all alpha=0
                         // Fix by setting all alpha to 255 (opaque)
-                        for (int i = 3; i < pixelData.Length; i += 4)
-                        {
+                        for (var i = 3; i < pixelData.Length; i += 4)
                             pixelData[i] = 255;
-                        }
+
                         _logger.LogInformation("Fixed InteropBitmap transparency bug: all alpha was 0, set to 255 (opaque)");
                     }
                 }
@@ -746,11 +697,11 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Write the pixel data to the writable bitmap
             writableBitmap.WritePixels(
-                new System.Windows.Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
+                new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
                 pixelData,
                 stride,
                 0);
-            
+
             writableBitmap.Freeze();
 
             // Encode to PNG
@@ -776,21 +727,15 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Set plain text (always)
             if (!string.IsNullOrEmpty(clip.TextContent))
-            {
                 dataObject.SetText(clip.TextContent);
-            }
 
             // Set RTF if available
             if (!string.IsNullOrEmpty(clip.RtfContent))
-            {
                 dataObject.SetData(DataFormats.Rtf, clip.RtfContent);
-            }
 
             // Set HTML if available
             if (!string.IsNullOrEmpty(clip.HtmlContent))
-            {
                 dataObject.SetData(DataFormats.Html, clip.HtmlContent);
-            }
 
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -806,9 +751,7 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (clip.ImageData == null || clip.ImageData.Length == 0)
-            {
                 throw new InvalidOperationException("Image data is empty");
-            }
 
             // Convert byte array back to BitmapSource
             using var memoryStream = new MemoryStream(clip.ImageData);
@@ -822,7 +765,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 // This prevents issues when pasting into some applications
                 var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
                 writableBitmap.Freeze(); // Make immutable for clipboard
-                
+
                 WpfClipboard.SetImage(writableBitmap);
             }
         }
@@ -838,15 +781,11 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             if (string.IsNullOrEmpty(clip.FilePathsJson))
-            {
                 throw new InvalidOperationException("File paths are empty");
-            }
 
             var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
             if (filePaths == null || filePaths.Count == 0)
-            {
                 throw new InvalidOperationException("No file paths found");
-            }
 
             var fileDropList = new StringCollection();
             fileDropList.AddRange(filePaths.ToArray());
@@ -861,35 +800,29 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    ///     Extracts the source URL from HTML clipboard format.
-    ///     HTML clipboard format includes metadata headers like "SourceURL:https://..."
+    /// Extracts the source URL from HTML clipboard format.
+    /// HTML clipboard format includes metadata headers like "SourceURL:https://..."
     /// </summary>
     private string? ExtractSourceUrlFromHtml(string htmlContent)
     {
         try
         {
             if (string.IsNullOrEmpty(htmlContent))
-            {
                 return null;
-            }
 
             // Look for SourceURL: in the header
             const string sourceUrlMarker = "SourceURL:";
             var sourceUrlIndex = htmlContent.IndexOf(sourceUrlMarker, StringComparison.OrdinalIgnoreCase);
 
             if (sourceUrlIndex == -1)
-            {
                 return null;
-            }
 
             // Extract URL from the line
             var urlStart = sourceUrlIndex + sourceUrlMarker.Length;
             var urlEnd = htmlContent.IndexOfAny(['\r', '\n'], urlStart);
 
             if (urlEnd == -1)
-            {
                 urlEnd = htmlContent.Length;
-            }
 
             var url = htmlContent[urlStart..urlEnd].Trim();
 
@@ -899,9 +832,7 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 // Truncate to 250 chars (database field limit)
                 if (url.Length > 250)
-                {
                     url = url[..250];
-                }
 
                 _logger.LogDebug("Extracted source URL: {Url}", url);
                 return url;
@@ -943,18 +874,14 @@ public class ClipboardService : IClipboardService, IDisposable
         {
             var length = _win32.GetWindowTextLength(hwnd);
             if (length == 0)
-            {
                 return null;
-            }
 
             var buffer = new char[length + 1];
             fixed (char* pBuffer = buffer)
             {
                 var result = _win32.GetWindowText(hwnd, pBuffer, length + 1);
                 if (result > 0)
-                {
                     return new string(buffer, 0, result);
-                }
             }
         }
         catch (Exception ex)

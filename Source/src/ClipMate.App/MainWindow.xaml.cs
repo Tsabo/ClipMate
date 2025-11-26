@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
@@ -6,8 +8,11 @@ using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 using Clipboard = System.Windows.Clipboard;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using ModifierKeys = System.Windows.Input.ModifierKeys;
 
 namespace ClipMate.App;
 
@@ -16,15 +21,14 @@ namespace ClipMate.App;
 /// Responsible only for window chrome (tray icon, window state, etc.)
 /// All business logic is in MainWindowViewModel.
 /// </summary>
-public partial class MainWindow : Window, IWindow
+public partial class MainWindow : IWindow
 {
-    private readonly MainWindowViewModel _viewModel;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MainWindow>? _logger;
-    private bool _isExiting = false;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly MainWindowViewModel _viewModel;
+    private bool _isExiting;
 
-    public MainWindow(
-        MainWindowViewModel mainWindowViewModel,
+    public MainWindow(MainWindowViewModel mainWindowViewModel,
         IServiceProvider serviceProvider,
         ILogger<MainWindow>? logger = null)
     {
@@ -50,10 +54,8 @@ public partial class MainWindow : Window, IWindow
             ShowInTaskbar = false;
             _logger?.LogDebug("MainWindow minimized to tray");
         }
-        else if (WindowState == WindowState.Normal || WindowState == WindowState.Maximized)
-        {
+        else if (WindowState is WindowState.Normal or WindowState.Maximized)
             ShowInTaskbar = true;
-        }
     }
 
     private void ShowMenuItem_Click(object sender, RoutedEventArgs e)
@@ -67,25 +69,19 @@ public partial class MainWindow : Window, IWindow
     /// <summary>
     /// Prepares the window for application exit (skips minimize to tray behavior)
     /// </summary>
-    public void PrepareForExit()
+    public void PrepareForExit() => _isExiting = true;
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        _isExiting = true;
-    }
-    
-    private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key == Key.T && (Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+        if (e.Key == Key.T && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             ShowTextTools();
             e.Handled = true;
         }
     }
-    
-    private void TextTools_Click(object sender, RoutedEventArgs e)
-    {
-        ShowTextTools();
-    }
-    
+
+    private void TextTools_Click(object sender, RoutedEventArgs e) => ShowTextTools();
+
     private void ShowTextTools()
     {
         try
@@ -103,10 +99,7 @@ public partial class MainWindow : Window, IWindow
         }
     }
 
-    private void ManageTemplates_Click(object sender, RoutedEventArgs e)
-    {
-        ShowManageTemplates();
-    }
+    private void ManageTemplates_Click(object sender, RoutedEventArgs e) => ShowManageTemplates();
 
     private void ShowManageTemplates()
     {
@@ -133,10 +126,8 @@ public partial class MainWindow : Window, IWindow
         try
         {
             // Get the Insert Template menu item by name
-            if (FindName("InsertTemplateMenu") is not System.Windows.Controls.MenuItem insertTemplateMenu)
-            {
+            if (FindName("InsertTemplateMenu") is not MenuItem insertTemplateMenu)
                 return;
-            }
 
             // Clear existing items
             insertTemplateMenu.Items.Clear();
@@ -153,11 +144,12 @@ public partial class MainWindow : Window, IWindow
 
             if (templates.Count == 0)
             {
-                var emptyItem = new System.Windows.Controls.MenuItem
+                var emptyItem = new MenuItem
                 {
                     Header = "(No templates available)",
-                    IsEnabled = false
+                    IsEnabled = false,
                 };
+
                 insertTemplateMenu.Items.Add(emptyItem);
             }
             else
@@ -165,12 +157,13 @@ public partial class MainWindow : Window, IWindow
                 // Add template items
                 foreach (var template in templates.OrderBy(t => t.Name))
                 {
-                    var menuItem = new System.Windows.Controls.MenuItem
+                    var menuItem = new MenuItem
                     {
                         Header = template.Name,
                         Tag = template,
-                        ToolTip = template.Description
+                        ToolTip = template.Description,
                     };
+
                     menuItem.Click += TemplateMenuItem_Click;
                     insertTemplateMenu.Items.Add(menuItem);
                 }
@@ -184,10 +177,8 @@ public partial class MainWindow : Window, IWindow
 
     private async void TemplateMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not System.Windows.Controls.MenuItem { Tag: Template template })
-        {
+        if (sender is not MenuItem { Tag: Template template })
             return;
-        }
 
         try
         {
@@ -213,13 +204,11 @@ public partial class MainWindow : Window, IWindow
                         var label = variable[7..]; // Remove "PROMPT:" prefix
                         var promptDialog = new PromptDialog(label)
                         {
-                            Owner = this
+                            Owner = this,
                         };
 
                         if (promptDialog.ShowDialog() == true && promptDialog.UserInput != null)
-                        {
                             customVariables[variable] = promptDialog.UserInput;
-                        }
                         else
                         {
                             // User cancelled, abort template expansion
@@ -236,7 +225,7 @@ public partial class MainWindow : Window, IWindow
             if (!string.IsNullOrEmpty(expandedText))
             {
                 Clipboard.SetText(expandedText);
-                MessageBox.Show($"Template '{template.Name}' has been copied to clipboard!", 
+                MessageBox.Show($"Template '{template.Name}' has been copied to clipboard!",
                     "Template Inserted", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -270,14 +259,14 @@ public partial class MainWindow : Window, IWindow
     {
         _logger?.LogInformation("Exit menu clicked - shutting down application");
         _isExiting = true;
-        System.Windows.Application.Current.Shutdown();
+        Application.Current.Shutdown();
     }
 
     /// <summary>
     /// Handles the Closing event to minimize to tray instead of exiting.
     /// Hold Shift while closing to force exit.
     /// </summary>
-    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
         // If already exiting (from File→Exit or tray menu), allow it
         if (_isExiting)
@@ -287,7 +276,7 @@ public partial class MainWindow : Window, IWindow
         }
 
         // Check if Shift key is held - if so, allow actual exit
-        if ((Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == System.Windows.Input.ModifierKeys.Shift)
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
         {
             _logger?.LogInformation("MainWindow closing with Shift key - allowing exit");
             _isExiting = true;

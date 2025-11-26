@@ -19,20 +19,20 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task<User?> GetByUsernameAndWorkstationAsync(string username, string workstation, CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .FirstOrDefaultAsync(u => u.Username == username && u.Workstation == workstation, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Username == username && p.Workstation == workstation, cancellationToken);
     }
 
     public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Users
-            .OrderBy(u => u.Username)
-            .ThenBy(u => u.Workstation)
+            .OrderBy(p => p.Username)
+            .ThenBy(p => p.Workstation)
             .ToListAsync(cancellationToken);
     }
 
@@ -49,22 +49,18 @@ public class UserRepository : IUserRepository
             await _context.SaveChangesAsync(cancellationToken);
             return existing;
         }
-        else
-        {
-            // Create new user
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
-            return user;
-        }
+
+        // Create new user
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync(cancellationToken);
+        return user;
     }
 
     public async Task<bool> UpdateLastActivityAsync(Guid id, DateTime lastDate, CancellationToken cancellationToken = default)
     {
-        var user = await _context.Users.FindAsync(new object[] { id }, cancellationToken);
+        var user = await _context.Users.FindAsync([id], cancellationToken);
         if (user == null)
-        {
             return false;
-        }
 
         user.LastDate = lastDate;
         _context.Users.Update(user);
@@ -74,11 +70,9 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var user = await _context.Users.FindAsync(new object[] { id }, cancellationToken);
+        var user = await _context.Users.FindAsync([id], cancellationToken);
         if (user == null)
-        {
             return false;
-        }
 
         _context.Users.Remove(user);
         await _context.SaveChangesAsync(cancellationToken);

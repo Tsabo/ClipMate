@@ -23,9 +23,7 @@ public class EFCoreSchemaReader : ISchemaReader
     public Task<SchemaDefinition> ReadSchemaAsync(CancellationToken cancellationToken = default)
     {
         if (_options.EnableCaching && _cache != null)
-        {
             return Task.FromResult(_cache);
-        }
 
         var schema = new SchemaDefinition();
 
@@ -41,7 +39,7 @@ public class EFCoreSchemaReader : ISchemaReader
             foreach (var property in entityType.GetProperties())
             {
                 var columnName = property.GetColumnName();
-                
+
                 if (_options.IgnoredColumns.TryGetValue(tableName, out var ignoredColumns) &&
                     ignoredColumns.Contains(columnName))
                     continue;
@@ -53,7 +51,7 @@ public class EFCoreSchemaReader : ISchemaReader
                     IsNullable = property.IsNullable,
                     IsPrimaryKey = property.IsPrimaryKey(),
                     DefaultValue = property.GetDefaultValueSql(),
-                    Position = position++
+                    Position = position++,
                 };
 
                 table.Columns.Add(column);
@@ -70,7 +68,7 @@ public class EFCoreSchemaReader : ISchemaReader
                     Name = indexName,
                     TableName = tableName,
                     IsUnique = index.IsUnique,
-                    Columns = index.Properties.Select(p => p.GetColumnName()).ToList()
+                    Columns = index.Properties.Select(p => p.GetColumnName()).ToList(),
                 };
 
                 table.Indexes.Add(indexDef);
@@ -92,7 +90,7 @@ public class EFCoreSchemaReader : ISchemaReader
                         ReferencedTable = principalTable,
                         ReferencedColumn = principalProperty.GetColumnName(),
                         OnDelete = MapDeleteBehavior(foreignKey.DeleteBehavior),
-                        OnUpdate = null
+                        OnUpdate = null,
                     };
 
                     table.ForeignKeys.Add(fkDef);
@@ -103,9 +101,7 @@ public class EFCoreSchemaReader : ISchemaReader
         }
 
         if (_options.EnableCaching)
-        {
             _cache = schema;
-        }
 
         return Task.FromResult(schema);
     }
@@ -116,10 +112,13 @@ public class EFCoreSchemaReader : ISchemaReader
 
         if (type.Contains("INT") || type.Contains("BOOL"))
             return "INTEGER";
+
         if (type.Contains("TEXT") || type.Contains("VARCHAR") || type.Contains("CHAR"))
             return "TEXT";
+
         if (type.Contains("REAL") || type.Contains("FLOAT") || type.Contains("DOUBLE"))
             return "REAL";
+
         if (type.Contains("BLOB"))
             return "BLOB";
 
@@ -133,7 +132,7 @@ public class EFCoreSchemaReader : ISchemaReader
             DeleteBehavior.Cascade => "CASCADE",
             DeleteBehavior.SetNull => "SET NULL",
             DeleteBehavior.Restrict => "RESTRICT",
-            _ => "NO ACTION"
+            var _ => "NO ACTION",
         };
     }
 }

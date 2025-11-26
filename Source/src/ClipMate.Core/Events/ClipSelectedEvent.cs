@@ -9,11 +9,6 @@ namespace ClipMate.Core.Events;
 public class ClipSelectedEvent
 {
     /// <summary>
-    /// The selected clip, or null if selection was cleared.
-    /// </summary>
-    public Clip? SelectedClip { get; }
-
-    /// <summary>
     /// Creates a new clip selection event.
     /// </summary>
     /// <param name="selectedClip">The selected clip, or null if cleared.</param>
@@ -21,4 +16,9 @@ public class ClipSelectedEvent
     {
         SelectedClip = selectedClip;
     }
+
+    /// <summary>
+    /// The selected clip, or null if selection was cleared.
+    /// </summary>
+    public Clip? SelectedClip { get; }
 }

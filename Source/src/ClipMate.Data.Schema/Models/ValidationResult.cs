@@ -11,11 +11,11 @@ public class ValidationResult
     public bool IsValid => !Errors.Any();
 
     [JsonPropertyName("errors")]
-    public List<string> Errors { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
 
     [JsonPropertyName("warnings")]
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Warnings { get; set; } = [];
 
     [JsonPropertyName("info")]
-    public List<string> Info { get; set; } = new();
+    public List<string> Info { get; set; } = [];
 }

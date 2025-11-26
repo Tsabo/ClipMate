@@ -1,14 +1,13 @@
 using System.ComponentModel;
-using ClipMate.Core.ViewModels;
-using DevExpress.Xpf.Core;
+using ClipMate.App.ViewModels;
 
 namespace ClipMate.App.Views;
 
 /// <summary>
-///     Floating window for viewing individual clipboard entries.
-///     Launched via F2 hotkey.
+/// Floating window for viewing individual clipboard entries.
+/// Launched via F2 hotkey.
 /// </summary>
-public partial class ClipViewerWindow : ThemedWindow
+public partial class ClipViewerWindow
 {
     private readonly ClipViewerViewModel _viewModel;
 
@@ -24,7 +23,7 @@ public partial class ClipViewerWindow : ThemedWindow
     }
 
     /// <summary>
-    ///     Loads a clip by ID and shows the window.
+    /// Loads a clip by ID and shows the window.
     /// </summary>
     public async void LoadAndShow(Guid clipId)
     {

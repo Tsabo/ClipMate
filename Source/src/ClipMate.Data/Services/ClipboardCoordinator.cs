@@ -1,5 +1,6 @@
 using System.Windows;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,14 +16,13 @@ namespace ClipMate.Data.Services;
 public class ClipboardCoordinator : IHostedService
 {
     private readonly IClipboardService _clipboardService;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IMessenger _messenger;
     private readonly ILogger<ClipboardCoordinator> _logger;
-    private Task? _processingTask;
+    private readonly IMessenger _messenger;
+    private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cts;
+    private Task? _processingTask;
 
-    public ClipboardCoordinator(
-        IClipboardService clipboardService,
+    public ClipboardCoordinator(IClipboardService clipboardService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
@@ -80,9 +80,7 @@ public class ClipboardCoordinator : IHostedService
             _cts?.Cancel();
 
             if (_processingTask != null)
-            {
                 await _processingTask;
-            }
 
             _cts?.Dispose();
             _logger.LogInformation("Clipboard coordinator stopped");
@@ -104,19 +102,19 @@ public class ClipboardCoordinator : IHostedService
         try
         {
             // Read all clips from the channel until it's completed
-            await foreach (var clip in _clipboardService.ClipsChannel.ReadAllAsync(cancellationToken))
+            await foreach (var item in _clipboardService.ClipsChannel.ReadAllAsync(cancellationToken))
             {
                 try
                 {
-                    await ProcessClipAsync(clip, cancellationToken);
+                    await ProcessClipAsync(item, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     // Log error but continue processing other clips
                     _logger.LogError(ex,
                         "Failed to process clip: Type={ClipType}, Hash={ContentHash}",
-                        clip.Type,
-                        clip.ContentHash);
+                        item.Type,
+                        item.ContentHash);
                 }
             }
 
@@ -135,7 +133,7 @@ public class ClipboardCoordinator : IHostedService
     /// <summary>
     /// Processes a single clip: applies filters, assigns to collection/folder, and persists.
     /// </summary>
-    private async Task ProcessClipAsync(Core.Models.Clip clip, CancellationToken cancellationToken)
+    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken)
     {
         // Create a scope to resolve scoped services
         using var scope = _serviceProvider.CreateScope();
@@ -156,6 +154,7 @@ public class ClipboardCoordinator : IHostedService
                 "Clip filtered out: Process={ProcessName}, Title={WindowTitle}",
                 clip.SourceApplicationName,
                 clip.SourceApplicationTitle);
+
             return;
         }
 
@@ -176,7 +175,7 @@ public class ClipboardCoordinator : IHostedService
             if (activeFolder != null)
             {
                 // Check if folder accepts clipboard captures
-                if (activeFolder.FolderType == Core.Models.FolderType.SearchResults)
+                if (activeFolder.FolderType == FolderType.SearchResults)
                 {
                     _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
                     activeFolder = null; // Fall through to Inbox
@@ -193,7 +192,7 @@ public class ClipboardCoordinator : IHostedService
             {
                 // Fallback: Find the Inbox folder in the active collection
                 var rootFolders = await folderService.GetRootFoldersAsync(activeCollection.Id, cancellationToken);
-                var inboxFolder = rootFolders.FirstOrDefault(f => f.FolderType == Core.Models.FolderType.Inbox);
+                var inboxFolder = rootFolders.FirstOrDefault(p => p.FolderType == FolderType.Inbox);
                 if (inboxFolder != null)
                 {
                     clip.FolderId = inboxFolder.Id;
@@ -201,9 +200,7 @@ public class ClipboardCoordinator : IHostedService
                         activeCollection.Id, inboxFolder.Id);
                 }
                 else
-                {
                     _logger.LogWarning("No active folder and no Inbox folder found, clip will not be assigned to a folder");
-                }
             }
         }
         catch (Exception ex)
@@ -218,9 +215,7 @@ public class ClipboardCoordinator : IHostedService
         var wasDuplicate = savedClip.Id != clip.Id;
 
         if (!wasDuplicate)
-        {
             _logger.LogInformation("Clip saved successfully: {ClipId}", savedClip.Id);
-        }
         else
         {
             _logger.LogDebug(
