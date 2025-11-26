@@ -15,6 +15,10 @@ public partial class TemplateEditorViewModelTests
     public TemplateEditorViewModelTests()
     {
         _mockTemplateService = new Mock<ITemplateService>();
+        
+        // Default setup for ExtractVariables to return empty list
+        _mockTemplateService.Setup(p => p.ExtractVariables(It.IsAny<string>()))
+            .Returns(new List<string>());
     }
 
     private TemplateEditorViewModel CreateViewModel()
