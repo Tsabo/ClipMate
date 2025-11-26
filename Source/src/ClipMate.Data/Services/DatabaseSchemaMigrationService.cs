@@ -37,60 +37,77 @@ public class DatabaseSchemaMigrationService
 
         _logger?.LogInformation("Starting database schema migration");
 
-        await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        var options = new SchemaOptions();
-
-        // Read current schema from database
-        var schemaReader = new SqliteSchemaReader(connection, options);
-        var currentSchema = await schemaReader.ReadSchemaAsync(cancellationToken);
-
-        // Read expected schema from EF Core model
-        var efSchemaReader = new EFCoreSchemaReader(context.Model, options);
-        var expectedSchema = await efSchemaReader.ReadSchemaAsync(cancellationToken);
-
-        // Validate expected schema
-        var validator = new SqliteSchemaValidator();
-        var validationResult = validator.Validate(expectedSchema);
-
-        if (!validationResult.IsValid)
+        // Use the existing connection from the context to support in-memory databases
+        var connection = context.Database.GetDbConnection();
+        var shouldCloseConnection = false;
+        
+        if (connection.State != System.Data.ConnectionState.Open)
         {
-            _logger?.LogError("Schema validation failed: {Errors}", string.Join(", ", validationResult.Errors));
-            throw new InvalidOperationException($"Schema validation failed: {string.Join(", ", validationResult.Errors)}");
+            await connection.OpenAsync(cancellationToken);
+            shouldCloseConnection = true;
         }
 
-        if (validationResult.Warnings.Count > 0)
-            _logger?.LogWarning("Schema validation warnings: {Warnings}", string.Join(", ", validationResult.Warnings));
-
-        // Compare schemas
-        var comparer = new SqliteSchemaComparer();
-        var diff = comparer.Compare(currentSchema, expectedSchema);
-
-        if (!diff.HasChanges)
+        try
         {
-            _logger?.LogInformation("Database schema is up to date");
-            return;
+            var options = new SchemaOptions();
+
+            // Read current schema from database
+            var schemaReader = new SqliteSchemaReader(connection, options);
+            var currentSchema = await schemaReader.ReadSchemaAsync(cancellationToken);
+
+            // Read expected schema from EF Core model
+            var efSchemaReader = new EFCoreSchemaReader(context.Model, options);
+            var expectedSchema = await efSchemaReader.ReadSchemaAsync(cancellationToken);
+
+            // Validate expected schema
+            var validator = new SqliteSchemaValidator();
+            var validationResult = validator.Validate(expectedSchema);
+
+            if (!validationResult.IsValid)
+            {
+                _logger?.LogError("Schema validation failed: {Errors}", string.Join(", ", validationResult.Errors));
+                throw new InvalidOperationException($"Schema validation failed: {string.Join(", ", validationResult.Errors)}");
+            }
+
+            if (validationResult.Warnings.Count > 0)
+                _logger?.LogWarning("Schema validation warnings: {Warnings}", string.Join(", ", validationResult.Warnings));
+
+            // Compare schemas
+            var comparer = new SqliteSchemaComparer();
+            var diff = comparer.Compare(currentSchema, expectedSchema);
+
+            if (!diff.HasChanges)
+            {
+                _logger?.LogInformation("Database schema is up to date");
+                return;
+            }
+
+            _logger?.LogInformation("Schema changes detected: {OperationCount} operations", diff.Operations.Count);
+
+            if (diff.Warnings.Count > 0)
+                _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
+
+            // Apply migrations with logging hook
+            var hook = new LoggingMigrationHook(_logger);
+            var migrator = new SqliteSchemaMigrator(connection, hook);
+
+            var result = await migrator.MigrateAsync(diff, false, cancellationToken);
+
+            if (!result.Success)
+            {
+                _logger?.LogError("Schema migration failed: {Errors}", string.Join(", ", result.Errors));
+                throw new InvalidOperationException($"Schema migration failed: {string.Join(", ", result.Errors)}");
+            }
+
+            _logger?.LogInformation("Database schema migration completed successfully");
         }
-
-        _logger?.LogInformation("Schema changes detected: {OperationCount} operations", diff.Operations.Count);
-
-        if (diff.Warnings.Count > 0)
-            _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
-
-        // Apply migrations with logging hook
-        var hook = new LoggingMigrationHook(_logger);
-        var migrator = new SqliteSchemaMigrator(connection, hook);
-
-        var result = await migrator.MigrateAsync(diff, false, cancellationToken);
-
-        if (!result.Success)
+        finally
         {
-            _logger?.LogError("Schema migration failed: {Errors}", string.Join(", ", result.Errors));
-            throw new InvalidOperationException($"Schema migration failed: {string.Join(", ", result.Errors)}");
+            if (shouldCloseConnection && connection.State == System.Data.ConnectionState.Open)
+            {
+                await connection.CloseAsync();
+            }
         }
-
-        _logger?.LogInformation("Database schema migration completed successfully");
     }
 
     /// <summary>

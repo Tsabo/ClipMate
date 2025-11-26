@@ -87,8 +87,8 @@ public static class ServiceCollectionExtensions
 
         try
         {
-            // Apply any pending migrations
-            dbContext.Database.Migrate();
+            // Ensure database is created
+            dbContext.Database.EnsureCreated();
             return true;
         }
         catch

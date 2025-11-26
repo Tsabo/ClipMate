@@ -32,10 +32,6 @@
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
     <PackageReference Include="Emoji.Wpf" />
     <PackageReference Include="LinkingMountains.ImageZoom" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />

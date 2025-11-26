@@ -105,7 +105,13 @@ public class SqliteSchemaComparer : ISchemaComparer
             var def = $"    {item.Name} {item.Type}";
 
             if (item.IsPrimaryKey)
-                def += " PRIMARY KEY AUTOINCREMENT";
+            {
+                def += " PRIMARY KEY";
+                
+                // AUTOINCREMENT is only valid for INTEGER PRIMARY KEY in SQLite
+                if (item.Type.Equals("INTEGER", StringComparison.OrdinalIgnoreCase))
+                    def += " AUTOINCREMENT";
+            }
 
             if (!item.IsNullable && !item.IsPrimaryKey)
                 def += " NOT NULL";

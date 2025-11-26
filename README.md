@@ -55,7 +55,8 @@ Source/
 ├── src/
 │   ├── ClipMate.App/              # WPF UI layer (Views, ViewModels, Controls)
 │   ├── ClipMate.Core/             # Business logic & domain models
-│   ├── ClipMate.Data.Schema/      # EF Core entities, DbContext, repositories
+│   ├── ClipMate.Data/             # EF Core entities, DbContext, repositories
+│   ├── ClipMate.Data.Schema/      # Database schema migration tools
 │   └── ClipMate.Platform/         # Windows-specific Win32 interop
 └── tests/
     ├── ClipMate.Tests.Unit/       # Unit tests (TUnit framework)
@@ -185,8 +186,11 @@ Test organization:
 ```
 ClipMate.App
 ├── ClipMate.Core (business logic & service interfaces)
-├── ClipMate.Data.Schema (EF Core entities, DbContext, repositories)
+├── ClipMate.Data (EF Core entities, DbContext, repositories)
 └── ClipMate.Platform (Win32 interop)
+
+ClipMate.Data
+└── ClipMate.Core
 
 ClipMate.Data.Schema
 └── ClipMate.Core
@@ -196,6 +200,7 @@ ClipMate.Platform
 
 Tests (Unit & Integration)
 ├── ClipMate.Core
+├── ClipMate.Data
 ├── ClipMate.Data.Schema
 └── ClipMate.Platform
 ```
@@ -211,17 +216,17 @@ Tests (Unit & Integration)
 ClipMate uses **Entity Framework Core 9.0** with **SQLite** for persistent storage:
 
 - **Location**: `%LOCALAPPDATA%\ClipMate\clipmate.db`
-- **Schema**: Relational with EF Core migrations
-- **Migrations**: Design-time factory for CLI migrations (`dotnet ef migrations add`)
+- **Schema**: Relational with custom schema migration system
+- **Migrations**: Automatic schema migration via `DatabaseSchemaMigrationService` using `ClipMate.Data.Schema` tools
 - **Context**: `ClipMateDbContext` with scoped lifetime in DI container
 
-### Running Migrations
+### Schema Migration
 
-```powershell
-# From Source/src/ClipMate.Data.Schema directory
-dotnet ef migrations add MigrationName
-dotnet ef database update
-```
+ClipMate uses a custom schema migration system that automatically detects and applies schema changes:
+- Compares current database schema with EF Core model
+- Generates and executes SQL migrations automatically
+- No manual migration steps required
+- Handles tables, columns, indexes, and foreign keys
 
 ### Database Reset Script
 

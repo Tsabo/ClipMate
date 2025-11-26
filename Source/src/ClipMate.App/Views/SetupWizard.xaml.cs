@@ -123,11 +123,14 @@ public partial class SetupWizard
             var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
             optionsBuilder.UseSqlite($"Data Source={DatabasePath}");
 
-            // Create and migrate database
+            // Create database and migrate schema
             await using var context = new ClipMateDbContext(optionsBuilder.Options);
 
-            _logger.LogInformation("Applying database migrations...");
-            await context.Database.MigrateAsync();
+            _logger.LogInformation("Creating database and applying schema migrations...");
+            await context.Database.EnsureCreatedAsync();
+            
+            var migrationService = new DatabaseSchemaMigrationService(_logger as ILogger<DatabaseSchemaMigrationService>);
+            await migrationService.MigrateAsync(context);
 
             // Update progress
             ProgressText.Text = "Seeding default data...";
