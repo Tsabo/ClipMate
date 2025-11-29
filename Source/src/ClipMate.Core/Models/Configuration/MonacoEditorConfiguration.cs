@@ -38,7 +38,7 @@ public class MonacoEditorConfiguration
     /// <summary>
     /// Gets or sets the number of spaces for a tab character.
     /// </summary>
-    public int TabSize { get; set; } = 8;
+    public int TabSize { get; set; } = 4;
 
     /// <summary>
     /// Gets or sets whether smooth scrolling is enabled.

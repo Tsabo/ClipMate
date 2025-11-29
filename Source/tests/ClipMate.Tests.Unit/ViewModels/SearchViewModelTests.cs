@@ -4,6 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -17,13 +18,24 @@ public class SearchViewModelTests
 {
     private readonly Mock<ISearchService> _mockSearchService;
     private readonly Mock<IMessenger> _mockMessenger;
+    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly SearchViewModel _viewModel;
 
     public SearchViewModelTests()
     {
         _mockSearchService = new Mock<ISearchService>();
         _mockMessenger = new Mock<IMessenger>();
-        _viewModel = new SearchViewModel(_mockSearchService.Object, _mockMessenger.Object);
+        
+        // Create mock service scope factory
+        var mockServiceScope = new Mock<IServiceScope>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
+        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        
+        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
+        
+        _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object);
     }
 
     [Test]

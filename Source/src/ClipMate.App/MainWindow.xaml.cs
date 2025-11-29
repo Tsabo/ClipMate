@@ -99,6 +99,30 @@ public partial class MainWindow : IWindow
         }
     }
 
+    private void Options_Click(object sender, RoutedEventArgs e) => ShowOptions();
+
+    private void ShowOptions()
+    {
+        try
+        {
+            if (_serviceProvider.GetService(typeof(OptionsDialog)) is OptionsDialog optionsDialog)
+            {
+                optionsDialog.Owner = this;
+                var result = optionsDialog.ShowDialog();
+                
+                if (result == true)
+                {
+                    _logger?.LogInformation("Options saved successfully");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show Options dialog");
+            MessageBox.Show($"Failed to open Options: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void ManageTemplates_Click(object sender, RoutedEventArgs e) => ShowManageTemplates();
 
     private void ShowManageTemplates()

@@ -8,9 +8,11 @@ using CommunityToolkit.Mvvm.Input;
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-/// ViewModel for the PowerPaste quick access window.
+/// ViewModel for the ClipBar quick access window (Ctrl+Shift+V quick paste picker).
+/// Provides a searchable popup for selecting and pasting individual clips.
+/// This is distinct from the PowerPaste sequential automation feature.
 /// </summary>
-public partial class PowerPasteViewModel : ObservableObject
+public partial class ClipBarViewModel : ObservableObject
 {
     private readonly IClipService _clipService;
     private readonly IPasteService _pasteService;
@@ -24,7 +26,7 @@ public partial class PowerPasteViewModel : ObservableObject
     [ObservableProperty]
     private bool _shouldCloseWindow;
 
-    public PowerPasteViewModel(IClipService clipService, IPasteService pasteService)
+    public ClipBarViewModel(IClipService clipService, IPasteService pasteService)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _pasteService = pasteService ?? throw new ArgumentNullException(nameof(pasteService));

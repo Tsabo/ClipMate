@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.8" result="blur"/>
+      <feOffset in="blur" dx="1.2" dy="1.6" result="offsetBlur"/>
+      <feMerge>
+        <feMergeNode in="offsetBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="40" y="23" width="11" height="27" rx="2" ry="2" fill="#1f89ff" stroke="#0d4f94" stroke-width="1.5"/>
+    <polygon points="45.5,9 58,23 33,23" fill="#32a0ff" stroke="#0d4f94" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(22 30)" filter="url(#shadow)">
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" fill="#0f5e2d"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" fill="#0f5e2d"/>
+    <rect x="-15" y="-3" width="6" height="6" rx="1" ry="1" fill="#0f5e2d"/>
+    <rect x="9" y="-3" width="6" height="6" rx="1" ry="1" fill="#0f5e2d"/>
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" transform="rotate(45)" fill="#0f5e2d"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" transform="rotate(45)" fill="#0f5e2d"/>
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" transform="rotate(90)" fill="#0f5e2d"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" transform="rotate(135)" fill="#0f5e2d"/>
+    <circle r="11" fill="#25a846"/>
+    <circle r="5" fill="#0f5e2d"/>
+  </g>
+  <g transform="translate(30 40)" filter="url(#shadow)">
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" fill="#c88916"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" fill="#c88916"/>
+    <rect x="-15" y="-3" width="6" height="6" rx="1" ry="1" fill="#c88916"/>
+    <rect x="9" y="-3" width="6" height="6" rx="1" ry="1" fill="#c88916"/>
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" transform="rotate(45)" fill="#c88916"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" transform="rotate(45)" fill="#c88916"/>
+    <rect x="-3" y="-15" width="6" height="6" rx="1" ry="1" transform="rotate(90)" fill="#c88916"/>
+    <rect x="-3" y="9" width="6" height="6" rx="1" ry="1" transform="rotate(135)" fill="#c88916"/>
+    <circle r="12" fill="#ffd54a"/>
+    <circle r="6" fill="#c88916"/>
+  </g>
+</svg>

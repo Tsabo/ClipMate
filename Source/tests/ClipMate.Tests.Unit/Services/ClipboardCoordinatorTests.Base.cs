@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
@@ -21,7 +22,23 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         mock.Setup(s => s.ClipsChannel).Returns(channel.Reader);
         mock.Setup(s => s.StartMonitoringAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         mock.Setup(s => s.StopMonitoringAsync()).Returns(Task.CompletedTask);
+        mock.Setup(s => s.GetCurrentClipboardContentAsync(It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
         
+        return mock;
+    }
+
+    private Mock<IConfigurationService> CreateMockConfigurationService(bool enableAutoCapture = true)
+    {
+        var mock = new Mock<IConfigurationService>();
+        var config = new ClipMateConfiguration
+        {
+            Preferences = new PreferencesConfiguration
+            {
+                EnableAutoCaptureAtStartup = enableAutoCapture,
+                CaptureExistingClipboardAtStartup = false
+            }
+        };
+        mock.Setup(s => s.Configuration).Returns(config);
         return mock;
     }
 

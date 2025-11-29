@@ -16,10 +16,11 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);

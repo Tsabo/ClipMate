@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<ClipMateDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath}"));
 
-        // Register repositories
+        // Register repositories as Scoped (tied to DbContext lifetime)
         services.AddScoped<IClipRepository, ClipRepository>();
         services.AddScoped<ICollectionRepository, CollectionRepository>();
         services.AddScoped<IFolderRepository, FolderRepository>();
@@ -44,7 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMonacoEditorStateRepository, MonacoEditorStateRepository>();
 
-        // Register services
+        // Register services as Scoped (they inject Scoped repositories)
         // Note: IClipboardService implementation is in Platform layer
         services.AddScoped<IClipService, ClipService>();
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
@@ -52,6 +52,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFolderService, FolderService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ITemplateService, TemplateService>();
+        services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
+        services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
 
         // Register configuration service

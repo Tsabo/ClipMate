@@ -6,6 +6,7 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.App.ViewModels;
 
@@ -15,8 +16,8 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IMessenger _messenger;
-    private readonly ISearchService _searchService;
 
     [ObservableProperty]
     private DateTime? _dateFrom;
@@ -51,11 +52,16 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     private int _totalMatches;
 
-    public SearchViewModel(ISearchService searchService, IMessenger messenger)
+    public SearchViewModel(IServiceScopeFactory serviceScopeFactory, IMessenger messenger)
     {
-        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
     }
+    
+    /// <summary>
+    /// Helper to create a scope and resolve a scoped service.
+    /// </summary>
+    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Collection of search results.
@@ -85,7 +91,12 @@ public partial class SearchViewModel : ObservableObject
             IsSearching = true;
 
             var filters = BuildSearchFilters();
-            var results = await _searchService.SearchAsync(SearchText, filters);
+            SearchResults results;
+            using (var scope = CreateScope())
+            {
+                var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+                results = await searchService.SearchAsync(SearchText, filters);
+            }
 
             SearchResults.Clear();
             foreach (var item in results.Clips)
@@ -122,9 +133,14 @@ public partial class SearchViewModel : ObservableObject
     /// Loads recent search history.
     /// </summary>
     [RelayCommand]
-    private async Task LoadSearchHistoryAsync()
+    private async Task LoadSearchHistory()
     {
-        var history = await _searchService.GetSearchHistoryAsync();
+        IReadOnlyCollection<string> history;
+        using (var scope = CreateScope())
+        {
+            var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+            history = await searchService.GetSearchHistoryAsync();
+        }
 
         SearchHistory.Clear();
         foreach (var query in history)

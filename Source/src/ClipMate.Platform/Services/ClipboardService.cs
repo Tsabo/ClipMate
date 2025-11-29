@@ -41,6 +41,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private string _lastContentHash = string.Empty;
+    private string? _suppressCaptureForHash;
 
     public ClipboardService(ILogger<ClipboardService> logger, IWin32ClipboardInterop win32Interop)
     {
@@ -172,6 +173,9 @@ public class ClipboardService : IClipboardService, IDisposable
 
         try
         {
+            // Calculate content hash to suppress capture of this specific content
+            _suppressCaptureForHash = ContentHasher.HashClip(clip);
+            
             // Must run on STA thread (UI thread) for WPF Clipboard API
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -179,6 +183,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 switch (clip.Type)
                 {
                     case ClipType.Text:
+                    case ClipType.Html:
                         SetTextToClipboard(clip);
                         break;
                     case ClipType.Image:
@@ -229,6 +234,14 @@ public class ClipboardService : IClipboardService, IDisposable
             var clip = await GetCurrentClipboardContentAsync();
             if (clip == null)
                 return;
+
+            // Check if we should suppress this capture (we set the clipboard programmatically)
+            if (_suppressCaptureForHash != null && clip.ContentHash == _suppressCaptureForHash)
+            {
+                _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", clip.ContentHash.Substring(0, 8));
+                _suppressCaptureForHash = null;
+                return;
+            }
 
             // Duplicate detection: ignore if same content hash
             if (clip.ContentHash == _lastContentHash)

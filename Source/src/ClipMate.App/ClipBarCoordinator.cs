@@ -11,24 +11,26 @@ using ModifierKeys = ClipMate.Core.Models.ModifierKeys;
 namespace ClipMate.App;
 
 /// <summary>
-/// Coordinates PowerPaste functionality including hotkey registration and window lifecycle.
+/// Coordinates ClipBar (quick paste picker) functionality including hotkey registration and window lifecycle.
+/// ClipBar is a quick access popup window (Ctrl+Shift+V) for selecting and pasting individual clips.
+/// This is distinct from the PowerPaste sequential automation feature.
 /// </summary>
-public class PowerPasteCoordinator : IHostedService, IDisposable
+public class ClipBarCoordinator : IHostedService, IDisposable
 {
-    private const int PowerPasteHotkeyId = 1001;
+    private const int ClipBarHotkeyId = 1001;
     private readonly IHotkeyService _hotkeyService;
-    private readonly ILogger<PowerPasteCoordinator> _logger;
+    private readonly ILogger<ClipBarCoordinator> _logger;
     private readonly IServiceProvider _serviceProvider;
     private bool _disposed;
     private HotkeyWindow? _hotkeyWindow;
-    private PowerPasteWindow? _powerPasteWindow;
+    private ClipBarWindow? _clipBarWindow;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PowerPasteCoordinator" /> class.
+    /// Initializes a new instance of the <see cref="ClipBarCoordinator" /> class.
     /// </summary>
-    public PowerPasteCoordinator(IServiceProvider serviceProvider,
+    public ClipBarCoordinator(IServiceProvider serviceProvider,
         IHotkeyService hotkeyService,
-        ILogger<PowerPasteCoordinator> logger)
+        ILogger<ClipBarCoordinator> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
@@ -47,8 +49,8 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _powerPasteWindow?.Close();
-                _powerPasteWindow = null;
+                _clipBarWindow?.Close();
+                _clipBarWindow = null;
 
                 _hotkeyWindow?.Close();
                 _hotkeyWindow = null;
@@ -56,7 +58,7 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error disposing PowerPaste coordinator");
+            _logger.LogError(ex, "Error disposing ClipBar coordinator");
         }
 
         _disposed = true;
@@ -64,13 +66,13 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Initializes PowerPaste with hotkey registration when the host starts.
+    /// Initializes ClipBar with hotkey registration when the host starts.
     /// </summary>
     public Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
-            _logger.LogInformation("Starting PowerPaste coordinator");
+            _logger.LogInformation("Starting ClipBar coordinator");
 
             // Create and show the hidden hotkey window on the UI thread
             Application.Current.Dispatcher.Invoke(() =>
@@ -83,45 +85,45 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
                     platformService.Initialize(_hotkeyWindow);
             });
 
-            // Register Ctrl+Shift+V hotkey for PowerPaste
+            // Register Ctrl+Shift+V hotkey for ClipBar
             var virtualKey = KeyInterop.VirtualKeyFromKey(Key.V);
             var registered = _hotkeyService.RegisterHotkey(
-                PowerPasteHotkeyId,
+                ClipBarHotkeyId,
                 ModifierKeys.Control | ModifierKeys.Shift,
                 virtualKey,
-                OnPowerPasteHotkeyPressed);
+                OnClipBarHotkeyPressed);
 
             if (registered)
-                _logger.LogInformation("PowerPaste hotkey registered successfully (Ctrl+Shift+V)");
+                _logger.LogInformation("ClipBar hotkey registered successfully (Ctrl+Shift+V)");
             else
-                _logger.LogWarning("Failed to register PowerPaste hotkey (Ctrl+Shift+V). The hotkey may already be in use.");
+                _logger.LogWarning("Failed to register ClipBar hotkey (Ctrl+Shift+V). The hotkey may already be in use.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error starting PowerPaste coordinator");
+            _logger.LogError(ex, "Error starting ClipBar coordinator");
         }
 
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Stops PowerPaste and unregisters hotkeys when the host stops.
+    /// Stops ClipBar and unregisters hotkeys when the host stops.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Stopping PowerPaste coordinator");
+        _logger.LogInformation("Stopping ClipBar coordinator");
 
         try
         {
             // Unregister hotkey
-            _hotkeyService.UnregisterHotkey(PowerPasteHotkeyId);
-            _logger.LogInformation("PowerPaste hotkey unregistered");
+            _hotkeyService.UnregisterHotkey(ClipBarHotkeyId);
+            _logger.LogInformation("ClipBar hotkey unregistered");
 
             // Close windows on the UI thread
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _powerPasteWindow?.Close();
-                _powerPasteWindow = null;
+                _clipBarWindow?.Close();
+                _clipBarWindow = null;
 
                 _hotkeyWindow?.Close();
                 _hotkeyWindow = null;
@@ -129,18 +131,18 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error stopping PowerPaste coordinator");
+            _logger.LogError(ex, "Error stopping ClipBar coordinator");
         }
 
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Called when the PowerPaste hotkey (Ctrl+Shift+V) is pressed.
+    /// Called when the ClipBar hotkey (Ctrl+Shift+V) is pressed.
     /// </summary>
-    private void OnPowerPasteHotkeyPressed()
+    private void OnClipBarHotkeyPressed()
     {
-        _logger.LogInformation("PowerPaste hotkey pressed (Ctrl+Shift+V)");
+        _logger.LogInformation("ClipBar hotkey pressed (Ctrl+Shift+V)");
 
         try
         {
@@ -148,33 +150,33 @@ public class PowerPasteCoordinator : IHostedService, IDisposable
             Application.Current.Dispatcher.Invoke(() =>
             {
                 // If window is already open, just activate it
-                if (_powerPasteWindow != null && _powerPasteWindow.IsVisible)
+                if (_clipBarWindow != null && _clipBarWindow.IsVisible)
                 {
-                    _powerPasteWindow.Activate();
-                    _powerPasteWindow.Focus();
-                    _logger.LogDebug("PowerPaste window already open, activating");
+                    _clipBarWindow.Activate();
+                    _clipBarWindow.Focus();
+                    _logger.LogDebug("ClipBar window already open, activating");
                     return;
                 }
 
                 // Create new window instance from DI
-                _powerPasteWindow = _serviceProvider.GetRequiredService<PowerPasteWindow>();
+                _clipBarWindow = _serviceProvider.GetRequiredService<ClipBarWindow>();
 
                 // Close window when user is done
-                _powerPasteWindow.Closed += (s, e) =>
+                _clipBarWindow.Closed += (s, e) =>
                 {
-                    _logger.LogDebug("PowerPaste window closed");
-                    _powerPasteWindow = null;
+                    _logger.LogDebug("ClipBar window closed");
+                    _clipBarWindow = null;
                 };
 
                 // Show the window
-                _powerPasteWindow.Show();
-                _powerPasteWindow.Activate();
-                _logger.LogDebug("PowerPaste window shown");
+                _clipBarWindow.Show();
+                _clipBarWindow.Activate();
+                _logger.LogDebug("ClipBar window shown");
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error showing PowerPaste window");
+            _logger.LogError(ex, "Error showing ClipBar window");
         }
     }
 }

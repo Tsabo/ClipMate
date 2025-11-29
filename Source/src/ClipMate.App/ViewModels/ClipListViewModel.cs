@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
@@ -17,9 +20,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>
 {
-    private readonly IClipService _clipService;
-    private readonly ICollectionService _collectionService;
-    private readonly IFolderService _folderService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
 
@@ -44,16 +45,15 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     [ObservableProperty]
     private Clip? _selectedClip;
 
-    public ClipListViewModel(IClipService clipService,
+    [ObservableProperty]
+    private ObservableCollection<Clip> _selectedClips = [];
+
+    public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
         IMessenger messenger,
-        IFolderService folderService,
-        ICollectionService collectionService,
         ILogger<ClipListViewModel> logger)
     {
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Register this ViewModel as a recipient for clipboard and selection events
@@ -61,6 +61,11 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         _messenger.Register<ClipAddedEvent>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
     }
+    
+    /// <summary>
+    /// Helper to create a scope and resolve a scoped service.
+    /// </summary>
+    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Receives ClipAddedEvent messages from the messenger.
@@ -113,8 +118,13 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             message.CollectionId, message.FolderId);
 
         // Set the active collection and folder for new clipboard captures
-        await _collectionService.SetActiveAsync(message.CollectionId);
-        await _folderService.SetActiveAsync(message.FolderId);
+        using (var scope = CreateScope())
+        {
+            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+            var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+            await collectionService.SetActiveAsync(message.CollectionId);
+            await folderService.SetActiveAsync(message.FolderId);
+        }
 
         _logger.LogInformation("Active collection and folder updated for new clipboard captures");
 
@@ -134,7 +144,98 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     partial void OnSelectedClipChanged(Clip? value)
     {
         // Send messenger event when selection changes
+        _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}", 
+            value?.Id, value?.DisplayTitle);
         _messenger.Send(new ClipSelectedEvent(value));
+        
+        // Automatically load the selected clip onto the system clipboard
+        // This is ClipMate's standard "Pick, Flip, and Paste" behavior
+        if (value != null)
+        {
+            _ = SetClipboardContentAsync(value);
+        }
+    }
+    
+    /// <summary>
+    /// Loads the clip's full content from the database and sets it to the Windows clipboard.
+    /// Called automatically when a clip is selected (Pick, Flip, and Paste), or manually via double-click/Enter/context menu.
+    /// </summary>
+    public async Task SetClipboardContentAsync(Clip clip)
+    {
+        try
+        {
+            using var scope = CreateScope();
+            var clipDataRepository = scope.ServiceProvider.GetRequiredService<IClipDataRepository>();
+            var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
+            var clipboardService = scope.ServiceProvider.GetRequiredService<IClipboardService>();
+            
+            // Load ClipData for this clip
+            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id);
+            if (clipDataList.Count == 0)
+            {
+                _logger.LogWarning("[ClipListViewModel] No ClipData found for clip: {ClipId}", clip.Id);
+                return;
+            }
+            
+            // Load text blobs and populate content properties
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id);
+            var textBlobsDict = textBlobs.ToDictionary(b => b.ClipDataId);
+            
+            foreach (var clipData in clipDataList)
+            {
+                if (textBlobsDict.TryGetValue(clipData.Id, out var textBlob))
+                {
+                    // Determine content type based on format
+                    if (clipData.Format == ClipboardConstants.Format.CF_TEXT || 
+                        clipData.Format == ClipboardConstants.Format.CF_UNICODETEXT)
+                    {
+                        clip.TextContent = textBlob.Data;
+                    }
+                    else if (clipData.Format == ClipboardConstants.Format.CF_RTF)
+                    {
+                        clip.RtfContent = textBlob.Data;
+                    }
+                    else if (clipData.Format == ClipboardConstants.Format.CF_HTML || 
+                             clipData.Format == ClipboardConstants.Format.CF_HTML_ALT)
+                    {
+                        clip.HtmlContent = textBlob.Data;
+                    }
+                }
+            }
+            
+            // For images, load image data
+            if (clip.Type == ClipType.Image)
+            {
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id);
+                if (pngBlobs.Count > 0)
+                {
+                    clip.ImageData = pngBlobs[0].Data;
+                }
+                else
+                {
+                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id);
+                    if (jpgBlobs.Count > 0)
+                    {
+                        clip.ImageData = jpgBlobs[0].Data;
+                    }
+                }
+            }
+            
+            // For files, file paths are already in clip.FilePathsJson
+            
+            _logger.LogInformation("[ClipListViewModel] About to set clipboard - Type: {Type}, TextContent: {HasText}, RtfContent: {HasRtf}, HtmlContent: {HasHtml}", 
+                clip.Type, 
+                !string.IsNullOrEmpty(clip.TextContent), 
+                !string.IsNullOrEmpty(clip.RtfContent), 
+                !string.IsNullOrEmpty(clip.HtmlContent));
+            
+            await clipboardService.SetClipboardContentAsync(clip);
+            _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ClipListViewModel] Failed to set clipboard content for clip: {ClipId}", clip.Id);
+        }
     }
 
     /// <summary>
@@ -164,7 +265,12 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         {
             IsLoading = true;
             _logger.LogInformation("Loading recent {Count} clips (no collection filter)", count);
-            var clips = await _clipService.GetRecentAsync(count);
+            IReadOnlyCollection<Clip> clips;
+            using (var scope = CreateScope())
+            {
+                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+                clips = await clipService.GetRecentAsync(count);
+            }
             _logger.LogInformation("Retrieved {Count} recent clips. First clip CollectionId: {CollectionId}", clips.Count(), clips.FirstOrDefault()?.CollectionId);
 
             // Update collection on UI thread
@@ -202,7 +308,12 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             CurrentFolderId = null;
 
             _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
-            var clips = await _clipService.GetByCollectionAsync(collectionId, cancellationToken);
+            IReadOnlyCollection<Clip> clips;
+            using (var scope = CreateScope())
+            {
+                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+                clips = await clipService.GetByCollectionAsync(collectionId, cancellationToken);
+            }
             _logger.LogInformation("Retrieved {Count} clips from database", clips.Count());
 
             // Update collection on UI thread
@@ -218,7 +329,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading clips for collection {CollectionId}", collectionId);
+            _logger.LogError(ex, "Error loading clips for collection: {CollectionId}", collectionId);
             await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally
@@ -241,7 +352,12 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
             CurrentCollectionId = collectionId;
             CurrentFolderId = folderId;
 
-            var clips = await _clipService.GetByFolderAsync(folderId, cancellationToken);
+            IReadOnlyCollection<Clip> clips;
+            using (var scope = CreateScope())
+            {
+                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+                clips = await clipService.GetByFolderAsync(folderId, cancellationToken);
+            }
 
             // Update collection on UI thread
             await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -249,10 +365,13 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
                 Clips.Clear();
                 foreach (var clip in clips)
                     Clips.Add(clip);
+
+                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
             });
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error loading clips for folder: {FolderId}", folderId);
             await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally

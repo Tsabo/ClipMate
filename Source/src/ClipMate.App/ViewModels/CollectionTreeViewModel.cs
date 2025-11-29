@@ -5,6 +5,7 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
@@ -17,27 +18,29 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject
 {
-    private readonly ICollectionService _collectionService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IConfigurationService _configurationService;
-    private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
 
     [ObservableProperty]
     private TreeNodeBase? _selectedNode;
 
-    public CollectionTreeViewModel(ICollectionService collectionService,
-        IFolderService folderService,
+    public CollectionTreeViewModel(IServiceScopeFactory serviceScopeFactory,
         IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<CollectionTreeViewModel> logger)
     {
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
-        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+
+    /// <summary>
+    /// Helper to create a scope and resolve a scoped service.
+    /// </summary>
+    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Root nodes of the tree (typically Database nodes).
@@ -82,7 +85,12 @@ public partial class CollectionTreeViewModel : ObservableObject
         var configuration = _configurationService.Configuration;
 
         // Load all collections (currently from the active database)
-        var allCollections = await _collectionService.GetAllAsync(cancellationToken);
+        IReadOnlyCollection<Core.Models.Collection> allCollections;
+        using (var scope = _serviceScopeFactory.CreateScope())
+        {
+            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+            allCollections = await collectionService.GetAllAsync(cancellationToken);
+        }
 
         // Separate regular collections from virtual ones
         var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
@@ -171,7 +179,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// </summary>
     private async Task LoadFoldersAsync(CollectionTreeNode collectionNode, CancellationToken cancellationToken)
     {
-        var rootFolders = await _folderService.GetRootFoldersAsync(collectionNode.Collection.Id, cancellationToken);
+        using var scope = CreateScope();
+        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+        var rootFolders = await folderService.GetRootFoldersAsync(collectionNode.Collection.Id, cancellationToken);
 
         foreach (var folder in rootFolders)
         {
@@ -187,7 +197,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// </summary>
     private async Task LoadSubFoldersAsync(FolderTreeNode folderNode, CancellationToken cancellationToken)
     {
-        var subFolders = await _folderService.GetChildFoldersAsync(folderNode.Folder.Id, cancellationToken);
+        using var scope = CreateScope();
+        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+        var subFolders = await folderService.GetChildFoldersAsync(folderNode.Folder.Id, cancellationToken);
 
         foreach (var subFolder in subFolders)
         {
@@ -204,7 +216,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateCollectionAsync((string name, string? description) parameters)
     {
-        await _collectionService.CreateAsync(parameters.name, parameters.description);
+        using var scope = CreateScope();
+        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+        await collectionService.CreateAsync(parameters.name, parameters.description);
         await LoadAsync();
     }
 
@@ -214,7 +228,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateFolderAsync((string name, Guid collectionId, Guid? parentFolderId) parameters)
     {
-        await _folderService.CreateAsync(parameters.name, parameters.collectionId, parameters.parentFolderId);
+        using var scope = CreateScope();
+        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+        await folderService.CreateAsync(parameters.name, parameters.collectionId, parameters.parentFolderId);
         await LoadAsync();
     }
 
@@ -224,7 +240,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     [RelayCommand]
     private async Task DeleteCollectionAsync(Guid collectionId)
     {
-        await _collectionService.DeleteAsync(collectionId);
+        using var scope = CreateScope();
+        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+        await collectionService.DeleteAsync(collectionId);
         await LoadAsync();
     }
 
@@ -234,7 +252,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     [RelayCommand]
     private async Task DeleteFolderAsync(Guid folderId)
     {
-        await _folderService.DeleteAsync(folderId);
+        using var scope = CreateScope();
+        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+        await folderService.DeleteAsync(folderId);
         await LoadAsync();
     }
 
@@ -269,7 +289,10 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// </summary>
     private async Task ShowCollectionPropertiesAsync(Guid collectionId)
     {
-        var collection = await _collectionService.GetByIdAsync(collectionId);
+        using var scope = CreateScope();
+        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+        
+        var collection = await collectionService.GetByIdAsync(collectionId);
         if (collection == null)
         {
             _logger.LogWarning("Collection not found: {CollectionId}", collectionId);
@@ -289,7 +312,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             viewModel.SaveToModel();
 
             // Save changes to database
-            await _collectionService.UpdateAsync(collection);
+            await collectionService.UpdateAsync(collection);
             await LoadAsync(); // Reload tree to reflect changes
         }
     }

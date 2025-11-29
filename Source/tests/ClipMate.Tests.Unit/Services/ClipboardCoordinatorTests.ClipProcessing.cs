@@ -32,10 +32,11 @@ public partial class ClipboardCoordinatorTests
         clipServiceMock.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clip);
 
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipService: clipServiceMock);
         var messenger = new Mock<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start
@@ -73,10 +74,11 @@ public partial class ClipboardCoordinatorTests
             SourceApplicationName = "FilteredApp"
         };
 
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipService: clipServiceMock, filterService: filterServiceMock);
         var messenger = new Mock<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -111,10 +113,11 @@ public partial class ClipboardCoordinatorTests
         clipServiceMock.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clip);
 
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipService: clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -141,10 +144,11 @@ public partial class ClipboardCoordinatorTests
         clipServiceMock.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Clip c, CancellationToken ct) => c);
 
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipService: clipServiceMock);
         var messenger = new Mock<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -200,10 +204,11 @@ public partial class ClipboardCoordinatorTests
         clipServiceMock.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingClip); // Return existing clip to simulate duplicate detection
 
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipService: clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);

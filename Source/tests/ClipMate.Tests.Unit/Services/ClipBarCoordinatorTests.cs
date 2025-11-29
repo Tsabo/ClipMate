@@ -8,7 +8,7 @@ using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public class PowerPasteCoordinatorTests
+public class ClipBarCoordinatorTests
 {
     // Constructor Tests
     [Test]
@@ -16,10 +16,10 @@ public class PowerPasteCoordinatorTests
     {
         // Arrange
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new PowerPasteCoordinator(null!, hotkeyService.Object, logger.Object))
+        await Assert.That(() => new ClipBarCoordinator(null!, hotkeyService.Object, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -28,10 +28,10 @@ public class PowerPasteCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new PowerPasteCoordinator(serviceProvider.Object, null!, logger.Object))
+        await Assert.That(() => new ClipBarCoordinator(serviceProvider.Object, null!, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -43,7 +43,7 @@ public class PowerPasteCoordinatorTests
         var hotkeyService = new Mock<IHotkeyService>();
 
         // Act & Assert
-        await Assert.That(() => new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, null!))
+        await Assert.That(() => new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -53,10 +53,10 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         // Act
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();
@@ -70,7 +70,7 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         hotkeyService.Setup(h => h.RegisterHotkey(
                 It.IsAny<int>(),
@@ -79,7 +79,7 @@ public class PowerPasteCoordinatorTests
                 It.IsAny<Action>()))
             .Returns(true);
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);
@@ -99,7 +99,7 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         hotkeyService.Setup(h => h.RegisterHotkey(
                 It.IsAny<int>(),
@@ -108,7 +108,7 @@ public class PowerPasteCoordinatorTests
                 It.IsAny<Action>()))
             .Returns(false);
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);
@@ -131,7 +131,7 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
         hotkeyService.Setup(h => h.RegisterHotkey(
                 It.IsAny<int>(),
@@ -140,7 +140,7 @@ public class PowerPasteCoordinatorTests
                 It.IsAny<Action>()))
             .Returns(true);
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
         await coordinator.StartAsync(CancellationToken.None);
 
         // Act
@@ -156,9 +156,9 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Act & Assert - should not throw
         await coordinator.StopAsync(CancellationToken.None);
@@ -171,9 +171,9 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Act & Assert - should not throw
         coordinator.Dispose();
@@ -185,9 +185,9 @@ public class PowerPasteCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<PowerPasteCoordinator>>();
+        var logger = new Mock<ILogger<ClipBarCoordinator>>();
 
-        var coordinator = new PowerPasteCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
 
         // Act & Assert - should not throw
         coordinator.Dispose();

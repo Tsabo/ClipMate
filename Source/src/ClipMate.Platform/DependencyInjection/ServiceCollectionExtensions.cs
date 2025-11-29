@@ -34,10 +34,13 @@ public static class ServiceCollectionExtensions
         // Register PasteService for PowerPaste functionality
         services.AddSingleton<IPasteService, PasteService>();
 
-        // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
+        // Register SoundService for audio feedback
+        services.AddSingleton<ISoundService, SoundService>();
 
-        // Future platform services will be registered here
-        // services.AddSingleton<ISoundService, SoundService>();
+        // Register StartupManager for Windows startup configuration
+        services.AddSingleton<IStartupManager, StartupManager>();
+
+        // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;
     }

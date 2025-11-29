@@ -7,17 +7,17 @@ using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
-public class PowerPasteViewModelTests
+public class ClipBarViewModelTests
 {
     private readonly Mock<IClipService> _mockClipService;
     private readonly Mock<IPasteService> _mockPasteService;
-    private readonly PowerPasteViewModel _viewModel;
+    private readonly ClipBarViewModel _viewModel;
 
-    public PowerPasteViewModelTests()
+    public ClipBarViewModelTests()
     {
         _mockClipService = new Mock<IClipService>();
         _mockPasteService = new Mock<IPasteService>();
-        _viewModel = new PowerPasteViewModel(_mockClipService.Object, _mockPasteService.Object);
+        _viewModel = new ClipBarViewModel(_mockClipService.Object, _mockPasteService.Object);
     }
 
     [Test]

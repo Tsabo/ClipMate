@@ -8,13 +8,15 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 namespace ClipMate.App.Views;
 
 /// <summary>
-/// PowerPaste quick access window for clipboard history.
+/// ClipBar quick access window for clipboard history (Ctrl+Shift+V quick paste picker).
+/// Provides a searchable popup for selecting and pasting individual clips.
+/// This is distinct from the PowerPaste sequential automation feature.
 /// </summary>
-public partial class PowerPasteWindow : FluentWindow
+public partial class ClipBarWindow : FluentWindow
 {
-    private readonly PowerPasteViewModel _viewModel;
+    private readonly ClipBarViewModel _viewModel;
 
-    public PowerPasteWindow(PowerPasteViewModel viewModel)
+    public ClipBarWindow(ClipBarViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -26,7 +28,7 @@ public partial class PowerPasteWindow : FluentWindow
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PowerPasteViewModel.ShouldCloseWindow) && _viewModel.ShouldCloseWindow)
+        if (e.PropertyName == nameof(ClipBarViewModel.ShouldCloseWindow) && _viewModel.ShouldCloseWindow)
             Close();
     }
 

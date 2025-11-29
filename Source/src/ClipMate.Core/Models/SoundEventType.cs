@@ -33,5 +33,15 @@ public enum SoundEventType
     /// <summary>
     /// Triggered when a hotkey is pressed.
     /// </summary>
-    HotkeyPressed = 5
+    HotkeyPressed = 5,
+
+    /// <summary>
+    /// Triggered when PowerPaste sequence completes.
+    /// </summary>
+    PowerPasteComplete = 6,
+
+    /// <summary>
+    /// Triggered when PowerPaste loops back to the beginning.
+    /// </summary>
+    PowerPasteLoop = 7
 }

@@ -1,5 +1,6 @@
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
@@ -64,10 +65,25 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddScoped<IFolderService>(_ => folderService);
         services.AddScoped<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        
+        // Add mock IConfigurationService
+        var mockConfigService = new Mock<IConfigurationService>();
+        var config = new ClipMateConfiguration
+        {
+            Preferences = new PreferencesConfiguration
+            {
+                EnableAutoCaptureAtStartup = true,
+                CaptureExistingClipboardAtStartup = false
+            }
+        };
+        mockConfigService.Setup(s => s.Configuration).Returns(config);
+        services.AddSingleton(mockConfigService.Object);
+        
         _serviceProvider = services.BuildServiceProvider();
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, _serviceProvider, messenger, coordinatorLogger);
+        var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed

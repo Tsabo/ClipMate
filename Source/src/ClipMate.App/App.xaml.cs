@@ -231,20 +231,23 @@ public partial class App
                 // Register Platform services
                 services.AddClipMatePlatform();
 
+                // Register Update Checker as hosted service
+                services.AddHostedService<UpdateCheckerService>();
+
                 // Register MVVM Toolkit Messenger as singleton
                 services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
-                // Register PowerPaste as hosted service
-                services.AddSingleton<PowerPasteCoordinator>();
-                services.AddHostedService(p => p.GetRequiredService<PowerPasteCoordinator>());
+                // Register ClipBar (quick paste picker) as hosted service
+                services.AddSingleton<ClipBarCoordinator>();
+                services.AddHostedService(p => p.GetRequiredService<ClipBarCoordinator>());
 
                 // Register MainWindow as singleton (always exists, just hidden/shown)
                 services.AddSingleton<MainWindow>();
                 services.AddSingleton<IWindow, MainWindow>(p => p.GetRequiredService<MainWindow>());
 
-                // Register PowerPaste components
-                services.AddTransient<PowerPasteViewModel>();
-                services.AddTransient<PowerPasteWindow>();
+                // Register ClipBar (quick paste picker) components
+                services.AddTransient<ClipBarViewModel>();
+                services.AddTransient<ClipBarWindow>();
 
                 // Register ViewModels
                 services.AddSingleton<MainWindowViewModel>();
@@ -255,7 +258,8 @@ public partial class App
                 services.AddTransient<ClipPropertiesViewModel>();
                 services.AddTransient<ClipViewerViewModel>();
 
-                // Register Clip Viewer
+                // Register Clip Viewer factory and manager
+                services.AddSingleton<Func<ClipViewerViewModel>>(sp => () => sp.GetRequiredService<ClipViewerViewModel>());
                 services.AddSingleton<IClipViewerWindowManager, ClipViewerWindowManager>();
 
                 // Register Text Tools components
@@ -266,6 +270,10 @@ public partial class App
                 services.AddTransient<TemplateEditorViewModel>();
                 services.AddTransient<TemplateEditorDialog>();
                 services.AddTransient<PromptDialog>();
+
+                // Register Options dialog components
+                services.AddTransient<OptionsViewModel>();
+                services.AddTransient<OptionsDialog>();
             });
     }
 

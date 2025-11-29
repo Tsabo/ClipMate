@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Input;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Grid;
@@ -46,6 +47,16 @@ public partial class ClipListView
             new PropertyMetadata("Clips"));
 
     /// <summary>
+    /// Dependency property for the selected items collection
+    /// </summary>
+    public static readonly DependencyProperty SelectedItemsProperty =
+        DependencyProperty.Register(
+            nameof(SelectedItems),
+            typeof(ObservableCollection<Clip>),
+            typeof(ClipListView),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+    /// <summary>
     /// Routed event for selection changes
     /// </summary>
     public static readonly RoutedEvent SelectionChangedEvent =
@@ -67,6 +78,15 @@ public partial class ClipListView
     {
         get => (ObservableCollection<Clip>)GetValue(ItemsProperty);
         set => SetValue(ItemsProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the collection of selected clips
+    /// </summary>
+    public ObservableCollection<Clip> SelectedItems
+    {
+        get => (ObservableCollection<Clip>)GetValue(SelectedItemsProperty);
+        set => SetValue(SelectedItemsProperty, value);
     }
 
     /// <summary>
@@ -109,10 +129,34 @@ public partial class ClipListView
     private void ClipDataGrid_CurrentItemChanged(object sender, CurrentItemChangedEventArgs e)
     {
         // Update the SelectedItem property
-        SelectedItem = e.NewItem as Clip;
+        var newClip = e.NewItem as Clip;
+        Debug.WriteLine($"[ClipListView] CurrentItemChanged - ClipId: {newClip?.Id}, Title: {newClip?.DisplayTitle}");
+        SelectedItem = newClip;
 
         // Raise the SelectionChanged routed event
         RaiseEvent(new RoutedEventArgs(SelectionChangedEvent, this));
+    }
+
+    /// <summary>
+    /// Handles the SelectedItemsChanged event from the DevExpress GridControl
+    /// </summary>
+    private void ClipDataGrid_SelectedItemsChanged(object sender, DevExpress.Xpf.Grid.GridSelectionChangedEventArgs e)
+    {
+        // Sync the SelectedItems dependency property with the GridControl's selected items
+        var gridControl = sender as GridControl;
+        if (gridControl == null) return;
+
+        // Update the SelectedItems collection
+        if (SelectedItems == null)
+            SelectedItems = new ObservableCollection<Clip>();
+        else
+            SelectedItems.Clear();
+
+        foreach (var item in gridControl.SelectedItems)
+        {
+            if (item is Clip clip)
+                SelectedItems.Add(clip);
+        }
     }
 
     private async void ClipProperties_Click(object sender, RoutedEventArgs e)
@@ -131,9 +175,17 @@ public partial class ClipListView
         }
     }
 
-    private void PasteNow_Click(object sender, RoutedEventArgs e)
+    private async void PasteNow_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement paste functionality
+        if (SelectedItem == null)
+            return;
+
+        // Get the parent ViewModel to access SetClipboardContentAsync
+        var app = (App)Application.Current;
+        if (app.ServiceProvider.GetService(typeof(ClipListViewModel)) is ClipListViewModel viewModel)
+        {
+            await viewModel.SetClipboardContentAsync(SelectedItem);
+        }
     }
 
     private void CreateNewClip_Click(object sender, RoutedEventArgs e)
@@ -180,4 +232,5 @@ public partial class ClipListView
             }
         }
     }
+
 }

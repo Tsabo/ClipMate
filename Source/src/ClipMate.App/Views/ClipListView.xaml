@@ -17,8 +17,10 @@
     <dxg:GridControl x:Name="ClipDataGrid"
                      ItemsSource="{Binding Items, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      AutoGenerateColumns="None"
-                     SelectionMode="Row"
-                     CurrentItemChanged="ClipDataGrid_CurrentItemChanged">
+                     SelectionMode="MultipleRow"
+                     SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
+                     CurrentItemChanged="ClipDataGrid_CurrentItemChanged"
+                     SelectionChanged="ClipDataGrid_SelectedItemsChanged">
 
         <!-- Context Menu -->
         <dxg:GridControl.ContextMenu>

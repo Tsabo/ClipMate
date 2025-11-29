@@ -13,24 +13,32 @@ namespace ClipMate.Data.Services;
 /// Background service that coordinates clipboard monitoring and clip persistence.
 /// Consumes clips from the clipboard service channel and saves them to the database.
 /// </summary>
-public class ClipboardCoordinator : IHostedService
+public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChangedEvent>
 {
     private readonly IClipboardService _clipboardService;
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cts;
     private Task? _processingTask;
+    private bool _isMonitoring;
 
-    public ClipboardCoordinator(IClipboardService clipboardService,
+    public ClipboardCoordinator(
+        IClipboardService clipboardService,
+        IConfigurationService configurationService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Register for preferences changed events
+        _messenger.Register<PreferencesChangedEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -39,6 +47,40 @@ public class ClipboardCoordinator : IHostedService
 
         try
         {
+            // Check if auto-capture is enabled in preferences
+            var preferences = _configurationService.Configuration.Preferences;
+            if (!preferences.EnableAutoCaptureAtStartup)
+            {
+                _logger.LogInformation("Auto-capture at startup is disabled in preferences, skipping clipboard monitoring");
+                _isMonitoring = false;
+                return;
+            }
+
+            // Capture existing clipboard content if enabled
+            if (preferences.CaptureExistingClipboardAtStartup)
+            {
+                _logger.LogDebug("Capturing existing clipboard content at startup");
+                try
+                {
+                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync();
+                    if (existingClip != null)
+                    {
+                        _logger.LogInformation("Captured existing clipboard content: Type={ClipType}", existingClip.Type);
+                        
+                        // Start background processing task before capturing
+                        _cts = new CancellationTokenSource();
+                        _processingTask = ProcessClipsAsync(_cts.Token);
+                        
+                        // Process the existing clip
+                        await ProcessClipAsync(existingClip, cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to capture existing clipboard content");
+                }
+            }
+
             // Start clipboard monitoring
             // Check if we have an Application dispatcher (UI thread), otherwise start directly
             if (Application.Current?.Dispatcher != null)
@@ -54,10 +96,14 @@ public class ClipboardCoordinator : IHostedService
                 await _clipboardService.StartMonitoringAsync(cancellationToken);
             }
 
-            // Start background task to process clips from channel
-            _cts = new CancellationTokenSource();
-            _processingTask = ProcessClipsAsync(_cts.Token);
+            // Start background task to process clips from channel (if not already started)
+            if (_processingTask == null)
+            {
+                _cts = new CancellationTokenSource();
+                _processingTask = ProcessClipsAsync(_cts.Token);
+            }
 
+            _isMonitoring = true;
             _logger.LogInformation("Clipboard coordinator started successfully");
         }
         catch (Exception ex)
@@ -232,5 +278,60 @@ public class ClipboardCoordinator : IHostedService
             savedClip.FolderId);
 
         _messenger.Send(clipAddedEvent);
+    }
+
+    /// <summary>
+    /// Handles preferences changed events to dynamically start/stop monitoring.
+    /// </summary>
+    public async void Receive(PreferencesChangedEvent message)
+    {
+        var preferences = _configurationService.Configuration.Preferences;
+        var shouldBeMonitoring = preferences.EnableAutoCaptureAtStartup;
+
+        if (shouldBeMonitoring && !_isMonitoring)
+        {
+            _logger.LogInformation("Auto-capture enabled via preferences, starting monitoring");
+            try
+            {
+                // Start monitoring
+                if (Application.Current?.Dispatcher != null)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        _clipboardService.StartMonitoringAsync(CancellationToken.None);
+                    });
+                }
+                else
+                {
+                    await _clipboardService.StartMonitoringAsync(CancellationToken.None);
+                }
+
+                // Start processing task if not already running
+                if (_processingTask == null || _processingTask.IsCompleted)
+                {
+                    _cts = new CancellationTokenSource();
+                    _processingTask = ProcessClipsAsync(_cts.Token);
+                }
+
+                _isMonitoring = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start monitoring via preferences change");
+            }
+        }
+        else if (!shouldBeMonitoring && _isMonitoring)
+        {
+            _logger.LogInformation("Auto-capture disabled via preferences, stopping monitoring");
+            try
+            {
+                await _clipboardService.StopMonitoringAsync();
+                _isMonitoring = false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to stop monitoring via preferences change");
+            }
+        }
     }
 }

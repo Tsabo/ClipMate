@@ -1,6 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using TUnit.Assertions.Extensions;
@@ -14,6 +15,26 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class MainWindowViewModelTests
 {
+    private static Mock<IServiceScopeFactory> CreateMockServiceScopeFactory(
+        Mock<ICollectionService> mockCollectionService,
+        Mock<IFolderService> mockFolderService,
+        Mock<IClipService> mockClipService,
+        Mock<ISearchService> mockSearchService)
+    {
+        var mockServiceScope = new Mock<IServiceScope>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
+        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
+        mockServiceProvider.Setup(x => x.GetService(typeof(IClipService))).Returns(mockClipService.Object);
+        mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(mockSearchService.Object);
+        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        
+        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
+        
+        return mockServiceScopeFactory;
+    }
+    
     private MainWindowViewModel CreateViewModel()
     {
         var mockMessenger = new Mock<IMessenger>();
@@ -26,30 +47,34 @@ public class MainWindowViewModelTests
         var mockTreeLogger = new Mock<ILogger<CollectionTreeViewModel>>();
         var mockMainLogger = new Mock<ILogger<MainWindowViewModel>>();
 
+        var mockServiceScopeFactory = CreateMockServiceScopeFactory(
+            mockCollectionService, mockFolderService, mockClipService, mockSearchService);
+
         var collectionTreeVM = new CollectionTreeViewModel(
-            mockCollectionService.Object,
-            mockFolderService.Object,
+            mockServiceScopeFactory.Object,
             mockConfigurationService.Object,
             mockMessenger.Object,
             mockTreeLogger.Object);
 
         var clipListVM = new ClipListViewModel(
-            mockClipService.Object,
+            mockServiceScopeFactory.Object,
             mockMessenger.Object,
-            mockFolderService.Object,
-            mockCollectionService.Object,
             mockLogger.Object);
 
         var previewVM = new PreviewPaneViewModel(mockMessenger.Object);
-        var searchVM = new SearchViewModel(mockSearchService.Object, mockMessenger.Object);
+        var searchVM = new SearchViewModel(mockServiceScopeFactory.Object, mockMessenger.Object);
+
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
+        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
+        mockServiceProvider.Setup(x => x.CreateScope()).Returns(mockServiceScopeFactory.Object.CreateScope());
 
         return new MainWindowViewModel(
             collectionTreeVM,
             clipListVM,
             previewVM,
             searchVM,
-            mockCollectionService.Object,
-            mockFolderService.Object,
+            mockServiceProvider.Object,
             mockMainLogger.Object);
     }
 

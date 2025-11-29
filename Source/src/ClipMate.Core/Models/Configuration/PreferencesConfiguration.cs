@@ -121,8 +121,133 @@ public class PreferencesConfiguration
     public bool PowerPasteExplode { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets the last PowerPaste direction used (for persistence across sessions).
+    /// Valid values: "Up", "Down", or null/empty for default.
+    /// </summary>
+    public string? PowerPasteLastDirection { get; set; }
+
+    /// <summary>
     /// Gets or sets how timestamps should be displayed in the UI.
     /// True = show in local timezone, False = show in original captured timezone with offset.
     /// </summary>
     public bool ShowTimestampsInLocalTime { get; set; } = true;
+
+    // ==================== General Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets whether to load the Classic view at startup.
+    /// </summary>
+    public bool LoadClassicAtStartup { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to load the Explorer view at startup.
+    /// </summary>
+    public bool LoadExplorerAtStartup { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets which view to show initially when ClipMate starts.
+    /// </summary>
+    public InitialShowMode InitialShowMode { get; set; } = InitialShowMode.Explorer;
+
+    /// <summary>
+    /// Gets or sets whether ClipMate should start automatically when Windows starts.
+    /// </summary>
+    public bool StartWithWindows { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to confirm when deleting items from "safe" collections.
+    /// </summary>
+    public bool ConfirmDeletionFromSafeCollections { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to automatically check for updates.
+    /// </summary>
+    public bool CheckUpdatesAutomatically { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the interval (in days) between automatic update checks.
+    /// </summary>
+    public int UpdateCheckIntervalDays { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets the last date/time when an update check was performed.
+    /// Used internally to track update check intervals.
+    /// </summary>
+    public DateTime? LastUpdateCheckDate { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether to sort collections alphabetically.
+    /// </summary>
+    public bool SortCollectionsAlphabetically { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether mouse wheel scrolling selects a clip.
+    /// </summary>
+    public bool MousewheelSelectsClip { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets what happens when clicking a collection icon.
+    /// </summary>
+    public CollectionIconClickBehavior CollectionIconClickBehavior { get; set; } = CollectionIconClickBehavior.MenuAppears;
+
+    /// <summary>
+    /// Gets or sets the layout mode for the Explorer view.
+    /// </summary>
+    public ExplorerLayoutMode ExplorerLayout { get; set; } = ExplorerLayoutMode.FullWidthEditor;
+
+    // ==================== Capturing Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets whether auto-capture is enabled when the application starts.
+    /// When false, clipboard monitoring must be manually enabled.
+    /// </summary>
+    public bool EnableAutoCaptureAtStartup { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to capture the existing clipboard content when starting auto-capture.
+    /// When true, the current clipboard content is captured as the first clip.
+    /// </summary>
+    public bool CaptureExistingClipboardAtStartup { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to automatically expand HDROP file pointers to text when capturing.
+    /// This is a UI-only setting as HDROP expansion is always performed internally.
+    /// </summary>
+    public bool AutoExpandHdropFilePointers { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the default value for AcceptClipsFromClipboard when creating new collections.
+    /// When true, newly created collections will automatically receive clipboard captures.
+    /// </summary>
+    public bool DefaultAcceptClipsFromClipboard { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the separator string to use when appending clips together.
+    /// Supports escape sequences: \n (newline), \t (tab), \r (carriage return).
+    /// Empty string is allowed for direct concatenation.
+    /// </summary>
+    public string AppendSeparatorString { get; set; } = "\r\n";
+
+    /// <summary>
+    /// Gets or sets whether to strip trailing line breaks when appending clips.
+    /// When true, removes \r\n, \n, or \r from the end of each clip before appending.
+    /// </summary>
+    public bool StripTrailingLineBreak { get; set; } = false;
+
+    // ==================== Editor Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets whether binary view is enabled in the clip viewer.
+    /// </summary>
+    public bool EnableBinaryView { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to automatically change clip titles to reflect manual edits.
+    /// </summary>
+    public bool AutoChangeClipTitles { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the default editor view type to show when displaying clips.
+    /// </summary>
+    public EditorViewType DefaultEditorView { get; set; } = EditorViewType.Text;
 }

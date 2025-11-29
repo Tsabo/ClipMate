@@ -1,5 +1,8 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
@@ -11,24 +14,21 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly ICollectionService _collectionService;
-    private readonly IFolderService _folderService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MainWindowViewModel>? _logger;
 
     public MainWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
         PreviewPaneViewModel previewPaneViewModel,
         SearchViewModel searchViewModel,
-        ICollectionService collectionService,
-        IFolderService folderService,
+        IServiceProvider serviceProvider,
         ILogger<MainWindowViewModel>? logger = null)
     {
         CollectionTree = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         PrimaryClipList = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         PreviewPane = previewPaneViewModel ?? throw new ArgumentNullException(nameof(previewPaneViewModel));
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
-        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
     }
 
@@ -64,7 +64,11 @@ public partial class MainWindowViewModel : ObservableObject
                     targetCollection.IsExpanded = true;
 
                     // Set this collection as the active collection for new clips
-                    await _collectionService.SetActiveAsync(targetCollection.Collection.Id);
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+                        await collectionService.SetActiveAsync(targetCollection.Collection.Id);
+                    }
 
                     // Check if this is a default collection (Inbox, Safe, Overflow)
                     var isDefaultCollection = targetCollection.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase) ||
@@ -91,7 +95,11 @@ public partial class MainWindowViewModel : ObservableObject
                             CollectionTree.SelectedNode = inboxFolder;
 
                             // Set Inbox folder as the active folder for new clips
-                            await _folderService.SetActiveAsync(inboxFolder.Folder.Id);
+                            using (var scope = _serviceProvider.CreateScope())
+                            {
+                                var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+                                await folderService.SetActiveAsync(inboxFolder.Folder.Id);
+                            }
 
                             _logger?.LogInformation("Inbox folder selected and set as active for new clips");
                         }
@@ -191,6 +199,129 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private double _primaryClipListHeight = 350;
+
+    #endregion
+
+    #region PowerPaste
+
+    /// <summary>
+    /// Indicates whether PowerPaste is currently active.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isPowerPasteActive;
+
+    /// <summary>
+    /// Current PowerPaste direction (Up or Down).
+    /// </summary>
+    [ObservableProperty]
+    private string _powerPasteDirection = "Up";
+
+    /// <summary>
+    /// Whether to explode clips into fragments.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isExplodeMode;
+
+    /// <summary>
+    /// Whether PowerPaste should loop when reaching the end.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLoopMode;
+
+    /// <summary>
+    /// Toggles PowerPaste on/off with direction cycling.
+    /// First click: activate with last direction
+    /// Second click (no paste): flip direction
+    /// Click after pasting: deactivate
+    /// </summary>
+    [RelayCommand]
+    private async Task PowerPasteToggle()
+    {
+        if (!IsPowerPasteActive)
+        {
+            // Activate PowerPaste with last used direction
+            await StartPowerPasteAsync(PowerPasteDirection);
+        }
+        else
+        {
+            // TODO: Check if user has pasted anything
+            // For now, just toggle direction
+            PowerPasteDirection = PowerPasteDirection == "Up" ? "Down" : "Up";
+            _logger?.LogInformation("PowerPaste direction changed to {Direction}", PowerPasteDirection);
+        }
+    }
+
+    /// <summary>
+    /// Starts PowerPaste in Up direction.
+    /// </summary>
+    [RelayCommand]
+    private async Task PowerPasteUp()
+    {
+        PowerPasteDirection = "Up";
+        await StartPowerPasteAsync("Up");
+    }
+
+    /// <summary>
+    /// Starts PowerPaste in Down direction.
+    /// </summary>
+    [RelayCommand]
+    private async Task PowerPasteDown()
+    {
+        PowerPasteDirection = "Down";
+        await StartPowerPasteAsync("Down");
+    }
+
+    /// <summary>
+    /// Starts PowerPaste with the selected clips.
+    /// </summary>
+    private async Task StartPowerPasteAsync(string direction)
+    {
+        try
+        {
+            _logger?.LogInformation("Starting PowerPaste in {Direction} direction, Explode={Explode}, Loop={Loop}",
+                direction, IsExplodeMode, IsLoopMode);
+
+            // Get the selected clip(s) from ClipListView
+            // Try multi-selection first, fall back to single selection
+            Clip[] selectedClips;
+            if (PrimaryClipList.SelectedClips.Count > 0)
+            {
+                selectedClips = PrimaryClipList.SelectedClips.ToArray();
+            }
+            else if (PrimaryClipList.SelectedClip != null)
+            {
+                selectedClips = new[] { PrimaryClipList.SelectedClip };
+            }
+            else
+            {
+                _logger?.LogWarning("No clip selected for PowerPaste");
+                SetStatus("Select a clip to start PowerPaste");
+                return;
+            }
+
+            // Get PowerPaste service from scope
+            using var scope = _serviceProvider.CreateScope();
+            var powerPasteService = scope.ServiceProvider.GetRequiredService<IPowerPasteService>();
+
+            // Start PowerPaste
+            var powerPasteDirection = direction == "Up" 
+                ? Core.Services.PowerPasteDirection.Up 
+                : Core.Services.PowerPasteDirection.Down;
+
+            await powerPasteService.StartAsync(
+                selectedClips, 
+                powerPasteDirection, 
+                IsExplodeMode);
+
+            IsPowerPasteActive = true;
+            SetStatus($"PowerPaste active ({direction}) - Paste to advance");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to start PowerPaste");
+            SetStatus("Error starting PowerPaste");
+        }
+    }
 
     #endregion
 }

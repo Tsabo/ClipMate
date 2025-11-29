@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
@@ -22,9 +23,9 @@ namespace ClipMate.App.Controls;
 
 /// <summary>
 /// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Bitmap, Picture, and Binary formats.
-/// Listens to ClipSelectedEvent via MVVM Toolkit Messenger.
+/// Listens to ClipSelectedEvent and PreferencesChangedEvent via MVVM Toolkit Messenger.
 /// </summary>
-public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
+public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>
 {
     #region Constructor
 
@@ -36,25 +37,27 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         var app = (App)Application.Current;
         var serviceProvider = app.ServiceProvider;
 
-        _clipDataRepository = serviceProvider.GetRequiredService<IClipDataRepository>();
-        _blobRepository = serviceProvider.GetRequiredService<IBlobRepository>();
-        _monacoStateRepository = serviceProvider.GetRequiredService<IMonacoEditorStateRepository>();
+        _serviceScopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
         _logger = serviceProvider.GetRequiredService<ILogger<ClipViewerControl>>();
         _messenger = serviceProvider.GetRequiredService<IMessenger>();
+        _configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
 
         // Load Monaco Editor configuration
-        var configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
-        var monacoOptions = configurationService.Configuration.MonacoEditor;
+        var monacoOptions = _configurationService.Configuration.MonacoEditor;
         _logger.LogInformation("Monaco configuration loaded - EnableDebug: {EnableDebug}, Theme: {Theme}, FontSize: {FontSize}",
             monacoOptions.EnableDebug, monacoOptions.Theme, monacoOptions.FontSize);
 
         TextEditor.EditorOptions = monacoOptions;
         HtmlEditor.EditorOptions = monacoOptions;
 
-        // Register for ClipSelectedEvent messages
+        // Register for ClipSelectedEvent and PreferencesChangedEvent messages
         Loaded += (_, _) =>
         {
-            _messenger.Register(this);
+            _messenger.Register<ClipSelectedEvent>(this);
+            _messenger.Register<PreferencesChangedEvent>(this);
+
+            // Apply initial editor settings
+            ApplyEditorSettings();
 
             // Set up debounced auto-save (1 second after last change)
             _textEditorSaveTimer = new Timer(1000) { AutoReset = false };
@@ -81,6 +84,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         Unloaded += (_, _) =>
         {
             _messenger.Unregister<ClipSelectedEvent>(this);
+            _messenger.Unregister<PreferencesChangedEvent>(this);
 
             // Clean up timers
             _textEditorSaveTimer?.Dispose();
@@ -113,6 +117,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         var clipId = message.SelectedClip?.Id;
         _logger.LogInformation("[ClipViewer] Received ClipSelectedEvent - ClipId: {ClipId}", clipId);
         ClipId = clipId;
+    }
+
+    /// <summary>
+    /// Receives PreferencesChangedEvent messages from the messenger.
+    /// </summary>
+    public void Receive(PreferencesChangedEvent message)
+    {
+        _logger.LogInformation("[ClipViewer] Received PreferencesChangedEvent - Applying editor settings");
+        ApplyEditorSettings();
     }
 
     #endregion
@@ -159,11 +172,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
 
     #region Fields
 
-    private readonly IClipDataRepository _clipDataRepository;
-    private readonly IBlobRepository _blobRepository;
-    private readonly IMonacoEditorStateRepository _monacoStateRepository;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ClipViewerControl> _logger;
     private readonly IMessenger _messenger;
+    private readonly IConfigurationService _configurationService;
 
     private List<ClipData> _currentClipData = [];
     private Dictionary<Guid, BlobTxt> _textBlobs = [];
@@ -208,8 +220,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
 
         try
         {
+            // Create scope to access scoped repositories
+            using var scope = _serviceScopeFactory.CreateScope();
+            var clipDataRepository = scope.ServiceProvider.GetRequiredService<IClipDataRepository>();
+            var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
+            var monacoStateRepository = scope.ServiceProvider.GetRequiredService<IMonacoEditorStateRepository>();
+
             // Load all ClipData entries for this clip
-            _currentClipData = (await _clipDataRepository.GetByClipIdAsync(clipId))
+            _currentClipData = (await clipDataRepository.GetByClipIdAsync(clipId))
                 .OrderBy(cd => cd.FormatName)
                 .ToList();
 
@@ -223,10 +241,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             }
 
             // Load all BLOBs upfront
-            var textBlobs = await _blobRepository.GetTextByClipIdAsync(clipId);
-            var jpgBlobs = await _blobRepository.GetJpgByClipIdAsync(clipId);
-            var pngBlobs = await _blobRepository.GetPngByClipIdAsync(clipId);
-            var binaryBlobs = await _blobRepository.GetBlobByClipIdAsync(clipId);
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId);
+            var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId);
+            var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId);
+            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId);
 
             // Create lookup dictionaries by ClipDataId
             _textBlobs = textBlobs.ToDictionary(b => b.ClipDataId);
@@ -242,17 +260,17 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
 
             // Load data for each format type
             _logger.LogInformation("[ClipViewer] Loading formats for ClipId: {ClipId}", clipId);
-            await LoadTextFormatsAsync();
-            await LoadHtmlFormatAsync();
+            await LoadTextFormatsAsync(monacoStateRepository);
+            await LoadHtmlFormatAsync(monacoStateRepository);
             await LoadRtfFormatAsync();
             await LoadBitmapFormatsAsync();
             await LoadPictureFormatsAsync();
             await LoadBinaryFormatsAsync();
             _logger.LogInformation("[ClipViewer] All formats loaded for ClipId: {ClipId}", clipId);
 
-            // Select first available tab
-            SelectFirstAvailableTab();
-        }
+            // Select default tab based on preferences
+            SetDefaultActiveTab();
+        } // scope is disposed here
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clip data for ClipId: {ClipId}", clipId);
@@ -266,7 +284,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         }
     }
 
-    private async Task LoadTextFormatsAsync()
+    private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository monacoStateRepository)
     {
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
         var textFormat = _currentClipData
@@ -281,7 +299,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 await WaitForMonacoInitializationAsync(TextEditor);
 
                 // Load saved language and view state from MonacoEditorState
-                var editorState = await _monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
+                var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
                 var savedLanguage = editorState?.Language ?? "plaintext";
 
                 // Load everything in one atomic operation
@@ -304,7 +322,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
         TextTab.Visibility = Visibility.Collapsed;
     }
 
-    private async Task LoadHtmlFormatAsync()
+    private async Task LoadHtmlFormatAsync(IMonacoEditorStateRepository monacoStateRepository)
     {
         var htmlFormat = _currentClipData
             .FirstOrDefault(p =>
@@ -318,7 +336,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 await WaitForMonacoInitializationAsync(HtmlEditor);
 
                 // Load saved language and view state from MonacoEditorState
-                var editorState = await _monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
+                var editorState = await monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
                 var savedLanguage = editorState?.Language ?? "html";
 
                 // Load everything in one atomic operation
@@ -651,16 +669,42 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             var newText = TextEditor.Text;
             var newLanguage = TextEditor.Language;
 
+            // Create scope to access scoped repositories
+            using var scope = _serviceScopeFactory.CreateScope();
+            var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
+            var monacoStateRepository = scope.ServiceProvider.GetRequiredService<IMonacoEditorStateRepository>();
+
             // Save text content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_textFormatClipDataId.Value, out var blob))
             {
                 blob.Data = newText;
-                await _blobRepository.UpdateTextAsync(blob);
+                await blobRepository.UpdateTextAsync(blob);
                 _logger.LogDebug("[ClipViewer] Saved text content ({TextLength} chars)", newText.Length);
+
+                // Update clip title if AutoChangeClipTitles is enabled
+                if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
+                {
+                    var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
+                    var clipData = _currentClipData.FirstOrDefault(cd => cd.Id == _textFormatClipDataId.Value);
+                    if (clipData != null)
+                    {
+                        var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
+                        if (clip != null)
+                        {
+                            var newTitle = GenerateClipTitle(newText);
+                            if (clip.Title != newTitle)
+                            {
+                                clip.Title = newTitle;
+                                await clipRepository.UpdateAsync(clip);
+                                _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
+                            }
+                        }
+                    }
+                }
             }
 
             // Save language and view state to MonacoEditorState
-            var editorState = await _monacoStateRepository.GetByClipDataIdAsync(_textFormatClipDataId.Value)
+            var editorState = await monacoStateRepository.GetByClipDataIdAsync(_textFormatClipDataId.Value)
                               ?? new MonacoEditorState
                               {
                                   Id = Guid.NewGuid(),
@@ -695,7 +739,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 _logger.LogDebug("[ClipViewer] Skipped view state fetch (language-only change)");
 
             editorState.LastModified = DateTime.UtcNow;
-            await _monacoStateRepository.UpsertAsync(editorState);
+            await monacoStateRepository.UpsertAsync(editorState);
 
             // Clear dirty flags
             _textEditorTextDirty = false;
@@ -735,20 +779,46 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             var newHtml = HtmlEditor.Text;
             var newLanguage = HtmlEditor.Language;
 
+            // Create scope to access scoped repositories
+            using var scope = _serviceScopeFactory.CreateScope();
+            var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
+            var monacoStateRepository = scope.ServiceProvider.GetRequiredService<IMonacoEditorStateRepository>();
+
             // Save HTML content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_htmlFormatClipDataId.Value, out var blob))
             {
                 blob.Data = newHtml;
-                await _blobRepository.UpdateTextAsync(blob);
+                await blobRepository.UpdateTextAsync(blob);
                 _logger.LogDebug("[ClipViewer] Saved HTML content ({TextLength} chars)", newHtml.Length);
 
                 // Update preview if visible
                 if (HtmlPreview.Visibility == Visibility.Visible)
                     HtmlPreview.NavigateToString(newHtml);
+
+                // Update clip title if AutoChangeClipTitles is enabled
+                if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
+                {
+                    var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
+                    var clipData = _currentClipData.FirstOrDefault(cd => cd.Id == _htmlFormatClipDataId.Value);
+                    if (clipData != null)
+                    {
+                        var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
+                        if (clip != null)
+                        {
+                            var newTitle = GenerateClipTitle(newHtml);
+                            if (clip.Title != newTitle)
+                            {
+                                clip.Title = newTitle;
+                                await clipRepository.UpdateAsync(clip);
+                                _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
+                            }
+                        }
+                    }
+                }
             }
 
             // Save language and view state to MonacoEditorState
-            var editorState = await _monacoStateRepository.GetByClipDataIdAsync(_htmlFormatClipDataId.Value)
+            var editorState = await monacoStateRepository.GetByClipDataIdAsync(_htmlFormatClipDataId.Value)
                               ?? new MonacoEditorState
                               {
                                   Id = Guid.NewGuid(),
@@ -783,7 +853,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
                 _logger.LogDebug("[ClipViewer] Skipped view state fetch (language-only change)");
 
             editorState.LastModified = DateTime.UtcNow;
-            await _monacoStateRepository.UpsertAsync(editorState);
+            await monacoStateRepository.UpsertAsync(editorState);
 
             // Clear dirty flags
             _htmlEditorTextDirty = false;
@@ -873,6 +943,79 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>
             FormatTabControl.SelectedItem = PictureTab;
         else if (BinaryTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = BinaryTab;
+    }
+
+    /// <summary>
+    /// Applies editor settings from preferences configuration.
+    /// </summary>
+    private void ApplyEditorSettings()
+    {
+        var preferences = _configurationService.Configuration.Preferences;
+
+        // Apply Binary tab visibility
+        BinaryTab.Visibility = preferences.EnableBinaryView ? Visibility.Visible : Visibility.Collapsed;
+
+        _logger.LogDebug("[ClipViewer] Applied editor settings - BinaryTab visible: {BinaryVisible}",
+            preferences.EnableBinaryView);
+    }
+
+    /// <summary>
+    /// Sets the default active tab based on preferences.
+    /// </summary>
+    private void SetDefaultActiveTab()
+    {
+        var preferences = _configurationService.Configuration.Preferences;
+        var defaultView = preferences.DefaultEditorView;
+
+        switch (defaultView)
+        {
+            case EditorViewType.Text:
+            case EditorViewType.Unicode:
+                if (TextTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = TextTab;
+                break;
+            case EditorViewType.Html:
+                if (HtmlTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = HtmlTab;
+                break;
+            case EditorViewType.Rtf:
+                if (RtfTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = RtfTab;
+                break;
+            case EditorViewType.Bitmap:
+                if (BitmapTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = BitmapTab;
+                break;
+            case EditorViewType.Picture:
+                if (PictureTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = PictureTab;
+                break;
+            case EditorViewType.Binary:
+                if (BinaryTab.Visibility == Visibility.Visible)
+                    FormatTabControl.SelectedItem = BinaryTab;
+                break;
+        }
+
+        _logger.LogDebug("[ClipViewer] Set default active tab to {DefaultView}", defaultView);
+    }
+
+    /// <summary>
+    /// Generates a clip title from text content (first line, max 100 characters).
+    /// </summary>
+    private static string GenerateClipTitle(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "Empty Clip";
+
+        // Get first line
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var firstLine = lines.Length > 0 ? lines[0].Trim() : text.Trim();
+
+        // Limit to 100 characters
+        if (firstLine.Length > 100)
+            firstLine = firstLine.Substring(0, 100) + "...";
+
+        return firstLine;
     }
 
     private BitmapImage BytesToBitmapImage(byte[] data)

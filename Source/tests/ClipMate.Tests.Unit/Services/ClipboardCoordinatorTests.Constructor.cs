@@ -15,12 +15,13 @@ public partial class ClipboardCoordinatorTests
     public async Task Constructor_WithNullClipboardService_ShouldThrowArgumentNullException()
     {
         // Arrange
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(null!, serviceProvider, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(null!, configurationService.Object, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -29,11 +30,12 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out _);
+        var configurationService = CreateMockConfigurationService();
         var messenger = new Mock<IMessenger>().Object;
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, serviceProvider: null!, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -42,11 +44,12 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out _);
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, serviceProvider, null!, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, null!, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -55,11 +58,12 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out _);
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger, null!))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -68,12 +72,13 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out _);
+        var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();

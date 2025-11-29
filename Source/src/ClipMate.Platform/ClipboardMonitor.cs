@@ -46,6 +46,16 @@ public class ClipboardMonitor : IDisposable
     public event EventHandler? ClipboardChanged;
 
     /// <summary>
+    /// Occurs when clipboard content is consumed (pasted).
+    /// This event is used by PowerPaste to advance to the next clip.
+    /// Note: Detection is approximate and may not work in all scenarios.
+    /// TODO: Implement paste detection mechanism in future iteration.
+    /// </summary>
+#pragma warning disable CS0067 // Event is never used - reserved for future PowerPaste paste detection
+    public event EventHandler? ClipboardPasted;
+#pragma warning restore CS0067
+
+    /// <summary>
     /// Starts monitoring clipboard changes.
     /// </summary>
     /// <param name="window">The WPF window to use for receiving messages.</param>
