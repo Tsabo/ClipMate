@@ -2,13 +2,12 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using ClipMate.App.Services;
+using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
-using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
-using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -86,17 +85,11 @@ public partial class App
             // Get logger
             _logger = ServiceProvider.GetRequiredService<ILogger<App>>();
 
-            // Initialize database schema FIRST (before starting hosted services that depend on it)
-            await InitializeDatabaseSchemaAsync();
-            _logger.LogInformation("Database schema initialized");
-
-            // Load configuration BEFORE starting hosted services
-            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
-            await configService.LoadAsync();
-            _logger?.LogInformation("Configuration loaded from disk");
+            // Run initialization pipeline (database schema, configuration, default data)
+            var pipeline = ServiceProvider.GetRequiredService<StartupInitializationPipeline>();
+            await pipeline.RunAsync();
 
             // Start all hosted services (clipboard monitoring, PowerPaste, etc)
-            // Note: DatabaseInitializationHostedService will skip schema migration since we already did it
             await _host.StartAsync();
 
             // Create and show the hidden tray icon window
@@ -114,22 +107,6 @@ public partial class App
 
             Shutdown(1);
         }
-    }
-
-    /// <summary>
-    /// Initializes the database schema before starting hosted services.
-    /// </summary>
-    private async Task InitializeDatabaseSchemaAsync()
-    {
-        using var scope = ServiceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
-
-        // Ensure database file exists
-        await dbContext.Database.EnsureCreatedAsync();
-
-        // Migrate schema to match EF Core model
-        var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
-        await migrationService.MigrateAsync(dbContext);
     }
 
     /// <summary>
@@ -259,7 +236,7 @@ public partial class App
                 services.AddTransient<ClipViewerViewModel>();
 
                 // Register Clip Viewer factory and manager
-                services.AddSingleton<Func<ClipViewerViewModel>>(sp => () => sp.GetRequiredService<ClipViewerViewModel>());
+                services.AddSingleton<Func<ClipViewerViewModel>>(p => p.GetRequiredService<ClipViewerViewModel>);
                 services.AddSingleton<IClipViewerWindowManager, ClipViewerWindowManager>();
 
                 // Register Text Tools components
@@ -274,6 +251,12 @@ public partial class App
                 // Register Options dialog components
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
+
+                // Register initialization pipeline and steps
+                services.AddSingleton<StartupInitializationPipeline>();
+                services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
+                services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
+                services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
             });
     }
 

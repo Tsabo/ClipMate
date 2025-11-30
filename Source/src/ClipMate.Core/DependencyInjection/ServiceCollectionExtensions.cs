@@ -1,6 +1,7 @@
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Core.DependencyInjection;
 
@@ -22,6 +23,19 @@ public static class ServiceCollectionExtensions
 
         // Register text transform service as singleton
         services.AddSingleton<TextTransformService>();
+
+        // Register application profile services as singletons
+        // These use TOML file storage, not EF Core, so they're stateless and thread-safe
+        // Profiles are stored in LocalApplicationData (not roaming) as they're machine-specific
+        var profilesPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClipMate",
+            "application-profiles.toml");
+
+        services.AddSingleton<IApplicationProfileStore>(p =>
+            new ApplicationProfileStore(profilesPath, p.GetRequiredService<ILogger<ApplicationProfileStore>>()));
+
+        services.AddSingleton<IApplicationProfileService, ApplicationProfileService>();
 
         // Note: Service implementations are registered in ClipMate.Data
         // via AddClipMateData() extension method

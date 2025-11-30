@@ -1,0 +1,136 @@
+<UserControl x:Class="ClipMate.App.Views.Options.PastingOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- PowerPaste Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="PowerPaste" Orientation="Vertical">
+
+            <!-- PowerPaste Delay -->
+            <dxlc:LayoutItem Label="Delay (milliseconds):" LabelPosition="Left">
+                <dxe:SpinEdit Value="{Binding PowerPasteDelay}"
+                              MinValue="0"
+                              MaxValue="5000"
+                              Increment="50"
+                              IsFloatValue="False"
+                              ToolTip="Delay between PowerPaste operations (0-5000 ms)" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutGroup Orientation="Horizontal">
+
+                <!-- Loop -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Loop (restart sequence at end)"
+                                   IsChecked="{Binding PowerPasteLoop}"
+                                   ToolTip="When PowerPaste reaches the end, loop back to the beginning" />
+                </dxlc:LayoutItem>
+
+                <!-- PowerPaste Shield -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="PowerPaste Shield (stealth mode)"
+                                   IsChecked="{Binding PowerPasteShield}"
+                                   ToolTip="Prevents other applications from detecting clipboard changes during PowerPaste" />
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <dxlc:LayoutGroup View="GroupBox" Header="Exploding PowerPaste" Orientation="Vertical">
+
+                <!-- Explode Mode -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Explode Into Fragments"
+                                   IsChecked="{Binding PowerPasteExplode}"
+                                   ToolTip="Split clips into fragments based on delimiters" />
+                </dxlc:LayoutItem>
+
+                <!-- Delimiter -->
+                <dxlc:LayoutItem Label="Delimiters:" LabelPosition="Left">
+                    <dxe:TextEdit Text="{Binding PowerPasteDelimiter, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding PowerPasteExplode}"
+                                  ToolTip="Characters used to split fragments. Use \n for newline, \t for tab. Default: ,.;:\n\t" />
+                </dxlc:LayoutItem>
+
+                <!-- Trim -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Trim whitespace from fragments"
+                                   IsChecked="{Binding PowerPasteTrim}"
+                                   IsEnabled="{Binding PowerPasteExplode}"
+                                   ToolTip="Remove leading and trailing spaces from each fragment" />
+                </dxlc:LayoutItem>
+
+                <!-- Include Delimiter -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Include delimiter in pasted text"
+                                   IsChecked="{Binding PowerPasteIncludeDelimiter}"
+                                   IsEnabled="{Binding PowerPasteExplode}"
+                                   ToolTip="Append the delimiter character to each fragment" />
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Outbound Clip Filtering Section (Stubbed) -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Outbound Clip Filtering" Orientation="Vertical">
+
+            <dxlc:LayoutItem>
+                <TextBlock Text="Filter clips before pasting based on content, format, or application."
+                           TextWrapping="Wrap"
+                           Foreground="Gray"
+                           Margin="0,0,0,8" />
+            </dxlc:LayoutItem>
+
+            <!-- Placeholder for future implementation -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable Outbound Filtering"
+                               IsEnabled="False"
+                               ToolTip="Feature coming soon" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem Label="Filter by format:" LabelPosition="Left">
+                <dxe:ComboBoxEdit IsEnabled="False"
+                                  ToolTip="Feature coming soon">
+                    <dxe:ComboBoxEditItem Content="Text Only" />
+                    <dxe:ComboBoxEditItem Content="Rich Text" />
+                    <dxe:ComboBoxEditItem Content="Images" />
+                    <dxe:ComboBoxEditItem Content="All Formats" />
+                </dxe:ComboBoxEdit>
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Strip formatting on paste"
+                               IsEnabled="False"
+                               ToolTip="Feature coming soon" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <TextBlock Text="Note: Outbound Clip Filtering functionality will be implemented in a future release."
+                           TextWrapping="Wrap"
+                           FontStyle="Italic"
+                           Foreground="Orange"
+                           FontSize="10"
+                           Margin="0,8,0,0" />
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Reset Button -->
+        <dxlc:LayoutItem>
+            <dx:SimpleButton Content="Reset to Defaults"
+                             Command="{Binding ResetPowerPasteToDefaultsCommand}"
+                             HorizontalAlignment="Left"
+                             Padding="12,6" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

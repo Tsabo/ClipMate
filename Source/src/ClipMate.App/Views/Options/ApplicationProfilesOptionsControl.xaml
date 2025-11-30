@@ -1,0 +1,69 @@
+<UserControl x:Class="ClipMate.App.Views.Options.ApplicationProfilesOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Application Profiles Header -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Application Profile Settings" Orientation="Vertical">
+
+            <!-- Enable Application Profiles -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Disable application-specific format filtering (for troubleshooting only)"
+                               IsChecked="{Binding EnableApplicationProfiles}"
+                               ToolTip="Uncheck to temporarily disable format filtering by application. Enabled by default. This setting is not saved between sessions." />
+            </dxlc:LayoutItem>
+
+            <!-- Information Text -->
+            <dxlc:LayoutItem>
+                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" Foreground="Gray">
+                    <Run Text="Configure which clipboard formats to capture from each application. " />
+                    <Run Text="Profiles are created automatically when new applications are detected. " />
+                    <Run Text="Check/uncheck formats to enable/disable capture per application." />
+                </TextBlock>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Application Profiles Tree -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Application Format Profiles" Orientation="Vertical" Height="Auto">
+            <dxg:TreeViewControl ItemsSource="{Binding ApplicationProfileNodes}"
+                                 TreeViewFieldName="Name"
+                                 ImageFieldName="IconImage"
+                                 CheckBoxFieldName="Enabled"
+                                 ChildNodesPath="Children"
+                                 ShowCheckboxes="True"
+                                 ShowBorder="True"
+                                 ShowNodeImages="True"
+                                 TreeLineStyle="Solid"
+                                 IsEnabled="{Binding EnableApplicationProfiles}"
+                                 ToolTip="Expand applications to see available clipboard formats. Check/uncheck to enable/disable capture." />
+        </dxlc:LayoutGroup>
+
+        <!-- Profile Management Buttons -->
+        <dxlc:LayoutItem>
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Refresh Profiles"
+                        Command="{Binding LoadApplicationProfilesCommand}"
+                        IsEnabled="{Binding EnableApplicationProfiles}"
+                        Padding="10,5"
+                        Margin="0,0,10,0"
+                        ToolTip="Reload all application profiles from storage" />
+                <Button Content="Delete All Profiles"
+                        Command="{Binding DeleteAllProfilesCommand}"
+                        IsEnabled="{Binding EnableApplicationProfiles}"
+                        Padding="10,5"
+                        ToolTip="Remove all application profiles (will be recreated as applications are detected)" />
+            </StackPanel>
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

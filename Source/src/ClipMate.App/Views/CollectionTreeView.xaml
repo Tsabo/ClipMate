@@ -18,7 +18,8 @@
                              TreeViewFieldName="Name"
                              ImageFieldName="IconImage"
                              ChildNodesPath="Children"
-                             ShowBorder="False"
+                             ShowBorder="True"
+                             TreeLineStyle="Solid"
                              SelectedItem="{Binding SelectedNode, Mode=TwoWay}" ShowNodeImages="True">
 
             <!-- Context Menu -->

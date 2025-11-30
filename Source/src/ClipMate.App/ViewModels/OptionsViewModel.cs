@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -14,35 +15,77 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class OptionsViewModel : ObservableObject
 {
+    private readonly IApplicationProfileService? _applicationProfileService;
     private readonly IConfigurationService _configurationService;
-    private readonly IStartupManager _startupManager;
-    private readonly IMessenger _messenger;
     private readonly ILogger<OptionsViewModel> _logger;
+    private readonly IMessenger _messenger;
+    private readonly IStartupManager _startupManager;
 
     [ObservableProperty]
-    private int _selectedTabIndex;
-
-    // PowerPaste properties
-    [ObservableProperty]
-    private int _powerPasteDelay;
+    private string _appendSeparatorString = string.Empty;
 
     [ObservableProperty]
-    private bool _powerPasteShield;
+    private ObservableCollection<ApplicationProfileNode> _applicationProfileNodes = new();
 
     [ObservableProperty]
-    private string _powerPasteDelimiter = string.Empty;
+    private bool _autoChangeClipTitles;
 
     [ObservableProperty]
-    private bool _powerPasteTrim;
+    private bool _autoExpandHdropFilePointers;
 
     [ObservableProperty]
-    private bool _powerPasteIncludeDelimiter;
+    private bool _captureExistingClipboardAtStartup;
 
     [ObservableProperty]
-    private bool _powerPasteLoop;
+    private bool _checkUpdatesAutomatically;
 
     [ObservableProperty]
-    private bool _powerPasteExplode;
+    private CollectionIconClickBehavior _collectionIconClickBehavior;
+
+    [ObservableProperty]
+    private bool _confirmDeletionFromSafeCollections;
+
+    [ObservableProperty]
+    private bool _defaultAcceptClipsFromClipboard;
+
+    [ObservableProperty]
+    private EditorViewType _defaultEditorView;
+
+    [ObservableProperty]
+    private bool _displayWordAndCharacterCounts;
+
+    [ObservableProperty]
+    private string _editorFontFamily = "Consolas";
+
+    [ObservableProperty]
+    private int _editorFontSize;
+
+    [ObservableProperty]
+    private string _editorTheme = "vs-light";
+
+    [ObservableProperty]
+    private bool _editorWordWrap;
+
+    // Application Profiles properties
+    [ObservableProperty]
+    private bool _enableApplicationProfiles;
+
+    // Capturing tab properties
+    [ObservableProperty]
+    private bool _enableAutoCaptureAtStartup;
+
+    // Editor tab properties (ClipViewer settings)
+    [ObservableProperty]
+    private bool _enableBinaryView;
+
+    [ObservableProperty]
+    private bool _enableDebugMode;
+
+    [ObservableProperty]
+    private ExplorerLayoutMode _explorerLayout;
+
+    [ObservableProperty]
+    private InitialShowMode _initialShowMode;
 
     // General tab properties
     [ObservableProperty]
@@ -52,56 +95,36 @@ public partial class OptionsViewModel : ObservableObject
     private bool _loadExplorerAtStartup;
 
     [ObservableProperty]
-    private InitialShowMode _initialShowMode;
-
-    [ObservableProperty]
-    private bool _startWithWindows;
-
-    [ObservableProperty]
-    private bool _confirmDeletionFromSafeCollections;
-
-    [ObservableProperty]
-    private bool _checkUpdatesAutomatically;
-
-    [ObservableProperty]
-    private int _updateCheckIntervalDays;
-
-    [ObservableProperty]
-    private bool _sortCollectionsAlphabetically;
-
-    [ObservableProperty]
     private bool _mousewheelSelectsClip;
 
+    // PowerPaste properties
     [ObservableProperty]
-    private CollectionIconClickBehavior _collectionIconClickBehavior;
+    private int _powerPasteDelay;
 
     [ObservableProperty]
-    private ExplorerLayoutMode _explorerLayout;
+    private string _powerPasteDelimiter = string.Empty;
+
+    [ObservableProperty]
+    private bool _powerPasteExplode;
+
+    [ObservableProperty]
+    private bool _powerPasteIncludeDelimiter;
+
+    [ObservableProperty]
+    private bool _powerPasteLoop;
+
+    [ObservableProperty]
+    private bool _powerPasteShield;
+
+    [ObservableProperty]
+    private bool _powerPasteTrim;
+
+    [ObservableProperty]
+    private int _selectedTabIndex;
 
     // Editor tab properties (Monaco Editor settings)
     [ObservableProperty]
     private bool _showLineNumbersInEditor;
-
-    [ObservableProperty]
-    private bool _displayWordAndCharacterCounts;
-
-    [ObservableProperty]
-    private bool _smoothScrolling;
-
-    [ObservableProperty]
-    private int _tabStops;
-
-    [ObservableProperty]
-    private string _editorTheme = "vs-light";
-
-    [ObservableProperty]
-    private int _editorFontSize;
-
-    [ObservableProperty]
-    private string _editorFontFamily = "Consolas";
-
-    [ObservableProperty]
-    private bool _editorWordWrap;
 
     [ObservableProperty]
     private bool _showMinimap;
@@ -110,47 +133,34 @@ public partial class OptionsViewModel : ObservableObject
     private bool _showToolbar;
 
     [ObservableProperty]
-    private bool _enableDebugMode;
-
-    // Editor tab properties (ClipViewer settings)
-    [ObservableProperty]
-    private bool _enableBinaryView;
+    private bool _smoothScrolling;
 
     [ObservableProperty]
-    private bool _autoChangeClipTitles;
+    private bool _sortCollectionsAlphabetically;
 
     [ObservableProperty]
-    private EditorViewType _defaultEditorView;
-
-    // Capturing tab properties
-    [ObservableProperty]
-    private bool _enableAutoCaptureAtStartup;
-
-    [ObservableProperty]
-    private bool _captureExistingClipboardAtStartup;
-
-    [ObservableProperty]
-    private bool _autoExpandHdropFilePointers;
-
-    [ObservableProperty]
-    private bool _defaultAcceptClipsFromClipboard;
-
-    [ObservableProperty]
-    private string _appendSeparatorString = string.Empty;
+    private bool _startWithWindows;
 
     [ObservableProperty]
     private bool _stripTrailingLineBreak;
 
-    public OptionsViewModel(
-        IConfigurationService configurationService,
+    [ObservableProperty]
+    private int _tabStops;
+
+    [ObservableProperty]
+    private int _updateCheckIntervalDays;
+
+    public OptionsViewModel(IConfigurationService configurationService,
         IStartupManager startupManager,
         IMessenger messenger,
-        ILogger<OptionsViewModel> logger)
+        ILogger<OptionsViewModel> logger,
+        IApplicationProfileService? applicationProfileService = null)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _applicationProfileService = applicationProfileService;
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
@@ -186,9 +196,7 @@ public partial class OptionsViewModel : ObservableObject
         // Load the current startup state from registry
         var (success, isEnabled, errorMessage) = await _startupManager.IsEnabledAsync();
         if (success)
-        {
             StartWithWindows = isEnabled;
-        }
         else
         {
             _logger.LogWarning("Failed to check startup status: {ErrorMessage}", errorMessage);
@@ -222,6 +230,13 @@ public partial class OptionsViewModel : ObservableObject
         AppendSeparatorString = config.AppendSeparatorString;
         StripTrailingLineBreak = config.StripTrailingLineBreak;
 
+        // Application Profiles tab (session-only setting)
+        if (_applicationProfileService != null)
+        {
+            EnableApplicationProfiles = _applicationProfileService.IsApplicationProfilesEnabled();
+            await LoadApplicationProfilesAsync();
+        }
+
         _logger.LogDebug("Configuration loaded into OptionsViewModel");
     }
 
@@ -235,7 +250,7 @@ public partial class OptionsViewModel : ObservableObject
         {
             // Update configuration
             var config = _configurationService.Configuration;
-            
+
             // PowerPaste tab
             config.Preferences.PowerPasteDelay = PowerPasteDelay;
             config.Preferences.PowerPasteShield = PowerPasteShield;
@@ -284,6 +299,16 @@ public partial class OptionsViewModel : ObservableObject
             config.Preferences.DefaultAcceptClipsFromClipboard = DefaultAcceptClipsFromClipboard;
             config.Preferences.AppendSeparatorString = AppendSeparatorString;
             config.Preferences.StripTrailingLineBreak = StripTrailingLineBreak;
+
+            // Application Profiles (session-only setting, not persisted to config)
+            if (_applicationProfileService != null)
+            {
+                _applicationProfileService.SetApplicationProfilesEnabled(EnableApplicationProfiles);
+
+                // Save updated profile states back to storage
+                foreach (var profileNode in ApplicationProfileNodes)
+                    await _applicationProfileService.UpdateProfileAsync(profileNode.Profile);
+            }
 
             // Handle Windows startup registry setting
             if (StartWithWindows)
@@ -404,6 +429,61 @@ public partial class OptionsViewModel : ObservableObject
         DefaultEditorView = EditorViewType.Text;
 
         _logger.LogInformation("Editor settings reset to defaults");
+    }
+
+    /// <summary>
+    /// Loads all application profiles from the service.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadApplicationProfilesAsync()
+    {
+        if (_applicationProfileService == null)
+        {
+            _logger.LogWarning("Application profile service not available");
+            return;
+        }
+
+        try
+        {
+            var profiles = await _applicationProfileService.GetAllProfilesAsync();
+            ApplicationProfileNodes.Clear();
+
+            foreach (var kvp in profiles.OrderBy(p => p.Key))
+            {
+                var profileNode = new ApplicationProfileNode(kvp.Value);
+                ApplicationProfileNodes.Add(profileNode);
+            }
+
+            _logger.LogInformation("Loaded {Count} application profiles", ApplicationProfileNodes.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load application profiles");
+        }
+    }
+
+    /// <summary>
+    /// Deletes all application profiles.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteAllProfilesAsync()
+    {
+        if (_applicationProfileService == null)
+        {
+            _logger.LogWarning("Application profile service not available");
+            return;
+        }
+
+        try
+        {
+            await _applicationProfileService.DeleteAllProfilesAsync();
+            ApplicationProfileNodes.Clear();
+            _logger.LogInformation("Deleted all application profiles");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete application profiles");
+        }
     }
 
     /// <summary>

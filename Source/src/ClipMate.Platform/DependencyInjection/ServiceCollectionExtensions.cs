@@ -22,6 +22,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWin32HotkeyInterop, Win32HotkeyInterop>();
         services.AddSingleton<IWin32InputInterop, Win32InputInterop>();
 
+        // Register clipboard format enumerator
+        services.AddSingleton<IClipboardFormatEnumerator, ClipboardFormatEnumerator>();
+
         // Register ClipboardService as singleton since it manages Win32 resources
         services.AddSingleton<IClipboardService, ClipboardService>();
 

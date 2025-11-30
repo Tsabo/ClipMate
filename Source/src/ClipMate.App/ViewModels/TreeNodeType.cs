@@ -34,4 +34,14 @@ public enum TreeNodeType
     /// Special collection (e.g., "Trash Can", "Search Results").
     /// </summary>
     SpecialCollection,
+
+    /// <summary>
+    /// Application profile node for clipboard format filtering.
+    /// </summary>
+    ApplicationProfile,
+
+    /// <summary>
+    /// Clipboard format node under an application profile.
+    /// </summary>
+    ApplicationProfileFormat,
 }

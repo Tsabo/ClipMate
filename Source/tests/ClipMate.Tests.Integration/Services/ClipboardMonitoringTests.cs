@@ -1,9 +1,9 @@
-using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
+using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using ClipMate.Platform.Interop;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -93,7 +93,16 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     private IClipboardService CreateClipboardService()
     {
         var logger = Mock.Of<ILogger<ClipboardService>>();
-        var win32Mock = new Mock<Platform.Interop.IWin32ClipboardInterop>();
-        return new ClipboardService(logger, win32Mock.Object);
+        var win32Mock = new Mock<IWin32ClipboardInterop>();
+
+        // Mock IApplicationProfileService (disabled by default)
+        var profileServiceMock = new Mock<IApplicationProfileService>();
+        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
+
+        // Mock IClipboardFormatEnumerator
+        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
+        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
+
+        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object);
     }
 }

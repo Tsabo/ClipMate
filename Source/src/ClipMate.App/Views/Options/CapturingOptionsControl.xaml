@@ -1,0 +1,81 @@
+<UserControl x:Class="ClipMate.App.Views.Options.CapturingOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Startup & Monitoring Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Startup &amp; Monitoring" Orientation="Vertical">
+
+            <!-- Enable Auto-Capture at Startup -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable auto-capture when application starts"
+                               IsChecked="{Binding EnableAutoCaptureAtStartup}"
+                               ToolTip="Automatically start monitoring the clipboard when ClipMate launches" />
+            </dxlc:LayoutItem>
+
+            <!-- Capture Existing Clipboard at Startup -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Capture existing clipboard content at startup"
+                               IsChecked="{Binding CaptureExistingClipboardAtStartup}"
+                               ToolTip="Capture whatever is currently on the clipboard as the first clip when starting monitoring" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- File Handling & Collections Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="File Handling &amp; Collections" Orientation="Vertical">
+
+            <!-- Auto-Expand HDROP File Pointers -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Automatically expand HDROP file pointers to text"
+                               IsChecked="{Binding AutoExpandHdropFilePointers}"
+                               ToolTip="Convert file paths from HDROP format to readable text (always enabled internally)" />
+            </dxlc:LayoutItem>
+
+            <!-- Default Accept Clips from Clipboard -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="New collections accept clips from clipboard by default"
+                               IsChecked="{Binding DefaultAcceptClipsFromClipboard}"
+                               ToolTip="When creating new collections, set AcceptClipsFromClipboard to true by default" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Appending Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Appending" Orientation="Vertical">
+
+            <!-- Append Separator String -->
+            <dxlc:LayoutItem Label="Separator between appended clips:" LabelPosition="Top">
+                <dxe:TextEdit Text="{Binding AppendSeparatorString, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="String to insert between clips when appending. Supports \n (newline), \t (tab), \r (carriage return). Empty string = direct concatenation">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+
+            <!-- Strip Trailing Line Break -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Strip trailing line breaks when appending"
+                               IsChecked="{Binding StripTrailingLineBreak}"
+                               ToolTip="Remove \r\n, \n, or \r from the end of each clip before appending" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Reset Button -->
+        <dxlc:LayoutItem>
+            <Button Content="Reset to Defaults"
+                    Command="{Binding ResetCapturingToDefaultsCommand}"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

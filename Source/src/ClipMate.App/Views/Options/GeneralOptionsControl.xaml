@@ -1,0 +1,142 @@
+<UserControl x:Class="ClipMate.App.Views.Options.GeneralOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Startup Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Startup" Orientation="Vertical">
+
+            <dxlc:LayoutItem>
+                <!-- Load Classic at Startup -->
+                <StackPanel Orientation="Horizontal">
+                    <dxe:CheckEdit Content="Load Classic (ClipBar) at startup"
+                                   IsChecked="{Binding LoadClassicAtStartup}"
+                                   ToolTip="Automatically open the ClipBar when application starts"
+                                   Margin="0,0,5,0" />
+
+                    <!-- Load Explorer at Startup -->
+                    <dxe:CheckEdit Content="Load Explorer (main window) at startup"
+                                   IsChecked="{Binding LoadExplorerAtStartup}"
+                                   ToolTip="Automatically open the main window when application starts" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Initial Show Mode -->
+            <dxlc:LayoutItem Label="If neither, initial show mode:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Nothing"
+                                 IsChecked="{Binding InitialShowMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:InitialShowMode.Nothing}}"
+                                 GroupName="InitialShowMode" Margin="0,0,5,0" />
+                    <RadioButton Content="Classic"
+                                 IsChecked="{Binding InitialShowMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:InitialShowMode.Classic}}"
+                                 GroupName="InitialShowMode" Margin="0,0,5,0" />
+                    <RadioButton Content="Explorer"
+                                 IsChecked="{Binding InitialShowMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:InitialShowMode.Explorer}}"
+                                 GroupName="InitialShowMode" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Start with Windows -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Start with Windows"
+                               IsChecked="{Binding StartWithWindows}"
+                               ToolTip="Add ClipMate to Windows startup programs" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Updates Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Updates" Orientation="Vertical">
+
+            <!-- Check Updates Automatically -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Check for updates automatically"
+                               IsChecked="{Binding CheckUpdatesAutomatically}"
+                               ToolTip="Periodically check for new versions of ClipMate" />
+            </dxlc:LayoutItem>
+
+            <!-- Update Check Interval -->
+            <dxlc:LayoutItem Label="Check interval (days):" LabelPosition="Left">
+                <dxe:SpinEdit Value="{Binding UpdateCheckIntervalDays}"
+                              MinValue="1"
+                              MaxValue="30"
+                              Increment="1"
+                              IsFloatValue="False"
+                              IsEnabled="{Binding CheckUpdatesAutomatically}"
+                              ToolTip="Number of days between automatic update checks (1-30)" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Collections Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Collections" Orientation="Vertical">
+
+            <!-- Confirm Deletion -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Confirm deletion from safe collections"
+                               IsChecked="{Binding ConfirmDeletionFromSafeCollections}"
+                               ToolTip="Show confirmation dialog when deleting items from safe collections" />
+            </dxlc:LayoutItem>
+
+            <!-- Sort Collections Alphabetically -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Sort collections alphabetically"
+                               IsChecked="{Binding SortCollectionsAlphabetically}"
+                               ToolTip="Display collections in alphabetical order" />
+            </dxlc:LayoutItem>
+
+            <!-- Collection Icon Click Behavior -->
+            <dxlc:LayoutItem Label="Collection icon click behavior:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Menu appears"
+                                 IsChecked="{Binding CollectionIconClickBehavior, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionIconClickBehavior.MenuAppears}}"
+                                 GroupName="CollectionIconClick" Margin="0,0,5,0" />
+                    <RadioButton Content="Next collection selected"
+                                 IsChecked="{Binding CollectionIconClickBehavior, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionIconClickBehavior.NextCollectionSelected}}"
+                                 GroupName="CollectionIconClick" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- UI Behavior Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="UI Behavior" Orientation="Vertical">
+
+            <!-- Mousewheel Selects Clip -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Mousewheel selects clip"
+                               IsChecked="{Binding MousewheelSelectsClip}"
+                               ToolTip="Allow using mouse wheel to select clips in the list" />
+            </dxlc:LayoutItem>
+
+            <!-- Explorer Layout -->
+            <dxlc:LayoutItem Label="Explorer layout mode:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Full width editor"
+                                 IsChecked="{Binding ExplorerLayout, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ExplorerLayoutMode.FullWidthEditor}}"
+                                 GroupName="ExplorerLayout" Margin="0,0,5,0" />
+                    <RadioButton Content="Full height collection tree"
+                                 IsChecked="{Binding ExplorerLayout, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ExplorerLayoutMode.FullHeightCollectionTree}}"
+                                 GroupName="ExplorerLayout" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Reset Button -->
+        <dxlc:LayoutItem>
+            <Button Content="Reset to Defaults"
+                    Command="{Binding ResetGeneralToDefaultsCommand}"
+                    HorizontalAlignment="Left"
+                    Padding="10,5"
+                    Margin="0,10,0,0" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

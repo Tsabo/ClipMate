@@ -48,13 +48,20 @@ public static class ServiceCollectionExtensions
         // Note: IClipboardService implementation is in Platform layer
         services.AddScoped<IClipService, ClipService>();
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
-        services.AddScoped<ICollectionService, CollectionService>();
+        
+        // CollectionService is singleton because it maintains in-memory state (_activeCollectionId)
+        // that must be shared across the entire application
+        services.AddSingleton<ICollectionService, CollectionService>();
+        
         services.AddScoped<IFolderService, FolderService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
         services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
+
+        // Register default data initialization service (ensures Inbox exists and is set as active)
+        services.AddSingleton<DefaultDataInitializationService>();
 
         // Register configuration service
         // Extract directory from database path

@@ -247,10 +247,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId);
 
             // Create lookup dictionaries by ClipDataId
-            _textBlobs = textBlobs.ToDictionary(b => b.ClipDataId);
-            _jpgBlobs = jpgBlobs.ToDictionary(b => b.ClipDataId);
-            _pngBlobs = pngBlobs.ToDictionary(b => b.ClipDataId);
-            _binaryBlobs = binaryBlobs.ToDictionary(b => b.ClipDataId);
+            _textBlobs = textBlobs.ToDictionary(p => p.ClipDataId);
+            _jpgBlobs = jpgBlobs.ToDictionary(p => p.ClipDataId);
+            _pngBlobs = pngBlobs.ToDictionary(p => p.ClipDataId);
+            _binaryBlobs = binaryBlobs.ToDictionary(p => p.ClipDataId);
 
             _logger.LogInformation("[ClipViewer] Loaded blobs - Text: {TextCount}, JPG: {JpgCount}, PNG: {PngCount}, Binary: {BinaryCount}",
                 _textBlobs.Count, _jpgBlobs.Count, _pngBlobs.Count, _binaryBlobs.Count);

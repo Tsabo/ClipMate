@@ -34,6 +34,8 @@ public class ClipboardService : IClipboardService, IDisposable
 {
     private const int _debounceMilliseconds = 50;
     private const int _channelCapacity = 100; // Max queued clips before backpressure
+    private readonly IApplicationProfileService _applicationProfileService;
+    private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
 
     private readonly ILogger<ClipboardService> _logger;
@@ -43,10 +45,15 @@ public class ClipboardService : IClipboardService, IDisposable
     private string _lastContentHash = string.Empty;
     private string? _suppressCaptureForHash;
 
-    public ClipboardService(ILogger<ClipboardService> logger, IWin32ClipboardInterop win32Interop)
+    public ClipboardService(ILogger<ClipboardService> logger,
+        IWin32ClipboardInterop win32Interop,
+        IApplicationProfileService applicationProfileService,
+        IClipboardFormatEnumerator clipboardFormatEnumerator)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+        _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
+        _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
@@ -156,11 +163,20 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Must run on STA thread (UI thread) for WPF Clipboard API
-            return await Application.Current.Dispatcher.InvokeAsync(ExtractClipboardData);
+            // Get source application info
+            var foregroundWindow = _win32.GetForegroundWindow();
+            string? applicationName = null;
+            if (!foregroundWindow.IsNull)
+                applicationName = GetProcessName(foregroundWindow);
+
+            var task = Application.Current.Dispatcher.InvokeAsync(async () =>
+                await ExtractClipboardDataAsync(applicationName, cancellationToken));
+
+            return await await task;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting clipboard content");
+            _logger.LogError(ex, "Failed to get current clipboard content");
             return null;
         }
     }
@@ -175,7 +191,7 @@ public class ClipboardService : IClipboardService, IDisposable
         {
             // Calculate content hash to suppress capture of this specific content
             _suppressCaptureForHash = ContentHasher.HashClip(clip);
-            
+
             // Must run on STA thread (UI thread) for WPF Clipboard API
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -277,21 +293,55 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    /// Extracts all available clipboard data in priority order.
-    /// Priority: Text > RTF > HTML > Image > Files
+    /// Extracts all available clipboard data in priority order with application profile filtering.
+    /// Priority: Text (including RTF/HTML) > Images > Files
     /// </summary>
-    private Clip? ExtractClipboardData()
+    private async Task<Clip?> ExtractClipboardDataAsync(string? applicationName = null, CancellationToken cancellationToken = default)
     {
         Clip? clip = null;
 
-        // Check what formats are available
-        var hasText = WpfClipboard.ContainsText();
-        var hasImage = WpfClipboard.ContainsImage();
-        var hasFiles = WpfClipboard.ContainsFileDropList();
+        // If application profiles are enabled, filter formats
+        HashSet<string>? allowedFormats = null;
+        if (_applicationProfileService.IsApplicationProfilesEnabled() && !string.IsNullOrEmpty(applicationName))
+        {
+            // Enumerate all available clipboard formats
+            var availableFormats = _clipboardFormatEnumerator.GetAllAvailableFormats();
+            _logger.LogDebug("Clipboard has {Count} formats available for application {AppName}",
+                availableFormats.Count, applicationName);
+
+            // Filter formats based on application profile
+            allowedFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var format in availableFormats)
+            {
+                var shouldCapture = await _applicationProfileService.ShouldCaptureFormatAsync(
+                    applicationName, format.FormatName, cancellationToken);
+
+                if (shouldCapture)
+                {
+                    allowedFormats.Add(format.FormatName);
+                    _logger.LogDebug("Format {FormatName} allowed for {AppName}", format.FormatName, applicationName);
+                }
+                else
+                    _logger.LogDebug("Format {FormatName} filtered out for {AppName}", format.FormatName, applicationName);
+            }
+
+            if (allowedFormats.Count == 0)
+            {
+                _logger.LogDebug("All clipboard formats filtered out for {AppName}", applicationName);
+                return null;
+            }
+        }
+
+        // Check what formats are available (considering profile filtering if enabled)
+        var hasText = IsFormatAllowed("CF_UNICODETEXT", allowedFormats) && WpfClipboard.ContainsText();
+        var hasRtf = IsFormatAllowed("Rich Text Format", allowedFormats) && WpfClipboard.ContainsData(DataFormats.Rtf);
+        var hasHtml = IsFormatAllowed("HTML Format", allowedFormats) && WpfClipboard.ContainsData(DataFormats.Html);
+        var hasImage = IsFormatAllowed("CF_DIB", allowedFormats) && WpfClipboard.ContainsImage();
+        var hasFiles = IsFormatAllowed("CF_HDROP", allowedFormats) && WpfClipboard.ContainsFileDropList();
 
         // Priority 1: Text formats (includes RTF and HTML)
-        if (hasText || WpfClipboard.ContainsData(DataFormats.Rtf) || WpfClipboard.ContainsData(DataFormats.Html))
-            clip = ExtractTextClip();
+        if (hasText || hasRtf || hasHtml)
+            clip = ExtractTextClip(hasText, hasRtf, hasHtml);
         // Priority 2: Images
         else if (hasImage)
             clip = ExtractImageClip();
@@ -307,9 +357,21 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    /// Extracts text-based clipboard content (Plain Text, RTF, HTML).
+    /// Checks if a clipboard format is allowed based on application profile filtering.
+    /// If no filtering is active (allowedFormats is null), all formats are allowed.
     /// </summary>
-    private Clip? ExtractTextClip()
+    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats)
+    {
+        if (allowedFormats == null)
+            return true;
+
+        return allowedFormats.Contains(formatName);
+    }
+
+    /// <summary>
+    /// Extracts text-based clipboard content (Plain Text, RTF, HTML) based on allowed formats.
+    /// </summary>
+    private Clip? ExtractTextClip(bool extractText = true, bool extractRtf = true, bool extractHtml = true)
     {
         try
         {
@@ -321,11 +383,11 @@ public class ClipboardService : IClipboardService, IDisposable
             };
 
             // Extract Plain Text (CF_UNICODETEXT = 13)
-            if (WpfClipboard.ContainsText())
+            if (extractText && WpfClipboard.ContainsText())
                 clip.TextContent = WpfClipboard.GetText();
 
             // Extract RTF (CF_RTF)
-            if (WpfClipboard.ContainsData(DataFormats.Rtf))
+            if (extractRtf && WpfClipboard.ContainsData(DataFormats.Rtf))
             {
                 clip.RtfContent = WpfClipboard.GetData(DataFormats.Rtf) as string;
                 if (!string.IsNullOrEmpty(clip.RtfContent))
@@ -333,7 +395,7 @@ public class ClipboardService : IClipboardService, IDisposable
             }
 
             // Extract HTML (CF_HTML) and Source URL
-            if (WpfClipboard.ContainsData(DataFormats.Html))
+            if (extractHtml && WpfClipboard.ContainsData(DataFormats.Html))
             {
                 clip.HtmlContent = WpfClipboard.GetData(DataFormats.Html) as string;
                 if (!string.IsNullOrEmpty(clip.HtmlContent))
@@ -870,7 +932,13 @@ public class ClipboardService : IClipboardService, IDisposable
             if (processId != 0)
             {
                 var process = Process.GetProcessById((int)processId);
-                return process.ProcessName;
+                var processName = process.ProcessName;
+                
+                // Don't capture profiles for ClipMate itself
+                if (processName.Equals("ClipMate.App", StringComparison.OrdinalIgnoreCase))
+                    return null;
+                
+                return processName;
             }
         }
         catch (Exception ex)

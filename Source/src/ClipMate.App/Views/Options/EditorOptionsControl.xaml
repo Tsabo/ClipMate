@@ -1,0 +1,171 @@
+<UserControl x:Class="ClipMate.App.Views.Options.EditorOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Text Editor Display Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Text Editor Display" Orientation="Vertical">
+
+            <dxlc:LayoutGroup Orientation="Horizontal">
+
+                <!-- Show Line Numbers -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Show line numbers"
+                                   IsChecked="{Binding ShowLineNumbersInEditor}"
+                                   ToolTip="Display line numbers in the left margin of the text editor" />
+                </dxlc:LayoutItem>
+
+                <!-- Display Word and Character Counts -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Display word and character counts"
+                                   IsChecked="{Binding DisplayWordAndCharacterCounts}"
+                                   ToolTip="Show word and character counts in the editor status bar" />
+                </dxlc:LayoutItem>
+
+                <!-- Smooth Scrolling -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Smooth scrolling"
+                                   IsChecked="{Binding SmoothScrolling}"
+                                   ToolTip="Enable smooth animated scrolling in the text editor" />
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <dxlc:LayoutGroup Orientation="Horizontal">
+
+                <!-- Word Wrap -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Word wrap"
+                                   IsChecked="{Binding EditorWordWrap}"
+                                   ToolTip="Wrap long lines to fit within the editor width" />
+                </dxlc:LayoutItem>
+
+                <!-- Show Minimap -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Show minimap"
+                                   IsChecked="{Binding ShowMinimap}"
+                                   ToolTip="Display a minimap overview of the document on the right side of the editor" />
+                </dxlc:LayoutItem>
+
+                <!-- Show Toolbar -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Show toolbar"
+                                   IsChecked="{Binding ShowToolbar}"
+                                   ToolTip="Display the editor toolbar with formatting options" />
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- Tab Stops -->
+            <dxlc:LayoutItem Label="Tab stops:" LabelPosition="Left">
+                <dxe:SpinEdit Value="{Binding TabStops}"
+                              MinValue="1"
+                              MaxValue="16"
+                              Increment="1"
+                              IsFloatValue="False"
+                              ToolTip="Number of spaces per tab character (1-16)" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Editor Appearance Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Editor Appearance" Orientation="Vertical">
+
+            <!-- Theme -->
+            <dxlc:LayoutItem Label="Theme:" LabelPosition="Left">
+                <dxe:ComboBoxEdit Text="{Binding EditorTheme, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="Select the editor color theme">
+                    <dxe:ComboBoxEditItem Content="vs-light" />
+                    <dxe:ComboBoxEditItem Content="vs-dark" />
+                    <dxe:ComboBoxEditItem Content="hc-black" />
+                </dxe:ComboBoxEdit>
+            </dxlc:LayoutItem>
+
+            <!-- Font Size -->
+            <dxlc:LayoutItem Label="Font size:" LabelPosition="Left">
+                <dxe:SpinEdit Value="{Binding EditorFontSize}"
+                              MinValue="8"
+                              MaxValue="72"
+                              Increment="1"
+                              IsFloatValue="False"
+                              ToolTip="Editor font size in pixels (8-72)" />
+            </dxlc:LayoutItem>
+
+            <!-- Font Family -->
+            <dxlc:LayoutItem Label="Font family:" LabelPosition="Left">
+                <dxe:ComboBoxEdit Text="{Binding EditorFontFamily, UpdateSourceTrigger=PropertyChanged}"
+                                  IsTextEditable="True"
+                                  ToolTip="Editor font family (monospace fonts recommended)">
+                    <dxe:ComboBoxEditItem Content="Consolas" />
+                    <dxe:ComboBoxEditItem Content="Courier New" />
+                    <dxe:ComboBoxEditItem Content="Lucida Console" />
+                    <dxe:ComboBoxEditItem Content="Monaco" />
+                    <dxe:ComboBoxEditItem Content="Cascadia Code" />
+                    <dxe:ComboBoxEditItem Content="Fira Code" />
+                    <dxe:ComboBoxEditItem Content="JetBrains Mono" />
+                </dxe:ComboBoxEdit>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Clip Viewer Options Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Clip Viewer Options" Orientation="Horizontal">
+
+            <!-- Enable Binary View -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable Binary View"
+                               IsChecked="{Binding EnableBinaryView}"
+                               ToolTip="Show the Binary tab in the clip viewer for displaying raw clipboard data" />
+            </dxlc:LayoutItem>
+
+            <!-- Auto Change Clip Titles -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Auto Change Clip Titles"
+                               IsChecked="{Binding AutoChangeClipTitles}"
+                               ToolTip="Automatically update clip titles based on the first line of text when editing content (max 100 characters)" />
+            </dxlc:LayoutItem>
+
+            <!-- Enable Debug Mode -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable debug mode"
+                               IsChecked="{Binding EnableDebugMode}"
+                               ToolTip="Open developer tools for the Monaco editor (for troubleshooting)" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Default View Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Default View" Orientation="Vertical">
+
+            <!-- Default Editor View -->
+            <dxlc:LayoutItem Label="Default editor view:" LabelPosition="Left">
+                <dxe:ComboBoxEdit SelectedItem="{Binding DefaultEditorView}"
+                                  ToolTip="Select which tab to display by default when viewing clips">
+                    <dxe:ComboBoxEditItem Content="Text" Tag="{x:Static models:EditorViewType.Text}" />
+                    <dxe:ComboBoxEditItem Content="Unicode" Tag="{x:Static models:EditorViewType.Unicode}" />
+                    <dxe:ComboBoxEditItem Content="RTF" Tag="{x:Static models:EditorViewType.Rtf}" />
+                    <dxe:ComboBoxEditItem Content="Bitmap" Tag="{x:Static models:EditorViewType.Bitmap}" />
+                    <dxe:ComboBoxEditItem Content="Picture" Tag="{x:Static models:EditorViewType.Picture}" />
+                    <dxe:ComboBoxEditItem Content="HTML" Tag="{x:Static models:EditorViewType.Html}" />
+                    <dxe:ComboBoxEditItem Content="Binary" Tag="{x:Static models:EditorViewType.Binary}" />
+                </dxe:ComboBoxEdit>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Reset Button -->
+        <dxlc:LayoutItem>
+            <Button Content="Reset to Defaults"
+                    Command="{Binding ResetEditorToDefaultsCommand}"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

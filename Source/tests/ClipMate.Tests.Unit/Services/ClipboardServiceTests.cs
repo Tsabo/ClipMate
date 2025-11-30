@@ -1,14 +1,10 @@
-using System.Threading;
-using System.Threading.Channels;
+using Windows.Win32.Foundation;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using ClipMate.Platform.Services;
-using Microsoft.Extensions.Logging;
 using Moq;
-using TUnit.Core;
 using TUnit.Core.Executors;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -119,7 +115,8 @@ public class ClipboardServiceTests : TestFixtureBase
             await foreach (var clip in service.ClipsChannel.ReadAllAsync(cts.Token))
             {
                 clips.Add(clip);
-                if (clips.Count >= 2) break;
+                if (clips.Count >= 2)
+                    break;
             }
         }
         catch (OperationCanceledException)
@@ -157,11 +154,19 @@ public class ClipboardServiceTests : TestFixtureBase
     {
         var logger = CreateLogger<ClipboardService>();
         var win32Mock = CreateWin32ClipboardMock();
-        
+
         // Setup basic Win32 mock expectations
-        win32Mock.Setup(w => w.AddClipboardFormatListener(It.IsAny<Windows.Win32.Foundation.HWND>())).Returns(true);
-        win32Mock.Setup(w => w.RemoveClipboardFormatListener(It.IsAny<Windows.Win32.Foundation.HWND>())).Returns(true);
-        
-        return new ClipboardService(logger, win32Mock.Object);
+        win32Mock.Setup(p => p.AddClipboardFormatListener(It.IsAny<HWND>())).Returns(true);
+        win32Mock.Setup(p => p.RemoveClipboardFormatListener(It.IsAny<HWND>())).Returns(true);
+
+        // Mock IApplicationProfileService (disabled by default)
+        var profileServiceMock = new Mock<IApplicationProfileService>();
+        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
+
+        // Mock IClipboardFormatEnumerator
+        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
+        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
+
+        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object);
     }
 }

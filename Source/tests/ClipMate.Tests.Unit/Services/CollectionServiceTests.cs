@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -17,7 +18,10 @@ public class CollectionServiceTests
 
     private ICollectionService CreateCollectionService()
     {
-        return new CollectionService(_mockRepository.Object);
+        var services = new ServiceCollection();
+        services.AddScoped(_ => _mockRepository.Object);
+        var serviceProvider = services.BuildServiceProvider();
+        return new CollectionService(serviceProvider);
     }
 
     private Collection CreateTestCollection(Guid? id = null, string name = "Test Collection")
