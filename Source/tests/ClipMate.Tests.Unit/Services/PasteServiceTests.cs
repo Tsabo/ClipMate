@@ -1,6 +1,8 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
+using Microsoft.Extensions.Logging;
 using Moq;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -18,6 +20,8 @@ public class PasteServiceTests : TestFixtureBase
     private PasteService CreateService()
     {
         var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
         
         // Setup default successful responses
         mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(new IntPtr(12345)));
@@ -28,7 +32,7 @@ public class PasteServiceTests : TestFixtureBase
                 return 1u;
             });
         
-        return new PasteService(mockInterop.Object);
+        return new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
     }
 
     #region Constructor Tests
@@ -36,19 +40,49 @@ public class PasteServiceTests : TestFixtureBase
     [Test]
     public async Task Constructor_WithNullInterop_ShouldThrowArgumentNullException()
     {
+        // Arrange
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
+
         // Act & Assert
-        await Assert.That(() => new PasteService(null!))
+        await Assert.That(() => new PasteService(null!, mockClipboardService.Object, mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task Constructor_WithValidInterop_ShouldCreateInstance()
+    public async Task Constructor_WithNullClipboardService_ShouldThrowArgumentNullException()
     {
         // Arrange
         var mockInterop = CreateWin32InputMock();
+        var mockLogger = new Mock<ILogger<PasteService>>();
+
+        // Act & Assert
+        await Assert.That(() => new PasteService(mockInterop.Object, null!, mockLogger.Object))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Constructor_WithNullLogger_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+
+        // Act & Assert
+        await Assert.That(() => new PasteService(mockInterop.Object, mockClipboardService.Object, null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Constructor_WithValidDependencies_ShouldCreateInstance()
+    {
+        // Arrange
+        var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
 
         // Act
-        var service = new PasteService(mockInterop.Object);
+        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
 
         // Assert
         await Assert.That(service).IsNotNull();
@@ -151,49 +185,6 @@ public class PasteServiceTests : TestFixtureBase
 
     #endregion
 
-    #region PasteTextAsync Tests
-
-    [Test]
-    public async Task PasteTextAsync_WithNullText_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var result = await service.PasteTextAsync(null!);
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    public async Task PasteTextAsync_WithEmptyText_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var result = await service.PasteTextAsync(string.Empty);
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    public async Task PasteTextAsync_WithWhitespaceOnly_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var result = await service.PasteTextAsync("   ");
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    #endregion
-
     #region GetActiveWindowTitle Tests
 
     [Test]
@@ -201,9 +192,11 @@ public class PasteServiceTests : TestFixtureBase
     {
         // Arrange
         var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
         mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
         
-        var service = new PasteService(mockInterop.Object);
+        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
 
         // Act
         var title = service.GetActiveWindowTitle();
@@ -221,9 +214,11 @@ public class PasteServiceTests : TestFixtureBase
     {
         // Arrange
         var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
         mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
         
-        var service = new PasteService(mockInterop.Object);
+        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
 
         // Act
         var processName = service.GetActiveWindowProcessName();
@@ -237,6 +232,8 @@ public class PasteServiceTests : TestFixtureBase
     {
         // Arrange
         var mockInterop = CreateWin32InputMock();
+        var mockClipboardService = new Mock<IClipboardService>();
+        var mockLogger = new Mock<ILogger<PasteService>>();
         mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(new IntPtr(12345)));
         mockInterop.Setup(w => w.GetWindowThreadProcessId(It.IsAny<HWND>(), out It.Ref<uint>.IsAny))
             .Returns((HWND hwnd, out uint processId) =>
@@ -245,7 +242,7 @@ public class PasteServiceTests : TestFixtureBase
                 return 0u;
             });
         
-        var service = new PasteService(mockInterop.Object);
+        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
 
         // Act
         var processName = service.GetActiveWindowProcessName();

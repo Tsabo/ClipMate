@@ -183,25 +183,25 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private static string GetIconForFormat(string formatName, int formatCode)
     {
         // Text formats
-        if (formatCode == ClipboardConstants.Format.CF_TEXT || formatCode == ClipboardConstants.Format.CF_UNICODETEXT ||
-            formatName == "CF_TEXT" || formatName == "CF_UNICODETEXT")
+        if (formatCode == Formats.Text.Code || formatCode == Formats.UnicodeText.Code ||
+            formatName == Formats.Text.Name || formatName == Formats.UnicodeText.Name)
             return "📄"; // Document
 
         // RTF format
-        if (formatName == "CF_RTF" || formatCode == ClipboardConstants.Format.CF_RTF)
+        if (formatName == "CF_RTF" || formatCode == Formats.RichText.Code)
             return "🅰"; // Letter A (formatted)
 
         // HTML format
-        if (formatName == "HTML Format" || formatCode == ClipboardConstants.Format.CF_HTML || formatCode == ClipboardConstants.Format.CF_HTML_ALT)
+        if (formatName == Formats.Html.Name || formatCode == Formats.Html.Code || formatCode == Formats.HtmlAlt.Code)
             return "🌐"; // Globe (web)
 
         // Image formats
-        if (formatCode == ClipboardConstants.Format.CF_BITMAP || formatCode == ClipboardConstants.Format.CF_DIB ||
-            formatName == "CF_BITMAP" || formatName == "CF_DIB" || formatName == "CF_ENHMETAFILE")
+        if (formatCode == Formats.Bitmap.Code || formatCode == Formats.Dib.Code ||
+            formatName == Formats.Bitmap.Name || formatName == Formats.Dib.Name || formatName == Formats.EnhMetafile.Name)
             return "🖼"; // Picture frame
 
         // File list format
-        if (formatCode == ClipboardConstants.Format.CF_HDROP || formatName == "CF_HDROP")
+        if (formatCode == Formats.HDrop.Code || formatName == Formats.HDrop.Name)
             return "📁"; // Folder
 
         // Unknown format

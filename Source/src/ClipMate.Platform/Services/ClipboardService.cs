@@ -333,11 +333,11 @@ public class ClipboardService : IClipboardService, IDisposable
         }
 
         // Check what formats are available (considering profile filtering if enabled)
-        var hasText = IsFormatAllowed("CF_UNICODETEXT", allowedFormats) && WpfClipboard.ContainsText();
-        var hasRtf = IsFormatAllowed("Rich Text Format", allowedFormats) && WpfClipboard.ContainsData(DataFormats.Rtf);
-        var hasHtml = IsFormatAllowed("HTML Format", allowedFormats) && WpfClipboard.ContainsData(DataFormats.Html);
-        var hasImage = IsFormatAllowed("CF_DIB", allowedFormats) && WpfClipboard.ContainsImage();
-        var hasFiles = IsFormatAllowed("CF_HDROP", allowedFormats) && WpfClipboard.ContainsFileDropList();
+        var hasText = IsFormatAllowed(Formats.UnicodeText.Name, allowedFormats) && WpfClipboard.ContainsText();
+        var hasRtf = IsFormatAllowed(Formats.RichText.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Rtf);
+        var hasHtml = IsFormatAllowed(Formats.Html.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Html);
+        var hasImage = IsFormatAllowed(Formats.Dib.Name, allowedFormats) && WpfClipboard.ContainsImage();
+        var hasFiles = IsFormatAllowed(Formats.HDrop.Name, allowedFormats) && WpfClipboard.ContainsFileDropList();
 
         // Priority 1: Text formats (includes RTF and HTML)
         if (hasText || hasRtf || hasHtml)
@@ -933,11 +933,11 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 var process = Process.GetProcessById((int)processId);
                 var processName = process.ProcessName;
-                
+
                 // Don't capture profiles for ClipMate itself
                 if (processName.Equals("ClipMate.App", StringComparison.OrdinalIgnoreCase))
                     return null;
-                
+
                 return processName;
             }
         }

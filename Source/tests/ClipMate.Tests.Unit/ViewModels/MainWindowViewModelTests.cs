@@ -67,7 +67,7 @@ public class MainWindowViewModelTests
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
         mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
-        mockServiceProvider.Setup(x => x.CreateScope()).Returns(mockServiceScopeFactory.Object.CreateScope());
+        mockServiceProvider.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(mockServiceScopeFactory.Object);
 
         return new MainWindowViewModel(
             collectionTreeVM,

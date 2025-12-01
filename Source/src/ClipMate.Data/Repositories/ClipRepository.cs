@@ -1,5 +1,4 @@
 using System.Text;
-using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -47,11 +46,11 @@ public class ClipRepository : IClipRepository
                 (clip, clipDataGroup) => new
                 {
                     Clip = clip,
-                    HasText = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_TEXT || p.Format == ClipboardConstants.Format.CF_UNICODETEXT || p.FormatName == "CF_TEXT" || p.FormatName == "CF_UNICODETEXT"),
-                    HasRtf = clipDataGroup.Any(p => p.FormatName == "CF_RTF" || p.Format == ClipboardConstants.Format.CF_RTF),
-                    HasHtml = clipDataGroup.Any(p => p.FormatName == "HTML Format" || p.Format == ClipboardConstants.Format.CF_HTML || p.Format == ClipboardConstants.Format.CF_HTML_ALT),
-                    HasBitmap = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_BITMAP || p.Format == ClipboardConstants.Format.CF_DIB || p.FormatName == "CF_BITMAP" || p.FormatName == "CF_DIB"),
-                    HasFiles = clipDataGroup.Any(p => p.Format == ClipboardConstants.Format.CF_HDROP || p.FormatName == "CF_HDROP"),
+                    HasText = clipDataGroup.Any(p => p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code || p.FormatName == Formats.Text.Name || p.FormatName == Formats.UnicodeText.Name),
+                    HasRtf = clipDataGroup.Any(p => p.FormatName == Formats.RichText.Name || p.Format == Formats.RichText.Code),
+                    HasHtml = clipDataGroup.Any(p => p.FormatName == Formats.Html.Name || p.Format == Formats.Html.Code || p.Format == Formats.HtmlAlt.Code),
+                    HasBitmap = clipDataGroup.Any(p => p.Format == Formats.Bitmap.Code || p.Format == Formats.Dib.Code || p.FormatName == Formats.Bitmap.Name || p.FormatName == Formats.Dib.Name),
+                    HasFiles = clipDataGroup.Any(p => p.Format == Formats.HDrop.Code || p.FormatName == Formats.HDrop.Name),
                     FormatNames = string.Join(", ", clipDataGroup.Select(cd => cd.FormatName)),
                 })
             .ToListAsync(cancellationToken);
@@ -362,8 +361,8 @@ public class ClipRepository : IClipRepository
             {
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
-                FormatName = "CF_UNICODETEXT",
-                Format = ClipboardConstants.Format.CF_UNICODETEXT,
+                FormatName = Formats.UnicodeText.Name,
+                Format = Formats.UnicodeText.Code,
                 Size = clip.TextContent.Length * 2, // Unicode bytes
                 StorageType = 1, // TEXT
             };
@@ -390,7 +389,7 @@ public class ClipRepository : IClipRepository
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
                 FormatName = "CF_RTF",
-                Format = RegisterClipboardFormat("Rich Text Format"), // ~0x0082
+                Format = Formats.RichText.Code,
                 Size = clip.RtfContent.Length * 2,
                 StorageType = 1, // TEXT
             };
@@ -415,8 +414,8 @@ public class ClipRepository : IClipRepository
             {
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
-                FormatName = "HTML Format",
-                Format = RegisterClipboardFormat("HTML Format"), // ~0x0080
+                FormatName = Formats.Html.Name,
+                Format = Formats.Html.Code,
                 Size = clip.HtmlContent.Length * 2,
                 StorageType = 1, // TEXT
             };
@@ -446,8 +445,8 @@ public class ClipRepository : IClipRepository
             {
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
-                FormatName = "CF_DIB",
-                Format = ClipboardConstants.Format.CF_DIB,
+                FormatName = Formats.Dib.Name,
+                Format = Formats.Dib.Code,
                 Size = clip.ImageData.Length,
                 StorageType = storageType,
             };
@@ -488,8 +487,8 @@ public class ClipRepository : IClipRepository
             {
                 Id = Guid.NewGuid(),
                 ClipId = clip.Id,
-                FormatName = "CF_HDROP",
-                Format = ClipboardConstants.Format.CF_HDROP,
+                FormatName = Formats.HDrop.Name,
+                Format = Formats.HDrop.Code,
                 Size = clip.FilePathsJson.Length * 2,
                 StorageType = 4, // BLOB (generic)
             };
@@ -521,8 +520,8 @@ public class ClipRepository : IClipRepository
         // Standard format codes (approximation)
         return formatName switch
         {
-            "Rich Text Format" => 0x0082,
-            "HTML Format" => 0x0080,
+            "Rich Text Format" => Formats.RichText.Code,
+            "HTML Format" => Formats.Html.Code,
             var _ => 0x00FF, // Custom format
         };
     }
@@ -565,11 +564,11 @@ public class ClipRepository : IClipRepository
             .Select(p => new
             {
                 ClipId = p.Key,
-                HasText = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_TEXT || cd.Format == ClipboardConstants.Format.CF_UNICODETEXT || cd.FormatName == "CF_TEXT" || cd.FormatName == "CF_UNICODETEXT"),
-                HasRtf = p.Any(cd => cd.FormatName == "CF_RTF" || cd.Format == ClipboardConstants.Format.CF_RTF),
-                HasHtml = p.Any(cd => cd.FormatName == "HTML Format" || cd.Format == ClipboardConstants.Format.CF_HTML || cd.Format == ClipboardConstants.Format.CF_HTML_ALT),
-                HasBitmap = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_BITMAP || cd.Format == ClipboardConstants.Format.CF_DIB || cd.FormatName == "CF_BITMAP" || cd.FormatName == "CF_DIB"),
-                HasFiles = p.Any(cd => cd.Format == ClipboardConstants.Format.CF_HDROP || cd.FormatName == "CF_HDROP"),
+                HasText = p.Any(cd => cd.Format == Formats.Text.Code || cd.Format == Formats.UnicodeText.Code || cd.FormatName == Formats.Text.Name || cd.FormatName == Formats.UnicodeText.Name),
+                HasRtf = p.Any(cd => cd.FormatName == "CF_RTF" || cd.Format == Formats.RichText.Code),
+                HasHtml = p.Any(cd => cd.FormatName == Formats.Html.Name || cd.Format == Formats.Html.Code || cd.Format == Formats.HtmlAlt.Code),
+                HasBitmap = p.Any(cd => cd.Format == Formats.Bitmap.Code || cd.Format == Formats.Dib.Code || cd.FormatName == Formats.Bitmap.Name || cd.FormatName == Formats.Dib.Name),
+                HasFiles = p.Any(cd => cd.Format == Formats.HDrop.Code || cd.FormatName == Formats.HDrop.Name),
                 FormatNames = string.Join(", ", p.Select(cd => cd.FormatName)),
             })
             .ToListAsync(cancellationToken);

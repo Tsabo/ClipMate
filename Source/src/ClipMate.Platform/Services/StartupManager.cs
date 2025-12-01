@@ -13,7 +13,7 @@ public class StartupManager : IStartupManager
 {
     private const string _runKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string _appName = "ClipMate";
-    
+
     private readonly ILogger<StartupManager> _logger;
 
     public StartupManager(ILogger<StartupManager> logger)
@@ -26,7 +26,7 @@ public class StartupManager : IStartupManager
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, writable: false);
+            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, false);
             if (key == null)
             {
                 _logger.LogWarning("Unable to open Run registry key for reading");
@@ -35,7 +35,7 @@ public class StartupManager : IStartupManager
 
             var value = key.GetValue(_appName) as string;
             var isEnabled = !string.IsNullOrEmpty(value);
-            
+
             _logger.LogDebug("Startup enabled check: {IsEnabled}", isEnabled);
             return Task.FromResult((true, isEnabled, (string?)null));
         }
@@ -63,7 +63,7 @@ public class StartupManager : IStartupManager
         {
             // Get the executable path
             var executablePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
-            
+
             if (string.IsNullOrEmpty(executablePath))
             {
                 _logger.LogError("Unable to determine executable path for startup configuration");
@@ -73,7 +73,7 @@ public class StartupManager : IStartupManager
             // Wrap path in quotes to handle spaces
             var commandLine = $"\"{executablePath}\"";
 
-            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, writable: true);
+            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, true);
             if (key == null)
             {
                 _logger.LogError("Unable to open Run registry key for writing");
@@ -82,7 +82,7 @@ public class StartupManager : IStartupManager
 
             key.SetValue(_appName, commandLine, RegistryValueKind.String);
             _logger.LogInformation("Startup enabled successfully: {Path}", commandLine);
-            
+
             return Task.FromResult((true, (string?)null));
         }
         catch (SecurityException ex)
@@ -112,7 +112,7 @@ public class StartupManager : IStartupManager
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, writable: true);
+            using var key = Registry.CurrentUser.OpenSubKey(_runKeyPath, true);
             if (key == null)
             {
                 _logger.LogError("Unable to open Run registry key for writing");
@@ -123,14 +123,12 @@ public class StartupManager : IStartupManager
             var value = key.GetValue(_appName);
             if (value != null)
             {
-                key.DeleteValue(_appName, throwOnMissingValue: false);
+                key.DeleteValue(_appName, false);
                 _logger.LogInformation("Startup disabled successfully");
             }
             else
-            {
                 _logger.LogDebug("Startup was not enabled, nothing to disable");
-            }
-            
+
             return Task.FromResult((true, (string?)null));
         }
         catch (SecurityException ex)

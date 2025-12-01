@@ -16,14 +16,6 @@ public interface IPasteService
     Task<bool> PasteToActiveWindowAsync(Clip clip, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sets the clipboard content and simulates a paste operation (Ctrl+V).
-    /// </summary>
-    /// <param name="content">The content to paste.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the paste was successful; otherwise, false.</returns>
-    Task<bool> PasteTextAsync(string content, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets the title of the currently active window.
     /// </summary>
     /// <returns>The window title, or empty string if unable to retrieve.</returns>

@@ -12,22 +12,22 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
     // Standard clipboard format names mapping
     private static readonly Dictionary<uint, string> _standardFormatNames = new()
     {
-        [1] = "TEXT",
-        [2] = "BITMAP",
-        [3] = "METAFILEPICT",
-        [4] = "SYLK",
-        [5] = "DIF",
-        [6] = "TIFF",
-        [7] = "OEMTEXT",
-        [8] = "DIB",
-        [9] = "PALETTE",
-        [10] = "PENDATA",
-        [11] = "RIFF",
-        [12] = "WAVE",
-        [13] = "CF_UNICODETEXT",
-        [14] = "ENHMETAFILE",
-        [15] = "HDROP",
-        [16] = "LOCALE",
+        [(uint)Formats.Text.Code] = Formats.Text.Name,
+        [(uint)Formats.Bitmap.Code] = Formats.Bitmap.Name,
+        [(uint)Formats.Metafilepict.Code] = Formats.Metafilepict.Name,
+        [(uint)Formats.Sylk.Code] = Formats.Sylk.Name,
+        [(uint)Formats.Dif.Code] = Formats.Dif.Name,
+        [(uint)Formats.Tiff.Code] = Formats.Tiff.Name,
+        [(uint)Formats.OemText.Code] = Formats.OemText.Name,
+        [(uint)Formats.Dib.Code] = Formats.Dib.Name,
+        [(uint)Formats.Palette.Code] = Formats.Palette.Name,
+        [(uint)Formats.PenData.Code] = Formats.PenData.Name,
+        [(uint)Formats.Riff.Code] = Formats.Riff.Name,
+        [(uint)Formats.Wave.Code] = Formats.Wave.Name,
+        [(uint)Formats.UnicodeText.Code] = Formats.UnicodeText.Name,
+        [(uint)Formats.EnhMetafile.Code] = Formats.EnhMetafile.Name,
+        [(uint)Formats.HDrop.Code] = Formats.HDrop.Name,
+        [(uint)Formats.Locale.Code] = Formats.Locale.Name,
     };
 
     private readonly ILogger<ClipboardFormatEnumerator> _logger;

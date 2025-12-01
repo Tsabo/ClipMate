@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.Services;
 
@@ -13,47 +13,37 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class PasteService : IPasteService
 {
+    private readonly IClipboardService _clipboardService;
+    private readonly ILogger<PasteService> _logger;
     private readonly IWin32InputInterop _win32;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PasteService" /> class.
     /// </summary>
-    public PasteService(IWin32InputInterop win32Interop)
+    public PasteService(IWin32InputInterop win32Interop,
+        IClipboardService clipboardService,
+        ILogger<PasteService> logger)
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
     public async Task<bool> PasteToActiveWindowAsync(Clip? clip, CancellationToken cancellationToken = default)
     {
         if (clip == null)
+        {
+            _logger.LogWarning("Attempted to paste null clip");
             return false;
+        }
 
         try
         {
-            // Set clipboard content based on clip type
-            if (clip.Type == ClipType.Text && !string.IsNullOrEmpty(clip.TextContent))
-                return await PasteTextAsync(clip.TextContent, cancellationToken);
+            _logger.LogDebug("Pasting clip {ClipId} of type {ClipType} to active window", clip.Id, clip.Type);
 
-            // TODO: Handle other clip types (RTF, HTML, Image) in future iterations
-            return false;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> PasteTextAsync(string text, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(text))
-            return false;
-
-        try
-        {
-            // Set clipboard content
-            await Task.Run(() => Clipboard.SetText(text), cancellationToken);
+            // Use ClipboardService to set clipboard content with proper capture suppression
+            await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
 
             // Small delay to ensure clipboard is set
             await Task.Delay(50, cancellationToken);
@@ -61,10 +51,12 @@ public class PasteService : IPasteService
             // Send Ctrl+V to active window
             SendCtrlV();
 
+            _logger.LogInformation("Successfully pasted clip {ClipId} to active window", clip.Id);
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error pasting clip {ClipId} to active window", clip?.Id);
             return false;
         }
     }

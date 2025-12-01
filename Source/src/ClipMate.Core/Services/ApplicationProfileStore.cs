@@ -177,7 +177,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
         var profile = new ApplicationProfile
         {
             ApplicationName = appName,
-            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is bool enabled && enabled,
+            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true,
         };
 
         // Parse format settings (all entries except "enabled")

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using ClipMate.Core.Models;
 
 namespace ClipMate.Platform.Helpers;
 
@@ -59,14 +60,14 @@ public static class ContentHasher
     /// </summary>
     /// <param name="clip">The clip to hash.</param>
     /// <returns>SHA256 hash as a hex string (64 characters).</returns>
-    public static string HashClip(Core.Models.Clip clip)
+    public static string HashClip(Clip clip)
     {
         return clip.Type switch
         {
-            Core.Models.ClipType.Text or Core.Models.ClipType.Html => HashText(clip.TextContent ?? string.Empty),
-            Core.Models.ClipType.Image => HashBytes(clip.ImageData ?? Array.Empty<byte>()),
-            Core.Models.ClipType.Files => HashText(clip.FilePathsJson ?? string.Empty),
-            _ => string.Empty
+            ClipType.Text or ClipType.Html => HashText(clip.TextContent ?? string.Empty),
+            ClipType.Image => HashBytes(clip.ImageData ?? Array.Empty<byte>()),
+            ClipType.Files => HashText(clip.FilePathsJson ?? string.Empty),
+            var _ => string.Empty,
         };
     }
 }

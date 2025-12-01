@@ -1,89 +1,169 @@
 namespace ClipMate.Core.Constants;
 
 /// <summary>
-/// Standard Windows Clipboard format codes and ClipMate storage type constants.
+/// Represents a Windows clipboard format with its code and name.
 /// </summary>
-public static class ClipboardConstants
+/// <param name="Code">The numeric format code used by Windows clipboard API.</param>
+/// <param name="Name">The string identifier for the format.</param>
+public record ClipboardFormat(int Code, string Name);
+
+/// <summary>
+/// Standard Windows Clipboard formats.
+/// Each format contains both the Windows API code and string identifier.
+/// See: https://learn.microsoft.com/en-us/windows/win32/dataxchg/standard-clipboard-formats
+/// </summary>
+public static class Formats
 {
     /// <summary>
-    /// Standard Windows Clipboard Format Codes.
-    /// See: https://learn.microsoft.com/en-us/windows/win32/dataxchg/standard-clipboard-formats
+    /// Text format (ANSI). Each line ends with CR-LF, null-terminated.
+    /// Code: 1, Name: "TEXT"
     /// </summary>
-    public static class Format
-    {
-        /// <summary>
-        /// Text format. Each line ends with a carriage return/linefeed (CR-LF) combination.
-        /// A null character signals the end of the data.
-        /// </summary>
-        public const int CF_TEXT = 1;
-
-        /// <summary>
-        /// A handle to a bitmap (HBITMAP).
-        /// </summary>
-        public const int CF_BITMAP = 2;
-
-        /// <summary>
-        /// A memory object containing a BITMAPINFO structure followed by the bitmap bits.
-        /// </summary>
-        public const int CF_DIB = 8;
-
-        /// <summary>
-        /// Unicode text format. Each line ends with a carriage return/linefeed (CR-LF) combination.
-        /// A null character signals the end of the data.
-        /// </summary>
-        public const int CF_UNICODETEXT = 13;
-
-        /// <summary>
-        /// Rich Text Format.
-        /// Registered format code: 0x0082 (130 decimal)
-        /// </summary>
-        public const int CF_RTF = 0x0082;
-
-        /// <summary>
-        /// HTML Format (custom registered format used by browsers).
-        /// Registered format code: 0x0080 (128 decimal) or 49161 depending on registration.
-        /// Note: Different sources report different values. Use both for compatibility.
-        /// </summary>
-        public const int CF_HTML = 0x0080;
-
-        /// <summary>
-        /// Alternative HTML Format code (used in some contexts).
-        /// </summary>
-        public const int CF_HTML_ALT = 49161;
-
-        /// <summary>
-        /// A handle to type HDROP that identifies a list of files.
-        /// An application can retrieve information about the files by passing the handle to DragQueryFile.
-        /// </summary>
-        public const int CF_HDROP = 15;
-    }
+    public static readonly ClipboardFormat Text = new(1, "TEXT");
 
     /// <summary>
-    /// ClipMate Storage Type values (maps to BLOB table selection).
-    /// These determine which BLOB table stores the actual clipboard data.
+    /// Bitmap format. Handle to a bitmap (HBITMAP).
+    /// Code: 2, Name: "BITMAP"
     /// </summary>
-    public static class StorageType
+    public static readonly ClipboardFormat Bitmap = new(2, "BITMAP");
+
+    /// <summary>
+    /// Windows metafile picture format.
+    /// Code: 3, Name: "METAFILEPICT"
+    /// </summary>
+    public static readonly ClipboardFormat Metafilepict = new(3, "METAFILEPICT");
+
+    /// <summary>
+    /// Symbolic Link (SYLK) format.
+    /// Code: 4, Name: "SYLK"
+    /// </summary>
+    public static readonly ClipboardFormat Sylk = new(4, "SYLK");
+
+    /// <summary>
+    /// Data Interchange Format (DIF).
+    /// Code: 5, Name: "DIF"
+    /// </summary>
+    public static readonly ClipboardFormat Dif = new(5, "DIF");
+
+    /// <summary>
+    /// Tagged Image File Format (TIFF).
+    /// Code: 6, Name: "TIFF"
+    /// </summary>
+    public static readonly ClipboardFormat Tiff = new(6, "TIFF");
+
+    /// <summary>
+    /// OEM text format.
+    /// Code: 7, Name: "OEMTEXT"
+    /// </summary>
+    public static readonly ClipboardFormat OemText = new(7, "OEMTEXT");
+
+    /// <summary>
+    /// Device Independent Bitmap. Memory object with BITMAPINFO structure + bitmap bits.
+    /// Code: 8, Name: "DIB"
+    /// </summary>
+    public static readonly ClipboardFormat Dib = new(8, "DIB");
+
+    /// <summary>
+    /// Color palette format.
+    /// Code: 9, Name: "PALETTE"
+    /// </summary>
+    public static readonly ClipboardFormat Palette = new(9, "PALETTE");
+
+    /// <summary>
+    /// Pen data format for pen computing.
+    /// Code: 10, Name: "PENDATA"
+    /// </summary>
+    public static readonly ClipboardFormat PenData = new(10, "PENDATA");
+
+    /// <summary>
+    /// Resource Interchange File Format (RIFF).
+    /// Code: 11, Name: "RIFF"
+    /// </summary>
+    public static readonly ClipboardFormat Riff = new(11, "RIFF");
+
+    /// <summary>
+    /// Wave audio format.
+    /// Code: 12, Name: "WAVE"
+    /// </summary>
+    public static readonly ClipboardFormat Wave = new(12, "WAVE");
+
+    /// <summary>
+    /// Unicode text format. Each line ends with CR-LF, null-terminated.
+    /// Code: 13, Name: "CF_UNICODETEXT"
+    /// </summary>
+    public static readonly ClipboardFormat UnicodeText = new(13, "CF_UNICODETEXT");
+
+    /// <summary>
+    /// Enhanced metafile format.
+    /// Code: 14, Name: "ENHMETAFILE"
+    /// </summary>
+    public static readonly ClipboardFormat EnhMetafile = new(14, "ENHMETAFILE");
+
+    /// <summary>
+    /// File drop list. Handle to HDROP identifying a list of files.
+    /// Code: 15, Name: "HDROP"
+    /// </summary>
+    public static readonly ClipboardFormat HDrop = new(15, "HDROP");
+
+    /// <summary>
+    /// Locale information format.
+    /// Code: 16, Name: "LOCALE"
+    /// </summary>
+    public static readonly ClipboardFormat Locale = new(16, "LOCALE");
+
+    /// <summary>
+    /// Rich Text Format (registered format).
+    /// Code: 0x0082 (130), Name: "Rich Text Format"
+    /// </summary>
+    public static readonly ClipboardFormat RichText = new(0x0082, "Rich Text Format");
+
+    /// <summary>
+    /// HTML Format (registered format used by browsers).
+    /// Code: 0x0080 (128), Name: "HTML Format"
+    /// </summary>
+    public static readonly ClipboardFormat Html = new(0x0080, "HTML Format");
+
+    /// <summary>
+    /// Alternative HTML Format code (varies by system).
+    /// Code: 49161, Name: "HTML Format"
+    /// </summary>
+    public static readonly ClipboardFormat HtmlAlt = new(49161, "HTML Format");
+
+    /// <summary>
+    /// All standard formats as a collection for enumeration.
+    /// </summary>
+    public static readonly IReadOnlyList<ClipboardFormat> All = new[]
     {
-        /// <summary>
-        /// Text formats stored in BlobTxt table.
-        /// Used for: CF_TEXT, CF_UNICODETEXT, CF_HTML, CF_RTF
-        /// </summary>
-        public const int Text = 1;
+        Text, Bitmap, Metafilepict, Sylk, Dif, Tiff, OemText, Dib,
+        Palette, PenData, Riff, Wave, UnicodeText, EnhMetafile, HDrop, Locale,
+        RichText, Html, HtmlAlt,
+    };
+}
 
-        /// <summary>
-        /// JPEG images stored in BlobJpg table.
-        /// </summary>
-        public const int Jpeg = 2;
+/// <summary>
+/// ClipMate Storage Type values (maps to BLOB table selection).
+/// These determine which BLOB table stores the actual clipboard data.
+/// </summary>
+public static class StorageType
+{
+    /// <summary>
+    /// Text formats stored in BlobTxt table.
+    /// Used for: CF_TEXT, CF_UNICODETEXT, CF_HTML, CF_RTF
+    /// </summary>
+    public const int Text = 1;
 
-        /// <summary>
-        /// PNG images stored in BlobPng table.
-        /// </summary>
-        public const int Png = 3;
+    /// <summary>
+    /// JPEG images stored in BlobJpg table.
+    /// </summary>
+    public const int Jpeg = 2;
 
-        /// <summary>
-        /// Other binary data stored in BlobBlob table.
-        /// Used for: CF_BITMAP, CF_DIB, custom binary formats
-        /// </summary>
-        public const int Binary = 4;
-    }
+    /// <summary>
+    /// PNG images stored in BlobPng table.
+    /// </summary>
+    public const int Png = 3;
+
+    /// <summary>
+    /// Other binary data stored in BlobBlob table.
+    /// Used for: CF_BITMAP, CF_DIB, custom binary formats
+    /// </summary>
+    public const int Binary = 4;
 }

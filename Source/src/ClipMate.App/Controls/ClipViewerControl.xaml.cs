@@ -289,7 +289,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
         var textFormat = _currentClipData
             .FirstOrDefault(p =>
-                p is { StorageType: ClipboardConstants.StorageType.Text, Format: ClipboardConstants.Format.CF_TEXT or ClipboardConstants.Format.CF_UNICODETEXT });
+                p is { StorageType: StorageType.Text } && 
+                (p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code));
 
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
         {
@@ -326,7 +327,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         var htmlFormat = _currentClipData
             .FirstOrDefault(p =>
-                p.Format is ClipboardConstants.Format.CF_HTML or ClipboardConstants.Format.CF_HTML_ALT && p.StorageType == ClipboardConstants.StorageType.Text);
+                (p.Format == Formats.Html.Code || p.Format == Formats.HtmlAlt.Code) && p.StorageType == StorageType.Text);
 
         if (htmlFormat != null && _textBlobs.TryGetValue(htmlFormat.Id, out var blobData))
         {
@@ -370,7 +371,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         var rtfFormat = _currentClipData
             .FirstOrDefault(p => p.FormatName?.Contains("RTF", StringComparison.OrdinalIgnoreCase) == true &&
-                                 p.StorageType == ClipboardConstants.StorageType.Text);
+                                 p.StorageType == StorageType.Text);
 
         if (rtfFormat != null && _textBlobs.TryGetValue(rtfFormat.Id, out var blobData))
         {
@@ -410,7 +411,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         // Look for CF_BITMAP or CF_DIB formats (stored in BLOBBLOB)
         var bitmapFormat = _currentClipData
             .FirstOrDefault(p =>
-                p.Format is ClipboardConstants.Format.CF_BITMAP or ClipboardConstants.Format.CF_DIB && p.StorageType == ClipboardConstants.StorageType.Binary);
+                (p.Format == Formats.Bitmap.Code || p.Format == Formats.Dib.Code) && p.StorageType == StorageType.Binary);
 
         if (bitmapFormat != null && _binaryBlobs.TryGetValue(bitmapFormat.Id, out var blobData))
         {
@@ -444,8 +445,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger.LogDebug("[LoadPicture] Looking for PNG or JPG formats in {Count} ClipData entries", _currentClipData.Count);
 
         // Look for PNG or JPG formats
-        var pngFormat = _currentClipData.FirstOrDefault(p => p.StorageType == ClipboardConstants.StorageType.Png);
-        var jpgFormat = _currentClipData.FirstOrDefault(p => p.StorageType == ClipboardConstants.StorageType.Jpeg);
+        var pngFormat = _currentClipData.FirstOrDefault(p => p.StorageType == StorageType.Png);
+        var jpgFormat = _currentClipData.FirstOrDefault(p => p.StorageType == StorageType.Jpeg);
 
         _logger.LogDebug("[LoadPicture] PNG format found: {Found}, JPG format found: {Found2}",
             pngFormat != null, jpgFormat != null);
@@ -509,13 +510,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             var data = clipData.StorageType switch
             {
-                ClipboardConstants.StorageType.Text when _textBlobs.TryGetValue(clipData.Id, out var txt) =>
+                StorageType.Text when _textBlobs.TryGetValue(clipData.Id, out var txt) =>
                     Encoding.UTF8.GetBytes(txt?.Data ?? ""),
-                ClipboardConstants.StorageType.Jpeg when _jpgBlobs.TryGetValue(clipData.Id, out var jpg) =>
+                StorageType.Jpeg when _jpgBlobs.TryGetValue(clipData.Id, out var jpg) =>
                     jpg?.Data,
-                ClipboardConstants.StorageType.Png when _pngBlobs.TryGetValue(clipData.Id, out var png) =>
+                StorageType.Png when _pngBlobs.TryGetValue(clipData.Id, out var png) =>
                     png?.Data,
-                ClipboardConstants.StorageType.Binary when _binaryBlobs.TryGetValue(clipData.Id, out var blob) =>
+                StorageType.Binary when _binaryBlobs.TryGetValue(clipData.Id, out var blob) =>
                     blob?.Data,
                 var _ => null,
             };

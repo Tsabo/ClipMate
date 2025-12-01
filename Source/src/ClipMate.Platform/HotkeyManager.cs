@@ -174,27 +174,27 @@ public class HotkeyManager : IHotkeyManager
     {
         const int WM_HOTKEY = 0x0312;
 
-        if (msg == WM_HOTKEY)
+        if (msg != WM_HOTKEY)
+            return IntPtr.Zero;
+
+        var hotkeyId = wParam.ToInt32();
+
+        if (!_registeredHotkeys.TryGetValue(hotkeyId, out var registration))
+            return IntPtr.Zero;
+
+        try
         {
-            var hotkeyId = wParam.ToInt32();
+            // Execute callback on the UI thread
+            if (WpfApplication.Current != null)
+                WpfApplication.Current.Dispatcher.BeginInvoke(registration.Callback);
+            else
+                registration.Callback();
 
-            if (_registeredHotkeys.TryGetValue(hotkeyId, out var registration))
-            {
-                try
-                {
-                    // Execute callback on the UI thread
-                    if (WpfApplication.Current != null)
-                        WpfApplication.Current.Dispatcher.BeginInvoke(registration.Callback);
-                    else
-                        registration.Callback();
-
-                    handled = true;
-                }
-                catch (Exception)
-                {
-                    // Suppress exceptions in hotkey callback to prevent crashes
-                }
-            }
+            handled = true;
+        }
+        catch (Exception)
+        {
+            // Suppress exceptions in hotkey callback to prevent crashes
         }
 
         return IntPtr.Zero;

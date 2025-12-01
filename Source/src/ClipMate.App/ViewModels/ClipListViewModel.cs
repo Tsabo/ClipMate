@@ -186,17 +186,17 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
                 if (textBlobsDict.TryGetValue(clipData.Id, out var textBlob))
                 {
                     // Determine content type based on format
-                    if (clipData.Format == ClipboardConstants.Format.CF_TEXT || 
-                        clipData.Format == ClipboardConstants.Format.CF_UNICODETEXT)
+                    if (clipData.Format == Formats.Text.Code || 
+                        clipData.Format == Formats.UnicodeText.Code)
                     {
                         clip.TextContent = textBlob.Data;
                     }
-                    else if (clipData.Format == ClipboardConstants.Format.CF_RTF)
+                    else if (clipData.Format == Formats.RichText.Code)
                     {
                         clip.RtfContent = textBlob.Data;
                     }
-                    else if (clipData.Format == ClipboardConstants.Format.CF_HTML || 
-                             clipData.Format == ClipboardConstants.Format.CF_HTML_ALT)
+                    else if (clipData.Format == Formats.Html.Code || 
+                             clipData.Format == Formats.HtmlAlt.Code)
                     {
                         clip.HtmlContent = textBlob.Data;
                     }

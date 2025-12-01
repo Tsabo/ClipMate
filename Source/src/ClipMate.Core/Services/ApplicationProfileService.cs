@@ -11,14 +11,14 @@ public class ApplicationProfileService : IApplicationProfileService
     // Smart defaults: formats that should be captured by default
     private static readonly Dictionary<string, bool> _smartDefaults = new()
     {
-        ["TEXT"] = true,
-        ["CF_UNICODETEXT"] = true,
-        ["BITMAP"] = true,
-        ["HDROP"] = true,
-        ["HTML Format"] = true,
-        ["Rich Text Format"] = false,
+        [Formats.Text.Name] = true,
+        [Formats.UnicodeText.Name] = true,
+        [Formats.Bitmap.Name] = true,
+        [Formats.HDrop.Name] = true,
+        [Formats.Html.Name] = true,
+        [Formats.RichText.Name] = false,
         ["DataObject"] = false,
-        ["LOCALE"] = false,
+        [Formats.Locale.Name] = false,
         ["OlePrivateData"] = false,
     };
 

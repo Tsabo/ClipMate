@@ -1,6 +1,5 @@
 using System.IO;
 using System.Media;
-using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -16,12 +15,11 @@ public class SoundService : ISoundService
     private readonly string _soundsDirectory;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SoundService"/> class.
+    /// Initializes a new instance of the <see cref="SoundService" /> class.
     /// </summary>
     /// <param name="configurationService">Service for accessing application configuration.</param>
     /// <param name="logger">Logger instance.</param>
-    public SoundService(
-        IConfigurationService configurationService,
+    public SoundService(IConfigurationService configurationService,
         ILogger<SoundService> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -32,16 +30,14 @@ public class SoundService : ISoundService
         _soundsDirectory = Path.Combine(appDirectory, "Assets", "Sounds");
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public Task PlaySoundAsync(SoundEvent soundEvent, CancellationToken cancellationToken = default)
     {
         try
         {
             // Check if sound is enabled in preferences
             if (!IsSoundEnabled(soundEvent))
-            {
                 return Task.CompletedTask;
-            }
 
             // Get the sound file path for this event
             var soundFilePath = GetSoundFilePath(soundEvent);
@@ -86,7 +82,7 @@ public class SoundService : ISoundService
             SoundEvent.Erase => preferences.BeepOnErase,
             SoundEvent.Filter => preferences.BeepOnFilter,
             SoundEvent.Ignore => preferences.BeepOnIgnore,
-            _ => false
+            var _ => false,
         };
     }
 
@@ -102,9 +98,11 @@ public class SoundService : ISoundService
             SoundEvent.Erase => "erase.wav",
             SoundEvent.Filter => "filter.wav",
             SoundEvent.Ignore => "ignore.wav",
-            _ => null
+            var _ => null,
         };
 
-        return fileName != null ? Path.Combine(_soundsDirectory, fileName) : string.Empty;
+        return fileName != null
+            ? Path.Combine(_soundsDirectory, fileName)
+            : string.Empty;
     }
 }
