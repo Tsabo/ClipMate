@@ -4,88 +4,80 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              d:DataContext="{d:DesignInstance Type=vm:QuickPasteToolbarViewModel}"
-             mc:Ignorable="d"
-             Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
-             BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
-             BorderThickness="0,1,0,0"
-             Padding="8,4">
+             mc:Ignorable="d">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+    <UserControl.Resources>
+        <DrawingImage x:Key="MyImageSource" emoji:Image.Source="🎯"/>
+    </UserControl.Resources>
 
-        <!-- Left: Target Display and Lock -->
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock Text="Target:" VerticalAlignment="Center" Margin="0,0,5,0" />
-            <TextBlock Text="{Binding CurrentTargetDisplay}"
-                       VerticalAlignment="Center"
-                       FontWeight="SemiBold"
-                       MinWidth="200"
-                       Margin="0,0,10,0"
-                       ToolTip="{Binding CurrentTargetTooltip}" />
+    <dxb:ToolBarControl AllowQuickCustomization="False" 
+                        UseWholeRow="True" 
+                        AllowCollapse="False">
+        
+        <!-- Button 1: Go Back - Undo icon when not set, Refresh when set -->
+        <dxb:BarButtonItem Command="{Binding ToggleGoBackCommand}"
+                           ToolTip="If set, focus returns to ClipMate after pasting. Otherwise, focus stays in target application.">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding GoBackEnabled}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/Actions/Refresh_16x16.png'}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding GoBackEnabled}" Value="False">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/History/Undo_16x16.png'}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
 
-            <dx:SimpleButton Content="{Binding TargetLockIcon}"
-                             Command="{Binding ToggleTargetLockCommand}"
-                             ToolTip="Lock/Unlock Target"
-                             Glyph="{dx:DXImage SvgImages/Icon Builder/Actions_Lock.svg}"
-                             Margin="0,0,5,0"
-                             Width="30"
-                             Height="24" />
-        </StackPanel>
+        <!-- Button 2: Send Tab - Keyboard key with arrow pointing right to | -->
+        <dxb:BarButtonItem Glyph="{dx:FontIconSource 59389}"
+                           Command="{Binding SendTabCommand}"
+                           ToolTip="Send Tab key to target application (F9)" />
 
-        <!-- Center: Formatting String Selector -->
-        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="Format:" VerticalAlignment="Center" Margin="0,0,5,0" />
-            <dxe:ComboBoxEdit ItemsSource="{Binding FormattingStrings}"
-                              SelectedItem="{Binding SelectedFormattingString}"
-                              DisplayMember="Title"
-                              Width="200"
-                              ToolTip="Select QuickPaste formatting string" />
-        </StackPanel>
+        <!-- Button 3: Send Enter - Keyboard key with carriage return -->
+        <dxb:BarButtonItem Glyph="{dx:FontIconSource 59750}"
+                           Command="{Binding SendEnterCommand}"
+                           ToolTip="Send Enter key to target application (Shift+F9)" />
 
-        <!-- Right: Action Buttons -->
-        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-            <dx:SimpleButton Content="TAB"
-                             Command="{Binding SendTabCommand}"
-                             ToolTip="Send TAB keystroke (F9)"
-                             Margin="0,0,3,0"
-                             Width="45"
-                             Height="24" />
+        <!-- Button 4: Auto-Targeting - Bullseye target icon -->
+        <dxb:BarButtonItem Command="{Binding ToggleTargetLockCommand}"
+                           ToolTip="Click to 'lock' on the target application"
+                           Glyph="{StaticResource MyImageSource}">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsTargetLocked}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:FontIconSource 62066, ColorName=Green}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
 
-            <dx:SimpleButton Content="ENTER"
-                             Command="{Binding SendEnterCommand}"
-                             ToolTip="Send ENTER keystroke (Shift+F9)"
-                             Margin="0,0,8,0"
-                             Width="55"
-                             Height="24" />
+        <dxb:BarItemSeparator />
 
-            <dx:SimpleButton Content="↩"
-                             Command="{Binding ToggleGoBackCommand}"
-                             ToolTip="Toggle GoBack (return focus to ClipMate)"
-                             FontSize="16"
-                             Margin="0,0,0,0"
-                             Width="30"
-                             Height="24">
-                <dx:SimpleButton.Style>
-                    <Style TargetType="dx:SimpleButton">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding GoBackEnabled}" Value="True">
-                                <Setter Property="Foreground" Value="Green" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding GoBackEnabled}" Value="False">
-                                <Setter Property="Foreground" Value="Gray" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </dx:SimpleButton.Style>
-            </dx:SimpleButton>
-        </StackPanel>
-    </Grid>
+        <!-- Target Display - Static text that stretches to fill remaining space -->
+        <dxb:BarStaticItem AutoSizeMode="Fill"
+                           Content="{Binding CurrentTargetDisplay, StringFormat='Current Target: {0}'}"
+                           ToolTip="{Binding CurrentTargetTooltip}" />
+
+        <!-- Formatting String ComboBox -->
+        <dxb:BarEditItem EditValue="{Binding SelectedFormattingString}"
+                         EditWidth="250">
+            <dxb:BarEditItem.EditSettings>
+                <dxe:ComboBoxEditSettings ItemsSource="{Binding FormattingStrings}"
+                                          DisplayMember="Title"
+                                          ToolTip="Select QuickPaste formatting string" />
+            </dxb:BarEditItem.EditSettings>
+        </dxb:BarEditItem>
+
+    </dxb:ToolBarControl>
 
 </UserControl>

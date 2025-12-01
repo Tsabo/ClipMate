@@ -18,7 +18,7 @@ namespace ClipMate.App.ViewModels;
 /// Implements IRecipient to receive ClipAddedEvent and CollectionNodeSelectedEvent messages via MVVM Toolkit
 /// Messenger.
 /// </summary>
-public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>
+public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>, IRecipient<QuickPasteNowEvent>
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ClipListViewModel> _logger;
@@ -60,6 +60,7 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         // The messenger will automatically handle weak references and cleanup
         _messenger.Register<ClipAddedEvent>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
+        _messenger.Register<QuickPasteNowEvent>(this);
     }
     
     /// <summary>
@@ -421,5 +422,33 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
     {
         if (value)
             IsListView = false;
+    }
+
+    /// <summary>
+    /// Receives QuickPasteNowEvent messages from the QuickPaste toolbar.
+    /// This pastes the currently selected clip using QuickPaste.
+    /// </summary>
+    public async void Receive(QuickPasteNowEvent message)
+    {
+        if (SelectedClip == null)
+        {
+            _logger.LogWarning("QuickPasteNow triggered but no clip is selected");
+            return;
+        }
+
+        _logger.LogInformation("QuickPasteNow received, pasting clip: {ClipId}", SelectedClip.Id);
+        
+        try
+        {
+            using var scope = CreateScope();
+            var quickPasteService = scope.ServiceProvider.GetRequiredService<IQuickPasteService>();
+            
+            // Paste the clip using QuickPaste
+            await quickPasteService.PasteClipAsync(SelectedClip);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to paste clip via QuickPaste: {ClipId}", SelectedClip.Id);
+        }
     }
 }

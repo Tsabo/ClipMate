@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
@@ -14,6 +16,7 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
+    private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
 
     [ObservableProperty]
@@ -34,12 +37,17 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     [ObservableProperty]
     private string _targetLockIcon = "🔓";
 
+    [ObservableProperty]
+    private bool _isTargetLocked;
+
     public QuickPasteToolbarViewModel(IQuickPasteService quickPasteService,
         IConfigurationService configurationService,
+        IMessenger messenger,
         ILogger<QuickPasteToolbarViewModel> logger)
     {
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         LoadFormattingStrings();
@@ -74,7 +82,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
             CurrentTargetTooltip = "No active window detected";
         }
 
-        TargetLockIcon = _quickPasteService.IsTargetLocked()
+        IsTargetLocked = _quickPasteService.IsTargetLocked();
+        TargetLockIcon = IsTargetLocked
             ? "🔒"
             : "🔓";
     }
@@ -92,11 +101,22 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     {
         var isLocked = _quickPasteService.IsTargetLocked();
         _quickPasteService.SetTargetLock(!isLocked);
+        IsTargetLocked = !isLocked;
         TargetLockIcon = !isLocked
             ? "🔒"
             : "🔓";
 
         _logger.LogDebug("Target lock toggled to {State}", !isLocked);
+    }
+
+    /// <summary>
+    /// Pastes the currently selected clip immediately (triggered by clicking target text).
+    /// </summary>
+    [RelayCommand]
+    private void PasteNow()
+    {
+        _logger.LogDebug("PasteNow triggered from toolbar, sending QuickPasteNowEvent");
+        _messenger.Send(new QuickPasteNowEvent());
     }
 
     /// <summary>

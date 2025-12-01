@@ -12,7 +12,7 @@
                  WindowStartupLocation="CenterScreen"
                  Height="525"
                  Width="1000"
-                 MinHeight="525"
+                 MinHeight="545"
                  MinWidth="1000"
                  ShowInTaskbar="True"
                  StateChanged="Window_StateChanged">
@@ -21,9 +21,15 @@
         <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
     </dx:ThemedWindow.InputBindings>
 
-    <DockPanel>
-        <!-- BarManager: Toolbar and Menus -->
-        <dxb:BarManager x:Name="BarManager" DockPanel.Dock="Top">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+            <!-- BarManager: Toolbar and Menus -->
+        <dxb:BarManager x:Name="BarManager" Grid.Row="0">
             <dxb:BarManager.Bars>
                 <!-- Main Toolbar -->
                 <dxb:Bar Caption="Main Toolbar" IsMainMenu="False" AllowCollapse="True">
@@ -78,23 +84,8 @@
             </dxb:BarManager.Bars>
         </dxb:BarManager>
 
-        <!-- QuickPaste Toolbar -->
-        <controls:QuickPasteToolbar x:Name="QuickPasteToolbar"
-                                    DockPanel.Dock="Bottom"
-                                    DataContext="{Binding QuickPasteToolbarViewModel}" />
-
-        <!-- Status Bar at Bottom -->
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
-            </StatusBarItem>
-        </StatusBar>
-
         <!-- Main Content Area -->
-        <Grid>
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200" MinWidth="150" MaxWidth="400" />
                 <ColumnDefinition Width="5" />
@@ -141,5 +132,20 @@
                                         Grid.ColumnSpan="3"
                                         Grid.Row="2" />
         </Grid>
-    </DockPanel>
+
+        <!-- QuickPaste Toolbar -->
+        <controls:QuickPasteToolbar x:Name="QuickPasteToolbar"
+                                    Grid.Row="2"
+                                    DataContext="{Binding QuickPasteToolbarViewModel}" />
+
+        <!-- Status Bar at Bottom -->
+        <StatusBar Grid.Row="3">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
 </dx:ThemedWindow>

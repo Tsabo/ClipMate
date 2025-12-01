@@ -72,6 +72,7 @@ public class MainWindowViewModelTests
         var quickPasteToolbarVm = new QuickPasteToolbarViewModel(
             mockQuickPasteService.Object,
             mockConfigService.Object,
+            mockMessenger.Object,
             mockQuickPasteLogger.Object);
 
         var mockServiceProvider = new Mock<IServiceProvider>();
