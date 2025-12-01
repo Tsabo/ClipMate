@@ -14,13 +14,14 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MainWindowViewModel>? _logger;
+    private readonly IServiceProvider _serviceProvider;
 
     public MainWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
         PreviewPaneViewModel previewPaneViewModel,
         SearchViewModel searchViewModel,
+        QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         IServiceProvider serviceProvider,
         ILogger<MainWindowViewModel>? logger = null)
     {
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : ObservableObject
         PrimaryClipList = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         PreviewPane = previewPaneViewModel ?? throw new ArgumentNullException(nameof(previewPaneViewModel));
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
+        QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
     }
@@ -132,7 +134,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// Sets the status message displayed in the status bar.
     /// </summary>
     /// <param name="message">The status message to display.</param>
-    public void SetStatus(string message) => StatusMessage = message ?? string.Empty;
+    public void SetStatus(string message) => StatusMessage = message;
 
     /// <summary>
     /// Sets the busy state and optional status message.
@@ -168,6 +170,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// ViewModel for the search panel.
     /// </summary>
     public SearchViewModel Search { get; }
+
+    /// <summary>
+    /// ViewModel for the QuickPaste toolbar.
+    /// </summary>
+    public QuickPasteToolbarViewModel QuickPasteToolbarViewModel { get; }
 
     #endregion
 
@@ -246,7 +253,10 @@ public partial class MainWindowViewModel : ObservableObject
         {
             // TODO: Check if user has pasted anything
             // For now, just toggle direction
-            PowerPasteDirection = PowerPasteDirection == "Up" ? "Down" : "Up";
+            PowerPasteDirection = PowerPasteDirection == "Up"
+                ? "Down"
+                : "Up";
+
             _logger?.LogInformation("PowerPaste direction changed to {Direction}", PowerPasteDirection);
         }
     }
@@ -285,13 +295,9 @@ public partial class MainWindowViewModel : ObservableObject
             // Try multi-selection first, fall back to single selection
             Clip[] selectedClips;
             if (PrimaryClipList.SelectedClips.Count > 0)
-            {
                 selectedClips = PrimaryClipList.SelectedClips.ToArray();
-            }
             else if (PrimaryClipList.SelectedClip != null)
-            {
                 selectedClips = new[] { PrimaryClipList.SelectedClip };
-            }
             else
             {
                 _logger?.LogWarning("No clip selected for PowerPaste");
@@ -304,13 +310,13 @@ public partial class MainWindowViewModel : ObservableObject
             var powerPasteService = scope.ServiceProvider.GetRequiredService<IPowerPasteService>();
 
             // Start PowerPaste
-            var powerPasteDirection = direction == "Up" 
-                ? Core.Services.PowerPasteDirection.Up 
+            var powerPasteDirection = direction == "Up"
+                ? Core.Services.PowerPasteDirection.Up
                 : Core.Services.PowerPasteDirection.Down;
 
             await powerPasteService.StartAsync(
-                selectedClips, 
-                powerPasteDirection, 
+                selectedClips,
+                powerPasteDirection,
                 IsExplodeMode);
 
             IsPowerPasteActive = true;

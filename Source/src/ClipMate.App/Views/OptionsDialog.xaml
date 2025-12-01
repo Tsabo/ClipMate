@@ -45,6 +45,11 @@
             <options:PastingOptionsControl />
         </dx:DXTabItem>
 
+        <!-- QuickPaste Tab -->
+        <dx:DXTabItem Header="QuickPaste">
+            <options:QuickPasteOptionsControl />
+        </dx:DXTabItem>
+
         <!-- Editor Tab -->
         <dx:DXTabItem Header="Editor">
             <options:EditorOptionsControl />

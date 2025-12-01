@@ -1,0 +1,700 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
+using ClipMate.Core.Events;
+using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services;
+using ClipMate.Platform.Interop;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
+
+namespace ClipMate.Platform.Services;
+
+/// <summary>
+/// Service implementing QuickPaste functionality including auto-targeting,
+/// formatting string execution, and keystroke sending to target applications.
+/// </summary>
+public class QuickPasteService : IQuickPasteService
+{
+    private readonly IClipboardService _clipboardService;
+    private readonly IConfigurationService _configurationService;
+    private readonly ILogger<QuickPasteService> _logger;
+    private readonly IMessenger _messenger;
+    private readonly IWin32InputInterop _win32;
+    private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
+
+    private bool _goBackEnabled = true;
+    private QuickPasteFormattingString? _selectedFormattingString;
+    private int _sequenceCounter = 1;
+    private bool _targetLocked;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="QuickPasteService" /> class.
+    /// </summary>
+    public QuickPasteService(IWin32InputInterop win32Interop,
+        IClipboardService clipboardService,
+        IConfigurationService configurationService,
+        IMessenger messenger,
+        ILogger<QuickPasteService> logger)
+    {
+        _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Subscribe to configuration changes for immediate reload
+        _messenger.Register<QuickPasteConfigurationChangedEvent>(this, (_, _) => OnConfigurationChanged());
+
+        // Select default formatting string (one with TitleTrigger = "*")
+        SelectDefaultFormattingString();
+    }
+
+    /// <inheritdoc />
+    public (string ProcessName, string ClassName, string WindowTitle)? GetCurrentTarget() => _currentTarget;
+
+    /// <inheritdoc />
+    public void SetTargetLock(bool locked)
+    {
+        _targetLocked = locked;
+        _logger.LogDebug("Target lock set to {Locked}", locked);
+    }
+
+    /// <inheritdoc />
+    public bool IsTargetLocked() => _targetLocked;
+
+    /// <inheritdoc />
+    public bool GetGoBackState() => _goBackEnabled;
+
+    /// <inheritdoc />
+    public void SetGoBackState(bool goBack)
+    {
+        _goBackEnabled = goBack;
+        _logger.LogDebug("GoBack state set to {GoBack}", goBack);
+    }
+
+    /// <inheritdoc />
+    public QuickPasteFormattingString? GetSelectedFormattingString() => _selectedFormattingString;
+
+    /// <inheritdoc />
+    public void SelectFormattingString(QuickPasteFormattingString? format)
+    {
+        _selectedFormattingString = format;
+        _logger.LogDebug("Selected formatting string: {Title}", format?.Title ?? "None");
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> PasteClipAsync(Clip clip, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(clip);
+
+        if (_currentTarget == null)
+        {
+            _logger.LogWarning("No target application selected for QuickPaste");
+            return false;
+        }
+
+        try
+        {
+            _logger.LogDebug("QuickPaste: Pasting clip {ClipId} to target {Target}",
+                clip.Id, GetCurrentTargetString());
+
+            // Set clipboard content
+            await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
+            await Task.Delay(50, cancellationToken);
+
+            // Select formatting string based on title trigger if no manual selection
+            var format = _selectedFormattingString ?? SelectFormattingStringByTarget();
+
+            // Execute the formatting string
+            await ExecuteFormattingStringAsync(clip, format, cancellationToken);
+
+            _logger.LogInformation("Successfully pasted clip {ClipId} via QuickPaste", clip.Id);
+
+            // Handle GoBack functionality
+            if (_goBackEnabled)
+            {
+                // TODO: Implement focus return to ClipMate window
+                _logger.LogDebug("GoBack enabled - should return focus to ClipMate");
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pasting clip {ClipId} via QuickPaste", clip.Id);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public void SendTabKeystroke() => SendSpecialKey(VIRTUAL_KEY.VK_TAB);
+
+    /// <inheritdoc />
+    public void SendEnterKeystroke() => SendSpecialKey(VIRTUAL_KEY.VK_RETURN);
+
+    /// <inheritdoc />
+    public void ResetSequence()
+    {
+        _sequenceCounter = 1;
+        _logger.LogDebug("Sequence counter reset to 1");
+    }
+
+    /// <inheritdoc />
+    public void UpdateTarget()
+    {
+        if (_targetLocked)
+        {
+            _logger.LogDebug("Target is locked, skipping update");
+            return;
+        }
+
+        var target = DetectTargetWindow();
+        if (target != null)
+        {
+            _currentTarget = target;
+            _logger.LogInformation("Target updated to: {Target}", GetCurrentTargetString());
+        }
+    }
+
+    /// <inheritdoc />
+    public string GetCurrentTargetString()
+    {
+        if (_currentTarget == null)
+            return string.Empty;
+
+        return $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
+    }
+
+    private void OnConfigurationChanged()
+    {
+        _logger.LogInformation("QuickPaste configuration changed, reloading settings");
+        SelectDefaultFormattingString();
+    }
+
+    private void SelectDefaultFormattingString()
+    {
+        var config = _configurationService.Configuration.Preferences;
+        _selectedFormattingString = config.QuickPasteFormattingStrings
+            .FirstOrDefault(f => f.TitleTrigger == "*");
+
+        _logger.LogDebug("Default formatting string selected: {Title}",
+            _selectedFormattingString?.Title ?? "None");
+    }
+
+    private QuickPasteFormattingString? SelectFormattingStringByTarget()
+    {
+        if (_currentTarget == null)
+            return _selectedFormattingString;
+
+        var config = _configurationService.Configuration.Preferences;
+        var targetTitle = _currentTarget.Value.WindowTitle;
+
+        // Find format with matching title trigger (case-insensitive substring match)
+        var matchedFormat = config.QuickPasteFormattingStrings
+            .FirstOrDefault(f => !string.IsNullOrEmpty(f.TitleTrigger) &&
+                                 f.TitleTrigger != "*" &&
+                                 targetTitle.Contains(f.TitleTrigger, StringComparison.OrdinalIgnoreCase));
+
+        return matchedFormat ?? _selectedFormattingString;
+    }
+
+    private (string ProcessName, string ClassName, string WindowTitle)? DetectTargetWindow()
+    {
+        try
+        {
+            var foregroundWindow = _win32.GetForegroundWindow();
+            if (foregroundWindow.IsNull)
+                return null;
+
+            // Get process name
+            _win32.GetWindowThreadProcessId(foregroundWindow, out var processId);
+            if (processId == 0)
+                return null;
+
+            string processName;
+            try
+            {
+                using var process = Process.GetProcessById((int)processId);
+                processName = process.ProcessName.ToUpperInvariant();
+            }
+            catch
+            {
+                return null;
+            }
+
+            // Get window class name
+            const int maxLength = 256;
+            string className;
+            unsafe
+            {
+                var buffer = stackalloc char[maxLength];
+                var length = _win32.GetClassName(foregroundWindow, buffer, maxLength);
+                className = length > 0
+                    ? new string(buffer, 0, length).ToUpperInvariant()
+                    : string.Empty;
+            }
+
+            // Get window title
+            string windowTitle;
+            unsafe
+            {
+                var buffer = stackalloc char[maxLength];
+                var length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
+                windowTitle = length > 0
+                    ? new string(buffer, 0, length)
+                    : string.Empty;
+            }
+
+            // Check against good/bad target lists
+            var targetString = $"{processName}:{className}";
+            if (!IsValidTarget(targetString))
+                return null;
+
+            return (processName, className, windowTitle);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error detecting target window");
+            return null;
+        }
+    }
+
+    private bool IsValidTarget(string targetString)
+    {
+        var config = _configurationService.Configuration.Preferences;
+
+        // Check bad targets first (exclusion list)
+        foreach (var badTarget in config.QuickPasteBadTargets)
+        {
+            if (MatchesTarget(targetString, badTarget))
+            {
+                _logger.LogDebug("Target {Target} matches bad target {BadTarget}, rejecting",
+                    targetString, badTarget);
+
+                return false;
+            }
+        }
+
+        // If there are good targets defined, check if this matches
+        // Otherwise, accept any target not in the bad list
+        if (config.QuickPasteGoodTargets.Count > 0)
+        {
+            foreach (var goodTarget in config.QuickPasteGoodTargets)
+            {
+                if (MatchesTarget(targetString, goodTarget))
+                {
+                    _logger.LogDebug("Target {Target} matches good target {GoodTarget}, accepting",
+                        targetString, goodTarget);
+
+                    return true;
+                }
+            }
+
+            _logger.LogDebug("Target {Target} does not match any good targets, rejecting", targetString);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool MatchesTarget(string actual, string pattern)
+    {
+        // Pattern format: PROCESSNAME:CLASSNAME or PROCESSNAME: (match all classes for process)
+        // Empty process name means match any process with that class
+        var patternParts = pattern.Split(':', 2);
+        var actualParts = actual.Split(':', 2);
+
+        if (patternParts.Length != 2 || actualParts.Length != 2)
+            return false;
+
+        var patternProcess = patternParts[0];
+        var patternClass = patternParts[1];
+        var actualProcess = actualParts[0];
+        var actualClass = actualParts[1];
+
+        // Match process (empty pattern matches any)
+        if (!string.IsNullOrEmpty(patternProcess) &&
+            !actualProcess.Equals(patternProcess, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Match class (empty pattern matches any, supporting partial matches like "CLIPMATE:")
+        if (!string.IsNullOrEmpty(patternClass) &&
+            !actualClass.Equals(patternClass, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return true;
+    }
+
+    private async Task ExecuteFormattingStringAsync(Clip clip, QuickPasteFormattingString? format,
+        CancellationToken cancellationToken)
+    {
+        if (format == null)
+        {
+            // Default: just send Ctrl+V
+            SendCtrlV();
+            return;
+        }
+
+        // Execute preamble
+        if (!string.IsNullOrEmpty(format.Preamble))
+            await ExecuteKeystrokesAsync(format.Preamble, clip, cancellationToken);
+
+        // Execute paste keystrokes
+        if (!string.IsNullOrEmpty(format.PasteKeystrokes))
+            await ExecuteKeystrokesAsync(format.PasteKeystrokes, clip, cancellationToken);
+
+        // Execute postamble
+        if (!string.IsNullOrEmpty(format.Postamble))
+            await ExecuteKeystrokesAsync(format.Postamble, clip, cancellationToken);
+    }
+
+    private async Task ExecuteKeystrokesAsync(string keystrokes, Clip clip, CancellationToken cancellationToken)
+    {
+        var i = 0;
+        while (i < keystrokes.Length)
+        {
+            // Check for macros (#MACRO#)
+            if (keystrokes[i] == '#')
+            {
+                var endIndex = keystrokes.IndexOf('#', i + 1);
+                if (endIndex > i)
+                {
+                    var macro = keystrokes.Substring(i + 1, endIndex - i - 1);
+                    await ExecuteMacroAsync(macro, clip, cancellationToken);
+                    i = endIndex + 1;
+                    continue;
+                }
+            }
+
+            // Check for special keys ({KEY})
+            if (keystrokes[i] == '{')
+            {
+                var endIndex = keystrokes.IndexOf('}', i + 1);
+                if (endIndex > i)
+                {
+                    var key = keystrokes.Substring(i + 1, endIndex - i - 1);
+                    SendSpecialKeyByName(key);
+                    i = endIndex + 1;
+                    continue;
+                }
+            }
+
+            // Check for modifier keys
+            switch (keystrokes[i])
+            {
+                case '^': // Ctrl
+                    if (i + 1 < keystrokes.Length)
+                    {
+                        SendCtrlKey(keystrokes[i + 1]);
+                        i += 2;
+                        continue;
+                    }
+
+                    break;
+
+                case '~': // Shift
+                    if (i + 1 < keystrokes.Length)
+                    {
+                        SendShiftKey(keystrokes[i + 1]);
+                        i += 2;
+                        continue;
+                    }
+
+                    break;
+
+                case '@': // Alt
+                    if (i + 1 < keystrokes.Length)
+                    {
+                        SendAltKey(keystrokes[i + 1]);
+                        i += 2;
+                        continue;
+                    }
+
+                    break;
+            }
+
+            // Send as literal character
+            SendLiteralChar(keystrokes[i]);
+            i++;
+        }
+    }
+
+    private async Task ExecuteMacroAsync(string macro, Clip clip, CancellationToken cancellationToken)
+    {
+        switch (macro.ToUpperInvariant())
+        {
+            case "DATE":
+                SendLiteralString(clip.CapturedAt.ToString("d", CultureInfo.CurrentCulture));
+                break;
+
+            case "TIME":
+                SendLiteralString(clip.CapturedAt.ToString("t", CultureInfo.CurrentCulture));
+                break;
+
+            case "CURRENTDATE":
+                SendLiteralString(DateTime.Now.ToString("d", CultureInfo.CurrentCulture));
+                break;
+
+            case "CURRENTTIME":
+                SendLiteralString(DateTime.Now.ToString("t", CultureInfo.CurrentCulture));
+                break;
+
+            case "URL":
+                SendLiteralString(clip.SourceUrl ?? string.Empty);
+                break;
+
+            case "CREATOR":
+                SendLiteralString(clip.SourceApplicationName ?? string.Empty);
+                break;
+
+            case "TITLE":
+                SendLiteralString(clip.Title ?? string.Empty);
+                break;
+
+            case "PAUSE":
+                await Task.Delay(10, cancellationToken);
+                break;
+
+            case "SEQUENCE":
+                SendLiteralString(_sequenceCounter.ToString(CultureInfo.InvariantCulture));
+                _sequenceCounter++;
+                break;
+
+            default:
+                // Unknown macro, send as literal
+                SendLiteralString($"#{macro}#");
+                _logger.LogWarning("Unknown macro: {Macro}", macro);
+                break;
+        }
+    }
+
+    private void SendCtrlV()
+    {
+        const int inputCount = 4; // Ctrl down, V down, V up, Ctrl up
+        unsafe
+        {
+            var inputs = stackalloc INPUT[inputCount];
+
+            inputs[0] = CreateKeyInput(VIRTUAL_KEY.VK_CONTROL, false);
+            inputs[1] = CreateKeyInput(VIRTUAL_KEY.VK_V, false);
+            inputs[2] = CreateKeyInput(VIRTUAL_KEY.VK_V, true);
+            inputs[3] = CreateKeyInput(VIRTUAL_KEY.VK_CONTROL, true);
+
+            _win32.SendInput(inputCount, inputs, Marshal.SizeOf<INPUT>());
+        }
+    }
+
+    private void SendSpecialKey(VIRTUAL_KEY key)
+    {
+        unsafe
+        {
+            var inputs = stackalloc INPUT[2];
+            inputs[0] = CreateKeyInput(key, false);
+            inputs[1] = CreateKeyInput(key, true);
+
+            _win32.SendInput(2, inputs, Marshal.SizeOf<INPUT>());
+        }
+    }
+
+    private void SendSpecialKeyByName(string keyName)
+    {
+        var key = keyName.ToUpperInvariant() switch
+        {
+            "TAB" => VIRTUAL_KEY.VK_TAB,
+            "ENTER" => VIRTUAL_KEY.VK_RETURN,
+            "INSERT" => VIRTUAL_KEY.VK_INSERT,
+            "DELETE" => VIRTUAL_KEY.VK_DELETE,
+            "HOME" => VIRTUAL_KEY.VK_HOME,
+            "END" => VIRTUAL_KEY.VK_END,
+            "PAGEUP" => VIRTUAL_KEY.VK_PRIOR,
+            "PAGEDOWN" => VIRTUAL_KEY.VK_NEXT,
+            "UP" => VIRTUAL_KEY.VK_UP,
+            "DOWN" => VIRTUAL_KEY.VK_DOWN,
+            "LEFT" => VIRTUAL_KEY.VK_LEFT,
+            "RIGHT" => VIRTUAL_KEY.VK_RIGHT,
+            "ESCAPE" => VIRTUAL_KEY.VK_ESCAPE,
+            "ESC" => VIRTUAL_KEY.VK_ESCAPE,
+            var _ => VIRTUAL_KEY.VK_NONAME,
+        };
+
+        if (key != VIRTUAL_KEY.VK_NONAME)
+            SendSpecialKey(key);
+        else
+        {
+            // Unknown key, send as literal
+            SendLiteralString($"{{{keyName}}}");
+            _logger.LogWarning("Unknown special key: {KeyName}", keyName);
+        }
+    }
+
+    private void SendCtrlKey(char key)
+    {
+        var vk = CharToVirtualKey(key);
+        if (vk != VIRTUAL_KEY.VK_NONAME)
+        {
+            unsafe
+            {
+                var inputs = stackalloc INPUT[4];
+                inputs[0] = CreateKeyInput(VIRTUAL_KEY.VK_CONTROL, false);
+                inputs[1] = CreateKeyInput(vk, false);
+                inputs[2] = CreateKeyInput(vk, true);
+                inputs[3] = CreateKeyInput(VIRTUAL_KEY.VK_CONTROL, true);
+
+                _win32.SendInput(4, inputs, Marshal.SizeOf<INPUT>());
+            }
+        }
+    }
+
+    private void SendShiftKey(char key)
+    {
+        var vk = CharToVirtualKey(key);
+        if (vk != VIRTUAL_KEY.VK_NONAME)
+        {
+            unsafe
+            {
+                var inputs = stackalloc INPUT[4];
+                inputs[0] = CreateKeyInput(VIRTUAL_KEY.VK_SHIFT, false);
+                inputs[1] = CreateKeyInput(vk, false);
+                inputs[2] = CreateKeyInput(vk, true);
+                inputs[3] = CreateKeyInput(VIRTUAL_KEY.VK_SHIFT, true);
+
+                _win32.SendInput(4, inputs, Marshal.SizeOf<INPUT>());
+            }
+        }
+    }
+
+    private void SendAltKey(char key)
+    {
+        var vk = CharToVirtualKey(key);
+        if (vk != VIRTUAL_KEY.VK_NONAME)
+        {
+            unsafe
+            {
+                var inputs = stackalloc INPUT[4];
+                inputs[0] = CreateKeyInput(VIRTUAL_KEY.VK_MENU, false);
+                inputs[1] = CreateKeyInput(vk, false);
+                inputs[2] = CreateKeyInput(vk, true);
+                inputs[3] = CreateKeyInput(VIRTUAL_KEY.VK_MENU, true);
+
+                _win32.SendInput(4, inputs, Marshal.SizeOf<INPUT>());
+            }
+        }
+    }
+
+    private void SendLiteralChar(char c)
+    {
+        // For simplicity, send as Unicode input
+        unsafe
+        {
+            var inputs = stackalloc INPUT[2];
+
+            inputs[0] = new INPUT
+            {
+                type = INPUT_TYPE.INPUT_KEYBOARD,
+                Anonymous = new INPUT._Anonymous_e__Union
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = c,
+                        dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE,
+                        time = 0,
+                        dwExtraInfo = 0,
+                    },
+                },
+            };
+
+            inputs[1] = new INPUT
+            {
+                type = INPUT_TYPE.INPUT_KEYBOARD,
+                Anonymous = new INPUT._Anonymous_e__Union
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = c,
+                        dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE | KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = 0,
+                    },
+                },
+            };
+
+            _win32.SendInput(2, inputs, Marshal.SizeOf<INPUT>());
+        }
+    }
+
+    private void SendLiteralString(string text)
+    {
+        foreach (var c in text)
+            SendLiteralChar(c);
+    }
+
+    private static VIRTUAL_KEY CharToVirtualKey(char c)
+    {
+        return char.ToUpperInvariant(c) switch
+        {
+            'A' => VIRTUAL_KEY.VK_A,
+            'B' => VIRTUAL_KEY.VK_B,
+            'C' => VIRTUAL_KEY.VK_C,
+            'D' => VIRTUAL_KEY.VK_D,
+            'E' => VIRTUAL_KEY.VK_E,
+            'F' => VIRTUAL_KEY.VK_F,
+            'G' => VIRTUAL_KEY.VK_G,
+            'H' => VIRTUAL_KEY.VK_H,
+            'I' => VIRTUAL_KEY.VK_I,
+            'J' => VIRTUAL_KEY.VK_J,
+            'K' => VIRTUAL_KEY.VK_K,
+            'L' => VIRTUAL_KEY.VK_L,
+            'M' => VIRTUAL_KEY.VK_M,
+            'N' => VIRTUAL_KEY.VK_N,
+            'O' => VIRTUAL_KEY.VK_O,
+            'P' => VIRTUAL_KEY.VK_P,
+            'Q' => VIRTUAL_KEY.VK_Q,
+            'R' => VIRTUAL_KEY.VK_R,
+            'S' => VIRTUAL_KEY.VK_S,
+            'T' => VIRTUAL_KEY.VK_T,
+            'U' => VIRTUAL_KEY.VK_U,
+            'V' => VIRTUAL_KEY.VK_V,
+            'W' => VIRTUAL_KEY.VK_W,
+            'X' => VIRTUAL_KEY.VK_X,
+            'Y' => VIRTUAL_KEY.VK_Y,
+            'Z' => VIRTUAL_KEY.VK_Z,
+            '0' => VIRTUAL_KEY.VK_0,
+            '1' => VIRTUAL_KEY.VK_1,
+            '2' => VIRTUAL_KEY.VK_2,
+            '3' => VIRTUAL_KEY.VK_3,
+            '4' => VIRTUAL_KEY.VK_4,
+            '5' => VIRTUAL_KEY.VK_5,
+            '6' => VIRTUAL_KEY.VK_6,
+            '7' => VIRTUAL_KEY.VK_7,
+            '8' => VIRTUAL_KEY.VK_8,
+            '9' => VIRTUAL_KEY.VK_9,
+            var _ => VIRTUAL_KEY.VK_NONAME,
+        };
+    }
+
+    private static INPUT CreateKeyInput(VIRTUAL_KEY key, bool keyUp)
+    {
+        return new INPUT
+        {
+            type = INPUT_TYPE.INPUT_KEYBOARD,
+            Anonymous = new INPUT._Anonymous_e__Union
+            {
+                ki = new KEYBDINPUT
+                {
+                    wVk = key,
+                    wScan = 0,
+                    dwFlags = keyUp
+                        ? KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP
+                        : 0,
+                    time = 0,
+                    dwExtraInfo = 0,
+                },
+            },
+        };
+    }
+}

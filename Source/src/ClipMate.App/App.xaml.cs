@@ -232,6 +232,7 @@ public partial class App
                 services.AddSingleton<ClipListViewModel>();
                 services.AddSingleton<PreviewPaneViewModel>();
                 services.AddSingleton<SearchViewModel>();
+                services.AddSingleton<QuickPasteToolbarViewModel>();
                 services.AddTransient<ClipPropertiesViewModel>();
                 services.AddTransient<ClipViewerViewModel>();
 

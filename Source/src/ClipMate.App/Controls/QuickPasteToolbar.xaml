@@ -1,0 +1,91 @@
+<UserControl x:Class="ClipMate.App.Controls.QuickPasteToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:QuickPasteToolbarViewModel}"
+             mc:Ignorable="d"
+             Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+             BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
+             BorderThickness="0,1,0,0"
+             Padding="8,4">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: Target Display and Lock -->
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Text="Target:" VerticalAlignment="Center" Margin="0,0,5,0" />
+            <TextBlock Text="{Binding CurrentTargetDisplay}"
+                       VerticalAlignment="Center"
+                       FontWeight="SemiBold"
+                       MinWidth="200"
+                       Margin="0,0,10,0"
+                       ToolTip="{Binding CurrentTargetTooltip}" />
+
+            <dx:SimpleButton Content="{Binding TargetLockIcon}"
+                             Command="{Binding ToggleTargetLockCommand}"
+                             ToolTip="Lock/Unlock Target"
+                             Glyph="{dx:DXImage SvgImages/Icon Builder/Actions_Lock.svg}"
+                             Margin="0,0,5,0"
+                             Width="30"
+                             Height="24" />
+        </StackPanel>
+
+        <!-- Center: Formatting String Selector -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="Format:" VerticalAlignment="Center" Margin="0,0,5,0" />
+            <dxe:ComboBoxEdit ItemsSource="{Binding FormattingStrings}"
+                              SelectedItem="{Binding SelectedFormattingString}"
+                              DisplayMember="Title"
+                              Width="200"
+                              ToolTip="Select QuickPaste formatting string" />
+        </StackPanel>
+
+        <!-- Right: Action Buttons -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <dx:SimpleButton Content="TAB"
+                             Command="{Binding SendTabCommand}"
+                             ToolTip="Send TAB keystroke (F9)"
+                             Margin="0,0,3,0"
+                             Width="45"
+                             Height="24" />
+
+            <dx:SimpleButton Content="ENTER"
+                             Command="{Binding SendEnterCommand}"
+                             ToolTip="Send ENTER keystroke (Shift+F9)"
+                             Margin="0,0,8,0"
+                             Width="55"
+                             Height="24" />
+
+            <dx:SimpleButton Content="↩"
+                             Command="{Binding ToggleGoBackCommand}"
+                             ToolTip="Toggle GoBack (return focus to ClipMate)"
+                             FontSize="16"
+                             Margin="0,0,0,0"
+                             Width="30"
+                             Height="24">
+                <dx:SimpleButton.Style>
+                    <Style TargetType="dx:SimpleButton">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding GoBackEnabled}" Value="True">
+                                <Setter Property="Foreground" Value="Green" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding GoBackEnabled}" Value="False">
+                                <Setter Property="Foreground" Value="Gray" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </dx:SimpleButton.Style>
+            </dx:SimpleButton>
+        </StackPanel>
+    </Grid>
+
+</UserControl>

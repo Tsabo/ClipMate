@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Views;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -119,6 +120,25 @@ public partial class OptionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _powerPasteTrim;
 
+    // QuickPaste properties
+    [ObservableProperty]
+    private bool _quickPasteAutoTargetingEnabled;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _quickPasteBadTargets = new();
+
+    [ObservableProperty]
+    private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = new();
+
+    [ObservableProperty]
+    private ObservableCollection<string> _quickPasteGoodTargets = new();
+
+    [ObservableProperty]
+    private bool _quickPastePasteOnDoubleClick;
+
+    [ObservableProperty]
+    private bool _quickPastePasteOnEnter;
+
     [ObservableProperty]
     private int _selectedTabIndex;
 
@@ -180,6 +200,14 @@ public partial class OptionsViewModel : ObservableObject
         PowerPasteIncludeDelimiter = config.PowerPasteIncludeDelimiter;
         PowerPasteLoop = config.PowerPasteLoop;
         PowerPasteExplode = config.PowerPasteExplode;
+
+        // QuickPaste tab
+        QuickPasteAutoTargetingEnabled = config.QuickPasteAutoTargetingEnabled;
+        QuickPastePasteOnEnter = config.QuickPastePasteOnEnter;
+        QuickPastePasteOnDoubleClick = config.QuickPastePasteOnDoubleClick;
+        QuickPasteGoodTargets = new ObservableCollection<string>(config.QuickPasteGoodTargets);
+        QuickPasteBadTargets = new ObservableCollection<string>(config.QuickPasteBadTargets);
+        QuickPasteFormattingStrings = new ObservableCollection<QuickPasteFormattingString>(config.QuickPasteFormattingStrings);
 
         // General tab
         LoadClassicAtStartup = config.LoadClassicAtStartup;
@@ -260,6 +288,14 @@ public partial class OptionsViewModel : ObservableObject
             config.Preferences.PowerPasteLoop = PowerPasteLoop;
             config.Preferences.PowerPasteExplode = PowerPasteExplode;
 
+            // QuickPaste tab
+            config.Preferences.QuickPasteAutoTargetingEnabled = QuickPasteAutoTargetingEnabled;
+            config.Preferences.QuickPastePasteOnEnter = QuickPastePasteOnEnter;
+            config.Preferences.QuickPastePasteOnDoubleClick = QuickPastePasteOnDoubleClick;
+            config.Preferences.QuickPasteGoodTargets = QuickPasteGoodTargets.ToList();
+            config.Preferences.QuickPasteBadTargets = QuickPasteBadTargets.ToList();
+            config.Preferences.QuickPasteFormattingStrings = QuickPasteFormattingStrings.ToList();
+
             // General tab
             config.Preferences.LoadClassicAtStartup = LoadClassicAtStartup;
             config.Preferences.LoadExplorerAtStartup = LoadExplorerAtStartup;
@@ -335,6 +371,9 @@ public partial class OptionsViewModel : ObservableObject
 
             // Broadcast preferences changed event
             _messenger.Send(new PreferencesChangedEvent());
+
+            // Broadcast QuickPaste configuration changed event for immediate reload
+            _messenger.Send(new QuickPasteConfigurationChangedEvent());
 
             _logger.LogInformation("Configuration saved successfully");
         }
@@ -501,4 +540,118 @@ public partial class OptionsViewModel : ObservableObject
 
         _logger.LogInformation("Capturing settings reset to defaults");
     }
+
+    #region QuickPaste Commands
+
+    /// <summary>
+    /// Adds a new GOOD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void AddGoodTarget()
+    {
+        var dialog = new QuickPasteTargetDialog();
+        if (dialog.ShowDialog() == true)
+        {
+            var target = dialog.TargetSpecification;
+            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteGoodTargets.Contains(target))
+            {
+                QuickPasteGoodTargets.Add(target);
+                _logger.LogDebug("Added GOOD target: {Target}", target);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Edits the selected GOOD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void EditGoodTarget()
+    {
+        // TODO: Get selected item from grid
+        _logger.LogInformation("Edit GOOD target requested");
+    }
+
+    /// <summary>
+    /// Deletes the selected GOOD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteGoodTarget()
+    {
+        // TODO: Get selected item from grid and remove
+        _logger.LogInformation("Delete GOOD target requested");
+    }
+
+    /// <summary>
+    /// Adds a new BAD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void AddBadTarget()
+    {
+        var dialog = new QuickPasteTargetDialog();
+        if (dialog.ShowDialog() == true)
+        {
+            var target = dialog.TargetSpecification;
+            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteBadTargets.Contains(target))
+            {
+                QuickPasteBadTargets.Add(target);
+                _logger.LogDebug("Added BAD target: {Target}", target);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Edits the selected BAD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void EditBadTarget()
+    {
+        // TODO: Get selected item from grid
+        _logger.LogInformation("Edit BAD target requested");
+    }
+
+    /// <summary>
+    /// Deletes the selected BAD target specification.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteBadTarget()
+    {
+        // TODO: Get selected item from grid and remove
+        _logger.LogInformation("Delete BAD target requested");
+    }
+
+    /// <summary>
+    /// Adds a new formatting string.
+    /// </summary>
+    [RelayCommand]
+    private void AddFormattingString()
+    {
+        var dialog = new QuickPasteFormattingStringDialog();
+        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
+        {
+            QuickPasteFormattingStrings.Add(dialog.FormattingString);
+            _logger.LogDebug("Added formatting string: {Title}", dialog.FormattingString.Title);
+        }
+    }
+
+    /// <summary>
+    /// Edits the selected formatting string.
+    /// </summary>
+    [RelayCommand]
+    private void EditFormattingString()
+    {
+        // TODO: Get selected item from grid
+        _logger.LogInformation("Edit formatting string requested");
+    }
+
+    /// <summary>
+    /// Deletes the selected formatting string.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteFormattingString()
+    {
+        // TODO: Get selected item from grid and remove
+        _logger.LogInformation("Delete formatting string requested");
+    }
+
+    #endregion
 }

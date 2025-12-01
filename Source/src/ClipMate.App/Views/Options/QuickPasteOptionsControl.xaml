@@ -1,0 +1,177 @@
+<UserControl x:Class="ClipMate.App.Views.Options.QuickPasteOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Auto-Targeting Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Auto-Targeting" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable Auto-Targeting"
+                               IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
+                               ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" Foreground="Gray">
+                    <Run
+                        Text="When enabled, QuickPaste monitors the foreground window and only pastes to approved targets. " />
+                    <Run Text="Use GOOD targets to whitelist applications, and BAD targets to blacklist them." />
+                </TextBlock>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Paste Triggers Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Paste Triggers" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Paste on ENTER key"
+                               IsChecked="{Binding QuickPastePasteOnEnter}"
+                               ToolTip="Press ENTER to paste the selected clip using QuickPaste" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Paste on double-click"
+                               IsChecked="{Binding QuickPastePasteOnDoubleClick}"
+                               ToolTip="Double-click a clip to paste it using QuickPaste" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Good and Bad Targets Side-by-Side -->
+        <dxlc:LayoutGroup Orientation="Horizontal" Height="250">
+
+            <!-- GOOD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="GOOD Targets (Whitelist)" Orientation="Vertical">
+                <dxlc:LayoutItem>
+                    <dxg:GridControl ItemsSource="{Binding QuickPasteGoodTargets}"
+                                     AutoGenerateColumns="False"
+                                     ShowBorder="True">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="."
+                                            Header="Target Specification"
+                                            Width="*" />
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True"
+                                           ShowGroupPanel="False"
+                                           AllowEditing="True"
+                                           NavigationStyle="Row" />
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <Button Content="Add"
+                                Command="{Binding AddGoodTargetCommand}"
+                                Padding="10,3"
+                                Margin="0,0,5,0" />
+                        <Button Content="Edit"
+                                Command="{Binding EditGoodTargetCommand}"
+                                Padding="10,3"
+                                Margin="0,0,5,0" />
+                        <Button Content="Delete"
+                                Command="{Binding DeleteGoodTargetCommand}"
+                                Padding="10,3" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- BAD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="BAD Targets (Blacklist)" Orientation="Vertical">
+                <dxlc:LayoutItem>
+                    <dxg:GridControl ItemsSource="{Binding QuickPasteBadTargets}"
+                                     AutoGenerateColumns="False"
+                                     ShowBorder="True">
+                        <dxg:GridControl.Columns>
+                            <dxg:GridColumn FieldName="."
+                                            Header="Target Specification"
+                                            Width="*" />
+                        </dxg:GridControl.Columns>
+                        <dxg:GridControl.View>
+                            <dxg:TableView AutoWidth="True"
+                                           ShowGroupPanel="False"
+                                           AllowEditing="True"
+                                           NavigationStyle="Row" />
+                        </dxg:GridControl.View>
+                    </dxg:GridControl>
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <Button Content="Add"
+                                Command="{Binding AddBadTargetCommand}"
+                                Padding="10,3"
+                                Margin="0,0,5,0" />
+                        <Button Content="Edit"
+                                Command="{Binding EditBadTargetCommand}"
+                                Padding="10,3"
+                                Margin="0,0,5,0" />
+                        <Button Content="Delete"
+                                Command="{Binding DeleteBadTargetCommand}"
+                                Padding="10,3" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Formatting Strings -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" Height="250">
+            <dxlc:LayoutItem>
+                <dxg:GridControl ItemsSource="{Binding QuickPasteFormattingStrings}"
+                                 AutoGenerateColumns="False"
+                                 ShowBorder="True">
+                    <dxg:GridControl.Columns>
+                        <dxg:GridColumn FieldName="Title"
+                                        Header="Title"
+                                        Width="150" />
+                        <dxg:GridColumn FieldName="Preamble"
+                                        Header="Preamble"
+                                        Width="100" />
+                        <dxg:GridColumn FieldName="PasteKeystrokes"
+                                        Header="Paste Keys"
+                                        Width="100" />
+                        <dxg:GridColumn FieldName="Postamble"
+                                        Header="Postamble"
+                                        Width="100" />
+                        <dxg:GridColumn FieldName="TitleTrigger"
+                                        Header="Triggers"
+                                        Width="*" />
+                    </dxg:GridControl.Columns>
+                    <dxg:GridControl.View>
+                        <dxg:TableView AutoWidth="False"
+                                       ShowGroupPanel="False"
+                                       AllowEditing="False"
+                                       NavigationStyle="Row" />
+                    </dxg:GridControl.View>
+                </dxg:GridControl>
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <Button Content="Add"
+                            Command="{Binding AddFormattingStringCommand}"
+                            Padding="10,3"
+                            Margin="0,0,5,0" />
+                    <Button Content="Edit"
+                            Command="{Binding EditFormattingStringCommand}"
+                            Padding="10,3"
+                            Margin="0,0,5,0" />
+                    <Button Content="Delete"
+                            Command="{Binding DeleteFormattingStringCommand}"
+                            Padding="10,3" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

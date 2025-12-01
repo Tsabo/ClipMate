@@ -1,0 +1,95 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.QuickPasteFormattingStringDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 Title="Edit QuickPaste Formatting String"
+                 Width="600"
+                 Height="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="CanResize"
+                 ShowInTaskbar="False">
+
+    <!-- DevExpress Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Click="OkButton_Click"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Help"
+                                     Click="HelpButton_Click"
+                                     DialogResult="None"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+
+        <!-- Title -->
+        <dxlc:LayoutItem Label="Title:" LabelPosition="Top">
+            <dxe:TextEdit x:Name="TitleTextBox"
+                          EditValueChanged="OnFieldChanged" />
+        </dxlc:LayoutItem>
+
+        <!-- Preamble -->
+        <dxlc:LayoutItem Label="Preamble (before paste):" LabelPosition="Top">
+            <dxe:TextEdit x:Name="PreambleTextBox"
+                          EditValueChanged="OnFieldChanged" />
+        </dxlc:LayoutItem>
+
+        <!-- Paste Keystrokes -->
+        <dxlc:LayoutItem Label="Paste Keystrokes:" LabelPosition="Top">
+            <dxe:TextEdit x:Name="PasteKeystrokesTextBox"
+                          EditValueChanged="OnFieldChanged" />
+        </dxlc:LayoutItem>
+
+        <!-- Postamble -->
+        <dxlc:LayoutItem Label="Postamble (after paste):" LabelPosition="Top">
+            <dxe:TextEdit x:Name="PostambleTextBox"
+                          EditValueChanged="OnFieldChanged" />
+        </dxlc:LayoutItem>
+
+        <!-- Title Trigger -->
+        <dxlc:LayoutItem Label="Application Triggers (comma-separated):" LabelPosition="Top">
+            <dxe:TextEdit x:Name="TitleTriggerTextBox"
+                          EditValueChanged="OnFieldChanged"
+                          ToolTip="Partial window titles that trigger this formatting string (e.g., 'Notepad,Word,Excel')" />
+        </dxlc:LayoutItem>
+
+        <!-- Preview Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Registry Format Preview" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <dxe:TextEdit x:Name="PreviewTextBox"
+                              IsReadOnly="True"
+                              TextWrapping="Wrap"
+                              Height="60" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Help Text -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Meta Characters" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="Gray">
+                    <Run FontWeight="Bold" Text="Modifiers:" />
+                    <Run Text=" ^ (Ctrl), ~ (Alt), @ (Shift)" />
+                    <LineBreak />
+                    <Run FontWeight="Bold" Text="Special Keys:" />
+                    <Run Text=" {TAB}, {ENTER}, {ESC}, {HOME}, {END}, {DELETE}, {INSERT}" />
+                    <LineBreak />
+                    <Run FontWeight="Bold" Text="Macros:" />
+                    <Run Text=" #DATE#, #TIME#, #URL#, #TITLE#, #CREATOR#, #SEQUENCE#, #PAUSE#" />
+                    <LineBreak />
+                    <Run FontWeight="Bold" Text="Example:" />
+                    <Run Text=" ^v{TAB}#DATE#{ENTER}" />
+                </TextBlock>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</dx:ThemedWindow>

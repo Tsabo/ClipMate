@@ -250,4 +250,88 @@ public class PreferencesConfiguration
     /// Gets or sets the default editor view type to show when displaying clips.
     /// </summary>
     public EditorViewType DefaultEditorView { get; set; } = EditorViewType.Text;
+
+    // ==================== QuickPaste Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets whether auto-targeting is enabled for QuickPaste.
+    /// When enabled, ClipMate automatically detects the target application for pasting.
+    /// </summary>
+    public bool QuickPasteAutoTargetingEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to use a monitoring thread for auto-targeting.
+    /// Useful when ClipMate is running in "always on top" mode.
+    /// </summary>
+    public bool QuickPasteUseMonitoringThread { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether pressing ENTER on a clip triggers QuickPaste.
+    /// </summary>
+    public bool QuickPastePasteOnEnter { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether double-clicking a clip triggers QuickPaste.
+    /// </summary>
+    public bool QuickPastePasteOnDoubleClick { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the list of good program/class combinations for auto-targeting.
+    /// Format: PROCESSNAME:CLASSNAME (e.g., "FIREFOX:MOZILLAUIWINDOWCLASS")
+    /// </summary>
+    public List<string> QuickPasteGoodTargets { get; set; } = new()
+    {
+        "FIREFOX:MOZILLAUIWINDOWCLASS",
+        "IEXPLORE:IEFRAME",
+        "EXPLORER:CABINETWCLASS",
+        "WINWORD:OPUSAPP",
+        ":MSWINPUB",
+        "DEVENV:WNDCLASS_DESKED_GSK",
+        "OUTLOOK:RCTRL_NOTEWND32",
+        ":PP12FRAMECLASS",
+        ":FRONTPAGEEXPLORERWINDOW40",
+        ":XLMAIN",
+        ":TFRMHELPMAN",
+        "EXCEL:XLMAIN",
+        "MSPUB:MSWINPUB",
+        "POWERPNT:PP12FRAMECLASS",
+    };
+
+    /// <summary>
+    /// Gets or sets the list of bad program/class combinations to exclude from auto-targeting.
+    /// Format: PROCESSNAME:CLASSNAME or PROCESSNAME: (exclude entire application)
+    /// </summary>
+    public List<string> QuickPasteBadTargets { get; set; } = new()
+    {
+        "CLIPMATE:",
+        "POWERPNT:PROPERTIES",
+        "WINWORD:MSOCOMMANDBARPOPUP",
+        "WINWORD:MSOCOMMANDBARSHADOW",
+        ":MSCTFIME_UI",
+        ":OFFICETOOLTIP",
+        "IEXPLORE:AUTO-SUGGEST_DROPDOWN",
+        ":MSOCOMMANDBARSHADOW",
+        ":MSOCOMMANDBARPOPUP",
+        ":#43",
+        "HELPMAN:TFRMTOPIC",
+        ":GDI+_HOOK_WINDOW_CLASS",
+    };
+
+    /// <summary>
+    /// Gets or sets the list of QuickPaste formatting strings.
+    /// These define how keystrokes are sent to target applications during paste operations.
+    /// </summary>
+    public List<QuickPasteFormattingString> QuickPasteFormattingStrings { get; set; } = new()
+    {
+        new QuickPasteFormattingString { Title = "Paste Ctrl+V", Preamble = "", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "*" },
+        new QuickPasteFormattingString { Title = "Paste Shift+Ins", Preamble = "", PasteKeystrokes = "~{INSERT}", Postamble = "", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Paste Edit Menu", Preamble = "", PasteKeystrokes = "@e#PAUSE#p", Postamble = "", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Paste + ENTER", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Paste + TAB", Preamble = "", PasteKeystrokes = "^v", Postamble = "{TAB}", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Paste + Time", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}Captured At: #DATE# #TIME#", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Current Date_Time", Preamble = "The Date_Time Is:", PasteKeystrokes = "", Postamble = "#CURRENTDATE# #CURRENTTIME#", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Clip + URL", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}#URL#", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
+        new QuickPasteFormattingString { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
+    };
 }
