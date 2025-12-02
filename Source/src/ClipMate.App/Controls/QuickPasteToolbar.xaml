@@ -12,13 +12,23 @@
              mc:Ignorable="d">
 
     <UserControl.Resources>
-        <DrawingImage x:Key="MyImageSource" emoji:Image.Source="🎯"/>
+        <DrawingImage x:Key="MyImageSource" emoji:Image.Source="🎯" />
     </UserControl.Resources>
 
-    <dxb:ToolBarControl AllowQuickCustomization="False" 
-                        UseWholeRow="True" 
+    <dxb:ToolBarControl AllowQuickCustomization="False"
+                        AllowCustomizationMenu="False"
+                        UseWholeRow="True"
                         AllowCollapse="False">
-        
+
+        <dxb:BarManager.DXContextMenu>
+            <dxb:PopupMenu>
+                <dxb:BarButtonItem Content="Lock Current Target" />
+                <dxb:BarButtonItem Content="Clear Target" />
+                <dxb:BarItemSeparator />
+                <dxb:BarButtonItem Content="Target Settings..." />
+            </dxb:PopupMenu>
+        </dxb:BarManager.DXContextMenu>
+
         <!-- Button 1: Go Back - Undo icon when not set, Refresh when set -->
         <dxb:BarButtonItem Command="{Binding ToggleGoBackCommand}"
                            ToolTip="If set, focus returns to ClipMate after pasting. Otherwise, focus stays in target application.">

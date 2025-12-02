@@ -7,30 +7,26 @@
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
              mc:Ignorable="d">
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
 
         <!-- Auto-Targeting Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Auto-Targeting" Orientation="Vertical">
-            <dxlc:LayoutItem>
+        <dxlc:LayoutGroup View="GroupBox" Header="Auto-Targeting" Orientation="Horizontal" Padding="0">
+            <dxlc:LayoutItem MaxWidth="150">
                 <dxe:CheckEdit Content="Enable Auto-Targeting"
                                IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
                                ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
             </dxlc:LayoutItem>
 
-            <dxlc:LayoutItem>
-                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0" Foreground="Gray">
-                    <Run
-                        Text="When enabled, QuickPaste monitors the foreground window and only pastes to approved targets. " />
-                    <Run Text="Use GOOD targets to whitelist applications, and BAD targets to blacklist them." />
-                </TextBlock>
-            </dxlc:LayoutItem>
+            
         </dxlc:LayoutGroup>
 
         <!-- Paste Triggers Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Paste Triggers" Orientation="Vertical">
+        <dxlc:LayoutGroup View="GroupBox" Header="Paste Triggers" Orientation="Horizontal" Padding="0">
             <dxlc:LayoutItem>
                 <dxe:CheckEdit Content="Paste on ENTER key"
                                IsChecked="{Binding QuickPastePasteOnEnter}"
@@ -44,104 +40,22 @@
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
-        <!-- Good and Bad Targets Side-by-Side -->
-        <dxlc:LayoutGroup Orientation="Horizontal" Height="250">
-
-            <!-- GOOD Targets -->
-            <dxlc:LayoutGroup View="GroupBox" Header="GOOD Targets (Whitelist)" Orientation="Vertical">
-                <dxlc:LayoutItem>
-                    <dxg:GridControl ItemsSource="{Binding QuickPasteGoodTargets}"
-                                     AutoGenerateColumns="False"
-                                     ShowBorder="True">
-                        <dxg:GridControl.Columns>
-                            <dxg:GridColumn FieldName="."
-                                            Header="Target Specification"
-                                            Width="*" />
-                        </dxg:GridControl.Columns>
-                        <dxg:GridControl.View>
-                            <dxg:TableView AutoWidth="True"
-                                           ShowGroupPanel="False"
-                                           AllowEditing="True"
-                                           NavigationStyle="Row" />
-                        </dxg:GridControl.View>
-                    </dxg:GridControl>
-                </dxlc:LayoutItem>
-
-                <dxlc:LayoutItem>
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                        <Button Content="Add"
-                                Command="{Binding AddGoodTargetCommand}"
-                                Padding="10,3"
-                                Margin="0,0,5,0" />
-                        <Button Content="Edit"
-                                Command="{Binding EditGoodTargetCommand}"
-                                Padding="10,3"
-                                Margin="0,0,5,0" />
-                        <Button Content="Delete"
-                                Command="{Binding DeleteGoodTargetCommand}"
-                                Padding="10,3" />
-                    </StackPanel>
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <!-- BAD Targets -->
-            <dxlc:LayoutGroup View="GroupBox" Header="BAD Targets (Blacklist)" Orientation="Vertical">
-                <dxlc:LayoutItem>
-                    <dxg:GridControl ItemsSource="{Binding QuickPasteBadTargets}"
-                                     AutoGenerateColumns="False"
-                                     ShowBorder="True">
-                        <dxg:GridControl.Columns>
-                            <dxg:GridColumn FieldName="."
-                                            Header="Target Specification"
-                                            Width="*" />
-                        </dxg:GridControl.Columns>
-                        <dxg:GridControl.View>
-                            <dxg:TableView AutoWidth="True"
-                                           ShowGroupPanel="False"
-                                           AllowEditing="True"
-                                           NavigationStyle="Row" />
-                        </dxg:GridControl.View>
-                    </dxg:GridControl>
-                </dxlc:LayoutItem>
-
-                <dxlc:LayoutItem>
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                        <Button Content="Add"
-                                Command="{Binding AddBadTargetCommand}"
-                                Padding="10,3"
-                                Margin="0,0,5,0" />
-                        <Button Content="Edit"
-                                Command="{Binding EditBadTargetCommand}"
-                                Padding="10,3"
-                                Margin="0,0,5,0" />
-                        <Button Content="Delete"
-                                Command="{Binding DeleteBadTargetCommand}"
-                                Padding="10,3" />
-                    </StackPanel>
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-        </dxlc:LayoutGroup>
-
         <!-- Formatting Strings -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" Height="250">
-            <dxlc:LayoutItem>
+        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" VerticalAlignment="Stretch">
+            <dxlc:LayoutItem VerticalAlignment="Stretch">
                 <dxg:GridControl ItemsSource="{Binding QuickPasteFormattingStrings}"
-                                 AutoGenerateColumns="False"
-                                 ShowBorder="True">
+                                 AutoGenerateColumns="None"
+                                 ShowBorder="True"
+                                 CurrentItem="{Binding SelectedFormattingString, Mode=TwoWay}">
                     <dxg:GridControl.Columns>
                         <dxg:GridColumn FieldName="Title"
-                                        Header="Title"
-                                        Width="150" />
+                                        Header="Title" />
                         <dxg:GridColumn FieldName="Preamble"
-                                        Header="Preamble"
-                                        Width="100" />
+                                        Header="Preamble" />
                         <dxg:GridColumn FieldName="PasteKeystrokes"
-                                        Header="Paste Keys"
-                                        Width="100" />
+                                        Header="Paste Keys" />
                         <dxg:GridColumn FieldName="Postamble"
-                                        Header="Postamble"
-                                        Width="100" />
+                                        Header="Postamble" />
                         <dxg:GridColumn FieldName="TitleTrigger"
                                         Header="Triggers"
                                         Width="*" />

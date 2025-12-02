@@ -145,6 +145,14 @@ public class QuickPasteService : IQuickPasteService
     /// <inheritdoc />
     public void UpdateTarget()
     {
+        // Check if auto-targeting is enabled in configuration
+        var config = _configurationService.Configuration.Preferences;
+        if (!config.QuickPasteAutoTargetingEnabled)
+        {
+            _logger.LogDebug("Auto-targeting is disabled in configuration");
+            return;
+        }
+
         if (_targetLocked)
         {
             _logger.LogDebug("Target is locked, skipping update");

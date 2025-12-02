@@ -29,16 +29,16 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     private ObservableCollection<QuickPasteFormattingString> _formattingStrings = new();
 
     [ObservableProperty]
-    private bool _goBackEnabled = true;
+    private bool _goBackEnabled;
+
+    [ObservableProperty]
+    private bool _isTargetLocked;
 
     [ObservableProperty]
     private QuickPasteFormattingString? _selectedFormattingString;
 
     [ObservableProperty]
     private string _targetLockIcon = "🔓";
-
-    [ObservableProperty]
-    private bool _isTargetLocked;
 
     public QuickPasteToolbarViewModel(IQuickPasteService quickPasteService,
         IConfigurationService configurationService,

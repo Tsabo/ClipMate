@@ -140,6 +140,15 @@ public partial class OptionsViewModel : ObservableObject
     private bool _quickPastePasteOnEnter;
 
     [ObservableProperty]
+    private int _selectedGoodTargetIndex = -1;
+
+    [ObservableProperty]
+    private int _selectedBadTargetIndex = -1;
+
+    [ObservableProperty]
+    private QuickPasteFormattingString? _selectedFormattingString;
+
+    [ObservableProperty]
     private int _selectedTabIndex;
 
     // Editor tab properties (Monaco Editor settings)
@@ -567,8 +576,23 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void EditGoodTarget()
     {
-        // TODO: Get selected item from grid
-        _logger.LogInformation("Edit GOOD target requested");
+        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
+        {
+            _logger.LogWarning("No GOOD target selected for editing");
+            return;
+        }
+
+        var currentTarget = QuickPasteGoodTargets[SelectedGoodTargetIndex];
+        var dialog = new QuickPasteTargetDialog(currentTarget);
+        if (dialog.ShowDialog() == true)
+        {
+            var target = dialog.TargetSpecification;
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                QuickPasteGoodTargets[SelectedGoodTargetIndex] = target;
+                _logger.LogDebug("Edited GOOD target from {Old} to {New}", currentTarget, target);
+            }
+        }
     }
 
     /// <summary>
@@ -577,8 +601,15 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void DeleteGoodTarget()
     {
-        // TODO: Get selected item from grid and remove
-        _logger.LogInformation("Delete GOOD target requested");
+        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
+        {
+            _logger.LogWarning("No GOOD target selected for deletion");
+            return;
+        }
+
+        var target = QuickPasteGoodTargets[SelectedGoodTargetIndex];
+        QuickPasteGoodTargets.RemoveAt(SelectedGoodTargetIndex);
+        _logger.LogDebug("Deleted GOOD target: {Target}", target);
     }
 
     /// <summary>
@@ -605,8 +636,23 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void EditBadTarget()
     {
-        // TODO: Get selected item from grid
-        _logger.LogInformation("Edit BAD target requested");
+        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
+        {
+            _logger.LogWarning("No BAD target selected for editing");
+            return;
+        }
+
+        var currentTarget = QuickPasteBadTargets[SelectedBadTargetIndex];
+        var dialog = new QuickPasteTargetDialog(currentTarget);
+        if (dialog.ShowDialog() == true)
+        {
+            var target = dialog.TargetSpecification;
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                QuickPasteBadTargets[SelectedBadTargetIndex] = target;
+                _logger.LogDebug("Edited BAD target from {Old} to {New}", currentTarget, target);
+            }
+        }
     }
 
     /// <summary>
@@ -615,8 +661,15 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void DeleteBadTarget()
     {
-        // TODO: Get selected item from grid and remove
-        _logger.LogInformation("Delete BAD target requested");
+        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
+        {
+            _logger.LogWarning("No BAD target selected for deletion");
+            return;
+        }
+
+        var target = QuickPasteBadTargets[SelectedBadTargetIndex];
+        QuickPasteBadTargets.RemoveAt(SelectedBadTargetIndex);
+        _logger.LogDebug("Deleted BAD target: {Target}", target);
     }
 
     /// <summary>
@@ -639,8 +692,25 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void EditFormattingString()
     {
-        // TODO: Get selected item from grid
-        _logger.LogInformation("Edit formatting string requested");
+        if (SelectedFormattingString == null)
+        {
+            _logger.LogWarning("No formatting string selected for editing");
+            return;
+        }
+
+        var index = QuickPasteFormattingStrings.IndexOf(SelectedFormattingString);
+        if (index < 0)
+        {
+            _logger.LogWarning("Selected formatting string not found in collection");
+            return;
+        }
+
+        var dialog = new QuickPasteFormattingStringDialog(SelectedFormattingString);
+        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
+        {
+            QuickPasteFormattingStrings[index] = dialog.FormattingString;
+            _logger.LogDebug("Edited formatting string: {Title}", dialog.FormattingString.Title);
+        }
     }
 
     /// <summary>
@@ -649,8 +719,15 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void DeleteFormattingString()
     {
-        // TODO: Get selected item from grid and remove
-        _logger.LogInformation("Delete formatting string requested");
+        if (SelectedFormattingString == null)
+        {
+            _logger.LogWarning("No formatting string selected for deletion");
+            return;
+        }
+
+        var format = SelectedFormattingString;
+        QuickPasteFormattingStrings.Remove(SelectedFormattingString);
+        _logger.LogDebug("Deleted formatting string: {Title}", format.Title);
     }
 
     #endregion

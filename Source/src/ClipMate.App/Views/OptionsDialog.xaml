@@ -9,7 +9,7 @@
                  d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
                  mc:Ignorable="d"
                  Title="Options"
-                 Width="700"
+                 Width="800"
                  Height="625"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="CanResize"

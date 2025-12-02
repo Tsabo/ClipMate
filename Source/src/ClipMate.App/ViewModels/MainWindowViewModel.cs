@@ -149,6 +149,28 @@ public partial class MainWindowViewModel : ObservableObject
             : string.Empty;
     }
 
+    #region Window Event Handlers
+
+    /// <summary>
+    /// Called when the main window is activated (comes to foreground).
+    /// Triggers QuickPaste auto-targeting to detect the previously active application.
+    /// </summary>
+    public void OnWindowActivated()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var quickPasteService = scope.ServiceProvider.GetService<IQuickPasteService>();
+            quickPasteService?.UpdateTarget();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error updating QuickPaste target on window activation");
+        }
+    }
+
+    #endregion
+
     #region Child ViewModels
 
     /// <summary>

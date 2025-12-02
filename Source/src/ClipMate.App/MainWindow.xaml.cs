@@ -43,6 +43,7 @@ public partial class MainWindow : IWindow
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
+        Activated += MainWindow_Activated;
     }
 
     private void Window_StateChanged(object? sender, EventArgs e)
@@ -78,6 +79,12 @@ public partial class MainWindow : IWindow
             ShowTextTools();
             e.Handled = true;
         }
+    }
+
+    private void MainWindow_Activated(object? sender, EventArgs e)
+    {
+        // Trigger auto-targeting when window comes to foreground
+        _viewModel.OnWindowActivated();
     }
 
     private void TextTools_Click(object sender, RoutedEventArgs e) => ShowTextTools();
