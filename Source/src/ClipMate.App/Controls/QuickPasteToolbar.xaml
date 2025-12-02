@@ -22,10 +22,38 @@
 
         <dxb:BarManager.DXContextMenu>
             <dxb:PopupMenu>
-                <dxb:BarButtonItem Content="Lock Current Target" />
-                <dxb:BarButtonItem Content="Clear Target" />
+                <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}"
+                                   Command="{Binding AddToGoodTargetsCommand}"
+                                   IsEnabled="{Binding HasTarget}">
+                    <dxb:BarButtonItem.Style>
+                        <Style TargetType="dxb:BarButtonItem">
+                            <Setter Property="Content" Value="Add App:Class Combination to GOOD Target List" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTarget}" Value="True">
+                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to GOOD Target List'}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </dxb:BarButtonItem.Style>
+                </dxb:BarButtonItem>
+                <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}"
+                                   Command="{Binding AddToBadTargetsCommand}"
+                                   IsEnabled="{Binding HasTarget}">
+                    <dxb:BarButtonItem.Style>
+                        <Style TargetType="dxb:BarButtonItem">
+                            <Setter Property="Content" Value="Add App:Class Combination to BAD Target List" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTarget}" Value="True">
+                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to BAD Target List'}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </dxb:BarButtonItem.Style>
+                </dxb:BarButtonItem>
                 <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Target Settings..." />
+                <dxb:BarButtonItem Content="QuickPaste Settings"
+                                   Glyph="{dx:DXImage 'Images/Setup/Properties_16x16.png'}"
+                                   Command="{Binding OpenQuickPasteSettingsCommand}" />
             </dxb:PopupMenu>
         </dxb:BarManager.DXContextMenu>
 
@@ -75,7 +103,7 @@
 
         <!-- Target Display - Static text that stretches to fill remaining space -->
         <dxb:BarStaticItem AutoSizeMode="Fill"
-                           Content="{Binding CurrentTargetDisplay, StringFormat='Current Target: {0}'}"
+                           Content="{Binding CurrentTargetDisplay}"
                            ToolTip="{Binding CurrentTargetTooltip}" />
 
         <!-- Formatting String ComboBox -->

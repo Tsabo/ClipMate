@@ -12,6 +12,8 @@ using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 using Clipboard = System.Windows.Clipboard;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using CommunityToolkit.Mvvm.Messaging;
+using ClipMate.Core.Events;
 using ModifierKeys = System.Windows.Input.ModifierKeys;
 
 namespace ClipMate.App;
@@ -24,18 +26,21 @@ namespace ClipMate.App;
 public partial class MainWindow : IWindow
 {
     private readonly ILogger<MainWindow>? _logger;
+    private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private readonly MainWindowViewModel _viewModel;
     private bool _isExiting;
 
     public MainWindow(MainWindowViewModel mainWindowViewModel,
         IServiceProvider serviceProvider,
+        IMessenger messenger,
         ILogger<MainWindow>? logger = null)
     {
         InitializeComponent();
 
         _viewModel = mainWindowViewModel ?? throw new ArgumentNullException(nameof(mainWindowViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger;
 
         DataContext = _viewModel;
@@ -43,7 +48,10 @@ public partial class MainWindow : IWindow
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
-        Activated += MainWindow_Activated;
+        Deactivated += MainWindow_Deactivated;
+
+        // Subscribe to events
+        _messenger.Register<OpenOptionsDialogEvent>(this, (_, message) => ShowOptions(message.TabName));
     }
 
     private void Window_StateChanged(object? sender, EventArgs e)
@@ -81,10 +89,10 @@ public partial class MainWindow : IWindow
         }
     }
 
-    private void MainWindow_Activated(object? sender, EventArgs e)
+    private void MainWindow_Deactivated(object? sender, EventArgs e)
     {
-        // Trigger auto-targeting when window comes to foreground
-        _viewModel.OnWindowActivated();
+        // Capture target window when ClipMate loses focus
+        _viewModel.OnWindowDeactivated();
     }
 
     private void TextTools_Click(object sender, RoutedEventArgs e) => ShowTextTools();
@@ -108,12 +116,18 @@ public partial class MainWindow : IWindow
 
     private void Options_Click(object sender, RoutedEventArgs e) => ShowOptions();
 
-    private void ShowOptions()
+    private void ShowOptions(string? selectedTab = null)
     {
         try
         {
             if (_serviceProvider.GetService(typeof(OptionsDialog)) is OptionsDialog optionsDialog)
             {
+                // Set the selected tab if specified
+                if (!string.IsNullOrEmpty(selectedTab) && optionsDialog.DataContext is OptionsViewModel viewModel)
+                {
+                    viewModel.SelectTab(selectedTab);
+                }
+
                 optionsDialog.Owner = this;
                 var result = optionsDialog.ShowDialog();
                 

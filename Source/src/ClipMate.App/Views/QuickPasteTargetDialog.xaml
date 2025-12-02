@@ -6,7 +6,7 @@
                  xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
                  Title="Input Required"
                  Width="450"
-                 Height="180"
+                 Height="200"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False">

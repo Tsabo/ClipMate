@@ -16,13 +16,58 @@
 
         <!-- Auto-Targeting Section -->
         <dxlc:LayoutGroup View="GroupBox" Header="Auto-Targeting" Orientation="Horizontal" Padding="0">
-            <dxlc:LayoutItem MaxWidth="150">
-                <dxe:CheckEdit Content="Enable Auto-Targeting"
-                               IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
-                               ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
-            </dxlc:LayoutItem>
 
-            
+            <dxlc:LayoutGroup View="Group" Orientation="Vertical" MaxWidth="150">
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Enable Auto-Targeting"
+                                   IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
+                                   ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem MaxWidth="150">
+                    <dxe:CheckEdit Content="Use Monitoring Thread?"
+                                   IsChecked="{Binding QuickPasteUseMonitoringThread}"
+                                   ToolTip="Check for changes to the 'top window' continuously. Can be used to correct targeting problems when ClipMate is set to 'always on top'"/>
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- GOOD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="GOOD Targets (Whitelist)" Orientation="Horizontal">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <dxb:ToolBarControl Grid.Column="0" Orientation="Vertical" AllowCustomizationMenu="False" AllowQuickCustomization="False" AllowCollapse="False">
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}" Command="{Binding AddGoodTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/XAF/Action_Edit.png'}" Command="{Binding EditGoodTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Edit/Delete_16x16.png'}" Command="{Binding DeleteGoodTargetCommand}"/>
+                    </dxb:ToolBarControl>
+                    <dxe:ListBoxEdit Grid.Column="1" ItemsSource="{Binding QuickPasteGoodTargets}"
+                                     SelectionMode="Single"
+                                     ShowBorder="True"
+                                     SelectedIndex="{Binding SelectedGoodTargetIndex, Mode=TwoWay}" />
+                </Grid>
+            </dxlc:LayoutGroup>
+
+            <!-- BAD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="BAD Targets (Blacklist)" Orientation="Horizontal">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <dxb:ToolBarControl Grid.Column="0" Orientation="Vertical" AllowCustomizationMenu="False" AllowQuickCustomization="False" AllowCollapse="False">
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}" Command="{Binding AddBadTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/XAF/Action_Edit.png'}" Command="{Binding EditBadTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Edit/Delete_16x16.png'}" Command="{Binding DeleteBadTargetCommand}"/>
+                    </dxb:ToolBarControl>
+                    <dxe:ListBoxEdit Grid.Column="1" ItemsSource="{Binding QuickPasteBadTargets}"
+                                     SelectionMode="Single"
+                                     ShowBorder="True"
+                                     SelectedIndex="{Binding SelectedBadTargetIndex, Mode=TwoWay}" />
+                </Grid>
+            </dxlc:LayoutGroup>
         </dxlc:LayoutGroup>
 
         <!-- Paste Triggers Section -->
@@ -41,7 +86,7 @@
         </dxlc:LayoutGroup>
 
         <!-- Formatting Strings -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" VerticalAlignment="Stretch">
+        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >
             <dxlc:LayoutItem VerticalAlignment="Stretch">
                 <dxg:GridControl ItemsSource="{Binding QuickPasteFormattingStrings}"
                                  AutoGenerateColumns="None"

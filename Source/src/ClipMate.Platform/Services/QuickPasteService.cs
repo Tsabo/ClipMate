@@ -164,6 +164,7 @@ public class QuickPasteService : IQuickPasteService
         {
             _currentTarget = target;
             _logger.LogInformation("Target updated to: {Target}", GetCurrentTargetString());
+            _messenger.Send(new QuickPasteTargetChangedEvent());
         }
     }
 
@@ -286,25 +287,9 @@ public class QuickPasteService : IQuickPasteService
             }
         }
 
-        // If there are good targets defined, check if this matches
-        // Otherwise, accept any target not in the bad list
-        if (config.QuickPasteGoodTargets.Count > 0)
-        {
-            foreach (var goodTarget in config.QuickPasteGoodTargets)
-            {
-                if (MatchesTarget(targetString, goodTarget))
-                {
-                    _logger.LogDebug("Target {Target} matches good target {GoodTarget}, accepting",
-                        targetString, goodTarget);
-
-                    return true;
-                }
-            }
-
-            _logger.LogDebug("Target {Target} does not match any good targets, rejecting", targetString);
-            return false;
-        }
-
+        // Good targets are training hints for future window stack enumeration
+        // For now, accept any target not in the bad list
+        _logger.LogDebug("Target {Target} is valid (not in bad targets list)", targetString);
         return true;
     }
 

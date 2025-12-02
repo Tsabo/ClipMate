@@ -16,6 +16,7 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly ILogger<MainWindowViewModel>? _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IQuickPasteService _quickPasteService;
 
     public MainWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
@@ -23,6 +24,7 @@ public partial class MainWindowViewModel : ObservableObject
         SearchViewModel searchViewModel,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         IServiceProvider serviceProvider,
+        IQuickPasteService quickPasteService,
         ILogger<MainWindowViewModel>? logger = null)
     {
         CollectionTree = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
@@ -31,6 +33,7 @@ public partial class MainWindowViewModel : ObservableObject
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _logger = logger;
     }
 
@@ -152,20 +155,20 @@ public partial class MainWindowViewModel : ObservableObject
     #region Window Event Handlers
 
     /// <summary>
-    /// Called when the main window is activated (comes to foreground).
-    /// Triggers QuickPaste auto-targeting to detect the previously active application.
+    /// Called when the main window is deactivated (loses focus).
+    /// Captures the new foreground window as the QuickPaste target.
     /// </summary>
-    public void OnWindowActivated()
+    public async void OnWindowDeactivated()
     {
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var quickPasteService = scope.ServiceProvider.GetService<IQuickPasteService>();
-            quickPasteService?.UpdateTarget();
+            // Delay to ensure the new foreground window is fully activated
+            await Task.Delay(100);
+            _quickPasteService?.UpdateTarget();
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error updating QuickPaste target on window activation");
+            _logger?.LogError(ex, "Error updating QuickPaste target on window deactivation");
         }
     }
 

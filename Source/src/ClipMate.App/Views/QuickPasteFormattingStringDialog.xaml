@@ -28,7 +28,7 @@
                                      MinWidth="80" />
     </dx:ThemedWindow.DialogButtons>
 
-    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+    <dxlc:LayoutControl Orientation="Vertical" Padding="2">
 
         <!-- Title -->
         <dxlc:LayoutItem Label="Title:" LabelPosition="Top">
@@ -62,12 +62,13 @@
         </dxlc:LayoutItem>
 
         <!-- Preview Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Registry Format Preview" Orientation="Vertical">
+        <dxlc:LayoutGroup View="GroupBox" Header="Resulting Format String" Orientation="Vertical">
             <dxlc:LayoutItem>
                 <dxe:TextEdit x:Name="PreviewTextBox"
                               IsReadOnly="True"
                               TextWrapping="Wrap"
-                              Height="60" />
+                              Height="Auto"
+                              ShowBorder="False" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 

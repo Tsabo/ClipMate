@@ -125,6 +125,9 @@ public partial class OptionsViewModel : ObservableObject
     private bool _quickPasteAutoTargetingEnabled;
 
     [ObservableProperty]
+    private bool _quickPasteUseMonitoringThread;
+
+    [ObservableProperty]
     private ObservableCollection<string> _quickPasteBadTargets = new();
 
     [ObservableProperty]
@@ -195,6 +198,26 @@ public partial class OptionsViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Selects a tab by name.
+    /// </summary>
+    /// <param name="tabName">Name of the tab to select (General, Pasting, QuickPaste, etc.)</param>
+    public void SelectTab(string? tabName)
+    {
+        if (string.IsNullOrEmpty(tabName))
+            return;
+
+        SelectedTabIndex = tabName.ToUpperInvariant() switch
+        {
+            "GENERAL" => 0,
+            "PASTING" => 1,
+            "QUICKPASTE" => 2,
+            _ => SelectedTabIndex
+        };
+
+        _logger.LogDebug("Selected tab: {TabName} (index: {Index})", tabName, SelectedTabIndex);
+    }
+
+    /// <summary>
     /// Loads configuration from the configuration service.
     /// </summary>
     public async Task LoadConfigurationAsync()
@@ -212,6 +235,7 @@ public partial class OptionsViewModel : ObservableObject
 
         // QuickPaste tab
         QuickPasteAutoTargetingEnabled = config.QuickPasteAutoTargetingEnabled;
+        QuickPasteUseMonitoringThread = config.QuickPasteUseMonitoringThread;
         QuickPastePasteOnEnter = config.QuickPastePasteOnEnter;
         QuickPastePasteOnDoubleClick = config.QuickPastePasteOnDoubleClick;
         QuickPasteGoodTargets = new ObservableCollection<string>(config.QuickPasteGoodTargets);

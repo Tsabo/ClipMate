@@ -40,6 +40,12 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     [ObservableProperty]
     private string _targetLockIcon = "🔓";
 
+    [ObservableProperty]
+    private bool _hasTarget;
+
+    [ObservableProperty]
+    private string _currentTargetString = string.Empty;
+
     public QuickPasteToolbarViewModel(IQuickPasteService quickPasteService,
         IConfigurationService configurationService,
         IMessenger messenger,
@@ -49,6 +55,9 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Subscribe to target change events
+        _messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => UpdateTargetDisplay());
 
         LoadFormattingStrings();
         UpdateTargetDisplay();
@@ -73,11 +82,21 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
         var target = _quickPasteService.GetCurrentTarget();
         if (target.HasValue)
         {
-            CurrentTargetDisplay = $"{target.Value.ProcessName}";
+            HasTarget = true;
+            CurrentTargetString = $"{target.Value.ProcessName}:{target.Value.ClassName}";
+            
+            // Display process name with window title
+            var displayText = !string.IsNullOrWhiteSpace(target.Value.WindowTitle)
+                ? $"{target.Value.ProcessName} - {target.Value.WindowTitle}"
+                : target.Value.ProcessName;
+            
+            CurrentTargetDisplay = displayText;
             CurrentTargetTooltip = $"Process: {target.Value.ProcessName}\nClass: {target.Value.ClassName}\nTitle: {target.Value.WindowTitle}";
         }
         else
         {
+            HasTarget = false;
+            CurrentTargetString = string.Empty;
             CurrentTargetDisplay = "No target";
             CurrentTargetTooltip = "No active window detected";
         }
@@ -172,5 +191,46 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
             _quickPasteService.SelectFormattingString(value);
             _logger.LogDebug("Selected formatting string: {Title}", value.Title);
         }
+    }
+
+    /// <summary>
+    /// Adds the current target to the good target list.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    private async Task AddToGoodTargets()
+    {
+        var config = _configurationService.Configuration.Preferences;
+        if (!string.IsNullOrEmpty(CurrentTargetString) && !config.QuickPasteGoodTargets.Contains(CurrentTargetString))
+        {
+            config.QuickPasteGoodTargets.Add(CurrentTargetString);
+            await _configurationService.SaveAsync();
+            _logger.LogInformation("Added {Target} to good targets", CurrentTargetString);
+        }
+    }
+
+    /// <summary>
+    /// Adds the current target to the bad target list.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    private async Task AddToBadTargets()
+    {
+        var config = _configurationService.Configuration.Preferences;
+        if (!string.IsNullOrEmpty(CurrentTargetString) && !config.QuickPasteBadTargets.Contains(CurrentTargetString))
+        {
+            config.QuickPasteBadTargets.Add(CurrentTargetString);
+            await _configurationService.SaveAsync();
+            _logger.LogInformation("Added {Target} to bad targets", CurrentTargetString);
+        }
+    }
+
+    /// <summary>
+    /// Opens the Options dialog to the QuickPaste settings tab.
+    /// </summary>
+    [RelayCommand]
+    private void OpenQuickPasteSettings()
+    {
+        _logger.LogDebug("Opening QuickPaste settings");
+        // Send message to open options dialog with QuickPaste tab selected
+        _messenger.Send(new OpenOptionsDialogEvent("QuickPaste"));
     }
 }
