@@ -308,14 +308,14 @@ public class QuickPasteService : IQuickPasteService
         var actualProcess = actualParts[0];
         var actualClass = actualParts[1];
 
-        // Match process (empty pattern matches any)
+        // Match process (empty pattern matches any, non-empty uses prefix match)
         if (!string.IsNullOrEmpty(patternProcess) &&
-            !actualProcess.Equals(patternProcess, StringComparison.OrdinalIgnoreCase))
+            !actualProcess.StartsWith(patternProcess, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        // Match class (empty pattern matches any, supporting partial matches like "CLIPMATE:")
+        // Match class (empty pattern matches any, non-empty uses prefix match)
         if (!string.IsNullOrEmpty(patternClass) &&
-            !actualClass.Equals(patternClass, StringComparison.OrdinalIgnoreCase))
+            !actualClass.StartsWith(patternClass, StringComparison.OrdinalIgnoreCase))
             return false;
 
         return true;

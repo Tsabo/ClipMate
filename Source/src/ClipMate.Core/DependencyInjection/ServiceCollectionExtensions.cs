@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
         // Register text transform service as singleton
-        services.AddSingleton<TextTransformService>();
+        services.AddSingleton<ITextTransformService, TextTransformService>();
 
         // Register application profile services as singletons
         // These use TOML file storage, not EF Core, so they're stateless and thread-safe

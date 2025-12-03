@@ -87,6 +87,7 @@ public class MainWindowViewModelTests
             searchVM,
             quickPasteToolbarVm,
             mockServiceProvider.Object,
+            mockQuickPasteService.Object,
             mockMainLogger.Object);
     }
 

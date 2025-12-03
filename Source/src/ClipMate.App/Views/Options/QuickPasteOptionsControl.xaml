@@ -23,12 +23,13 @@
                                    IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
                                    ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
                 </dxlc:LayoutItem>
-
+                <!--
                 <dxlc:LayoutItem MaxWidth="150">
                     <dxe:CheckEdit Content="Use Monitoring Thread?"
                                    IsChecked="{Binding QuickPasteUseMonitoringThread}"
                                    ToolTip="Check for changes to the 'top window' continuously. Can be used to correct targeting problems when ClipMate is set to 'always on top'"/>
                 </dxlc:LayoutItem>
+                -->
             </dxlc:LayoutGroup>
 
             <!-- GOOD Targets -->

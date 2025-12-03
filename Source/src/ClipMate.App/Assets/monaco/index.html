@@ -192,6 +192,159 @@
             console.log('[Monaco] Debug mode:', enabled ? 'enabled' : 'disabled');
         }
 
+        // Get currently selected text
+        function getSelectedText() {
+            if (!monacoEditor) {
+                return '';
+            }
+            try {
+                const selection = monacoEditor.getSelection();
+                if (!selection || selection.isEmpty()) {
+                    return '';
+                }
+                const model = monacoEditor.getModel();
+                return model.getValueInRange(selection);
+            } catch (error) {
+                console.error('[Monaco] Get selected text error:', error);
+                return '';
+            }
+        }
+
+        // Replace currently selected text
+        function replaceSelection(text) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                const selection = monacoEditor.getSelection();
+                if (!selection) {
+                    return false;
+                }
+                
+                // Use executeEdits with pushUndoStop for proper undo stack integration
+                monacoEditor.executeEdits('toolbar', [{
+                    range: selection,
+                    text: text,
+                    forceMoveMarkers: true
+                }]);
+                
+                if (debugMode) console.log('[Monaco] Selection replaced');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Replace selection error:', error);
+                return false;
+            }
+        }
+
+        // Insert text at cursor position
+        function insertAtCursor(text) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                const position = monacoEditor.getPosition();
+                if (!position) {
+                    return false;
+                }
+                
+                // Use executeEdits with pushUndoStop for proper undo stack integration
+                monacoEditor.executeEdits('toolbar', [{
+                    range: {
+                        startLineNumber: position.lineNumber,
+                        startColumn: position.column,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column
+                    },
+                    text: text,
+                    forceMoveMarkers: true
+                }]);
+                
+                if (debugMode) console.log('[Monaco] Text inserted at cursor');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Insert at cursor error:', error);
+                return false;
+            }
+        }
+
+        // Get current cursor position
+        function getCursorPosition() {
+            if (!monacoEditor) {
+                return { lineNumber: 1, column: 1 };
+            }
+            try {
+                const position = monacoEditor.getPosition();
+                return position || { lineNumber: 1, column: 1 };
+            } catch (error) {
+                console.error('[Monaco] Get cursor position error:', error);
+                return { lineNumber: 1, column: 1 };
+            }
+        }
+
+        // Trigger undo action
+        function triggerUndo() {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                monacoEditor.trigger('toolbar', 'undo');
+                if (debugMode) console.log('[Monaco] Undo triggered');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Trigger undo error:', error);
+                return false;
+            }
+        }
+
+        // Trigger find dialog
+        function triggerFind() {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                monacoEditor.trigger('toolbar', 'actions.find');
+                if (debugMode) console.log('[Monaco] Find dialog triggered');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Trigger find error:', error);
+                return false;
+            }
+        }
+
+        // Set word wrap mode
+        function setWordWrap(enabled) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                monacoEditor.updateOptions({ 
+                    wordWrap: enabled ? 'on' : 'off' 
+                });
+                if (debugMode) console.log('[Monaco] Word wrap:', enabled ? 'enabled' : 'disabled');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Set word wrap error:', error);
+                return false;
+            }
+        }
+
+        // Set render whitespace mode
+        function setRenderWhitespace(mode) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                monacoEditor.updateOptions({ 
+                    renderWhitespace: mode 
+                });
+                if (debugMode) console.log('[Monaco] Render whitespace:', mode);
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Set render whitespace error:', error);
+                return false;
+            }
+        }
+
         if (debugMode) {
             console.log('[Monaco] Script loaded, waiting for initialization');
         }

@@ -23,5 +23,10 @@ public enum CaseConversion
     /// <summary>
     /// Convert the first character of each sentence to uppercase.
     /// </summary>
-    SentenceCase
+    SentenceCase,
+
+    /// <summary>
+    /// Invert the case of each character (uppercase to lowercase and vice versa).
+    /// </summary>
+    InvertCase
 }
