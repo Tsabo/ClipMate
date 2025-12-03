@@ -40,15 +40,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -75,14 +75,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 },
+
                 new()
                 {
                     Type = MigrationOperationType.AddColumn,
@@ -90,13 +91,14 @@ public class SqliteSchemaMigratorTests
                     ColumnName = "Email",
                     Sql = "ALTER TABLE Users ADD COLUMN Email TEXT"
                 },
+
                 new()
                 {
                     Type = MigrationOperationType.CreateIndex,
                     IndexName = "IX_Users_Email",
                     Sql = "CREATE INDEX IX_Users_Email ON Users (Email)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -119,15 +121,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -162,21 +164,22 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 },
+
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "InvalidTable",
                     Sql = "INVALID SQL SYNTAX HERE"
                 }
-            }
+            ]
         };
 
         // Act
@@ -210,15 +213,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -238,15 +241,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -270,15 +273,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Invalid",
                     Sql = "INVALID SQL"
                 }
-            }
+            ]
         };
 
         // Act
@@ -302,15 +305,15 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 }
-            }
+            ]
         };
 
         // Act
@@ -339,16 +342,16 @@ public class SqliteSchemaMigratorTests
         var migrator = new SqliteSchemaMigrator(connection);
         var diff = new SchemaDiff
         {
-            Operations = new List<MigrationOperation>
-            {
+            Operations =
+            [
                 new()
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
                     Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
                 }
-            },
-            Warnings = new List<string> { "Warning: Schema change may cause data loss" }
+            ],
+            Warnings = ["Warning: Schema change may cause data loss"]
         };
 
         // Act

@@ -59,7 +59,7 @@ public class ApplicationFilterRepository : IApplicationFilterRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var filter = await _context.ApplicationFilters.FindAsync(new object[] { id }, cancellationToken);
+        var filter = await _context.ApplicationFilters.FindAsync([id], cancellationToken);
         if (filter == null)
             return false;
 

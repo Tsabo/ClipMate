@@ -58,7 +58,7 @@ public class CollectionRepository : ICollectionRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var collection = await _context.Collections.FindAsync(new object[] { id }, cancellationToken);
+        var collection = await _context.Collections.FindAsync([id], cancellationToken);
         if (collection == null)
             return false;
 

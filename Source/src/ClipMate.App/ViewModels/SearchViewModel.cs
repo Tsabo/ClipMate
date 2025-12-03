@@ -16,8 +16,8 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
-    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IMessenger _messenger;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
     private DateTime? _dateFrom;
@@ -57,21 +57,21 @@ public partial class SearchViewModel : ObservableObject
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
     }
-    
-    /// <summary>
-    /// Helper to create a scope and resolve a scoped service.
-    /// </summary>
-    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Collection of search results.
     /// </summary>
-    public ObservableCollection<Clip> SearchResults { get; } = new();
+    public ObservableCollection<Clip> SearchResults { get; } = [];
 
     /// <summary>
     /// Collection of recent search queries.
     /// </summary>
-    public ObservableCollection<string> SearchHistory { get; } = new();
+    public ObservableCollection<string> SearchHistory { get; } = [];
+
+    /// <summary>
+    /// Helper to create a scope and resolve a scoped service.
+    /// </summary>
+    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Executes the search with current filters.
@@ -83,6 +83,7 @@ public partial class SearchViewModel : ObservableObject
         {
             SearchResults.Clear();
             TotalMatches = 0;
+
             return;
         }
 
@@ -172,7 +173,7 @@ public partial class SearchViewModel : ObservableObject
             DateRange = dateRange,
             Scope = SearchScope,
             CaseSensitive = IsCaseSensitive,
-            IsRegex = IsRegex,
+            IsRegex = IsRegex
         };
     }
 }

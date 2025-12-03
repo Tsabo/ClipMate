@@ -10,8 +10,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a Clip entity with default or custom values.
     /// </summary>
-    public static Clip CreateClip(
-        Guid? id = null,
+    public static Clip CreateClip(Guid? id = null,
         ClipType type = ClipType.Text,
         string textContent = "Test content",
         string? label = null,
@@ -37,8 +36,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a Collection entity with default or custom values.
     /// </summary>
-    public static Collection CreateCollection(
-        Guid? id = null,
+    public static Collection CreateCollection(Guid? id = null,
         string name = "Test Collection",
         string? description = null,
         bool isActive = true)
@@ -56,8 +54,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a Folder entity with default or custom values.
     /// </summary>
-    public static Folder CreateFolder(
-        Guid? id = null,
+    public static Folder CreateFolder(Guid? id = null,
         string name = "Test Folder",
         Guid? collectionId = null,
         Guid? parentFolderId = null)
@@ -75,8 +72,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a Template entity with default or custom values.
     /// </summary>
-    public static Template CreateTemplate(
-        Guid? id = null,
+    public static Template CreateTemplate(Guid? id = null,
         string name = "Test Template",
         string content = "{{clip}}",
         Guid? collectionId = null)
@@ -94,8 +90,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates an ApplicationFilter entity with default or custom values.
     /// </summary>
-    public static ApplicationFilter CreateApplicationFilter(
-        Guid? id = null,
+    public static ApplicationFilter CreateApplicationFilter(Guid? id = null,
         string name = "Test Filter",
         string processName = "notepad.exe",
         string? windowTitlePattern = null)
@@ -114,8 +109,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a SearchQuery entity with default or custom values.
     /// </summary>
-    public static SearchQuery CreateSearchQuery(
-        Guid? id = null,
+    public static SearchQuery CreateSearchQuery(Guid? id = null,
         string name = "Test Search",
         string queryText = "test",
         bool isCaseSensitive = false,
@@ -136,8 +130,7 @@ public static class TestDataBuilder
     /// <summary>
     /// Creates a SoundEvent entity with default or custom values.
     /// </summary>
-    public static SoundEvent CreateSoundEvent(
-        Guid? id = null,
+    public static SoundEvent CreateSoundEvent(Guid? id = null,
         SoundEventType eventType = SoundEventType.ClipCaptured,
         string? soundFilePath = null,
         bool isEnabled = true)
@@ -158,6 +151,7 @@ public static class TestDataBuilder
     private static string ComputeHash(string content)
     {
         var hash = content.GetHashCode();
+
         return $"hash_{hash:X8}";
     }
 }

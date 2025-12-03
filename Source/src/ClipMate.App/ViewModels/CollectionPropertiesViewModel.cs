@@ -165,7 +165,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         {
             CollectionType.Virtual => CollectionLmType.Virtual,
             CollectionType.Folder => CollectionLmType.Folder,
-            var _ => CollectionLmType.Normal, // Normal and Trashcan
+            _ => CollectionLmType.Normal // Normal and Trashcan
         };
 
         // Set ListType for virtual collections

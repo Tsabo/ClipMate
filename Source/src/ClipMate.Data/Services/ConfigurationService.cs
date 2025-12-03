@@ -50,6 +50,7 @@ public class ConfigurationService : IConfigurationService
                 _logger.LogInformation("Configuration file not found at {Path}. Creating default configuration.", ConfigurationFilePath);
                 Configuration = CreateDefaultConfiguration();
                 await SaveInternalAsync(cancellationToken);
+
                 return Configuration;
             }
 
@@ -63,12 +64,14 @@ public class ConfigurationService : IConfigurationService
                 _logger.LogInformation("Configuration parsed successfully");
                 _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", Configuration.MonacoEditor.EnableDebug);
                 _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", Configuration.MonacoEditor.Theme);
+
                 return Configuration;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to parse configuration file. Using defaults.");
                 Configuration = CreateDefaultConfiguration();
+
                 return Configuration;
             }
         }
@@ -192,6 +195,7 @@ public class ConfigurationService : IConfigurationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save configuration file");
+
             throw;
         }
     }
@@ -224,9 +228,9 @@ public class ConfigurationService : IConfigurationService
                     UserName = Environment.UserName,
                     IsRemote = false,
                     MultiUser = false,
-                    UseModificationTimeStamp = true,
-                },
-            },
+                    UseModificationTimeStamp = true
+                }
+            }
         };
 
         return config;

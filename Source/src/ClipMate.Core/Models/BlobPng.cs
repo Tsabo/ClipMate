@@ -25,7 +25,7 @@ public class BlobPng
     /// <summary>
     /// PNG binary data (DATA in ClipMate 7.5, stored as BLOB).
     /// </summary>
-    public byte[] Data { get; set; } = Array.Empty<byte>();
+    public byte[] Data { get; set; } = [];
 
     // Navigation property
     public ClipData? ClipData { get; set; }

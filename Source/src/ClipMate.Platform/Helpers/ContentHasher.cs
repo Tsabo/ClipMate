@@ -22,6 +22,7 @@ public static class ContentHasher
         using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(content);
         var hashBytes = sha256.ComputeHash(bytes);
+
         return Convert.ToHexString(hashBytes);
     }
 
@@ -37,6 +38,7 @@ public static class ContentHasher
 
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(data);
+
         return Convert.ToHexString(hashBytes);
     }
 
@@ -51,6 +53,7 @@ public static class ContentHasher
             return string.Empty;
 
         var combined = string.Join("|", filePaths.OrderBy(p => p));
+
         return HashText(combined);
     }
 
@@ -65,9 +68,9 @@ public static class ContentHasher
         return clip.Type switch
         {
             ClipType.Text or ClipType.Html => HashText(clip.TextContent ?? string.Empty),
-            ClipType.Image => HashBytes(clip.ImageData ?? Array.Empty<byte>()),
+            ClipType.Image => HashBytes(clip.ImageData ?? []),
             ClipType.Files => HashText(clip.FilePathsJson ?? string.Empty),
-            var _ => string.Empty,
+            _ => string.Empty
         };
     }
 }

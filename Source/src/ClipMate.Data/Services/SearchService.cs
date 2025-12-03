@@ -38,20 +38,21 @@ public class SearchService : ISearchService
         {
             Clips = filteredClips.ToList(),
             TotalMatches = filteredClips.Count(),
-            Query = query,
+            Query = query
         };
     }
 
     public async Task<SearchResults> ExecuteSavedSearchAsync(Guid searchQueryId, CancellationToken cancellationToken = default)
     {
         var searchQuery = await _searchQueryRepository.GetByIdAsync(searchQueryId, cancellationToken);
+
         if (searchQuery == null)
             throw new ArgumentException($"Search query {searchQueryId} not found", nameof(searchQueryId));
 
         var filters = new SearchFilters
         {
             CaseSensitive = searchQuery.IsCaseSensitive,
-            IsRegex = searchQuery.IsRegex,
+            IsRegex = searchQuery.IsRegex
         };
 
         return await SearchAsync(searchQuery.QueryText, filters, cancellationToken);
@@ -69,7 +70,7 @@ public class SearchService : ISearchService
             QueryText = query,
             IsCaseSensitive = isCaseSensitive,
             IsRegex = isRegex,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
 
         return await _searchQueryRepository.CreateAsync(searchQuery, cancellationToken);
@@ -102,17 +103,17 @@ public class SearchService : ISearchService
         if (filters?.ContentTypes != null && filters.ContentTypes.Any())
         {
             var contentTypes = filters.ContentTypes.ToHashSet();
-            result = result.Where(c => contentTypes.Contains(c.Type));
+            result = result.Where(p => contentTypes.Contains(p.Type));
         }
 
         // Apply date range filter
         if (filters?.DateRange != null)
         {
             if (filters.DateRange.From.HasValue)
-                result = result.Where(c => c.CapturedAt >= filters.DateRange.From.Value);
+                result = result.Where(p => p.CapturedAt >= filters.DateRange.From.Value);
 
             if (filters.DateRange.To.HasValue)
-                result = result.Where(c => c.CapturedAt <= filters.DateRange.To.Value);
+                result = result.Where(p => p.CapturedAt <= filters.DateRange.To.Value);
         }
 
         // Apply text search
@@ -132,7 +133,7 @@ public class SearchService : ISearchService
                     ? RegexOptions.None
                     : RegexOptions.IgnoreCase);
 
-                return clips.Where(c => regex.IsMatch(c.TextContent ?? string.Empty));
+                return clips.Where(p => regex.IsMatch(p.TextContent ?? string.Empty));
             }
             catch (ArgumentException ex)
             {
@@ -145,8 +146,8 @@ public class SearchService : ISearchService
             ? StringComparison.Ordinal
             : StringComparison.OrdinalIgnoreCase;
 
-        return clips.Where(c =>
-            c.TextContent?.Contains(query, comparison) == true);
+        return clips.Where(p =>
+            p.TextContent?.Contains(query, comparison) == true);
     }
 
     private void AddToSearchHistory(string query)

@@ -78,6 +78,7 @@ public class ClipboardMonitor : IDisposable
 
         // Create HwndSource to intercept Windows messages
         _hwndSource = HwndSource.FromHwnd(hwnd);
+
         if (_hwndSource == null)
             throw new InvalidOperationException("Failed to create HwndSource from window handle.");
 
@@ -88,6 +89,7 @@ public class ClipboardMonitor : IDisposable
         if (!PInvoke.AddClipboardFormatListener(new HWND(hwnd)))
         {
             _hwndSource.RemoveHook(WndProc);
+
             throw new InvalidOperationException("Failed to register clipboard format listener.");
         }
 

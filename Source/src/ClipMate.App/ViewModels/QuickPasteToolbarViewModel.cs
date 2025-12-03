@@ -23,13 +23,19 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     private string _currentTargetDisplay = "No target";
 
     [ObservableProperty]
+    private string _currentTargetString = string.Empty;
+
+    [ObservableProperty]
     private string _currentTargetTooltip = "No active window detected";
 
     [ObservableProperty]
-    private ObservableCollection<QuickPasteFormattingString> _formattingStrings = new();
+    private ObservableCollection<QuickPasteFormattingString> _formattingStrings = [];
 
     [ObservableProperty]
     private bool _goBackEnabled;
+
+    [ObservableProperty]
+    private bool _hasTarget;
 
     [ObservableProperty]
     private bool _isTargetLocked;
@@ -39,12 +45,6 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
 
     [ObservableProperty]
     private string _targetLockIcon = "🔓";
-
-    [ObservableProperty]
-    private bool _hasTarget;
-
-    [ObservableProperty]
-    private string _currentTargetString = string.Empty;
 
     public QuickPasteToolbarViewModel(IQuickPasteService quickPasteService,
         IConfigurationService configurationService,
@@ -84,12 +84,12 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
         {
             HasTarget = true;
             CurrentTargetString = $"{target.Value.ProcessName}:{target.Value.ClassName}";
-            
+
             // Display process name with window title
             var displayText = !string.IsNullOrWhiteSpace(target.Value.WindowTitle)
                 ? $"{target.Value.ProcessName} - {target.Value.WindowTitle}"
                 : target.Value.ProcessName;
-            
+
             CurrentTargetDisplay = displayText;
             CurrentTargetTooltip = $"Process: {target.Value.ProcessName}\nClass: {target.Value.ClassName}\nTitle: {target.Value.WindowTitle}";
         }

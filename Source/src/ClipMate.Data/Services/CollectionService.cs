@@ -29,11 +29,12 @@ public class CollectionService : ICollectionService
             Name = name,
             Description = description,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
         };
 
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+
         return await repository.CreateAsync(collection, cancellationToken);
     }
 
@@ -41,6 +42,7 @@ public class CollectionService : ICollectionService
     {
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+
         return await repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -48,6 +50,7 @@ public class CollectionService : ICollectionService
     {
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+
         return await repository.GetAllAsync(cancellationToken);
     }
 
@@ -59,6 +62,7 @@ public class CollectionService : ICollectionService
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
         var collection = await repository.GetByIdAsync(_activeCollectionId.Value, cancellationToken);
+
         if (collection == null)
             throw new InvalidOperationException($"Active collection {_activeCollectionId} not found.");
 
@@ -71,6 +75,7 @@ public class CollectionService : ICollectionService
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
         var collection = await repository.GetByIdAsync(id, cancellationToken);
+
         if (collection == null)
             throw new ArgumentException($"Collection {id} not found.", nameof(id));
 
@@ -81,10 +86,11 @@ public class CollectionService : ICollectionService
     {
         ArgumentNullException.ThrowIfNull(collection);
         collection.ModifiedAt = DateTime.UtcNow;
-        
+
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
         var updated = await repository.UpdateAsync(collection, cancellationToken);
+
         if (!updated)
             throw new InvalidOperationException($"Failed to update collection {collection.Id}.");
     }
@@ -97,6 +103,7 @@ public class CollectionService : ICollectionService
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
         var deleted = await repository.DeleteAsync(id, cancellationToken);
+
         if (!deleted)
             throw new InvalidOperationException($"Failed to delete collection {id}.");
     }

@@ -40,11 +40,10 @@ public class EmojiPickerViewModelTests
     public async Task Constructor_LoadsRecentEmojis()
     {
         // Arrange
-        var configService = CreateMockConfigService(new List<RecentEmoji>
-        {
+        var configService = CreateMockConfigService([
             new() { Emoji = "😀", LastUsed = DateTime.Now, UseCount = 5 },
             new() { Emoji = "😎", LastUsed = DateTime.Now.AddDays(-1), UseCount = 3 }
-        });
+        ]);
 
         // Act
         var viewModel = new EmojiPickerViewModel(configService.Object);
@@ -250,7 +249,7 @@ public class EmojiPickerViewModelTests
         var mock = new Mock<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
-            RecentEmojis = recentEmojis ?? new List<RecentEmoji>()
+            RecentEmojis = recentEmojis ?? []
         };
 
         mock.Setup(c => c.Configuration).Returns(config);

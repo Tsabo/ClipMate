@@ -93,6 +93,7 @@ public class DatabaseManager : IDisposable
         if (dbEntry.Key == null)
         {
             _logger.LogWarning("Database not found in configuration: {Name}", databaseName);
+
             return false;
         }
 
@@ -106,11 +107,13 @@ public class DatabaseManager : IDisposable
             await context.Database.EnsureCreatedAsync(cancellationToken);
 
             _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
+
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load database: {Title} at {Path}", dbConfig.Name, dbConfig.Directory);
+
             return false;
         }
     }
@@ -145,9 +148,10 @@ public class DatabaseManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
-            return Enumerable.Empty<DatabaseConfiguration>();
+            return [];
 
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
+
         return _configuration.Databases
             .Where(p => loadedPaths.Contains(p.Value.Directory, StringComparer.OrdinalIgnoreCase))
             .Select(p => p.Value);
@@ -173,6 +177,7 @@ public class DatabaseManager : IDisposable
 
         var dbConfig = dbEntry.Value;
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
+
         if (!loadedPaths.Contains(dbConfig.Directory, StringComparer.OrdinalIgnoreCase))
             return null;
 
@@ -197,6 +202,7 @@ public class DatabaseManager : IDisposable
         {
             var dbConfig = item.Value;
             var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
+
             yield return (dbConfig.Name, context);
         }
     }

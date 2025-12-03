@@ -32,7 +32,7 @@ public class ApplicationProfileServiceCrudOperationsTests : ApplicationProfileSe
         var profiles = new Dictionary<string, ApplicationProfile>
         {
             ["NOTEPAD"] = ApplicationProfileTestFixtures.GetNotepadProfile(),
-            ["CHROME"] = ApplicationProfileTestFixtures.GetChromeProfile(),
+            ["CHROME"] = ApplicationProfileTestFixtures.GetChromeProfile()
         };
 
         MockStore.Setup(p => p.LoadProfilesAsync(It.IsAny<CancellationToken>()))

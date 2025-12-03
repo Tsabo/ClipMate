@@ -28,7 +28,7 @@ public class FolderService : IFolderService
             CollectionId = collectionId,
             ParentFolderId = parentFolderId,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
         };
 
         return await _repository.CreateAsync(folder, cancellationToken);
@@ -47,6 +47,7 @@ public class FolderService : IFolderService
         ArgumentNullException.ThrowIfNull(folder);
         folder.ModifiedAt = DateTime.UtcNow;
         var updated = await _repository.UpdateAsync(folder, cancellationToken);
+
         if (!updated)
             throw new InvalidOperationException($"Failed to update folder {folder.Id}.");
     }
@@ -54,6 +55,7 @@ public class FolderService : IFolderService
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var deleted = await _repository.DeleteAsync(id, cancellationToken);
+
         if (!deleted)
             throw new InvalidOperationException($"Failed to delete folder {id}.");
     }
@@ -69,6 +71,7 @@ public class FolderService : IFolderService
     public Task SetActiveAsync(Guid? folderId, CancellationToken cancellationToken = default)
     {
         _activeFolderId = folderId;
+
         return Task.CompletedTask;
     }
 }

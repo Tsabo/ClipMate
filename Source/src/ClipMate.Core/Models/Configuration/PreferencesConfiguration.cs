@@ -279,8 +279,8 @@ public class PreferencesConfiguration
     /// Gets or sets the list of good program/class combinations for auto-targeting.
     /// Format: PROCESSNAME:CLASSNAME (e.g., "FIREFOX:MOZILLAUIWINDOWCLASS")
     /// </summary>
-    public List<string> QuickPasteGoodTargets { get; set; } = new()
-    {
+    public List<string> QuickPasteGoodTargets { get; set; } =
+    [
         "FIREFOX:MOZILLAUIWINDOWCLASS",
         "IEXPLORE:IEFRAME",
         "EXPLORER:CABINETWCLASS",
@@ -294,15 +294,15 @@ public class PreferencesConfiguration
         ":TFRMHELPMAN",
         "EXCEL:XLMAIN",
         "MSPUB:MSWINPUB",
-        "POWERPNT:PP12FRAMECLASS",
-    };
+        "POWERPNT:PP12FRAMECLASS"
+    ];
 
     /// <summary>
     /// Gets or sets the list of bad program/class combinations to exclude from auto-targeting.
     /// Format: PROCESSNAME:CLASSNAME or PROCESSNAME: (exclude entire application)
     /// </summary>
-    public List<string> QuickPasteBadTargets { get; set; } = new()
-    {
+    public List<string> QuickPasteBadTargets { get; set; } =
+    [
         "CLIPMATE:",
         "POWERPNT:PROPERTIES",
         "WINWORD:MSOCOMMANDBARPOPUP",
@@ -314,24 +314,34 @@ public class PreferencesConfiguration
         ":MSOCOMMANDBARPOPUP",
         ":#43",
         "HELPMAN:TFRMTOPIC",
-        ":GDI+_HOOK_WINDOW_CLASS",
-    };
+        ":GDI+_HOOK_WINDOW_CLASS"
+    ];
 
     /// <summary>
     /// Gets or sets the list of QuickPaste formatting strings.
     /// These define how keystrokes are sent to target applications during paste operations.
     /// </summary>
-    public List<QuickPasteFormattingString> QuickPasteFormattingStrings { get; set; } = new()
-    {
-        new QuickPasteFormattingString { Title = "Paste Ctrl+V", Preamble = "", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "*" },
-        new QuickPasteFormattingString { Title = "Paste Shift+Ins", Preamble = "", PasteKeystrokes = "~{INSERT}", Postamble = "", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Paste Edit Menu", Preamble = "", PasteKeystrokes = "@e#PAUSE#p", Postamble = "", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Paste + ENTER", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Paste + TAB", Preamble = "", PasteKeystrokes = "^v", Postamble = "{TAB}", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Paste + Time", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}Captured At: #DATE# #TIME#", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Current Date_Time", Preamble = "The Date_Time Is:", PasteKeystrokes = "", Postamble = "#CURRENTDATE# #CURRENTTIME#", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Clip + URL", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}#URL#", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
-        new QuickPasteFormattingString { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
-    };
+    public List<QuickPasteFormattingString> QuickPasteFormattingStrings { get; set; } =
+    [
+        new()
+            { Title = "Paste Ctrl+V", Preamble = "", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "*" },
+        new()
+            { Title = "Paste Shift+Ins", Preamble = "", PasteKeystrokes = "~{INSERT}", Postamble = "", TitleTrigger = "" },
+        new()
+            { Title = "Paste Edit Menu", Preamble = "", PasteKeystrokes = "@e#PAUSE#p", Postamble = "", TitleTrigger = "" },
+        new()
+            { Title = "Paste + ENTER", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}", TitleTrigger = "" },
+        new()
+            { Title = "Paste + TAB", Preamble = "", PasteKeystrokes = "^v", Postamble = "{TAB}", TitleTrigger = "" },
+        new()
+            { Title = "Paste + Time", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}Captured At: #DATE# #TIME#", TitleTrigger = "" },
+        new()
+            { Title = "Current Date_Time", Preamble = "The Date_Time Is:", PasteKeystrokes = "", Postamble = "#CURRENTDATE# #CURRENTTIME#", TitleTrigger = "" },
+        new()
+            { Title = "Clip + URL", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}#URL#", TitleTrigger = "" },
+        new()
+            { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
+        new()
+            { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" }
+    ];
 }

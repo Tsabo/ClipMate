@@ -53,7 +53,7 @@ public class QuickPasteFormattingString
     /// <returns>A new QuickPasteFormattingString instance.</returns>
     public static QuickPasteFormattingString FromRegistryFormat(string registryFormat)
     {
-        var parts = registryFormat.Split(new[] { "],[" }, StringSplitOptions.None);
+        var parts = registryFormat.Split(["],["], StringSplitOptions.None);
         if (parts.Length != 5)
             return new QuickPasteFormattingString();
 

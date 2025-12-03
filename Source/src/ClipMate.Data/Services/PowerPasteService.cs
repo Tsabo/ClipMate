@@ -3,6 +3,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
+using ISoundService = ClipMate.Platform.ISoundService;
 
 namespace ClipMate.Data.Services;
 
@@ -13,19 +14,14 @@ namespace ClipMate.Data.Services;
 public class PowerPasteService : IPowerPasteService
 {
     private readonly IConfigurationService _configurationService;
-    private readonly ILogger<PowerPasteService> _logger;
-    private readonly Platform.ISoundService _soundService;
     private readonly SemaphoreSlim _lock = new(1, 1);
-
-    private PowerPasteState _state = PowerPasteState.Inactive;
-    private PowerPasteDirection _direction = PowerPasteDirection.Down;
-    private List<Clip> _sequence = [];
-    private int _currentPosition = -1;
+    private readonly ILogger<PowerPasteService> _logger;
+    private readonly ISoundService _soundService;
     private bool _explodeMode;
+    private readonly List<Clip> _sequence = [];
 
-    public PowerPasteService(
-        IConfigurationService configurationService,
-        Platform.ISoundService soundService,
+    public PowerPasteService(IConfigurationService configurationService,
+        ISoundService soundService,
         ILogger<PowerPasteService> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -34,13 +30,13 @@ public class PowerPasteService : IPowerPasteService
     }
 
     /// <inheritdoc />
-    public PowerPasteState State => _state;
+    public PowerPasteState State { get; private set; } = PowerPasteState.Inactive;
 
     /// <inheritdoc />
-    public PowerPasteDirection Direction => _direction;
+    public PowerPasteDirection Direction { get; private set; } = PowerPasteDirection.Down;
 
     /// <inheritdoc />
-    public int CurrentPosition => _currentPosition;
+    public int CurrentPosition { get; private set; } = -1;
 
     /// <inheritdoc />
     public int TotalCount => _sequence.Count;
@@ -64,7 +60,7 @@ public class PowerPasteService : IPowerPasteService
                 direction, explodeMode, clips.Count);
 
             var config = _configurationService.Configuration.Preferences;
-            
+
             // Build the sequence
             _sequence.Clear();
             _explodeMode = explodeMode;
@@ -87,35 +83,38 @@ public class PowerPasteService : IPowerPasteService
             if (_sequence.Count == 0)
             {
                 _logger.LogWarning("PowerPaste sequence is empty after processing");
+
                 return;
             }
 
             // Initialize position based on direction
-            _direction = direction;
-            _currentPosition = direction == PowerPasteDirection.Down ? 0 : _sequence.Count - 1;
+            Direction = direction;
+            CurrentPosition = direction == PowerPasteDirection.Down
+                ? 0
+                : _sequence.Count - 1;
 
             // Update state
-            var oldState = _state;
-            _state = PowerPasteState.Active;
+            var oldState = State;
+            State = PowerPasteState.Active;
 
             // Raise events
             StateChanged?.Invoke(this, new PowerPasteStateChangedEventArgs
             {
                 OldState = oldState,
-                NewState = _state,
-                Direction = _direction,
+                NewState = State,
+                Direction = Direction,
                 TotalCount = _sequence.Count
             });
 
             PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
             {
-                Position = _currentPosition,
+                Position = CurrentPosition,
                 TotalCount = _sequence.Count,
                 CurrentClip = GetCurrentClip(),
                 IsComplete = false
             });
 
-            _logger.LogInformation("PowerPaste started: Position={Position}/{TotalCount}", _currentPosition + 1, _sequence.Count);
+            _logger.LogInformation("PowerPaste started: Position={Position}/{TotalCount}", CurrentPosition + 1, _sequence.Count);
         }
         finally
         {
@@ -129,34 +128,38 @@ public class PowerPasteService : IPowerPasteService
         await _lock.WaitAsync();
         try
         {
-            if (_state != PowerPasteState.Active)
+            if (State != PowerPasteState.Active)
             {
                 _logger.LogWarning("AdvanceToNext called but PowerPaste is not active");
+
                 return;
             }
 
             var config = _configurationService.Configuration.Preferences;
 
             // Move to next position
-            if (_direction == PowerPasteDirection.Down)
-                _currentPosition++;
+            if (Direction == PowerPasteDirection.Down)
+                CurrentPosition++;
             else
-                _currentPosition--;
+                CurrentPosition--;
 
-            _logger.LogDebug("PowerPaste advanced: Position={Position}/{TotalCount}", _currentPosition + 1, _sequence.Count);
+            _logger.LogDebug("PowerPaste advanced: Position={Position}/{TotalCount}", CurrentPosition + 1, _sequence.Count);
 
             // Check if we've reached the end
-            var isComplete = _direction == PowerPasteDirection.Down
-                ? _currentPosition >= _sequence.Count
-                : _currentPosition < 0;
+            var isComplete = Direction == PowerPasteDirection.Down
+                ? CurrentPosition >= _sequence.Count
+                : CurrentPosition < 0;
 
             if (isComplete)
             {
                 if (config.PowerPasteLoop)
                 {
                     // Loop back to the beginning
-                    _currentPosition = _direction == PowerPasteDirection.Down ? 0 : _sequence.Count - 1;
-                    _logger.LogInformation("PowerPaste looping: Position reset to {Position}", _currentPosition + 1);
+                    CurrentPosition = Direction == PowerPasteDirection.Down
+                        ? 0
+                        : _sequence.Count - 1;
+
+                    _logger.LogInformation("PowerPaste looping: Position reset to {Position}", CurrentPosition + 1);
 
                     // Play double beep to indicate loop
                     await PlayLoopSoundAsync();
@@ -168,6 +171,7 @@ public class PowerPasteService : IPowerPasteService
                     await PlayCompletionSoundAsync();
 
                     Stop();
+
                     return;
                 }
             }
@@ -175,7 +179,7 @@ public class PowerPasteService : IPowerPasteService
             // Raise position changed event
             PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
             {
-                Position = _currentPosition,
+                Position = CurrentPosition,
                 TotalCount = _sequence.Count,
                 CurrentClip = GetCurrentClip(),
                 IsComplete = isComplete && !config.PowerPasteLoop
@@ -193,21 +197,21 @@ public class PowerPasteService : IPowerPasteService
         _lock.Wait();
         try
         {
-            if (_state == PowerPasteState.Inactive)
+            if (State == PowerPasteState.Inactive)
                 return;
 
             _logger.LogInformation("Stopping PowerPaste");
 
-            var oldState = _state;
-            _state = PowerPasteState.Inactive;
+            var oldState = State;
+            State = PowerPasteState.Inactive;
             _sequence.Clear();
-            _currentPosition = -1;
+            CurrentPosition = -1;
 
             StateChanged?.Invoke(this, new PowerPasteStateChangedEventArgs
             {
                 OldState = oldState,
-                NewState = _state,
-                Direction = _direction,
+                NewState = State,
+                Direction = Direction,
                 TotalCount = 0
             });
         }
@@ -220,10 +224,10 @@ public class PowerPasteService : IPowerPasteService
     /// <inheritdoc />
     public Clip? GetCurrentClip()
     {
-        if (_state != PowerPasteState.Active || _currentPosition < 0 || _currentPosition >= _sequence.Count)
+        if (State != PowerPasteState.Active || CurrentPosition < 0 || CurrentPosition >= _sequence.Count)
             return null;
 
-        return _sequence[_currentPosition];
+        return _sequence[CurrentPosition];
     }
 
     /// <summary>
@@ -236,6 +240,7 @@ public class PowerPasteService : IPowerPasteService
         if (string.IsNullOrWhiteSpace(clip.TextContent))
         {
             fragments.Add(clip);
+
             return fragments;
         }
 
@@ -292,6 +297,7 @@ public class PowerPasteService : IPowerPasteService
             fragments.Add(clip);
 
         _logger.LogDebug("Exploded clip into {FragmentCount} fragments", fragments.Count);
+
         return fragments;
     }
 

@@ -2,16 +2,14 @@ using System.Windows;
 using System.Windows.Controls;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using DevExpress.Xpf.Editors;
 using Microsoft.Extensions.Logging;
-using Wpf.Ui.Controls;
 
 namespace ClipMate.App.Views;
 
 /// <summary>
 /// Text Cleanup dialog for advanced text transformations.
 /// </summary>
-public partial class TextCleanupDialog : FluentWindow
+public partial class TextCleanupDialog
 {
     private readonly ITextTransformService _textTransformService;
     private readonly ILogger<TextCleanupDialog> _logger;

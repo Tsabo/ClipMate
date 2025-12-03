@@ -176,7 +176,7 @@ public class SqliteSchemaReaderTests
 
         var options = new SchemaOptions
         {
-            IgnoredTables = new HashSet<string> { "__InternalTable" }
+            IgnoredTables = ["__InternalTable"]
         };
         var reader = new SqliteSchemaReader(connection, options);
 
@@ -210,7 +210,7 @@ public class SqliteSchemaReaderTests
         {
             IgnoredColumns = new Dictionary<string, HashSet<string>>
             {
-                ["Users"] = new HashSet<string> { "RowVersion" }
+                ["Users"] = ["RowVersion"]
             }
         };
         var reader = new SqliteSchemaReader(connection, options);

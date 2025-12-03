@@ -38,11 +38,11 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 }
-                    },
+                    ],
                     CreateSql = "CREATE TABLE Users (...)"
                 }
             }
@@ -70,10 +70,7 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -84,11 +81,11 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -116,12 +113,12 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    },
-                    Indexes = new List<IndexDefinition>()
+                    ],
+                    Indexes = []
                 }
             }
         };
@@ -132,22 +129,22 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    },
-                    Indexes = new List<IndexDefinition>
-                    {
+                    ],
+                    Indexes =
+                    [
                         new()
                         {
                             Name = "IX_Users_Email",
                             TableName = "Users",
-                            Columns = new List<string> { "Email" },
+                            Columns = ["Email"],
                             IsUnique = false,
                             CreateSql = "CREATE INDEX IX_Users_Email ON Users (Email)"
                         }
-                    }
+                    ]
                 }
             }
         };
@@ -174,10 +171,7 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -203,11 +197,11 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "OldColumn", Type = "TEXT", IsNullable = true, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -218,10 +212,7 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -246,11 +237,11 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Age", Type = "TEXT", IsNullable = true, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -261,11 +252,11 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Age", Type = "INTEGER", IsNullable = true, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -290,10 +281,7 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -304,19 +292,16 @@ public class SqliteSchemaComparerTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    }
+                    ]
                 },
                 ["Products"] = new TableDefinition
                 {
                     Name = "Products",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    },
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
                     CreateSql = "CREATE TABLE Products (...)"
                 }
             }

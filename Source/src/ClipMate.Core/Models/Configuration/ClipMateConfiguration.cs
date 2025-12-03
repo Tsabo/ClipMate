@@ -40,7 +40,7 @@ public class ClipMateConfiguration
     /// <summary>
     /// Gets or sets the list of recently used emojis with usage statistics.
     /// </summary>
-    public List<RecentEmoji> RecentEmojis { get; set; } = new();
+    public List<RecentEmoji> RecentEmojis { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the Monaco Editor configuration settings.

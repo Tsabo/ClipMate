@@ -93,6 +93,7 @@ public class QuickPasteService : IQuickPasteService
         if (_currentTarget == null)
         {
             _logger.LogWarning("No target application selected for QuickPaste");
+
             return false;
         }
 
@@ -125,6 +126,7 @@ public class QuickPasteService : IQuickPasteService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error pasting clip {ClipId} via QuickPaste", clip.Id);
+
             return false;
         }
     }
@@ -150,12 +152,14 @@ public class QuickPasteService : IQuickPasteService
         if (!config.QuickPasteAutoTargetingEnabled)
         {
             _logger.LogDebug("Auto-targeting is disabled in configuration");
+
             return;
         }
 
         if (_targetLocked)
         {
             _logger.LogDebug("Target is locked, skipping update");
+
             return;
         }
 
@@ -215,11 +219,13 @@ public class QuickPasteService : IQuickPasteService
         try
         {
             var foregroundWindow = _win32.GetForegroundWindow();
+
             if (foregroundWindow.IsNull)
                 return null;
 
             // Get process name
             _win32.GetWindowThreadProcessId(foregroundWindow, out var processId);
+
             if (processId == 0)
                 return null;
 
@@ -259,6 +265,7 @@ public class QuickPasteService : IQuickPasteService
 
             // Check against good/bad target lists
             var targetString = $"{processName}:{className}";
+
             if (!IsValidTarget(targetString))
                 return null;
 
@@ -267,6 +274,7 @@ public class QuickPasteService : IQuickPasteService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error detecting target window");
+
             return null;
         }
     }
@@ -290,6 +298,7 @@ public class QuickPasteService : IQuickPasteService
         // Good targets are training hints for future window stack enumeration
         // For now, accept any target not in the bad list
         _logger.LogDebug("Target {Target} is valid (not in bad targets list)", targetString);
+
         return true;
     }
 
@@ -328,6 +337,7 @@ public class QuickPasteService : IQuickPasteService
         {
             // Default: just send Ctrl+V
             SendCtrlV();
+
             return;
         }
 
@@ -358,6 +368,7 @@ public class QuickPasteService : IQuickPasteService
                     var macro = keystrokes.Substring(i + 1, endIndex - i - 1);
                     await ExecuteMacroAsync(macro, clip, cancellationToken);
                     i = endIndex + 1;
+
                     continue;
                 }
             }
@@ -371,6 +382,7 @@ public class QuickPasteService : IQuickPasteService
                     var key = keystrokes.Substring(i + 1, endIndex - i - 1);
                     SendSpecialKeyByName(key);
                     i = endIndex + 1;
+
                     continue;
                 }
             }
@@ -383,6 +395,7 @@ public class QuickPasteService : IQuickPasteService
                     {
                         SendCtrlKey(keystrokes[i + 1]);
                         i += 2;
+
                         continue;
                     }
 
@@ -393,6 +406,7 @@ public class QuickPasteService : IQuickPasteService
                     {
                         SendShiftKey(keystrokes[i + 1]);
                         i += 2;
+
                         continue;
                     }
 
@@ -403,6 +417,7 @@ public class QuickPasteService : IQuickPasteService
                     {
                         SendAltKey(keystrokes[i + 1]);
                         i += 2;
+
                         continue;
                     }
 
@@ -421,45 +436,55 @@ public class QuickPasteService : IQuickPasteService
         {
             case "DATE":
                 SendLiteralString(clip.CapturedAt.ToString("d", CultureInfo.CurrentCulture));
+
                 break;
 
             case "TIME":
                 SendLiteralString(clip.CapturedAt.ToString("t", CultureInfo.CurrentCulture));
+
                 break;
 
             case "CURRENTDATE":
                 SendLiteralString(DateTime.Now.ToString("d", CultureInfo.CurrentCulture));
+
                 break;
 
             case "CURRENTTIME":
                 SendLiteralString(DateTime.Now.ToString("t", CultureInfo.CurrentCulture));
+
                 break;
 
             case "URL":
                 SendLiteralString(clip.SourceUrl ?? string.Empty);
+
                 break;
 
             case "CREATOR":
                 SendLiteralString(clip.SourceApplicationName ?? string.Empty);
+
                 break;
 
             case "TITLE":
                 SendLiteralString(clip.Title ?? string.Empty);
+
                 break;
 
             case "PAUSE":
                 await Task.Delay(10, cancellationToken);
+
                 break;
 
             case "SEQUENCE":
                 SendLiteralString(_sequenceCounter.ToString(CultureInfo.InvariantCulture));
                 _sequenceCounter++;
+
                 break;
 
             default:
                 // Unknown macro, send as literal
                 SendLiteralString($"#{macro}#");
                 _logger.LogWarning("Unknown macro: {Macro}", macro);
+
                 break;
         }
     }
@@ -510,7 +535,7 @@ public class QuickPasteService : IQuickPasteService
             "RIGHT" => VIRTUAL_KEY.VK_RIGHT,
             "ESCAPE" => VIRTUAL_KEY.VK_ESCAPE,
             "ESC" => VIRTUAL_KEY.VK_ESCAPE,
-            var _ => VIRTUAL_KEY.VK_NONAME,
+            _ => VIRTUAL_KEY.VK_NONAME
         };
 
         if (key != VIRTUAL_KEY.VK_NONAME)
@@ -595,9 +620,9 @@ public class QuickPasteService : IQuickPasteService
                         wScan = c,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             inputs[1] = new INPUT
@@ -611,9 +636,9 @@ public class QuickPasteService : IQuickPasteService
                         wScan = c,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE | KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             _win32.SendInput(2, inputs, Marshal.SizeOf<INPUT>());
@@ -666,7 +691,7 @@ public class QuickPasteService : IQuickPasteService
             '7' => VIRTUAL_KEY.VK_7,
             '8' => VIRTUAL_KEY.VK_8,
             '9' => VIRTUAL_KEY.VK_9,
-            var _ => VIRTUAL_KEY.VK_NONAME,
+            _ => VIRTUAL_KEY.VK_NONAME
         };
     }
 
@@ -685,9 +710,9 @@ public class QuickPasteService : IQuickPasteService
                         ? KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP
                         : 0,
                     time = 0,
-                    dwExtraInfo = 0,
-                },
-            },
+                    dwExtraInfo = 0
+                }
+            }
         };
     }
 }

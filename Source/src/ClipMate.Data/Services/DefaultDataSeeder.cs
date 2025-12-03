@@ -31,6 +31,7 @@ public class DefaultDataSeeder
             if (existingCollections)
             {
                 _logger?.LogInformation("Collections already exist, skipping default data seeding");
+
                 return;
             }
 
@@ -67,7 +68,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Safe - For important clips (folder type)
@@ -95,7 +96,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Overflow - Where clips go when Inbox is full
@@ -123,7 +124,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Samples - Sample clips folder
@@ -151,7 +152,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = now,
                     LastKnownCount = 0,
                     Sql = null,
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Virtual - Parent folder for virtual/smart collections
@@ -179,8 +180,8 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "xxx", // Placeholder
-                    CreatedAt = now,
-                },
+                    CreatedAt = now
+                }
             };
 
             await _context.Collections.AddRangeAsync(collections);
@@ -217,7 +218,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATE#' and del = false order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // This Week
@@ -245,7 +246,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // This Month
@@ -273,7 +274,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Everything - All clips
@@ -301,7 +302,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Since Last Import
@@ -329,7 +330,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTIMPORT#' and del = false order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Since Last Export
@@ -357,7 +358,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTEXPORT#' and del = false order by ID;",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Bitmaps - Only bitmap clips
@@ -385,7 +386,7 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where del = false and clip.id in (select clip_id from clipdata where ClipData.Format = 2)",
-                    CreatedAt = now,
+                    CreatedAt = now
                 },
 
                 // Keystroke Macros
@@ -413,8 +414,8 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where clip.macro = true",
-                    CreatedAt = now,
-                },
+                    CreatedAt = now
+                }
             };
 
             await _context.Collections.AddRangeAsync(virtualCollections);
@@ -426,6 +427,7 @@ public class DefaultDataSeeder
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to seed default data");
+
             throw;
         }
     }

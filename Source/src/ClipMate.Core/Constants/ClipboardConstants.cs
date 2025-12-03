@@ -131,12 +131,12 @@ public static class Formats
     /// <summary>
     /// All standard formats as a collection for enumeration.
     /// </summary>
-    public static readonly IReadOnlyList<ClipboardFormat> All = new[]
-    {
+    public static readonly IReadOnlyList<ClipboardFormat> All =
+    [
         Text, Bitmap, Metafilepict, Sylk, Dif, Tiff, OemText, Dib,
         Palette, PenData, Riff, Wave, UnicodeText, EnhMetafile, HDrop, Locale,
-        RichText, Html, HtmlAlt,
-    };
+        RichText, Html, HtmlAlt
+    ];
 }
 
 /// <summary>

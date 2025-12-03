@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using ClipMate.App.Views;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,10 +19,10 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject
 {
-    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
     private TreeNodeBase? _selectedNode;
@@ -38,14 +39,14 @@ public partial class CollectionTreeViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Root nodes of the tree (typically Database nodes).
+    /// </summary>
+    public ObservableCollection<TreeNodeBase> RootNodes { get; } = [];
+
+    /// <summary>
     /// Helper to create a scope and resolve a scoped service.
     /// </summary>
     private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
-
-    /// <summary>
-    /// Root nodes of the tree (typically Database nodes).
-    /// </summary>
-    public ObservableCollection<TreeNodeBase> RootNodes { get; } = new();
 
     partial void OnSelectedNodeChanged(TreeNodeBase? value)
     {
@@ -57,16 +58,19 @@ public partial class CollectionTreeViewModel : ObservableObject
             case CollectionTreeNode collectionNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", collectionNode.Collection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null));
+
                 break;
 
             case FolderTreeNode folderNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", folderNode.Folder.CollectionId, folderNode.Folder.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id));
+
                 break;
 
             case VirtualCollectionTreeNode virtualNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", virtualNode.VirtualCollection.Id);
                 _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null));
+
                 break;
 
             // Database and VirtualCollectionsContainer nodes don't trigger selection changes
@@ -85,7 +89,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         var configuration = _configurationService.Configuration;
 
         // Load all collections (currently from the active database)
-        IReadOnlyCollection<Core.Models.Collection> allCollections;
+        IReadOnlyCollection<Collection> allCollections;
         using (var scope = _serviceScopeFactory.CreateScope())
         {
             var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
@@ -271,15 +275,18 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             case CollectionTreeNode collectionNode:
                 await ShowCollectionPropertiesAsync(collectionNode.Collection.Id);
+
                 break;
 
             case VirtualCollectionTreeNode virtualNode:
                 await ShowCollectionPropertiesAsync(virtualNode.VirtualCollection.Id);
+
                 break;
 
             // Folders don't have properties yet, but could be added in the future
             case FolderTreeNode folderNode:
                 _logger.LogInformation("Folder properties not yet implemented for: {FolderName}", folderNode.Name);
+
                 break;
         }
     }
@@ -291,18 +298,19 @@ public partial class CollectionTreeViewModel : ObservableObject
     {
         using var scope = CreateScope();
         var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-        
+
         var collection = await collectionService.GetByIdAsync(collectionId);
         if (collection == null)
         {
             _logger.LogWarning("Collection not found: {CollectionId}", collectionId);
+
             return;
         }
 
         var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
         var window = new CollectionPropertiesWindow(viewModel, _configurationService)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.MainWindow
         };
 
         if (window.ShowDialog() == true)

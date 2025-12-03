@@ -25,18 +25,39 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    #region Help Command
+
+    [RelayCommand]
+    private void ShowHelp()
+    {
+        _logger.LogDebug("Help requested");
+        OnShowHelpRequested?.Invoke();
+    }
+
+    #endregion
+
     #region Action Handlers (set by ClipViewerControl)
 
     public Action? OnNewClipRequested { get; set; }
+
     public Action? OnCutRequested { get; set; }
+
     public Action? OnCopyRequested { get; set; }
+
     public Action? OnPasteRequested { get; set; }
+
     public Action<string>? OnRemoveLineBreaksRequested { get; set; }
+
     public Action<string>? OnConvertCaseRequested { get; set; }
+
     public Action? OnTrimRequested { get; set; }
+
     public Action? OnOpenTextCleanupDialogRequested { get; set; }
+
     public Action? OnUndoRequested { get; set; }
+
     public Action? OnFindRequested { get; set; }
+
     public Action? OnShowHelpRequested { get; set; }
 
     #endregion
@@ -144,17 +165,6 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
     {
         _logger.LogDebug("Find requested");
         OnFindRequested?.Invoke();
-    }
-
-    #endregion
-
-    #region Help Command
-
-    [RelayCommand]
-    private void ShowHelp()
-    {
-        _logger.LogDebug("Help requested");
-        OnShowHelpRequested?.Invoke();
     }
 
     #endregion

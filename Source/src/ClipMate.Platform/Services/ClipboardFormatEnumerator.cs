@@ -27,7 +27,7 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
         [(uint)Formats.UnicodeText.Code] = Formats.UnicodeText.Name,
         [(uint)Formats.EnhMetafile.Code] = Formats.EnhMetafile.Name,
         [(uint)Formats.HDrop.Code] = Formats.HDrop.Name,
-        [(uint)Formats.Locale.Code] = Formats.Locale.Name,
+        [(uint)Formats.Locale.Code] = Formats.Locale.Name
     };
 
     private readonly ILogger<ClipboardFormatEnumerator> _logger;
@@ -54,6 +54,7 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
                 if (PInvoke.OpenClipboard(default))
                 {
                     clipboardOpened = true;
+
                     break;
                 }
 
@@ -67,6 +68,7 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
             if (!clipboardOpened)
             {
                 _logger.LogWarning("Failed to open clipboard for format enumeration after {MaxRetries} retries", maxRetries);
+
                 return formats;
             }
 

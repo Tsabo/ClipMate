@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using ClipMate.App.Models;
-using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -128,13 +127,13 @@ public partial class ClipPropertiesViewModel : ObservableObject
         DataFormats.Clear();
         var clipDataFormats = await _clipService.GetClipFormatsAsync(clip.Id, cancellationToken);
 
-        foreach (var format in clipDataFormats.OrderBy(f => f.FormatName))
+        foreach (var item in clipDataFormats.OrderBy(p => p.FormatName))
         {
-            var icon = GetIconForFormat(format.FormatName, format.Format);
+            var icon = GetIconForFormat(item.FormatName, item.Format);
             DataFormats.Add(new DataFormatInfo
             {
                 Icon = icon,
-                FormatName = $"{format.FormatName} (Format: {format.Format}, Size: {format.Size} bytes)",
+                FormatName = $"{item.FormatName} (Format: {item.Format}, Size: {item.Size} bytes)"
             });
         }
     }
@@ -173,7 +172,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
         Process.Start(new ProcessStartInfo
         {
             FileName = "https://clipmate.com/help/clip-properties",
-            UseShellExecute = true,
+            UseShellExecute = true
         });
     }
 

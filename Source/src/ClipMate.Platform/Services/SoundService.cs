@@ -44,6 +44,7 @@ public class SoundService : ISoundService
             if (string.IsNullOrEmpty(soundFilePath) || !File.Exists(soundFilePath))
             {
                 _logger.LogTrace("Sound file not found for event {SoundEvent}: {FilePath}", soundEvent, soundFilePath);
+
                 return Task.CompletedTask;
             }
 
@@ -64,6 +65,7 @@ public class SoundService : ISoundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error in PlaySoundAsync for event {SoundEvent}", soundEvent);
+
             return Task.CompletedTask;
         }
     }
@@ -82,7 +84,7 @@ public class SoundService : ISoundService
             SoundEvent.Erase => preferences.BeepOnErase,
             SoundEvent.Filter => preferences.BeepOnFilter,
             SoundEvent.Ignore => preferences.BeepOnIgnore,
-            var _ => false,
+            _ => false
         };
     }
 
@@ -98,7 +100,7 @@ public class SoundService : ISoundService
             SoundEvent.Erase => "erase.wav",
             SoundEvent.Filter => "filter.wav",
             SoundEvent.Ignore => "ignore.wav",
-            var _ => null,
+            _ => null
         };
 
         return fileName != null

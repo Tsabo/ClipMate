@@ -1,11 +1,8 @@
+using ClipMate.Core.Models;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -29,7 +26,7 @@ public class DatabaseSchemaMigrationTests
             .Options;
 
         _context = new ClipMateDbContext(options);
-        
+
         // Note: Do NOT call EnsureCreated - we want to test schema migration from scratch
     }
 
@@ -38,7 +35,7 @@ public class DatabaseSchemaMigrationTests
     {
         if (_context != null)
             await _context.DisposeAsync();
-        
+
         if (_connection != null)
             await _connection.DisposeAsync();
     }
@@ -54,7 +51,7 @@ public class DatabaseSchemaMigrationTests
 
         // Assert - Verify all expected tables exist
         var tables = await GetTableNamesAsync();
-        
+
         // Debug output
         if (tables.Count == 0)
         {
@@ -62,7 +59,7 @@ public class DatabaseSchemaMigrationTests
             Console.WriteLine($"Connection state: {_connection!.State}");
             Console.WriteLine($"Connection string: {_connection.ConnectionString}");
         }
-        
+
         await Assert.That(tables).Contains("Clips");
         await Assert.That(tables).Contains("Collections");
         await Assert.That(tables).Contains("ClipData");
@@ -90,7 +87,7 @@ public class DatabaseSchemaMigrationTests
 
         // Assert - Verify Clips table has expected columns
         var columns = await GetTableColumnsAsync("Clips");
-        
+
         await Assert.That(columns).Contains("Id");
         await Assert.That(columns).Contains("CollectionId");
         await Assert.That(columns).Contains("FolderId");
@@ -115,17 +112,18 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Assert - Verify foreign keys exist by attempting constrained operations
-        var collection = new Core.Models.Collection { Name = "Test Collection" };
+        var collection = new Collection { Name = "Test Collection" };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
-        var clip = new Core.Models.Clip
+        var clip = new Clip
         {
             CollectionId = collection.Id,
-            Type = Core.Models.ClipType.Text,
+            Type = ClipType.Text,
             ContentHash = "test-hash",
             CapturedAt = DateTimeOffset.UtcNow
         };
+
         _context.Clips.Add(clip);
         await _context.SaveChangesAsync();
 
@@ -146,7 +144,7 @@ public class DatabaseSchemaMigrationTests
 
         // Assert - Verify indexes are created if defined in EF model
         var indexes = await GetIndexesForTableAsync("Clips");
-        
+
         // Note: Indexes are only created if explicitly defined in the EF Core model
         // If the model has indexes, they should be created. If not, that's okay too.
         // This test verifies the migration doesn't fail when indexes are defined.
@@ -157,7 +155,7 @@ public class DatabaseSchemaMigrationTests
     {
         // Arrange
         var migrationService = new DatabaseSchemaMigrationService();
-        
+
         // First migration - create schema
         await migrationService.MigrateAsync(_context!);
 
@@ -177,24 +175,26 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Act - Test CRUD operations work correctly
-        var collection = new Core.Models.Collection { Name = "Integration Test" };
+        var collection = new Collection { Name = "Integration Test" };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
-        var template = new Core.Models.Template
+        var template = new Template
         {
             Name = "Test Template",
             Content = "Hello {NAME}",
             Description = "Test"
         };
+
         _context.Templates.Add(template);
         await _context.SaveChangesAsync();
 
-        var appFilter = new Core.Models.ApplicationFilter
+        var appFilter = new ApplicationFilter
         {
             ProcessName = "notepad.exe",
             IsEnabled = true
         };
+
         _context.ApplicationFilters.Add(appFilter);
         await _context.SaveChangesAsync();
 
@@ -205,10 +205,10 @@ public class DatabaseSchemaMigrationTests
 
         await Assert.That(savedCollection).IsNotNull();
         await Assert.That(savedCollection!.Name).IsEqualTo("Integration Test");
-        
+
         await Assert.That(savedTemplate).IsNotNull();
         await Assert.That(savedTemplate!.Content).IsEqualTo("Hello {NAME}");
-        
+
         await Assert.That(savedFilter).IsNotNull();
         await Assert.That(savedFilter!.ProcessName).IsEqualTo("notepad.exe");
     }
@@ -221,33 +221,33 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Seed test data
-        var collection = new Core.Models.Collection { Name = "Test Collection" };
+        var collection = new Collection { Name = "Test Collection" };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
         var clips = new[]
         {
-            new Core.Models.Clip
+            new Clip
             {
                 CollectionId = collection.Id,
-                Type = Core.Models.ClipType.Text,
+                Type = ClipType.Text,
                 ContentHash = "hash1",
                 SourceApplicationName = "notepad.exe",
                 CapturedAt = DateTimeOffset.UtcNow.AddHours(-2),
                 IsFavorite = true
             },
-            new Core.Models.Clip
+            new Clip
             {
                 CollectionId = collection.Id,
-                Type = Core.Models.ClipType.Image,
+                Type = ClipType.Image,
                 ContentHash = "hash2",
                 SourceApplicationName = "chrome.exe",
                 CapturedAt = DateTimeOffset.UtcNow.AddHours(-1)
             },
-            new Core.Models.Clip
+            new Clip
             {
                 CollectionId = collection.Id,
-                Type = Core.Models.ClipType.Text,
+                Type = ClipType.Text,
                 ContentHash = "hash3",
                 SourceApplicationName = "notepad.exe",
                 CapturedAt = DateTimeOffset.UtcNow,
@@ -263,9 +263,9 @@ public class DatabaseSchemaMigrationTests
         var activeTextClips = await _context.Clips
             .Where(c => c.CollectionId == collection.Id)
             .Where(c => !c.Del)
-            .Where(c => c.Type == Core.Models.ClipType.Text)
+            .Where(c => c.Type == ClipType.Text)
             .ToListAsync();
-        
+
         activeTextClips = activeTextClips
             .OrderByDescending(c => c.CapturedAt)
             .ToList();
@@ -287,7 +287,7 @@ public class DatabaseSchemaMigrationTests
 
         // Assert - Verify all blob tables exist
         var tables = await GetTableNamesAsync();
-        
+
         await Assert.That(tables).Contains("BlobTxt");
         await Assert.That(tables).Contains("BlobJpg");
         await Assert.That(tables).Contains("BlobPng");
@@ -304,9 +304,9 @@ public class DatabaseSchemaMigrationTests
         // Act - Create multiple collections with clips
         var collections = new[]
         {
-            new Core.Models.Collection { Name = "Work" },
-            new Core.Models.Collection { Name = "Personal" },
-            new Core.Models.Collection { Name = "Archive" }
+            new Collection { Name = "Work" },
+            new Collection { Name = "Personal" },
+            new Collection { Name = "Archive" }
         };
 
         _context!.Collections.AddRange(collections);
@@ -314,25 +314,27 @@ public class DatabaseSchemaMigrationTests
 
         foreach (var collection in collections)
         {
-            var clip = new Core.Models.Clip
+            var clip = new Clip
             {
                 CollectionId = collection.Id,
-                Type = Core.Models.ClipType.Text,
+                Type = ClipType.Text,
                 ContentHash = $"hash-{collection.Name}",
                 CapturedAt = DateTimeOffset.UtcNow
             };
+
             _context.Clips.Add(clip);
         }
+
         await _context.SaveChangesAsync();
 
         // Assert - Verify collections and clips are properly related
         var workCollection = collections.First(c => c.Name == "Work");
         var personalCollection = collections.First(c => c.Name == "Personal");
-        
+
         var workClips = await _context.Clips
             .Where(c => c.CollectionId == workCollection.Id)
             .CountAsync();
-        
+
         var personalClips = await _context.Clips
             .Where(c => c.CollectionId == personalCollection.Id)
             .CountAsync();
@@ -347,15 +349,13 @@ public class DatabaseSchemaMigrationTests
     {
         var command = _connection!.CreateCommand();
         command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
-        
+
         var tables = new List<string>();
         await using var reader = await command.ExecuteReaderAsync();
-        
+
         while (await reader.ReadAsync())
-        {
             tables.Add(reader.GetString(0));
-        }
-        
+
         return tables;
     }
 
@@ -363,15 +363,13 @@ public class DatabaseSchemaMigrationTests
     {
         var command = _connection!.CreateCommand();
         command.CommandText = $"PRAGMA table_info({tableName})";
-        
+
         var columns = new List<string>();
         await using var reader = await command.ExecuteReaderAsync();
-        
+
         while (await reader.ReadAsync())
-        {
             columns.Add(reader.GetString(1)); // Column name is at index 1
-        }
-        
+
         return columns;
     }
 
@@ -379,20 +377,18 @@ public class DatabaseSchemaMigrationTests
     {
         var command = _connection!.CreateCommand();
         command.CommandText = $"SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='{tableName}'";
-        
+
         var indexes = new List<string>();
         await using var reader = await command.ExecuteReaderAsync();
-        
+
         while (await reader.ReadAsync())
         {
             var indexName = reader.GetString(0);
             // Skip auto-generated indexes (sqlite_autoindex_*)
             if (!indexName.StartsWith("sqlite_autoindex"))
-            {
                 indexes.Add(indexName);
-            }
         }
-        
+
         return indexes;
     }
 }

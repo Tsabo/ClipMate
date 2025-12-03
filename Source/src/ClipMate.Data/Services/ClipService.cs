@@ -89,6 +89,7 @@ public class ClipService : IClipService
             throw new ArgumentException("Content hash cannot be null or empty.", nameof(contentHash));
 
         var existing = await _repository.GetByContentHashAsync(contentHash, cancellationToken);
+
         return existing != null;
     }
 

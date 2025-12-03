@@ -43,46 +43,45 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
                 QuickPastePasteOnDoubleClick = true,
                 QuickPasteFormattingStrings =
                 [
-                    new()
+                    new QuickPasteFormattingString
                     {
                         Title = "Default - Ctrl+V",
                         Preamble = "",
                         PasteKeystrokes = "^v",
                         Postamble = "",
-                        TitleTrigger = "*",
+                        TitleTrigger = "*"
                     },
 
-                    new()
+                    new QuickPasteFormattingString
                     {
                         Title = "Excel - Fill Column",
                         Preamble = "^{HOME}^@{DOWN}",
                         PasteKeystrokes = "^v",
                         Postamble = "{DOWN}",
-                        TitleTrigger = "Microsoft Excel",
+                        TitleTrigger = "Microsoft Excel"
                     },
 
-                    new()
+                    new QuickPasteFormattingString
                     {
                         Title = "Notepad with Date",
                         Preamble = "#CURRENTDATE# - ",
                         PasteKeystrokes = "^v",
                         Postamble = "{ENTER}",
-                        TitleTrigger = "Notepad",
-                    },
-
+                        TitleTrigger = "Notepad"
+                    }
                 ],
                 QuickPasteGoodTargets =
                 [
                     "NOTEPAD:EDIT",
                     "CODE:CHROME_WIDGETWIN_1",
-                    "DEVENV:HWNDWRAPPER",
+                    "DEVENV:HWNDWRAPPER"
                 ],
                 QuickPasteBadTargets =
                 [
                     "CLIPMATE:WINDOW",
-                    "EXPLORER:CABINETWCLASS",
-                ],
-            },
+                    "EXPLORER:CABINETWCLASS"
+                ]
+            }
         };
 
         var tempDir = Path.Combine(Path.GetTempPath(), "ClipMateTests", Guid.NewGuid().ToString());
@@ -180,7 +179,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Integration test content",
             CapturedAt = DateTimeOffset.Now,
-            ContentHash = "TestHash",
+            ContentHash = "TestHash"
         };
 
         // Act
@@ -209,7 +208,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             Preamble = "",
             PasteKeystrokes = "^v",
             Postamble = "",
-            TitleTrigger = "*",
+            TitleTrigger = "*"
         });
 
         // Act - Trigger configuration change event

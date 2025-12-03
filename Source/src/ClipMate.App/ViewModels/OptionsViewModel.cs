@@ -26,7 +26,7 @@ public partial class OptionsViewModel : ObservableObject
     private string _appendSeparatorString = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<ApplicationProfileNode> _applicationProfileNodes = new();
+    private ObservableCollection<ApplicationProfileNode> _applicationProfileNodes = [];
 
     [ObservableProperty]
     private bool _autoChangeClipTitles;
@@ -125,16 +125,13 @@ public partial class OptionsViewModel : ObservableObject
     private bool _quickPasteAutoTargetingEnabled;
 
     [ObservableProperty]
-    private bool _quickPasteUseMonitoringThread;
+    private ObservableCollection<string> _quickPasteBadTargets = [];
 
     [ObservableProperty]
-    private ObservableCollection<string> _quickPasteBadTargets = new();
+    private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = [];
 
     [ObservableProperty]
-    private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = new();
-
-    [ObservableProperty]
-    private ObservableCollection<string> _quickPasteGoodTargets = new();
+    private ObservableCollection<string> _quickPasteGoodTargets = [];
 
     [ObservableProperty]
     private bool _quickPastePasteOnDoubleClick;
@@ -143,13 +140,16 @@ public partial class OptionsViewModel : ObservableObject
     private bool _quickPastePasteOnEnter;
 
     [ObservableProperty]
-    private int _selectedGoodTargetIndex = -1;
+    private bool _quickPasteUseMonitoringThread;
 
     [ObservableProperty]
     private int _selectedBadTargetIndex = -1;
 
     [ObservableProperty]
     private QuickPasteFormattingString? _selectedFormattingString;
+
+    [ObservableProperty]
+    private int _selectedGoodTargetIndex = -1;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -413,6 +413,7 @@ public partial class OptionsViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving configuration");
+
             throw;
         }
     }
@@ -512,6 +513,7 @@ public partial class OptionsViewModel : ObservableObject
         if (_applicationProfileService == null)
         {
             _logger.LogWarning("Application profile service not available");
+
             return;
         }
 
@@ -543,6 +545,7 @@ public partial class OptionsViewModel : ObservableObject
         if (_applicationProfileService == null)
         {
             _logger.LogWarning("Application profile service not available");
+
             return;
         }
 
@@ -603,6 +606,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
         {
             _logger.LogWarning("No GOOD target selected for editing");
+
             return;
         }
 
@@ -628,6 +632,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
         {
             _logger.LogWarning("No GOOD target selected for deletion");
+
             return;
         }
 
@@ -663,6 +668,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
         {
             _logger.LogWarning("No BAD target selected for editing");
+
             return;
         }
 
@@ -688,6 +694,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
         {
             _logger.LogWarning("No BAD target selected for deletion");
+
             return;
         }
 
@@ -719,6 +726,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedFormattingString == null)
         {
             _logger.LogWarning("No formatting string selected for editing");
+
             return;
         }
 
@@ -726,6 +734,7 @@ public partial class OptionsViewModel : ObservableObject
         if (index < 0)
         {
             _logger.LogWarning("Selected formatting string not found in collection");
+
             return;
         }
 
@@ -746,6 +755,7 @@ public partial class OptionsViewModel : ObservableObject
         if (SelectedFormattingString == null)
         {
             _logger.LogWarning("No formatting string selected for deletion");
+
             return;
         }
 

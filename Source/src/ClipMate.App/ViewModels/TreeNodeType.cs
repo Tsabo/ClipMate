@@ -43,5 +43,5 @@ public enum TreeNodeType
     /// <summary>
     /// Clipboard format node under an application profile.
     /// </summary>
-    ApplicationProfileFormat,
+    ApplicationProfileFormat
 }

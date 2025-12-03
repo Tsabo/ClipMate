@@ -322,7 +322,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (PrimaryClipList.SelectedClips.Count > 0)
                 selectedClips = PrimaryClipList.SelectedClips.ToArray();
             else if (PrimaryClipList.SelectedClip != null)
-                selectedClips = new[] { PrimaryClipList.SelectedClip };
+                selectedClips = [PrimaryClipList.SelectedClip];
             else
             {
                 _logger?.LogWarning("No clip selected for PowerPaste");

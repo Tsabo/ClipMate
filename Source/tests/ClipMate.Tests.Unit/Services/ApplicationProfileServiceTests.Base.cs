@@ -19,6 +19,7 @@ public abstract class ApplicationProfileServiceTestsBase
         MockLogger = new Mock<ILogger<ApplicationProfileService>>();
         MockStore = new Mock<IApplicationProfileStore>(MockBehavior.Strict);
         Service = new ApplicationProfileService(MockStore.Object, MockLogger.Object);
+
         return Task.CompletedTask;
     }
 }

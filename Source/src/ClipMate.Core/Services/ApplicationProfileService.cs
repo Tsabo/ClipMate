@@ -19,7 +19,7 @@ public class ApplicationProfileService : IApplicationProfileService
         [Formats.RichText.Name] = false,
         ["DataObject"] = false,
         [Formats.Locale.Name] = false,
-        ["OlePrivateData"] = false,
+        ["OlePrivateData"] = false
     };
 
     private readonly ILogger<ApplicationProfileService> _logger;
@@ -77,7 +77,7 @@ public class ApplicationProfileService : IApplicationProfileService
         {
             ApplicationName = normalizedAppName,
             Enabled = true,
-            Formats = new Dictionary<string, bool>(_smartDefaults),
+            Formats = new Dictionary<string, bool>(_smartDefaults)
         };
 
         await _store.AddOrUpdateProfileAsync(profile, cancellationToken);

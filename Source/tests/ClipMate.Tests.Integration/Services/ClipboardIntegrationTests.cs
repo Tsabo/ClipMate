@@ -89,8 +89,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Preferences = new PreferencesConfiguration
             {
                 EnableAutoCaptureAtStartup = true,
-                CaptureExistingClipboardAtStartup = false,
-            },
+                CaptureExistingClipboardAtStartup = false
+            }
         };
 
         mockConfigService.Setup(s => s.Configuration).Returns(config);
@@ -117,7 +117,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Type = ClipType.Text,
             TextContent = "Duplicate content",
             ContentHash = "duplicate-hash",
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = DateTime.UtcNow
         };
 
         await _clipService.CreateAsync(clip1);
@@ -129,7 +129,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Type = ClipType.Text,
             TextContent = "Duplicate content",
             ContentHash = "duplicate-hash", // Same hash
-            CapturedAt = DateTime.UtcNow.AddSeconds(1),
+            CapturedAt = DateTime.UtcNow.AddSeconds(1)
         };
 
         var result = await _clipService.CreateAsync(clip2);
@@ -177,7 +177,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Type = ClipType.Text,
             TextContent = "Same content",
             ContentHash = "same-hash",
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = DateTime.UtcNow
         };
 
         // Act
@@ -189,7 +189,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Type = ClipType.Text,
             TextContent = "Same content",
             ContentHash = "same-hash",
-            CapturedAt = DateTime.UtcNow.AddSeconds(5),
+            CapturedAt = DateTime.UtcNow.AddSeconds(5)
         };
 
         var saved2 = await _clipService.CreateAsync(clip2);
@@ -231,7 +231,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             {
                 new("TEXT", 1),
                 new("HTML Format", 49352),
-                new("Rich Text Format", 49353),
+                new("Rich Text Format", 49353)
             });
 
         var win32Mock = new Mock<IWin32ClipboardInterop>();
@@ -295,8 +295,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             {
                 ["TEXT"] = true,
                 ["HTML Format"] = true,
-                ["BITMAP"] = true,
-            },
+                ["BITMAP"] = true
+            }
         };
 
         profileServiceMock.Setup(p => p.GetOrCreateProfileAsync("NEWAPP",
@@ -327,8 +327,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Formats = new Dictionary<string, bool>
             {
                 ["TEXT"] = true,
-                ["CF_UNICODETEXT"] = false,
-            },
+                ["CF_UNICODETEXT"] = false
+            }
         };
 
         profileServiceMock.Setup(p => p.UpdateProfileAsync(profile, It.IsAny<CancellationToken>()))
@@ -360,14 +360,14 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             {
                 ApplicationName = "NOTEPAD",
                 Enabled = true,
-                Formats = new Dictionary<string, bool> { ["TEXT"] = true },
+                Formats = new Dictionary<string, bool> { ["TEXT"] = true }
             },
             ["CHROME"] = new()
             {
                 ApplicationName = "CHROME",
                 Enabled = true,
-                Formats = new Dictionary<string, bool> { ["TEXT"] = true, ["HTML Format"] = true },
-            },
+                Formats = new Dictionary<string, bool> { ["TEXT"] = true, ["HTML Format"] = true }
+            }
         };
 
         profileServiceMock.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))

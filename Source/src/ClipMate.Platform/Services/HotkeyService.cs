@@ -77,6 +77,7 @@ public class HotkeyService : IHotkeyService, IDisposable
         // Note: This is simplified - in a real implementation, we'd need to track
         // the mapping between our logical IDs and HotkeyManager's internal IDs
         _registeredIds.Remove(id);
+
         return true;
     }
 
@@ -93,6 +94,7 @@ public class HotkeyService : IHotkeyService, IDisposable
     public bool IsHotkeyRegistered(int id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+
         return _registeredIds.Contains(id);
     }
 

@@ -24,35 +24,22 @@ public partial class TemplateService : ITemplateService
     }
 
     /// <inheritdoc />
-    public async Task<Template?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetByIdAsync(id, cancellationToken);
-    }
+    public async Task<Template?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => await _repository.GetByIdAsync(id, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Template>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetAllAsync(cancellationToken);
-    }
+    public async Task<IReadOnlyList<Template>> GetAllAsync(CancellationToken cancellationToken = default) => await _repository.GetAllAsync(cancellationToken);
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Template>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
-    {
-        return await _repository.GetByCollectionAsync(collectionId, cancellationToken);
-    }
+    public async Task<IReadOnlyList<Template>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default) => await _repository.GetByCollectionAsync(collectionId, cancellationToken);
 
     /// <inheritdoc />
     public async Task<Template> CreateAsync(string name, string content, string? description = null, Guid? collectionId = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(name))
-        {
             throw new ArgumentException("Template name cannot be null or whitespace.", nameof(name));
-        }
 
         if (string.IsNullOrEmpty(content))
-        {
             throw new ArgumentException("Template content cannot be null or empty.", nameof(content));
-        }
 
         var template = new Template
         {
@@ -79,19 +66,15 @@ public partial class TemplateService : ITemplateService
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        await _repository.DeleteAsync(id, cancellationToken);
-    }
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) => await _repository.DeleteAsync(id, cancellationToken);
 
     /// <inheritdoc />
     public async Task<string> ExpandTemplateAsync(Guid templateId, Dictionary<string, string> variables, CancellationToken cancellationToken = default)
     {
         var template = await _repository.GetByIdAsync(templateId, cancellationToken);
+
         if (template == null)
-        {
             throw new KeyNotFoundException($"Template with ID {templateId} not found.");
-        }
 
         var expandedContent = template.Content;
 
@@ -129,9 +112,8 @@ public partial class TemplateService : ITemplateService
                 var variableName = match.Groups[1].Value;
                 var colonIndex = variableName.IndexOf(':');
                 if (colonIndex > 0)
-                {
                     variableName = variableName[..colonIndex];
-                }
+
                 variables.Add(variableName);
             }
         }
@@ -171,9 +153,13 @@ public partial class TemplateService : ITemplateService
     private string ReplaceDateVariables(string content)
     {
         var dateRegex = DateVariableRegex();
+
         return dateRegex.Replace(content, match =>
         {
-            var format = match.Groups[1].Success ? match.Groups[1].Value : "d"; // Default short date format
+            var format = match.Groups[1].Success
+                ? match.Groups[1].Value
+                : "d"; // Default short date format
+
             try
             {
                 return DateTime.Now.ToString(format);
@@ -194,9 +180,13 @@ public partial class TemplateService : ITemplateService
     private string ReplaceTimeVariables(string content)
     {
         var timeRegex = TimeVariableRegex();
+
         return timeRegex.Replace(content, match =>
         {
-            var format = match.Groups[1].Success ? match.Groups[1].Value : "t"; // Default short time format
+            var format = match.Groups[1].Success
+                ? match.Groups[1].Value
+                : "t"; // Default short time format
+
             try
             {
                 return DateTime.Now.ToString(format);

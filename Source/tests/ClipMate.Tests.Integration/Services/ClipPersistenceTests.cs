@@ -36,7 +36,7 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         // Save changes to ensure data is persisted
         await DbContext.SaveChangesAsync();
-        
+
         // Create new context and service (simulates app restart)
         // Keep the connection alive by getting it before disposing
         var connection = DbContext.Database.GetDbConnection();
@@ -44,6 +44,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             new DbContextOptionsBuilder<ClipMateDbContext>()
                 .UseSqlite(connection)
                 .Options);
+
         var newClipService = CreateClipServiceWithContext(newContext);
 
         // Assert - Retrieve in new context
@@ -52,7 +53,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         await Assert.That(retrievedClip!.ContentHash).IsEqualTo("test_hash_123");
         await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
         await Assert.That(retrievedClip.Type).IsEqualTo(ClipType.Text);
-        
+
         // Cleanup the new context
         newContext.Dispose();
     }
@@ -97,7 +98,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         // Assert
         var recentClips = await clipService.GetRecentAsync(10);
         await Assert.That(recentClips.Count).IsEqualTo(3);
-        await Assert.That(recentClips[0].TextContent).IsEqualTo("Third");  // Most recent first
+        await Assert.That(recentClips[0].TextContent).IsEqualTo("Third"); // Most recent first
         await Assert.That(recentClips[1].TextContent).IsEqualTo("Second");
         await Assert.That(recentClips[2].TextContent).IsEqualTo("First");
     }
@@ -161,7 +162,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         // Arrange
         var clipService = CreateClipService();
         var contentHash = "duplicate_hash_test";
-        
+
         var clip = new Clip
         {
             Type = ClipType.Text,
@@ -187,6 +188,7 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
+
         return new ClipService(repository);
     }
 
@@ -197,6 +199,7 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
+
         return new ClipService(repository);
     }
 }
