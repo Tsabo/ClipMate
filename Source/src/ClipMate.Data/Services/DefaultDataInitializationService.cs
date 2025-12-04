@@ -11,11 +11,10 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class DefaultDataInitializationService
 {
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DefaultDataInitializationService> _logger;
+    private readonly IServiceProvider _serviceProvider;
 
-    public DefaultDataInitializationService(
-        IServiceProvider serviceProvider,
+    public DefaultDataInitializationService(IServiceProvider serviceProvider,
         ILogger<DefaultDataInitializationService> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -59,6 +58,7 @@ public class DefaultDataInitializationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize default data and active collection");
+
             throw;
         }
     }

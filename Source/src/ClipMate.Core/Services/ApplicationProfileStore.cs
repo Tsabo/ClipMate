@@ -34,6 +34,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
             if (!File.Exists(_filePath))
             {
                 _logger.LogInformation("Application profiles file does not exist: {FilePath}", _filePath);
+
                 return new Dictionary<string, ApplicationProfile>();
             }
 
@@ -55,11 +56,13 @@ public class ApplicationProfileStore : IApplicationProfileStore
             }
 
             _logger.LogInformation("Loaded {Count} application profiles", profiles.Count);
+
             return profiles;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading application profiles from {FilePath}", _filePath);
+
             return new Dictionary<string, ApplicationProfile>();
         }
         finally
@@ -91,7 +94,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
             {
                 var profileTable = new TomlTable
                 {
-                    ["enabled"] = profile.Enabled,
+                    ["enabled"] = profile.Enabled
                 };
 
                 // Add formats in alphabetical order
@@ -112,6 +115,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving application profiles to {FilePath}", _filePath);
+
             throw;
         }
         finally
@@ -129,6 +133,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
     public async Task<ApplicationProfile?> GetProfileAsync(string applicationName, CancellationToken cancellationToken = default)
     {
         var profiles = await LoadProfilesAsync(cancellationToken);
+
         return profiles.GetValueOrDefault(applicationName);
     }
 
@@ -177,7 +182,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
         var profile = new ApplicationProfile
         {
             ApplicationName = appName,
-            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true,
+            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true
         };
 
         // Parse format settings (all entries except "enabled")

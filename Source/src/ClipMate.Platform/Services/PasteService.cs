@@ -35,6 +35,7 @@ public class PasteService : IPasteService
         if (clip == null)
         {
             _logger.LogWarning("Attempted to paste null clip");
+
             return false;
         }
 
@@ -52,11 +53,13 @@ public class PasteService : IPasteService
             SendCtrlV();
 
             _logger.LogInformation("Successfully pasted clip {ClipId} to active window", clip.Id);
+
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error pasting clip {ClipId} to active window", clip?.Id);
+
             return false;
         }
     }
@@ -67,6 +70,7 @@ public class PasteService : IPasteService
         try
         {
             var foregroundWindow = _win32.GetForegroundWindow();
+
             if (foregroundWindow.IsNull)
                 return string.Empty;
 
@@ -75,6 +79,7 @@ public class PasteService : IPasteService
             {
                 var buffer = stackalloc char[maxLength];
                 var length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
+
                 if (length > 0)
                     return new string(buffer, 0, length);
             }
@@ -93,6 +98,7 @@ public class PasteService : IPasteService
         try
         {
             var foregroundWindow = _win32.GetForegroundWindow();
+
             if (foregroundWindow.IsNull)
                 return string.Empty;
 
@@ -102,6 +108,7 @@ public class PasteService : IPasteService
                 return string.Empty;
 
             using var process = Process.GetProcessById((int)processId);
+
             return process.ProcessName;
         }
         catch (Exception)
@@ -132,9 +139,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             // V key down
@@ -149,9 +156,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             // V key up
@@ -166,9 +173,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             // Ctrl key up
@@ -183,9 +190,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0,
-                    },
-                },
+                        dwExtraInfo = 0
+                    }
+                }
             };
 
             // Send the inputs

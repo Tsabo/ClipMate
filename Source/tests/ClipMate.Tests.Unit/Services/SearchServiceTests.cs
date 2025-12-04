@@ -120,7 +120,7 @@ public class SearchServiceTests
             .Setup(r => r.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Clip> { textClip, imageClip });
 
-        var filters = new SearchFilters { ContentTypes = new[] { ClipType.Text } };
+        var filters = new SearchFilters { ContentTypes = [ClipType.Text] };
 
         // Act
         var results = await _searchService.SearchAsync("", filters);

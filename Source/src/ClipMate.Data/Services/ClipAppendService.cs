@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
@@ -15,13 +16,12 @@ public partial class ClipAppendService : IClipAppendService
 {
     private readonly IClipRepository _clipRepository;
     private readonly IConfigurationService _configurationService;
-    private readonly Platform.ISoundService _soundService;
     private readonly ILogger<ClipAppendService> _logger;
+    private readonly ISoundService _soundService;
 
-    public ClipAppendService(
-        IClipRepository clipRepository,
+    public ClipAppendService(IClipRepository clipRepository,
         IConfigurationService configurationService,
-        Platform.ISoundService soundService,
+        ISoundService soundService,
         ILogger<ClipAppendService> logger)
     {
         _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
@@ -30,18 +30,16 @@ public partial class ClipAppendService : IClipAppendService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <inheritdoc/>
-    public async Task<Clip> AppendClipsAsync(
-        IEnumerable<Clip> clips,
+    /// <inheritdoc />
+    public async Task<Clip> AppendClipsAsync(IEnumerable<Clip> clips,
         string separator,
         bool stripTrailingLineBreaks,
         CancellationToken cancellationToken = default)
     {
         var clipList = clips.ToList();
+
         if (clipList.Count == 0)
-        {
             throw new ArgumentException("At least one clip is required for appending.", nameof(clips));
-        }
 
         _logger.LogInformation("Appending {Count} clips together", clipList.Count);
 
@@ -68,20 +66,17 @@ public partial class ClipAppendService : IClipAppendService
                 if (string.IsNullOrEmpty(textContent))
                 {
                     _logger.LogWarning("Clip {ClipId} has no text content, skipping", clip.Id);
+
                     continue;
                 }
 
                 // Strip trailing line breaks if requested
                 if (stripTrailingLineBreaks)
-                {
                     textContent = StripTrailingLineBreaks(textContent);
-                }
 
                 // Add separator between clips (not before the first one)
                 if (!isFirst && !string.IsNullOrEmpty(processedSeparator))
-                {
                     combinedText.Append(processedSeparator);
-                }
 
                 combinedText.Append(textContent);
                 isFirst = false;
@@ -101,16 +96,16 @@ public partial class ClipAppendService : IClipAppendService
                 ContentHash = ComputeContentHash(finalText),
                 Checksum = ComputeChecksum(finalText),
                 CollectionId = clipList.First().CollectionId, // Use first clip's collection
-                Creator = Environment.UserName
+                Creator = Environment.UserName,
             };
 
             // Save the new clip to the repository
             var savedClip = await _clipRepository.CreateAsync(newClip, cancellationToken);
 
             // Play append sound notification
-            await _soundService.PlaySoundAsync(Platform.SoundEvent.Append, cancellationToken);
+            await _soundService.PlaySoundAsync(SoundEvent.Append, cancellationToken);
 
-            _logger.LogInformation("Successfully created appended clip {ClipId} with {Length} characters", 
+            _logger.LogInformation("Successfully created appended clip {ClipId} with {Length} characters",
                 savedClip.Id, finalText.Length);
 
             return savedClip;
@@ -118,6 +113,7 @@ public partial class ClipAppendService : IClipAppendService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to append clips");
+
             throw;
         }
     }
@@ -129,9 +125,7 @@ public partial class ClipAppendService : IClipAppendService
     private static string ProcessEscapeSequences(string separator)
     {
         if (string.IsNullOrEmpty(separator))
-        {
             return string.Empty;
-        }
 
         return separator
             .Replace("\\n", "\n")
@@ -145,9 +139,7 @@ public partial class ClipAppendService : IClipAppendService
     private static string StripTrailingLineBreaks(string text)
     {
         if (string.IsNullOrEmpty(text))
-        {
             return text;
-        }
 
         return TrailingLineBreakRegex().Replace(text, string.Empty);
     }
@@ -157,19 +149,17 @@ public partial class ClipAppendService : IClipAppendService
     /// </summary>
     private static string ComputeContentHash(string text)
     {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(text);
         var hash = sha256.ComputeHash(bytes);
+
         return Convert.ToHexString(hash);
     }
 
     /// <summary>
     /// Computes a simple checksum for ClipMate 7.5 compatibility.
     /// </summary>
-    private static int ComputeChecksum(string text)
-    {
-        return text.GetHashCode();
-    }
+    private static int ComputeChecksum(string text) => text.GetHashCode();
 
     [GeneratedRegex(@"(\r\n|\n|\r)+$", RegexOptions.Compiled)]
     private static partial Regex TrailingLineBreakRegex();

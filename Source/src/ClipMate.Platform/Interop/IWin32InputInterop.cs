@@ -27,4 +27,9 @@ public interface IWin32InputInterop
     /// Sends input events to the system.
     /// </summary>
     unsafe uint SendInput(uint cInputs, INPUT* pInputs, int cbSize);
+
+    /// <summary>
+    /// Retrieves the name of the class to which the specified window belongs.
+    /// </summary>
+    unsafe int GetClassName(HWND hWnd, char* lpClassName, int nMaxCount);
 }

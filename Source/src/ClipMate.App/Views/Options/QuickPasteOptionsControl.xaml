@@ -1,0 +1,137 @@
+<UserControl x:Class="ClipMate.App.Views.Options.QuickPasteOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Auto-Targeting Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Auto-Targeting" Orientation="Horizontal" Padding="0">
+
+            <dxlc:LayoutGroup View="Group" Orientation="Vertical" MaxWidth="150">
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Enable Auto-Targeting"
+                                   IsChecked="{Binding QuickPasteAutoTargetingEnabled}"
+                                   ToolTip="Automatically detect the active window and filter formatting strings based on good/bad target lists" />
+                </dxlc:LayoutItem>
+                <!--
+                <dxlc:LayoutItem MaxWidth="150">
+                    <dxe:CheckEdit Content="Use Monitoring Thread?"
+                                   IsChecked="{Binding QuickPasteUseMonitoringThread}"
+                                   ToolTip="Check for changes to the 'top window' continuously. Can be used to correct targeting problems when ClipMate is set to 'always on top'"/>
+                </dxlc:LayoutItem>
+                -->
+            </dxlc:LayoutGroup>
+
+            <!-- GOOD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="GOOD Targets (Whitelist)" Orientation="Horizontal">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <dxb:ToolBarControl Grid.Column="0" Orientation="Vertical" AllowCustomizationMenu="False" AllowQuickCustomization="False" AllowCollapse="False">
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}" Command="{Binding AddGoodTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/XAF/Action_Edit.png'}" Command="{Binding EditGoodTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Edit/Delete_16x16.png'}" Command="{Binding DeleteGoodTargetCommand}"/>
+                    </dxb:ToolBarControl>
+                    <dxe:ListBoxEdit Grid.Column="1" ItemsSource="{Binding QuickPasteGoodTargets}"
+                                     SelectionMode="Single"
+                                     ShowBorder="True"
+                                     SelectedIndex="{Binding SelectedGoodTargetIndex, Mode=TwoWay}" />
+                </Grid>
+            </dxlc:LayoutGroup>
+
+            <!-- BAD Targets -->
+            <dxlc:LayoutGroup View="GroupBox" Header="BAD Targets (Blacklist)" Orientation="Horizontal">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <dxb:ToolBarControl Grid.Column="0" Orientation="Vertical" AllowCustomizationMenu="False" AllowQuickCustomization="False" AllowCollapse="False">
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}" Command="{Binding AddBadTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/XAF/Action_Edit.png'}" Command="{Binding EditBadTargetCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Edit/Delete_16x16.png'}" Command="{Binding DeleteBadTargetCommand}"/>
+                    </dxb:ToolBarControl>
+                    <dxe:ListBoxEdit Grid.Column="1" ItemsSource="{Binding QuickPasteBadTargets}"
+                                     SelectionMode="Single"
+                                     ShowBorder="True"
+                                     SelectedIndex="{Binding SelectedBadTargetIndex, Mode=TwoWay}" />
+                </Grid>
+            </dxlc:LayoutGroup>
+        </dxlc:LayoutGroup>
+
+        <!-- Paste Triggers Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Paste Triggers" Orientation="Horizontal" Padding="0">
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Paste on ENTER key"
+                               IsChecked="{Binding QuickPastePasteOnEnter}"
+                               ToolTip="Press ENTER to paste the selected clip using QuickPaste" />
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Paste on double-click"
+                               IsChecked="{Binding QuickPastePasteOnDoubleClick}"
+                               ToolTip="Double-click a clip to paste it using QuickPaste" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Formatting Strings -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Formatting Strings" Orientation="Vertical" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >
+            <dxlc:LayoutItem VerticalAlignment="Stretch">
+                <dxg:GridControl ItemsSource="{Binding QuickPasteFormattingStrings}"
+                                 AutoGenerateColumns="None"
+                                 ShowBorder="True"
+                                 CurrentItem="{Binding SelectedFormattingString, Mode=TwoWay}">
+                    <dxg:GridControl.Columns>
+                        <dxg:GridColumn FieldName="Title"
+                                        Header="Title" />
+                        <dxg:GridColumn FieldName="Preamble"
+                                        Header="Preamble" />
+                        <dxg:GridColumn FieldName="PasteKeystrokes"
+                                        Header="Paste Keys" />
+                        <dxg:GridColumn FieldName="Postamble"
+                                        Header="Postamble" />
+                        <dxg:GridColumn FieldName="TitleTrigger"
+                                        Header="Triggers"
+                                        Width="*" />
+                    </dxg:GridControl.Columns>
+                    <dxg:GridControl.View>
+                        <dxg:TableView AutoWidth="False"
+                                       ShowGroupPanel="False"
+                                       AllowEditing="False"
+                                       NavigationStyle="Row" />
+                    </dxg:GridControl.View>
+                </dxg:GridControl>
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <Button Content="Add"
+                            Command="{Binding AddFormattingStringCommand}"
+                            Padding="10,3"
+                            Margin="0,0,5,0" />
+                    <Button Content="Edit"
+                            Command="{Binding EditFormattingStringCommand}"
+                            Padding="10,3"
+                            Margin="0,0,5,0" />
+                    <Button Content="Delete"
+                            Command="{Binding DeleteFormattingStringCommand}"
+                            Padding="10,3" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

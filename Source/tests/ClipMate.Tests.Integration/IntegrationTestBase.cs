@@ -1,6 +1,5 @@
 using ClipMate.Data;
 using Microsoft.EntityFrameworkCore;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Integration;
 
@@ -21,7 +20,7 @@ public abstract class IntegrationTestBase
             .Options;
 
         DbContext = new ClipMateDbContext(options);
-        
+
         // Ensure database is created for each test
         await DbContext.Database.OpenConnectionAsync();
         await DbContext.Database.EnsureCreatedAsync();
@@ -31,8 +30,6 @@ public abstract class IntegrationTestBase
     public async Task CleanupAsync()
     {
         if (DbContext != null)
-        {
             await DbContext.DisposeAsync();
-        }
     }
 }

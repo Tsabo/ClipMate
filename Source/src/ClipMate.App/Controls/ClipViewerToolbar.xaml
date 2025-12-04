@@ -1,0 +1,166 @@
+<UserControl x:Class="ClipMate.App.Controls.ClipViewerToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:ClipViewerToolbarViewModel}"
+             mc:Ignorable="d">
+
+    <dxb:ToolBarControl AllowQuickCustomization="False"
+                        AllowCustomizationMenu="False"
+                        UseWholeRow="True"
+                        AllowCollapse="False">
+
+        <!-- View Group -->
+        <dxb:BarButtonItem Command="{Binding ToggleTackCommand}"
+                           ToolTip="Tack Viewer: Keep viewer open and allow drag-drop from clip list">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Setter Property="Glyph" Value="{dx:DXImage 'Images/Actions/PinVertical_16x16.png'}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsTacked}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/Actions/PinHorizontal_16x16.png'}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
+
+        <dxb:BarButtonItem Command="{Binding ToggleWordWrapCommand}"
+                           ToolTip="Toggle Word Wrap">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Setter Property="Glyph" Value="{dx:DXImage 'Images/Format/AlignLeft_16x16.png'}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsWordWrapEnabled}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/Format/AlignJustify_16x16.png'}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
+
+        <dxb:BarButtonItem Command="{Binding ToggleShowNonPrintingCommand}"
+                           ToolTip="Show Non-Printing Characters">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Setter Property="Glyph" Value="{dx:DXImage 'Images/Arrows/ShowAll_16x16.png'}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ShowNonPrintingCharacters}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/Format/ShowDetail_16x16.png'}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
+
+        <dxb:BarItemSeparator />
+
+        <!-- Clipboard Group -->
+        <dxb:BarButtonItem Content="New"
+                           Glyph="{dx:DXImage 'Images/Actions/New_16x16.png'}"
+                           Command="{Binding NewClipCommand}"
+                           ToolTip="Create new empty clip" />
+
+        <dxb:BarButtonItem Content="Cut"
+                           Glyph="{dx:DXImage 'Images/Actions/Cut_16x16.png'}"
+                           Command="{Binding CutCommand}"
+                           ToolTip="Cut selected text to clipboard" />
+
+        <dxb:BarButtonItem Content="Copy"
+                           Glyph="{dx:DXImage 'Images/Actions/Copy_16x16.png'}"
+                           Command="{Binding CopyCommand}"
+                           ToolTip="Copy selected text to clipboard" />
+
+        <dxb:BarButtonItem Content="Paste"
+                           Glyph="{dx:DXImage 'Images/Actions/Paste_16x16.png'}"
+                           Command="{Binding PasteCommand}"
+                           ToolTip="Paste from clipboard" />
+
+        <dxb:BarItemSeparator />
+
+        <!-- Transform Group -->
+        <dxb:BarSubItem Content="Transform"
+                        Glyph="{dx:DXImage 'Images/Actions/EditName_16x16.png'}">
+            
+            <!-- Remove Line Breaks submenu -->
+            <dxb:BarSubItem Content="Remove Line Breaks"
+                            Glyph="{dx:DXImage 'Images/Format/RemoveSpace_16x16.png'}">
+                <dxb:BarButtonItem Content="Preserve Paragraphs"
+                                   Command="{Binding RemoveLineBreaksCommand}"
+                                   CommandParameter="PreserveParagraphs"
+                                   ToolTip="Remove line breaks but preserve paragraph breaks (double line breaks)" />
+                <dxb:BarButtonItem Content="Remove All"
+                                   Command="{Binding RemoveLineBreaksCommand}"
+                                   CommandParameter="RemoveAll"
+                                   ToolTip="Remove all line breaks, joining all text into one line" />
+                <dxb:BarButtonItem Content="URL Crunch"
+                                   Command="{Binding RemoveLineBreaksCommand}"
+                                   CommandParameter="UrlCrunch"
+                                   ToolTip="Remove line breaks that interrupt URLs" />
+            </dxb:BarSubItem>
+
+            <!-- Case Conversion submenu -->
+            <dxb:BarSubItem Content="Case Conversion"
+                            Glyph="{dx:DXImage 'Images/Format/ChangeFontStyle_16x16.png'}">
+                <dxb:BarButtonItem Content="UPPERCASE"
+                                   Command="{Binding ConvertCaseCommand}"
+                                   CommandParameter="Uppercase"
+                                   ToolTip="Convert text to UPPERCASE" />
+                <dxb:BarButtonItem Content="lowercase"
+                                   Command="{Binding ConvertCaseCommand}"
+                                   CommandParameter="Lowercase"
+                                   ToolTip="Convert text to lowercase" />
+                <dxb:BarButtonItem Content="Title Case"
+                                   Command="{Binding ConvertCaseCommand}"
+                                   CommandParameter="TitleCase"
+                                   ToolTip="Convert Text To Title Case" />
+                <dxb:BarButtonItem Content="Sentence case"
+                                   Command="{Binding ConvertCaseCommand}"
+                                   CommandParameter="SentenceCase"
+                                   ToolTip="Convert text to sentence case. first letter capitalized." />
+                <dxb:BarButtonItem Content="iNVERT cASE"
+                                   Command="{Binding ConvertCaseCommand}"
+                                   CommandParameter="InvertCase"
+                                   ToolTip="Invert the case of each character" />
+            </dxb:BarSubItem>
+
+            <dxb:BarItemSeparator />
+
+            <dxb:BarButtonItem Content="Trim"
+                               Glyph="{dx:DXImage 'Images/Format/JustifyCenter_16x16.png'}"
+                               Command="{Binding TrimCommand}"
+                               ToolTip="Remove leading and trailing whitespace from each line" />
+
+            <dxb:BarButtonItem Content="Text Cleanup..."
+                               Glyph="{dx:DXImage 'Images/Actions/Edit_16x16.png'}"
+                               Command="{Binding OpenTextCleanupDialogCommand}"
+                               ToolTip="Open Text Cleanup dialog for advanced text transformations" />
+        </dxb:BarSubItem>
+
+        <dxb:BarItemSeparator />
+
+        <!-- Edit Group -->
+        <dxb:BarButtonItem Content="Undo"
+                           Glyph="{dx:DXImage 'Images/History/Undo_16x16.png'}"
+                           Command="{Binding UndoCommand}"
+                           ToolTip="Undo last edit (Ctrl+Z)" />
+
+        <dxb:BarButtonItem Content="Find"
+                           Glyph="{dx:DXImage 'Images/Actions/Find_16x16.png'}"
+                           Command="{Binding FindCommand}"
+                           ToolTip="Find and Replace (Ctrl+F)" />
+
+        <dxb:BarItemSeparator />
+
+        <!-- Help -->
+        <dxb:BarButtonItem Content="Help"
+                           Glyph="{dx:DXImage 'Images/Support/Help_16x16.png'}"
+                           Command="{Binding ShowHelpCommand}"
+                           ToolTip="Show ClipViewer help" />
+
+    </dxb:ToolBarControl>
+</UserControl>

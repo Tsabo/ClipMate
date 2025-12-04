@@ -232,6 +232,8 @@ public partial class App
                 services.AddSingleton<ClipListViewModel>();
                 services.AddSingleton<PreviewPaneViewModel>();
                 services.AddSingleton<SearchViewModel>();
+                services.AddSingleton<QuickPasteToolbarViewModel>();
+                services.AddTransient<ClipViewerToolbarViewModel>();
                 services.AddTransient<ClipPropertiesViewModel>();
                 services.AddTransient<ClipViewerViewModel>();
 
@@ -242,6 +244,9 @@ public partial class App
                 // Register Text Tools components
                 services.AddTransient<TextToolsViewModel>();
                 services.AddTransient<TextToolsDialog>();
+
+                // Register Text Cleanup dialog (no ViewModel - uses code-behind)
+                services.AddTransient<TextCleanupDialog>();
 
                 // Register Template components
                 services.AddTransient<TemplateEditorViewModel>();

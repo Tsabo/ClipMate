@@ -37,11 +37,11 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -68,10 +68,7 @@ public class SqliteSchemaValidatorTests
                 ["123Invalid"] = new TableDefinition
                 {
                     Name = "123Invalid",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -97,10 +94,7 @@ public class SqliteSchemaValidatorTests
                 ["sqlite_master"] = new TableDefinition
                 {
                     Name = "sqlite_master",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -127,10 +121,7 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "123Invalid", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "123Invalid", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -155,10 +146,7 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Id", Type = "INVALID_TYPE", IsPrimaryKey = true, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Id", Type = "INVALID_TYPE", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
                 }
             }
         };
@@ -185,11 +173,11 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Id", Type = "TEXT", IsNullable = false, Position = 1 }
-                    }
+                    ]
                 }
             }
         };
@@ -214,16 +202,16 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Email", Type = "TEXT", IsNullable = false, Position = 1 }
-                    },
-                    Indexes = new List<IndexDefinition>
-                    {
-                        new() { Name = "IX_Users", TableName = "Users", Columns = new List<string> { "Id" }, IsUnique = false },
-                        new() { Name = "IX_Users", TableName = "Users", Columns = new List<string> { "Email" }, IsUnique = false }
-                    }
+                    ],
+                    Indexes =
+                    [
+                        new() { Name = "IX_Users", TableName = "Users", Columns = ["Id"], IsUnique = false },
+                        new() { Name = "IX_Users", TableName = "Users", Columns = ["Email"], IsUnique = false }
+                    ]
                 }
             }
         };
@@ -250,16 +238,13 @@ public class SqliteSchemaValidatorTests
                 ["Collections"] = new TableDefinition
                 {
                     Name = "Collections",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 },
                         new() { Name = "ParentId", Type = "INTEGER", IsNullable = true, Position = 2 }
-                    },
-                    ForeignKeys = new List<ForeignKeyDefinition>
-                    {
-                        new() { ColumnName = "ParentId", ReferencedTable = "Collections", ReferencedColumn = "Id" }
-                    }
+                    ],
+                    ForeignKeys = [new() { ColumnName = "ParentId", ReferencedTable = "Collections", ReferencedColumn = "Id" }]
                 }
             }
         };
@@ -284,28 +269,22 @@ public class SqliteSchemaValidatorTests
                 ["TableA"] = new TableDefinition
                 {
                     Name = "TableA",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "TableBId", Type = "INTEGER", IsNullable = true, Position = 1 }
-                    },
-                    ForeignKeys = new List<ForeignKeyDefinition>
-                    {
-                        new() { ColumnName = "TableBId", ReferencedTable = "TableB", ReferencedColumn = "Id" }
-                    }
+                    ],
+                    ForeignKeys = [new() { ColumnName = "TableBId", ReferencedTable = "TableB", ReferencedColumn = "Id" }]
                 },
                 ["TableB"] = new TableDefinition
                 {
                     Name = "TableB",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "TableAId", Type = "INTEGER", IsNullable = true, Position = 1 }
-                    },
-                    ForeignKeys = new List<ForeignKeyDefinition>
-                    {
-                        new() { ColumnName = "TableAId", ReferencedTable = "TableA", ReferencedColumn = "Id" }
-                    }
+                    ],
+                    ForeignKeys = [new() { ColumnName = "TableAId", ReferencedTable = "TableA", ReferencedColumn = "Id" }]
                 }
             }
         };
@@ -330,15 +309,12 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
+                    Columns =
+                    [
                         new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
                         new() { Name = "DepartmentId", Type = "INTEGER", IsNullable = true, Position = 1 }
-                    },
-                    ForeignKeys = new List<ForeignKeyDefinition>
-                    {
-                        new() { ColumnName = "DepartmentId", ReferencedTable = "NonExistentTable", ReferencedColumn = "Id" }
-                    }
+                    ],
+                    ForeignKeys = [new() { ColumnName = "DepartmentId", ReferencedTable = "NonExistentTable", ReferencedColumn = "Id" }]
                 }
             }
         };
@@ -365,10 +341,7 @@ public class SqliteSchemaValidatorTests
                 ["Users"] = new TableDefinition
                 {
                     Name = "Users",
-                    Columns = new List<ColumnDefinition>
-                    {
-                        new() { Name = "Name", Type = "TEXT", IsPrimaryKey = false, IsNullable = false, Position = 0 }
-                    }
+                    Columns = [new() { Name = "Name", Type = "TEXT", IsPrimaryKey = false, IsNullable = false, Position = 0 }]
                 }
             }
         };

@@ -46,7 +46,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
         };
 
         _mockCollectionService.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { inboxCollection });
+            .ReturnsAsync([inboxCollection]);
 
         var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
 
@@ -80,7 +80,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
         };
 
         _mockCollectionService.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { otherCollection });
+            .ReturnsAsync([otherCollection]);
 
         _mockCollectionService.Setup(x => x.CreateAsync(
                 "Inbox",
@@ -161,7 +161,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
         };
 
         _mockCollectionService.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { inboxCollection });
+            .ReturnsAsync([inboxCollection]);
 
         var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
 

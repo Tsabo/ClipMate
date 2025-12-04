@@ -1,8 +1,6 @@
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -19,8 +17,9 @@ public partial class ClipboardCoordinatorTests
         var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
+        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, soundService.Object, logger);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);
@@ -33,6 +32,6 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipboardService.Verify(s => s.StartMonitoringAsync(It.IsAny<CancellationToken>()), Times.Once);
+        clipboardService.Verify(p => p.StartMonitoringAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -1,8 +1,8 @@
+using System.Data;
 using ClipMate.Data.Schema.Abstractions;
 using ClipMate.Data.Schema.EntityFramework;
 using ClipMate.Data.Schema.Models;
 using ClipMate.Data.Schema.Sqlite;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -32,6 +32,7 @@ public class DatabaseSchemaMigrationService
         if (string.IsNullOrEmpty(connectionString))
         {
             _logger?.LogWarning("No connection string found, skipping schema migration");
+
             return;
         }
 
@@ -40,8 +41,8 @@ public class DatabaseSchemaMigrationService
         // Use the existing connection from the context to support in-memory databases
         var connection = context.Database.GetDbConnection();
         var shouldCloseConnection = false;
-        
-        if (connection.State != System.Data.ConnectionState.Open)
+
+        if (connection.State != ConnectionState.Open)
         {
             await connection.OpenAsync(cancellationToken);
             shouldCloseConnection = true;
@@ -66,6 +67,7 @@ public class DatabaseSchemaMigrationService
             if (!validationResult.IsValid)
             {
                 _logger?.LogError("Schema validation failed: {Errors}", string.Join(", ", validationResult.Errors));
+
                 throw new InvalidOperationException($"Schema validation failed: {string.Join(", ", validationResult.Errors)}");
             }
 
@@ -79,6 +81,7 @@ public class DatabaseSchemaMigrationService
             if (!diff.HasChanges)
             {
                 _logger?.LogInformation("Database schema is up to date");
+
                 return;
             }
 
@@ -96,6 +99,7 @@ public class DatabaseSchemaMigrationService
             if (!result.Success)
             {
                 _logger?.LogError("Schema migration failed: {Errors}", string.Join(", ", result.Errors));
+
                 throw new InvalidOperationException($"Schema migration failed: {string.Join(", ", result.Errors)}");
             }
 
@@ -103,10 +107,8 @@ public class DatabaseSchemaMigrationService
         }
         finally
         {
-            if (shouldCloseConnection && connection.State == System.Data.ConnectionState.Open)
-            {
+            if (shouldCloseConnection && connection.State == ConnectionState.Open)
                 await connection.CloseAsync();
-            }
         }
     }
 
@@ -156,7 +158,7 @@ public class DatabaseSchemaMigrationService
                 MigrationOperationType.CreateTable => $"Create table '{operation.TableName}'",
                 MigrationOperationType.AddColumn => $"Add column '{operation.ColumnName}' to '{operation.TableName}'",
                 MigrationOperationType.CreateIndex => $"Create index '{operation.IndexName}'",
-                var _ => operation.Type.ToString(),
+                _ => operation.Type.ToString()
             };
         }
     }

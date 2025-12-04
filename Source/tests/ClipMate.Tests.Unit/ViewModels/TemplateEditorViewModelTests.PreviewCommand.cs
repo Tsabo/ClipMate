@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -16,15 +14,15 @@ public partial class TemplateEditorViewModelTests
         // Arrange
         var templateId = Guid.NewGuid();
         var expandedContent = $"Hello World! Today is {DateTime.Now:yyyy-MM-dd}";
-        
-        _mockTemplateService.Setup(s => s.ExpandTemplateAsync(templateId, It.IsAny<Dictionary<string, string>>(), default))
+
+        _mockTemplateService.Setup(p => p.ExpandTemplateAsync(templateId, It.IsAny<Dictionary<string, string>>(), CancellationToken.None))
             .ReturnsAsync(expandedContent);
 
         var viewModel = CreateViewModel();
-        viewModel.SelectedTemplate = new Template 
-        { 
-            Id = templateId, 
-            Content = "Hello {NAME}! Today is {DATE:yyyy-MM-dd}" 
+        viewModel.SelectedTemplate = new Template
+        {
+            Id = templateId,
+            Content = "Hello {NAME}! Today is {DATE:yyyy-MM-dd}",
         };
 
         // Act

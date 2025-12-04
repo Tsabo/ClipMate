@@ -14,7 +14,7 @@ public class IndexDefinition
     public required string TableName { get; set; }
 
     [JsonPropertyName("columns")]
-    public List<string> Columns { get; set; } = new();
+    public List<string> Columns { get; set; } = [];
 
     [JsonPropertyName("isUnique")]
     public bool IsUnique { get; set; }

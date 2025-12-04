@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Core;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -16,11 +14,12 @@ public partial class TemplateServiceTests
         // Arrange
         var service = CreateTemplateService();
         var templateId = Guid.NewGuid();
-        _mockRepository.Setup(r => r.GetByIdAsync(templateId, default)).ReturnsAsync((Template?)null);
+        _mockRepository.Setup(p => p.GetByIdAsync(templateId, CancellationToken.None)).ReturnsAsync((Template?)null);
 
         // Act & Assert
         await Assert.That(async () =>
-            await service.ExpandTemplateAsync(templateId, new Dictionary<string, string>())).Throws<KeyNotFoundException>();
+                await service.ExpandTemplateAsync(templateId, new Dictionary<string, string>()))
+            .Throws<KeyNotFoundException>();
     }
 
     [Test]
@@ -31,9 +30,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Date: {DATE:INVALID_FORMAT}"
+            Content = "Date: {DATE:INVALID_FORMAT}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());

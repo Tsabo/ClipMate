@@ -11,8 +11,6 @@ public partial class ApplicationProfileFormatNode : TreeNodeBase
     [ObservableProperty]
     private bool _enabled;
 
-    private readonly string _formatName;
-
     /// <summary>
     /// Creates a new format node.
     /// </summary>
@@ -20,24 +18,24 @@ public partial class ApplicationProfileFormatNode : TreeNodeBase
     /// <param name="enabled">Whether this format is enabled for capture.</param>
     public ApplicationProfileFormatNode(string formatName, bool enabled)
     {
-        _formatName = formatName ?? throw new ArgumentNullException(nameof(formatName));
+        FormatName = formatName ?? throw new ArgumentNullException(nameof(formatName));
         _enabled = enabled;
     }
 
     /// <summary>
     /// The clipboard format name.
     /// </summary>
-    public string FormatName => _formatName;
+    public string FormatName { get; }
 
     /// <summary>
     /// Display name with description.
     /// </summary>
-    public override string Name => $"{_formatName} - {GetFormatDescription(_formatName)}";
+    public override string Name => $"{FormatName} - {GetFormatDescription(FormatName)}";
 
     /// <summary>
     /// Format-specific icon.
     /// </summary>
-    public override string Icon => GetFormatIcon(_formatName);
+    public override string Icon => GetFormatIcon(FormatName);
 
     /// <summary>
     /// Node type for format.

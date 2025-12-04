@@ -1,5 +1,6 @@
 using System.IO;
 using System.Media;
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,7 @@ public class SoundService : ISoundService
             if (string.IsNullOrEmpty(soundFilePath) || !File.Exists(soundFilePath))
             {
                 _logger.LogTrace("Sound file not found for event {SoundEvent}: {FilePath}", soundEvent, soundFilePath);
+
                 return Task.CompletedTask;
             }
 
@@ -64,6 +66,7 @@ public class SoundService : ISoundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error in PlaySoundAsync for event {SoundEvent}", soundEvent);
+
             return Task.CompletedTask;
         }
     }
@@ -73,36 +76,58 @@ public class SoundService : ISoundService
     /// </summary>
     private bool IsSoundEnabled(SoundEvent soundEvent)
     {
-        var preferences = _configurationService.Configuration.Preferences;
+        var sound = _configurationService.Configuration.Preferences.Sound;
 
         return soundEvent switch
         {
-            SoundEvent.ClipboardUpdate => preferences.BeepOnUpdate,
-            SoundEvent.Append => preferences.BeepOnAppend,
-            SoundEvent.Erase => preferences.BeepOnErase,
-            SoundEvent.Filter => preferences.BeepOnFilter,
-            SoundEvent.Ignore => preferences.BeepOnIgnore,
+            SoundEvent.ClipboardUpdate => sound.ClipboardUpdate != SoundMode.Off,
+            SoundEvent.Append => sound.Append != SoundMode.Off,
+            SoundEvent.Erase => sound.Erase != SoundMode.Off,
+            SoundEvent.Filter => sound.Filter != SoundMode.Off,
+            SoundEvent.Ignore => sound.Ignore != SoundMode.Off,
+            SoundEvent.PowerPasteComplete => sound.PowerPasteComplete != SoundMode.Off,
             var _ => false,
         };
     }
 
     /// <summary>
     /// Gets the file path for the sound file associated with the specified event.
+    /// Checks custom sound path first, then falls back to default sound file.
     /// </summary>
     private string GetSoundFilePath(SoundEvent soundEvent)
     {
-        var fileName = soundEvent switch
+        var sound = _configurationService.Configuration.Preferences.Sound;
+
+        // Try to get custom sound path first
+        var customPath = soundEvent switch
+        {
+            SoundEvent.ClipboardUpdate => sound.CustomClipboardUpdate,
+            SoundEvent.Append => sound.CustomAppend,
+            SoundEvent.Erase => sound.CustomErase,
+            SoundEvent.Filter => sound.CustomFilter,
+            SoundEvent.Ignore => sound.CustomIgnore,
+            SoundEvent.PowerPasteComplete => sound.CustomPowerPasteComplete,
+            var _ => null,
+        };
+
+        // If custom path is specified and file exists, use it
+        if (!string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath))
+            return customPath;
+
+        // Fall back to default sound file
+        var defaultFileName = soundEvent switch
         {
             SoundEvent.ClipboardUpdate => "clipboard-update.wav",
             SoundEvent.Append => "append.wav",
             SoundEvent.Erase => "erase.wav",
             SoundEvent.Filter => "filter.wav",
             SoundEvent.Ignore => "ignore.wav",
+            SoundEvent.PowerPasteComplete => "powerpaste-complete.wav",
             var _ => null,
         };
 
-        return fileName != null
-            ? Path.Combine(_soundsDirectory, fileName)
+        return defaultFileName != null
+            ? Path.Combine(_soundsDirectory, defaultFileName)
             : string.Empty;
     }
 }

@@ -39,6 +39,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly Channel<Clip> _clipsChannel;
 
     private readonly ILogger<ClipboardService> _logger;
+    private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
@@ -48,12 +49,14 @@ public class ClipboardService : IClipboardService, IDisposable
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
         IApplicationProfileService applicationProfileService,
-        IClipboardFormatEnumerator clipboardFormatEnumerator)
+        IClipboardFormatEnumerator clipboardFormatEnumerator,
+        ISoundService soundService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
@@ -76,6 +79,7 @@ public class ClipboardService : IClipboardService, IDisposable
         if (IsMonitoring)
         {
             _logger.LogDebug("Clipboard monitoring already active");
+
             return Task.CompletedTask;
         }
 
@@ -100,6 +104,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (!_win32.AddClipboardFormatListener(hwnd))
             {
                 var error = Marshal.GetLastWin32Error();
+
                 throw new ClipboardException($"Failed to register clipboard listener. Error: {error}");
             }
 
@@ -112,11 +117,13 @@ public class ClipboardService : IClipboardService, IDisposable
             _logger.LogWarning(ex, "Cannot start clipboard monitoring: No dispatcher available (not on UI thread)");
             // For testing purposes, mark as monitoring without actual window
             IsMonitoring = true;
+
             return Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to start clipboard monitoring");
+
             throw new ClipboardException("Failed to start clipboard monitoring", ex);
         }
 
@@ -177,6 +184,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get current clipboard content");
+
             return null;
         }
     }
@@ -201,15 +209,19 @@ public class ClipboardService : IClipboardService, IDisposable
                     case ClipType.Text:
                     case ClipType.Html:
                         SetTextToClipboard(clip);
+
                         break;
                     case ClipType.Image:
                         SetImageToClipboard(clip);
+
                         break;
                     case ClipType.Files:
                         SetFilesToClipboard(clip);
+
                         break;
                     default:
                         _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
+
                         break;
                 }
             });
@@ -217,6 +229,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting clipboard content");
+
             throw new ClipboardException("Failed to set clipboard content", ex);
         }
     }
@@ -242,12 +255,14 @@ public class ClipboardService : IClipboardService, IDisposable
         {
             // Debouncing: ignore if too soon after last change
             var now = DateTime.UtcNow;
+
             if ((now - _lastClipboardChange).TotalMilliseconds < _debounceMilliseconds)
                 return;
 
             _lastClipboardChange = now;
 
             var clip = await GetCurrentClipboardContentAsync();
+
             if (clip == null)
                 return;
 
@@ -256,6 +271,7 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", clip.ContentHash.Substring(0, 8));
                 _suppressCaptureForHash = null;
+
                 return;
             }
 
@@ -263,6 +279,10 @@ public class ClipboardService : IClipboardService, IDisposable
             if (clip.ContentHash == _lastContentHash)
             {
                 _logger.LogDebug("Ignoring duplicate clipboard content");
+
+                // Play ignore sound for duplicate content
+                await _soundService.PlaySoundAsync(SoundEvent.Ignore);
+
                 return;
             }
 
@@ -328,6 +348,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (allowedFormats.Count == 0)
             {
                 _logger.LogDebug("All clipboard formats filtered out for {AppName}", applicationName);
+
                 return null;
             }
         }
@@ -426,6 +447,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error extracting text from clipboard");
+
             return null;
         }
     }
@@ -494,6 +516,7 @@ public class ClipboardService : IClipboardService, IDisposable
             // No PNG format or failed to retrieve it - use standard BitmapSource approach
             // This will be InteropBitmap for screenshots (needs alpha fix)
             var image = WpfClipboard.GetImage();
+
             if (image == null)
                 return null;
 
@@ -510,6 +533,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (imageData == null || imageData.Length == 0)
             {
                 _logger.LogError("Failed to convert bitmap to bytes");
+
                 return null;
             }
 
@@ -545,6 +569,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error extracting image from clipboard");
+
             return null;
         }
     }
@@ -580,6 +605,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 return null;
 
             var fileDropList = WpfClipboard.GetFileDropList();
+
             if (fileDropList.Count == 0)
                 return null;
 
@@ -620,6 +646,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error extracting files from clipboard");
+
             return null;
         }
     }
@@ -693,6 +720,7 @@ public class ClipboardService : IClipboardService, IDisposable
 
         // Truncate to 60 chars (database field limit)
         const int maxLength = 60;
+
         if (firstLine.Length > maxLength)
             return string.Concat(firstLine.AsSpan(0, maxLength - 3), "...");
 
@@ -733,6 +761,7 @@ public class ClipboardService : IClipboardService, IDisposable
                     if (pixelData[i] != 0)
                     {
                         hasNonZeroAlpha = true;
+
                         break;
                     }
                 }
@@ -785,11 +814,13 @@ public class ClipboardService : IClipboardService, IDisposable
 
             using var memoryStream = new MemoryStream();
             encoder.Save(memoryStream);
+
             return memoryStream.ToArray();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error converting image to bytes");
+
             return null;
         }
     }
@@ -817,6 +848,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting text to clipboard");
+
             throw;
         }
     }
@@ -847,6 +879,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting image to clipboard");
+
             throw;
         }
     }
@@ -859,6 +892,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 throw new InvalidOperationException("File paths are empty");
 
             var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
+
             if (filePaths == null || filePaths.Count == 0)
                 throw new InvalidOperationException("No file paths found");
 
@@ -870,6 +904,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting files to clipboard");
+
             throw;
         }
     }
@@ -910,6 +945,7 @@ public class ClipboardService : IClipboardService, IDisposable
                     url = url[..250];
 
                 _logger.LogDebug("Extracted source URL: {Url}", url);
+
                 return url;
             }
 
@@ -918,6 +954,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Failed to extract source URL from HTML");
+
             return null;
         }
     }
@@ -954,6 +991,7 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             var length = _win32.GetWindowTextLength(hwnd);
+
             if (length == 0)
                 return null;
 
@@ -961,6 +999,7 @@ public class ClipboardService : IClipboardService, IDisposable
             fixed (char* pBuffer = buffer)
             {
                 var result = _win32.GetWindowText(hwnd, pBuffer, length + 1);
+
                 if (result > 0)
                     return new string(buffer, 0, result);
             }

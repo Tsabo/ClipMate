@@ -82,6 +82,7 @@ public partial class TextToolsViewModel : ObservableObject
         if (string.IsNullOrEmpty(InputText))
         {
             OutputText = string.Empty;
+
             return;
         }
 
@@ -98,7 +99,7 @@ public partial class TextToolsViewModel : ObservableObject
                 TextTool.CleanUpText => _textTransformService.CleanUpText(
                     InputText, RemoveExtraSpaces, RemoveExtraLineBreaks, TrimLines),
                 TextTool.ConvertFormat => _textTransformService.ConvertFormat(InputText, SourceFormat, TargetFormat),
-                var _ => InputText,
+                _ => InputText
             };
         }
         catch (ArgumentException ex)

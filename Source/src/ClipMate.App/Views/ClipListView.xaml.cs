@@ -148,7 +148,7 @@ public partial class ClipListView
 
         // Update the SelectedItems collection
         if (SelectedItems == null)
-            SelectedItems = new ObservableCollection<Clip>();
+            SelectedItems = [];
         else
             SelectedItems.Clear();
 

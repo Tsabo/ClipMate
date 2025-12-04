@@ -38,7 +38,7 @@ public class VirtualCollectionTreeNode : TreeNodeBase
             "keystrokes macros" or "macros" => "⌨️",
             "since last import" => "📥",
             "since last export" => "📤",
-            var _ => "🔍",
+            _ => "🔍"
         };
 
     public override TreeNodeType NodeType => TreeNodeType.VirtualCollection;

@@ -1,11 +1,10 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -15,8 +14,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class MainWindowViewModelTests
 {
-    private static Mock<IServiceScopeFactory> CreateMockServiceScopeFactory(
-        Mock<ICollectionService> mockCollectionService,
+    private static Mock<IServiceScopeFactory> CreateMockServiceScopeFactory(Mock<ICollectionService> mockCollectionService,
         Mock<IFolderService> mockFolderService,
         Mock<IClipService> mockClipService,
         Mock<ISearchService> mockSearchService)
@@ -28,13 +26,13 @@ public class MainWindowViewModelTests
         mockServiceProvider.Setup(x => x.GetService(typeof(IClipService))).Returns(mockClipService.Object);
         mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(mockSearchService.Object);
         mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
-        
+
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
-        
+
         return mockServiceScopeFactory;
     }
-    
+
     private MainWindowViewModel CreateViewModel()
     {
         var mockMessenger = new Mock<IMessenger>();
@@ -64,6 +62,19 @@ public class MainWindowViewModelTests
         var previewVM = new PreviewPaneViewModel(mockMessenger.Object);
         var searchVM = new SearchViewModel(mockServiceScopeFactory.Object, mockMessenger.Object);
 
+        // Create QuickPasteToolbarViewModel mock
+        var mockQuickPasteService = new Mock<IQuickPasteService>();
+        var mockConfigService = new Mock<IConfigurationService>();
+        var mockQuickPasteConfig = new PreferencesConfiguration();
+        var mockConfig = new ClipMateConfiguration { Preferences = mockQuickPasteConfig };
+        mockConfigService.Setup(x => x.Configuration).Returns(mockConfig);
+        var mockQuickPasteLogger = new Mock<ILogger<QuickPasteToolbarViewModel>>();
+        var quickPasteToolbarVm = new QuickPasteToolbarViewModel(
+            mockQuickPasteService.Object,
+            mockConfigService.Object,
+            mockMessenger.Object,
+            mockQuickPasteLogger.Object);
+
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
         mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
@@ -74,7 +85,9 @@ public class MainWindowViewModelTests
             clipListVM,
             previewVM,
             searchVM,
+            quickPasteToolbarVm,
             mockServiceProvider.Object,
+            mockQuickPasteService.Object,
             mockMainLogger.Object);
     }
 

@@ -1,0 +1,121 @@
+<UserControl x:Class="ClipMate.App.Controls.QuickPasteToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+             d:DataContext="{d:DesignInstance Type=vm:QuickPasteToolbarViewModel}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <DrawingImage x:Key="MyImageSource" emoji:Image.Source="🎯" />
+    </UserControl.Resources>
+
+    <dxb:ToolBarControl AllowQuickCustomization="False"
+                        AllowCustomizationMenu="False"
+                        UseWholeRow="True"
+                        AllowCollapse="False">
+
+        <dxb:BarManager.DXContextMenu>
+            <dxb:PopupMenu>
+                <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}"
+                                   Command="{Binding AddToGoodTargetsCommand}"
+                                   IsEnabled="{Binding HasTarget}">
+                    <dxb:BarButtonItem.Style>
+                        <Style TargetType="dxb:BarButtonItem">
+                            <Setter Property="Content" Value="Add App:Class Combination to GOOD Target List" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTarget}" Value="True">
+                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to GOOD Target List'}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </dxb:BarButtonItem.Style>
+                </dxb:BarButtonItem>
+                <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}"
+                                   Command="{Binding AddToBadTargetsCommand}"
+                                   IsEnabled="{Binding HasTarget}">
+                    <dxb:BarButtonItem.Style>
+                        <Style TargetType="dxb:BarButtonItem">
+                            <Setter Property="Content" Value="Add App:Class Combination to BAD Target List" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTarget}" Value="True">
+                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to BAD Target List'}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </dxb:BarButtonItem.Style>
+                </dxb:BarButtonItem>
+                <dxb:BarItemSeparator />
+                <dxb:BarButtonItem Content="QuickPaste Settings"
+                                   Glyph="{dx:DXImage 'Images/Setup/Properties_16x16.png'}"
+                                   Command="{Binding OpenQuickPasteSettingsCommand}" />
+            </dxb:PopupMenu>
+        </dxb:BarManager.DXContextMenu>
+
+        <!-- Button 1: Go Back - Undo icon when not set, Refresh when set -->
+        <dxb:BarButtonItem Command="{Binding ToggleGoBackCommand}"
+                           ToolTip="If set, focus returns to ClipMate after pasting. Otherwise, focus stays in target application.">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding GoBackEnabled}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/Actions/Refresh_16x16.png'}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding GoBackEnabled}" Value="False">
+                            <Setter Property="Glyph" Value="{dx:DXImage 'Images/History/Undo_16x16.png'}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
+
+        <!-- Button 2: Send Tab - Keyboard key with arrow pointing right to | -->
+        <dxb:BarButtonItem Glyph="{dx:FontIconSource 59389}"
+                           Command="{Binding SendTabCommand}"
+                           ToolTip="Send Tab key to target application (F9)" />
+
+        <!-- Button 3: Send Enter - Keyboard key with carriage return -->
+        <dxb:BarButtonItem Glyph="{dx:FontIconSource 59750}"
+                           Command="{Binding SendEnterCommand}"
+                           ToolTip="Send Enter key to target application (Shift+F9)" />
+
+        <!-- Button 4: Auto-Targeting - Bullseye target icon -->
+        <dxb:BarButtonItem Command="{Binding ToggleTargetLockCommand}"
+                           ToolTip="Click to 'lock' on the target application"
+                           Glyph="{StaticResource MyImageSource}">
+            <dxb:BarButtonItem.Style>
+                <Style TargetType="dxb:BarButtonItem">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsTargetLocked}" Value="True">
+                            <Setter Property="Glyph" Value="{dx:FontIconSource 62066, ColorName=Green}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </dxb:BarButtonItem.Style>
+        </dxb:BarButtonItem>
+
+        <dxb:BarItemSeparator />
+
+        <!-- Target Display - Static text that stretches to fill remaining space -->
+        <dxb:BarStaticItem AutoSizeMode="Fill"
+                           Content="{Binding CurrentTargetDisplay}"
+                           ToolTip="{Binding CurrentTargetTooltip}" />
+
+        <!-- Formatting String ComboBox -->
+        <dxb:BarEditItem EditValue="{Binding SelectedFormattingString}"
+                         EditWidth="250">
+            <dxb:BarEditItem.EditSettings>
+                <dxe:ComboBoxEditSettings ItemsSource="{Binding FormattingStrings}"
+                                          DisplayMember="Title"
+                                          ToolTip="Select QuickPaste formatting string" />
+            </dxb:BarEditItem.EditSettings>
+        </dxb:BarEditItem>
+
+    </dxb:ToolBarControl>
+
+</UserControl>

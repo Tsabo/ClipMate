@@ -36,31 +36,6 @@ public class PreferencesConfiguration
     public int DelayOnClipboardUpdate { get; set; } = 250;
 
     /// <summary>
-    /// Gets or sets whether to beep on clipboard update.
-    /// </summary>
-    public bool BeepOnUpdate { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on append.
-    /// </summary>
-    public bool BeepOnAppend { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on erase.
-    /// </summary>
-    public bool BeepOnErase { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on filter.
-    /// </summary>
-    public bool BeepOnFilter { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on ignore.
-    /// </summary>
-    public bool BeepOnIgnore { get; set; } = true;
-
-    /// <summary>
     /// Gets or sets whether to show hints/tooltips.
     /// </summary>
     public bool ShowHint { get; set; } = true;
@@ -131,6 +106,13 @@ public class PreferencesConfiguration
     /// True = show in local timezone, False = show in original captured timezone with offset.
     /// </summary>
     public bool ShowTimestampsInLocalTime { get; set; } = true;
+
+    // ==================== Sound Configuration ====================
+
+    /// <summary>
+    /// Gets or sets the sound configuration for various clipboard and paste events.
+    /// </summary>
+    public SoundConfiguration Sound { get; set; } = new();
 
     // ==================== General Tab Settings ====================
 
@@ -250,4 +232,98 @@ public class PreferencesConfiguration
     /// Gets or sets the default editor view type to show when displaying clips.
     /// </summary>
     public EditorViewType DefaultEditorView { get; set; } = EditorViewType.Text;
+
+    // ==================== QuickPaste Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets whether auto-targeting is enabled for QuickPaste.
+    /// When enabled, ClipMate automatically detects the target application for pasting.
+    /// </summary>
+    public bool QuickPasteAutoTargetingEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to use a monitoring thread for auto-targeting.
+    /// Useful when ClipMate is running in "always on top" mode.
+    /// </summary>
+    public bool QuickPasteUseMonitoringThread { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether pressing ENTER on a clip triggers QuickPaste.
+    /// </summary>
+    public bool QuickPastePasteOnEnter { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether double-clicking a clip triggers QuickPaste.
+    /// </summary>
+    public bool QuickPastePasteOnDoubleClick { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the list of good program/class combinations for auto-targeting.
+    /// Format: PROCESSNAME:CLASSNAME (e.g., "FIREFOX:MOZILLAUIWINDOWCLASS")
+    /// </summary>
+    public List<string> QuickPasteGoodTargets { get; set; } =
+    [
+        "FIREFOX:MOZILLAUIWINDOWCLASS",
+        "IEXPLORE:IEFRAME",
+        "EXPLORER:CABINETWCLASS",
+        "WINWORD:OPUSAPP",
+        ":MSWINPUB",
+        "DEVENV:WNDCLASS_DESKED_GSK",
+        "OUTLOOK:RCTRL_NOTEWND32",
+        ":PP12FRAMECLASS",
+        ":FRONTPAGEEXPLORERWINDOW40",
+        ":XLMAIN",
+        ":TFRMHELPMAN",
+        "EXCEL:XLMAIN",
+        "MSPUB:MSWINPUB",
+        "POWERPNT:PP12FRAMECLASS",
+    ];
+
+    /// <summary>
+    /// Gets or sets the list of bad program/class combinations to exclude from auto-targeting.
+    /// Format: PROCESSNAME:CLASSNAME or PROCESSNAME: (exclude entire application)
+    /// </summary>
+    public List<string> QuickPasteBadTargets { get; set; } =
+    [
+        "CLIPMATE:",
+        "POWERPNT:PROPERTIES",
+        "WINWORD:MSOCOMMANDBARPOPUP",
+        "WINWORD:MSOCOMMANDBARSHADOW",
+        ":MSCTFIME_UI",
+        ":OFFICETOOLTIP",
+        "IEXPLORE:AUTO-SUGGEST_DROPDOWN",
+        ":MSOCOMMANDBARSHADOW",
+        ":MSOCOMMANDBARPOPUP",
+        ":#43",
+        "HELPMAN:TFRMTOPIC",
+        ":GDI+_HOOK_WINDOW_CLASS",
+    ];
+
+    /// <summary>
+    /// Gets or sets the list of QuickPaste formatting strings.
+    /// These define how keystrokes are sent to target applications during paste operations.
+    /// </summary>
+    public List<QuickPasteFormattingString> QuickPasteFormattingStrings { get; set; } =
+    [
+        new()
+            { Title = "Paste Ctrl+V", Preamble = "", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "*" },
+        new()
+            { Title = "Paste Shift+Ins", Preamble = "", PasteKeystrokes = "~{INSERT}", Postamble = "", TitleTrigger = "" },
+        new()
+            { Title = "Paste Edit Menu", Preamble = "", PasteKeystrokes = "@e#PAUSE#p", Postamble = "", TitleTrigger = "" },
+        new()
+            { Title = "Paste + ENTER", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}", TitleTrigger = "" },
+        new()
+            { Title = "Paste + TAB", Preamble = "", PasteKeystrokes = "^v", Postamble = "{TAB}", TitleTrigger = "" },
+        new()
+            { Title = "Paste + Time", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}Captured At: #DATE# #TIME#", TitleTrigger = "" },
+        new()
+            { Title = "Current Date_Time", Preamble = "The Date_Time Is:", PasteKeystrokes = "", Postamble = "#CURRENTDATE# #CURRENTTIME#", TitleTrigger = "" },
+        new()
+            { Title = "Clip + URL", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}#URL#", TitleTrigger = "" },
+        new()
+            { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
+        new()
+            { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
+    ];
 }

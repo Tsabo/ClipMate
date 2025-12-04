@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -18,15 +16,15 @@ public partial class TemplateEditorViewModelTests
         {
             Id = Guid.NewGuid(),
             Name = "New Template",
-            Content = "Template Content"
+            Content = "Template Content",
         };
 
-        _mockTemplateService.Setup(s => s.CreateAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<Guid?>(),
-            default))
+        _mockTemplateService.Setup(p => p.CreateAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<Guid?>(),
+                CancellationToken.None))
             .ReturnsAsync(createdTemplate);
 
         var viewModel = CreateViewModel();
@@ -37,12 +35,12 @@ public partial class TemplateEditorViewModelTests
         await viewModel.CreateTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        _mockTemplateService.Verify(s => s.CreateAsync(
+        _mockTemplateService.Verify(p => p.CreateAsync(
             "New Template",
             "Template Content",
             It.IsAny<string>(),
             It.IsAny<Guid?>(),
-            default), Times.Once);
+            CancellationToken.None), Times.Once);
     }
 
     [Test]
@@ -83,12 +81,13 @@ public partial class TemplateEditorViewModelTests
         {
             Id = Guid.NewGuid(),
             Name = "New Template",
-            Content = "Content"
+            Content = "Content",
         };
 
-        _mockTemplateService.Setup(s => s.CreateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>(), default))
+        _mockTemplateService.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>(), CancellationToken.None))
             .ReturnsAsync(createdTemplate);
-        _mockTemplateService.Setup(s => s.GetAllAsync(default))
+
+        _mockTemplateService.Setup(p => p.GetAllAsync(CancellationToken.None))
             .ReturnsAsync(new List<Template> { createdTemplate });
 
         var viewModel = CreateViewModel();
@@ -99,6 +98,6 @@ public partial class TemplateEditorViewModelTests
         await viewModel.CreateTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        _mockTemplateService.Verify(s => s.GetAllAsync(default), Times.AtLeastOnce);
+        _mockTemplateService.Verify(p => p.GetAllAsync(CancellationToken.None), Times.AtLeastOnce);
     }
 }

@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -18,7 +19,7 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block Notepad", "notepad.exe", null, true);
+        await filterService.CreateFilterAsync("Block Notepad", "notepad.exe", null);
 
         // Act
         var shouldFilter = await filterService.ShouldFilterAsync("notepad.exe", null);
@@ -32,7 +33,7 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block Notepad", "notepad.exe", null, true);
+        await filterService.CreateFilterAsync("Block Notepad", "notepad.exe", null);
 
         // Act
         var shouldFilter = await filterService.ShouldFilterAsync("chrome.exe", null);
@@ -46,7 +47,7 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block Password Windows", null, "*Password*", true);
+        await filterService.CreateFilterAsync("Block Password Windows", null, "*Password*");
 
         // Act
         var shouldFilter = await filterService.ShouldFilterAsync(null, "Change Password - Windows Security");
@@ -60,7 +61,7 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block Password Windows", null, "*Password*", true);
+        await filterService.CreateFilterAsync("Block Password Windows", null, "*Password*");
 
         // Act
         var shouldFilter = await filterService.ShouldFilterAsync(null, "Notepad - Untitled");
@@ -88,21 +89,21 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block Notepad Passwords", "notepad.exe", "*password*", true);
+        await filterService.CreateFilterAsync("Block Notepad Passwords", "notepad.exe", "*password*");
 
         // Act - Both match
         var shouldFilter1 = await filterService.ShouldFilterAsync("notepad.exe", "password.txt - Notepad");
-        
+
         // Act - Only process matches
         var shouldFilter2 = await filterService.ShouldFilterAsync("notepad.exe", "document.txt - Notepad");
-        
+
         // Act - Only title matches
         var shouldFilter3 = await filterService.ShouldFilterAsync("chrome.exe", "password manager");
 
         // Assert
-        await Assert.That(shouldFilter1).IsTrue();   // Both match - should filter
-        await Assert.That(shouldFilter2).IsFalse();  // Only process matches - should not filter
-        await Assert.That(shouldFilter3).IsFalse();  // Only title matches - should not filter
+        await Assert.That(shouldFilter1).IsTrue(); // Both match - should filter
+        await Assert.That(shouldFilter2).IsFalse(); // Only process matches - should not filter
+        await Assert.That(shouldFilter3).IsFalse(); // Only title matches - should not filter
     }
 
     [Test]
@@ -110,9 +111,9 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        
-        await filterService.CreateFilterAsync("Filter 1", "app1.exe", null, true);
-        await filterService.CreateFilterAsync("Filter 2", "app2.exe", null, true);
+
+        await filterService.CreateFilterAsync("Filter 1", "app1.exe", null);
+        await filterService.CreateFilterAsync("Filter 2", "app2.exe", null);
 
         // Act
         var filters = await filterService.GetAllFiltersAsync();
@@ -126,7 +127,7 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         // Arrange
         var filterService = CreateApplicationFilterService();
-        await filterService.CreateFilterAsync("Block All Passwords", null, "*password*", true);
+        await filterService.CreateFilterAsync("Block All Passwords", null, "*password*");
 
         // Act
         var match1 = await filterService.ShouldFilterAsync(null, "my password file");
@@ -136,7 +137,7 @@ public class ApplicationFilterTests : IntegrationTestBase
 
         // Assert
         await Assert.That(match1).IsTrue();
-        await Assert.That(match2).IsTrue();  // Case-insensitive
+        await Assert.That(match2).IsTrue(); // Case-insensitive
         await Assert.That(match3).IsTrue();
         await Assert.That(match4).IsFalse();
     }
@@ -148,6 +149,9 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         var repository = new ApplicationFilterRepository(DbContext);
         var logger = Mock.Of<ILogger<ApplicationFilterService>>();
-        return new ApplicationFilterService(repository, logger);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+
+        return new ApplicationFilterService(repository, soundService.Object, logger);
     }
 }

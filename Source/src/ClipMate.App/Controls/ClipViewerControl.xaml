@@ -24,8 +24,17 @@
                     </DataTemplate>
                 </dx:DXTabItem.HeaderTemplate>
                 <Grid>
-                    <controls:MonacoEditorControl x:Name="TextEditor" IsReadOnly="True"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- ClipViewer Toolbar -->
+                    <controls:ClipViewerToolbar x:Name="TextEditorToolbar" Grid.Row="0"/>
+                    
+                    <controls:MonacoEditorControl x:Name="TextEditor" Grid.Row="1" IsReadOnly="True"/>
                     <TextBlock x:Name="NoTextMessage"
+                               Grid.Row="1"
                                Text="No text format available"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"

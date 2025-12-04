@@ -35,7 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITemplateRepository, TemplateRepository>();
         services.AddScoped<ISearchQueryRepository, SearchQueryRepository>();
         services.AddScoped<IApplicationFilterRepository, ApplicationFilterRepository>();
-        services.AddScoped<ISoundEventRepository, SoundEventRepository>();
+
 
         // Register ClipMate 7.5 compatibility repositories
         services.AddScoped<IClipDataRepository, ClipDataRepository>();
@@ -48,11 +48,11 @@ public static class ServiceCollectionExtensions
         // Note: IClipboardService implementation is in Platform layer
         services.AddScoped<IClipService, ClipService>();
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
-        
+
         // CollectionService is singleton because it maintains in-memory state (_activeCollectionId)
         // that must be shared across the entire application
         services.AddSingleton<ICollectionService, CollectionService>();
-        
+
         services.AddScoped<IFolderService, FolderService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ITemplateService, TemplateService>();

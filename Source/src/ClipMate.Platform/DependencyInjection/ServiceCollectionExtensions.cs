@@ -37,6 +37,9 @@ public static class ServiceCollectionExtensions
         // Register PasteService for PowerPaste functionality
         services.AddSingleton<IPasteService, PasteService>();
 
+        // Register QuickPasteService for QuickPaste functionality
+        services.AddSingleton<IQuickPasteService, QuickPasteService>();
+
         // Register SoundService for audio feedback
         services.AddSingleton<ISoundService, SoundService>();
 

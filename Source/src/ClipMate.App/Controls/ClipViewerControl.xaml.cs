@@ -41,6 +41,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger = serviceProvider.GetRequiredService<ILogger<ClipViewerControl>>();
         _messenger = serviceProvider.GetRequiredService<IMessenger>();
         _configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
+        _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
+
+        // Initialize toolbar ViewModel
+        _toolbarViewModel = serviceProvider.GetRequiredService<ViewModels.ClipViewerToolbarViewModel>();
+        TextEditorToolbar.DataContext = _toolbarViewModel;
+        
+        // Wire up toolbar command handlers
+        WireToolbarCommands();
 
         // Load Monaco Editor configuration
         var monacoOptions = _configurationService.Configuration.MonacoEditor;
@@ -176,6 +184,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly ILogger<ClipViewerControl> _logger;
     private readonly IMessenger _messenger;
     private readonly IConfigurationService _configurationService;
+    private readonly ViewModels.ClipViewerToolbarViewModel _toolbarViewModel;
+    private readonly ITextTransformService _textTransformService;
 
     private List<ClipData> _currentClipData = [];
     private Dictionary<Guid, BlobTxt> _textBlobs = [];
@@ -1051,6 +1061,266 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         }
 
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    #endregion
+
+    #region Toolbar Command Wiring
+
+    private void WireToolbarCommands()
+    {
+        // Subscribe to toolbar ViewModel property changes
+        _toolbarViewModel.PropertyChanged += async (_, e) =>
+        {
+            if (e.PropertyName == nameof(_toolbarViewModel.IsWordWrapEnabled))
+            {
+                await TextEditor.SetWordWrapAsync(_toolbarViewModel.IsWordWrapEnabled);
+            }
+            else if (e.PropertyName == nameof(_toolbarViewModel.ShowNonPrintingCharacters))
+            {
+                await TextEditor.SetRenderWhitespaceAsync(_toolbarViewModel.ShowNonPrintingCharacters);
+            }
+        };
+
+        // Wire up toolbar command handlers
+        _toolbarViewModel.OnNewClipRequested = () => Dispatcher.Invoke(HandleNewClip);
+        _toolbarViewModel.OnCutRequested = () => Dispatcher.Invoke(async () => await HandleCutAsync());
+        _toolbarViewModel.OnCopyRequested = () => Dispatcher.Invoke(async () => await HandleCopyAsync());
+        _toolbarViewModel.OnPasteRequested = () => Dispatcher.Invoke(async () => await HandlePasteAsync());
+        _toolbarViewModel.OnRemoveLineBreaksRequested = mode => Dispatcher.Invoke(async () => await HandleRemoveLineBreaksAsync(mode));
+        _toolbarViewModel.OnConvertCaseRequested = caseType => Dispatcher.Invoke(async () => await HandleConvertCaseAsync(caseType));
+        _toolbarViewModel.OnTrimRequested = () => Dispatcher.Invoke(async () => await HandleTrimAsync());
+        _toolbarViewModel.OnOpenTextCleanupDialogRequested = () => Dispatcher.Invoke(HandleOpenTextCleanupDialog);
+        _toolbarViewModel.OnUndoRequested = () => Dispatcher.Invoke(async () => await HandleUndoAsync());
+        _toolbarViewModel.OnFindRequested = () => Dispatcher.Invoke(async () => await HandleFindAsync());
+        _toolbarViewModel.OnShowHelpRequested = () => Dispatcher.Invoke(HandleShowHelp);
+    }
+
+    private void HandleNewClip()
+    {
+        try
+        {
+            TextEditor.Text = string.Empty;
+            _logger.LogDebug("New clip created");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating new clip");
+        }
+    }
+
+    private async Task HandleCutAsync()
+    {
+        try
+        {
+            var selectedText = await TextEditor.GetSelectedTextAsync();
+            if (!string.IsNullOrEmpty(selectedText))
+            {
+                System.Windows.Clipboard.SetText(selectedText);
+                await TextEditor.ReplaceSelectionAsync(string.Empty);
+                _logger.LogDebug("Cut {Length} characters", selectedText.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cutting text");
+        }
+    }
+
+    private async Task HandleCopyAsync()
+    {
+        try
+        {
+            var selectedText = await TextEditor.GetSelectedTextAsync();
+            if (!string.IsNullOrEmpty(selectedText))
+            {
+                System.Windows.Clipboard.SetText(selectedText);
+                _logger.LogDebug("Copied {Length} characters", selectedText.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error copying text");
+        }
+    }
+
+    private async Task HandlePasteAsync()
+    {
+        try
+        {
+            if (System.Windows.Clipboard.ContainsText())
+            {
+                var text = System.Windows.Clipboard.GetText();
+                await TextEditor.ReplaceSelectionAsync(text);
+                _logger.LogDebug("Pasted {Length} characters", text.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pasting text");
+        }
+    }
+
+    private async Task HandleRemoveLineBreaksAsync(string mode)
+    {
+        try
+        {
+            var text = await TextEditor.GetTextAsync();
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var lineBreakMode = mode switch
+            {
+                "PreserveParagraphs" => Core.Models.LineBreakMode.PreserveParagraphs,
+                "RemoveAll" => Core.Models.LineBreakMode.RemoveAll,
+                "UrlCrunch" => Core.Models.LineBreakMode.UrlCrunch,
+                _ => Core.Models.LineBreakMode.PreserveParagraphs
+            };
+
+            var result = _textTransformService.RemoveLineBreaks(text, lineBreakMode);
+            await TextEditor.SetTextAsync(result);
+            _logger.LogDebug("Removed line breaks with mode: {Mode}", mode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing line breaks");
+        }
+    }
+
+    private async Task HandleConvertCaseAsync(string caseType)
+    {
+        try
+        {
+            var selectedText = await TextEditor.GetSelectedTextAsync();
+            var text = string.IsNullOrEmpty(selectedText) ? await TextEditor.GetTextAsync() : selectedText;
+            
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var conversion = caseType switch
+            {
+                "Uppercase" => Core.Models.CaseConversion.Uppercase,
+                "Lowercase" => Core.Models.CaseConversion.Lowercase,
+                "TitleCase" => Core.Models.CaseConversion.TitleCase,
+                "SentenceCase" => Core.Models.CaseConversion.SentenceCase,
+                "InvertCase" => Core.Models.CaseConversion.InvertCase,
+                _ => Core.Models.CaseConversion.Uppercase
+            };
+
+            var result = _textTransformService.ConvertCase(text, conversion);
+            
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                await TextEditor.SetTextAsync(result);
+            }
+            else
+            {
+                await TextEditor.ReplaceSelectionAsync(result);
+            }
+            
+            _logger.LogDebug("Converted case to: {CaseType}", caseType);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error converting case");
+        }
+    }
+
+    private async Task HandleTrimAsync()
+    {
+        try
+        {
+            var text = await TextEditor.GetTextAsync();
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var result = _textTransformService.TrimText(text);
+            await TextEditor.SetTextAsync(result);
+            _logger.LogDebug("Trimmed text");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error trimming text");
+        }
+    }
+
+    private async void HandleOpenTextCleanupDialog()
+    {
+        try
+        {
+            // Get current text from editor
+            var currentText = await TextEditor.GetTextAsync();
+            
+            if (string.IsNullOrEmpty(currentText))
+            {
+                MessageBox.Show("No text to clean up.", "Text Cleanup", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Create and show dialog on UI thread
+            await Dispatcher.InvokeAsync(() =>
+            {
+                // Get dialog from DI container
+                var app = (App)Application.Current;
+                var dialog = app.ServiceProvider.GetRequiredService<Views.TextCleanupDialog>();
+                
+                // Set owner to prevent focus issues
+                dialog.Owner = Window.GetWindow(this);
+                
+                // Set input text
+                dialog.SetInputText(currentText);
+                
+                // Show dialog and get result
+                var result = dialog.ShowDialog();
+                
+                if (result == true && !string.IsNullOrEmpty(dialog.ResultText))
+                {
+                    // Apply cleaned text to editor
+                    Dispatcher.InvokeAsync(async () =>
+                    {
+                        await TextEditor.SetTextAsync(dialog.ResultText);
+                        _logger.LogInformation("Text cleanup applied - {Length} characters", dialog.ResultText.Length);
+                    });
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error opening Text Cleanup dialog");
+            MessageBox.Show($"Error opening Text Cleanup dialog: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task HandleUndoAsync()
+    {
+        try
+        {
+            await TextEditor.TriggerUndoAsync();
+            _logger.LogDebug("Undo triggered");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error triggering undo");
+        }
+    }
+
+    private async Task HandleFindAsync()
+    {
+        try
+        {
+            await TextEditor.TriggerFindAsync();
+            _logger.LogDebug("Find dialog triggered");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error triggering find");
+        }
+    }
+
+    private void HandleShowHelp()
+    {
+        _logger.LogDebug("Help not yet implemented");
+        MessageBox.Show("ClipViewer help will be available in the user manual.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     #endregion

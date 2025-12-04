@@ -3,6 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -27,7 +28,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             // It would be stored in BlobTxt table via ClipData in production
             ContentHash = "test_hash_123",
             SourceApplicationName = "TestApp",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act - Save in first context
@@ -36,7 +37,7 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         // Save changes to ensure data is persisted
         await DbContext.SaveChangesAsync();
-        
+
         // Create new context and service (simulates app restart)
         // Keep the connection alive by getting it before disposing
         var connection = DbContext.Database.GetDbConnection();
@@ -44,6 +45,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             new DbContextOptionsBuilder<ClipMateDbContext>()
                 .UseSqlite(connection)
                 .Options);
+
         var newClipService = CreateClipServiceWithContext(newContext);
 
         // Assert - Retrieve in new context
@@ -52,7 +54,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         await Assert.That(retrievedClip!.ContentHash).IsEqualTo("test_hash_123");
         await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
         await Assert.That(retrievedClip.Type).IsEqualTo(ClipType.Text);
-        
+
         // Cleanup the new context
         newContext.Dispose();
     }
@@ -69,7 +71,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "First",
             ContentHash = "hash_1",
-            CapturedAt = now.AddMinutes(-2)
+            CapturedAt = now.AddMinutes(-2),
         };
 
         var clip2 = new Clip
@@ -77,7 +79,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Second",
             ContentHash = "hash_2",
-            CapturedAt = now.AddMinutes(-1)
+            CapturedAt = now.AddMinutes(-1),
         };
 
         var clip3 = new Clip
@@ -85,7 +87,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Third",
             ContentHash = "hash_3",
-            CapturedAt = now
+            CapturedAt = now,
         };
 
         // Act
@@ -97,7 +99,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         // Assert
         var recentClips = await clipService.GetRecentAsync(10);
         await Assert.That(recentClips.Count).IsEqualTo(3);
-        await Assert.That(recentClips[0].TextContent).IsEqualTo("Third");  // Most recent first
+        await Assert.That(recentClips[0].TextContent).IsEqualTo("Third"); // Most recent first
         await Assert.That(recentClips[1].TextContent).IsEqualTo("Second");
         await Assert.That(recentClips[2].TextContent).IsEqualTo("First");
     }
@@ -113,7 +115,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Image,
             ImageData = imageData,
             ContentHash = "image_hash",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -139,7 +141,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             // Note: TextContent is transient and not persisted
             ContentHash = "delete_hash",
             SourceApplicationName = "TestApp",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -161,13 +163,13 @@ public class ClipPersistenceTests : IntegrationTestBase
         // Arrange
         var clipService = CreateClipService();
         var contentHash = "duplicate_hash_test";
-        
+
         var clip = new Clip
         {
             Type = ClipType.Text,
             TextContent = "Duplicate content",
             ContentHash = contentHash,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -187,7 +189,10 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
-        return new ClipService(repository);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+
+        return new ClipService(repository, soundService.Object);
     }
 
     /// <summary>
@@ -197,6 +202,9 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
-        return new ClipService(repository);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+
+        return new ClipService(repository, soundService.Object);
     }
 }

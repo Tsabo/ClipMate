@@ -36,6 +36,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         if (_contexts.TryGetValue(normalizedPath, out var existingContext))
         {
             _logger.LogDebug("Returning existing context for database: {DatabasePath}", normalizedPath);
+
             return existingContext;
         }
 
@@ -57,6 +58,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     public IReadOnlyCollection<ClipMateDbContext> GetAllContexts()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+
         return _contexts.Values.ToList();
     }
 
@@ -67,6 +69,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     public IReadOnlyCollection<string> GetLoadedDatabasePaths()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+
         return _contexts.Keys.ToList();
     }
 
@@ -85,6 +88,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         {
             _logger.LogInformation("Closing database: {DatabasePath}", normalizedPath);
             context.Dispose();
+
             return true;
         }
 

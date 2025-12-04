@@ -22,11 +22,11 @@ public partial class ApplicationProfileNode : TreeNodeBase
         _enabled = profile.Enabled;
 
         // Populate format children
-        foreach (var format in profile.Formats.OrderBy(f => f.Key))
+        foreach (var item in profile.Formats.OrderBy(p => p.Key))
         {
-            var formatNode = new ApplicationProfileFormatNode(format.Key, format.Value)
+            var formatNode = new ApplicationProfileFormatNode(item.Key, item.Value)
             {
-                Parent = this,
+                Parent = this
             };
 
             Children.Add(formatNode);

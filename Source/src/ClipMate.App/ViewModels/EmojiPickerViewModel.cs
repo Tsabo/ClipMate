@@ -15,10 +15,10 @@ public partial class EmojiPickerViewModel : ObservableObject
     private readonly IConfigurationService _configurationService;
 
     [ObservableProperty]
-    private ObservableCollection<EmojiData.Emoji> _displayedEmojis = new();
+    private ObservableCollection<EmojiData.Emoji> _displayedEmojis = [];
 
     [ObservableProperty]
-    private ObservableCollection<EmojiData.Emoji> _recentEmojis = new();
+    private ObservableCollection<EmojiData.Emoji> _recentEmojis = [];
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -84,7 +84,7 @@ public partial class EmojiPickerViewModel : ObservableObject
             emojis = SelectedCategory.EmojiList;
         }
         else
-            emojis = Enumerable.Empty<EmojiData.Emoji>();
+            emojis = [];
 
         DisplayedEmojis = new ObservableCollection<EmojiData.Emoji>(emojis);
     }
@@ -125,7 +125,7 @@ public partial class EmojiPickerViewModel : ObservableObject
             {
                 Emoji = emojiText,
                 LastUsed = DateTime.Now,
-                UseCount = 1,
+                UseCount = 1
             });
         }
 

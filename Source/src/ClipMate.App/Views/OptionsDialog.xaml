@@ -9,7 +9,7 @@
                  d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
                  mc:Ignorable="d"
                  Title="Options"
-                 Width="700"
+                 Width="800"
                  Height="625"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="CanResize"
@@ -45,6 +45,11 @@
             <options:PastingOptionsControl />
         </dx:DXTabItem>
 
+        <!-- QuickPaste Tab -->
+        <dx:DXTabItem Header="QuickPaste">
+            <options:QuickPasteOptionsControl />
+        </dx:DXTabItem>
+
         <!-- Editor Tab -->
         <dx:DXTabItem Header="Editor">
             <options:EditorOptionsControl />
@@ -68,12 +73,9 @@
                        Foreground="Gray" />
         </dx:DXTabItem>
 
-        <!-- Sounds Tab (Stub) -->
-        <dx:DXTabItem Header="Sounds" IsEnabled="False">
-            <TextBlock Text="Sound options will be added here"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       Foreground="Gray" />
+        <!-- Sounds Tab -->
+        <dx:DXTabItem Header="Sounds">
+            <options:SoundsOptionsControl />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

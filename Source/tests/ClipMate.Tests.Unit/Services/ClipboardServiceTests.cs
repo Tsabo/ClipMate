@@ -87,7 +87,7 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Try to read from channel with timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var readTask = service.ClipsChannel.ReadAsync(cts.Token).AsTask();
+        _ = service.ClipsChannel.ReadAsync(cts.Token).AsTask();
 
         // Assert
         // Should eventually receive a clip (when clipboard actually changes)
@@ -167,6 +167,9 @@ public class ClipboardServiceTests : TestFixtureBase
         var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
         formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
 
-        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+
+        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
     }
 }

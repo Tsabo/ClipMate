@@ -674,5 +674,179 @@ public partial class MonacoEditorControl
         }
     }
 
+    /// <summary>
+    /// Gets the currently selected text in the editor.
+    /// </summary>
+    public async Task<string> GetSelectedTextAsync()
+    {
+        if (!IsInitialized)
+            return string.Empty;
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync("getSelectedText()");
+            return JsonSerializer.Deserialize<string>(result) ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get selected text");
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Replaces the currently selected text with the provided text.
+    /// </summary>
+    public async Task<bool> ReplaceSelectionAsync(string text)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var escapedText = text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+            var result = await EditorWebView.ExecuteScriptAsync($"replaceSelection(\"{escapedText}\")");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to replace selection");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Inserts text at the current cursor position.
+    /// </summary>
+    public async Task<bool> InsertAtCursorAsync(string text)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var escapedText = text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+            var result = await EditorWebView.ExecuteScriptAsync($"insertAtCursor(\"{escapedText}\")");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to insert at cursor");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current cursor position as a JSON object with lineNumber and column.
+    /// </summary>
+    public async Task<(int lineNumber, int column)> GetCursorPositionAsync()
+    {
+        if (!IsInitialized)
+            return (1, 1);
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync("getCursorPosition()");
+            var position = JsonSerializer.Deserialize<CursorPosition>(result);
+            return (position?.lineNumber ?? 1, position?.column ?? 1);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get cursor position");
+            return (1, 1);
+        }
+    }
+
+    /// <summary>
+    /// Triggers the undo action in the editor.
+    /// </summary>
+    public async Task<bool> TriggerUndoAsync()
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync("triggerUndo()");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to trigger undo");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Triggers the find dialog in the editor.
+    /// </summary>
+    public async Task<bool> TriggerFindAsync()
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync("triggerFind()");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to trigger find");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sets the word wrap mode for the editor.
+    /// </summary>
+    public async Task<bool> SetWordWrapAsync(bool enabled)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync($"setWordWrap({enabled.ToString().ToLower()})");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to set word wrap");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sets whether to render whitespace characters in the editor.
+    /// </summary>
+    public async Task<bool> SetRenderWhitespaceAsync(bool enabled)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var renderMode = enabled ? "all" : "none";
+            var result = await EditorWebView.ExecuteScriptAsync($"setRenderWhitespace(\"{renderMode}\")");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to set render whitespace");
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Helper Classes
+
+    private class CursorPosition
+    {
+        public int lineNumber { get; set; }
+        public int column { get; set; }
+    }
+
     #endregion
 }

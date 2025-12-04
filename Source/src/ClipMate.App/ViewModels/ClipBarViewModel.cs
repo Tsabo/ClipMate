@@ -128,8 +128,10 @@ public partial class ClipBarViewModel : ObservableObject
 
         // Reset selection if current index is out of range
         if (SelectedIndex >= FilteredClips.Count)
+        {
             SelectedIndex = FilteredClips.Count > 0
                 ? 0
                 : -1;
+        }
     }
 }

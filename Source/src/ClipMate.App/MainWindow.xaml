@@ -1,29 +1,35 @@
 <dx:ThemedWindow x:Class="ClipMate.App.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
-        xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
-        xmlns:views="clr-namespace:ClipMate.App.Views"
-        xmlns:controls="clr-namespace:ClipMate.App.Controls"
-        mc:Ignorable="d"
-        Title="ClipMate - Clipboard Manager"
-        WindowStartupLocation="CenterScreen"
-        Height="525"
-        Width="1000"
-        MinHeight="525"
-        MinWidth="1000"
-        ShowInTaskbar="True"
-        StateChanged="Window_StateChanged">
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+                 xmlns:views="clr-namespace:ClipMate.App.Views"
+                 xmlns:controls="clr-namespace:ClipMate.App.Controls"
+                 mc:Ignorable="d"
+                 Title="ClipMate - Clipboard Manager"
+                 WindowStartupLocation="CenterScreen"
+                 Height="525"
+                 Width="1000"
+                 MinHeight="545"
+                 MinWidth="1000"
+                 ShowInTaskbar="True"
+                 StateChanged="Window_StateChanged">
 
     <dx:ThemedWindow.InputBindings>
         <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
     </dx:ThemedWindow.InputBindings>
 
-    <DockPanel>
-        <!-- BarManager: Toolbar and Menus -->
-        <dxb:BarManager x:Name="BarManager" DockPanel.Dock="Top">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+            <!-- BarManager: Toolbar and Menus -->
+        <dxb:BarManager x:Name="BarManager" Grid.Row="0">
             <dxb:BarManager.Bars>
                 <!-- Main Toolbar -->
                 <dxb:Bar Caption="Main Toolbar" IsMainMenu="False" AllowCollapse="True">
@@ -35,69 +41,60 @@
                                        LargeGlyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}"
                                        Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
                 </dxb:Bar>
-                
+
                 <!-- Menu Bar -->
                 <dxb:Bar Caption="Main Menu" IsMainMenu="True">
                     <dxb:BarSubItem Content="_File">
                         <dxb:BarButtonItem Content="_Exit" ItemClick="Exit_Click" />
                     </dxb:BarSubItem>
-                    
+
                     <dxb:BarSubItem Content="_Edit">
                         <dxb:BarButtonItem Content="PowerPaste _Up"
-                                          Command="{Binding PowerPasteUpCommand}"
-                                          KeyGesture="Ctrl+Up" />
+                                           Command="{Binding PowerPasteUpCommand}"
+                                           KeyGesture="Ctrl+Up" />
                         <dxb:BarButtonItem Content="PowerPaste _Down"
-                                          Command="{Binding PowerPasteDownCommand}"
-                                          KeyGesture="Ctrl+Down" />
+                                           Command="{Binding PowerPasteDownCommand}"
+                                           KeyGesture="Ctrl+Down" />
                         <dxb:BarItemSeparator />
                         <dxb:BarCheckItem Content="Explode Into _Fragments"
-                                         IsChecked="{Binding IsExplodeMode}"
-                                         ToolTip="Break clips into fragments by delimiters" />
+                                          IsChecked="{Binding IsExplodeMode}"
+                                          ToolTip="Break clips into fragments by delimiters" />
                         <dxb:BarCheckItem Content="PowerPaste _Loop"
-                                         IsChecked="{Binding IsLoopMode}"
-                                         ToolTip="Loop back to start when reaching the end" />
+                                          IsChecked="{Binding IsLoopMode}"
+                                          ToolTip="Loop back to start when reaching the end" />
                     </dxb:BarSubItem>
-                    
+
                     <dxb:BarSubItem Content="_View">
                         <dxb:BarCheckItem Content="_Dual ClipList Mode"
-                                         IsChecked="{Binding IsDualClipListMode}"
-                                         KeyGesture="Ctrl+D" />
+                                          IsChecked="{Binding IsDualClipListMode}"
+                                          KeyGesture="Ctrl+D" />
                     </dxb:BarSubItem>
-                    
+
                     <dxb:BarSubItem Content="_Tools">
                         <dxb:BarButtonItem Content="_Text Tools" ItemClick="TextTools_Click" KeyGesture="Ctrl+T" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="_Options ..." ItemClick="Options_Click" />
                     </dxb:BarSubItem>
-                    
+
                     <dxb:BarSubItem Content="T_emplates">
-                        <dxb:BarButtonItem Content="_Manage Templates..." ItemClick="ManageTemplates_Click" KeyGesture="Ctrl+Shift+T" />
+                        <dxb:BarButtonItem Content="_Manage Templates..." ItemClick="ManageTemplates_Click"
+                                           KeyGesture="Ctrl+Shift+T" />
                     </dxb:BarSubItem>
                 </dxb:Bar>
             </dxb:BarManager.Bars>
         </dxb:BarManager>
 
-        <!-- Status Bar at Bottom -->
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
-            </StatusBarItem>
-        </StatusBar>
-
         <!-- Main Content Area -->
-        <Grid>
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200" MinWidth="150" MaxWidth="400" />
                 <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" MinWidth="400" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" MinHeight="200"/>
+                <RowDefinition Height="*" MinHeight="200" />
                 <RowDefinition Height="5" />
-                <RowDefinition Height="*" MinHeight="200"/>
+                <RowDefinition Height="*" MinHeight="200" />
             </Grid.RowDefinitions>
 
             <!-- Left Pane: Collection Tree -->
@@ -133,7 +130,22 @@
             <controls:ClipViewerControl x:Name="ClipViewer"
                                         Grid.Column="0"
                                         Grid.ColumnSpan="3"
-                                        Grid.Row="2"/>
+                                        Grid.Row="2" />
         </Grid>
-    </DockPanel>
+
+        <!-- QuickPaste Toolbar -->
+        <controls:QuickPasteToolbar x:Name="QuickPasteToolbar"
+                                    Grid.Row="2"
+                                    DataContext="{Binding QuickPasteToolbarViewModel}" />
+
+        <!-- Status Bar at Bottom -->
+        <StatusBar Grid.Row="3">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
 </dx:ThemedWindow>

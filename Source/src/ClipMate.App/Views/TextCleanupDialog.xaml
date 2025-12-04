@@ -1,0 +1,114 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.TextCleanupDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 d:DataContext="{d:DesignInstance Type=vm:TextCleanupDialogViewModel}"
+                 mc:Ignorable="d"
+                 Title="Text Cleanup"
+                 Height="425"
+                 Width="500"
+                 MinHeight="425"
+                 MinWidth="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False">
+
+    <!-- DevExpress Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Apply"
+                                     x:Name="ApplyButton"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     x:Name="CancelButton"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <!-- Main Content -->
+    <dxlc:LayoutControl Orientation="Vertical">
+
+        <!-- Step 1: Strip Characters -->
+        <dxlc:LayoutGroup Header="Step 1: Strip Characters" Orientation="Vertical">
+            <dxlc:LayoutItem Label="Strip Position:">
+                <ComboBox x:Name="StripPositionComboBox" SelectedIndex="0">
+                    <ComboBoxItem Content="Leading" Tag="Leading" />
+                    <ComboBoxItem Content="Trailing" Tag="Trailing" />
+                    <ComboBoxItem Content="Anywhere" Tag="Anywhere" />
+                </ComboBox>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem Label="Characters to Strip:">
+                <dxe:TextEdit x:Name="CharactersToStripTextEdit"
+                              NullText="e.g., spaces, tabs, special characters" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="StripWhitespaceCheckBox"
+                          Content="Strip leading/trailing whitespace" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Step 2: Formatting -->
+        <dxlc:LayoutGroup Header="Step 2: Formatting" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="RemoveExtraSpacesCheckBox"
+                          Content="Remove extra spaces (condense multiple spaces to one)" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="RemoveExtraLineBreaksCheckBox"
+                          Content="Remove extra line breaks (condense to maximum double breaks)" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="TrimLinesCheckBox"
+                          Content="Trim lines (remove leading/trailing whitespace from each line)" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem Label="Line Break Mode:">
+                <ComboBox x:Name="LineBreakModeComboBox" SelectedIndex="0">
+                    <ComboBoxItem Content="Keep All" Tag="KeepAll" />
+                    <ComboBoxItem Content="Preserve Paragraphs" Tag="PreserveParagraphs" />
+                    <ComboBoxItem Content="Remove All" Tag="RemoveAll" />
+                </ComboBox>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Step 3: Case Conversion -->
+        <dxlc:LayoutGroup Header="Step 3: Case Conversion">
+            <dxlc:LayoutItem Label="Convert Case:">
+                <ComboBox x:Name="CaseConversionComboBox" SelectedIndex="0">
+                    <ComboBoxItem Content="No Change" Tag="NoChange" />
+                    <ComboBoxItem Content="UPPERCASE" Tag="Uppercase" />
+                    <ComboBoxItem Content="lowercase" Tag="Lowercase" />
+                    <ComboBoxItem Content="Title Case" Tag="TitleCase" />
+                    <ComboBoxItem Content="Sentence case" Tag="SentenceCase" />
+                    <ComboBoxItem Content="iNVERT cASE" Tag="InvertCase" />
+                </ComboBox>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Step 4: Find and Replace -->
+        <dxlc:LayoutGroup Header="Step 4: Find and Replace" Orientation="Vertical">
+            <dxlc:LayoutItem Label="Find:">
+                <dxe:TextEdit x:Name="FindTextEdit" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem Label="Replace With:">
+                <dxe:TextEdit x:Name="ReplaceTextEdit" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="UseRegexCheckBox"
+                          Content="Use regular expressions" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <CheckBox x:Name="CaseSensitiveCheckBox"
+                          Content="Case-sensitive" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</dx:ThemedWindow>

@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -13,11 +14,14 @@ public class ApplicationFilterService : IApplicationFilterService
 {
     private readonly ILogger<ApplicationFilterService> _logger;
     private readonly IApplicationFilterRepository _repository;
+    private readonly ISoundService _soundService;
 
     public ApplicationFilterService(IApplicationFilterRepository repository,
+        ISoundService soundService,
         ILogger<ApplicationFilterService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -40,6 +44,9 @@ public class ApplicationFilterService : IApplicationFilterService
                         processName,
                         windowTitle);
 
+                    // Play filter sound when rejecting clipboard capture
+                    await _soundService.PlaySoundAsync(SoundEvent.Filter);
+
                     return true;
                 }
             }
@@ -49,6 +56,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking application filters");
+
             // Don't block clipboard capture on filter errors
             return false;
         }
@@ -64,6 +72,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all filters");
+
             throw;
         }
     }
@@ -78,6 +87,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving enabled filters");
+
             throw;
         }
     }
@@ -114,6 +124,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating filter '{FilterName}'", name);
+
             throw;
         }
     }
@@ -132,6 +143,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating filter {FilterId}", filter.Id);
+
             throw;
         }
     }
@@ -147,6 +159,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting filter {FilterId}", id);
+
             throw;
         }
     }
@@ -157,6 +170,7 @@ public class ApplicationFilterService : IApplicationFilterService
         try
         {
             var filter = await _repository.GetByIdAsync(id, cancellationToken);
+
             if (filter == null)
                 throw new InvalidOperationException($"Filter with ID {id} not found");
 
@@ -175,6 +189,7 @@ public class ApplicationFilterService : IApplicationFilterService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error setting enabled state for filter {FilterId}", id);
+
             throw;
         }
     }
@@ -192,6 +207,7 @@ public class ApplicationFilterService : IApplicationFilterService
         {
             var processMatches = MatchesPattern(processName, filter.ProcessName);
             var titleMatches = MatchesPattern(windowTitle, filter.WindowTitlePattern);
+
             return processMatches && titleMatches;
         }
 

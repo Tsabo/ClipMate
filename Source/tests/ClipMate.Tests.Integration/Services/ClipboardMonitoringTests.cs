@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
@@ -103,6 +104,9 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
         formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
 
-        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+
+        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
     }
 }

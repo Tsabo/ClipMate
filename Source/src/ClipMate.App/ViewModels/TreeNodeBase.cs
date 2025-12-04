@@ -40,6 +40,7 @@ public abstract partial class TreeNodeBase : ObservableObject
         {
             var image = new DrawingImage();
             Image.SetSource(image, Icon);
+
             return image;
         }
     }
