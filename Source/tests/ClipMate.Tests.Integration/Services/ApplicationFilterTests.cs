@@ -1,6 +1,8 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -147,7 +149,9 @@ public class ApplicationFilterTests : IntegrationTestBase
     {
         var repository = new ApplicationFilterRepository(DbContext);
         var logger = Mock.Of<ILogger<ApplicationFilterService>>();
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
 
-        return new ApplicationFilterService(repository, logger);
+        return new ApplicationFilterService(repository, soundService.Object, logger);
     }
 }

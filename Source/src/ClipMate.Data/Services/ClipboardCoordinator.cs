@@ -2,6 +2,7 @@ using System.Windows;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,6 +21,7 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ISoundService _soundService;
     private CancellationTokenSource? _cts;
     private bool _isMonitoring;
     private Task? _processingTask;
@@ -28,12 +30,14 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
         IConfigurationService configurationService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
+        ISoundService soundService,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Register for preferences changed events
@@ -315,7 +319,12 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
         var wasDuplicate = savedClip.Id != clip.Id;
 
         if (!wasDuplicate)
+        {
             _logger.LogInformation("Clip saved successfully: {ClipId}", savedClip.Id);
+
+            // Play sound for new clipboard data captured
+            await _soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate);
+        }
         else
         {
             _logger.LogDebug(

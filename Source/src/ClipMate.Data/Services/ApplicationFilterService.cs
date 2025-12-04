@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -13,11 +14,14 @@ public class ApplicationFilterService : IApplicationFilterService
 {
     private readonly ILogger<ApplicationFilterService> _logger;
     private readonly IApplicationFilterRepository _repository;
+    private readonly ISoundService _soundService;
 
     public ApplicationFilterService(IApplicationFilterRepository repository,
+        ISoundService soundService,
         ILogger<ApplicationFilterService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -39,6 +43,9 @@ public class ApplicationFilterService : IApplicationFilterService
                         item.Name,
                         processName,
                         windowTitle);
+
+                    // Play filter sound when rejecting clipboard capture
+                    await _soundService.PlaySoundAsync(SoundEvent.Filter);
 
                     return true;
                 }
@@ -106,7 +113,7 @@ public class ApplicationFilterService : IApplicationFilterService
                 ProcessName = processName,
                 WindowTitlePattern = windowTitlePattern,
                 IsEnabled = isEnabled,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             var created = await _repository.CreateAsync(filter, cancellationToken);

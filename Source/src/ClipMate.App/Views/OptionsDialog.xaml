@@ -73,12 +73,9 @@
                        Foreground="Gray" />
         </dx:DXTabItem>
 
-        <!-- Sounds Tab (Stub) -->
-        <dx:DXTabItem Header="Sounds" IsEnabled="False">
-            <TextBlock Text="Sound options will be added here"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       Foreground="Gray" />
+        <!-- Sounds Tab -->
+        <dx:DXTabItem Header="Sounds">
+            <options:SoundsOptionsControl />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

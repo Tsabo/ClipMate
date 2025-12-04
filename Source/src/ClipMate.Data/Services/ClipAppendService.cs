@@ -4,9 +4,8 @@ using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using ISoundService = ClipMate.Platform.ISoundService;
-using SoundEvent = ClipMate.Platform.SoundEvent;
 
 namespace ClipMate.Data.Services;
 
@@ -97,7 +96,7 @@ public partial class ClipAppendService : IClipAppendService
                 ContentHash = ComputeContentHash(finalText),
                 Checksum = ComputeChecksum(finalText),
                 CollectionId = clipList.First().CollectionId, // Use first clip's collection
-                Creator = Environment.UserName
+                Creator = Environment.UserName,
             };
 
             // Save the new clip to the repository

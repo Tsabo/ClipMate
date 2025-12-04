@@ -72,7 +72,6 @@ public class DatabaseSchemaMigrationTests
         await Assert.That(tables).Contains("Templates");
         await Assert.That(tables).Contains("SearchQueries");
         await Assert.That(tables).Contains("ApplicationFilters");
-        await Assert.That(tables).Contains("SoundEvents");
         await Assert.That(tables).Contains("MonacoEditorStates");
     }
 
@@ -121,7 +120,7 @@ public class DatabaseSchemaMigrationTests
             CollectionId = collection.Id,
             Type = ClipType.Text,
             ContentHash = "test-hash",
-            CapturedAt = DateTimeOffset.UtcNow
+            CapturedAt = DateTimeOffset.UtcNow,
         };
 
         _context.Clips.Add(clip);
@@ -143,7 +142,7 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Assert - Verify indexes are created if defined in EF model
-        var indexes = await GetIndexesForTableAsync("Clips");
+        _ = await GetIndexesForTableAsync("Clips");
 
         // Note: Indexes are only created if explicitly defined in the EF Core model
         // If the model has indexes, they should be created. If not, that's okay too.
@@ -183,7 +182,7 @@ public class DatabaseSchemaMigrationTests
         {
             Name = "Test Template",
             Content = "Hello {NAME}",
-            Description = "Test"
+            Description = "Test",
         };
 
         _context.Templates.Add(template);
@@ -192,7 +191,7 @@ public class DatabaseSchemaMigrationTests
         var appFilter = new ApplicationFilter
         {
             ProcessName = "notepad.exe",
-            IsEnabled = true
+            IsEnabled = true,
         };
 
         _context.ApplicationFilters.Add(appFilter);
@@ -234,7 +233,7 @@ public class DatabaseSchemaMigrationTests
                 ContentHash = "hash1",
                 SourceApplicationName = "notepad.exe",
                 CapturedAt = DateTimeOffset.UtcNow.AddHours(-2),
-                IsFavorite = true
+                IsFavorite = true,
             },
             new Clip
             {
@@ -242,7 +241,7 @@ public class DatabaseSchemaMigrationTests
                 Type = ClipType.Image,
                 ContentHash = "hash2",
                 SourceApplicationName = "chrome.exe",
-                CapturedAt = DateTimeOffset.UtcNow.AddHours(-1)
+                CapturedAt = DateTimeOffset.UtcNow.AddHours(-1),
             },
             new Clip
             {
@@ -251,8 +250,8 @@ public class DatabaseSchemaMigrationTests
                 ContentHash = "hash3",
                 SourceApplicationName = "notepad.exe",
                 CapturedAt = DateTimeOffset.UtcNow,
-                Del = true
-            }
+                Del = true,
+            },
         };
 
         _context.Clips.AddRange(clips);
@@ -261,9 +260,9 @@ public class DatabaseSchemaMigrationTests
         // Act - Execute complex query
         // Note: SQLite doesn't support DateTimeOffset in ORDER BY, so we order in memory
         var activeTextClips = await _context.Clips
-            .Where(c => c.CollectionId == collection.Id)
-            .Where(c => !c.Del)
-            .Where(c => c.Type == ClipType.Text)
+            .Where(p => p.CollectionId == collection.Id)
+            .Where(p => !p.Del)
+            .Where(p => p.Type == ClipType.Text)
             .ToListAsync();
 
         activeTextClips = activeTextClips
@@ -306,7 +305,7 @@ public class DatabaseSchemaMigrationTests
         {
             new Collection { Name = "Work" },
             new Collection { Name = "Personal" },
-            new Collection { Name = "Archive" }
+            new Collection { Name = "Archive" },
         };
 
         _context!.Collections.AddRange(collections);
@@ -319,7 +318,7 @@ public class DatabaseSchemaMigrationTests
                 CollectionId = collection.Id,
                 Type = ClipType.Text,
                 ContentHash = $"hash-{collection.Name}",
-                CapturedAt = DateTimeOffset.UtcNow
+                CapturedAt = DateTimeOffset.UtcNow,
             };
 
             _context.Clips.Add(clip);
@@ -332,11 +331,11 @@ public class DatabaseSchemaMigrationTests
         var personalCollection = collections.First(c => c.Name == "Personal");
 
         var workClips = await _context.Clips
-            .Where(c => c.CollectionId == workCollection.Id)
+            .Where(p => p.CollectionId == workCollection.Id)
             .CountAsync();
 
         var personalClips = await _context.Clips
-            .Where(c => c.CollectionId == personalCollection.Id)
+            .Where(p => p.CollectionId == personalCollection.Id)
             .CountAsync();
 
         await Assert.That(workClips).IsEqualTo(1);

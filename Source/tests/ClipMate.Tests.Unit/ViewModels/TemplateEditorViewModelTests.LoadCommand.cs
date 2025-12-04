@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -18,9 +16,10 @@ public partial class TemplateEditorViewModelTests
         {
             new() { Id = Guid.NewGuid(), Name = "Template 1", Content = "Content 1" },
             new() { Id = Guid.NewGuid(), Name = "Template 2", Content = "Content 2" },
-            new() { Id = Guid.NewGuid(), Name = "Template 3", Content = "Content 3" }
+            new() { Id = Guid.NewGuid(), Name = "Template 3", Content = "Content 3" },
         };
-        _mockTemplateService.Setup(s => s.GetAllAsync(default)).ReturnsAsync(templates);
+
+        _mockTemplateService.Setup(p => p.GetAllAsync(CancellationToken.None)).ReturnsAsync(templates);
 
         var viewModel = CreateViewModel();
 
@@ -35,7 +34,7 @@ public partial class TemplateEditorViewModelTests
     public async Task LoadTemplatesCommand_WhenError_ShouldSetErrorMessage()
     {
         // Arrange
-        _mockTemplateService.Setup(s => s.GetAllAsync(default))
+        _mockTemplateService.Setup(p => p.GetAllAsync(CancellationToken.None))
             .ThrowsAsync(new Exception("Database error"));
 
         var viewModel = CreateViewModel();

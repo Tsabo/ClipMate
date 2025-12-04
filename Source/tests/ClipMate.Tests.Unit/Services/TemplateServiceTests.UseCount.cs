@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Core;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -20,18 +18,19 @@ public partial class TemplateServiceTests
             Id = Guid.NewGuid(),
             Name = "Test",
             Content = "Hello {NAME}",
-            UseCount = 5
+            UseCount = 5,
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
-        _mockRepository.Setup(r => r.UpdateAsync(It.IsAny<Template>(), default)).ReturnsAsync(true);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
+        _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Template>(), CancellationToken.None)).ReturnsAsync(true);
 
         // Act
         await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string> { { "NAME", "Test" } });
 
         // Assert
-        _mockRepository.Verify(r => r.UpdateAsync(
-            It.Is<Template>(t => t.Id == template.Id && t.UseCount == 6), 
-            default), 
+        _mockRepository.Verify(p => p.UpdateAsync(
+                It.Is<Template>(t => t.Id == template.Id && t.UseCount == 6),
+                CancellationToken.None),
             Times.Once);
     }
 }

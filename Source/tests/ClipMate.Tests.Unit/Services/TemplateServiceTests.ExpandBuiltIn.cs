@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Core;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,9 +16,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Today is {DATE}"
+            Content = "Today is {DATE}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -38,9 +37,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Date: {DATE:yyyy-MM-dd}"
+            Content = "Date: {DATE:yyyy-MM-dd}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -58,9 +58,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Current time: {TIME}"
+            Content = "Current time: {TIME}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -78,9 +79,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Time: {TIME:HH:mm:ss}"
+            Content = "Time: {TIME:HH:mm:ss}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -98,9 +100,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "User: {USERNAME}"
+            Content = "User: {USERNAME}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -118,9 +121,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Machine: {COMPUTERNAME}"
+            Content = "Machine: {COMPUTERNAME}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());

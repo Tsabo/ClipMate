@@ -19,6 +19,15 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup Label="Sound Files">
+    <Content Include="Assets\Sounds\**\*.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Sounds\**\*.mp3">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />

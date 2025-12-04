@@ -1,11 +1,10 @@
+using System.Threading.Channels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using ClipMate.Data.Services;
-using CommunityToolkit.Mvvm.Messaging;
+using ClipMate.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using System.Threading.Channels;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,12 +17,12 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
     {
         var mock = new Mock<IClipboardService>();
         channel = Channel.CreateUnbounded<Clip>();
-        
-        mock.Setup(s => s.ClipsChannel).Returns(channel.Reader);
-        mock.Setup(s => s.StartMonitoringAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        mock.Setup(s => s.StopMonitoringAsync()).Returns(Task.CompletedTask);
-        mock.Setup(s => s.GetCurrentClipboardContentAsync(It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
-        
+
+        mock.Setup(p => p.ClipsChannel).Returns(channel.Reader);
+        mock.Setup(p => p.StartMonitoringAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        mock.Setup(p => p.StopMonitoringAsync()).Returns(Task.CompletedTask);
+        mock.Setup(p => p.GetCurrentClipboardContentAsync(It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
+
         return mock;
     }
 
@@ -35,15 +34,15 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
             Preferences = new PreferencesConfiguration
             {
                 EnableAutoCaptureAtStartup = enableAutoCapture,
-                CaptureExistingClipboardAtStartup = false
-            }
+                CaptureExistingClipboardAtStartup = false,
+            },
         };
-        mock.Setup(s => s.Configuration).Returns(config);
+
+        mock.Setup(p => p.Configuration).Returns(config);
         return mock;
     }
 
-    private IServiceProvider CreateMockServiceProvider(
-        Mock<IClipService>? clipService = null,
+    private IServiceProvider CreateMockServiceProvider(Mock<IClipService>? clipService = null,
         Mock<ICollectionService>? collectionService = null,
         Mock<IFolderService>? folderService = null,
         Mock<IApplicationFilterService>? filterService = null)
@@ -61,36 +60,36 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         // Setup default behaviors only if not provided by caller
         if (!clipServiceProvided)
         {
-            clipService.Setup(s => s.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+            clipService.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Clip clip, CancellationToken ct) => clip);
         }
 
         if (!collectionServiceProvided)
         {
-            collectionService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
+            collectionService.Setup(p => p.GetActiveAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Collection
                 {
                     Id = Guid.NewGuid(),
                     ParentId = null,
                     Title = "Inbox",
-                    LmType = CollectionLmType.Normal
+                    LmType = CollectionLmType.Normal,
                 });
         }
 
         if (!folderServiceProvided)
         {
-            folderService.Setup(s => s.GetActiveAsync(It.IsAny<CancellationToken>()))
+            folderService.Setup(p => p.GetActiveAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Folder
                 {
                     Id = Guid.NewGuid(),
                     Name = "Inbox",
-                    FolderType = FolderType.Inbox
+                    FolderType = FolderType.Inbox,
                 });
         }
 
         if (!filterServiceProvided)
         {
-            filterService.Setup(s => s.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            filterService.Setup(p => p.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(false);
         }
 
@@ -99,7 +98,14 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         services.AddScoped(_ => collectionService.Object);
         services.AddScoped(_ => folderService.Object);
         services.AddScoped(_ => filterService.Object);
-        
+
         return services.BuildServiceProvider();
+    }
+
+    private Mock<ISoundService> CreateMockSoundService()
+    {
+        var mock = new Mock<ISoundService>();
+        mock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        return mock;
     }
 }

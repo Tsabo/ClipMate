@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -27,7 +28,7 @@ public class ClipServiceTests
         var expectedClip = CreateTestClip(clipId);
         _mockRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedClip);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -45,7 +46,7 @@ public class ClipServiceTests
         var clipId = Guid.NewGuid();
         _mockRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Clip?)null);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -62,14 +63,14 @@ public class ClipServiceTests
         var now = DateTime.UtcNow;
         var clips = new List<Clip>
         {
-            CreateTestClip(Guid.NewGuid(), now),              // Most recent
+            CreateTestClip(Guid.NewGuid(), now), // Most recent
             CreateTestClip(Guid.NewGuid(), now.AddMinutes(-1)), // Second
-            CreateTestClip(Guid.NewGuid(), now.AddMinutes(-2))  // Oldest
+            CreateTestClip(Guid.NewGuid(), now.AddMinutes(-2)), // Oldest
         };
-        
+
         _mockRepository.Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips); // Already ordered descending
-        
+
         var service = CreateClipService();
 
         // Act
@@ -89,10 +90,10 @@ public class ClipServiceTests
         var clips = Enumerable.Range(0, 5)
             .Select(i => CreateTestClip(Guid.NewGuid()))
             .ToList();
-        
+
         _mockRepository.Setup(p => p.GetRecentAsync(3, It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips.Take(3).ToList());
-        
+
         var service = CreateClipService();
 
         // Act
@@ -110,7 +111,7 @@ public class ClipServiceTests
         var clip = CreateTestClip(Guid.NewGuid());
         _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clip);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -128,10 +129,10 @@ public class ClipServiceTests
         // Arrange
         var existingClip = CreateTestClip(Guid.NewGuid(), contentHash: "DUPLICATE_HASH");
         var newClip = CreateTestClip(Guid.NewGuid(), contentHash: "DUPLICATE_HASH");
-        
+
         _mockRepository.Setup(p => p.GetByContentHashAsync("DUPLICATE_HASH", It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingClip);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -150,7 +151,7 @@ public class ClipServiceTests
         var clip = CreateTestClip(Guid.NewGuid());
         _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -167,7 +168,7 @@ public class ClipServiceTests
         var clipId = Guid.NewGuid();
         _mockRepository.Setup(p => p.DeleteAsync(clipId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -185,12 +186,12 @@ public class ClipServiceTests
         var clips = new List<Clip>
         {
             CreateTestClip(Guid.NewGuid(), collectionId: collectionId),
-            CreateTestClip(Guid.NewGuid(), collectionId: collectionId)
+            CreateTestClip(Guid.NewGuid(), collectionId: collectionId),
         };
-        
+
         _mockRepository.Setup(p => p.GetByCollectionAsync(collectionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -198,7 +199,7 @@ public class ClipServiceTests
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
-        await Assert.That(result.All(clip => clip.CollectionId == collectionId)).IsTrue();
+        await Assert.That(result.All(p => p.CollectionId == collectionId)).IsTrue();
     }
 
     [Test]
@@ -208,12 +209,12 @@ public class ClipServiceTests
         var clips = new List<Clip>
         {
             CreateTestClip(Guid.NewGuid(), isFavorite: true),
-            CreateTestClip(Guid.NewGuid(), isFavorite: true)
+            CreateTestClip(Guid.NewGuid(), isFavorite: true),
         };
-        
+
         _mockRepository.Setup(p => p.GetFavoritesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips);
-        
+
         var service = CreateClipService();
 
         // Act
@@ -221,7 +222,7 @@ public class ClipServiceTests
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
-        await Assert.That(result.All(clip => clip.IsFavorite == true)).IsTrue();
+        await Assert.That(result.All(p => p.IsFavorite)).IsTrue();
     }
 
     [Test]
@@ -237,17 +238,17 @@ public class ClipServiceTests
     private IClipService CreateClipService()
     {
         // Now using real ClipService implementation with mocked repository
-        return new ClipService(_mockRepository.Object);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        return new ClipService(_mockRepository.Object, soundService.Object);
     }
 
-    private Clip CreateTestClip(
-        Guid id,
+    private Clip CreateTestClip(Guid id,
         DateTime? capturedAt = null,
         Guid? collectionId = null,
         string contentHash = "TEST_HASH",
-        bool isFavorite = false)
-    {
-        return new Clip
+        bool isFavorite = false) =>
+        new()
         {
             Id = id,
             Type = ClipType.Text,
@@ -255,7 +256,6 @@ public class ClipServiceTests
             ContentHash = contentHash,
             CapturedAt = capturedAt ?? DateTime.UtcNow,
             CollectionId = collectionId ?? Guid.NewGuid(),
-            IsFavorite = isFavorite
+            IsFavorite = isFavorite,
         };
-    }
 }

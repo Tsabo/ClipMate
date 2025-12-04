@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 
 namespace ClipMate.Data.Services;
 
@@ -10,10 +11,12 @@ namespace ClipMate.Data.Services;
 public class ClipService : IClipService
 {
     private readonly IClipRepository _repository;
+    private readonly ISoundService _soundService;
 
-    public ClipService(IClipRepository repository)
+    public ClipService(IClipRepository repository, ISoundService soundService)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
     }
 
     /// <inheritdoc />
@@ -66,7 +69,13 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) => await _repository.DeleteAsync(id, cancellationToken);
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await _repository.DeleteAsync(id, cancellationToken);
+
+        // Play erase sound after deletion
+        await _soundService.PlaySoundAsync(SoundEvent.Erase);
+    }
 
     /// <inheritdoc />
     public async Task<int> DeleteOlderThanAsync(DateTime olderThan, CancellationToken cancellationToken = default)

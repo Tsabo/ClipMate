@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -18,10 +16,10 @@ public partial class TemplateEditorViewModelTests
         {
             Id = Guid.NewGuid(),
             Name = "Original Name",
-            Content = "Original Content"
+            Content = "Original Content",
         };
 
-        _mockTemplateService.Setup(s => s.UpdateAsync(It.IsAny<Template>(), default))
+        _mockTemplateService.Setup(p => p.UpdateAsync(It.IsAny<Template>(), CancellationToken.None))
             .Returns(Task.CompletedTask);
 
         var viewModel = CreateViewModel();
@@ -33,9 +31,9 @@ public partial class TemplateEditorViewModelTests
         await viewModel.UpdateTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        _mockTemplateService.Verify(s => s.UpdateAsync(
+        _mockTemplateService.Verify(p => p.UpdateAsync(
             It.Is<Template>(t => t.Name == "Updated Name" && t.Content == "Updated Content"),
-            default), Times.Once);
+            CancellationToken.None), Times.Once);
     }
 
     [Test]

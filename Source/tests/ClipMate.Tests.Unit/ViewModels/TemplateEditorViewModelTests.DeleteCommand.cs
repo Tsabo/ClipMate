@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -18,10 +16,10 @@ public partial class TemplateEditorViewModelTests
         {
             Id = Guid.NewGuid(),
             Name = "Template to Delete",
-            Content = "Content"
+            Content = "Content",
         };
 
-        _mockTemplateService.Setup(s => s.DeleteAsync(template.Id, default))
+        _mockTemplateService.Setup(p => p.DeleteAsync(template.Id, CancellationToken.None))
             .Returns(Task.CompletedTask);
 
         var viewModel = CreateViewModel();
@@ -31,7 +29,7 @@ public partial class TemplateEditorViewModelTests
         await viewModel.DeleteTemplateCommand.ExecuteAsync(null);
 
         // Assert
-        _mockTemplateService.Verify(s => s.DeleteAsync(template.Id, default), Times.Once);
+        _mockTemplateService.Verify(p => p.DeleteAsync(template.Id, CancellationToken.None), Times.Once);
     }
 
     [Test]
@@ -56,12 +54,13 @@ public partial class TemplateEditorViewModelTests
         {
             Id = Guid.NewGuid(),
             Name = "Template to Delete",
-            Content = "Content"
+            Content = "Content",
         };
 
-        _mockTemplateService.Setup(s => s.DeleteAsync(template.Id, default))
+        _mockTemplateService.Setup(p => p.DeleteAsync(template.Id, CancellationToken.None))
             .Returns(Task.CompletedTask);
-        _mockTemplateService.Setup(s => s.GetAllAsync(default))
+
+        _mockTemplateService.Setup(p => p.GetAllAsync(CancellationToken.None))
             .ReturnsAsync(new List<Template>());
 
         var viewModel = CreateViewModel();

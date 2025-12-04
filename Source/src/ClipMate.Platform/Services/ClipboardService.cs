@@ -39,6 +39,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly Channel<Clip> _clipsChannel;
 
     private readonly ILogger<ClipboardService> _logger;
+    private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
@@ -48,19 +49,21 @@ public class ClipboardService : IClipboardService, IDisposable
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
         IApplicationProfileService applicationProfileService,
-        IClipboardFormatEnumerator clipboardFormatEnumerator)
+        IClipboardFormatEnumerator clipboardFormatEnumerator,
+        ISoundService soundService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
+        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleWriter = true, // Only clipboard monitor writes
-            SingleReader = false // Multiple consumers allowed
+            SingleReader = false, // Multiple consumers allowed
         });
     }
 
@@ -89,7 +92,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 Height = 0,
                 PositionX = 0,
                 PositionY = 0,
-                WindowStyle = 0
+                WindowStyle = 0,
             };
 
             _hwndSource = new HwndSource(hwndSourceParams);
@@ -277,6 +280,9 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 _logger.LogDebug("Ignoring duplicate clipboard content");
 
+                // Play ignore sound for duplicate content
+                await _soundService.PlaySoundAsync(SoundEvent.Ignore);
+
                 return;
             }
 
@@ -394,7 +400,7 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 Id = Guid.NewGuid(),
                 Type = ClipType.Text,
-                CapturedAt = DateTimeOffset.Now
+                CapturedAt = DateTimeOffset.Now,
             };
 
             // Extract Plain Text (CF_UNICODETEXT = 13)
@@ -498,7 +504,7 @@ public class ClipboardService : IClipboardService, IDisposable
                     CapturedAt = DateTimeOffset.Now,
                     ContentHash = ContentHasher.HashBytes(pngData),
                     Size = pngData.Length,
-                    Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}"
+                    Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
                 };
 
                 _logger.LogDebug("Captured PNG image from clipboard PNG format: {Width}x{Height}, {Size} bytes",
@@ -552,7 +558,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
                 ContentHash = ContentHasher.HashBytes(imageData),
                 Size = imageData.Length,
-                Title = $"Image {image.PixelWidth}×{image.PixelHeight}"
+                Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
             };
 
             _logger.LogDebug("Captured PNG image: {Width}x{Height}, {Size} bytes",
@@ -630,7 +636,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 // Title shows file count
                 Title = filePaths.Count == 1
                     ? Path.GetFileName(filePaths[0])
-                    : $"{filePaths.Count} files"
+                    : $"{filePaths.Count} files",
             };
 
             _logger.LogDebug("Captured {Count} files", filePaths.Count);
@@ -659,7 +665,7 @@ public class ClipboardService : IClipboardService, IDisposable
             ClipType.Text => 0,
             ClipType.RichText => 1,
             ClipType.Html => 2,
-            _ => 0
+            var _ => 0,
         };
 
         // Default locale

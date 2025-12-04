@@ -2,8 +2,8 @@ using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using ISoundService = ClipMate.Platform.ISoundService;
 
 namespace ClipMate.Data.Services;
 
@@ -16,9 +16,9 @@ public class PowerPasteService : IPowerPasteService
     private readonly IConfigurationService _configurationService;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<PowerPasteService> _logger;
+    private readonly List<Clip> _sequence = [];
     private readonly ISoundService _soundService;
     private bool _explodeMode;
-    private readonly List<Clip> _sequence = [];
 
     public PowerPasteService(IConfigurationService configurationService,
         ISoundService soundService,
@@ -103,7 +103,7 @@ public class PowerPasteService : IPowerPasteService
                 OldState = oldState,
                 NewState = State,
                 Direction = Direction,
-                TotalCount = _sequence.Count
+                TotalCount = _sequence.Count,
             });
 
             PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
@@ -111,7 +111,7 @@ public class PowerPasteService : IPowerPasteService
                 Position = CurrentPosition,
                 TotalCount = _sequence.Count,
                 CurrentClip = GetCurrentClip(),
-                IsComplete = false
+                IsComplete = false,
             });
 
             _logger.LogInformation("PowerPaste started: Position={Position}/{TotalCount}", CurrentPosition + 1, _sequence.Count);
@@ -182,7 +182,7 @@ public class PowerPasteService : IPowerPasteService
                 Position = CurrentPosition,
                 TotalCount = _sequence.Count,
                 CurrentClip = GetCurrentClip(),
-                IsComplete = isComplete && !config.PowerPasteLoop
+                IsComplete = isComplete && !config.PowerPasteLoop,
             });
         }
         finally
@@ -212,7 +212,7 @@ public class PowerPasteService : IPowerPasteService
                 OldState = oldState,
                 NewState = State,
                 Direction = Direction,
-                TotalCount = 0
+                TotalCount = 0,
             });
         }
         finally
@@ -286,7 +286,7 @@ public class PowerPasteService : IPowerPasteService
                 Type = ClipType.Text,
                 CapturedAt = clip.CapturedAt,
                 SourceApplicationName = clip.SourceApplicationName,
-                CollectionId = clip.CollectionId
+                CollectionId = clip.CollectionId,
             };
 
             fragments.Add(fragment);
@@ -304,20 +304,20 @@ public class PowerPasteService : IPowerPasteService
     /// <summary>
     /// Plays a beep sound when PowerPaste completes.
     /// </summary>
-    private Task PlayCompletionSoundAsync()
+    private async Task PlayCompletionSoundAsync()
     {
-        // TODO: Implement PowerPaste completion sound with new Platform.ISoundService
-        // Need to add PowerPasteComplete to SoundEvent enum and create sound file
-        return Task.CompletedTask;
+        // Play completion sound once
+        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
     }
 
     /// <summary>
     /// Plays a double beep sound when PowerPaste loops.
     /// </summary>
-    private Task PlayLoopSoundAsync()
+    private async Task PlayLoopSoundAsync()
     {
-        // TODO: Implement PowerPaste loop sound with new Platform.ISoundService
-        // Need to add PowerPasteLoop to SoundEvent enum and create sound file
-        return Task.CompletedTask;
+        // Play completion sound twice with delay for loop indication
+        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
+        await Task.Delay(100); // Brief delay between beeps
+        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
     }
 }

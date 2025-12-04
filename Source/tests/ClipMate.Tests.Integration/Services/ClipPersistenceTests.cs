@@ -3,6 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -27,7 +28,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             // It would be stored in BlobTxt table via ClipData in production
             ContentHash = "test_hash_123",
             SourceApplicationName = "TestApp",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act - Save in first context
@@ -70,7 +71,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "First",
             ContentHash = "hash_1",
-            CapturedAt = now.AddMinutes(-2)
+            CapturedAt = now.AddMinutes(-2),
         };
 
         var clip2 = new Clip
@@ -78,7 +79,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Second",
             ContentHash = "hash_2",
-            CapturedAt = now.AddMinutes(-1)
+            CapturedAt = now.AddMinutes(-1),
         };
 
         var clip3 = new Clip
@@ -86,7 +87,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Third",
             ContentHash = "hash_3",
-            CapturedAt = now
+            CapturedAt = now,
         };
 
         // Act
@@ -114,7 +115,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Image,
             ImageData = imageData,
             ContentHash = "image_hash",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -140,7 +141,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             // Note: TextContent is transient and not persisted
             ContentHash = "delete_hash",
             SourceApplicationName = "TestApp",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -168,7 +169,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Duplicate content",
             ContentHash = contentHash,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -188,8 +189,10 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
 
-        return new ClipService(repository);
+        return new ClipService(repository, soundService.Object);
     }
 
     /// <summary>
@@ -199,7 +202,9 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
 
-        return new ClipService(repository);
+        return new ClipService(repository, soundService.Object);
     }
 }

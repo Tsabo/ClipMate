@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Core;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,14 +16,15 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Hello {NAME}, welcome to {COMPANY}!"
+            Content = "Hello {NAME}, welcome to {COMPANY}!",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         var variables = new Dictionary<string, string>
         {
             { "NAME", "John Doe" },
-            { "COMPANY", "Acme Corp" }
+            { "COMPANY", "Acme Corp" },
         };
 
         // Act
@@ -43,9 +42,10 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Hello {NAME}!"
+            Content = "Hello {NAME}!",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.ExpandTemplateAsync(template.Id, new Dictionary<string, string>());
@@ -62,13 +62,14 @@ public partial class TemplateServiceTests
         var template = new Template
         {
             Id = Guid.NewGuid(),
-            Content = "Report by {USERNAME} on {DATE} for {PROJECT}"
+            Content = "Report by {USERNAME} on {DATE} for {PROJECT}",
         };
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         var variables = new Dictionary<string, string>
         {
-            { "PROJECT", "ClipMate v1.0" }
+            { "PROJECT", "ClipMate v1.0" },
         };
 
         // Act

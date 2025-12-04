@@ -75,11 +75,6 @@ public class ClipMateDbContext : DbContext
     public DbSet<ApplicationFilter> ApplicationFilters => Set<ApplicationFilter>();
 
     /// <summary>
-    /// Gets or sets the sound events.
-    /// </summary>
-    public DbSet<SoundEvent> SoundEvents => Set<SoundEvent>();
-
-    /// <summary>
     /// Gets or sets the Monaco Editor states.
     /// </summary>
     public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
@@ -100,7 +95,6 @@ public class ClipMateDbContext : DbContext
         ConfigureTemplate(modelBuilder);
         ConfigureSearchQuery(modelBuilder);
         ConfigureApplicationFilter(modelBuilder);
-        ConfigureSoundEvent(modelBuilder);
         ConfigureMonacoEditorState(modelBuilder);
     }
 
@@ -378,21 +372,6 @@ public class ClipMateDbContext : DbContext
             entity.HasIndex(e => e.Name).HasDatabaseName("IX_ApplicationFilters_Name");
             entity.HasIndex(e => e.ProcessName).HasDatabaseName("IX_ApplicationFilters_ProcessName");
             entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_ApplicationFilters_IsEnabled");
-        });
-    }
-
-    private static void ConfigureSoundEvent(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<SoundEvent>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
-
-            entity.Property(e => e.EventType).IsRequired();
-            entity.Property(e => e.SoundFilePath).IsRequired().HasMaxLength(500);
-
-            entity.HasIndex(e => e.EventType).HasDatabaseName("IX_SoundEvents_EventType");
-            entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_SoundEvents_IsEnabled");
         });
     }
 

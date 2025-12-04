@@ -1,7 +1,5 @@
 using ClipMate.Core.Models;
 using Moq;
-using TUnit.Core;
-using TUnit.Assertions.Extensions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,7 +16,7 @@ public partial class TemplateServiceTests
         var name = "Email Signature";
         var content = "Best regards,\n{USERNAME}";
 
-        _mockRepository.Setup(r => r.CreateAsync(It.IsAny<Template>(), default))
+        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Template>(), CancellationToken.None))
             .ReturnsAsync((Template t, CancellationToken _) => t);
 
         // Act
@@ -43,7 +41,8 @@ public partial class TemplateServiceTests
 
         // Act & Assert
         await Assert.That(async () =>
-            await service.CreateAsync(invalidName!, "content")).Throws<ArgumentException>();
+                await service.CreateAsync(invalidName!, "content"))
+            .Throws<ArgumentException>();
     }
 
     [Test]
@@ -56,7 +55,8 @@ public partial class TemplateServiceTests
 
         // Act & Assert
         await Assert.That(async () =>
-            await service.CreateAsync("name", invalidContent!)).Throws<ArgumentException>();
+                await service.CreateAsync("name", invalidContent!))
+            .Throws<ArgumentException>();
     }
 
     [Test]
@@ -68,19 +68,19 @@ public partial class TemplateServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Updated Name",
-            Content = "Updated Content"
+            Content = "Updated Content",
         };
 
-        _mockRepository.Setup(r => r.UpdateAsync(template, default)).ReturnsAsync(true);
+        _mockRepository.Setup(p => p.UpdateAsync(template, CancellationToken.None)).ReturnsAsync(true);
 
         // Act
         await service.UpdateAsync(template);
 
         // Assert
-        _mockRepository.Verify(r => r.UpdateAsync(It.Is<Template>(t => 
-            t.Id == template.Id && 
-            t.Name == template.Name && 
-            t.Content == template.Content), default), Times.Once);
+        _mockRepository.Verify(p => p.UpdateAsync(It.Is<Template>(t =>
+            t.Id == template.Id &&
+            t.Name == template.Name &&
+            t.Content == template.Content), CancellationToken.None), Times.Once);
     }
 
     [Test]
@@ -90,13 +90,13 @@ public partial class TemplateServiceTests
         var service = CreateTemplateService();
         var templateId = Guid.NewGuid();
 
-        _mockRepository.Setup(r => r.DeleteAsync(templateId, default)).ReturnsAsync(true);
+        _mockRepository.Setup(p => p.DeleteAsync(templateId, CancellationToken.None)).ReturnsAsync(true);
 
         // Act
         await service.DeleteAsync(templateId);
 
         // Assert
-        _mockRepository.Verify(r => r.DeleteAsync(templateId, default), Times.Once);
+        _mockRepository.Verify(p => p.DeleteAsync(templateId, CancellationToken.None), Times.Once);
     }
 
     [Test]
@@ -108,10 +108,10 @@ public partial class TemplateServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Test Template",
-            Content = "Test Content"
+            Content = "Test Content",
         };
 
-        _mockRepository.Setup(r => r.GetByIdAsync(template.Id, default)).ReturnsAsync(template);
+        _mockRepository.Setup(p => p.GetByIdAsync(template.Id, CancellationToken.None)).ReturnsAsync(template);
 
         // Act
         var result = await service.GetByIdAsync(template.Id);
@@ -131,10 +131,10 @@ public partial class TemplateServiceTests
         {
             new() { Id = Guid.NewGuid(), Name = "Template 1", Content = "Content 1" },
             new() { Id = Guid.NewGuid(), Name = "Template 2", Content = "Content 2" },
-            new() { Id = Guid.NewGuid(), Name = "Template 3", Content = "Content 3" }
+            new() { Id = Guid.NewGuid(), Name = "Template 3", Content = "Content 3" },
         };
 
-        _mockRepository.Setup(r => r.GetAllAsync(default)).ReturnsAsync(templates);
+        _mockRepository.Setup(p => p.GetAllAsync(CancellationToken.None)).ReturnsAsync(templates);
 
         // Act
         var result = await service.GetAllAsync();
@@ -152,10 +152,10 @@ public partial class TemplateServiceTests
         var templates = new List<Template>
         {
             new() { Id = Guid.NewGuid(), Name = "Template 1", Content = "Content 1", CollectionId = collectionId },
-            new() { Id = Guid.NewGuid(), Name = "Template 2", Content = "Content 2", CollectionId = collectionId }
+            new() { Id = Guid.NewGuid(), Name = "Template 2", Content = "Content 2", CollectionId = collectionId },
         };
 
-        _mockRepository.Setup(r => r.GetByCollectionAsync(collectionId, default)).ReturnsAsync(templates);
+        _mockRepository.Setup(p => p.GetByCollectionAsync(collectionId, CancellationToken.None)).ReturnsAsync(templates);
 
         // Act
         var result = await service.GetByCollectionAsync(collectionId);

@@ -36,31 +36,6 @@ public class PreferencesConfiguration
     public int DelayOnClipboardUpdate { get; set; } = 250;
 
     /// <summary>
-    /// Gets or sets whether to beep on clipboard update.
-    /// </summary>
-    public bool BeepOnUpdate { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on append.
-    /// </summary>
-    public bool BeepOnAppend { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on erase.
-    /// </summary>
-    public bool BeepOnErase { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on filter.
-    /// </summary>
-    public bool BeepOnFilter { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether to beep on ignore.
-    /// </summary>
-    public bool BeepOnIgnore { get; set; } = true;
-
-    /// <summary>
     /// Gets or sets whether to show hints/tooltips.
     /// </summary>
     public bool ShowHint { get; set; } = true;
@@ -131,6 +106,13 @@ public class PreferencesConfiguration
     /// True = show in local timezone, False = show in original captured timezone with offset.
     /// </summary>
     public bool ShowTimestampsInLocalTime { get; set; } = true;
+
+    // ==================== Sound Configuration ====================
+
+    /// <summary>
+    /// Gets or sets the sound configuration for various clipboard and paste events.
+    /// </summary>
+    public SoundConfiguration Sound { get; set; } = new();
 
     // ==================== General Tab Settings ====================
 
@@ -294,7 +276,7 @@ public class PreferencesConfiguration
         ":TFRMHELPMAN",
         "EXCEL:XLMAIN",
         "MSPUB:MSWINPUB",
-        "POWERPNT:PP12FRAMECLASS"
+        "POWERPNT:PP12FRAMECLASS",
     ];
 
     /// <summary>
@@ -314,7 +296,7 @@ public class PreferencesConfiguration
         ":MSOCOMMANDBARPOPUP",
         ":#43",
         "HELPMAN:TFRMTOPIC",
-        ":GDI+_HOOK_WINDOW_CLASS"
+        ":GDI+_HOOK_WINDOW_CLASS",
     ];
 
     /// <summary>
@@ -342,6 +324,6 @@ public class PreferencesConfiguration
         new()
             { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
         new()
-            { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" }
+            { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
     ];
 }
