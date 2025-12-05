@@ -8,7 +8,6 @@ public partial class QuickPasteServiceTests
     public async Task Constructor_ThrowsArgumentNullException_WhenWin32InteropIsNull()
     {
         // Arrange
-        var mockWin32 = CreateMockWin32();
         var mockClipboard = CreateMockClipboardService();
         var mockConfig = CreateMockConfigurationService();
         var mockMessenger = CreateMockMessenger();
