@@ -20,6 +20,15 @@ public class OptionsViewModelTests
     private Mock<ISoundService> _mockSoundService = null!;
     private Mock<IStartupManager> _mockStartupManager = null!;
 
+    // Child ViewModels
+    private GeneralOptionsViewModel _generalViewModel = null!;
+    private PowerPasteOptionsViewModel _powerPasteViewModel = null!;
+    private QuickPasteOptionsViewModel _quickPasteViewModel = null!;
+    private EditorOptionsViewModel _editorViewModel = null!;
+    private CapturingOptionsViewModel _capturingViewModel = null!;
+    private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
+    private SoundsOptionsViewModel _soundsViewModel = null!;
+
     [Before(Test)]
     public void Setup()
     {
@@ -29,7 +38,7 @@ public class OptionsViewModelTests
         _mockLogger = new Mock<ILogger<OptionsViewModel>>();
         _mockProfileService = new Mock<IApplicationProfileService>();
         _mockSoundService = new Mock<ISoundService>();
-        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), default)).Returns(Task.CompletedTask);
 
         // Setup default configuration
         var config = new ConfigModels.ClipMateConfiguration
@@ -39,40 +48,81 @@ public class OptionsViewModelTests
         };
 
         _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+
+        // Create all child ViewModels
+        _generalViewModel = new GeneralOptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockStartupManager.Object,
+            new Mock<ILogger<GeneralOptionsViewModel>>().Object);
+
+        _powerPasteViewModel = new PowerPasteOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<ILogger<PowerPasteOptionsViewModel>>().Object);
+
+        _quickPasteViewModel = new QuickPasteOptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockMessenger.Object,
+            new Mock<ILogger<QuickPasteOptionsViewModel>>().Object);
+
+        _editorViewModel = new EditorOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<ILogger<EditorOptionsViewModel>>().Object);
+
+        _capturingViewModel = new CapturingOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<ILogger<CapturingOptionsViewModel>>().Object);
+
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
+            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
+            _mockProfileService.Object);
+
+        _soundsViewModel = new SoundsOptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockSoundService.Object,
+            new Mock<ILogger<SoundsOptionsViewModel>>().Object);
+    }
+
+    private OptionsViewModel CreateViewModel()
+    {
+        return new OptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockMessenger.Object,
+            _mockLogger.Object,
+            _generalViewModel,
+            _powerPasteViewModel,
+            _quickPasteViewModel,
+            _editorViewModel,
+            _capturingViewModel,
+            _applicationProfilesViewModel,
+            _soundsViewModel);
     }
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
     {
+        // Arrange - Create ViewModel without profile service
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
+            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
+            null); // No profile service
+
         // Act
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
-        await Assert.That(viewModel.ApplicationProfileNodes).IsEmpty();
-        await Assert.That(viewModel.EnableApplicationProfiles).IsFalse();
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).IsEmpty();
+        await Assert.That(viewModel.ApplicationProfiles.EnableApplicationProfiles).IsFalse();
     }
 
     [Test]
     public async Task Constructor_WithProfileService_ShouldInitializeWithProfiles()
     {
         // Act
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
-        await Assert.That(viewModel.ApplicationProfileNodes).IsNotNull();
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).IsNotNull();
     }
 
     [Test]
@@ -83,19 +133,13 @@ public class OptionsViewModelTests
         _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
             .ReturnsAsync(new Dictionary<string, ApplicationProfile>());
 
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.LoadConfigurationAsync();
 
         // Assert
-        await Assert.That(viewModel.EnableApplicationProfiles).IsTrue();
+        await Assert.That(viewModel.ApplicationProfiles.EnableApplicationProfiles).IsTrue();
         _mockProfileService.Verify(p => p.IsApplicationProfilesEnabled(), Times.Once);
         _mockProfileService.Verify(p => p.GetAllProfilesAsync(CancellationToken.None), Times.Once);
     }
@@ -114,41 +158,36 @@ public class OptionsViewModelTests
         _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
             .ReturnsAsync(profiles);
 
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
-        await viewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        await Assert.That(viewModel.ApplicationProfileNodes).HasCount().EqualTo(3);
-        await Assert.That(viewModel.ApplicationProfileNodes[0].Profile.ApplicationName).IsEqualTo("CHROME");
-        await Assert.That(viewModel.ApplicationProfileNodes[1].Profile.ApplicationName).IsEqualTo("DEVENV");
-        await Assert.That(viewModel.ApplicationProfileNodes[2].Profile.ApplicationName).IsEqualTo("NOTEPAD");
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).HasCount().EqualTo(3);
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[0].Profile.ApplicationName).IsEqualTo("CHROME");
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[1].Profile.ApplicationName).IsEqualTo("DEVENV");
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[2].Profile.ApplicationName).IsEqualTo("NOTEPAD");
     }
 
     [Test]
     public async Task LoadApplicationProfilesAsync_WithoutProfileService_ShouldLogWarning()
     {
-        // Arrange
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object);
+        // Arrange - Create ViewModel without profile service
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
+            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
+            null);
+
+        var viewModel = CreateViewModel();
+        var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object, null);
 
         // Act
-        await viewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await _applicationProfilesViewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        await Assert.That(viewModel.ApplicationProfileNodes).IsEmpty();
-        _mockLogger.Verify(
+        await Assert.That(_applicationProfilesViewModel.ApplicationProfileNodes).IsEmpty();
+        mockLogger.Verify(
             p => p.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
@@ -170,41 +209,31 @@ public class OptionsViewModelTests
         _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
             .ReturnsAsync(profiles);
 
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
-        await viewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
-        await Assert.That(viewModel.ApplicationProfileNodes).HasCount().EqualTo(1);
+        await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).HasCount().EqualTo(1);
 
         // Act
-        await viewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
+        await viewModel.ApplicationProfiles.DeleteAllProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        await Assert.That(viewModel.ApplicationProfileNodes).IsEmpty();
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).IsEmpty();
         _mockProfileService.Verify(p => p.DeleteAllProfilesAsync(CancellationToken.None), Times.Once);
     }
 
     [Test]
     public async Task DeleteAllProfilesAsync_WithoutProfileService_ShouldLogWarning()
     {
-        // Arrange
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object);
+        // Arrange - Create ViewModel without profile service
+        var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object, null);
 
         // Act
-        await viewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
+        await _applicationProfilesViewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        _mockLogger.Verify(
+        mockLogger.Verify(
             p => p.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
@@ -220,15 +249,9 @@ public class OptionsViewModelTests
         // Arrange
         _mockStartupManager.Setup(p => p.IsEnabledAsync()).ReturnsAsync((true, false, string.Empty));
 
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
-        viewModel.EnableApplicationProfiles = true;
+        viewModel.ApplicationProfiles.EnableApplicationProfiles = true;
 
         // Act
         await viewModel.OkCommand.ExecuteAsync(null);
@@ -256,19 +279,13 @@ public class OptionsViewModelTests
         _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
             .ReturnsAsync(profiles);
 
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
+        var viewModel = CreateViewModel();
 
-        await viewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Modify enabled states
-        viewModel.ApplicationProfileNodes[0].Enabled = false;
-        viewModel.ApplicationProfileNodes[1].Enabled = true;
+        viewModel.ApplicationProfiles.ApplicationProfileNodes[0].Enabled = false;
+        viewModel.ApplicationProfiles.ApplicationProfileNodes[1].Enabled = true;
 
         // Act
         await viewModel.OkCommand.ExecuteAsync(null);
@@ -283,26 +300,18 @@ public class OptionsViewModelTests
     public async Task EnableApplicationProfiles_WhenChanged_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockSoundService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
-            _mockProfileService.Object);
-
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (_, args) =>
+        _applicationProfilesViewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(viewModel.EnableApplicationProfiles))
+            if (args.PropertyName == nameof(_applicationProfilesViewModel.EnableApplicationProfiles))
                 propertyChangedRaised = true;
         };
 
         // Act
-        viewModel.EnableApplicationProfiles = true;
+        _applicationProfilesViewModel.EnableApplicationProfiles = true;
 
         // Assert
         await Assert.That(propertyChangedRaised).IsTrue();
-        await Assert.That(viewModel.EnableApplicationProfiles).IsTrue();
+        await Assert.That(_applicationProfilesViewModel.EnableApplicationProfiles).IsTrue();
     }
 }

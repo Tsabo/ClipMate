@@ -254,6 +254,13 @@ public partial class App
                 services.AddTransient<PromptDialog>();
 
                 // Register Options dialog components
+                services.AddTransient<GeneralOptionsViewModel>();
+                services.AddTransient<PowerPasteOptionsViewModel>();
+                services.AddTransient<QuickPasteOptionsViewModel>();
+                services.AddTransient<EditorOptionsViewModel>();
+                services.AddTransient<CapturingOptionsViewModel>();
+                services.AddTransient<ApplicationProfilesOptionsViewModel>();
+                services.AddTransient<SoundsOptionsViewModel>();
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
 

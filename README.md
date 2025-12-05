@@ -73,32 +73,51 @@ Source/
 - **MVVM**: CommunityToolkit.Mvvm 8.4.0 with source generators
 
 **Data Layer**
-- **Database**: Entity Framework Core 9.0.0 + SQLite
+- **Database**: Entity Framework Core 9.0.0 + SQLite (migrated from LiteDB per ADR-001)
 - **ORM**: Full EF Core feature set (migrations, change tracking, LINQ)
+- **Schema Migration**: Custom schema migration system via ClipMate.Data.Schema
 - **Location**: `%LOCALAPPDATA%\ClipMate\clipmate.db`
 
 **Platform Integration**
-- **Win32 APIs**: CsWin32 0.3.248 for P/Invoke (replaced manual declarations)
+- **Win32 APIs**: CsWin32 0.3.248 for code-generated P/Invoke (replaced manual declarations per ADR-005)
 - **Clipboard Monitor**: `WM_CLIPBOARDUPDATE` message handling
 - **Hotkey Manager**: `RegisterHotKey` Win32 API wrapper
-- **System Tray**: Windows Forms NotifyIcon (planned migration to WPF-UI)
+- **System Tray**: Windows Forms NotifyIcon
+- **Startup Manager**: Registry integration for "Start with Windows"
 
 **Infrastructure**
-- **DI Container**: Microsoft.Extensions.DependencyInjection 9.0.0
-- **Logging**: Microsoft.Extensions.Logging 9.0.0 (Console + Debug providers)
+- **DI Container**: Microsoft.Extensions.DependencyInjection 9.0.0 (per ADR-003)
+- **Logging**: Microsoft.Extensions.Logging 9.0.0 (Console + Debug providers, per ADR-004)
 - **Configuration**: Microsoft.Extensions.Hosting 9.0.0
 - **Audio**: NAudio 2.2.1 for sound playback
 
 **Testing**
-- **Test Framework**: TUnit 0.4.31 (modern alternative to xUnit)
+- **Test Framework**: TUnit 0.4.31 (modern alternative to xUnit, migrated from xUnit)
 - **Mocking**: Moq 4.20.72
 - **Code Coverage**: coverlet.collector 6.0.2
+- **Current Status**: 556 tests (552 passing, 4 skipped)
 
 **Additional Libraries**
 - **Emoji.Wpf**: Emoji rendering in WPF
 - **WebView2**: HTML preview with Microsoft Edge WebView2
 - **WpfHexaEditor**: Binary content viewing
 - **Tomlyn**: TOML configuration parsing
+
+### Recent Architecture Achievements
+
+**December 2025 - OptionsViewModel Refactoring**
+- ✅ **Major Refactoring**: Decomposed 779-line "God Object" OptionsViewModel into clean coordinator pattern
+- ✅ **Result**: 83% code reduction (779 → 129 lines) with improved maintainability
+- ✅ **Child ViewModels Created**: 7 specialized ViewModels following single responsibility principle
+  - `GeneralOptionsViewModel` - Startup, layout, confirmations, updates
+  - `PowerPasteOptionsViewModel` - PowerPaste configuration
+  - `QuickPasteOptionsViewModel` - QuickPaste targets and formatting
+  - `EditorOptionsViewModel` - Monaco and ClipViewer settings
+  - `CapturingOptionsViewModel` - Clipboard capture preferences
+  - `ApplicationProfilesOptionsViewModel` - Application-specific profiles
+  - `SoundsOptionsViewModel` - Sound event configuration
+- ✅ **Pattern**: Parent coordinates LoadAsync/SaveAsync across all children
+- ✅ **Tests**: All 556 tests passing with updated test fixtures
 
 ### Package Management
 
@@ -345,28 +364,40 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ **Phase 1**: Project Setup - Solution structure, multi-project configuration, Central Package Management
 - ✅ **Phase 2**: Foundational Infrastructure - Core models, EF Core DbContext, repositories, service interfaces, Win32 platform layer, MVVM infrastructure, DI setup
 - ✅ **Phase 3**: Clipboard Capture (User Story 1) - Real-time clipboard monitoring, multi-format support, duplicate detection, application filters, persistent storage
-- ✅ **Phase 4**: ClipMate Explorer Interface - Three-pane UI, system tray integration, collection tree, clip list with multiple views, preview pane, context menus
 
 **In Progress:**
-- 🚧 **Phase 5**: PowerPaste/ClipBar Quick Access - Global hotkey popup for instant paste
-- 🚧 **Phase 6**: Collections & Folders - Multi-collection management, drag-drop organization
-- 🚧 **Phase 7**: Search & Discovery - Full-text search, filtering, date ranges
-- 🚧 **Phase 8**: Template System - Variable substitution, template editor
-- 🚧 **Phase 9**: Sound Feedback - Audio cues for clipboard operations
-- 🚧 **Phase 10**: Global Hotkeys - Customizable keyboard shortcuts
-- 🚧 **Phase 11**: Content Filters - Advanced application/content filtering
+- 🚧 **Phase 4**: ClipMate Explorer Interface (~70% complete)
+  - ✅ Three-pane layout (Tree, List, Preview)
+  - ✅ System tray integration with NotifyIcon
+  - ✅ Collection tree view
+  - ✅ Clip list DataGrid with sorting/filtering
+  - ✅ Multi-format preview pane (Text, RTF, HTML, Image, Files)
+  - ✅ Options dialog with 7 configuration tabs
+  - 🚧 Main menu implementation (File, Edit, View, Tools, Help)
+  - 🚧 Toolbar implementation
+  - 🚧 ClipList context menu (Copy, Delete, Edit, Properties, etc.)
+  - 🚧 Collection tree context menu (New, Rename, Delete, Properties)
 
-### Feature 002: ClipBar Quick Access (Planned)
-Focus on compact, Windows utility-style quick paste popup with instant filtering and keyboard navigation.
+**Upcoming Phases:**
+- 📋 **Phase 5**: Search & Discovery - Full-text search, filtering, date ranges
+- 📋 **Phase 6**: Collections & Folders - Multi-collection management, drag-drop organization
+- 📋 **Phase 7**: Template System Enhancements - Additional variables, advanced substitution
+- 📋 **Phase 8**: Sound Feedback - Add sound files for audio cues
+- 📋 **Phase 9**: Global Hotkeys - Customizable keyboard shortcuts
+- 📋 **Phase 10**: PowerPaste Features - Advanced paste transformations
+- 📋 **Phase 11**: Content Filters - Advanced application/content filtering
+
+### Feature 002: ClipBar Quick Access (Planned - Requires Rework)
+Global hotkey popup for instant paste access. Current implementation needs complete rework to match compact, Windows utility-style design with instant filtering and keyboard navigation.
 
 ### Feature 003: WPF UI Migration (Planned)
-Migrate from custom styling to WPF UI library for Fluent Design System, modern theming, and reduced maintenance burden.
+Migrate from DevExpress theming to WPF UI library for Fluent Design System, modern theming, and reduced maintenance burden.
 
 ## Implementation Status
 
 ### ✅ Completed
 - Project structure with 4 main projects + 3 test projects
-- Entity Framework Core 9.0 + SQLite database layer
+- Entity Framework Core 9.0 + SQLite database layer with custom schema migration
 - All repository implementations (Clip, Collection, Folder, Template, SearchQuery, ApplicationFilter, SoundEvent)
 - ClipboardService with Win32 clipboard monitoring
 - Multi-format clipboard capture (Text, RTF, HTML, Image, FileList)
@@ -376,27 +407,40 @@ Migrate from custom styling to WPF UI library for Fluent Design System, modern t
 - Text, Rich Text, HTML, Image, and File preview tabs
 - System tray service (Windows Forms NotifyIcon)
 - Application lifecycle (single instance, start with Windows, minimize to tray)
-- Template system with TemplateService
+- **Options Dialog System** - Comprehensive preferences UI with 7 tabs (General, Pasting, QuickPaste, Editor, Capturing, App Profiles, Sounds)
+- **Configuration Management** - Full IConfigurationService with persist to disk
+- **QuickPaste Configuration UI** - Manage good/bad targets and formatting strings
+- **PowerPaste Settings UI** - Delay, delimiter, trim, loop, explode configuration
+- **Application Profiles** - Full CRUD operations for app-specific behavior
+- **Sound System Infrastructure** - ISoundService, SoundsOptionsViewModel (sound files pending)
+- Template system with TemplateService and TemplateEditorDialog
+- Text Tools Dialog - Case conversion, encoding, line operations, trim, etc.
 - Text transformation utilities (case conversion, encoding, etc.)
-- Multiple ViewModels (MainWindowViewModel, ClipListViewModel, CollectionTreeViewModel, PreviewPaneViewModel)
+- Multiple ViewModels with MVVM pattern (MainWindowViewModel, ClipListViewModel, CollectionTreeViewModel, PreviewPaneViewModel, OptionsViewModel + 7 children)
 
 ### 🚧 In Progress
-- ClipBar quick access popup
+- **Phase 4 Completion**: Main menu implementation, toolbar implementation, context menus (ClipList & Collections)
 - Search and filtering UI
 - Collection/folder drag-drop operations
-- Sound feedback system
+- Sound files for sound feedback system (infrastructure complete)
 - Global hotkey configuration UI
 
 ### 📋 Planned
-- PowerPaste transformations
-- Advanced application filters
+- Feature 002: ClipBar Quick Access (global hotkey popup - complete rework)
+- Feature 003: WPF UI Migration (Fluent Design System)
+- PowerPaste transformations and advanced paste features
+- Advanced search with full-text indexing
 - ClipMate Classic mode (compact toolbar interface)
 
 ### Known Issues
 
 ### Current Limitations
+- **Main Menu Incomplete**: File, Edit, View, Tools, Help menus need implementation
+- **Toolbar Incomplete**: Main toolbar buttons need implementation
+- **Context Menus Incomplete**: ClipList and Collection tree context menus in progress
 - **Search Not Implemented**: Full-text search UI pending
-- **ClipBar Not Complete**: Quick access popup in development
+- **ClipBar Needs Rework**: Quick access popup requires complete redesign
+- **Sound Files Missing**: Sound system infrastructure complete but audio files not added
 - **No Cloud Sync**: Local storage only
 - **Windows Only**: No cross-platform support (by design)
 
@@ -421,11 +465,13 @@ Migrate from custom styling to WPF UI library for Fluent Design System, modern t
 **Genesis**: November 11, 2025 - Project initiated as modern recreation of ClipMate 7.5
 
 **Architecture Evolution:**
-- Initial design used LiteDB → Switched to EF Core 9.0 + SQLite (team expertise)
-- Custom logging → Migrated to Microsoft.Extensions.Logging
-- Manual P/Invoke → Migrated to CsWin32 code generation
-- xUnit → Migrated to TUnit for modern testing experience
-- Custom MVVM → Adopted CommunityToolkit.Mvvm
+- Initial design used LiteDB → Switched to EF Core 9.0 + SQLite (team expertise, ADR-001)
+- Custom logging → Migrated to Microsoft.Extensions.Logging (ADR-004)
+- Manual P/Invoke → Migrated to CsWin32 0.3.248 code generation (ADR-005)
+- xUnit → Migrated to TUnit 0.4.31 for modern testing experience
+- Custom MVVM → Adopted CommunityToolkit.Mvvm 8.4.0 (ADR-002)
+- Custom DI → Adopted Microsoft.Extensions.DependencyInjection (ADR-003)
+- Monolithic OptionsViewModel → Refactored to coordinator pattern with 7 child ViewModels (Dec 2025)
 
 ## Support
 
@@ -440,4 +486,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Built with .NET 9, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: Active Development | Last Updated: November 24, 2025
+Status: Active Development | Last Updated: December 4, 2025

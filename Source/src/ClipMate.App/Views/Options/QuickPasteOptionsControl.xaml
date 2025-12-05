@@ -9,7 +9,7 @@
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
-             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             d:DataContext="{d:DesignInstance Type=vm:QuickPasteOptionsViewModel}"
              mc:Ignorable="d">
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">

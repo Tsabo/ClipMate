@@ -37,32 +37,32 @@
 
         <!-- General Tab -->
         <dx:DXTabItem Header="General">
-            <options:GeneralOptionsControl />
+            <options:GeneralOptionsControl DataContext="{Binding General}" />
         </dx:DXTabItem>
 
         <!-- Pasting Tab -->
         <dx:DXTabItem Header="Pasting">
-            <options:PastingOptionsControl />
+            <options:PastingOptionsControl DataContext="{Binding PowerPaste}" />
         </dx:DXTabItem>
 
         <!-- QuickPaste Tab -->
         <dx:DXTabItem Header="QuickPaste">
-            <options:QuickPasteOptionsControl />
+            <options:QuickPasteOptionsControl DataContext="{Binding QuickPaste}" />
         </dx:DXTabItem>
 
         <!-- Editor Tab -->
         <dx:DXTabItem Header="Editor">
-            <options:EditorOptionsControl />
+            <options:EditorOptionsControl DataContext="{Binding Editor}" />
         </dx:DXTabItem>
 
         <!-- Capturing Tab -->
         <dx:DXTabItem Header="Capturing">
-            <options:CapturingOptionsControl />
+            <options:CapturingOptionsControl DataContext="{Binding Capturing}" />
         </dx:DXTabItem>
 
         <!-- Application Profiles Tab -->
         <dx:DXTabItem Header="App Profiles">
-            <options:ApplicationProfilesOptionsControl />
+            <options:ApplicationProfilesOptionsControl DataContext="{Binding ApplicationProfiles}" />
         </dx:DXTabItem>
 
         <!-- Appearance Tab (Stub) -->
@@ -75,7 +75,7 @@
 
         <!-- Sounds Tab -->
         <dx:DXTabItem Header="Sounds">
-            <options:SoundsOptionsControl />
+            <options:SoundsOptionsControl DataContext="{Binding Sounds}" />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

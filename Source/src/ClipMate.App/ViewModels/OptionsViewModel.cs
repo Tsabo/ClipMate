@@ -1,270 +1,60 @@
-using System.Collections.ObjectModel;
-using System.IO;
-using ClipMate.App.Views;
 using ClipMate.Core.Events;
-using ClipMate.Core.Models;
-using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using ClipMate.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using ISoundService = ClipMate.Platform.ISoundService;
-using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-/// ViewModel for the Options dialog.
+/// Coordinator ViewModel for the Options dialog.
+/// Delegates to child ViewModels for each tab.
 /// </summary>
 public partial class OptionsViewModel : ObservableObject
 {
-    private readonly IApplicationProfileService? _applicationProfileService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<OptionsViewModel> _logger;
     private readonly IMessenger _messenger;
-    private readonly ISoundService _soundService;
-    private readonly IStartupManager _startupManager;
-
-    [ObservableProperty]
-    private string _appendSeparatorString = string.Empty;
-
-    [ObservableProperty]
-    private SoundMode _appendSoundMode = SoundMode.Default;
-
-    [ObservableProperty]
-    private ObservableCollection<ApplicationProfileNode> _applicationProfileNodes = [];
-
-    [ObservableProperty]
-    private bool _autoChangeClipTitles;
-
-    [ObservableProperty]
-    private bool _autoExpandHdropFilePointers;
-
-    [ObservableProperty]
-    private bool _captureExistingClipboardAtStartup;
-
-    [ObservableProperty]
-    private bool _checkUpdatesAutomatically;
-
-    // Sound tab properties
-    [ObservableProperty]
-    private SoundMode _clipboardUpdateSoundMode = SoundMode.Default;
-
-    [ObservableProperty]
-    private CollectionIconClickBehavior _collectionIconClickBehavior;
-
-    [ObservableProperty]
-    private bool _confirmDeletionFromSafeCollections;
-
-    [ObservableProperty]
-    private string? _customAppend;
-
-    [ObservableProperty]
-    private string? _customClipboardUpdate;
-
-    [ObservableProperty]
-    private string? _customErase;
-
-    [ObservableProperty]
-    private string? _customFilter;
-
-    [ObservableProperty]
-    private string? _customIgnore;
-
-    [ObservableProperty]
-    private string? _customPowerPasteComplete;
-
-    [ObservableProperty]
-    private bool _defaultAcceptClipsFromClipboard;
-
-    [ObservableProperty]
-    private EditorViewType _defaultEditorView;
-
-    [ObservableProperty]
-    private bool _displayWordAndCharacterCounts;
-
-    [ObservableProperty]
-    private string _editorFontFamily = "Consolas";
-
-    [ObservableProperty]
-    private int _editorFontSize;
-
-    [ObservableProperty]
-    private string _editorTheme = "vs-light";
-
-    [ObservableProperty]
-    private bool _editorWordWrap;
-
-    // Application Profiles properties
-    [ObservableProperty]
-    private bool _enableApplicationProfiles;
-
-    // Capturing tab properties
-    [ObservableProperty]
-    private bool _enableAutoCaptureAtStartup;
-
-    // Editor tab properties (ClipViewer settings)
-    [ObservableProperty]
-    private bool _enableBinaryView;
-
-    [ObservableProperty]
-    private bool _enableDebugMode;
-
-    [ObservableProperty]
-    private SoundMode _eraseSoundMode = SoundMode.Default;
-
-    [ObservableProperty]
-    private ExplorerLayoutMode _explorerLayout;
-
-    [ObservableProperty]
-    private SoundMode _filterSoundMode = SoundMode.Default;
-
-    [ObservableProperty]
-    private SoundMode _ignoreSoundMode = SoundMode.Default;
-
-    [ObservableProperty]
-    private InitialShowMode _initialShowMode;
-
-    // General tab properties
-    [ObservableProperty]
-    private bool _loadClassicAtStartup;
-
-    [ObservableProperty]
-    private bool _loadExplorerAtStartup;
-
-    [ObservableProperty]
-    private bool _mousewheelSelectsClip;
-
-    [ObservableProperty]
-    private SoundMode _powerPasteCompleteSoundMode = SoundMode.Default;
-
-    // PowerPaste properties
-    [ObservableProperty]
-    private int _powerPasteDelay;
-
-    [ObservableProperty]
-    private string _powerPasteDelimiter = string.Empty;
-
-    [ObservableProperty]
-    private bool _powerPasteExplode;
-
-    [ObservableProperty]
-    private bool _powerPasteIncludeDelimiter;
-
-    [ObservableProperty]
-    private bool _powerPasteLoop;
-
-    [ObservableProperty]
-    private bool _powerPasteShield;
-
-    [ObservableProperty]
-    private bool _powerPasteTrim;
-
-    // QuickPaste properties
-    [ObservableProperty]
-    private bool _quickPasteAutoTargetingEnabled;
-
-    [ObservableProperty]
-    private ObservableCollection<string> _quickPasteBadTargets = [];
-
-    [ObservableProperty]
-    private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = [];
-
-    [ObservableProperty]
-    private ObservableCollection<string> _quickPasteGoodTargets = [];
-
-    [ObservableProperty]
-    private bool _quickPastePasteOnDoubleClick;
-
-    [ObservableProperty]
-    private bool _quickPastePasteOnEnter;
-
-    [ObservableProperty]
-    private bool _quickPasteUseMonitoringThread;
-
-    [ObservableProperty]
-    private int _selectedBadTargetIndex = -1;
-
-    [ObservableProperty]
-    private QuickPasteFormattingString? _selectedFormattingString;
-
-    [ObservableProperty]
-    private int _selectedGoodTargetIndex = -1;
 
     [ObservableProperty]
     private int _selectedTabIndex;
 
-    // Editor tab properties (Monaco Editor settings)
-    [ObservableProperty]
-    private bool _showLineNumbersInEditor;
+    // Child ViewModels for each tab
+    public GeneralOptionsViewModel General { get; }
+    public PowerPasteOptionsViewModel PowerPaste { get; }
+    public QuickPasteOptionsViewModel QuickPaste { get; }
+    public EditorOptionsViewModel Editor { get; }
+    public CapturingOptionsViewModel Capturing { get; }
+    public ApplicationProfilesOptionsViewModel ApplicationProfiles { get; }
+    public SoundsOptionsViewModel Sounds { get; }
 
-    [ObservableProperty]
-    private bool _showMinimap;
-
-    [ObservableProperty]
-    private bool _showToolbar;
-
-    [ObservableProperty]
-    private bool _smoothScrolling;
-
-    [ObservableProperty]
-    private bool _sortCollectionsAlphabetically;
-
-    [ObservableProperty]
-    private bool _startWithWindows;
-
-    [ObservableProperty]
-    private bool _stripTrailingLineBreak;
-
-    [ObservableProperty]
-    private int _tabStops;
-
-    [ObservableProperty]
-    private int _updateCheckIntervalDays;
-
-    public OptionsViewModel(IConfigurationService configurationService,
-        IStartupManager startupManager,
-        ISoundService soundService,
+    public OptionsViewModel(
+        IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<OptionsViewModel> logger,
-        IApplicationProfileService? applicationProfileService = null)
+        GeneralOptionsViewModel generalOptionsViewModel,
+        PowerPasteOptionsViewModel powerPasteOptionsViewModel,
+        QuickPasteOptionsViewModel quickPasteOptionsViewModel,
+        EditorOptionsViewModel editorOptionsViewModel,
+        CapturingOptionsViewModel capturingOptionsViewModel,
+        ApplicationProfilesOptionsViewModel applicationProfilesOptionsViewModel,
+        SoundsOptionsViewModel soundsOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
-        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _applicationProfileService = applicationProfileService;
 
-        // Register for property changes to notify UI of dependent properties
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ClipboardUpdateSoundMode))
-                OnPropertyChanged(nameof(ClipboardUpdateIsCustom));
-            else if (e.PropertyName == nameof(AppendSoundMode))
-                OnPropertyChanged(nameof(AppendIsCustom));
-            else if (e.PropertyName == nameof(EraseSoundMode))
-                OnPropertyChanged(nameof(EraseIsCustom));
-            else if (e.PropertyName == nameof(IgnoreSoundMode))
-                OnPropertyChanged(nameof(IgnoreIsCustom));
-            else if (e.PropertyName == nameof(FilterSoundMode))
-                OnPropertyChanged(nameof(FilterIsCustom));
-            else if (e.PropertyName == nameof(PowerPasteCompleteSoundMode))
-                OnPropertyChanged(nameof(PowerPasteCompleteIsCustom));
-        };
+        General = generalOptionsViewModel ?? throw new ArgumentNullException(nameof(generalOptionsViewModel));
+        PowerPaste = powerPasteOptionsViewModel ?? throw new ArgumentNullException(nameof(powerPasteOptionsViewModel));
+        QuickPaste = quickPasteOptionsViewModel ?? throw new ArgumentNullException(nameof(quickPasteOptionsViewModel));
+        Editor = editorOptionsViewModel ?? throw new ArgumentNullException(nameof(editorOptionsViewModel));
+        Capturing = capturingOptionsViewModel ?? throw new ArgumentNullException(nameof(capturingOptionsViewModel));
+        ApplicationProfiles = applicationProfilesOptionsViewModel ?? throw new ArgumentNullException(nameof(applicationProfilesOptionsViewModel));
+        Sounds = soundsOptionsViewModel ?? throw new ArgumentNullException(nameof(soundsOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
-
-    // Helper properties for IsEnabled bindings
-    public bool ClipboardUpdateIsCustom => ClipboardUpdateSoundMode == SoundMode.Custom;
-    public bool AppendIsCustom => AppendSoundMode == SoundMode.Custom;
-    public bool EraseIsCustom => EraseSoundMode == SoundMode.Custom;
-    public bool IgnoreIsCustom => IgnoreSoundMode == SoundMode.Custom;
-    public bool FilterIsCustom => FilterSoundMode == SoundMode.Custom;
-    public bool PowerPasteCompleteIsCustom => PowerPasteCompleteSoundMode == SoundMode.Custom;
 
     /// <summary>
     /// Selects a tab by name.
@@ -287,214 +77,37 @@ public partial class OptionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Loads configuration from the configuration service.
+    /// Loads configuration from all child ViewModels.
     /// </summary>
     public async Task LoadConfigurationAsync()
     {
-        var config = _configurationService.Configuration.Preferences;
+        await General.LoadAsync();
+        PowerPaste.LoadAsync();
+        QuickPaste.LoadAsync();
+        Editor.LoadAsync();
+        Capturing.LoadAsync();
+        await ApplicationProfiles.LoadAsync();
+        Sounds.LoadAsync();
 
-        // PowerPaste tab
-        PowerPasteDelay = config.PowerPasteDelay;
-        PowerPasteShield = config.PowerPasteShield;
-        PowerPasteDelimiter = config.PowerPasteDelimiter;
-        PowerPasteTrim = config.PowerPasteTrim;
-        PowerPasteIncludeDelimiter = config.PowerPasteIncludeDelimiter;
-        PowerPasteLoop = config.PowerPasteLoop;
-        PowerPasteExplode = config.PowerPasteExplode;
-
-        // QuickPaste tab
-        QuickPasteAutoTargetingEnabled = config.QuickPasteAutoTargetingEnabled;
-        QuickPasteUseMonitoringThread = config.QuickPasteUseMonitoringThread;
-        QuickPastePasteOnEnter = config.QuickPastePasteOnEnter;
-        QuickPastePasteOnDoubleClick = config.QuickPastePasteOnDoubleClick;
-        QuickPasteGoodTargets = new ObservableCollection<string>(config.QuickPasteGoodTargets);
-        QuickPasteBadTargets = new ObservableCollection<string>(config.QuickPasteBadTargets);
-        QuickPasteFormattingStrings = new ObservableCollection<QuickPasteFormattingString>(config.QuickPasteFormattingStrings);
-
-        // General tab
-        LoadClassicAtStartup = config.LoadClassicAtStartup;
-        LoadExplorerAtStartup = config.LoadExplorerAtStartup;
-        InitialShowMode = config.InitialShowMode;
-        ConfirmDeletionFromSafeCollections = config.ConfirmDeletionFromSafeCollections;
-        CheckUpdatesAutomatically = config.CheckUpdatesAutomatically;
-        UpdateCheckIntervalDays = config.UpdateCheckIntervalDays;
-        SortCollectionsAlphabetically = config.SortCollectionsAlphabetically;
-        MousewheelSelectsClip = config.MousewheelSelectsClip;
-        CollectionIconClickBehavior = config.CollectionIconClickBehavior;
-        ExplorerLayout = config.ExplorerLayout;
-
-        // Load the current startup state from registry
-        var (success, isEnabled, errorMessage) = await _startupManager.IsEnabledAsync();
-        if (success)
-            StartWithWindows = isEnabled;
-        else
-        {
-            _logger.LogWarning("Failed to check startup status: {ErrorMessage}", errorMessage);
-            StartWithWindows = config.StartWithWindows; // Fallback to saved preference
-        }
-
-        // Editor tab - Monaco settings
-        var monacoConfig = _configurationService.Configuration.MonacoEditor;
-        ShowLineNumbersInEditor = monacoConfig.ShowLineNumbers;
-        DisplayWordAndCharacterCounts = monacoConfig.DisplayWordAndCharacterCounts;
-        SmoothScrolling = monacoConfig.SmoothScrolling;
-        TabStops = monacoConfig.TabSize;
-        EditorTheme = monacoConfig.Theme;
-        EditorFontSize = monacoConfig.FontSize;
-        EditorFontFamily = monacoConfig.FontFamily;
-        EditorWordWrap = monacoConfig.WordWrap;
-        ShowMinimap = monacoConfig.ShowMinimap;
-        ShowToolbar = monacoConfig.ShowToolbar;
-        EnableDebugMode = monacoConfig.EnableDebug;
-
-        // Editor tab - ClipViewer settings
-        EnableBinaryView = config.EnableBinaryView;
-        AutoChangeClipTitles = config.AutoChangeClipTitles;
-        DefaultEditorView = config.DefaultEditorView;
-
-        // Capturing tab
-        EnableAutoCaptureAtStartup = config.EnableAutoCaptureAtStartup;
-        CaptureExistingClipboardAtStartup = config.CaptureExistingClipboardAtStartup;
-        AutoExpandHdropFilePointers = config.AutoExpandHdropFilePointers;
-        DefaultAcceptClipsFromClipboard = config.DefaultAcceptClipsFromClipboard;
-        AppendSeparatorString = config.AppendSeparatorString;
-        StripTrailingLineBreak = config.StripTrailingLineBreak;
-
-        // Application Profiles tab (session-only setting)
-        if (_applicationProfileService != null)
-        {
-            EnableApplicationProfiles = _applicationProfileService.IsApplicationProfilesEnabled();
-            await LoadApplicationProfilesAsync();
-        }
-
-        // Sound tab
-        ClipboardUpdateSoundMode = config.Sound.ClipboardUpdate;
-        CustomClipboardUpdate = config.Sound.CustomClipboardUpdate;
-        AppendSoundMode = config.Sound.Append;
-        CustomAppend = config.Sound.CustomAppend;
-        EraseSoundMode = config.Sound.Erase;
-        CustomErase = config.Sound.CustomErase;
-        IgnoreSoundMode = config.Sound.Ignore;
-        CustomIgnore = config.Sound.CustomIgnore;
-        FilterSoundMode = config.Sound.Filter;
-        CustomFilter = config.Sound.CustomFilter;
-        PowerPasteCompleteSoundMode = config.Sound.PowerPasteComplete;
-        CustomPowerPasteComplete = config.Sound.CustomPowerPasteComplete;
-
-        _logger.LogDebug("Configuration loaded into OptionsViewModel");
+        _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
 
     /// <summary>
-    /// Saves the configuration to the configuration service.
+    /// Saves the configuration from all child ViewModels.
     /// </summary>
     [RelayCommand]
     private async Task OkAsync()
     {
         try
         {
-            // Update configuration
-            var config = _configurationService.Configuration;
-
-            // PowerPaste tab
-            config.Preferences.PowerPasteDelay = PowerPasteDelay;
-            config.Preferences.PowerPasteShield = PowerPasteShield;
-            config.Preferences.PowerPasteDelimiter = PowerPasteDelimiter;
-            config.Preferences.PowerPasteTrim = PowerPasteTrim;
-            config.Preferences.PowerPasteIncludeDelimiter = PowerPasteIncludeDelimiter;
-            config.Preferences.PowerPasteLoop = PowerPasteLoop;
-            config.Preferences.PowerPasteExplode = PowerPasteExplode;
-
-            // QuickPaste tab
-            config.Preferences.QuickPasteAutoTargetingEnabled = QuickPasteAutoTargetingEnabled;
-            config.Preferences.QuickPastePasteOnEnter = QuickPastePasteOnEnter;
-            config.Preferences.QuickPastePasteOnDoubleClick = QuickPastePasteOnDoubleClick;
-            config.Preferences.QuickPasteGoodTargets = QuickPasteGoodTargets.ToList();
-            config.Preferences.QuickPasteBadTargets = QuickPasteBadTargets.ToList();
-            config.Preferences.QuickPasteFormattingStrings = QuickPasteFormattingStrings.ToList();
-
-            // General tab
-            config.Preferences.LoadClassicAtStartup = LoadClassicAtStartup;
-            config.Preferences.LoadExplorerAtStartup = LoadExplorerAtStartup;
-            config.Preferences.InitialShowMode = InitialShowMode;
-            config.Preferences.StartWithWindows = StartWithWindows;
-            config.Preferences.ConfirmDeletionFromSafeCollections = ConfirmDeletionFromSafeCollections;
-            config.Preferences.CheckUpdatesAutomatically = CheckUpdatesAutomatically;
-            config.Preferences.UpdateCheckIntervalDays = UpdateCheckIntervalDays;
-            config.Preferences.SortCollectionsAlphabetically = SortCollectionsAlphabetically;
-            config.Preferences.MousewheelSelectsClip = MousewheelSelectsClip;
-            config.Preferences.CollectionIconClickBehavior = CollectionIconClickBehavior;
-            config.Preferences.ExplorerLayout = ExplorerLayout;
-
-            // Editor tab - Monaco Editor settings
-            var monacoConfig = _configurationService.Configuration.MonacoEditor;
-            monacoConfig.ShowLineNumbers = ShowLineNumbersInEditor;
-            monacoConfig.DisplayWordAndCharacterCounts = DisplayWordAndCharacterCounts;
-            monacoConfig.SmoothScrolling = SmoothScrolling;
-            monacoConfig.TabSize = TabStops;
-            monacoConfig.Theme = EditorTheme;
-            monacoConfig.FontSize = EditorFontSize;
-            monacoConfig.FontFamily = EditorFontFamily;
-            monacoConfig.WordWrap = EditorWordWrap;
-            monacoConfig.ShowMinimap = ShowMinimap;
-            monacoConfig.ShowToolbar = ShowToolbar;
-            monacoConfig.EnableDebug = EnableDebugMode;
-
-            // Editor tab - ClipViewer settings
-            config.Preferences.EnableBinaryView = EnableBinaryView;
-            config.Preferences.AutoChangeClipTitles = AutoChangeClipTitles;
-            config.Preferences.DefaultEditorView = DefaultEditorView;
-
-            // Capturing tab
-            config.Preferences.EnableAutoCaptureAtStartup = EnableAutoCaptureAtStartup;
-            config.Preferences.CaptureExistingClipboardAtStartup = CaptureExistingClipboardAtStartup;
-            config.Preferences.AutoExpandHdropFilePointers = AutoExpandHdropFilePointers;
-            config.Preferences.DefaultAcceptClipsFromClipboard = DefaultAcceptClipsFromClipboard;
-            config.Preferences.AppendSeparatorString = AppendSeparatorString;
-            config.Preferences.StripTrailingLineBreak = StripTrailingLineBreak;
-
-            // Application Profiles (session-only setting, not persisted to config)
-            if (_applicationProfileService != null)
-            {
-                _applicationProfileService.SetApplicationProfilesEnabled(EnableApplicationProfiles);
-
-                // Save updated profile states back to storage
-                foreach (var profileNode in ApplicationProfileNodes)
-                    await _applicationProfileService.UpdateProfileAsync(profileNode.Profile);
-            }
-
-            // Sound tab
-            config.Preferences.Sound.ClipboardUpdate = ClipboardUpdateSoundMode;
-            config.Preferences.Sound.CustomClipboardUpdate = CustomClipboardUpdate;
-            config.Preferences.Sound.Append = AppendSoundMode;
-            config.Preferences.Sound.CustomAppend = CustomAppend;
-            config.Preferences.Sound.Erase = EraseSoundMode;
-            config.Preferences.Sound.CustomErase = CustomErase;
-            config.Preferences.Sound.Ignore = IgnoreSoundMode;
-            config.Preferences.Sound.CustomIgnore = CustomIgnore;
-            config.Preferences.Sound.Filter = FilterSoundMode;
-            config.Preferences.Sound.CustomFilter = CustomFilter;
-            config.Preferences.Sound.PowerPasteComplete = PowerPasteCompleteSoundMode;
-            config.Preferences.Sound.CustomPowerPasteComplete = CustomPowerPasteComplete;
-
-            // Handle Windows startup registry setting
-            if (StartWithWindows)
-            {
-                var (enableSuccess, enableError) = await _startupManager.EnableAsync();
-                if (!enableSuccess)
-                {
-                    _logger.LogError("Failed to enable Windows startup: {Error}", enableError);
-                    // TODO: Show user-friendly notification using DevExpress toast/notification API
-                }
-            }
-            else
-            {
-                var (disableSuccess, disableError) = await _startupManager.DisableAsync();
-                if (!disableSuccess)
-                {
-                    _logger.LogError("Failed to disable Windows startup: {Error}", disableError);
-                    // TODO: Show user-friendly notification using DevExpress toast/notification API
-                }
-            }
+            // Save from all child ViewModels
+            await General.SaveAsync();
+            PowerPaste.SaveAsync();
+            QuickPaste.SaveAsync();
+            Editor.SaveAsync();
+            Capturing.SaveAsync();
+            await ApplicationProfiles.SaveAsync();
+            Sounds.SaveAsync();
 
             // Save to disk
             await _configurationService.SaveAsync();
@@ -502,15 +115,11 @@ public partial class OptionsViewModel : ObservableObject
             // Broadcast preferences changed event
             _messenger.Send(new PreferencesChangedEvent());
 
-            // Broadcast QuickPaste configuration changed event for immediate reload
-            _messenger.Send(new QuickPasteConfigurationChangedEvent());
-
             _logger.LogInformation("Configuration saved successfully");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving configuration");
-
             throw;
         }
     }
@@ -535,416 +144,4 @@ public partial class OptionsViewModel : ObservableObject
         // TODO: Implement help system
         _logger.LogInformation("Help requested for Options dialog");
     }
-
-    /// <summary>
-    /// Resets PowerPaste settings to defaults.
-    /// </summary>
-    [RelayCommand]
-    private void ResetPowerPasteToDefaults()
-    {
-        PowerPasteDelay = 100;
-        PowerPasteShield = true;
-        PowerPasteDelimiter = ",.;:\\n\\t";
-        PowerPasteTrim = true;
-        PowerPasteIncludeDelimiter = false;
-        PowerPasteLoop = false;
-        PowerPasteExplode = false;
-
-        _logger.LogInformation("PowerPaste settings reset to defaults");
-    }
-
-    /// <summary>
-    /// Resets General tab settings to defaults.
-    /// </summary>
-    [RelayCommand]
-    private void ResetGeneralToDefaults()
-    {
-        LoadClassicAtStartup = false;
-        LoadExplorerAtStartup = false;
-        InitialShowMode = InitialShowMode.Nothing;
-        StartWithWindows = false;
-        ConfirmDeletionFromSafeCollections = true;
-        CheckUpdatesAutomatically = true;
-        UpdateCheckIntervalDays = 5;
-        SortCollectionsAlphabetically = false;
-        MousewheelSelectsClip = true;
-        CollectionIconClickBehavior = CollectionIconClickBehavior.MenuAppears;
-        ExplorerLayout = ExplorerLayoutMode.FullWidthEditor;
-
-        _logger.LogInformation("General settings reset to defaults");
-    }
-
-    /// <summary>
-    /// Resets Editor tab settings to defaults.
-    /// </summary>
-    [RelayCommand]
-    private void ResetEditorToDefaults()
-    {
-        // Monaco Editor defaults
-        ShowLineNumbersInEditor = true;
-        DisplayWordAndCharacterCounts = true;
-        SmoothScrolling = true;
-        TabStops = 4;
-        EditorTheme = "vs-light";
-        EditorFontSize = 14;
-        EditorFontFamily = "Consolas";
-        EditorWordWrap = true;
-        ShowMinimap = false;
-        ShowToolbar = true;
-        EnableDebugMode = false;
-
-        // ClipViewer defaults
-        EnableBinaryView = true;
-        AutoChangeClipTitles = false;
-        DefaultEditorView = EditorViewType.Text;
-
-        _logger.LogInformation("Editor settings reset to defaults");
-    }
-
-    /// <summary>
-    /// Loads all application profiles from the service.
-    /// </summary>
-    [RelayCommand]
-    private async Task LoadApplicationProfilesAsync()
-    {
-        if (_applicationProfileService == null)
-        {
-            _logger.LogWarning("Application profile service not available");
-
-            return;
-        }
-
-        try
-        {
-            var profiles = await _applicationProfileService.GetAllProfilesAsync();
-            ApplicationProfileNodes.Clear();
-
-            foreach (var kvp in profiles.OrderBy(p => p.Key))
-            {
-                var profileNode = new ApplicationProfileNode(kvp.Value);
-                ApplicationProfileNodes.Add(profileNode);
-            }
-
-            _logger.LogInformation("Loaded {Count} application profiles", ApplicationProfileNodes.Count);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load application profiles");
-        }
-    }
-
-    /// <summary>
-    /// Deletes all application profiles.
-    /// </summary>
-    [RelayCommand]
-    private async Task DeleteAllProfilesAsync()
-    {
-        if (_applicationProfileService == null)
-        {
-            _logger.LogWarning("Application profile service not available");
-
-            return;
-        }
-
-        try
-        {
-            await _applicationProfileService.DeleteAllProfilesAsync();
-            ApplicationProfileNodes.Clear();
-            _logger.LogInformation("Deleted all application profiles");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to delete application profiles");
-        }
-    }
-
-    /// <summary>
-    /// Resets Capturing tab settings to defaults.
-    /// </summary>
-    [RelayCommand]
-    private void ResetCapturingToDefaults()
-    {
-        EnableAutoCaptureAtStartup = true;
-        CaptureExistingClipboardAtStartup = true;
-        AutoExpandHdropFilePointers = true;
-        DefaultAcceptClipsFromClipboard = true;
-        AppendSeparatorString = "\r\n";
-        StripTrailingLineBreak = false;
-
-        _logger.LogInformation("Capturing settings reset to defaults");
-    }
-
-    #region QuickPaste Commands
-
-    /// <summary>
-    /// Adds a new GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void AddGoodTarget()
-    {
-        var dialog = new QuickPasteTargetDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteGoodTargets.Contains(target))
-            {
-                QuickPasteGoodTargets.Add(target);
-                _logger.LogDebug("Added GOOD target: {Target}", target);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Edits the selected GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void EditGoodTarget()
-    {
-        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
-        {
-            _logger.LogWarning("No GOOD target selected for editing");
-
-            return;
-        }
-
-        var currentTarget = QuickPasteGoodTargets[SelectedGoodTargetIndex];
-        var dialog = new QuickPasteTargetDialog(currentTarget);
-        if (dialog.ShowDialog() == true)
-        {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                QuickPasteGoodTargets[SelectedGoodTargetIndex] = target;
-                _logger.LogDebug("Edited GOOD target from {Old} to {New}", currentTarget, target);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Deletes the selected GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteGoodTarget()
-    {
-        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
-        {
-            _logger.LogWarning("No GOOD target selected for deletion");
-
-            return;
-        }
-
-        var target = QuickPasteGoodTargets[SelectedGoodTargetIndex];
-        QuickPasteGoodTargets.RemoveAt(SelectedGoodTargetIndex);
-        _logger.LogDebug("Deleted GOOD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Adds a new BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void AddBadTarget()
-    {
-        var dialog = new QuickPasteTargetDialog();
-        if (dialog.ShowDialog() == true)
-        {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteBadTargets.Contains(target))
-            {
-                QuickPasteBadTargets.Add(target);
-                _logger.LogDebug("Added BAD target: {Target}", target);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Edits the selected BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void EditBadTarget()
-    {
-        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
-        {
-            _logger.LogWarning("No BAD target selected for editing");
-
-            return;
-        }
-
-        var currentTarget = QuickPasteBadTargets[SelectedBadTargetIndex];
-        var dialog = new QuickPasteTargetDialog(currentTarget);
-        if (dialog.ShowDialog() == true)
-        {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                QuickPasteBadTargets[SelectedBadTargetIndex] = target;
-                _logger.LogDebug("Edited BAD target from {Old} to {New}", currentTarget, target);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Deletes the selected BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteBadTarget()
-    {
-        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
-        {
-            _logger.LogWarning("No BAD target selected for deletion");
-
-            return;
-        }
-
-        var target = QuickPasteBadTargets[SelectedBadTargetIndex];
-        QuickPasteBadTargets.RemoveAt(SelectedBadTargetIndex);
-        _logger.LogDebug("Deleted BAD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Adds a new formatting string.
-    /// </summary>
-    [RelayCommand]
-    private void AddFormattingString()
-    {
-        var dialog = new QuickPasteFormattingStringDialog();
-        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
-        {
-            QuickPasteFormattingStrings.Add(dialog.FormattingString);
-            _logger.LogDebug("Added formatting string: {Title}", dialog.FormattingString.Title);
-        }
-    }
-
-    /// <summary>
-    /// Edits the selected formatting string.
-    /// </summary>
-    [RelayCommand]
-    private void EditFormattingString()
-    {
-        if (SelectedFormattingString == null)
-        {
-            _logger.LogWarning("No formatting string selected for editing");
-
-            return;
-        }
-
-        var index = QuickPasteFormattingStrings.IndexOf(SelectedFormattingString);
-        if (index < 0)
-        {
-            _logger.LogWarning("Selected formatting string not found in collection");
-
-            return;
-        }
-
-        var dialog = new QuickPasteFormattingStringDialog(SelectedFormattingString);
-        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
-        {
-            QuickPasteFormattingStrings[index] = dialog.FormattingString;
-            _logger.LogDebug("Edited formatting string: {Title}", dialog.FormattingString.Title);
-        }
-    }
-
-    /// <summary>
-    /// Deletes the selected formatting string.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteFormattingString()
-    {
-        if (SelectedFormattingString == null)
-        {
-            _logger.LogWarning("No formatting string selected for deletion");
-
-            return;
-        }
-
-        var format = SelectedFormattingString;
-        QuickPasteFormattingStrings.Remove(SelectedFormattingString);
-        _logger.LogDebug("Deleted formatting string: {Title}", format.Title);
-    }
-
-    #endregion
-
-    #region Sound Commands
-
-    [RelayCommand(CanExecute = nameof(CanTestClipboardUpdateSound))]
-    private async Task TestClipboardUpdateSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate);
-
-    private bool CanTestClipboardUpdateSound() =>
-        ClipboardUpdateSoundMode != SoundMode.Off &&
-        (ClipboardUpdateSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomClipboardUpdate) && File.Exists(CustomClipboardUpdate));
-
-    [RelayCommand(CanExecute = nameof(CanTestAppendSound))]
-    private async Task TestAppendSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.Append);
-
-    private bool CanTestAppendSound() =>
-        AppendSoundMode != SoundMode.Off &&
-        (AppendSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomAppend) && File.Exists(CustomAppend));
-
-    [RelayCommand(CanExecute = nameof(CanTestEraseSound))]
-    private async Task TestEraseSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.Erase);
-
-    private bool CanTestEraseSound() =>
-        EraseSoundMode != SoundMode.Off &&
-        (EraseSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomErase) && File.Exists(CustomErase));
-
-    [RelayCommand(CanExecute = nameof(CanTestIgnoreSound))]
-    private async Task TestIgnoreSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.Ignore);
-
-    private bool CanTestIgnoreSound() =>
-        IgnoreSoundMode != SoundMode.Off &&
-        (IgnoreSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomIgnore) && File.Exists(CustomIgnore));
-
-    [RelayCommand(CanExecute = nameof(CanTestFilterSound))]
-    private async Task TestFilterSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.Filter);
-
-    private bool CanTestFilterSound() =>
-        FilterSoundMode != SoundMode.Off &&
-        (FilterSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomFilter) && File.Exists(CustomFilter));
-
-    [RelayCommand(CanExecute = nameof(CanTestPowerPasteCompleteSound))]
-    private async Task TestPowerPasteCompleteSoundAsync() => await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
-
-    private bool CanTestPowerPasteCompleteSound() =>
-        PowerPasteCompleteSoundMode != SoundMode.Off &&
-        (PowerPasteCompleteSoundMode != SoundMode.Custom || !string.IsNullOrWhiteSpace(CustomPowerPasteComplete) && File.Exists(CustomPowerPasteComplete));
-
-    [RelayCommand]
-    private void BrowseCustomSound(string soundType)
-    {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Select Sound File",
-            Filter = "WAV Files (*.wav)|*.wav|All Files (*.*)|*.*",
-            FilterIndex = 1,
-            CheckFileExists = true,
-        };
-
-        if (dialog.ShowDialog() == true)
-        {
-            switch (soundType)
-            {
-                case "ClipboardUpdate":
-                    CustomClipboardUpdate = dialog.FileName;
-                    break;
-                case "Append":
-                    CustomAppend = dialog.FileName;
-                    break;
-                case "Erase":
-                    CustomErase = dialog.FileName;
-                    break;
-                case "Ignore":
-                    CustomIgnore = dialog.FileName;
-                    break;
-                case "Filter":
-                    CustomFilter = dialog.FileName;
-                    break;
-                case "PowerPasteComplete":
-                    CustomPowerPasteComplete = dialog.FileName;
-                    break;
-            }
-
-            _logger.LogDebug("Selected custom sound file for {SoundType}: {FilePath}", soundType, dialog.FileName);
-        }
-    }
-
-    #endregion
 }

@@ -7,7 +7,7 @@
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
-             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
+             d:DataContext="{d:DesignInstance Type=vm:GeneralOptionsViewModel}"
              mc:Ignorable="d">
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">

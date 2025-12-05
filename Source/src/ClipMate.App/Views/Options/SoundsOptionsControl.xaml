@@ -7,260 +7,231 @@
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
              xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
-             d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
-             mc:Ignorable="d">
+             d:DataContext="{d:DesignInstance Type=vm:SoundsOptionsViewModel}"
+             mc:Ignorable="d"
+             d:DesignWidth="700">
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
 
         <!-- New Data Captured Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="New Data Captured" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="ClipboardUpdateMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="ClipboardUpdateMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="ClipboardUpdateMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding ClipboardUpdateIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="ClipboardUpdate"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestClipboardUpdateSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit
-                        EditValue="{Binding CustomClipboardUpdate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="New Data Captured" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="ClipboardUpdateMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="ClipboardUpdateMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding ClipboardUpdateSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="ClipboardUpdateMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding ClipboardUpdateIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit
+                    EditValue="{Binding CustomClipboardUpdate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding ClipboardUpdateIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="ClipboardUpdate" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestClipboardUpdateSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
         <!-- Appending Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Appending" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="AppendMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="AppendMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="AppendMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding AppendIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="5,0,0,0">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="Append"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestAppendSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit EditValue="{Binding CustomAppend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="Appending" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="AppendMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="AppendMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding AppendSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="AppendMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding AppendIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit EditValue="{Binding CustomAppend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding AppendIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="Append" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestAppendSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
         <!-- Clipboard Erased Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Clipboard Erased" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="EraseMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="EraseMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="EraseMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding EraseIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="5,0,0,0">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="Erase"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestEraseSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit EditValue="{Binding CustomErase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="Clipboard Erased" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="EraseMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="EraseMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding EraseSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="EraseMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding EraseIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit EditValue="{Binding CustomErase, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding EraseIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="Erase" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestEraseSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
         <!-- Data Ignored/Rejected Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Data Ignored/Rejected" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="IgnoreMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="IgnoreMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="IgnoreMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding IgnoreIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="5,0,0,0">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="Ignore"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestIgnoreSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit EditValue="{Binding CustomIgnore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="Data Ignored/Rejected" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="IgnoreMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="IgnoreMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding IgnoreSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="IgnoreMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding IgnoreIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit EditValue="{Binding CustomIgnore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding IgnoreIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="Ignore" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestIgnoreSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
         <!-- PowerPaste Complete Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="PowerPaste Complete" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="PowerPasteCompleteMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="PowerPasteCompleteMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="PowerPasteCompleteMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding PowerPasteCompleteIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="5,0,0,0">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="PowerPasteComplete"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestPowerPasteCompleteSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit
-                        EditValue="{Binding CustomPowerPasteComplete, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="PowerPaste Complete" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="PowerPasteCompleteMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="PowerPasteCompleteMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding PowerPasteCompleteSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="PowerPasteCompleteMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding PowerPasteCompleteIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit
+                    EditValue="{Binding CustomPowerPasteComplete, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding PowerPasteCompleteIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="PowerPasteComplete" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestPowerPasteCompleteSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
         <!-- Outbound Clip Filter Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Outbound Clip Filter" Orientation="Vertical">
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Off"
-                                 IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
-                                 GroupName="FilterMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Default"
-                                 IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
-                                 GroupName="FilterMode" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem>
-                    <RadioButton Content="Custom"
-                                 IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
-                                 GroupName="FilterMode" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutItem Label="Custom sound:" IsEnabled="{Binding FilterIsCustom}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="5,0,0,0">
-                        <dx:SimpleButton Content="Browse"
-                                Command="{Binding BrowseCustomSoundCommand}"
-                                CommandParameter="Filter"
-                                Width="70"
-                                Margin="0,0,5,0" />
-                        <dx:SimpleButton Content="Test"
-                                Command="{Binding TestFilterSoundCommand}"
-                                Width="50" />
-                    </StackPanel>
-                    <dxe:TextEdit EditValue="{Binding CustomFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                        <dxe:TextEdit.StyleSettings>
-                            <dxe:TextEditStyleSettings />
-                        </dxe:TextEdit.StyleSettings>
-                    </dxe:TextEdit>
-                </DockPanel>
+        <dxlc:LayoutGroup View="GroupBox" Header="Outbound Clip Filter" Orientation="Horizontal">
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Off"
+                             IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Off}}"
+                             GroupName="FilterMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Default"
+                             IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Default}}"
+                             GroupName="FilterMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Left">
+                <RadioButton Content="Custom"
+                             IsChecked="{Binding FilterSoundMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SoundMode.Custom}}"
+                             GroupName="FilterMode" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding FilterIsCustom}" HorizontalAlignment="Stretch">
+                <dxe:TextEdit EditValue="{Binding CustomFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <dxe:TextEdit.StyleSettings>
+                        <dxe:TextEditStyleSettings />
+                    </dxe:TextEdit.StyleSettings>
+                </dxe:TextEdit>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem IsEnabled="{Binding FilterIsCustom}" HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse"
+                                 Command="{Binding BrowseCustomSoundCommand}"
+                                 CommandParameter="Filter" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Test"
+                                 Glyph="{helpers:EmojiIconSource Emoji='🔊'}"
+                                 Command="{Binding TestFilterSoundCommand}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
     </dxlc:LayoutControl>
 </UserControl>
-
