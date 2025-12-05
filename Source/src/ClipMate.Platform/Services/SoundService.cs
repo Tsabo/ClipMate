@@ -1,8 +1,8 @@
 using System.IO;
-using System.Media;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 
 namespace ClipMate.Platform.Services;
 
@@ -54,8 +54,17 @@ public class SoundService : ISoundService
             {
                 try
                 {
-                    using var player = new SoundPlayer(soundFilePath);
-                    player.PlaySync(); // PlaySync on background thread = async to caller
+                    using var audioFile = new AudioFileReader(soundFilePath);
+                    using var outputDevice = new WaveOutEvent();
+                    outputDevice.Init(audioFile);
+                    outputDevice.Play();
+                    
+                    // Wait for playback to complete
+                    while (outputDevice.PlaybackState == PlaybackState.Playing)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Thread.Sleep(10);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -93,6 +102,7 @@ public class SoundService : ISoundService
     /// <summary>
     /// Gets the file path for the sound file associated with the specified event.
     /// Checks custom sound path first, then falls back to default sound file.
+    /// Supports both WAV and MP3 formats.
     /// </summary>
     private string GetSoundFilePath(SoundEvent soundEvent)
     {
@@ -114,20 +124,31 @@ public class SoundService : ISoundService
         if (!string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath))
             return customPath;
 
-        // Fall back to default sound file
-        var defaultFileName = soundEvent switch
+        // Fall back to default sound file (check both WAV and MP3)
+        var baseFileName = soundEvent switch
         {
-            SoundEvent.ClipboardUpdate => "clipboard-update.wav",
-            SoundEvent.Append => "append.wav",
-            SoundEvent.Erase => "erase.wav",
-            SoundEvent.Filter => "filter.wav",
-            SoundEvent.Ignore => "ignore.wav",
-            SoundEvent.PowerPasteComplete => "powerpaste-complete.wav",
+            SoundEvent.ClipboardUpdate => "clipboard-update",
+            SoundEvent.Append => "append",
+            SoundEvent.Erase => "erase",
+            SoundEvent.Filter => "filter",
+            SoundEvent.Ignore => "ignore",
+            SoundEvent.PowerPasteComplete => "powerpaste-complete",
             var _ => null,
         };
 
-        return defaultFileName != null
-            ? Path.Combine(_soundsDirectory, defaultFileName)
-            : string.Empty;
+        if (baseFileName == null)
+            return string.Empty;
+
+        // Check for WAV first, then MP3
+        var wavPath = Path.Combine(_soundsDirectory, $"{baseFileName}.wav");
+        if (File.Exists(wavPath))
+            return wavPath;
+
+        var mp3Path = Path.Combine(_soundsDirectory, $"{baseFileName}.mp3");
+        if (File.Exists(mp3Path))
+            return mp3Path;
+
+        // Return WAV path even if it doesn't exist (for logging purposes)
+        return wavPath;
     }
 }
