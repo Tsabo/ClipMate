@@ -261,14 +261,19 @@ public partial class App
                 services.AddTransient<CapturingOptionsViewModel>();
                 services.AddTransient<ApplicationProfilesOptionsViewModel>();
                 services.AddTransient<SoundsOptionsViewModel>();
+                services.AddTransient<HotkeysOptionsViewModel>();
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
+
+                // Register hotkey coordinator
+                services.AddSingleton<HotkeyCoordinator>();
 
                 // Register initialization pipeline and steps
                 services.AddSingleton<StartupInitializationPipeline>();
                 services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
+                services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
             });
     }
 

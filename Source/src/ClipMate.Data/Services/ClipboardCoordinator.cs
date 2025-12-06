@@ -14,7 +14,10 @@ namespace ClipMate.Data.Services;
 /// Background service that coordinates clipboard monitoring and clip persistence.
 /// Consumes clips from the clipboard service channel and saves them to the database.
 /// </summary>
-public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChangedEvent>
+public class ClipboardCoordinator : IHostedService,
+    IRecipient<PreferencesChangedEvent>,
+    IRecipient<ToggleAutoCaptureEvent>,
+    IRecipient<ManualCaptureClipboardEvent>
 {
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
@@ -40,8 +43,10 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Register for preferences changed events
-        _messenger.Register(this);
+        // Register for preferences changed events and hotkey events
+        _messenger.Register<PreferencesChangedEvent>(this);
+        _messenger.Register<ToggleAutoCaptureEvent>(this);
+        _messenger.Register<ManualCaptureClipboardEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -143,6 +148,30 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
     }
 
     /// <summary>
+    /// Handles ManualCaptureClipboardEvent by manually capturing current clipboard content.
+    /// </summary>
+    public async void Receive(ManualCaptureClipboardEvent message)
+    {
+        try
+        {
+            _logger.LogInformation("Manual clipboard capture requested");
+
+            var clip = await _clipboardService.GetCurrentClipboardContentAsync();
+            if (clip != null)
+            {
+                _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);
+                await ProcessClipAsync(clip, CancellationToken.None);
+            }
+            else
+                _logger.LogDebug("No clipboard content to capture");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to manually capture clipboard content");
+        }
+    }
+
+    /// <summary>
     /// Handles preferences changed events to dynamically start/stop monitoring.
     /// </summary>
     public async void Receive(PreferencesChangedEvent message)
@@ -192,6 +221,56 @@ public class ClipboardCoordinator : IHostedService, IRecipient<PreferencesChange
             {
                 _logger.LogError(ex, "Failed to stop monitoring via preferences change");
             }
+        }
+    }
+
+    /// <summary>
+    /// Handles ToggleAutoCaptureEvent by toggling clipboard monitoring on/off.
+    /// </summary>
+    public async void Receive(ToggleAutoCaptureEvent message)
+    {
+        try
+        {
+            if (_isMonitoring)
+            {
+                // Stop monitoring
+                _logger.LogInformation("Stopping clipboard monitoring (toggle off)");
+                await _clipboardService.StopMonitoringAsync();
+                _isMonitoring = false;
+
+                // Cancel background processing
+                _cts?.Cancel();
+                if (_processingTask != null)
+                    await _processingTask;
+            }
+            else
+            {
+                // Start monitoring
+                _logger.LogInformation("Starting clipboard monitoring (toggle on)");
+
+                // Create new cancellation token source
+                _cts = new CancellationTokenSource();
+                _processingTask = ProcessClipsAsync(_cts.Token);
+
+                // Start clipboard monitoring on UI thread
+                if (Application.Current?.Dispatcher != null)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await _clipboardService.StartMonitoringAsync(_cts.Token);
+                        _isMonitoring = true;
+                    });
+                }
+                else
+                {
+                    await _clipboardService.StartMonitoringAsync(_cts.Token);
+                    _isMonitoring = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to toggle auto-capture");
         }
     }
 

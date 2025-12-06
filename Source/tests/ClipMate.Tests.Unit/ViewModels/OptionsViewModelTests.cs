@@ -1,3 +1,4 @@
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -13,20 +14,22 @@ namespace ClipMate.Tests.Unit.ViewModels;
 [Category("ViewModel")]
 public class OptionsViewModelTests
 {
+    private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
+    private CapturingOptionsViewModel _capturingViewModel = null!;
+    private EditorOptionsViewModel _editorViewModel = null!;
+
+    // Child ViewModels
+    private GeneralOptionsViewModel _generalViewModel = null!;
+    private HotkeysOptionsViewModel _hotkeysViewModel = null!;
     private Mock<IConfigurationService> _mockConfigurationService = null!;
+    private Mock<IHotkeyService> _mockHotkeyService = null!;
     private Mock<ILogger<OptionsViewModel>> _mockLogger = null!;
     private Mock<IMessenger> _mockMessenger = null!;
     private Mock<IApplicationProfileService> _mockProfileService = null!;
     private Mock<ISoundService> _mockSoundService = null!;
     private Mock<IStartupManager> _mockStartupManager = null!;
-
-    // Child ViewModels
-    private GeneralOptionsViewModel _generalViewModel = null!;
     private PowerPasteOptionsViewModel _powerPasteViewModel = null!;
     private QuickPasteOptionsViewModel _quickPasteViewModel = null!;
-    private EditorOptionsViewModel _editorViewModel = null!;
-    private CapturingOptionsViewModel _capturingViewModel = null!;
-    private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
     private SoundsOptionsViewModel _soundsViewModel = null!;
 
     [Before(Test)]
@@ -39,6 +42,7 @@ public class OptionsViewModelTests
         _mockProfileService = new Mock<IApplicationProfileService>();
         _mockSoundService = new Mock<ISoundService>();
         _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), default)).Returns(Task.CompletedTask);
+        _mockHotkeyService = new Mock<IHotkeyService>();
 
         // Setup default configuration
         var config = new ConfigModels.ClipMateConfiguration
@@ -80,11 +84,21 @@ public class OptionsViewModelTests
             _mockConfigurationService.Object,
             _mockSoundService.Object,
             new Mock<ILogger<SoundsOptionsViewModel>>().Object);
+
+        var mockHotkeyCoordinator = new Mock<HotkeyCoordinator>(
+            _mockHotkeyService.Object,
+            _mockConfigurationService.Object,
+            _mockMessenger.Object,
+            new Mock<ILogger<HotkeyCoordinator>>().Object);
+
+        _hotkeysViewModel = new HotkeysOptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockHotkeyService.Object,
+            mockHotkeyCoordinator.Object);
     }
 
-    private OptionsViewModel CreateViewModel()
-    {
-        return new OptionsViewModel(
+    private OptionsViewModel CreateViewModel() =>
+        new(
             _mockConfigurationService.Object,
             _mockMessenger.Object,
             _mockLogger.Object,
@@ -94,16 +108,15 @@ public class OptionsViewModelTests
             _editorViewModel,
             _capturingViewModel,
             _applicationProfilesViewModel,
-            _soundsViewModel);
-    }
+            _soundsViewModel,
+            _hotkeysViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
     {
         // Arrange - Create ViewModel without profile service
         _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
-            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
-            null); // No profile service
+            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object); // No profile service
 
         // Act
         var viewModel = CreateViewModel();
@@ -175,12 +188,11 @@ public class OptionsViewModelTests
     {
         // Arrange - Create ViewModel without profile service
         _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
-            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
-            null);
+            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object);
 
-        var viewModel = CreateViewModel();
+        CreateViewModel();
         var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object, null);
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
 
         // Act
         await _applicationProfilesViewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
@@ -227,7 +239,7 @@ public class OptionsViewModelTests
     {
         // Arrange - Create ViewModel without profile service
         var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object, null);
+        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
 
         // Act
         await _applicationProfilesViewModel.DeleteAllProfilesCommand.ExecuteAsync(null);

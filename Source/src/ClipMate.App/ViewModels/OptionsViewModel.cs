@@ -20,17 +20,7 @@ public partial class OptionsViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedTabIndex;
 
-    // Child ViewModels for each tab
-    public GeneralOptionsViewModel General { get; }
-    public PowerPasteOptionsViewModel PowerPaste { get; }
-    public QuickPasteOptionsViewModel QuickPaste { get; }
-    public EditorOptionsViewModel Editor { get; }
-    public CapturingOptionsViewModel Capturing { get; }
-    public ApplicationProfilesOptionsViewModel ApplicationProfiles { get; }
-    public SoundsOptionsViewModel Sounds { get; }
-
-    public OptionsViewModel(
-        IConfigurationService configurationService,
+    public OptionsViewModel(IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<OptionsViewModel> logger,
         GeneralOptionsViewModel generalOptionsViewModel,
@@ -39,7 +29,8 @@ public partial class OptionsViewModel : ObservableObject
         EditorOptionsViewModel editorOptionsViewModel,
         CapturingOptionsViewModel capturingOptionsViewModel,
         ApplicationProfilesOptionsViewModel applicationProfilesOptionsViewModel,
-        SoundsOptionsViewModel soundsOptionsViewModel)
+        SoundsOptionsViewModel soundsOptionsViewModel,
+        HotkeysOptionsViewModel hotkeysOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -52,9 +43,20 @@ public partial class OptionsViewModel : ObservableObject
         Capturing = capturingOptionsViewModel ?? throw new ArgumentNullException(nameof(capturingOptionsViewModel));
         ApplicationProfiles = applicationProfilesOptionsViewModel ?? throw new ArgumentNullException(nameof(applicationProfilesOptionsViewModel));
         Sounds = soundsOptionsViewModel ?? throw new ArgumentNullException(nameof(soundsOptionsViewModel));
+        Hotkeys = hotkeysOptionsViewModel ?? throw new ArgumentNullException(nameof(hotkeysOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
+
+    // Child ViewModels for each tab
+    public GeneralOptionsViewModel General { get; }
+    public PowerPasteOptionsViewModel PowerPaste { get; }
+    public QuickPasteOptionsViewModel QuickPaste { get; }
+    public EditorOptionsViewModel Editor { get; }
+    public CapturingOptionsViewModel Capturing { get; }
+    public ApplicationProfilesOptionsViewModel ApplicationProfiles { get; }
+    public SoundsOptionsViewModel Sounds { get; }
+    public HotkeysOptionsViewModel Hotkeys { get; }
 
     /// <summary>
     /// Selects a tab by name.
@@ -70,6 +72,7 @@ public partial class OptionsViewModel : ObservableObject
             "GENERAL" => 0,
             "PASTING" => 1,
             "QUICKPASTE" => 2,
+            "HOTKEYS" => 3,
             var _ => SelectedTabIndex,
         };
 
@@ -88,6 +91,7 @@ public partial class OptionsViewModel : ObservableObject
         Capturing.LoadAsync();
         await ApplicationProfiles.LoadAsync();
         Sounds.LoadAsync();
+        await Hotkeys.LoadConfigurationAsync();
 
         _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
@@ -108,6 +112,7 @@ public partial class OptionsViewModel : ObservableObject
             Capturing.SaveAsync();
             await ApplicationProfiles.SaveAsync();
             Sounds.SaveAsync();
+            await Hotkeys.SaveConfigurationAsync();
 
             // Save to disk
             await _configurationService.SaveAsync();

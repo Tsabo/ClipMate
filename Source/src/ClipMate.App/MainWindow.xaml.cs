@@ -5,15 +5,15 @@ using System.Windows.Input;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 using Clipboard = System.Windows.Clipboard;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using CommunityToolkit.Mvvm.Messaging;
-using ClipMate.Core.Events;
 using ModifierKeys = System.Windows.Input.ModifierKeys;
 
 namespace ClipMate.App;
@@ -23,7 +23,7 @@ namespace ClipMate.App;
 /// Responsible only for window chrome (tray icon, window state, etc.)
 /// All business logic is in MainWindowViewModel.
 /// </summary>
-public partial class MainWindow : IWindow
+public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
 {
     private readonly ILogger<MainWindow>? _logger;
     private readonly IMessenger _messenger;
@@ -45,6 +45,9 @@ public partial class MainWindow : IWindow
 
         DataContext = _viewModel;
 
+        // Register for hotkey events
+        _messenger.Register(this);
+
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -52,6 +55,21 @@ public partial class MainWindow : IWindow
 
         // Subscribe to events
         _messenger.Register<OpenOptionsDialogEvent>(this, (_, message) => ShowOptions(message.TabName));
+    }
+
+    /// <summary>
+    /// Handles ShowMainWindowEvent from hotkey.
+    /// </summary>
+    public void Receive(ShowMainWindowEvent message)
+    {
+        // Ensure we're on the UI thread
+        Dispatcher.InvokeAsync(() =>
+        {
+            Show();
+            Activate();
+            WindowState = WindowState.Normal;
+            _logger?.LogDebug("MainWindow shown from hotkey");
+        });
     }
 
     private void Window_StateChanged(object? sender, EventArgs e)
@@ -124,17 +142,13 @@ public partial class MainWindow : IWindow
             {
                 // Set the selected tab if specified
                 if (!string.IsNullOrEmpty(selectedTab) && optionsDialog.DataContext is OptionsViewModel viewModel)
-                {
                     viewModel.SelectTab(selectedTab);
-                }
 
                 optionsDialog.Owner = this;
                 var result = optionsDialog.ShowDialog();
-                
+
                 if (result == true)
-                {
                     _logger?.LogInformation("Options saved successfully");
-                }
             }
         }
         catch (Exception ex)
@@ -239,26 +253,23 @@ public partial class MainWindow : IWindow
             var customVariables = new Dictionary<string, string>();
 
             // Prompt for PROMPT variables
-            if (variables != null)
+            foreach (var variable in variables)
             {
-                foreach (var variable in variables)
+                // Check if it's a PROMPT variable
+                if (variable.StartsWith("PROMPT:", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Check if it's a PROMPT variable
-                    if (variable.StartsWith("PROMPT:", StringComparison.OrdinalIgnoreCase))
+                    var label = variable[7..]; // Remove "PROMPT:" prefix
+                    var promptDialog = new PromptDialog(label)
                     {
-                        var label = variable[7..]; // Remove "PROMPT:" prefix
-                        var promptDialog = new PromptDialog(label)
-                        {
-                            Owner = this,
-                        };
+                        Owner = this,
+                    };
 
-                        if (promptDialog.ShowDialog() == true && promptDialog.UserInput != null)
-                            customVariables[variable] = promptDialog.UserInput;
-                        else
-                        {
-                            // User cancelled, abort template expansion
-                            return;
-                        }
+                    if (promptDialog.ShowDialog() == true && promptDialog.UserInput != null)
+                        customVariables[variable] = promptDialog.UserInput;
+                    else
+                    {
+                        // User cancelled, abort template expansion
+                        return;
                     }
                 }
             }

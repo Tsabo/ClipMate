@@ -17,7 +17,12 @@ namespace ClipMate.App.ViewModels;
 /// Implements IRecipient to receive ClipAddedEvent and CollectionNodeSelectedEvent messages via MVVM Toolkit
 /// Messenger.
 /// </summary>
-public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedEvent>, IRecipient<CollectionNodeSelectedEvent>, IRecipient<QuickPasteNowEvent>
+public partial class ClipListViewModel : ObservableObject,
+    IRecipient<ClipAddedEvent>,
+    IRecipient<CollectionNodeSelectedEvent>,
+    IRecipient<QuickPasteNowEvent>,
+    IRecipient<SelectNextClipEvent>,
+    IRecipient<SelectPreviousClipEvent>
 {
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
@@ -60,6 +65,8 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         _messenger.Register<ClipAddedEvent>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
         _messenger.Register<QuickPasteNowEvent>(this);
+        _messenger.Register<SelectNextClipEvent>(this);
+        _messenger.Register<SelectPreviousClipEvent>(this);
     }
 
     /// <summary>
@@ -163,6 +170,47 @@ public partial class ClipListViewModel : ObservableObject, IRecipient<ClipAddedE
         {
             _logger.LogError(ex, "Failed to paste clip via QuickPaste: {ClipId}", SelectedClip.Id);
         }
+    }
+
+    /// <summary>
+    /// Handles SelectNextClipEvent by moving selection to the next clip in the list.
+    /// </summary>
+    public void Receive(SelectNextClipEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            if (Clips.Count == 0)
+                return;
+
+            var currentIndex = SelectedClip is not null
+                ? Clips.IndexOf(SelectedClip)
+                : -1;
+
+            var nextIndex = (currentIndex + 1) % Clips.Count;
+            SelectedClip = Clips[nextIndex];
+        });
+    }
+
+    /// <summary>
+    /// Handles SelectPreviousClipEvent by moving selection to the previous clip in the list.
+    /// </summary>
+    public void Receive(SelectPreviousClipEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            if (Clips.Count == 0)
+                return;
+
+            var currentIndex = SelectedClip is not null
+                ? Clips.IndexOf(SelectedClip)
+                : -1;
+
+            var previousIndex = currentIndex <= 0
+                ? Clips.Count - 1
+                : currentIndex - 1;
+
+            SelectedClip = Clips[previousIndex];
+        });
     }
 
     /// <summary>

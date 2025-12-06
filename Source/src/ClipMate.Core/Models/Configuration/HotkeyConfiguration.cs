@@ -21,9 +21,9 @@ public class HotkeyConfiguration
     public string AutoCapture { get; set; } = "Win+Shift+C";
 
     /// <summary>
-    /// Gets or sets the hotkey for quick paste/PowerPaste (e.g., "Ctrl+Shift+V").
+    /// Gets or sets the hotkey for quick paste/PowerPaste (e.g., "Shift+Ctrl+Q").
     /// </summary>
-    public string QuickPaste { get; set; } = "Ctrl+Shift+V";
+    public string QuickPaste { get; set; } = "Shift+Ctrl+Q";
 
     /// <summary>
     /// Gets or sets the hotkey for screen capture (e.g., "Ctrl+Alt+F12").
@@ -51,12 +51,12 @@ public class HotkeyConfiguration
     public string ViewClip { get; set; } = "Ctrl+Alt+F2";
 
     /// <summary>
-    /// Gets or sets the hotkey for filter operations.
+    /// Gets or sets the hotkey for manual filter operations (e.g., "Win+W").
     /// </summary>
-    public string? Filter { get; set; }
+    public string ManualFilter { get; set; } = "Win+W";
 
     /// <summary>
-    /// Gets or sets the hotkey for popup bar.
+    /// Gets or sets the hotkey for popup ClipBar list (e.g., "Ctrl+Shift+Alt+C").
     /// </summary>
-    public string? PopupBar { get; set; }
+    public string PopupClipBar { get; set; } = "Ctrl+Shift+Alt+C";
 }

@@ -6,6 +6,7 @@
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
                  xmlns:options="clr-namespace:ClipMate.App.Views.Options"
+                 xmlns:views="clr-namespace:ClipMate.App.Views"
                  d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
                  mc:Ignorable="d"
                  Title="Options"
@@ -76,6 +77,11 @@
         <!-- Sounds Tab -->
         <dx:DXTabItem Header="Sounds">
             <options:SoundsOptionsControl DataContext="{Binding Sounds}" />
+        </dx:DXTabItem>
+
+        <!-- Hotkeys Tab -->
+        <dx:DXTabItem Header="Hotkeys">
+            <views:HotkeysOptionsView DataContext="{Binding Hotkeys}" />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

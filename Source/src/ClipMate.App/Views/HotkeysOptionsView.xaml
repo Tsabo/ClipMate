@@ -1,0 +1,203 @@
+<UserControl x:Class="ClipMate.App.Views.HotkeysOptionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:behaviors="clr-namespace:ClipMate.App.Behaviors"
+             xmlns:viewModels="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:converters="clr-namespace:ClipMate.App.Converters"
+             d:DataContext="{d:DesignInstance Type=viewModels:HotkeysOptionsViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="10">
+        <dxlc:LayoutGroup View="GroupBox" Header="System-Wide Hotkeys" Orientation="Vertical">
+
+            <!-- Show ClipMate Window -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Show ClipMate Window:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ShowWindow, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ShowWindow"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+
+            <!-- Scroll To Next Item In Collection -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Scroll To Next Item In Collection:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ScrollNext, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ScrollNext"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Scroll To Previous Item In Collection -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Scroll To Previous Item In Collection:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ScrollPrevious, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ScrollPrevious"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Activate QuickPaste -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Activate QuickPaste:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ActivateQuickPaste, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ActivateQuickPaste"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Region Screen Capture -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Region Screen Capture:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding RegionScreenCapture, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="RegionScreenCapture"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Object Screen Capture -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Object Screen Capture:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ObjectScreenCapture, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ObjectScreenCapture"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- View Clip In Floating Window -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="View Clip In Floating Window:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ViewClipInFloatingWindow, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ViewClipInFloatingWindow"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Pop-Up ClipBar List -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Pop-Up ClipBar List:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding PopupClipBar, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="PopupClipBar"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Toggle Auto-Capture -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Toggle Auto-Capture:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ToggleAutoCapture, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ToggleAutoCapture"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Manual Capture -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Manual Capture:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ManualCapture, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ManualCapture"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+            <!-- Manual Filter -->
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Manual Filter:" LabelPosition="Left" Width="250">
+                    <dxe:TextEdit Text="{Binding ManualFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  behaviors:HotkeyInputBehavior.IsEnabled="True" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <dx:SimpleButton Content="Test"
+                                     Command="{Binding TestHotkeyCommand}"
+                                     CommandParameter="ManualFilter"
+                                     Width="80" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Test Result Panel -->
+        <dxlc:LayoutItem>
+            <Border BorderBrush="Gray"
+                    BorderThickness="1"
+                    Background="LightYellow"
+                    Padding="10"
+                    Margin="0,10,0,10">
+                <Border.Visibility>
+                    <Binding Path="TestResult" Converter="{StaticResource NullToVisibilityConverter}" />
+                </Border.Visibility>
+                <TextBlock Text="{Binding TestResult}"
+                           FontWeight="Medium"
+                           Foreground="DarkBlue" />
+            </Border>
+        </dxlc:LayoutItem>
+
+        <!-- Reset to Defaults Button -->
+        <dxlc:LayoutItem HorizontalAlignment="Left">
+            <dx:SimpleButton Content="Reset to Defaults"
+                             Command="{Binding ResetToDefaultsCommand}"
+                             Width="150" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+</UserControl>
