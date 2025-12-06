@@ -258,7 +258,7 @@ public class OptionsViewModelTests
 
         // Assert
         _mockProfileService.Verify(p => p.SetApplicationProfilesEnabled(true), Times.Once);
-        _mockConfigurationService.Verify(p => p.SaveAsync(), Times.Once);
+        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
