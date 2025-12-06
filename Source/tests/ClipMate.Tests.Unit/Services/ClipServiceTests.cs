@@ -239,7 +239,7 @@ public class ClipServiceTests
     {
         // Now using real ClipService implementation with mocked repository
         var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         return new ClipService(_mockRepository.Object, soundService.Object);
     }
 

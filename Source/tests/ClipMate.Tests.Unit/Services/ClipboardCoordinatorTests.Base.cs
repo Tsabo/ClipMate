@@ -105,7 +105,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
     private Mock<ISoundService> CreateMockSoundService()
     {
         var mock = new Mock<ISoundService>();
-        mock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        mock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         return mock;
     }
 }

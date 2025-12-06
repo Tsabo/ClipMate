@@ -150,7 +150,7 @@ public class ApplicationFilterTests : IntegrationTestBase
         var repository = new ApplicationFilterRepository(DbContext);
         var logger = Mock.Of<ILogger<ApplicationFilterService>>();
         var soundService = new Mock<ISoundService>();
-        soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         return new ApplicationFilterService(repository, soundService.Object, logger);
     }

@@ -190,7 +190,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
         var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         return new ClipService(repository, soundService.Object);
     }
@@ -203,7 +203,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
         var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>())).Returns(Task.CompletedTask);
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         return new ClipService(repository, soundService.Object);
     }
