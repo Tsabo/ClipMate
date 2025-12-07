@@ -2,124 +2,175 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars">
 
-    <!-- Shared Main Menu Template -->
-    <!-- This menu structure is used by both MainWindow (Explorer) and ClassicWindow (Classic) -->
+    <!--
+    SHARED MAIN MENU REFERENCE
+    
+    This file serves as the REFERENCE for the shared menu structure used by 
+    both ExplorerWindow and ClassicWindow.
+    
+    IMPORTANT: DevExpress BarManager does not support ResourceDictionary-based 
+    menu sharing due to command binding requirements. The menus MUST be defined 
+    inline in each window's XAML.
+    
+    The ACTUAL sharing happens through:
+      MainMenuViewModel: Contains all command implementations
+      Both windows bind to {Binding MainMenu.CommandName}
+    
+    This file documents the canonical menu structure that should be maintained
+    consistently across both windows. When updating menus, update this reference
+    first, then copy to both ExplorerWindow.xaml and ClassicWindow.xaml.
+    -->
+    
+    <!-- Below is a reference copy of the complete menu structure for documentation -->
+    <!-- To use: Copy the menu Bar from below into your window's BarManager.Bars section -->
+    
+    <!--
+    <dxb:Bar Caption="Main Menu" IsMainMenu="True">
+        <dxb:BarSubItem Content="_File">
+            <dxb:BarButtonItem Content="Create New, Empty Clip" KeyGesture="Ctrl+N"
+                               Command="{Binding MainMenu.CreateNewClipCommand}" />
+            <dxb:BarButtonItem Content="Clip Properties" KeyGesture="Alt+Enter"
+                               Command="{Binding MainMenu.ClipPropertiesCommand}" />
+            <dxb:BarButtonItem Content="Rename Clip" KeyGesture="Ctrl+R"
+                               Command="{Binding MainMenu.RenameClipCommand}" />
+            <dxb:BarButtonItem Content="Delete Selected Items" Command="{Binding MainMenu.DeleteSelectedCommand}" />
+            <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
+            <dxb:BarButtonItem Content="Copy Item To Collection"
+                               Command="{Binding MainMenu.CopyToCollectionCommand}" />
+            <dxb:BarButtonItem Content="Move Item To Collection"
+                               Command="{Binding MainMenu.MoveToCollectionCommand}" />
+            <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
+                               Command="{Binding MainMenu.ExportClipsCommand}" />
+            <dxb:BarButtonItem Content="Export Clip(s) to XML" Command="{Binding MainMenu.ExportToXmlCommand}" />
+            <dxb:BarButtonItem Content="Import Clip(s) from XML" Command="{Binding MainMenu.ImportFromXmlCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Decrypt and remove encryption on selected clips"
+                               Command="{Binding MainMenu.DecryptClipsCommand}" />
+            <dxb:BarButtonItem Content="Encrypt selected clips" Command="{Binding MainMenu.EncryptClipsCommand}" />
+            <dxb:BarButtonItem Content="Forget Encryption Key"
+                               Command="{Binding MainMenu.ForgetEncryptionKeyCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Properties" Command="{Binding MainMenu.ShowPropertiesCommand}" />
+            <dxb:BarButtonItem Content="Add New Collection" Command="{Binding MainMenu.AddCollectionCommand}" />
+            <dxb:BarButtonItem Content="Delete Collection" Command="{Binding MainMenu.DeleteCollectionCommand}" />
+            <dxb:BarButtonItem Content="Reload Collection" KeyGesture="Alt+R"
+                               Command="{Binding MainMenu.ReloadCollectionCommand}" />
+            <dxb:BarButtonItem Content="Resequence Sort Keys" Command="{Binding MainMenu.ResequenceSortKeysCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarSubItem Content="Database Maintenance" />
+            <dxb:BarButtonItem Content="Activate Database" Command="{Binding MainMenu.ActivateDatabaseCommand}" />
+            <dxb:BarButtonItem Content="De-Activate Database" Command="{Binding MainMenu.DeactivateDatabaseCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P" Command="{Binding MainMenu.PrintCommand}" />
+            <dxb:BarButtonItem Content="Enable Quick Print" Command="{Binding MainMenu.EnableQuickPrintCommand}" />
+            <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Exit Program (Shut Down)" Command="{Binding MainMenu.ExitCommand}" />
+        </dxb:BarSubItem>
 
-    <DataTemplate x:Key="SharedMainMenuTemplate">
-        <dxb:Bar Caption="Main Menu" IsMainMenu="True">
-            <!-- File Menu -->
-            <dxb:BarSubItem Content="_File">
-                <dxb:BarButtonItem Content="Create New, Empty Clip" KeyGesture="Ctrl+N" />
-                <dxb:BarButtonItem Content="Clip Properties" KeyGesture="Alt+Enter" />
-                <dxb:BarButtonItem Content="Rename Clip" KeyGesture="Ctrl+R" />
-                <dxb:BarButtonItem Content="Delete Selected Items" />
-                <dxb:BarButtonItem Content="Un Delete" />
-                <dxb:BarButtonItem Content="Copy Item To Collection" />
-                <dxb:BarButtonItem Content="Move Item To Collection" />
-                <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)" />
-                <dxb:BarButtonItem Content="Export Clip(s) to XML" />
-                <dxb:BarButtonItem Content="Import Clip(s) from XML" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Decrypt and remove encryption on selected clips" />
-                <dxb:BarButtonItem Content="Encrypt selected clips" />
-                <dxb:BarButtonItem Content="Forget Encryption Key" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Properties" />
-                <dxb:BarButtonItem Content="Add New Collection" />
-                <dxb:BarButtonItem Content="Delete Collection" />
-                <dxb:BarButtonItem Content="Reload Collection" KeyGesture="Alt+R" />
-                <dxb:BarButtonItem Content="Resequence Sort Keys" />
-                <dxb:BarItemSeparator />
-                <dxb:BarSubItem Content="Database Maintenance">
-                    <!-- Placeholder for submenu items -->
-                </dxb:BarSubItem>
-                <dxb:BarButtonItem Content="Activate Database" />
-                <dxb:BarButtonItem Content="De-Activate Database" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P" />
-                <dxb:BarButtonItem Content="Enable Quick Print" />
-                <dxb:BarButtonItem Content="Print Options..." />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Exit Program (Shut Down)" />
-            </dxb:BarSubItem>
+        <dxb:BarSubItem Content="_Edit">
+            <dxb:BarButtonItem Content="Undo" Command="{Binding MainMenu.UndoCommand}" />
+            <dxb:BarButtonItem Content="Select All Clips" Command="{Binding MainMenu.SelectAllCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Capture Special..." Command="{Binding MainMenu.CaptureSpecialCommand}" />
+            <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
+                               Command="{Binding MainMenu.AppendClipsCommand}" />
+            <dxb:BarSubItem Content="Screen Capture" />
+            <dxb:BarSubItem Content="QuickPaste" />
+            <dxb:BarItemSeparator />
+            <dxb:BarSubItem Content="Case Conversion" />
+            <dxb:BarButtonItem Content="Clean-Up Text..." Command="{Binding MainMenu.CleanUpTextCommand}" />
+            <dxb:BarButtonItem Content="Shift Left" Command="{Binding MainMenu.ShiftLeftCommand}" />
+            <dxb:BarButtonItem Content="Shift Right" Command="{Binding MainMenu.ShiftRightCommand}" />
+            <dxb:BarButtonItem Content="Remove Linebreaks" KeyGesture="Ctrl+Alt+B"
+                               Command="{Binding MainMenu.RemoveLineBreaksCommand}" />
+            <dxb:BarButtonItem Content="Check Spelling" KeyGesture="F7"
+                               Command="{Binding MainMenu.CheckSpellingCommand}" />
+            <dxb:BarButtonItem Content="Change Title and Shortcut" KeyGesture="Ctrl+R"
+                               Command="{Binding MainMenu.ChangeTitleCommand}" />
+            <dxb:BarButtonItem Content="Strip Out Non-TEXT Data Formats" KeyGesture="Ctrl+Alt+T"
+                               Command="{Binding MainMenu.StripNonTextCommand}" />
+            <dxb:BarButtonItem Content="Convert File Pointer To Text"
+                               Command="{Binding MainMenu.ConvertFilePointerCommand}" />
+            <dxb:BarButtonItem Content="Unicode To Ansi" Command="{Binding MainMenu.UnicodeToAnsiCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="PowerPaste Up" KeyGesture="Ctrl+U"
+                               Command="{Binding MainMenu.PowerPasteUpCommand}" />
+            <dxb:BarButtonItem Content="PowerPaste Down" KeyGesture="Ctrl+D"
+                               Command="{Binding MainMenu.PowerPasteDownCommand}" />
+            <dxb:BarCheckItem Content="PowerPaste Option - Loop" IsChecked="{Binding MainMenu.IsLoopMode}" />
+            <dxb:BarCheckItem Content="PowerPaste Option - Explode Into Fragments"
+                              IsChecked="{Binding MainMenu.IsExplodeMode}" />
+        </dxb:BarSubItem>
 
-            <!-- Edit Menu -->
-            <dxb:BarSubItem Content="_Edit">
-                <dxb:BarButtonItem Content="Undo" />
-                <dxb:BarButtonItem Content="Select All Clips" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Capture Special..." />
-                <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A" />
-                <dxb:BarSubItem Content="Screen Capture" />
-                <dxb:BarSubItem Content="QuickPaste" />
-                <dxb:BarItemSeparator />
-                <dxb:BarSubItem Content="Case Conversion" />
-                <dxb:BarButtonItem Content="Clean-Up Text..." />
-                <dxb:BarButtonItem Content="Shift Left" />
-                <dxb:BarButtonItem Content="Shift Right" />
-                <dxb:BarButtonItem Content="Remove Linebreaks" KeyGesture="Ctrl+Alt+B" />
-                <dxb:BarButtonItem Content="Check Spelling" KeyGesture="F7" />
-                <dxb:BarButtonItem Content="Change Title and Shortcut" KeyGesture="Ctrl+R" />
-                <dxb:BarButtonItem Content="Strip Out Non-TEXT Data Formats" KeyGesture="Ctrl+Alt+T" />
-                <dxb:BarButtonItem Content="Convert File Pointer To Text" />
-                <dxb:BarButtonItem Content="Unicode To Ansi" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="PowerPaste Up" KeyGesture="Ctrl+U" />
-                <dxb:BarButtonItem Content="PowerPaste Down" KeyGesture="Ctrl+D" />
-                <dxb:BarCheckItem Content="PowerPaste Option - Loop" />
-                <dxb:BarCheckItem Content="PowerPaste Option - Explode Into Fragments" />
-            </dxb:BarSubItem>
+        <dxb:BarSubItem Content="_Tools">
+            <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
+                               Command="{Binding MainMenu.AutoCaptureCommand}" />
+            <dxb:BarButtonItem Content="Filter Outbound Clips" Command="{Binding MainMenu.FilterOutboundCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}" />
+            <dxb:BarButtonItem Content="Application Profile..." Command="{Binding MainMenu.AppProfileCommand}" />
+            <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}" />
+            <dxb:BarButtonItem Content="Connect to ClipBar" Command="{Binding MainMenu.ConnectToClipBarCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Clipboard Diagnostics..."
+                               Command="{Binding MainMenu.ClipboardDiagnosticsCommand}" />
+            <dxb:BarButtonItem Content="Trace Paste" Command="{Binding MainMenu.TracePasteCommand}" />
+            <dxb:BarButtonItem Content="Re-Establish Clipboard Connection"
+                               Command="{Binding MainMenu.ReestablishClipboardCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Show SQL Window" Command="{Binding MainMenu.ShowSqlWindowCommand}" />
+            <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}" />
+        </dxb:BarSubItem>
 
-            <!-- Tools Menu -->
-            <dxb:BarSubItem Content="_Tools">
-                <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12" />
-                <dxb:BarButtonItem Content="Filter Outbound Clips" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Options..." />
-                <dxb:BarButtonItem Content="Application Profile..." />
-                <dxb:BarButtonItem Content="Language" />
-                <dxb:BarButtonItem Content="Connect to ClipBar" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Clipboard Diagnostics..." />
-                <dxb:BarButtonItem Content="Trace Paste" />
-                <dxb:BarButtonItem Content="Re-Establish Clipboard Connection" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Show SQL Window" />
-                <dxb:BarButtonItem Content="Show Event Log" />
-            </dxb:BarSubItem>
+        <dxb:BarSubItem Content="_View">
+            <dxb:BarButtonItem Content="Find (Search)..." KeyGesture="Ctrl+F"
+                               Command="{Binding MainMenu.SearchCommand}" />
+            <dxb:BarButtonItem Content="Select Previous Item (Up)" KeyGesture="Ctrl+Alt+P"
+                               Command="{Binding MainMenu.SelectPreviousCommand}" />
+            <dxb:BarButtonItem Content="Select Next Item (Down)" KeyGesture="Ctrl+Alt+N"
+                               Command="{Binding MainMenu.SelectNextCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Switch To Last Collection" KeyGesture="F5"
+                               Command="{Binding MainMenu.SwitchToLastCollectionCommand}" />
+            <dxb:BarButtonItem Content="Switch to Favorite Collection" KeyGesture="F6"
+                               Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}" />
+            <dxb:BarButtonItem Content="Select Collection" KeyGesture="F8"
+                               Command="{Binding MainMenu.SelectCollectionCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Open Source URL In Browser" KeyGesture="Ctrl+O"
+                               Command="{Binding MainMenu.OpenSourceUrlCommand}" />
+            <dxb:BarButtonItem Content="CharMap (Launch)" Command="{Binding MainMenu.LaunchCharMapCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="View Clip" KeyGesture="F2" Command="{Binding MainMenu.ViewClipCommand}" />
+            <dxb:BarButtonItem Content="Switch Between Classic / Explorer" KeyGesture="Ctrl+E"
+                               Command="{Binding MainMenu.SwitchViewCommand}" />
+            <dxb:BarButtonItem Content="Open ClipMate Explorer" Command="{Binding MainMenu.OpenExplorerCommand}" />
+            <dxb:BarButtonItem Content="Open ClipMate Classic" Command="{Binding MainMenu.OpenClassicCommand}" />
+            <dxb:BarButtonItem Content="Close And Free All Windows"
+                               Command="{Binding MainMenu.CloseAllWindowsCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarItemSeparator />
+            <dxb:BarSubItem Content="Visibility" />
+            <dxb:BarSubItem Content="Classic Options" />
+            <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}" />
+        </dxb:BarSubItem>
 
-            <!-- View Menu -->
-            <dxb:BarSubItem Content="_View">
-                <dxb:BarButtonItem Content="Find (Search)..." KeyGesture="Ctrl+F" />
-                <dxb:BarButtonItem Content="Select Previous Item (Up)" KeyGesture="Ctrl+Alt+P" />
-                <dxb:BarButtonItem Content="Select Next Item (Down)" KeyGesture="Ctrl+Alt+N" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Switch To Last Collection" KeyGesture="F5" />
-                <dxb:BarButtonItem Content="Switch to Favorite Collection" KeyGesture="F6" />
-                <dxb:BarButtonItem Content="Select Collection" KeyGesture="F8" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Open Source URL In Browser" KeyGesture="Ctrl+O" />
-                <dxb:BarButtonItem Content="CharMap (Launch)" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="View Clip" KeyGesture="F2" />
-                <dxb:BarButtonItem Content="Switch Between Classic / Explorer" KeyGesture="Ctrl+E" />
-                <dxb:BarButtonItem Content="Open ClipMate Explorer" />
-                <dxb:BarButtonItem Content="Open ClipMate Classic" />
-                <dxb:BarButtonItem Content="Close And Free All Windows" />
-                <dxb:BarItemSeparator />
-                <dxb:BarSubItem Content="Visibility" />
-                <dxb:BarSubItem Content="Classic Options" />
-                <dxb:BarButtonItem Content="Transparency" />
-            </dxb:BarSubItem>
+        <dxb:BarSubItem Content="T_emplates">
+            <dxb:BarButtonItem Content="_Manage Templates..." Command="{Binding MainMenu.ManageTemplatesCommand}"
+                               KeyGesture="Ctrl+Shift+T" />
+        </dxb:BarSubItem>
 
-            <!-- Help Menu -->
-            <dxb:BarSubItem Content="_Help">
-                <dxb:BarButtonItem Content="About ClipMate" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="Documentation (GitHub Wiki)" />
-                <dxb:BarButtonItem Content="View on GitHub" />
-            </dxb:BarSubItem>
-        </dxb:Bar>
-    </DataTemplate>
+        <dxb:BarSubItem Content="_Help">
+            <dxb:BarButtonItem Content="About ClipMate" Command="{Binding MainMenu.AboutCommand}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Documentation (GitHub Wiki)"
+                               Command="{Binding MainMenu.DocumentationCommand}" />
+            <dxb:BarButtonItem Content="View on GitHub" Command="{Binding MainMenu.ViewOnGitHubCommand}" />
+        </dxb:BarSubItem>
+    </dxb:Bar>
+    (end of reference)
+    ==END==
+    -->
 
 </ResourceDictionary>
