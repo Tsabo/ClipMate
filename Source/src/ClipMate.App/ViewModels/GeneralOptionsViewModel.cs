@@ -1,8 +1,10 @@
+using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
@@ -14,10 +16,14 @@ public partial class GeneralOptionsViewModel : ObservableObject
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<GeneralOptionsViewModel> _logger;
+    private readonly IMessenger _messenger;
     private readonly IStartupManager _startupManager;
 
     [ObservableProperty]
     private bool _checkUpdatesAutomatically;
+
+    [ObservableProperty]
+    private ClipBarPopupLocation _clipBarPopupLocation;
 
     [ObservableProperty]
     private CollectionIconClickBehavior _collectionIconClickBehavior;
@@ -41,21 +47,34 @@ public partial class GeneralOptionsViewModel : ObservableObject
     private bool _mousewheelSelectsClip;
 
     [ObservableProperty]
+    private bool _showTaskbarIcon;
+
+    [ObservableProperty]
+    private bool _showTrayIcon;
+
+    [ObservableProperty]
     private bool _sortCollectionsAlphabetically;
 
     [ObservableProperty]
     private bool _startWithWindows;
 
     [ObservableProperty]
+    private IconLeftClickAction _taskbarIconLeftClickAction;
+
+    [ObservableProperty]
+    private IconLeftClickAction _trayIconLeftClickAction;
+
+    [ObservableProperty]
     private int _updateCheckIntervalDays;
 
-    public GeneralOptionsViewModel(
-        IConfigurationService configurationService,
+    public GeneralOptionsViewModel(IConfigurationService configurationService,
         IStartupManager startupManager,
+        IMessenger messenger,
         ILogger<GeneralOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -76,6 +95,11 @@ public partial class GeneralOptionsViewModel : ObservableObject
         MousewheelSelectsClip = config.MousewheelSelectsClip;
         CollectionIconClickBehavior = config.CollectionIconClickBehavior;
         ExplorerLayout = config.ExplorerLayout;
+        ShowTrayIcon = config.ShowTrayIcon;
+        ShowTaskbarIcon = config.ShowTaskbarIcon;
+        TrayIconLeftClickAction = config.TrayIconLeftClickAction;
+        TaskbarIconLeftClickAction = config.TaskbarIconLeftClickAction;
+        ClipBarPopupLocation = config.ClipBarPopupLocation;
 
         // Load the current startup state from registry
         var (success, isEnabled, errorMessage) = await _startupManager.IsEnabledAsync();
@@ -108,6 +132,24 @@ public partial class GeneralOptionsViewModel : ObservableObject
         config.MousewheelSelectsClip = MousewheelSelectsClip;
         config.CollectionIconClickBehavior = CollectionIconClickBehavior;
         config.ExplorerLayout = ExplorerLayout;
+
+        // Validate icon visibility - at least one must be visible
+        if (!ShowTrayIcon && !ShowTaskbarIcon)
+        {
+            _logger.LogWarning("Cannot hide both tray icon and taskbar icon, forcing tray icon visible");
+            ShowTrayIcon = true;
+        }
+
+        config.ShowTrayIcon = ShowTrayIcon;
+        config.ShowTaskbarIcon = ShowTaskbarIcon;
+        config.TrayIconLeftClickAction = TrayIconLeftClickAction;
+        config.TaskbarIconLeftClickAction = TaskbarIconLeftClickAction;
+        config.ClipBarPopupLocation = ClipBarPopupLocation;
+
+        // Send events to update UI components
+        _messenger.Send(new ShowTrayIconChangedEvent(ShowTrayIcon));
+        _messenger.Send(new ShowTaskbarIconChangedEvent(ShowTaskbarIcon));
+        _messenger.Send(new IconClickBehaviorChangedEvent());
 
         // Handle Windows startup registry setting
         if (StartWithWindows)
@@ -149,6 +191,11 @@ public partial class GeneralOptionsViewModel : ObservableObject
         MousewheelSelectsClip = true;
         CollectionIconClickBehavior = CollectionIconClickBehavior.MenuAppears;
         ExplorerLayout = ExplorerLayoutMode.FullWidthEditor;
+        ShowTrayIcon = true;
+        ShowTaskbarIcon = true;
+        TrayIconLeftClickAction = IconLeftClickAction.ShowExplorerWindow;
+        TaskbarIconLeftClickAction = IconLeftClickAction.ShowExplorerWindow;
+        ClipBarPopupLocation = ClipBarPopupLocation.AtMouseCursor;
 
         _logger.LogInformation("General settings reset to defaults");
     }

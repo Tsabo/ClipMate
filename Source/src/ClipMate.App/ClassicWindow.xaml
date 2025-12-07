@@ -1,0 +1,354 @@
+<dx:ThemedWindow
+    x:Class="ClipMate.App.ClassicWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+    xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+    xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+    xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+    d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
+    mc:Ignorable="d"
+    Title="ClipMate Classic [InBox]"
+    Width="700"
+    Height="220"
+    MinWidth="500"
+    MinHeight="220"
+    ResizeMode="CanResize"
+    ShowInTaskbar="False"
+    WindowStartupLocation="Manual"
+    Loaded="Window_Loaded"
+    Closing="Window_Closing"
+    Deactivated="Window_Deactivated">
+
+    <dx:ThemedWindow.InputBindings>
+        <KeyBinding Key="Space" Command="{Binding ToggleDropDownCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CloseWindowCommand}" />
+        <KeyBinding Key="F12" Command="{Binding MainMenu.AutoCaptureCommand}" />
+        <KeyBinding Key="F2" Command="{Binding MainMenu.ViewClipCommand}" />
+        <KeyBinding Key="F5" Command="{Binding MainMenu.SwitchToLastCollectionCommand}" />
+        <KeyBinding Key="F6" Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}" />
+        <KeyBinding Key="F8" Command="{Binding MainMenu.SelectCollectionCommand}" />
+    </dx:ThemedWindow.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <!-- Menu Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Toolbar -->
+            <RowDefinition Height="Auto" />
+            <!-- Current Clip Selector -->
+            <RowDefinition Height="*" />
+            <!-- ClipList (Collapsible) -->
+            <RowDefinition Height="Auto" />
+            <!-- Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- BarManager: Menu and Toolbar -->
+        <dxb:BarManager x:Name="BarManager" Grid.Row="0" Grid.RowSpan="2">
+            <dxb:BarManager.Bars>
+                <!-- Main Menu -->
+                <dxb:Bar Caption="Main Menu" IsMainMenu="True">
+                    <!-- File Menu -->
+                    <dxb:BarSubItem Content="_File">
+                        <dxb:BarButtonItem Content="Create New, Empty Clip" KeyGesture="Ctrl+N"
+                                           Command="{Binding MainMenu.CreateNewClipCommand}" />
+                        <dxb:BarButtonItem Content="Clip Properties" KeyGesture="Alt+Enter"
+                                           Command="{Binding MainMenu.ClipPropertiesCommand}" />
+                        <dxb:BarButtonItem Content="Rename Clip" KeyGesture="Ctrl+R"
+                                           Command="{Binding MainMenu.RenameClipCommand}" />
+                        <dxb:BarButtonItem Content="Delete Selected Items" Command="{Binding MainMenu.DeleteSelectedCommand}" />
+                        <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
+                        <dxb:BarButtonItem Content="Copy Item To Collection"
+                                           Command="{Binding MainMenu.CopyToCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Move Item To Collection"
+                                           Command="{Binding MainMenu.MoveToCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
+                                           Command="{Binding MainMenu.ExportClipsCommand}" />
+                        <dxb:BarButtonItem Content="Export Clip(s) to XML" Command="{Binding MainMenu.ExportToXmlCommand}" />
+                        <dxb:BarButtonItem Content="Import Clip(s) from XML" Command="{Binding MainMenu.ImportFromXmlCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Decrypt and remove encryption on selected clips"
+                                           Command="{Binding MainMenu.DecryptClipsCommand}" />
+                        <dxb:BarButtonItem Content="Encrypt selected clips" Command="{Binding MainMenu.EncryptClipsCommand}" />
+                        <dxb:BarButtonItem Content="Forget Encryption Key"
+                                           Command="{Binding MainMenu.ForgetEncryptionKeyCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Properties" Command="{Binding MainMenu.ShowPropertiesCommand}" />
+                        <dxb:BarButtonItem Content="Add New Collection" Command="{Binding MainMenu.AddCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Delete Collection" Command="{Binding MainMenu.DeleteCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Reload Collection" KeyGesture="Alt+R"
+                                           Command="{Binding MainMenu.ReloadCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Resequence Sort Keys" Command="{Binding MainMenu.ResequenceSortKeysCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarSubItem Content="Database Maintenance" />
+                        <dxb:BarButtonItem Content="Activate Database" Command="{Binding MainMenu.ActivateDatabaseCommand}" />
+                        <dxb:BarButtonItem Content="De-Activate Database" Command="{Binding MainMenu.DeactivateDatabaseCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P" Command="{Binding MainMenu.PrintCommand}" />
+                        <dxb:BarButtonItem Content="Enable Quick Print" Command="{Binding MainMenu.EnableQuickPrintCommand}" />
+                        <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Exit Program (Shut Down)" Command="{Binding MainMenu.ExitCommand}" />
+                    </dxb:BarSubItem>
+
+                    <!-- Edit Menu -->
+                    <dxb:BarSubItem Content="_Edit">
+                        <dxb:BarButtonItem Content="Undo" Command="{Binding MainMenu.UndoCommand}" />
+                        <dxb:BarButtonItem Content="Select All Clips" Command="{Binding MainMenu.SelectAllCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Capture Special..." Command="{Binding MainMenu.CaptureSpecialCommand}" />
+                        <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
+                                           Command="{Binding MainMenu.AppendClipsCommand}" />
+                        <dxb:BarSubItem Content="Screen Capture" />
+                        <dxb:BarSubItem Content="QuickPaste" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarSubItem Content="Case Conversion" />
+                        <dxb:BarButtonItem Content="Clean-Up Text..." Command="{Binding MainMenu.CleanUpTextCommand}" />
+                        <dxb:BarButtonItem Content="Shift Left" Command="{Binding MainMenu.ShiftLeftCommand}" />
+                        <dxb:BarButtonItem Content="Shift Right" Command="{Binding MainMenu.ShiftRightCommand}" />
+                        <dxb:BarButtonItem Content="Remove Linebreaks" KeyGesture="Ctrl+Alt+B"
+                                           Command="{Binding MainMenu.RemoveLineBreaksCommand}" />
+                        <dxb:BarButtonItem Content="Check Spelling" KeyGesture="F7"
+                                           Command="{Binding MainMenu.CheckSpellingCommand}" />
+                        <dxb:BarButtonItem Content="Change Title and Shortcut" KeyGesture="Ctrl+R"
+                                           Command="{Binding MainMenu.ChangeTitleCommand}" />
+                        <dxb:BarButtonItem Content="Strip Out Non-TEXT Data Formats" KeyGesture="Ctrl+Alt+T"
+                                           Command="{Binding MainMenu.StripNonTextCommand}" />
+                        <dxb:BarButtonItem Content="Convert File Pointer To Text"
+                                           Command="{Binding MainMenu.ConvertFilePointerCommand}" />
+                        <dxb:BarButtonItem Content="Unicode To Ansi" Command="{Binding MainMenu.UnicodeToAnsiCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="PowerPaste Up" KeyGesture="Ctrl+U"
+                                           Command="{Binding MainMenu.PowerPasteUpCommand}" />
+                        <dxb:BarButtonItem Content="PowerPaste Down" KeyGesture="Ctrl+D"
+                                           Command="{Binding MainMenu.PowerPasteDownCommand}" />
+                        <dxb:BarCheckItem Content="PowerPaste Option - Loop" IsChecked="{Binding MainMenu.IsLoopMode}" />
+                        <dxb:BarCheckItem Content="PowerPaste Option - Explode Into Fragments"
+                                          IsChecked="{Binding MainMenu.IsExplodeMode}" />
+                    </dxb:BarSubItem>
+
+                    <!-- Tools Menu -->
+                    <dxb:BarSubItem Content="_Tools">
+                        <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
+                                           Command="{Binding MainMenu.AutoCaptureCommand}" />
+                        <dxb:BarButtonItem Content="Filter Outbound Clips" Command="{Binding MainMenu.FilterOutboundCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}" />
+                        <dxb:BarButtonItem Content="Application Profile..." Command="{Binding MainMenu.AppProfileCommand}" />
+                        <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}" />
+                        <dxb:BarButtonItem Content="Connect to ClipBar" Command="{Binding MainMenu.ConnectToClipBarCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Clipboard Diagnostics..."
+                                           Command="{Binding MainMenu.ClipboardDiagnosticsCommand}" />
+                        <dxb:BarButtonItem Content="Trace Paste" Command="{Binding MainMenu.TracePasteCommand}" />
+                        <dxb:BarButtonItem Content="Re-Establish Clipboard Connection"
+                                           Command="{Binding MainMenu.ReestablishClipboardCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Show SQL Window" Command="{Binding MainMenu.ShowSqlWindowCommand}" />
+                        <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}" />
+                    </dxb:BarSubItem>
+
+                    <!-- View Menu -->
+                    <dxb:BarSubItem Content="_View">
+                        <dxb:BarButtonItem Content="Find (Search)..." KeyGesture="Ctrl+F"
+                                           Command="{Binding MainMenu.SearchCommand}" />
+                        <dxb:BarButtonItem Content="Select Previous Item (Up)" KeyGesture="Ctrl+Alt+P"
+                                           Command="{Binding MainMenu.SelectPreviousCommand}" />
+                        <dxb:BarButtonItem Content="Select Next Item (Down)" KeyGesture="Ctrl+Alt+N"
+                                           Command="{Binding MainMenu.SelectNextCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Switch To Last Collection" KeyGesture="F5"
+                                           Command="{Binding MainMenu.SwitchToLastCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Switch to Favorite Collection" KeyGesture="F6"
+                                           Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}" />
+                        <dxb:BarButtonItem Content="Select Collection" KeyGesture="F8"
+                                           Command="{Binding MainMenu.SelectCollectionCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Open Source URL In Browser" KeyGesture="Ctrl+O"
+                                           Command="{Binding MainMenu.OpenSourceUrlCommand}" />
+                        <dxb:BarButtonItem Content="CharMap (Launch)" Command="{Binding MainMenu.LaunchCharMapCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="View Clip" KeyGesture="F2" Command="{Binding MainMenu.ViewClipCommand}" />
+                        <dxb:BarButtonItem Content="Switch Between Classic / Explorer" KeyGesture="Ctrl+E"
+                                           Command="{Binding MainMenu.SwitchViewCommand}" />
+                        <dxb:BarButtonItem Content="Open ClipMate Explorer" Command="{Binding MainMenu.OpenExplorerCommand}" />
+                        <dxb:BarButtonItem Content="Open ClipMate Classic" Command="{Binding MainMenu.OpenClassicCommand}" />
+                        <dxb:BarButtonItem Content="Close And Free All Windows"
+                                           Command="{Binding MainMenu.CloseAllWindowsCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarSubItem Content="Visibility" />
+                        <dxb:BarSubItem Content="Classic Options" />
+                        <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}" />
+                    </dxb:BarSubItem>
+
+                    <!-- Help Menu -->
+                    <dxb:BarSubItem Content="_Help">
+                        <dxb:BarButtonItem Content="About ClipMate" Command="{Binding MainMenu.AboutCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Documentation (GitHub Wiki)"
+                                           Command="{Binding MainMenu.DocumentationCommand}" />
+                        <dxb:BarButtonItem Content="View on GitHub" Command="{Binding MainMenu.ViewOnGitHubCommand}" />
+                    </dxb:BarSubItem>
+                </dxb:Bar>
+
+                <!-- Toolbar -->
+                <dxb:Bar Caption="Main Toolbar" IsMainMenu="False" AllowCollapse="True">
+                    <dxb:BarButtonItem Content="PowerPaste"
+                                       Command="{Binding MainMenu.PowerPasteToggleCommand}"
+                                       ToolTip="Toggle PowerPaste"
+                                       Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
+                    <dxb:BarButtonItem Content="Delete"
+                                       Command="{Binding MainMenu.DeleteSelectedCommand}"
+                                       ToolTip="Delete selected clip(s)"
+                                       Glyph="{dx:DXImage 'SvgImages/Edit/Delete.svg'}" />
+                    <dxb:BarButtonItem Content="Print"
+                                       Command="{Binding MainMenu.PrintCommand}"
+                                       ToolTip="Print selected clip(s)"
+                                       Glyph="{dx:DXImage 'SvgImages/Print/Print.svg'}" />
+                    <dxb:BarButtonItem Content="Append"
+                                       Command="{Binding MainMenu.AppendClipsCommand}"
+                                       ToolTip="Append selected clips together"
+                                       Glyph="{dx:DXImage 'SvgImages/Actions/Merge.svg'}" />
+                    <dxb:BarButtonItem Content="Remove Breaks"
+                                       Command="{Binding MainMenu.RemoveLineBreaksCommand}"
+                                       ToolTip="Remove line breaks"
+                                       Glyph="{dx:DXImage 'SvgImages/Edit/RemoveLineBreaks.svg'}" />
+                    <dxb:BarSubItem Content="Move To"
+                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveTo.svg'}">
+                        <dxb:BarButtonItem Content="Inbox" Command="{Binding MainMenu.MoveToInboxCommand}" />
+                        <dxb:BarButtonItem Content="Safe" Command="{Binding MainMenu.MoveToSafeCommand}" />
+                        <dxb:BarButtonItem Content="Overflow" Command="{Binding MainMenu.MoveToOverflowCommand}" />
+                        <dxb:BarButtonItem Content="Samples" Command="{Binding MainMenu.MoveToSamplesCommand}" />
+                        <dxb:BarButtonItem Content="Trash Can" Command="{Binding MainMenu.MoveToTrashCommand}" />
+                    </dxb:BarSubItem>
+                    <dxb:BarButtonItem Content="Search"
+                                       Command="{Binding MainMenu.SearchCommand}"
+                                       ToolTip="Search clips"
+                                       Glyph="{dx:DXImage 'SvgImages/Actions/Search.svg'}" />
+                    <dxb:BarSubItem Content="Collection"
+                                    Glyph="{dx:DXImage 'SvgImages/Business Objects/Folder.svg'}">
+                        <dxb:BarButtonItem Content="Inbox" Command="{Binding MainMenu.SelectInboxCommand}" />
+                        <dxb:BarButtonItem Content="Safe" Command="{Binding MainMenu.SelectSafeCommand}" />
+                        <dxb:BarButtonItem Content="Overflow" Command="{Binding MainMenu.SelectOverflowCommand}" />
+                        <dxb:BarButtonItem Content="Samples" Command="{Binding MainMenu.SelectSamplesCommand}" />
+                        <dxb:BarButtonItem Content="Trash Can" Command="{Binding MainMenu.SelectTrashCommand}" />
+                    </dxb:BarSubItem>
+                </dxb:Bar>
+            </dxb:BarManager.Bars>
+        </dxb:BarManager>
+
+        <!-- Current Clip Selector Row -->
+        <Border Grid.Row="2"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,1"
+                Padding="8,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Icon -->
+                <TextBlock Grid.Column="0"
+                           Margin="0,0,8,0"
+                           FontSize="16"
+                           Text="📋"
+                           VerticalAlignment="Center" />
+
+                <!-- Current Clip Title -->
+                <TextBlock Grid.Column="1"
+                           Text="{Binding SelectedClipTitle}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold" />
+
+                <!-- Tack Button (only visible when dropped down) -->
+                <Button x:Name="TackButton"
+                        Grid.Column="2"
+                        Content="📌"
+                        Command="{Binding ToggleTackCommand}"
+                        ToolTip="Pin window in dropped-down state"
+                        Margin="4,0"
+                        Padding="4,2"
+                        MinWidth="30"
+                        Visibility="{Binding IsDroppedDown, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <!-- Dropdown Toggle Button -->
+                <Button x:Name="DropdownButton"
+                        Grid.Column="3"
+                        Content="▼"
+                        Command="{Binding ToggleDropDownCommand}"
+                        ToolTip="Toggle clip list view (Spacebar)"
+                        Padding="4,2"
+                        MinWidth="30" />
+            </Grid>
+        </Border>
+
+        <!-- Collapsible ClipList Section -->
+        <Border x:Name="ClipListSection"
+                Grid.Row="3"
+                Visibility="{Binding IsDroppedDown, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <dxg:GridControl x:Name="ClipListGrid"
+                             ItemsSource="{Binding Clips}"
+                             SelectedItem="{Binding SelectedClip}"
+                             SelectionMode="Row"
+                             AutoGenerateColumns="False"
+                             SelectionChanged="ClipListGrid_SelectionChanged">
+                <dxg:GridControl.View>
+                    <dxg:TableView ShowGroupPanel="False"
+                                   AllowEditing="False"
+                                   AllowGrouping="False"
+                                   ShowIndicator="False"
+                                   AutoWidth="True" />
+                </dxg:GridControl.View>
+                <dxg:GridControl.Columns>
+                    <dxg:GridColumn FieldName="Title"
+                                    Header="Title"
+                                    Width="*">
+                        <dxg:GridColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Row.Icon}"
+                                               Margin="0,0,8,0"
+                                               FontSize="14" />
+                                    <TextBlock Text="{Binding Row.Title}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </dxg:GridColumn.CellTemplate>
+                    </dxg:GridColumn>
+                    <dxg:GridColumn FieldName="SortKey"
+                                    Header="SortKey"
+                                    Width="100" />
+                </dxg:GridControl.Columns>
+            </dxg:GridControl>
+        </Border>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="4">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <!-- Quick Action Buttons -->
+                    <Button Content="🏠" ToolTip="Home" Margin="2,0" Command="{Binding HomeCommand}" />
+                    <Button Content="📤" ToolTip="Up" Margin="2,0" Command="{Binding MainMenu.PowerPasteUpCommand}" />
+                    <Button Content="📥" ToolTip="Down" Margin="2,0" Command="{Binding MainMenu.PowerPasteDownCommand}" />
+                    <Button Content="🎯" ToolTip="Target" Margin="2,0" Command="{Binding TargetCommand}" />
+
+                    <!-- PowerPaste Target -->
+                    <TextBlock Margin="12,0,0,0"
+                               Text="{Binding PowerPasteTarget}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding PowerPasteStatus}"
+                           VerticalAlignment="Center" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</dx:ThemedWindow>

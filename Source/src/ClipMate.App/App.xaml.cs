@@ -6,6 +6,7 @@ using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
+using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Platform.DependencyInjection;
@@ -92,9 +93,29 @@ public partial class App
             // Start all hosted services (clipboard monitoring, PowerPaste, etc)
             await _host.StartAsync();
 
-            // Create and show the hidden tray icon window
-            _trayIconWindow = new TrayIconWindow();
-            _trayIconWindow.Show();
+            // Apply icon configuration
+            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
+            var config = configService.Configuration.Preferences;
+
+            // Validate icon visibility - at least one must be visible
+            if (!config.ShowTrayIcon && !config.ShowTaskbarIcon)
+            {
+                _logger?.LogCritical("Both tray icon and taskbar icon are disabled! Forcing tray icon to be visible for user access.");
+                config.ShowTrayIcon = true;
+                await configService.SaveAsync();
+            }
+
+            // Create and show the tray icon window if enabled
+            if (config.ShowTrayIcon)
+            {
+                _trayIconWindow = ServiceProvider.GetRequiredService<TrayIconWindow>();
+                _trayIconWindow.Show();
+                _logger?.LogDebug("Tray icon window created");
+            }
+            else
+                _logger?.LogDebug("Tray icon disabled in configuration");
+
+            // ExplorerWindow ShowInTaskbar is set in ExplorerWindow constructor from config
         }
         catch (Exception ex)
         {
@@ -215,19 +236,23 @@ public partial class App
                 services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
                 // Register ClipBar (quick paste picker) as hosted service
-                services.AddSingleton<ClipBarCoordinator>();
-                services.AddHostedService(p => p.GetRequiredService<ClipBarCoordinator>());
+                services.AddSingleton<ClassicWindowCoordinator>();
+                services.AddHostedService(p => p.GetRequiredService<ClassicWindowCoordinator>());
 
-                // Register MainWindow as singleton (always exists, just hidden/shown)
-                services.AddSingleton<MainWindow>();
-                services.AddSingleton<IWindow, MainWindow>(p => p.GetRequiredService<MainWindow>());
+                // Register ExplorerWindow as singleton (always exists, just hidden/shown)
+                services.AddSingleton<ExplorerWindow>();
+                services.AddSingleton<IWindow, ExplorerWindow>(p => p.GetRequiredService<ExplorerWindow>());
+
+                // Register TrayIconWindow (system tray icon)
+                services.AddTransient<TrayIconWindow>();
 
                 // Register ClipBar (quick paste picker) components
-                services.AddTransient<ClipBarViewModel>();
-                services.AddTransient<ClipBarWindow>();
+                services.AddTransient<ClassicViewModel>();
+                services.AddTransient<ClassicWindow>();
 
                 // Register ViewModels
-                services.AddSingleton<MainWindowViewModel>();
+                services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel
+                services.AddSingleton<ExplorerWindowViewModel>();
                 services.AddSingleton<CollectionTreeViewModel>();
                 services.AddSingleton<ClipListViewModel>();
                 services.AddSingleton<PreviewPaneViewModel>();

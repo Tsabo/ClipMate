@@ -9,10 +9,10 @@ using Moq;
 namespace ClipMate.Tests.Unit.ViewModels;
 
 /// <summary>
-/// Unit tests for MainWindowViewModel.
+/// Unit tests for ExplorerWindowViewModel.
 /// Following TDD: Tests written FIRST, then implementation.
 /// </summary>
-public class MainWindowViewModelTests
+public class ExplorerWindowViewModelTests
 {
     private static Mock<IServiceScopeFactory> CreateMockServiceScopeFactory(Mock<ICollectionService> mockCollectionService,
         Mock<IFolderService> mockFolderService,
@@ -21,19 +21,19 @@ public class MainWindowViewModelTests
     {
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IClipService))).Returns(mockClipService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(mockSearchService.Object);
-        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IClipService))).Returns(mockClipService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ISearchService))).Returns(mockSearchService.Object);
+        mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
 
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
+        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
 
         return mockServiceScopeFactory;
     }
 
-    private MainWindowViewModel CreateViewModel()
+    private ExplorerWindowViewModel CreateViewModel()
     {
         var mockMessenger = new Mock<IMessenger>();
         var mockClipService = new Mock<IClipService>();
@@ -43,7 +43,7 @@ public class MainWindowViewModelTests
         var mockSearchService = new Mock<ISearchService>();
         var mockLogger = new Mock<ILogger<ClipListViewModel>>();
         var mockTreeLogger = new Mock<ILogger<CollectionTreeViewModel>>();
-        var mockMainLogger = new Mock<ILogger<MainWindowViewModel>>();
+        var mockMainLogger = new Mock<ILogger<ExplorerWindowViewModel>>();
 
         var mockServiceScopeFactory = CreateMockServiceScopeFactory(
             mockCollectionService, mockFolderService, mockClipService, mockSearchService);
@@ -67,7 +67,7 @@ public class MainWindowViewModelTests
         var mockConfigService = new Mock<IConfigurationService>();
         var mockQuickPasteConfig = new PreferencesConfiguration();
         var mockConfig = new ClipMateConfiguration { Preferences = mockQuickPasteConfig };
-        mockConfigService.Setup(x => x.Configuration).Returns(mockConfig);
+        mockConfigService.Setup(p => p.Configuration).Returns(mockConfig);
         var mockQuickPasteLogger = new Mock<ILogger<QuickPasteToolbarViewModel>>();
         var quickPasteToolbarVm = new QuickPasteToolbarViewModel(
             mockQuickPasteService.Object,
@@ -76,16 +76,20 @@ public class MainWindowViewModelTests
             mockQuickPasteLogger.Object);
 
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(mockServiceScopeFactory.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory))).Returns(mockServiceScopeFactory.Object);
 
-        return new MainWindowViewModel(
+        var mockMenuMessenger = new Mock<IMessenger>();
+        var mainMenuViewModel = new MainMenuViewModel(mockMenuMessenger.Object);
+
+        return new ExplorerWindowViewModel(
             collectionTreeVM,
             clipListVM,
             previewVM,
             searchVM,
             quickPasteToolbarVm,
+            mainMenuViewModel,
             mockServiceProvider.Object,
             mockQuickPasteService.Object,
             mockMainLogger.Object);
@@ -114,7 +118,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.WindowWidth))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.WindowWidth))
                 propertyChangedRaised = true;
         };
 
@@ -134,7 +138,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.WindowHeight))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.WindowHeight))
                 propertyChangedRaised = true;
         };
 
@@ -154,7 +158,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.IsBusy))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.IsBusy))
                 propertyChangedRaised = true;
         };
 
@@ -174,7 +178,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.StatusMessage))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.StatusMessage))
                 propertyChangedRaised = true;
         };
 
@@ -236,7 +240,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.LeftPaneWidth))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.LeftPaneWidth))
                 propertyChangedRaised = true;
         };
 
@@ -256,7 +260,7 @@ public class MainWindowViewModelTests
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.RightPaneWidth))
+            if (e.PropertyName == nameof(ExplorerWindowViewModel.RightPaneWidth))
                 propertyChangedRaised = true;
         };
 

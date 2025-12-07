@@ -12,26 +12,28 @@ namespace ClipMate.App.ViewModels;
 /// Orchestrates child ViewModels and coordinates the three-pane interface.
 /// Manages window state and application-level concerns.
 /// </summary>
-public partial class MainWindowViewModel : ObservableObject
+public partial class ExplorerWindowViewModel : ObservableObject
 {
-    private readonly ILogger<MainWindowViewModel>? _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IQuickPasteService _quickPasteService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public MainWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
+    public ExplorerWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
         PreviewPaneViewModel previewPaneViewModel,
         SearchViewModel searchViewModel,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
+        MainMenuViewModel mainMenuViewModel,
         IServiceProvider serviceProvider,
         IQuickPasteService quickPasteService,
-        ILogger<MainWindowViewModel>? logger = null)
+        ILogger<ExplorerWindowViewModel>? logger = null)
     {
         CollectionTree = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         PrimaryClipList = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         PreviewPane = previewPaneViewModel ?? throw new ArgumentNullException(nameof(previewPaneViewModel));
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
+        MainMenu = mainMenuViewModel ?? throw new ArgumentNullException(nameof(mainMenuViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _logger = logger;
@@ -120,11 +122,11 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
 
-            _logger?.LogInformation("MainWindow initialization completed successfully");
+            _logger?.LogInformation("ExplorerWindow initialization completed successfully");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to initialize MainWindow");
+            _logger?.LogError(ex, "Failed to initialize ExplorerWindow");
             SetStatus("Error loading data");
         }
         finally
@@ -201,6 +203,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     public QuickPasteToolbarViewModel QuickPasteToolbarViewModel { get; }
 
+    /// <summary>
+    /// Shared main menu ViewModel.
+    /// </summary>
+    public MainMenuViewModel MainMenu { get; }
+
     #endregion
 
     #region Window State
@@ -247,18 +254,6 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _powerPasteDirection = "Up";
-
-    /// <summary>
-    /// Whether to explode clips into fragments.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isExplodeMode;
-
-    /// <summary>
-    /// Whether PowerPaste should loop when reaching the end.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isLoopMode;
 
     /// <summary>
     /// Toggles PowerPaste on/off with direction cycling.
@@ -314,7 +309,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             _logger?.LogInformation("Starting PowerPaste in {Direction} direction, Explode={Explode}, Loop={Loop}",
-                direction, IsExplodeMode, IsLoopMode);
+                direction, MainMenu.IsExplodeMode, MainMenu.IsLoopMode);
 
             // Get the selected clip(s) from ClipListView
             // Try multi-selection first, fall back to single selection
@@ -342,7 +337,7 @@ public partial class MainWindowViewModel : ObservableObject
             await powerPasteService.StartAsync(
                 selectedClips,
                 powerPasteDirection,
-                IsExplodeMode);
+                MainMenu.IsExplodeMode);
 
             IsPowerPasteActive = true;
             SetStatus($"PowerPaste active ({direction}) - Paste to advance");

@@ -31,21 +31,22 @@ public static class HotkeyInputBehavior
         if ((bool)e.NewValue)
         {
             textEdit.PreviewKeyDown += OnPreviewKeyDown;
-            textEdit.PreviewTextInput += OnPreviewTextInput;
-            textEdit.IsReadOnly = true; // Prevent normal text input
+            textEdit.GotFocus += OnGotFocus;
         }
         else
         {
             textEdit.PreviewKeyDown -= OnPreviewKeyDown;
-            textEdit.PreviewTextInput -= OnPreviewTextInput;
-            textEdit.IsReadOnly = false;
+            textEdit.GotFocus -= OnGotFocus;
         }
     }
 
-    private static void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+    private static void OnGotFocus(object sender, RoutedEventArgs e)
     {
-        // Block all text input - we only want key presses
-        e.Handled = true;
+        if (sender is TextEdit textEdit)
+        {
+            // Select all text when focused for easy replacement
+            textEdit.SelectAll();
+        }
     }
 
     private static void OnPreviewKeyDown(object sender, KeyEventArgs e)
@@ -88,15 +89,10 @@ public static class HotkeyInputBehavior
         // Build the hotkey string
         var hotkeyString = HotkeyParser.ToString(modifiers, virtualKey);
 
-        // Validate and set the hotkey
+        // Set the hotkey string
         textEdit.Text = hotkeyString;
 
-        if (!HotkeyParser.TryParse(hotkeyString, out var _, out var _, out var _))
-        {
-            // Show validation error via EditValue property
-            textEdit.SetValue(BaseEdit.HasValidationErrorProperty, true);
-        }
-        else
-            textEdit.ClearValue(BaseEdit.HasValidationErrorProperty);
+        // Note: Validation is handled by the binding, not here
+        // DevExpress HasValidationError is read-only and cannot be set directly
     }
 }

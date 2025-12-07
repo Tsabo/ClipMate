@@ -1,5 +1,6 @@
 using ClipMate.App.Helpers;
 using ClipMate.App.Services;
+using ClipMate.App.Views;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -180,6 +181,59 @@ public partial class HotkeysOptionsViewModel : ObservableObject
             // Always unregister if we successfully registered
             if (registered)
                 _hotkeyService.UnregisterHotkey(testId);
+        }
+    }
+
+    [RelayCommand]
+    private void BindHotkey(string? propertyName)
+    {
+        if (string.IsNullOrEmpty(propertyName))
+            return;
+
+        var dialog = new HotkeyBindDialog();
+
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.CapturedHotkey))
+        {
+            // Update the appropriate property based on the parameter
+            switch (propertyName)
+            {
+                case nameof(ShowWindow):
+                    ShowWindow = dialog.CapturedHotkey;
+                    break;
+                case nameof(ScrollNext):
+                    ScrollNext = dialog.CapturedHotkey;
+                    break;
+                case nameof(ScrollPrevious):
+                    ScrollPrevious = dialog.CapturedHotkey;
+                    break;
+                case nameof(ActivateQuickPaste):
+                    ActivateQuickPaste = dialog.CapturedHotkey;
+                    break;
+                case nameof(RegionScreenCapture):
+                    RegionScreenCapture = dialog.CapturedHotkey;
+                    break;
+                case nameof(ObjectScreenCapture):
+                    ObjectScreenCapture = dialog.CapturedHotkey;
+                    break;
+                case nameof(ViewClipInFloatingWindow):
+                    ViewClipInFloatingWindow = dialog.CapturedHotkey;
+                    break;
+                case nameof(PopupClipBar):
+                    PopupClipBar = dialog.CapturedHotkey;
+                    break;
+                case nameof(ToggleAutoCapture):
+                    ToggleAutoCapture = dialog.CapturedHotkey;
+                    break;
+                case nameof(ManualCapture):
+                    ManualCapture = dialog.CapturedHotkey;
+                    break;
+                case nameof(ManualFilter):
+                    ManualFilter = dialog.CapturedHotkey;
+                    break;
+            }
+
+            TestResult = $"Hotkey bound to '{dialog.CapturedHotkey}'";
+            TestResultIsSuccess = true;
         }
     }
 

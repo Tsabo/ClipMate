@@ -19,48 +19,58 @@ using ModifierKeys = System.Windows.Input.ModifierKeys;
 namespace ClipMate.App;
 
 /// <summary>
-/// Interaction logic for MainWindow.xaml
+/// Interaction logic for ExplorerWindow.xaml
 /// Responsible only for window chrome (tray icon, window state, etc.)
-/// All business logic is in MainWindowViewModel.
+/// All business logic is in ExplorerWindowViewModel.
 /// </summary>
-public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
+public partial class ExplorerWindow : IWindow, IRecipient<ShowExplorerWindowEvent>, IRecipient<ShowTaskbarIconChangedEvent>
 {
-    private readonly ILogger<MainWindow>? _logger;
+    private readonly IConfigurationService _configurationService;
+    private readonly ILogger<ExplorerWindow>? _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly MainWindowViewModel _viewModel;
+    private readonly ExplorerWindowViewModel _viewModel;
     private bool _isExiting;
 
-    public MainWindow(MainWindowViewModel mainWindowViewModel,
+    public ExplorerWindow(ExplorerWindowViewModel explorerWindowViewModel,
         IServiceProvider serviceProvider,
         IMessenger messenger,
-        ILogger<MainWindow>? logger = null)
+        IConfigurationService configurationService,
+        ILogger<ExplorerWindow>? logger = null)
     {
         InitializeComponent();
 
-        _viewModel = mainWindowViewModel ?? throw new ArgumentNullException(nameof(mainWindowViewModel));
+        _viewModel = explorerWindowViewModel ?? throw new ArgumentNullException(nameof(explorerWindowViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger;
 
         DataContext = _viewModel;
 
-        // Register for hotkey events
-        _messenger.Register(this);
+        // Apply ShowTaskbarIcon configuration
+        ShowInTaskbar = _configurationService.Configuration.Preferences.ShowTaskbarIcon;
 
-        Loaded += MainWindow_Loaded;
-        Closing += MainWindow_Closing;
-        PreviewKeyDown += MainWindow_PreviewKeyDown;
-        Deactivated += MainWindow_Deactivated;
+        // Register for hotkey events and configuration changes
+        _messenger.Register<ShowExplorerWindowEvent>(this);
+        _messenger.Register<ShowTaskbarIconChangedEvent>(this);
+
+        Loaded += ExplorerWindow_Loaded;
+        Closing += ExplorerWindow_Closing;
+        PreviewKeyDown += ExplorerWindow_PreviewKeyDown;
+        Deactivated += ExplorerWindow_Deactivated;
 
         // Subscribe to events
         _messenger.Register<OpenOptionsDialogEvent>(this, (_, message) => ShowOptions(message.TabName));
+        _messenger.Register<OpenTextToolsDialogEvent>(this, (_, _) => ShowTextTools());
+        _messenger.Register<OpenTemplateEditorDialogEvent>(this, (_, _) => ShowManageTemplates());
+        _messenger.Register<ExitApplicationEvent>(this, (_, _) => ExitApplication());
     }
 
     /// <summary>
-    /// Handles ShowMainWindowEvent from hotkey.
+    /// Handles ShowExplorerWindowEvent from hotkey.
     /// </summary>
-    public void Receive(ShowMainWindowEvent message)
+    public void Receive(ShowExplorerWindowEvent message)
     {
         // Ensure we're on the UI thread
         Dispatcher.InvokeAsync(() =>
@@ -68,7 +78,19 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
             Show();
             Activate();
             WindowState = WindowState.Normal;
-            _logger?.LogDebug("MainWindow shown from hotkey");
+            _logger?.LogDebug("ExplorerWindow shown from hotkey");
+        });
+    }
+
+    /// <summary>
+    /// Handles ShowTaskbarIconChangedEvent from configuration changes.
+    /// </summary>
+    public void Receive(ShowTaskbarIconChangedEvent message)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            ShowInTaskbar = message.ShowTaskbarIcon;
+            _logger?.LogDebug("ExplorerWindow ShowInTaskbar changed to {ShowInTaskbar}", message.ShowTaskbarIcon);
         });
     }
 
@@ -79,7 +101,7 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         {
             Hide();
             ShowInTaskbar = false;
-            _logger?.LogDebug("MainWindow minimized to tray");
+            _logger?.LogDebug("ExplorerWindow minimized to tray");
         }
         else if (WindowState is WindowState.Normal or WindowState.Maximized)
             ShowInTaskbar = true;
@@ -90,7 +112,7 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         Show();
         Activate();
         WindowState = WindowState.Normal;
-        _logger?.LogDebug("MainWindow shown from tray menu");
+        _logger?.LogDebug("ExplorerWindow shown from tray menu");
     }
 
     /// <summary>
@@ -98,7 +120,7 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
     /// </summary>
     public void PrepareForExit() => _isExiting = true;
 
-    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void ExplorerWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.T && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
@@ -107,7 +129,7 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         }
     }
 
-    private void MainWindow_Deactivated(object? sender, EventArgs e)
+    private void ExplorerWindow_Deactivated(object? sender, EventArgs e)
     {
         // Capture target window when ClipMate loses focus
         _viewModel.OnWindowDeactivated();
@@ -292,11 +314,11 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         }
     }
 
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void ExplorerWindow_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            // Initialize MainWindowViewModel (loads all child VMs, data, etc.)
+            // Initialize ExplorerWindowViewModel (loads all child VMs, data, etc.)
             await _viewModel.InitializeAsync();
 
             // Load template menu for Edit menu
@@ -304,16 +326,21 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to initialize MainWindow");
+            _logger?.LogError(ex, "Failed to initialize ExplorerWindow");
         }
     }
 
     /// <summary>
     /// Handles File → Exit menu click
     /// </summary>
-    private void Exit_Click(object sender, RoutedEventArgs e)
+    private void Exit_Click(object sender, RoutedEventArgs e) => ExitApplication();
+
+    /// <summary>
+    /// Exits the application (called from menu or event).
+    /// </summary>
+    private void ExitApplication()
     {
-        _logger?.LogInformation("Exit menu clicked - shutting down application");
+        _logger?.LogInformation("Exit - shutting down application");
         _isExiting = true;
         Application.Current.Shutdown();
     }
@@ -322,19 +349,19 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
     /// Handles the Closing event to minimize to tray instead of exiting.
     /// Hold Shift while closing to force exit.
     /// </summary>
-    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    private void ExplorerWindow_Closing(object? sender, CancelEventArgs e)
     {
         // If already exiting (from File→Exit or tray menu), allow it
         if (_isExiting)
         {
-            _logger?.LogInformation("MainWindow closing - application is exiting");
+            _logger?.LogInformation("ExplorerWindow closing - application is exiting");
             return;
         }
 
         // Check if Shift key is held - if so, allow actual exit
         if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
         {
-            _logger?.LogInformation("MainWindow closing with Shift key - allowing exit");
+            _logger?.LogInformation("ExplorerWindow closing with Shift key - allowing exit");
             _isExiting = true;
             return;
         }
@@ -342,7 +369,7 @@ public partial class MainWindow : IWindow, IRecipient<ShowMainWindowEvent>
         // Cancel the close and hide the window instead
         e.Cancel = true;
         Hide();
-        _logger?.LogInformation("MainWindow minimized to system tray");
+        _logger?.LogInformation("ExplorerWindow minimized to system tray");
     }
 
     private void SecondaryClipListView_SelectionChanged(object sender, RoutedEventArgs e)

@@ -57,6 +57,7 @@ public class OptionsViewModelTests
         _generalViewModel = new GeneralOptionsViewModel(
             _mockConfigurationService.Object,
             _mockStartupManager.Object,
+            _mockMessenger.Object,
             new Mock<ILogger<GeneralOptionsViewModel>>().Object);
 
         _powerPasteViewModel = new PowerPasteOptionsViewModel(

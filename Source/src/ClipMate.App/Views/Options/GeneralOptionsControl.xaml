@@ -105,6 +105,66 @@
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
+        <!-- Icon Behavior Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Icon Behavior" Orientation="Vertical">
+
+            <!-- Show Icons -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal">
+                    <dxe:CheckEdit Content="Show system tray icon"
+                                   IsChecked="{Binding ShowTrayIcon}"
+                                   ToolTip="Display ClipMate icon in the system tray"
+                                   Margin="0,0,15,0" />
+                    <dxe:CheckEdit Content="Show in taskbar"
+                                   IsChecked="{Binding ShowTaskbarIcon}"
+                                   ToolTip="Display ClipMate in the Windows taskbar" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Tray Icon Click Action -->
+            <dxlc:LayoutItem Label="Tray icon left-click action:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Show Main Window"
+                                 IsChecked="{Binding TrayIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowExplorerWindow}}"
+                                 GroupName="TrayIconClick" Margin="0,0,5,0" />
+                    <RadioButton Content="Show ClipBar"
+                                 IsChecked="{Binding TrayIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClipBar}}"
+                                 GroupName="TrayIconClick" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Taskbar Icon Click Action -->
+            <dxlc:LayoutItem Label="Taskbar icon left-click action:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Show Main Window"
+                                 IsChecked="{Binding TaskbarIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowExplorerWindow}}"
+                                 GroupName="TaskbarIconClick" Margin="0,0,5,0" />
+                    <RadioButton Content="Show ClipBar"
+                                 IsChecked="{Binding TaskbarIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClipBar}}"
+                                 GroupName="TaskbarIconClick" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- ClipBar Behavior Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="ClipBar Behavior" Orientation="Vertical">
+
+            <!-- ClipBar Popup Location -->
+            <dxlc:LayoutItem Label="ClipBar popup location:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="At mouse cursor"
+                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.AtMouseCursor}}"
+                                 GroupName="ClipBarLocation" Margin="0,0,5,0" />
+                    <RadioButton Content="Above taskbar"
+                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.AboveTaskbar}}"
+                                 GroupName="ClipBarLocation" Margin="0,0,5,0" />
+                    <RadioButton Content="Remember last location"
+                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.RememberLastLocation}}"
+                                 GroupName="ClipBarLocation" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
         <!-- UI Behavior Section -->
         <dxlc:LayoutGroup View="GroupBox" Header="UI Behavior" Orientation="Vertical">
 
@@ -131,7 +191,7 @@
         <!-- Reset Button -->
         <dxlc:LayoutItem>
             <Button Content="Reset to Defaults"
-                    Command="{Binding ResetGeneralToDefaultsCommand}"
+                    Command="{Binding ResetToDefaultsCommand}"
                     HorizontalAlignment="Left"
                     Padding="10,5"
                     Margin="0,10,0,0" />

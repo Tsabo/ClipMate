@@ -1,25 +1,41 @@
 using ClipMate.App;
+using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using Microsoft.Extensions.DependencyInjection;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public class ClipBarCoordinatorTests
+public class ClassicWindowCoordinatorTests
 {
+    private static (Mock<IConfigurationService>, Mock<IMessenger>) CreateDefaultMocks()
+    {
+        var mockConfig = new Mock<IConfigurationService>();
+        var mockMessenger = new Mock<IMessenger>();
+
+        var config = new ClipMateConfiguration
+        {
+            Preferences = new PreferencesConfiguration(),
+        };
+
+        mockConfig.Setup(p => p.Configuration).Returns(config);
+
+        return (mockConfig, mockMessenger);
+    }
+
     // Constructor Tests
     [Test]
     public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
     {
         // Arrange
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new ClipBarCoordinator(null!, hotkeyService.Object, logger.Object))
+        await Assert.That(() => new ClassicWindowCoordinator(null!, hotkeyService.Object, configService.Object, messenger.Object, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -28,10 +44,11 @@ public class ClipBarCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new ClipBarCoordinator(serviceProvider.Object, null!, logger.Object))
+        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, null!, configService.Object, messenger.Object, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -41,9 +58,10 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
+        var (configService, messenger) = CreateDefaultMocks();
 
         // Act & Assert
-        await Assert.That(() => new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, null!))
+        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -53,10 +71,11 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();
@@ -70,24 +89,25 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        hotkeyService.Setup(h => h.RegisterHotkey(
+        hotkeyService.Setup(p => p.RegisterHotkey(
                 It.IsAny<int>(),
-                It.IsAny<ClipMate.Core.Models.ModifierKeys>(),
+                It.IsAny<ModifierKeys>(),
                 It.IsAny<int>(),
                 It.IsAny<Action>()))
             .Returns(true);
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);
 
         // Assert
-        hotkeyService.Verify(h => h.RegisterHotkey(
+        hotkeyService.Verify(p => p.RegisterHotkey(
             1001, // PowerPasteHotkeyId
-            ClipMate.Core.Models.ModifierKeys.Control | ClipMate.Core.Models.ModifierKeys.Shift,
+            ModifierKeys.Control | ModifierKeys.Shift,
             It.IsAny<int>(),
             It.IsAny<Action>()), Times.Once);
     }
@@ -99,23 +119,24 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        hotkeyService.Setup(h => h.RegisterHotkey(
+        hotkeyService.Setup(p => p.RegisterHotkey(
                 It.IsAny<int>(),
-                It.IsAny<ClipMate.Core.Models.ModifierKeys>(),
+                It.IsAny<ModifierKeys>(),
                 It.IsAny<int>(),
                 It.IsAny<Action>()))
             .Returns(false);
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);
 
         // Assert - verify warning was logged
         logger.Verify(
-            x => x.Log(
+            p => p.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Failed to register")),
@@ -131,23 +152,24 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        hotkeyService.Setup(h => h.RegisterHotkey(
+        hotkeyService.Setup(p => p.RegisterHotkey(
                 It.IsAny<int>(),
-                It.IsAny<ClipMate.Core.Models.ModifierKeys>(),
+                It.IsAny<ModifierKeys>(),
                 It.IsAny<int>(),
                 It.IsAny<Action>()))
             .Returns(true);
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
         await coordinator.StartAsync(CancellationToken.None);
 
         // Act
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        hotkeyService.Verify(h => h.UnregisterHotkey(1001), Times.Once);
+        hotkeyService.Verify(p => p.UnregisterHotkey(1001), Times.Once);
     }
 
     [Test]
@@ -156,9 +178,10 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
         await coordinator.StopAsync(CancellationToken.None);
@@ -171,11 +194,13 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
+        await Task.CompletedTask;
         coordinator.Dispose();
     }
 
@@ -185,11 +210,13 @@ public class ClipBarCoordinatorTests
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
         var hotkeyService = new Mock<IHotkeyService>();
-        var logger = new Mock<ILogger<ClipBarCoordinator>>();
+        var (configService, messenger) = CreateDefaultMocks();
+        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClipBarCoordinator(serviceProvider.Object, hotkeyService.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
+        await Task.CompletedTask;
         coordinator.Dispose();
         coordinator.Dispose();
         coordinator.Dispose();

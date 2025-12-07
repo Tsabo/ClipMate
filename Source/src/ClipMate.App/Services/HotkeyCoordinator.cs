@@ -105,7 +105,7 @@ public class HotkeyCoordinator
     private void OnShowWindowRequested()
     {
         _logger.LogDebug("Show Window hotkey pressed");
-        _messenger.Send(new ShowMainWindowEvent());
+        _messenger.Send(new ShowExplorerWindowEvent());
     }
 
     private void OnScrollNextRequested()

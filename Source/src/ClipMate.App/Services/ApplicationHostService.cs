@@ -36,7 +36,7 @@ internal class ApplicationHostService : IHostedService
     /// </summary>
     private async Task HandleActivationAsync()
     {
-        if (Application.Current.Windows.OfType<MainWindow>().Any())
+        if (Application.Current.Windows.OfType<ExplorerWindow>().Any())
             return;
 
         // Ensure we're on the UI thread when creating and showing the window
@@ -44,8 +44,8 @@ internal class ApplicationHostService : IHostedService
         {
             try
             {
-                var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-                mainWindow?.Show();
+                var explorerWindow = _serviceProvider.GetRequiredService<ExplorerWindow>();
+                explorerWindow?.Show();
             }
             catch (Exception ex)
             {

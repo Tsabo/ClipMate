@@ -11,14 +11,51 @@ public class PreferencesConfiguration
     public bool AutoCaptureAtStartup { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to hide the taskbar icon.
+    /// Gets or sets whether to show the system tray icon.
     /// </summary>
-    public bool HideTaskbarIcon { get; set; } = true;
+    public bool ShowTrayIcon { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to show system tray icon.
+    /// Gets or sets whether to show the application in the Windows taskbar.
     /// </summary>
-    public bool ShowSystemTrayIcon { get; set; } = true;
+    public bool ShowTaskbarIcon { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the action to perform when left-clicking the system tray icon.
+    /// </summary>
+    public IconLeftClickAction TrayIconLeftClickAction { get; set; } = IconLeftClickAction.ShowExplorerWindow;
+
+    /// <summary>
+    /// Gets or sets the action to perform when left-clicking the taskbar icon.
+    /// Note: WPF has limited support for taskbar icon click detection.
+    /// </summary>
+    public IconLeftClickAction TaskbarIconLeftClickAction { get; set; } = IconLeftClickAction.ShowExplorerWindow;
+
+    /// <summary>
+    /// Gets or sets where the ClipBar popup window should appear.
+    /// </summary>
+    public ClipBarPopupLocation ClipBarPopupLocation { get; set; } = ClipBarPopupLocation.AtMouseCursor;
+
+    /// <summary>
+    /// Gets or sets the last remembered position of the ClipBar window (format: "X,Y").
+    /// Used when ClipBarPopupLocation is set to RememberLastLocation.
+    /// </summary>
+    public string? ClipBarLastPosition { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether ClipMate Classic window stays on top of other windows.
+    /// </summary>
+    public bool ClassicStayOnTop { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether ClipMate Classic window is in dropped-down state.
+    /// </summary>
+    public bool ClassicIsDroppedDown { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether ClipMate Classic window is tacked (pinned) in dropped-down state.
+    /// </summary>
+    public bool ClassicIsTacked { get; set; } = false;
 
     /// <summary>
     /// Gets or sets whether to capture existing clipboard on startup.

@@ -17,10 +17,10 @@
         <dx:NotifyIconService
             Icon="pack://application:,,,/ClipMate.App;component/Assets/icon.ico"
             Tooltip="ClipMate - Clipboard Manager"
-            LeftClickCommand="{Binding ShowMainWindowCommand}">
+            LeftClickCommand="{Binding ShowExplorerWindowCommand}">
             <dx:NotifyIconService.ContextMenu>
                 <dxb:PopupMenu>
-                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowMainWindowCommand}" />
+                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowExplorerWindowCommand}" />
                     <dxb:BarItemSeparator />
                     <dxb:BarButtonItem Content="Exit" Command="{Binding ExitApplicationCommand}" />
                 </dxb:PopupMenu>

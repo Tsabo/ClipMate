@@ -1,4 +1,4 @@
-<dx:ThemedWindow x:Class="ClipMate.App.MainWindow"
+<dx:ThemedWindow x:Class="ClipMate.App.ExplorerWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -14,9 +14,7 @@
                  Width="1000"
                  MinHeight="545"
                  MinWidth="1000"
-                 ShowInTaskbar="True"
                  StateChanged="Window_StateChanged">
-
     <dx:ThemedWindow.InputBindings>
         <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
     </dx:ThemedWindow.InputBindings>
@@ -28,7 +26,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-            <!-- BarManager: Toolbar and Menus -->
+        <!-- BarManager: Toolbar and Menus -->
         <dxb:BarManager x:Name="BarManager" Grid.Row="0">
             <dxb:BarManager.Bars>
                 <!-- Main Toolbar -->
@@ -36,7 +34,7 @@
                     <!-- PowerPaste Button with state indicator -->
                     <dxb:BarButtonItem x:Name="PowerPasteButton"
                                        Content="PowerPaste"
-                                       Command="{Binding PowerPasteToggleCommand}"
+                                       Command="{Binding MainMenu.PowerPasteToggleCommand}"
                                        ToolTip="Click to start PowerPaste. Click again to change direction or stop."
                                        LargeGlyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}"
                                        Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
@@ -50,17 +48,17 @@
 
                     <dxb:BarSubItem Content="_Edit">
                         <dxb:BarButtonItem Content="PowerPaste _Up"
-                                           Command="{Binding PowerPasteUpCommand}"
+                                           Command="{Binding MainMenu.PowerPasteUpCommand}"
                                            KeyGesture="Ctrl+Up" />
                         <dxb:BarButtonItem Content="PowerPaste _Down"
-                                           Command="{Binding PowerPasteDownCommand}"
+                                           Command="{Binding MainMenu.PowerPasteDownCommand}"
                                            KeyGesture="Ctrl+Down" />
                         <dxb:BarItemSeparator />
                         <dxb:BarCheckItem Content="Explode Into _Fragments"
-                                          IsChecked="{Binding IsExplodeMode}"
+                                          IsChecked="{Binding MainMenu.IsExplodeMode}"
                                           ToolTip="Break clips into fragments by delimiters" />
                         <dxb:BarCheckItem Content="PowerPaste _Loop"
-                                          IsChecked="{Binding IsLoopMode}"
+                                          IsChecked="{Binding MainMenu.IsLoopMode}"
                                           ToolTip="Loop back to start when reaching the end" />
                     </dxb:BarSubItem>
 
