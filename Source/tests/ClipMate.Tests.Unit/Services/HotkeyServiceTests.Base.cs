@@ -11,6 +11,8 @@ public partial class HotkeyServiceTests : TestFixtureBase
     private Mock<IHotkeyManager> CreateMockHotkeyManager()
     {
         var mock = new Mock<IHotkeyManager>();
+        // Setup UnregisterHotkey to return true by default
+        mock.Setup(m => m.UnregisterHotkey(It.IsAny<int>())).Returns(true);
         return mock;
     }
 }

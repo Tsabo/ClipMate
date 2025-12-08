@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using Windows.Win32.Foundation;
@@ -91,8 +92,11 @@ public class HotkeyManager : IHotkeyManager
 
         if (!_win32.RegisterHotKey(new HWND(hwnd), hotkeyId, (HOT_KEY_MODIFIERS)modifierFlags, (uint)key))
         {
+            var lastError = Marshal.GetLastWin32Error();
+            var errorHex = $"0x{lastError:X8}";
             throw new InvalidOperationException(
                 $"Failed to register hotkey (Modifiers: {modifiers}, Key: {key}). " +
+                $"Win32 Error: {lastError} ({errorHex}). " +
                 "The hotkey may already be in use by another application.");
         }
 
@@ -172,9 +176,9 @@ public class HotkeyManager : IHotkeyManager
     /// </summary>
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        const int WM_HOTKEY = 0x0312;
+        const int wmHotkey = 0x0312;
 
-        if (msg != WM_HOTKEY)
+        if (msg != wmHotkey)
             return IntPtr.Zero;
 
         var hotkeyId = wParam.ToInt32();
@@ -205,24 +209,24 @@ public class HotkeyManager : IHotkeyManager
     /// </summary>
     private static uint ConvertModifiers(ModifierKeys modifiers)
     {
-        const uint MOD_ALT = 0x0001;
-        const uint MOD_CONTROL = 0x0002;
-        const uint MOD_SHIFT = 0x0004;
-        const uint MOD_WIN = 0x0008;
+        const uint modAlt = 0x0001;
+        const uint modControl = 0x0002;
+        const uint modShift = 0x0004;
+        const uint modWin = 0x0008;
 
         uint flags = 0;
 
         if (modifiers.HasFlag(ModifierKeys.Alt))
-            flags |= MOD_ALT;
+            flags |= modAlt;
 
         if (modifiers.HasFlag(ModifierKeys.Control))
-            flags |= MOD_CONTROL;
+            flags |= modControl;
 
         if (modifiers.HasFlag(ModifierKeys.Shift))
-            flags |= MOD_SHIFT;
+            flags |= modShift;
 
         if (modifiers.HasFlag(ModifierKeys.Windows))
-            flags |= MOD_WIN;
+            flags |= modWin;
 
         return flags;
     }

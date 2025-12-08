@@ -1,6 +1,8 @@
 using System.Windows;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Platform.Services;
 
@@ -10,18 +12,29 @@ namespace ClipMate.Platform.Services;
 public class HotkeyService : IHotkeyService, IDisposable
 {
     private readonly IHotkeyManager _hotkeyManager;
-    private readonly HashSet<int> _registeredIds;
+
+    // Map logical hotkey IDs -> internal HotkeyManager IDs so we can unregister correctly
+    private readonly Dictionary<int, int> _idToInternalId;
+    private readonly ILogger<HotkeyService> _logger;
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref=\"HotkeyService\" /> class.
+    /// Initializes a new instance of the <see cref="HotkeyService" /> class.
     /// </summary>
-    public HotkeyService(IHotkeyManager hotkeyManager)
+    public HotkeyService(ILogger<HotkeyService> logger, IHotkeyManager hotkeyManager)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _hotkeyManager = hotkeyManager ?? throw new ArgumentNullException(nameof(hotkeyManager));
-        _registeredIds = [];
+        _idToInternalId = new Dictionary<int, int>();
     }
 
+    /// <summary>
+    /// Convenience constructor for scenarios (like tests) where a logger isn't provided.
+    /// </summary>
+    public HotkeyService(IHotkeyManager hotkeyManager)
+        : this(NullLogger<HotkeyService>.Instance, hotkeyManager)
+    {
+    }
 
     /// <summary>
     /// Disposes the hotkey service and unregisters all hotkeys.
@@ -31,8 +44,9 @@ public class HotkeyService : IHotkeyService, IDisposable
         if (_disposed)
             return;
 
+        UnregisterAllHotkeys();
         _hotkeyManager.Dispose();
-        _registeredIds.Clear();
+        _idToInternalId.Clear();
         _disposed = true;
 
         GC.SuppressFinalize(this);
@@ -48,20 +62,21 @@ public class HotkeyService : IHotkeyService, IDisposable
 
         try
         {
-            // If already registered with this ID, unregister first
-            if (_registeredIds.Contains(id))
+            // If already registered with this ID, unregister first (removes prior OS registration)
+            if (_idToInternalId.ContainsKey(id))
                 UnregisterHotkey(id);
 
-            // Register with HotkeyManager (which returns its own internal ID)
-            _ = _hotkeyManager.RegisterHotkey(modifiers, key, action);
+            // Register with HotkeyManager (returns internal OS registration ID)
+            var internalId = _hotkeyManager.RegisterHotkey(modifiers, key, action);
 
-            // Track our logical ID
-            _registeredIds.Add(id);
+            // Track mapping so we can properly unregister later
+            _idToInternalId[id] = internalId;
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to register hotkey (ID: {HotkeyId}, Modifiers: {Modifiers}, Key: {Key}, Action: {Action}", id, modifiers, key, action);
             return false;
         }
     }
@@ -71,14 +86,13 @@ public class HotkeyService : IHotkeyService, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!_registeredIds.Contains(id))
+        if (!_idToInternalId.TryGetValue(id, out var internalId))
             return false;
 
-        // Note: This is simplified - in a real implementation, we'd need to track
-        // the mapping between our logical IDs and HotkeyManager's internal IDs
-        _registeredIds.Remove(id);
+        var success = _hotkeyManager.UnregisterHotkey(internalId);
+        _idToInternalId.Remove(id);
 
-        return true;
+        return success;
     }
 
     /// <inheritdoc />
@@ -87,7 +101,7 @@ public class HotkeyService : IHotkeyService, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         _hotkeyManager.UnregisterAll();
-        _registeredIds.Clear();
+        _idToInternalId.Clear();
     }
 
     /// <inheritdoc />
@@ -95,7 +109,7 @@ public class HotkeyService : IHotkeyService, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return _registeredIds.Contains(id);
+        return _idToInternalId.ContainsKey(id);
     }
 
     /// <summary>

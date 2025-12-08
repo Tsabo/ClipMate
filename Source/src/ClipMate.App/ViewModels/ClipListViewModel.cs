@@ -349,6 +349,7 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)
@@ -394,6 +395,7 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)

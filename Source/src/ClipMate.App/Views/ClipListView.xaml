@@ -6,6 +6,7 @@
              xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
              xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              xmlns:converters="clr-namespace:ClipMate.App.Converters"
+             xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
 
@@ -17,10 +18,9 @@
     <dxg:GridControl x:Name="ClipDataGrid"
                      ItemsSource="{Binding Items, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      AutoGenerateColumns="None"
-                     SelectionMode="MultipleRow"
-                     SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
-                     CurrentItemChanged="ClipDataGrid_CurrentItemChanged"
-                     SelectionChanged="ClipDataGrid_SelectedItemsChanged">
+                     SelectionMode="Row"
+                     helpers:GridControlSelectionSync.SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                     CurrentItemChanged="ClipDataGrid_CurrentItemChanged">
 
         <!-- Context Menu -->
         <dxg:GridControl.ContextMenu>
@@ -136,7 +136,7 @@
                            ShowGroupPanel="False"
                            AutoWidth="False"
                            NavigationStyle="Row"
-                           ShowIndicator="False"
+                           ShowIndicator="True"
                            HorizontalScrollbarVisibility="Auto" />
         </dxg:GridControl.View>
         <dxg:GridControl.Columns>

@@ -34,7 +34,7 @@ public class PreferencesConfiguration
     /// <summary>
     /// Gets or sets where the ClipBar popup window should appear.
     /// </summary>
-    public ClipBarPopupLocation ClipBarPopupLocation { get; set; } = ClipBarPopupLocation.AtMouseCursor;
+    public ClipBarPopupLocation ClipBarPopupLocation { get; set; } = ClipBarPopupLocation.RememberLastLocation;
 
     /// <summary>
     /// Gets or sets the last remembered position of the ClipBar window (format: "X,Y").
@@ -56,6 +56,26 @@ public class PreferencesConfiguration
     /// Gets or sets whether ClipMate Classic window is tacked (pinned) in dropped-down state.
     /// </summary>
     public bool ClassicIsTacked { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the saved window state for Classic window (when invoked from hotkey).
+    /// </summary>
+    public WindowStateConfiguration ClassicWindowHotkey { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the saved window state for Classic window (when invoked from taskbar).
+    /// </summary>
+    public WindowStateConfiguration ClassicWindowTaskbar { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the saved expanded height for Classic window when dropdown is shown.
+    /// </summary>
+    public double ClassicExpandedHeight { get; set; } = 250;
+
+    /// <summary>
+    /// Gets or sets the saved window state for Explorer window.
+    /// </summary>
+    public WindowStateConfiguration ExplorerWindow { get; set; } = new();
 
     /// <summary>
     /// Gets or sets whether to capture existing clipboard on startup.
@@ -110,7 +130,7 @@ public class PreferencesConfiguration
     /// <summary>
     /// Gets or sets the PowerPaste delimiter characters.
     /// </summary>
-    public string PowerPasteDelimiter { get; set; } = ",.;:\\n\\t";
+    public string PowerPasteDelimiter { get; set; } = @",.;:\n\t";
 
     /// <summary>
     /// Gets or sets whether to trim items during PowerPaste.

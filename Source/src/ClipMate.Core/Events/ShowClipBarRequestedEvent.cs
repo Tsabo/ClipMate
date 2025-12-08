@@ -4,4 +4,4 @@ namespace ClipMate.Core.Events;
 /// Event raised when a request is made to show the ClipBar popup window.
 /// Can be triggered by tray icon, taskbar icon, or hotkey.
 /// </summary>
-public sealed record ShowClipBarRequestedEvent;
+public sealed record ShowClipBarRequestedEvent(bool IsHotkeyTriggered = false);

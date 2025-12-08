@@ -195,7 +195,7 @@ public partial class GeneralOptionsViewModel : ObservableObject
         ShowTaskbarIcon = true;
         TrayIconLeftClickAction = IconLeftClickAction.ShowExplorerWindow;
         TaskbarIconLeftClickAction = IconLeftClickAction.ShowExplorerWindow;
-        ClipBarPopupLocation = ClipBarPopupLocation.AtMouseCursor;
+        ClipBarPopupLocation = ClipBarPopupLocation.RememberLastLocation;
 
         _logger.LogInformation("General settings reset to defaults");
     }

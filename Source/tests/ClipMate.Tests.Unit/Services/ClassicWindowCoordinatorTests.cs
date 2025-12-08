@@ -1,7 +1,4 @@
 using ClipMate.App;
-using ClipMate.Core.Models;
-using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,45 +7,30 @@ namespace ClipMate.Tests.Unit.Services;
 
 public class ClassicWindowCoordinatorTests
 {
-    private static (Mock<IConfigurationService>, Mock<IMessenger>) CreateDefaultMocks()
-    {
-        var mockConfig = new Mock<IConfigurationService>();
-        var mockMessenger = new Mock<IMessenger>();
-
-        var config = new ClipMateConfiguration
-        {
-            Preferences = new PreferencesConfiguration(),
-        };
-
-        mockConfig.Setup(p => p.Configuration).Returns(config);
-
-        return (mockConfig, mockMessenger);
-    }
+    private static Mock<IMessenger> CreateDefaultMocks() => new();
 
     // Constructor Tests
     [Test]
     public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
     {
         // Arrange
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new ClassicWindowCoordinator(null!, hotkeyService.Object, configService.Object, messenger.Object, logger.Object))
+        await Assert.That(() => new ClassicWindowCoordinator(null!, messenger.Object, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task Constructor_WithNullHotkeyService_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullMessenger_ThrowsArgumentNullException()
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var (configService, messenger) = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act & Assert
-        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, null!, configService.Object, messenger.Object, logger.Object))
+        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, null!, logger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -57,11 +39,10 @@ public class ClassicWindowCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
 
         // Act & Assert
-        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, null!))
+        await Assert.That(() => new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -70,12 +51,11 @@ public class ClassicWindowCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
         // Act
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();
@@ -83,93 +63,28 @@ public class ClassicWindowCoordinatorTests
 
     // StartAsync Tests
     [Test]
-    [Skip("Requires WPF Application.Current which is not available in unit tests")]
+    [Skip("Hotkey registration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
     public async Task StartAsync_RegistersHotkey()
     {
-        // Arrange
-        var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
-        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
-
-        hotkeyService.Setup(p => p.RegisterHotkey(
-                It.IsAny<int>(),
-                It.IsAny<ModifierKeys>(),
-                It.IsAny<int>(),
-                It.IsAny<Action>()))
-            .Returns(true);
-
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
-
-        // Act
-        await coordinator.StartAsync(CancellationToken.None);
-
-        // Assert
-        hotkeyService.Verify(p => p.RegisterHotkey(
-            1001, // PowerPasteHotkeyId
-            ModifierKeys.Control | ModifierKeys.Shift,
-            It.IsAny<int>(),
-            It.IsAny<Action>()), Times.Once);
+        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
+        await Task.CompletedTask;
     }
 
     [Test]
-    [Skip("Requires WPF Application.Current which is not available in unit tests")]
+    [Skip("Hotkey registration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
     public async Task StartAsync_WhenHotkeyRegistrationFails_LogsWarning()
     {
-        // Arrange
-        var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
-        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
-
-        hotkeyService.Setup(p => p.RegisterHotkey(
-                It.IsAny<int>(),
-                It.IsAny<ModifierKeys>(),
-                It.IsAny<int>(),
-                It.IsAny<Action>()))
-            .Returns(false);
-
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
-
-        // Act
-        await coordinator.StartAsync(CancellationToken.None);
-
-        // Assert - verify warning was logged
-        logger.Verify(
-            p => p.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Failed to register")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
+        await Task.CompletedTask;
     }
 
     // StopAsync Tests
     [Test]
+    [Skip("Hotkey unregistration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
     public async Task StopAsync_UnregistersHotkey()
     {
-        // Arrange
-        var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
-        var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
-
-        hotkeyService.Setup(p => p.RegisterHotkey(
-                It.IsAny<int>(),
-                It.IsAny<ModifierKeys>(),
-                It.IsAny<int>(),
-                It.IsAny<Action>()))
-            .Returns(true);
-
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
-        await coordinator.StartAsync(CancellationToken.None);
-
-        // Act
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert
-        hotkeyService.Verify(p => p.UnregisterHotkey(1001), Times.Once);
+        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
+        await Task.CompletedTask;
     }
 
     [Test]
@@ -177,11 +92,10 @@ public class ClassicWindowCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
         await coordinator.StopAsync(CancellationToken.None);
@@ -193,11 +107,10 @@ public class ClassicWindowCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
         await Task.CompletedTask;
@@ -209,11 +122,10 @@ public class ClassicWindowCoordinatorTests
     {
         // Arrange
         var serviceProvider = new Mock<IServiceProvider>();
-        var hotkeyService = new Mock<IHotkeyService>();
-        var (configService, messenger) = CreateDefaultMocks();
+        var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, hotkeyService.Object, configService.Object, messenger.Object, logger.Object);
+        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
         await Task.CompletedTask;

@@ -152,10 +152,8 @@ public class HotkeyCoordinator
 
     private void OnPopupClipBarRequested()
     {
-        _logger.LogDebug("Popup ClipBar hotkey pressed");
-        // TODO: Implement ClipBar popup
-        // Create ShowClipBarPopupEvent and implement handler in ClipBarCoordinator
-        _logger.LogWarning("ClipBar popup not yet implemented");
+        _logger.LogDebug("Show Classic Window hotkey pressed");
+        _messenger.Send(new ShowClipBarRequestedEvent(true));
     }
 
     private void OnToggleAutoCaptureRequested()

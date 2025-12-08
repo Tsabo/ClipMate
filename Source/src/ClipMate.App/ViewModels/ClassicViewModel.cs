@@ -22,24 +22,23 @@ public partial class ClassicViewModel : ObservableObject
     private bool _isTacked;
 
     [ObservableProperty]
-    private string _powerPasteStatus = string.Empty;
-
-    [ObservableProperty]
-    private string _powerPasteTarget = "Target: None";
-
-    [ObservableProperty]
     private Clip? _selectedClip;
 
     [ObservableProperty]
-    private string _selectedClipTitle = "No clip selected";
+    private ObservableCollection<Clip> _selectedClips = new();
 
     [ObservableProperty]
     private bool _shouldCloseWindow;
 
-    public ClassicViewModel(IClipService clipService, MainMenuViewModel mainMenu)
+    public ClassicViewModel(IClipService clipService,
+        MainMenuViewModel mainMenu,
+        QuickPasteToolbarViewModel quickPasteToolbarViewModel,
+        ClipListViewModel clipListViewModel)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
+        QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
+        ClipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
     }
 
     /// <summary>
@@ -48,32 +47,16 @@ public partial class ClassicViewModel : ObservableObject
     public MainMenuViewModel MainMenu { get; }
 
     /// <summary>
-    /// Collection of clips in the current collection.
+    /// ViewModel for the QuickPaste toolbar.
     /// </summary>
-    public ObservableCollection<Clip> Clips { get; } = [];
+    public QuickPasteToolbarViewModel QuickPasteToolbarViewModel { get; }
+
+    public ClipListViewModel ClipListViewModel { get; }
 
     /// <summary>
     /// Collection of available collections.
     /// </summary>
     public ObservableCollection<string> Collections { get; } = ["Inbox", "Safe", "Overflow", "Samples", "Trash Can"];
-
-    /// <summary>
-    /// Loads the most recent clips from the current collection.
-    /// </summary>
-    public async Task LoadRecentClipsAsync(int count = 50, CancellationToken cancellationToken = default)
-    {
-        var clips = await _clipService.GetRecentAsync(count, cancellationToken);
-
-        Clips.Clear();
-        foreach (var item in clips)
-            Clips.Add(item);
-
-        if (Clips.Count > 0)
-        {
-            SelectedClip = Clips[0];
-            SelectedClipTitle = SelectedClip.Title ?? SelectedClip.TextContent ?? "Untitled";
-        }
-    }
 
     // ==========================
     // Window State Commands
@@ -87,14 +70,4 @@ public partial class ClassicViewModel : ObservableObject
 
     [RelayCommand]
     private void CloseWindow() => ShouldCloseWindow = true;
-
-    // ==========================
-    // Status Bar Commands (Window-specific)
-    // ==========================
-
-    [RelayCommand]
-    private void Home() { }
-
-    [RelayCommand]
-    private void Target() { }
 }

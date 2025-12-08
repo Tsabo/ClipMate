@@ -292,9 +292,11 @@ public partial class App
 
                 // Register hotkey coordinator
                 services.AddSingleton<HotkeyCoordinator>();
+                services.AddTransient<HotkeyWindow>();
 
                 // Register initialization pipeline and steps
                 services.AddSingleton<StartupInitializationPipeline>();
+                services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();

@@ -9,15 +9,4 @@ public enum ClipBarPopupLocation
     /// Remember and restore the last window position.
     /// </summary>
     RememberLastLocation,
-
-    /// <summary>
-    /// Position above the Windows taskbar on the active monitor.
-    /// Falls back to mouse cursor if taskbar detection fails.
-    /// </summary>
-    AboveTaskbar,
-
-    /// <summary>
-    /// Position at the current mouse cursor location.
-    /// </summary>
-    AtMouseCursor,
 }

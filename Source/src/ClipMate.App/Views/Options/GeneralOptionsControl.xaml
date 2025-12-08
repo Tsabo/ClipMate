@@ -146,25 +146,6 @@
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
-        <!-- ClipBar Behavior Section -->
-        <dxlc:LayoutGroup View="GroupBox" Header="ClipBar Behavior" Orientation="Vertical">
-
-            <!-- ClipBar Popup Location -->
-            <dxlc:LayoutItem Label="ClipBar popup location:">
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Content="At mouse cursor"
-                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.AtMouseCursor}}"
-                                 GroupName="ClipBarLocation" Margin="0,0,5,0" />
-                    <RadioButton Content="Above taskbar"
-                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.AboveTaskbar}}"
-                                 GroupName="ClipBarLocation" Margin="0,0,5,0" />
-                    <RadioButton Content="Remember last location"
-                                 IsChecked="{Binding ClipBarPopupLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:ClipBarPopupLocation.RememberLastLocation}}"
-                                 GroupName="ClipBarLocation" />
-                </StackPanel>
-            </dxlc:LayoutItem>
-        </dxlc:LayoutGroup>
-
         <!-- UI Behavior Section -->
         <dxlc:LayoutGroup View="GroupBox" Header="UI Behavior" Orientation="Vertical">
 

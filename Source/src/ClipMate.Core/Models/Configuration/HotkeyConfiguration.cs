@@ -13,12 +13,14 @@ public class HotkeyConfiguration
     /// <summary>
     /// Gets or sets the hotkey to capture clipboard (e.g., "Win+C").
     /// </summary>
-    public string Capture { get; set; } = "Win+C";
+    // Avoid Win+C (reserved by OS)
+    public string Capture { get; set; } = "Ctrl+Shift+C";
 
     /// <summary>
     /// Gets or sets the hotkey to toggle auto-capture (e.g., "Win+Shift+C").
     /// </summary>
-    public string AutoCapture { get; set; } = "Win+Shift+C";
+    // Avoid Win+Shift+C (reserved by OS)
+    public string AutoCapture { get; set; } = "Ctrl+Alt+A";
 
     /// <summary>
     /// Gets or sets the hotkey for quick paste/PowerPaste (e.g., "Shift+Ctrl+Q").
@@ -53,7 +55,8 @@ public class HotkeyConfiguration
     /// <summary>
     /// Gets or sets the hotkey for manual filter operations (e.g., "Win+W").
     /// </summary>
-    public string ManualFilter { get; set; } = "Win+W";
+    // Avoid Win+W (reserved by OS)
+    public string ManualFilter { get; set; } = "Ctrl+Alt+W";
 
     /// <summary>
     /// Gets or sets the hotkey for popup ClipBar list (e.g., "Ctrl+Shift+Alt+C").

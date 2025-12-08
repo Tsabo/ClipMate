@@ -20,10 +20,10 @@ public partial class HotkeysOptionsViewModel : ObservableObject
     private string _activateQuickPaste = "Shift+Ctrl+Q";
 
     [ObservableProperty]
-    private string _manualCapture = "Win+C";
+    private string _manualCapture = "Ctrl+Shift+C";
 
     [ObservableProperty]
-    private string _manualFilter = "Win+W";
+    private string _manualFilter = "Ctrl+Alt+W";
 
     [ObservableProperty]
     private string _objectScreenCapture = "Ctrl+Alt+F11";
@@ -50,7 +50,7 @@ public partial class HotkeysOptionsViewModel : ObservableObject
     private bool _testResultIsSuccess;
 
     [ObservableProperty]
-    private string _toggleAutoCapture = "Win+Shift+C";
+    private string _toggleAutoCapture = "Ctrl+Alt+A";
 
     [ObservableProperty]
     private string _viewClipInFloatingWindow = "Ctrl+Alt+F2";
@@ -119,21 +119,21 @@ public partial class HotkeysOptionsViewModel : ObservableObject
         if (string.IsNullOrEmpty(hotkeyProperty))
             return;
 
-        // Get the hotkey string from the property
-        var hotkeyString = hotkeyProperty switch
+        // Get the hotkey string and corresponding hotkey ID for the property
+        var (hotkeyString, hotkeyId) = hotkeyProperty switch
         {
-            nameof(ShowWindow) => ShowWindow,
-            nameof(ScrollNext) => ScrollNext,
-            nameof(ScrollPrevious) => ScrollPrevious,
-            nameof(ActivateQuickPaste) => ActivateQuickPaste,
-            nameof(RegionScreenCapture) => RegionScreenCapture,
-            nameof(ObjectScreenCapture) => ObjectScreenCapture,
-            nameof(ViewClipInFloatingWindow) => ViewClipInFloatingWindow,
-            nameof(PopupClipBar) => PopupClipBar,
-            nameof(ToggleAutoCapture) => ToggleAutoCapture,
-            nameof(ManualCapture) => ManualCapture,
-            nameof(ManualFilter) => ManualFilter,
-            var _ => null,
+            nameof(ShowWindow) => (ShowWindow, 1),
+            nameof(ScrollNext) => (ScrollNext, 2),
+            nameof(ScrollPrevious) => (ScrollPrevious, 3),
+            nameof(ActivateQuickPaste) => (ActivateQuickPaste, 4),
+            nameof(RegionScreenCapture) => (RegionScreenCapture, 5),
+            nameof(ObjectScreenCapture) => (ObjectScreenCapture, 6),
+            nameof(ViewClipInFloatingWindow) => (ViewClipInFloatingWindow, 7),
+            nameof(PopupClipBar) => (PopupClipBar, 8),
+            nameof(ToggleAutoCapture) => (ToggleAutoCapture, 9),
+            nameof(ManualCapture) => (ManualCapture, 10),
+            nameof(ManualFilter) => (ManualFilter, 11),
+            var _ => (null, 0),
         };
 
         if (string.IsNullOrWhiteSpace(hotkeyString))
@@ -151,18 +151,24 @@ public partial class HotkeysOptionsViewModel : ObservableObject
             return;
         }
 
-        // Try to register the hotkey with a temporary ID
+        // Use a temporary ID for testing
         var testId = 9999;
         var registered = false;
+        var wasRegistered = _hotkeyService.IsHotkeyRegistered(hotkeyId);
 
         try
         {
             TestResult = "Testing...";
             TestResultIsSuccess = false;
 
+            // Temporarily unregister the current hotkey for this property
+            // so we can test if the new combination is available
+            if (wasRegistered)
+                _hotkeyService.UnregisterHotkey(hotkeyId);
+
             await Task.Delay(100); // Brief delay for visual feedback
 
-            // Attempt registration
+            // Attempt registration with test ID
             registered = _hotkeyService.RegisterHotkey(testId, modifiers, virtualKey, () => { });
 
             if (registered)
@@ -172,15 +178,19 @@ public partial class HotkeysOptionsViewModel : ObservableObject
             }
             else
             {
-                TestResult = $"✗ Cannot register '{hotkeyString}' - already in use";
+                TestResult = $"✗ Cannot register '{hotkeyString}' - already in use by another application";
                 TestResultIsSuccess = false;
             }
         }
         finally
         {
-            // Always unregister if we successfully registered
+            // Always unregister test hotkey if we registered it
             if (registered)
                 _hotkeyService.UnregisterHotkey(testId);
+
+            // Re-register the original hotkey if it was registered before
+            if (wasRegistered)
+                _hotkeyCoordinator.ReloadHotkeys();
         }
     }
 
@@ -248,9 +258,9 @@ public partial class HotkeysOptionsViewModel : ObservableObject
         ObjectScreenCapture = "Ctrl+Alt+F11";
         ViewClipInFloatingWindow = "Ctrl+Alt+F2";
         PopupClipBar = "Ctrl+Shift+Alt+C";
-        ToggleAutoCapture = "Win+Shift+C";
-        ManualCapture = "Win+C";
-        ManualFilter = "Win+W";
+        ToggleAutoCapture = "Ctrl+Alt+A";
+        ManualCapture = "Ctrl+Shift+C";
+        ManualFilter = "Ctrl+Alt+W";
 
         TestResult = "Hotkeys reset to default values";
         TestResultIsSuccess = true;

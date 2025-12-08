@@ -1,7 +1,9 @@
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace ClipMate.Tests.Unit.ViewModels;
@@ -12,9 +14,11 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class ClassicViewModelTests
 {
+    private readonly ClipListViewModel _clipListViewModel;
     private readonly MainMenuViewModel _mainMenuViewModel;
     private readonly Mock<IClipService> _mockClipService;
     private readonly Mock<IMessenger> _mockMessenger;
+    private readonly QuickPasteToolbarViewModel _quickPasteToolbar;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicViewModelTests()
@@ -22,7 +26,26 @@ public class ClassicViewModelTests
         _mockClipService = new Mock<IClipService>();
         _mockMessenger = new Mock<IMessenger>();
         _mainMenuViewModel = new MainMenuViewModel(_mockMessenger.Object);
-        _viewModel = new ClassicViewModel(_mockClipService.Object, _mainMenuViewModel);
+
+        // Create QuickPasteToolbarViewModel with mocked dependencies
+        var mockQuickPasteService = new Mock<IQuickPasteService>();
+        var mockConfigService = new Mock<IConfigurationService>();
+        // Setup Configuration property to return a valid ClipMateConfiguration
+        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        _quickPasteToolbar = new QuickPasteToolbarViewModel(
+            mockQuickPasteService.Object,
+            mockConfigService.Object,
+            _mockMessenger.Object,
+            NullLogger<QuickPasteToolbarViewModel>.Instance);
+
+        // Create ClipListViewModel with mocked dependencies
+        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        _clipListViewModel = new ClipListViewModel(
+            mockServiceScopeFactory.Object,
+            _mockMessenger.Object,
+            NullLogger<ClipListViewModel>.Instance);
+
+        _viewModel = new ClassicViewModel(_mockClipService.Object, _mainMenuViewModel, _quickPasteToolbar, _clipListViewModel);
     }
 
     [Test]
@@ -30,63 +53,30 @@ public class ClassicViewModelTests
     {
         // Arrange & Act
         var mainMenu = new MainMenuViewModel(_mockMessenger.Object);
-        var viewModel = new ClassicViewModel(_mockClipService.Object, mainMenu);
+
+        var mockQuickPasteService = new Mock<IQuickPasteService>();
+        var mockConfigService = new Mock<IConfigurationService>();
+        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        var quickPasteToolbar = new QuickPasteToolbarViewModel(
+            mockQuickPasteService.Object,
+            mockConfigService.Object,
+            _mockMessenger.Object,
+            NullLogger<QuickPasteToolbarViewModel>.Instance);
+
+        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        var clipListViewModel = new ClipListViewModel(
+            mockServiceScopeFactory.Object,
+            _mockMessenger.Object,
+            NullLogger<ClipListViewModel>.Instance);
+
+        var viewModel = new ClassicViewModel(_mockClipService.Object, mainMenu, quickPasteToolbar, clipListViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
         await Assert.That(viewModel.IsDroppedDown).IsFalse();
         await Assert.That(viewModel.IsTacked).IsFalse();
         await Assert.That(viewModel.ShouldCloseWindow).IsFalse();
-        await Assert.That(viewModel.Clips).IsNotNull();
         await Assert.That(viewModel.Collections).IsNotNull();
-    }
-
-    [Test]
-    public async Task LoadRecentClipsAsync_ShouldLoadSpecifiedNumberOfClips()
-    {
-        // Arrange
-        var clips = CreateSampleClips(20);
-        _mockClipService.Setup(p => p.GetRecentAsync(20, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
-
-        // Act
-        await _viewModel.LoadRecentClipsAsync(20);
-
-        // Assert
-        await Assert.That(_viewModel.Clips.Count).IsEqualTo(20);
-        _mockClipService.Verify(p => p.GetRecentAsync(20, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
-    public async Task LoadRecentClipsAsync_WithDefaultCount_ShouldLoad50Clips()
-    {
-        // Arrange
-        var clips = CreateSampleClips(50);
-        _mockClipService.Setup(p => p.GetRecentAsync(50, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
-
-        // Act
-        await _viewModel.LoadRecentClipsAsync();
-
-        // Assert
-        await Assert.That(_viewModel.Clips.Count).IsEqualTo(50);
-    }
-
-    [Test]
-    public async Task LoadRecentClipsAsync_WithClips_ShouldSetSelectedClip()
-    {
-        // Arrange
-        var clips = CreateSampleClips(3);
-        _mockClipService.Setup(p => p.GetRecentAsync(50, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
-
-        // Act
-        await _viewModel.LoadRecentClipsAsync();
-
-        // Assert
-        await Assert.That(_viewModel.SelectedClip).IsNotNull();
-        await Assert.That(_viewModel.SelectedClip).IsEqualTo(clips[0]);
-        await Assert.That(_viewModel.SelectedClipTitle).IsNotEmpty();
     }
 
     [Test]
@@ -168,24 +158,5 @@ public class ClassicViewModelTests
         _viewModel.MainMenu.PowerPasteToggleCommand.Execute(null);
 
         // If we get here without an exception, the test passes
-    }
-
-    private static List<Clip> CreateSampleClips(int count)
-    {
-        var clips = new List<Clip>();
-        for (var i = 1; i <= count; i++)
-        {
-            clips.Add(new Clip
-            {
-                Id = Guid.NewGuid(),
-                TextContent = $"Sample Clip {i}",
-                Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow.AddMinutes(-i),
-                SourceApplicationName = "Test App",
-                ContentHash = $"hash{i}",
-            });
-        }
-
-        return clips;
     }
 }

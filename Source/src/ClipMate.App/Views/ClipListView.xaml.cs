@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
-using System.Windows.Input;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Grid;
@@ -54,7 +53,7 @@ public partial class ClipListView
             nameof(SelectedItems),
             typeof(ObservableCollection<Clip>),
             typeof(ClipListView),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemsChanged));
 
     /// <summary>
     /// Routed event for selection changes
@@ -107,9 +106,13 @@ public partial class ClipListView
         set => SetValue(HeaderTextProperty, value);
     }
 
+    private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        // Selection sync is now handled by GridControlSelectionSync attached property
+    }
+
     private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        var view = (ClipListView)d;
         var newCollection = e.NewValue as ObservableCollection<Clip>;
         Debug.WriteLine($"ClipListView.Items changed: Count={newCollection?.Count ?? 0}");
     }
@@ -137,28 +140,6 @@ public partial class ClipListView
         RaiseEvent(new RoutedEventArgs(SelectionChangedEvent, this));
     }
 
-    /// <summary>
-    /// Handles the SelectedItemsChanged event from the DevExpress GridControl
-    /// </summary>
-    private void ClipDataGrid_SelectedItemsChanged(object sender, DevExpress.Xpf.Grid.GridSelectionChangedEventArgs e)
-    {
-        // Sync the SelectedItems dependency property with the GridControl's selected items
-        var gridControl = sender as GridControl;
-        if (gridControl == null) return;
-
-        // Update the SelectedItems collection
-        if (SelectedItems == null)
-            SelectedItems = [];
-        else
-            SelectedItems.Clear();
-
-        foreach (var item in gridControl.SelectedItems)
-        {
-            if (item is Clip clip)
-                SelectedItems.Add(clip);
-        }
-    }
-
     private async void ClipProperties_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedItem == null)
@@ -183,9 +164,7 @@ public partial class ClipListView
         // Get the parent ViewModel to access SetClipboardContentAsync
         var app = (App)Application.Current;
         if (app.ServiceProvider.GetService(typeof(ClipListViewModel)) is ClipListViewModel viewModel)
-        {
             await viewModel.SetClipboardContentAsync(SelectedItem);
-        }
     }
 
     private void CreateNewClip_Click(object sender, RoutedEventArgs e)
@@ -232,5 +211,4 @@ public partial class ClipListView
             }
         }
     }
-
 }

@@ -1,48 +1,33 @@
-using System.Windows.Input;
-using ClipMate.App.Views;
 using ClipMate.Core.Events;
-using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
-using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
-using Cursor = System.Windows.Forms.Cursor;
-using ModifierKeys = ClipMate.Core.Models.ModifierKeys;
 
 namespace ClipMate.App;
 
 /// <summary>
-/// Coordinates ClipBar (quick paste picker) functionality including hotkey registration and window lifecycle.
-/// ClipBar is a quick access popup window (Ctrl+Shift+V) for selecting and pasting individual clips.
-/// This is distinct from the PowerPaste sequential automation feature.
+/// Coordinates Classic window lifecycle and ensures single instance.
+/// Handles ShowClipBarRequestedEvent to display the Classic window.
+/// Window positioning and state management is handled by ClassicWindow itself.
 /// </summary>
 public class ClassicWindowCoordinator : IHostedService, IRecipient<ShowClipBarRequestedEvent>, IDisposable
 {
-    private const int _clipBarHotkeyId = 1001;
-    private readonly IConfigurationService _configurationService;
-    private readonly IHotkeyService _hotkeyService;
     private readonly ILogger<ClassicWindowCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private ClassicWindow? _classicWindow;
     private bool _disposed;
-    private HotkeyWindow? _hotkeyWindow;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ClassicWindowCoordinator" /> class.
     /// </summary>
     public ClassicWindowCoordinator(IServiceProvider serviceProvider,
-        IHotkeyService hotkeyService,
-        IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<ClassicWindowCoordinator> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
-        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -64,9 +49,6 @@ public class ClassicWindowCoordinator : IHostedService, IRecipient<ShowClipBarRe
             {
                 _classicWindow?.Close();
                 _classicWindow = null;
-
-                _hotkeyWindow?.Close();
-                _hotkeyWindow = null;
             });
         }
         catch (Exception ex)
@@ -79,72 +61,32 @@ public class ClassicWindowCoordinator : IHostedService, IRecipient<ShowClipBarRe
     }
 
     /// <summary>
-    /// Initializes ClipBar with hotkey registration when the host starts.
+    /// Initializes coordinator when the host starts.
     /// </summary>
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            _logger.LogInformation("Starting ClipBar coordinator");
-
-            // Create and show the hidden hotkey window on the UI thread
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                _hotkeyWindow = new HotkeyWindow();
-                _hotkeyWindow.Show(); // CRITICAL: Must be shown for message pump to work
-
-                // Initialize HotkeyService with the hotkey window (must be on UI thread)
-                if (_hotkeyService is HotkeyService platformService)
-                    platformService.Initialize(_hotkeyWindow);
-            });
-
-            // Register Ctrl+Shift+V hotkey for ClipBar
-            var virtualKey = KeyInterop.VirtualKeyFromKey(Key.V);
-            var registered = _hotkeyService.RegisterHotkey(
-                _clipBarHotkeyId,
-                ModifierKeys.Control | ModifierKeys.Shift,
-                virtualKey,
-                OnClipBarHotkeyPressed);
-
-            if (registered)
-                _logger.LogInformation("ClipBar hotkey registered successfully (Ctrl+Shift+V)");
-            else
-                _logger.LogWarning("Failed to register ClipBar hotkey (Ctrl+Shift+V). The hotkey may already be in use.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error starting ClipBar coordinator");
-        }
-
+        _logger.LogInformation("Starting Classic window coordinator");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Stops ClipBar and unregisters hotkeys when the host stops.
+    /// Stops coordinator when the host stops.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Stopping ClipBar coordinator");
+        _logger.LogInformation("Stopping Classic window coordinator");
 
         try
         {
-            // Unregister hotkey
-            _hotkeyService.UnregisterHotkey(_clipBarHotkeyId);
-            _logger.LogInformation("ClipBar hotkey unregistered");
-
-            // Close windows on the UI thread
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _classicWindow?.Close();
                 _classicWindow = null;
-
-                _hotkeyWindow?.Close();
-                _hotkeyWindow = null;
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error stopping ClipBar coordinator");
+            _logger.LogError(ex, "Error stopping Classic window coordinator");
         }
 
         return Task.CompletedTask;
@@ -155,139 +97,66 @@ public class ClassicWindowCoordinator : IHostedService, IRecipient<ShowClipBarRe
     /// </summary>
     public void Receive(ShowClipBarRequestedEvent message)
     {
-        _logger.LogDebug("ShowClipBarRequestedEvent received");
-        ShowClipBar();
+        _logger.LogDebug("Show Classic Window requested (hotkey: {IsHotkey})", message.IsHotkeyTriggered);
+        ShowClipBar(message.IsHotkeyTriggered);
     }
 
     /// <summary>
-    /// Called when the ClipBar hotkey (Ctrl+Shift+V) is pressed.
+    /// Shows the Classic window, ensuring single instance.
+    /// Window handles its own positioning via TOML configuration.
     /// </summary>
-    private void OnClipBarHotkeyPressed()
-    {
-        _logger.LogInformation("ClipBar hotkey pressed (Ctrl+Shift+V)");
-        ShowClipBar();
-    }
-
-    /// <summary>
-    /// Shows the ClipBar window with appropriate positioning.
-    /// </summary>
-    private void ShowClipBar()
+    private void ShowClipBar(bool isHotkeyTriggered)
     {
         try
         {
-            // Ensure we're on the UI thread
             Application.Current.Dispatcher.Invoke(() =>
             {
-                // If window is already open, just activate it
-                if (_classicWindow != null && _classicWindow.IsVisible)
+                // If window exists and is visible, just activate it
+                if (_classicWindow != null)
                 {
-                    _classicWindow.Activate();
-                    _classicWindow.Focus();
-                    _logger.LogDebug("Classic window already open, activating");
-                    return;
+                    if (_classicWindow.IsVisible)
+                    {
+                        _logger.LogDebug("Classic window already visible, activating");
+                        _classicWindow.Activate();
+                        return;
+                    }
+
+                    // Window exists but not visible, close and recreate
+                    _logger.LogDebug("Classic window exists but not visible, recreating");
+                    try
+                    {
+                        _classicWindow.Close();
+                    }
+                    catch
+                    {
+                        // Ignore close errors
+                    }
+
+                    _classicWindow = null;
                 }
 
-                // Create new window instance from DI
-                _classicWindow = _serviceProvider.GetRequiredService<ClassicWindow>();
+                // Create new window from DI with hotkey flag
+                _classicWindow = ActivatorUtilities.CreateInstance<ClassicWindow>(
+                    _serviceProvider,
+                    isHotkeyTriggered);
 
-                // Calculate and set position based on configuration
-                var position = CalculateClipBarPosition();
-                _classicWindow.Left = position.X;
-                _classicWindow.Top = position.Y;
-
-                // Close window when user is done
-                _classicWindow.Closed += (s, e) =>
+                // Handle cleanup when window closes
+                _classicWindow.Closed += (_, _) =>
                 {
                     _logger.LogDebug("Classic window closed");
                     _classicWindow = null;
                 };
 
-                // Show the window
+                // Show and activate the window
                 _classicWindow.Show();
                 _classicWindow.Activate();
-                _logger.LogDebug("Classic window shown at position ({X}, {Y})", position.X, position.Y);
+
+                _logger.LogDebug("Classic window shown");
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error showing ClipBar window");
-        }
-    }
-
-    /// <summary>
-    /// Calculates the position for the ClipBar window based on configuration.
-    /// </summary>
-    private (double X, double Y) CalculateClipBarPosition()
-    {
-        var location = _configurationService.Configuration.Preferences.ClipBarPopupLocation;
-
-        try
-        {
-            switch (location)
-            {
-                case ClipBarPopupLocation.RememberLastLocation:
-                    // Position already set by ClassicWindow constructor from saved config
-                    // Return center screen as fallback if no saved position
-                    var lastPos = _configurationService.Configuration.Preferences.ClipBarLastPosition;
-                    if (!string.IsNullOrWhiteSpace(lastPos))
-                    {
-                        var parts = lastPos.Split(',');
-                        if (parts.Length == 2
-                            && double.TryParse(parts[0], out var x)
-                            && double.TryParse(parts[1], out var y))
-                            return (x, y);
-                    }
-
-                    // Fallback to mouse cursor if no saved position
-                    return GetMouseCursorPosition();
-
-                case ClipBarPopupLocation.AboveTaskbar:
-                    return GetPositionAboveTaskbar();
-
-                case ClipBarPopupLocation.AtMouseCursor:
-                default:
-                    return GetMouseCursorPosition();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error calculating ClipBar position, falling back to mouse cursor");
-            return GetMouseCursorPosition();
-        }
-    }
-
-    private (double X, double Y) GetMouseCursorPosition()
-    {
-        var cursorPos = Cursor.Position;
-        return (cursorPos.X, cursorPos.Y);
-    }
-
-    private (double X, double Y) GetPositionAboveTaskbar()
-    {
-        try
-        {
-            // Get the screen containing the mouse cursor
-            var cursorPos = Cursor.Position;
-            var screen = Screen.FromPoint(cursorPos);
-
-            // Calculate position above taskbar using working area
-            // WorkingArea excludes the taskbar
-            var workingArea = screen.WorkingArea;
-
-            // Position at bottom of working area (above taskbar)
-            // Assuming ClipBar window height is 400 (from XAML)
-            const double windowHeight = 400;
-            const double windowWidth = 600;
-
-            var x = workingArea.Left + (workingArea.Width - windowWidth) / 2;
-            var y = workingArea.Bottom - windowHeight - 10; // 10px padding
-
-            return (x, y);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to calculate position above taskbar, falling back to mouse cursor");
-            return GetMouseCursorPosition();
+            _logger.LogError(ex, "Error showing Classic window");
         }
     }
 }
