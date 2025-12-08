@@ -12,19 +12,24 @@ namespace ClipMate.App;
 public partial class ClassicWindow
 {
     private readonly IConfigurationService _configurationService;
+    private readonly IQuickPasteService _quickPasteService;
     private readonly bool _isHotkeyTriggered;
     private readonly ClassicViewModel _viewModel;
 
-    public ClassicWindow(ClassicViewModel viewModel, IConfigurationService configurationService, bool isHotkeyTriggered = false)
+    public ClassicWindow(ClassicViewModel viewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, bool isHotkeyTriggered = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _isHotkeyTriggered = isHotkeyTriggered;
         DataContext = _viewModel;
 
         // Subscribe to close window flag
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+        // Subscribe to window deactivation for QuickPaste target updates
+        Deactivated += ClassicWindow_Deactivated;
 
         // Load configuration values
         Topmost = _configurationService.Configuration.Preferences.ClassicStayOnTop;
@@ -34,6 +39,21 @@ public partial class ClassicWindow
     {
         if (e.PropertyName == nameof(ClassicViewModel.ShouldCloseWindow) && _viewModel.ShouldCloseWindow)
             Close();
+    }
+
+    private async void ClassicWindow_Deactivated(object? sender, EventArgs e)
+    {
+        try
+        {
+            // Delay to ensure the new foreground window is fully activated
+            await Task.Delay(100);
+            _quickPasteService.UpdateTarget();
+        }
+        catch (Exception ex)
+        {
+            // Log error silently - QuickPaste target update failures should not crash the window
+            System.Diagnostics.Debug.WriteLine($"Error updating QuickPaste target on window deactivation: {ex.Message}");
+        }
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -65,6 +85,7 @@ public partial class ClassicWindow
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        Deactivated -= ClassicWindow_Deactivated;
 
         var config = _configurationService.Configuration.Preferences;
 
