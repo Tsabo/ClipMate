@@ -67,9 +67,10 @@ jobs:
         retention-days: 30
 
     - name: Publish test results
-      uses: EnricoMi/publish-unit-test-result-action/windows@v2
+      uses: dorny/test-reporter@v1
       if: always()
       with:
-        files: build/logs/test-results/**/*.trx
-        check_name: Test Results
-        comment_mode: off
+        name: Test Results
+        path: build/logs/test-results/**/*.trx
+        reporter: dotnet-trx
+        fail-on-error: false
