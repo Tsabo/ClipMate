@@ -16,5 +16,17 @@
     <!--In .NET 9 SDK and earlier, there is no native support for Microsoft.Testing.Platform for dotnet test. 
         Support is built on top of the VSTest infrastructure.-->
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+
+    <!-- Version information (overridden by build system during CI/CD) -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0</InformationalVersion>
+    
+    <!-- Product information -->
+    <Product>ClipMate</Product>
+    <Company>ClipMate Contributors</Company>
+    <Copyright>Copyright © 2025 Jeremy Brown and ClipMate Contributors</Copyright>
+    <Authors>Jeremy Brown; ClipMate Contributors</Authors>
   </PropertyGroup>
 </Project>

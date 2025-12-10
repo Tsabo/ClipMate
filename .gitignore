@@ -40,6 +40,11 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Cake build system
+build/installer/output/
+build/logs/
+build/tools/
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 
@@ -418,7 +423,3 @@ clipmate-*.log
 .github/copilot*.yml
 .github/copilot*.json
 /specs/
-
-# Build installer output and Cake Inno Setup addin files
-build/installer/output/
-build/tools/
