@@ -56,12 +56,6 @@ jobs:
     - name: Restore .NET tools
       run: dotnet tool restore
     
-    - name: Add DevExpress NuGet source
-      run: |
-        dotnet nuget add source "https://nuget.devexpress.com/${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}/api/v3/index.json" --name DevExpress
-      env:
-        DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
-    
     - name: Run release build
       run: dotnet cake build/build.cake --target=Release --version=${{ steps.get_version.outputs.VERSION }}
       env:
