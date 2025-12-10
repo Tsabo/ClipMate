@@ -249,8 +249,9 @@ Task("Test")
         Configuration = configuration,
         NoBuild = true,
         NoRestore = true,
-        Loggers = new[] { $"trx;LogFileName=test-results-{DateTime.Now:yyyyMMdd-HHmmss}.trx" },
-        ResultsDirectory = testResultsDir
+        ArgumentCustomization = args => args
+            .Append("--report-trx")
+            .Append($"--results-directory \"{testResultsDir}\"")
     });
     
     var elapsed = DateTime.Now - startTime;
