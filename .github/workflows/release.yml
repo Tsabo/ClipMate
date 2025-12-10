@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v1.0.0-alpha.1, etc.
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for MinVer
+    
+    - name: Extract version from tag
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+        # Check if pre-release
+        if [[ "$VERSION" == *"-"* ]]; then
+          echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+        else
+          echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Install Inno Setup
+      run: choco install innosetup -y
+    
+    - name: Add Inno Setup to PATH
+      run: echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    
+    - name: Restore .NET tools
+      run: dotnet tool restore
+    
+    - name: Add DevExpress NuGet source
+      run: |
+        dotnet nuget add source "https://nuget.devexpress.com/${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}/api/v3/index.json" --name DevExpress
+      env:
+        DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+    
+    - name: Run release build
+      run: dotnet cake build/build.cake --target=Release --version=${{ steps.get_version.outputs.VERSION }}
+      env:
+        DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+        SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+        SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+        SIGNPATH_SIGNING_POLICY: ${{ secrets.SIGNPATH_SIGNING_POLICY }}
+    
+    - name: Calculate installer size
+      id: sizes
+      shell: pwsh
+      run: |
+        $setup = Get-Item "build/installer/output/ClipMate-Setup-*.exe"
+        
+        $setupSize = [math]::Round($setup.Length / 1MB, 2)
+        
+        echo "SETUP_SIZE=$setupSize" >> $env:GITHUB_OUTPUT
+        
+        echo "Setup installer: $setupSize MB"
+    
+    - name: Create release notes
+      id: release_notes
+      shell: pwsh
+      run: |
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        $setupSize = "${{ steps.sizes.outputs.SETUP_SIZE }}"
+        $isPreRelease = "${{ steps.get_version.outputs.PRERELEASE }}" -eq "true"
+        
+        $signedStatus = if ("${{ secrets.SIGNPATH_API_TOKEN }}" -ne "") {
+          "✅ **Code Signed** - No SmartScreen warnings"
+        } else {
+          "⚠️ **Unsigned Pre-Release** - SmartScreen warnings expected. SignPath signing will be enabled after project approval."
+        }
+        
+        $notes = @"
+        ## ClipMate $version
+        
+        ### Download
+        
+        **[ClipMate-Setup-$version.exe](ClipMate-Setup-$version.exe)** (~$setupSize MB)
+        
+        ### Installation
+        
+        - **Target OS:** Windows 11 or Windows 10 version 1809+
+        - **Requirements:** Internet connection during install (only if dependencies missing)
+        - **Auto-installs if needed:**
+          - .NET 9 Desktop Runtime
+          - WebView2 Evergreen Runtime (usually pre-installed on Windows 11)
+        
+        Simply download and run the installer - it will handle all dependencies automatically.
+        
+        ### Security
+        
+        $signedStatus
+        
+        ### Verification
+        
+        **SHA-256 Checksum:**
+        ``````pwsh
+        (Get-FileHash ClipMate-Setup-$version.exe).Hash -eq (Get-Content ClipMate-Setup-$version.exe.sha256).Split()[0]
+        ``````
+        
+        ---
+        
+        **Full Changelog:** See CHANGELOG.md
+        "@
+        
+        $notes | Out-File -FilePath release_notes.md -Encoding utf8
+        
+        Get-Content release_notes.md
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          build/installer/output/ClipMate-Setup-*.exe
+          build/installer/output/ClipMate-Setup-*.exe.sha256
+        body_path: release_notes.md
+        draft: false
+        prerelease: ${{ steps.get_version.outputs.PRERELEASE == 'true' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-build-logs
+        path: build/logs/
+        retention-days: 90

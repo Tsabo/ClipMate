@@ -418,3 +418,7 @@ clipmate-*.log
 .github/copilot*.yml
 .github/copilot*.json
 /specs/
+
+# Build installer output and Cake Inno Setup addin files
+build/installer/output/
+build/tools/

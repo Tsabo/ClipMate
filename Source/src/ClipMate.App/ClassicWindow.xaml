@@ -11,7 +11,7 @@
     xmlns:controls="clr-namespace:ClipMate.App.Controls"
     d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
     mc:Ignorable="d"
-    Title="ClipMate Classic [InBox]"
+    Title="ClipMate"
     Width="700"
     Height="500"
     MinWidth="500"
