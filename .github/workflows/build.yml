@@ -37,6 +37,7 @@ jobs:
       run: dotnet cake build/build.cake --target=CI --verbosity=Normal
       env:
         DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+        DevExpress_License: ${{ secrets.DEVEXPRESS_LICENSE }}
 
     - name: Upload build logs
       if: always()
