@@ -56,7 +56,7 @@ public class SqliteSchemaMigratorTests
 
         // Assert
         await Assert.That(result.Success).IsTrue();
-        await Assert.That(result.SqlExecuted).HasCount().EqualTo(1);
+        await Assert.That(result.SqlExecuted).Count().IsEqualTo(1);
         await Assert.That(result.Errors).IsEmpty();
 
         // Verify table exists
@@ -106,7 +106,7 @@ public class SqliteSchemaMigratorTests
 
         // Assert
         await Assert.That(result.Success).IsTrue();
-        await Assert.That(result.SqlExecuted).HasCount().EqualTo(3);
+        await Assert.That(result.SqlExecuted).Count().IsEqualTo(3);
         await Assert.That(result.Errors).IsEmpty();
     }
 
@@ -137,7 +137,7 @@ public class SqliteSchemaMigratorTests
 
         // Assert
         await Assert.That(result.Success).IsTrue();
-        await Assert.That(result.SqlExecuted).HasCount().EqualTo(1);
+        await Assert.That(result.SqlExecuted).Count().IsEqualTo(1);
         await Assert.That(result.SqlExecuted[0]).Contains("CREATE TABLE Users");
 
         // Verify table does NOT exist
@@ -187,7 +187,7 @@ public class SqliteSchemaMigratorTests
 
         // Assert
         await Assert.That(result.Success).IsFalse();
-        await Assert.That(result.Errors).HasCount().GreaterThan(0);
+        await Assert.That(result.Errors).Count().IsGreaterThan(0);
 
         // Verify Users table does NOT exist (rollback happened)
         using var cmd = connection.CreateCommand();
@@ -359,7 +359,7 @@ public class SqliteSchemaMigratorTests
 
         // Assert
         await Assert.That(result.Success).IsTrue();
-        await Assert.That(result.Warnings).HasCount().EqualTo(1);
+        await Assert.That(result.Warnings).Count().IsEqualTo(1);
         await Assert.That(result.Warnings[0]).Contains("data loss");
     }
 }

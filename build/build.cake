@@ -244,15 +244,18 @@ Task("Test")
     var testResultsDir = logsDir.Combine("test-results");
     EnsureDirectoryExists(testResultsDir);
     
-    DotNetTest(solutionFile.FullPath, new DotNetTestSettings
+    // Use StartProcess to call dotnet test directly because Cake's DotNetTest() 
+    // doesn't work correctly with .NET 10 SDK MTP mode argument parsing
+    var exitCode = StartProcess("dotnet", new ProcessSettings
     {
-        Configuration = configuration,
-        NoBuild = true,
-        NoRestore = true,
-        ArgumentCustomization = args => args
-            .Append("--report-trx")
-            .Append($"--results-directory \"{testResultsDir}\"")
+        Arguments = $"test --configuration {configuration} --no-build --no-restore --report-trx --results-directory \"{testResultsDir.FullPath}\"",
+        WorkingDirectory = sourceDir
     });
+    
+    if (exitCode != 0)
+    {
+        throw new Exception($"Tests failed with exit code {exitCode}");
+    }
     
     var elapsed = DateTime.Now - startTime;
     Information($"Tests completed in {elapsed.TotalSeconds:F2}s");

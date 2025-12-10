@@ -10,8 +10,6 @@
     <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892;CS1998</NoWarn>
     <OutputType>Exe</OutputType>
     <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
-    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
-    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
     <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
     <IsTestProject>true</IsTestProject>
     <UseTestingPlatformProtocol>true</UseTestingPlatformProtocol>

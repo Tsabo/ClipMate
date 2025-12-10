@@ -53,7 +53,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.HasChanges).IsTrue();
-        await Assert.That(diff.Operations).HasCount().EqualTo(1);
+        await Assert.That(diff.Operations).Count().IsEqualTo(1);
         await Assert.That(diff.Operations[0].Type).IsEqualTo(MigrationOperationType.CreateTable);
         await Assert.That(diff.Operations[0].TableName).IsEqualTo("Users");
     }
@@ -95,7 +95,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.HasChanges).IsTrue();
-        await Assert.That(diff.Operations).HasCount().EqualTo(1);
+        await Assert.That(diff.Operations).Count().IsEqualTo(1);
         await Assert.That(diff.Operations[0].Type).IsEqualTo(MigrationOperationType.AddColumn);
         await Assert.That(diff.Operations[0].TableName).IsEqualTo("Users");
         await Assert.That(diff.Operations[0].ColumnName).IsEqualTo("Email");
@@ -154,7 +154,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.HasChanges).IsTrue();
-        await Assert.That(diff.Operations).HasCount().EqualTo(1);
+        await Assert.That(diff.Operations).Count().IsEqualTo(1);
         await Assert.That(diff.Operations[0].Type).IsEqualTo(MigrationOperationType.CreateIndex);
         await Assert.That(diff.Operations[0].IndexName).IsEqualTo("IX_Users_Email");
     }
@@ -181,7 +181,7 @@ public class SqliteSchemaComparerTests
         var diff = comparer.Compare(current, expected);
 
         // Assert
-        await Assert.That(diff.Warnings).HasCount().GreaterThan(0);
+        await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
         await Assert.That(diff.Warnings.Any(w => w.Contains("Users"))).IsTrue();
     }
 
@@ -221,7 +221,7 @@ public class SqliteSchemaComparerTests
         var diff = comparer.Compare(current, expected);
 
         // Assert
-        await Assert.That(diff.Warnings).HasCount().GreaterThan(0);
+        await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
         await Assert.That(diff.Warnings.Any(w => w.Contains("OldColumn"))).IsTrue();
     }
 
@@ -265,7 +265,7 @@ public class SqliteSchemaComparerTests
         var diff = comparer.Compare(current, expected);
 
         // Assert
-        await Assert.That(diff.Warnings).HasCount().GreaterThan(0);
+        await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
         await Assert.That(diff.Warnings.Any(w => w.Contains("Age") && w.Contains("type"))).IsTrue();
     }
 
@@ -312,7 +312,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.HasChanges).IsTrue();
-        await Assert.That(diff.Operations).HasCount().EqualTo(2);
+        await Assert.That(diff.Operations).Count().IsEqualTo(2);
         await Assert.That(diff.Operations.Any(op => op.Type == MigrationOperationType.CreateTable && op.TableName == "Products")).IsTrue();
         await Assert.That(diff.Operations.Any(op => op.Type == MigrationOperationType.AddColumn && op.ColumnName == "Email")).IsTrue();
     }

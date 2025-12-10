@@ -116,11 +116,22 @@ public class OptionsViewModelTests
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
     {
         // Arrange - Create ViewModel without profile service
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
+        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
             new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object); // No profile service
 
         // Act
-        var viewModel = CreateViewModel();
+        var viewModel = new OptionsViewModel(
+            _mockConfigurationService.Object,
+            _mockMessenger.Object,
+            _mockLogger.Object,
+            _generalViewModel,
+            _powerPasteViewModel,
+            _quickPasteViewModel,
+            _editorViewModel,
+            _capturingViewModel,
+            applicationProfilesViewModel,
+            _soundsViewModel,
+            _hotkeysViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
@@ -178,7 +189,7 @@ public class OptionsViewModelTests
         await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).HasCount().EqualTo(3);
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).Count().IsEqualTo(3);
         await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[0].Profile.ApplicationName).IsEqualTo("CHROME");
         await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[1].Profile.ApplicationName).IsEqualTo("DEVENV");
         await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes[2].Profile.ApplicationName).IsEqualTo("NOTEPAD");
@@ -188,15 +199,11 @@ public class OptionsViewModelTests
     public async Task LoadApplicationProfilesAsync_WithoutProfileService_ShouldLogWarning()
     {
         // Arrange - Create ViewModel without profile service
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
-            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object);
-
-        CreateViewModel();
         var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
+        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
 
         // Act
-        await _applicationProfilesViewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await applicationProfilesViewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Assert
         await Assert.That(_applicationProfilesViewModel.ApplicationProfileNodes).IsEmpty();
@@ -225,7 +232,7 @@ public class OptionsViewModelTests
         var viewModel = CreateViewModel();
 
         await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
-        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).HasCount().EqualTo(1);
+        await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).Count().IsEqualTo(1);
 
         // Act
         await viewModel.ApplicationProfiles.DeleteAllProfilesCommand.ExecuteAsync(null);
@@ -240,10 +247,10 @@ public class OptionsViewModelTests
     {
         // Arrange - Create ViewModel without profile service
         var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
+        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
 
         // Act
-        await _applicationProfilesViewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
+        await applicationProfilesViewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
 
         // Assert
         mockLogger.Verify(

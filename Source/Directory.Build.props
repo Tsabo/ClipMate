@@ -13,10 +13,6 @@
     <!-- Use latest C# language version -->
     <LangVersion>latest</LangVersion>
 
-    <!--In .NET 9 SDK and earlier, there is no native support for Microsoft.Testing.Platform for dotnet test. 
-        Support is built on top of the VSTest infrastructure.-->
-    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
-
     <!-- Version information (overridden by build system during CI/CD) -->
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>

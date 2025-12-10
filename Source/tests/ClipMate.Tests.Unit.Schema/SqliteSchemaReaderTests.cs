@@ -45,12 +45,12 @@ public class SqliteSchemaReaderTests
         var schema = await reader.ReadSchemaAsync();
 
         // Assert
-        await Assert.That(schema.Tables).HasCount().EqualTo(1);
+        await Assert.That(schema.Tables).Count().IsEqualTo(1);
         await Assert.That(schema.Tables.ContainsKey("Users")).IsTrue();
         
         var table = schema.Tables["Users"];
         await Assert.That(table.Name).IsEqualTo("Users");
-        await Assert.That(table.Columns).HasCount().EqualTo(4);
+        await Assert.That(table.Columns).Count().IsEqualTo(4);
         
         // Verify columns
         var idCol = table.Columns.FirstOrDefault(c => c.Name == "Id");
@@ -102,7 +102,7 @@ public class SqliteSchemaReaderTests
 
         // Assert
         var table = schema.Tables["Products"];
-        await Assert.That(table.Indexes).HasCount().EqualTo(2);
+        await Assert.That(table.Indexes).Count().IsEqualTo(2);
         
         var nameIndex = table.Indexes.FirstOrDefault(i => i.Name == "IX_Products_Name");
         await Assert.That(nameIndex).IsNotNull();
@@ -149,7 +149,7 @@ public class SqliteSchemaReaderTests
 
         // Assert
         var productsTable = schema.Tables["Products"];
-        await Assert.That(productsTable.ForeignKeys).HasCount().EqualTo(1);
+        await Assert.That(productsTable.ForeignKeys).Count().IsEqualTo(1);
         
         var fk = productsTable.ForeignKeys[0];
         await Assert.That(fk.ColumnName).IsEqualTo("CategoryId");
@@ -184,7 +184,7 @@ public class SqliteSchemaReaderTests
         var schema = await reader.ReadSchemaAsync();
 
         // Assert
-        await Assert.That(schema.Tables).HasCount().EqualTo(2);
+        await Assert.That(schema.Tables).Count().IsEqualTo(2);
         await Assert.That(schema.Tables.ContainsKey("Users")).IsTrue();
         await Assert.That(schema.Tables.ContainsKey("Products")).IsTrue();
         await Assert.That(schema.Tables.ContainsKey("__InternalTable")).IsFalse();
@@ -220,7 +220,7 @@ public class SqliteSchemaReaderTests
 
         // Assert
         var table = schema.Tables["Users"];
-        await Assert.That(table.Columns).HasCount().EqualTo(2);
+        await Assert.That(table.Columns).Count().IsEqualTo(2);
         await Assert.That(table.Columns.Any(c => c.Name == "Id")).IsTrue();
         await Assert.That(table.Columns.Any(c => c.Name == "Name")).IsTrue();
         await Assert.That(table.Columns.Any(c => c.Name == "RowVersion")).IsFalse();
@@ -251,8 +251,8 @@ public class SqliteSchemaReaderTests
         var schema2 = await reader.ReadSchemaAsync();
 
         // Assert - should still only have Users because of cache
-        await Assert.That(schema1.Tables).HasCount().EqualTo(1);
-        await Assert.That(schema2.Tables).HasCount().EqualTo(1);
+        await Assert.That(schema1.Tables).Count().IsEqualTo(1);
+        await Assert.That(schema2.Tables).Count().IsEqualTo(1);
         await Assert.That(ReferenceEquals(schema1, schema2)).IsTrue();
     }
 
@@ -281,8 +281,8 @@ public class SqliteSchemaReaderTests
         var schema2 = await reader.ReadSchemaAsync();
 
         // Assert - should have both tables on second read
-        await Assert.That(schema1.Tables).HasCount().EqualTo(1);
-        await Assert.That(schema2.Tables).HasCount().EqualTo(2);
+        await Assert.That(schema1.Tables).Count().IsEqualTo(1);
+        await Assert.That(schema2.Tables).Count().IsEqualTo(2);
     }
 
     [Test]
@@ -311,7 +311,7 @@ public class SqliteSchemaReaderTests
         var table = schema.Tables["OrderItems"];
         var pkColumns = table.Columns.Where(c => c.IsPrimaryKey).ToList();
         
-        await Assert.That(pkColumns).HasCount().EqualTo(2);
+        await Assert.That(pkColumns).Count().IsEqualTo(2);
         await Assert.That(pkColumns.Any(c => c.Name == "OrderId")).IsTrue();
         await Assert.That(pkColumns.Any(c => c.Name == "ProductId")).IsTrue();
     }

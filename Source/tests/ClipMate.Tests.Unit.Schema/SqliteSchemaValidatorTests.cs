@@ -78,7 +78,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors).HasCount().GreaterThan(0);
+        await Assert.That(result.Errors).Count().IsGreaterThan(0);
         await Assert.That(result.Errors.Any(e => e.Contains("123Invalid") && e.Contains("table name"))).IsTrue();
     }
 
@@ -350,7 +350,7 @@ public class SqliteSchemaValidatorTests
         var result = validator.Validate(schema);
 
         // Assert
-        await Assert.That(result.Warnings).HasCount().GreaterThan(0);
+        await Assert.That(result.Warnings).Count().IsGreaterThan(0);
         await Assert.That(result.Warnings.Any(w => w.Contains("Users") && w.Contains("primary key"))).IsTrue();
     }
 }
