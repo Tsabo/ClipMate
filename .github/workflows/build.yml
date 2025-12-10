@@ -30,6 +30,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
+    - name: AddDevExpressLicense
+      shell: cmd
+      run: |
+        set "DEST=%APPDATA%\DevExpress"
+        if not exist "%DEST%" mkdir "%DEST%"
+        echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
+
     - name: Restore .NET tools
       run: dotnet tool restore
 
