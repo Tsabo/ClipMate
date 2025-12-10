@@ -15,6 +15,9 @@
     <PackageVersion Include="WpfHexaEditor" Version="2.1.7" />
     <PackageVersion Include="WPF-UI" Version="4.0.3" />
   </ItemGroup>
+  <ItemGroup Label="Build Tools">
+    <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />
+  </ItemGroup>
   <ItemGroup Label="Data Access">
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />

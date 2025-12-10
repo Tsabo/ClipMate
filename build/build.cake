@@ -2,7 +2,6 @@
 // ClipMate Build Script
 //////////////////////////////////////////////////////////////////////
 
-#addin nuget:?package=Cake.LibMan&version=1.0.1
 #addin nuget:?package=Cake.MinVer&version=4.0.0
 
 using System.Text.RegularExpressions;
@@ -200,15 +199,6 @@ Task("Restore")
     
     // Restore packages
     DotNetRestore(solutionFile.FullPath);
-    
-    // Restore LibMan packages
-    Information("Restoring LibMan packages...");
-    var libmanPath = sourceDir.Combine("src/ClipMate.App");
-    LibManRestore(new LibManRestoreSettings
-    {
-        WorkingDirectory = libmanPath
-    });
-    Information("LibMan packages restored");
     
     var elapsed = DateTime.Now - startTime;
     Information($"Restore completed in {elapsed.TotalSeconds:F2}s");
