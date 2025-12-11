@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -16,6 +17,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App;
@@ -98,7 +101,7 @@ public partial class App
             var config = configService.Configuration.Preferences;
 
             // Validate icon visibility - at least one must be visible
-            if (!config.ShowTrayIcon && !config.ShowTaskbarIcon)
+            if (config is { ShowTrayIcon: false, ShowTaskbarIcon: false })
             {
                 _logger?.LogCritical("Both tray icon and taskbar icon are disabled! Forcing tray icon to be visible for user access.");
                 config.ShowTrayIcon = true;
@@ -136,21 +139,65 @@ public partial class App
     /// <returns>True if database is ready, false if user cancelled setup.</returns>
     private async Task<bool> CheckDatabaseAndRunSetupIfNeededAsync()
     {
+        // Configure Serilog before any database checks so we can log setup issues
+        var logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClipMate",
+            "Logs");
+
+        try
+        {
+            Directory.CreateDirectory(logDirectory);
+        }
+        catch (Exception ex)
+        {
+            // Can't create log directory - log to Debug output only
+            Debug.WriteLine($"Failed to create log directory: {ex.Message}");
+        }
+
+        var logFilePath = Path.Combine(logDirectory, "clipmate-.log");
+
+        // Create early logger for database setup
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithThreadId()
+            .WriteTo.Debug()
+            .WriteTo.Console()
+            .WriteTo.File(
+                logFilePath,
+                rollingInterval: RollingInterval.Day,
+                rollOnFileSizeLimit: true,
+                fileSizeLimitBytes: 10_485_760, // 10 MB
+                retainedFileCountLimit: 30,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{ThreadId}] {SourceContext} - {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+        var earlyLogger = Log.ForContext<App>();
+        earlyLogger.Information("Checking database setup...");
+
         // Default database path
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
         _databasePath = Path.Combine(appDataPath, "clipmate.db");
+        earlyLogger.Information("Default database path: {DatabasePath}", _databasePath);
 
         // Check if database file exists and has tables
         var databaseExists = File.Exists(_databasePath);
+        earlyLogger.Information("Database file exists: {Exists}", databaseExists);
+
         var databaseValid = false;
 
         if (databaseExists)
         {
             try
             {
+                earlyLogger.Debug("Validating database schema...");
+
                 // Check if database has the required tables
                 var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
                 optionsBuilder.UseSqlite($"Data Source={_databasePath}");
@@ -160,41 +207,50 @@ public partial class App
                 // Try to query Collections table (will throw if doesn't exist)
                 await context.Collections.AnyAsync();
                 databaseValid = true;
+                earlyLogger.Information("Database schema validation successful");
             }
-            catch
+            catch (Exception ex)
             {
                 // Database exists but is invalid/empty
                 databaseValid = false;
+                earlyLogger.Warning(ex, "Database validation failed - database exists but schema is invalid or incomplete");
             }
         }
 
         if (!databaseValid)
         {
+            earlyLogger.Information("Database setup required - launching setup wizard");
+
             // Show setup wizard
             // Create a minimal logger for the wizard
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
-                builder.AddDebug();
-                builder.AddConsole();
+                builder.AddSerilog();
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
             var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
             var setupWizard = new SetupWizard(setupLogger, appDataPath);
 
+            earlyLogger.Debug("Showing setup wizard dialog...");
             var result = setupWizard.ShowDialog();
 
             if (result != true || !setupWizard.SetupCompleted)
             {
                 // User cancelled setup
+                earlyLogger.Warning("User cancelled database setup");
+
                 return false;
             }
 
             // Use the path chosen in setup wizard
             _databasePath = setupWizard.DatabasePath;
+            earlyLogger.Information("Setup wizard completed successfully. Database path: {DatabasePath}", _databasePath);
 
             // Configuration has been saved by the wizard
         }
+        else
+            earlyLogger.Information("Database is valid - skipping setup wizard");
 
         return true;
     }
@@ -204,19 +260,38 @@ public partial class App
     /// </summary>
     private static IHostBuilder CreateHostBuilder(string databasePath)
     {
+        // Configure Serilog early
+        var logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClipMate",
+            "Logs");
+
+        Directory.CreateDirectory(logDirectory);
+
+        var logFilePath = Path.Combine(logDirectory, "clipmate-.log");
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithThreadId()
+            .WriteTo.Debug()
+            .WriteTo.Console()
+            .WriteTo.File(
+                logFilePath,
+                rollingInterval: RollingInterval.Day,
+                rollOnFileSizeLimit: true,
+                fileSizeLimitBytes: 10_485_760, // 10 MB
+                retainedFileCountLimit: 30,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{ThreadId}] {SourceContext} - {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
         return Host.CreateDefaultBuilder()
+            .UseSerilog() // Use Serilog for logging
             .ConfigureAppConfiguration(config => config.SetBasePath(AppContext.BaseDirectory))
             .ConfigureServices(services =>
             {
-                // Configure logging
-                services.AddLogging(builder =>
-                {
-                    builder.SetMinimumLevel(LogLevel.Debug);
-                    builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
-                    builder.AddDebug();
-                    builder.AddConsole();
-                });
-
                 // App Host
                 services.AddHostedService<ApplicationHostService>();
 
@@ -323,6 +398,11 @@ public partial class App
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error during application shutdown");
+        }
+        finally
+        {
+            // Ensure Serilog flushes all buffered log entries
+            await Log.CloseAndFlushAsync();
         }
 
         // Release single instance mutex

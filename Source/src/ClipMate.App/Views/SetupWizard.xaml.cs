@@ -5,6 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using MessageBox = System.Windows.MessageBox;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
@@ -32,7 +33,10 @@ public partial class SetupWizard
         // Default path
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+            "ClipMate",
+            "Databases");
+
+        Directory.CreateDirectory(appDataPath);
 
         DatabasePath = Path.Combine(appDataPath, "clipmate.db");
         DatabasePathTextBox.Text = DatabasePath;
@@ -42,6 +46,7 @@ public partial class SetupWizard
     public string DatabasePath { get; private set; }
 
     public string DatabaseName { get; private set; } = "My Clips";
+
     public bool SetupCompleted { get; private set; }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -52,7 +57,7 @@ public partial class SetupWizard
             FileName = "clipmate.db",
             DefaultExt = ".db",
             Filter = "SQLite Database|*.db|All Files|*.*",
-            InitialDirectory = Path.GetDirectoryName(DatabasePath),
+            InitialDirectory = Path.GetDirectoryName(DatabasePath)
         };
 
         if (dialog.ShowDialog() == true)
@@ -82,6 +87,7 @@ public partial class SetupWizard
                 MessageBoxImage.Warning);
 
             DatabaseNameTextBox.Focus();
+
             return;
         }
 
@@ -128,7 +134,7 @@ public partial class SetupWizard
 
             _logger.LogInformation("Creating database and applying schema migrations...");
             await context.Database.EnsureCreatedAsync();
-            
+
             var migrationService = new DatabaseSchemaMigrationService(_logger as ILogger<DatabaseSchemaMigrationService>);
             await migrationService.MigrateAsync(context);
 
@@ -177,10 +183,13 @@ public partial class SetupWizard
     {
         try
         {
-            // Create configuration service
+            _logger.LogInformation("Saving database configuration: Name={DatabaseName}, Directory={DatabaseDirectory}",
+                databaseName, databaseDirectory);
+
+            // Create logger factory to bridge Serilog to MEL ILogger
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
-                builder.AddDebug();
+                builder.AddSerilog();
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
@@ -188,6 +197,7 @@ public partial class SetupWizard
             var configService = new ConfigurationService(_configurationDirectory, configLogger);
 
             // Load or create configuration
+            _logger.LogDebug("Loading existing configuration or creating new...");
             var config = await configService.LoadAsync();
 
             // Add database configuration
@@ -199,21 +209,24 @@ public partial class SetupWizard
                 AllowBackup = true,
                 ReadOnly = false,
                 CleanupMethod = 3, // Daily
-                PurgeDays = 7,
+                PurgeDays = 7
             };
 
             // Use "default" as the key for the first database
             config.Databases["default"] = dbConfig;
             config.DefaultDatabase = "default";
 
+            _logger.LogDebug("Saving configuration to disk...");
+
             // Save configuration
             await configService.SaveAsync(config);
 
-            _logger.LogInformation("Configuration saved successfully");
+            _logger.LogInformation("Configuration saved successfully to: {ConfigDirectory}", _configurationDirectory);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save configuration");
+            _logger.LogError(ex, "Failed to save database configuration");
+
             throw new InvalidOperationException("Failed to save database configuration", ex);
         }
     }

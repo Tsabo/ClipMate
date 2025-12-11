@@ -46,6 +46,9 @@ public static class ServiceCollectionExtensions
         // Register StartupManager for Windows startup configuration
         services.AddSingleton<IStartupManager, StartupManager>();
 
+        // Register FileLoggingService for log management
+        services.AddSingleton<IFileLoggingService, FileLoggingService>();
+
         // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;

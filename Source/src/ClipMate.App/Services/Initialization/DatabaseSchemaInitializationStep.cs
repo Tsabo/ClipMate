@@ -1,5 +1,7 @@
+using System.IO;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -26,18 +28,41 @@ public class DatabaseSchemaInitializationStep : IStartupInitializationStep
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Initializing database schema");
+        _logger.LogInformation("=== Database Schema Initialization Started ===");
 
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
 
-        // Ensure database file exists
-        await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+            var connectionString = dbContext.Database.GetConnectionString();
+            _logger.LogInformation("Database connection string: {ConnectionString}", connectionString);
 
-        // Migrate schema to match EF Core model
-        var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
-        await migrationService.MigrateAsync(dbContext, cancellationToken);
+            // Check if database file exists
+            var databasePath = connectionString?.Replace("Data Source=", "").Trim();
+            if (!string.IsNullOrEmpty(databasePath))
+            {
+                var fileExists = File.Exists(databasePath);
+                _logger.LogInformation("Database file exists: {Exists} at path: {Path}", fileExists, databasePath);
+            }
 
-        _logger.LogDebug("Database schema initialized successfully");
+            // Ensure database file exists
+            _logger.LogDebug("Ensuring database file is created...");
+            await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+            _logger.LogInformation("Database file creation verified");
+
+            // Migrate schema to match EF Core model
+            _logger.LogInformation("Starting schema migration...");
+            var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
+            await migrationService.MigrateAsync(dbContext, cancellationToken);
+
+            _logger.LogInformation("=== Database Schema Initialization Completed Successfully ===");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical(ex, "FATAL: Database schema initialization failed");
+
+            throw new InvalidOperationException("Database schema initialization failed. See inner exception for details.", ex);
+        }
     }
 }
