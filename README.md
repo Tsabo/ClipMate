@@ -79,7 +79,7 @@ Source/
 - **Location**: `%LOCALAPPDATA%\ClipMate\clipmate.db`
 
 **Platform Integration**
-- **Win32 APIs**: CsWin32 0.3.248 for code-generated P/Invoke (replaced manual declarations per ADR-005)
+- **Win32 APIs**: CsWin32 0.3.259 for code-generated P/Invoke (replaced manual declarations per ADR-005)
 - **Clipboard Monitor**: `WM_CLIPBOARDUPDATE` message handling
 - **Hotkey Manager**: `RegisterHotKey` Win32 API wrapper
 - **System Tray**: Windows Forms NotifyIcon
@@ -92,15 +92,15 @@ Source/
 - **Audio**: NAudio 2.2.1 for sound playback
 
 **Testing**
-- **Test Framework**: TUnit 0.4.31 (modern alternative to xUnit, migrated from xUnit)
+- **Test Framework**: TUnit 1.5.37 (modern alternative to xUnit, migrated from xUnit)
 - **Mocking**: Moq 4.20.72
-- **Current Status**: 556 tests (552 passing, 4 skipped)
+- **Current Status**: 548 tests (546 passing, 2 skipped)
 
 **Additional Libraries**
 - **Emoji.Wpf**: Emoji rendering in WPF
 - **WebView2**: HTML preview with Microsoft Edge WebView2
-- **WpfHexaEditor**: Binary content viewing
-- **Tomlyn**: TOML configuration parsing
+- **WpfHexaEditor**: Binary content viewing (vendored from https://github.com/abbaye/WpfHexEditorControl v2.1.7)
+- **Tomlyn.Signed**: TOML configuration parsing (strong-named version)
 
 ### Recent Architecture Achievements
 
@@ -467,7 +467,7 @@ Migrate from DevExpress theming to WPF UI library for Fluent Design System, mode
 - Initial design used LiteDB → Switched to EF Core 9.0 + SQLite (team expertise, ADR-001)
 - Custom logging → Migrated to Microsoft.Extensions.Logging (ADR-004)
 - Manual P/Invoke → Migrated to CsWin32 0.3.248 code generation (ADR-005)
-- xUnit → Migrated to TUnit 0.4.31 for modern testing experience
+- xUnit → Migrated to TUnit 1.5.37 for modern testing experience
 - Custom MVVM → Adopted CommunityToolkit.Mvvm 8.4.0 (ADR-002)
 - Custom DI → Adopted Microsoft.Extensions.DependencyInjection (ADR-003)
 - Monolithic OptionsViewModel → Refactored to coordinator pattern with 7 child ViewModels (Dec 2025)
@@ -485,4 +485,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Built with .NET 9, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: Active Development | Last Updated: December 4, 2025
+Status: Active Development | Last Updated: December 10, 2025

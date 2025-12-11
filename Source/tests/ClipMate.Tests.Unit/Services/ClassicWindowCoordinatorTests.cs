@@ -61,32 +61,6 @@ public class ClassicWindowCoordinatorTests
         await Assert.That(coordinator).IsNotNull();
     }
 
-    // StartAsync Tests
-    [Test]
-    [Skip("Hotkey registration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
-    public async Task StartAsync_RegistersHotkey()
-    {
-        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
-        await Task.CompletedTask;
-    }
-
-    [Test]
-    [Skip("Hotkey registration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
-    public async Task StartAsync_WhenHotkeyRegistrationFails_LogsWarning()
-    {
-        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
-        await Task.CompletedTask;
-    }
-
-    // StopAsync Tests
-    [Test]
-    [Skip("Hotkey unregistration now handled by HotkeyCoordinator, not ClassicWindowCoordinator")]
-    public async Task StopAsync_UnregistersHotkey()
-    {
-        // This test is no longer valid as hotkey registration was moved to HotkeyCoordinator
-        await Task.CompletedTask;
-    }
-
     [Test]
     public async Task StopAsync_BeforeStart_DoesNotThrow()
     {
