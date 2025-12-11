@@ -43,8 +43,8 @@ WizardStyle=modern
 
 ; Requirements
 MinVersion=10.0.17763
-ArchitecturesInstallIn64BitMode=x64
-ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64compatible
+ArchitecturesAllowed=x64compatible
 PrivilegesRequired=lowest
 
 ; License
