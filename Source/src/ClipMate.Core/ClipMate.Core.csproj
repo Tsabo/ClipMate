@@ -11,7 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="NAudio" />
-    <PackageReference Include="Tomlyn" />
+    <PackageReference Include="Tomlyn.Signed" />
   </ItemGroup>
 
 </Project>

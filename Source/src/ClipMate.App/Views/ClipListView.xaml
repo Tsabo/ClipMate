@@ -19,6 +19,7 @@
                      ItemsSource="{Binding Items, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      AutoGenerateColumns="None"
                      SelectionMode="Row"
+                     ShowBorder="True"
                      helpers:GridControlSelectionSync.SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      CurrentItemChanged="ClipDataGrid_CurrentItemChanged">
 

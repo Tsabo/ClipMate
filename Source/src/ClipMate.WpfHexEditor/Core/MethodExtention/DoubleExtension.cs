@@ -1,0 +1,15 @@
+//////////////////////////////////////////////
+// Apache 2.0  - 2016-2020
+// Author : Derek Tremblay (derektremblay666@gmail.com)
+// Vendored from: https://github.com/abbaye/WpfHexEditorControl
+//////////////////////////////////////////////
+
+using System;
+
+namespace WpfHexaEditor.Core.MethodExtention
+{
+    public static class DoubleExtension
+    {
+        public static double Round(this double s, int digit = 2) => Math.Round(s, digit);
+    }
+}

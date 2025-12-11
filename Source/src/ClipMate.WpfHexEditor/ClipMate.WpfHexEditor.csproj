@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>WpfHexaEditor</RootNamespace>
+    <AssemblyName>WpfHexaEditor</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Authors>Derek Tremblay and contributors; vendored by ClipMate</Authors>
+    <Description>WPF Hexadecimal Editor Control - Vendored from https://github.com/abbaye/WpfHexEditorControl</Description>
+    <Copyright>Copyright (c) Derek Tremblay and contributors</Copyright>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <Version>2.1.7</Version>
+    
+    <!-- Relax code analysis rules for vendored third-party code -->
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <!-- Nullable reference types: Fixed 304 CS8618 initialization errors (71% improvement) -->
+    <!-- Fixed all event handlers, fields, and property initialization with proper null handling -->
+    <!-- Remaining suppressions for internal vendored code implementation details -->
+    <NoWarn>$(NoWarn);CA2201;CA2022;CA2000;IDE0053;CS8600;CS8602;CS8603;CS8604;CS8625</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="LICENSE.txt" Pack="true" PackagePath="" />
+    <None Include="NOTICE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

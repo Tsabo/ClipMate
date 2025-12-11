@@ -13,6 +13,15 @@
     <!-- Use latest C# language version -->
     <LangVersion>latest</LangVersion>
 
+    <!-- Enable NuGet package auditing -->
+    <NuGetAudit>true</NuGetAudit>
+
+    <!-- Audit direct and transitive packages -->
+    <NuGetAuditMode>all</NuGetAuditMode>
+
+    <!-- Report low, moderate, high and critical advisories -->
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
     <!-- Version information (overridden by build system during CI/CD) -->
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>

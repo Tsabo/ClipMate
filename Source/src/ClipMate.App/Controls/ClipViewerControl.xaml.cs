@@ -925,7 +925,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         RtfViewer.Document = new FlowDocument();
         BitmapViewer.Source = null;
         PictureViewer.Source = null;
-        HexViewer.Stream = null;
+        HexViewer.Stream = null!;
         _binaryFormats.Clear();
         BinaryFormatComboBox.Items.Clear();
     }

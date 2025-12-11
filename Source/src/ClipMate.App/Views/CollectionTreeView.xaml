@@ -11,64 +11,62 @@
         <!-- Styles are handled in cell template directly -->
     </UserControl.Resources>
 
-    <Grid>
-        <!-- DevExpress TreeViewControl for hierarchical collection tree -->
-        <dxg:TreeViewControl x:Name="TreeView"
-                             ItemsSource="{Binding RootNodes}"
-                             TreeViewFieldName="Name"
-                             ImageFieldName="IconImage"
-                             ChildNodesPath="Children"
-                             ShowBorder="True"
-                             TreeLineStyle="Solid"
-                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}" ShowNodeImages="True">
+    <!-- DevExpress TreeViewControl for hierarchical collection tree -->
+    <dxg:TreeViewControl x:Name="TreeView"
+                         ItemsSource="{Binding RootNodes}"
+                         TreeViewFieldName="Name"
+                         ImageFieldName="IconImage"
+                         ChildNodesPath="Children"
+                         ShowBorder="True"
+                         TreeLineStyle="Solid"
+                         SelectedItem="{Binding SelectedNode, Mode=TwoWay}" ShowNodeImages="True">
 
-            <!-- Context Menu -->
-            <dxg:TreeViewControl.ContextMenu>
-                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                    <!-- Move Up/Down -->
-                    <MenuItem Header="Move Up In Sort Order" InputGestureText="(+)">
-                        <MenuItem.Icon>
-                            <emoji:TextBlock Text="⬆️" FontSize="14" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-                    <MenuItem Header="Move Down In Sort Order" InputGestureText="(-)">
-                        <MenuItem.Icon>
-                            <emoji:TextBlock Text="⬇️" FontSize="14" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+        <!-- Context Menu -->
+        <dxg:TreeViewControl.ContextMenu>
+            <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <!-- Move Up/Down -->
+                <MenuItem Header="Move Up In Sort Order" InputGestureText="(+)">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="⬆️" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Move Down In Sort Order" InputGestureText="(-)">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="⬇️" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
-                    <!-- Add New Collection -->
-                    <MenuItem Header="Add New Collection">
-                        <MenuItem.Icon>
-                            <emoji:TextBlock Text="📁" FontSize="14" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+                <!-- Add New Collection -->
+                <MenuItem Header="Add New Collection">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="📁" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
-                    <!-- Delete Collection -->
-                    <MenuItem Header="Delete Collection" />
+                <!-- Delete Collection -->
+                <MenuItem Header="Delete Collection" />
 
-                    <!-- Database Operations -->
-                    <MenuItem Header="Activate Database" />
-                    <MenuItem Header="De-Activate Database" />
+                <!-- Database Operations -->
+                <MenuItem Header="Activate Database" />
+                <MenuItem Header="De-Activate Database" />
 
-                    <!-- Tree Operations -->
-                    <MenuItem Header="Expand All" />
-                    <MenuItem Header="Collapse All" />
-                    <MenuItem Header="Show All Clips In All Children" />
+                <!-- Tree Operations -->
+                <MenuItem Header="Expand All" />
+                <MenuItem Header="Collapse All" />
+                <MenuItem Header="Show All Clips In All Children" />
 
-                    <MenuItem Header="Cancel" />
+                <MenuItem Header="Cancel" />
 
-                    <Separator />
+                <Separator />
 
-                    <!-- Properties -->
-                    <MenuItem Header="Properties"
-                              Command="{Binding ShowPropertiesCommand}">
-                        <MenuItem.Icon>
-                            <emoji:TextBlock Text="📁" FontSize="14" />
-                        </MenuItem.Icon>
-                    </MenuItem>
-                </ContextMenu>
-            </dxg:TreeViewControl.ContextMenu>
-        </dxg:TreeViewControl>
-    </Grid>
+                <!-- Properties -->
+                <MenuItem Header="Properties"
+                          Command="{Binding ShowPropertiesCommand}">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="📁" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+            </ContextMenu>
+        </dxg:TreeViewControl.ContextMenu>
+    </dxg:TreeViewControl>
 </UserControl>

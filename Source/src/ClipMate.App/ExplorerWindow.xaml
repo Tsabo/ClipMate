@@ -7,6 +7,7 @@
                  xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
                  xmlns:views="clr-namespace:ClipMate.App.Views"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
+                 xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
                  mc:Ignorable="d"
                  Title="ClipMate - Clipboard Manager"
                  WindowStartupLocation="CenterScreen"
@@ -198,53 +199,48 @@
         </dxb:BarManager>
 
         <!-- Main Content Area -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200" MinWidth="150" MaxWidth="400" />
-                <ColumnDefinition Width="5" />
-                <ColumnDefinition Width="*" MinWidth="400" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" MinHeight="200" />
-                <RowDefinition Height="5" />
-                <RowDefinition Height="*" MinHeight="200" />
-            </Grid.RowDefinitions>
+        <dxdo:DockLayoutManager Grid.Row="1" AllowCustomization="False">
+            <dxdo:LayoutGroup x:Name="LayoutRoot" Orientation="Vertical">
 
-            <!-- Left Pane: Collection Tree -->
-            <views:CollectionTreeView x:Name="CollectionTree"
-                                      Grid.Column="0"
-                                      Grid.Row="0"
-                                      DataContext="{Binding CollectionTree}" />
+                <dxdo:LayoutGroup Orientation="Horizontal">
+                    <dxdo:LayoutPanel Caption="Collections"
+                                      ItemWidth="110.16*"
+                                      AllowDrag="False"
+                                      AllowFloat="False"
+                                      AllowHide="False"
+                                      ShowCaption="False"
+                                      ShowCloseButton="False"
+                                      ShowBorder="False">
+                        <views:CollectionTreeView x:Name="CollectionTree"
+                                                  DataContext="{Binding CollectionTree}" />
+                    </dxdo:LayoutPanel>
+                    <dxdo:LayoutPanel Caption="Clip List"
+                                      ItemWidth="699.0*"
+                                      AllowDrag="False"
+                                      AllowFloat="False"
+                                      AllowHide="False"
+                                      ShowCaption="False"
+                                      ShowCloseButton="False"
+                                      ShowBorder="False">
+                        <views:ClipListView x:Name="DockedClipListView"
+                                            Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
+                                            SelectedItem="{Binding PrimaryClipList.SelectedClip}" />
+                    </dxdo:LayoutPanel>
+                </dxdo:LayoutGroup>
 
-            <!-- Splitter -->
-            <GridSplitter Grid.Column="1"
-                          Grid.Row="0"
-                          Grid.RowSpan="3"
-                          Width="5"
-                          HorizontalAlignment="Stretch"
-                          Background="Transparent" />
+                <dxdo:LayoutPanel Caption="Preview"
+                                  ItemWidth="190.84*"
+                                  AllowDrag="False"
+                                  AllowFloat="False"
+                                  AllowHide="False"
+                                  ShowCaption="False"
+                                  ShowCloseButton="False"
+                                  ShowBorder="False">
+                    <controls:ClipViewerControl x:Name="DockedClipViewer" />
+                </dxdo:LayoutPanel>
+            </dxdo:LayoutGroup>
 
-            <views:ClipListView x:Name="ClipListView"
-                                Grid.Column="2"
-                                Grid.Row="0"
-                                Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                SelectedItem="{Binding PrimaryClipList.SelectedClip}"
-                                SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
-
-            <!-- Vertical Splitter between ClipList and ClipViewer -->
-            <GridSplitter Grid.Row="1"
-                          Grid.Column="0"
-                          Grid.ColumnSpan="3"
-                          Height="5"
-                          HorizontalAlignment="Stretch"
-                          Background="Transparent" />
-
-            <!-- ClipViewer area -->
-            <controls:ClipViewerControl x:Name="ClipViewer"
-                                        Grid.Column="0"
-                                        Grid.ColumnSpan="3"
-                                        Grid.Row="2" />
-        </Grid>
+        </dxdo:DockLayoutManager>
 
         <!-- QuickPaste Toolbar -->
         <controls:QuickPasteToolbar x:Name="QuickPasteToolbar"
@@ -252,13 +248,11 @@
                                     DataContext="{Binding QuickPasteToolbarViewModel}" />
 
         <!-- Status Bar at Bottom -->
-        <StatusBar Grid.Row="3">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusBarLeft" Text="Ready" />
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock x:Name="StatusBarRight" Text="0 clips | 0 bytes, 0 chars, 0 words" />
-            </StatusBarItem>
-        </StatusBar>
+        <dxb:BarContainerControl ContainerType="Bottom" Grid.Row="3">
+            <dxb:StatusBarControl>
+                <dxb:BarStaticItem Content="Ready"/>
+                <dxb:BarStaticItem Content="0 clips | 0 bytes, 0 chars, 0 words" Alignment="Far"/>
+            </dxb:StatusBarControl>
+        </dxb:BarContainerControl>
     </Grid>
 </dx:ThemedWindow>

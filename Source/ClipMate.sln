@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipMate.Data.Schema", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipMate.Tests.Unit.Schema", "tests\ClipMate.Tests.Unit.Schema\ClipMate.Tests.Unit.Schema.csproj", "{7D373826-71F6-4496-BA72-61594089917E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipMate.WpfHexEditor", "src\ClipMate.WpfHexEditor\ClipMate.WpfHexEditor.csproj", "{B32AE621-E709-4EFC-8619-1742FB1ACA4F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -138,6 +140,18 @@ Global
 		{7D373826-71F6-4496-BA72-61594089917E}.Release|x64.Build.0 = Release|Any CPU
 		{7D373826-71F6-4496-BA72-61594089917E}.Release|x86.ActiveCfg = Release|Any CPU
 		{7D373826-71F6-4496-BA72-61594089917E}.Release|x86.Build.0 = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|x64.Build.0 = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Debug|x86.Build.0 = Debug|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|x64.ActiveCfg = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|x64.Build.0 = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|x86.ActiveCfg = Release|Any CPU
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -151,6 +165,7 @@ Global
 		{2DE57414-12B6-4360-AC86-C16A4CD7486F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{74195EC4-8D79-48D4-91CB-F852CF5D4990} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7D373826-71F6-4496-BA72-61594089917E} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{B32AE621-E709-4EFC-8619-1742FB1ACA4F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {885B6517-656A-443C-B870-FD0BDE99BB41}

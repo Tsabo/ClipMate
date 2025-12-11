@@ -32,6 +32,7 @@
     <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />
     <ProjectReference Include="..\ClipMate.Platform\ClipMate.Platform.csproj" />
+    <ProjectReference Include="..\ClipMate.WpfHexEditor\ClipMate.WpfHexEditor.csproj" />
   </ItemGroup>
 
   <ItemGroup Label="Package References">
@@ -48,7 +49,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
     <PackageReference Include="Microsoft.Web.WebView2" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" PrivateAssets="All" />
-    <PackageReference Include="WpfHexaEditor" />
   </ItemGroup>
 
 </Project>

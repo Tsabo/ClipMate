@@ -11,8 +11,7 @@
     <PackageVersion Include="Emoji.Wpf" Version="0.3.4" />
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
-    <PackageVersion Include="Tomlyn" Version="0.17.0" />
-    <PackageVersion Include="WpfHexaEditor" Version="2.1.7" />
+    <PackageVersion Include="Tomlyn.Signed" Version="0.17.0" />
     <PackageVersion Include="WPF-UI" Version="4.0.3" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">

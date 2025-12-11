@@ -1,0 +1,32 @@
+WpfHexaEditor - Vendored Third-Party Code
+==========================================
+
+This directory contains code from the WpfHexEditorControl project.
+
+Original Project Information:
+- Project: WpfHexEditorControl
+- Repository: https://github.com/abbaye/WpfHexEditorControl
+- Version: 2.1.7 (June 10, 2021)
+- Copyright: (c) Derek Tremblay and contributors
+- License: Apache License 2.0 (see LICENSE.txt)
+
+This code has been vendored into the ClipMate project to:
+1. Address security advisory concerns with the unmaintained NuGet package
+2. Enable strong-name signing for corporate security compliance
+3. Modernize the library to .NET 9.0
+
+Modifications Made by ClipMate Project:
+- Migrated from .NET Framework/Standard to .NET 9.0
+- Updated project structure to use modern SDK-style .csproj
+- Integrated into ClipMate solution build system
+- Applied nullable reference types annotations
+- Maintained compatibility with original WpfHexaEditor API
+
+The original Apache License 2.0 is preserved in LICENSE.txt in this directory.
+
+All credit for the original implementation goes to Derek Tremblay and the 
+WpfHexEditorControl contributors. The ClipMate project is grateful for their
+excellent work on this hex editor control.
+
+For the original project, issues, and documentation, please visit:
+https://github.com/abbaye/WpfHexEditorControl
