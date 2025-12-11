@@ -5,42 +5,41 @@
   </PropertyGroup>
   <ItemGroup Label="UI Frameworks">
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageVersion Include="DevExpress.Wpf" Version="25.1.6" />
-    <PackageVersion Include="DevExpress.Mvvm" Version="25.1.6" />
-    <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.1.6" />
+    <PackageVersion Include="DevExpress.Wpf" Version="25.1.7" />
+    <PackageVersion Include="DevExpress.Mvvm" Version="25.1.7" />
+    <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.1.7" />
     <PackageVersion Include="Emoji.Wpf" Version="0.3.4" />
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
-    <PackageVersion Include="Tomlyn.Signed" Version="0.17.0" />
+    <PackageVersion Include="Tomlyn.Signed" Version="0.19.0" />
     <PackageVersion Include="WPF-UI" Version="4.0.3" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />
   </ItemGroup>
   <ItemGroup Label="Data Access">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.11" />
   </ItemGroup>
   <ItemGroup Label="Media">
     <PackageVersion Include="NAudio" Version="2.2.1" />
   </ItemGroup>
   <ItemGroup Label="Dependency Injection">
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="9.0.11" />
   </ItemGroup>
   <ItemGroup Label="Windows Platform">
-    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.248" />
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.259" />
   </ItemGroup>
   <ItemGroup Label="Testing">
-    <PackageVersion Include="TUnit" Version="1.5.6" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="TUnit" Version="1.5.37" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.1.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.0.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />

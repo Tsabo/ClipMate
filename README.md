@@ -94,7 +94,6 @@ Source/
 **Testing**
 - **Test Framework**: TUnit 0.4.31 (modern alternative to xUnit, migrated from xUnit)
 - **Mocking**: Moq 4.20.72
-- **Code Coverage**: coverlet.collector 6.0.2
 - **Current Status**: 556 tests (552 passing, 4 skipped)
 
 **Additional Libraries**

@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Moq" />
     <PackageReference Include="TUnit" />
