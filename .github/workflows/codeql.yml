@@ -80,5 +80,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: codeql-results-${{ matrix.language }}
-        path: ../results/*.sarif
+        path: results
         retention-days: 90
+      continue-on-error: true
