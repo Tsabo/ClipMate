@@ -423,3 +423,6 @@ clipmate-*.log
 .github/copilot*.yml
 .github/copilot*.json
 /specs/
+
+# Ignore CodeQL analysis database
+codeql-db/

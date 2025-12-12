@@ -29,7 +29,7 @@ public class ConfigurationService : IConfigurationService
         // Ensure directory exists
         Directory.CreateDirectory(configurationDirectory);
 
-        ConfigurationFilePath = Path.Combine(configurationDirectory, "clipmate.toml");
+        ConfigurationFilePath = Path.Join(configurationDirectory, "clipmate.toml");
         Configuration = CreateDefaultConfiguration();
     }
 
@@ -228,9 +228,9 @@ public class ConfigurationService : IConfigurationService
                     UserName = Environment.UserName,
                     IsRemote = false,
                     MultiUser = false,
-                    UseModificationTimeStamp = true
-                }
-            }
+                    UseModificationTimeStamp = true,
+                },
+            },
         };
 
         return config;

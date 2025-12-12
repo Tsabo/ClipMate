@@ -51,7 +51,7 @@ namespace WpfHexaEditor
         private static void MaximumValue_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is not HexBox ctrl) return;
-            if (e.NewValue == e.OldValue) return;
+            if (Equals(e.NewValue, e.OldValue)) return;
             if (ctrl.LongValue <= (long)e.NewValue) return;
 
             ctrl.UpdateValueFrom((long)e.NewValue);
@@ -73,6 +73,7 @@ namespace WpfHexaEditor
         private static object LongValue_CoerceValue(DependencyObject d, object baseValue)
         {
             var ctrl = d as HexBox;
+            if (ctrl == null) return baseValue;
 
             var newValue = (long)baseValue;
 
@@ -85,7 +86,7 @@ namespace WpfHexaEditor
         private static void LongValue_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is not HexBox ctrl) return;
-            if (e.NewValue == e.OldValue) return;
+            if (Equals(e.NewValue, e.OldValue)) return;
 
             var val = ByteConverters.LongToHex((long)e.NewValue);
 

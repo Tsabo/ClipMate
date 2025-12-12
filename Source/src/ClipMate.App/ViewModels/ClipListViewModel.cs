@@ -162,7 +162,6 @@ public partial class ClipListViewModel : ObservableObject,
         {
             using var scope = CreateScope();
             var quickPasteService = scope.ServiceProvider.GetRequiredService<IQuickPasteService>();
-
             // Paste the clip using QuickPaste
             await quickPasteService.PasteClipAsync(SelectedClip);
         }

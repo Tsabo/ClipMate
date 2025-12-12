@@ -19,6 +19,7 @@ namespace WpfHexaEditor.Core.MethodExtention
             if (track.Parent is Grid parent)
             {
                 var topRepeatButton = parent.Children[1] as RepeatButton;
+                if (topRepeatButton == null) return 0;
 
                 return topRepeatButton.ActualHeight + parent.Margin.Top + 1;
             }
@@ -34,6 +35,7 @@ namespace WpfHexaEditor.Core.MethodExtention
             if (track.Parent is Grid parent)
             {
                 var trackControl = parent.Children[2] as Track;
+                if (trackControl == null) return 0;
 
                 return trackControl.Top() +
                        trackControl.ActualHeight +

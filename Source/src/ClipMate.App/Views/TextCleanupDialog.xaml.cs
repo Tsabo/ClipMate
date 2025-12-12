@@ -1,8 +1,10 @@
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
+using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.Views;
 
@@ -11,8 +13,8 @@ namespace ClipMate.App.Views;
 /// </summary>
 public partial class TextCleanupDialog
 {
-    private readonly ITextTransformService _textTransformService;
     private readonly ILogger<TextCleanupDialog> _logger;
+    private readonly ITextTransformService _textTransformService;
     private string _inputText = string.Empty;
 
     public TextCleanupDialog(ITextTransformService textTransformService, ILogger<TextCleanupDialog> logger)
@@ -20,24 +22,21 @@ public partial class TextCleanupDialog
         InitializeComponent();
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        
+
         // Wire up Apply button click
         ApplyButton.Click += ApplyButton_Click;
         CancelButton.Click += CancelButton_Click;
     }
 
     /// <summary>
-    /// Sets the input text to be cleaned up.
-    /// </summary>
-    public void SetInputText(string text)
-    {
-        _inputText = text;
-    }
-
-    /// <summary>
     /// Gets the result text after cleanup operations.
     /// </summary>
     public string? ResultText { get; private set; }
+
+    /// <summary>
+    /// Sets the input text to be cleaned up.
+    /// </summary>
+    public void SetInputText(string text) => _inputText = text;
 
     private void ApplyButton_Click(object sender, RoutedEventArgs e)
     {
@@ -54,26 +53,21 @@ public partial class TextCleanupDialog
                     "Leading" => StripPosition.Leading,
                     "Trailing" => StripPosition.Trailing,
                     "Anywhere" => StripPosition.Anywhere,
-                    _ => StripPosition.Leading
+                    var _ => StripPosition.Leading,
                 };
+
                 result = _textTransformService.StripCharacters(result, CharactersToStripTextEdit.Text, position);
             }
 
             if (StripWhitespaceCheckBox.IsChecked == true)
-            {
                 result = result.Trim();
-            }
 
             // Step 2: Formatting
             if (RemoveExtraSpacesCheckBox.IsChecked == true)
-            {
-                result = System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ");
-            }
+                result = Regex.Replace(result, @"\s+", " ");
 
             if (TrimLinesCheckBox.IsChecked == true)
-            {
                 result = _textTransformService.TrimText(result);
-            }
 
             if (RemoveExtraLineBreaksCheckBox.IsChecked == true)
             {
@@ -82,27 +76,26 @@ public partial class TextCleanupDialog
                 {
                     "PreserveParagraphs" => LineBreakMode.PreserveParagraphs,
                     "RemoveAll" => LineBreakMode.RemoveAll,
-                    _ => LineBreakMode.PreserveParagraphs
+                    var _ => LineBreakMode.PreserveParagraphs,
                 };
+
                 result = _textTransformService.RemoveLineBreaks(result, mode);
             }
 
             // Step 3: Case conversion
             var caseItem = (ComboBoxItem?)CaseConversionComboBox.SelectedItem;
-            var caseConversion = caseItem?.Tag?.ToString() switch
+            CaseConversion? caseConversion = caseItem?.Tag?.ToString() switch
             {
                 "Uppercase" => CaseConversion.Uppercase,
                 "Lowercase" => CaseConversion.Lowercase,
                 "TitleCase" => CaseConversion.TitleCase,
                 "SentenceCase" => CaseConversion.SentenceCase,
                 "InvertCase" => CaseConversion.InvertCase,
-                _ => (CaseConversion?)null
+                var _ => null,
             };
 
             if (caseConversion.HasValue)
-            {
                 result = _textTransformService.ConvertCase(result, caseConversion.Value);
-            }
 
             // Step 4: Find and replace
             if (!string.IsNullOrEmpty(FindTextEdit.Text))
@@ -122,7 +115,7 @@ public partial class TextCleanupDialog
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error applying text cleanup");
-            System.Windows.MessageBox.Show($"Error applying text cleanup: {ex.Message}", "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            MessageBox.Show($"Error applying text cleanup: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

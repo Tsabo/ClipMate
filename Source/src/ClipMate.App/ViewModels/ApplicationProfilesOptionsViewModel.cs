@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,8 +20,7 @@ public partial class ApplicationProfilesOptionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _enableApplicationProfiles;
 
-    public ApplicationProfilesOptionsViewModel(
-        ILogger<ApplicationProfilesOptionsViewModel> logger,
+    public ApplicationProfilesOptionsViewModel(ILogger<ApplicationProfilesOptionsViewModel> logger,
         IApplicationProfileService? applicationProfileService = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -78,10 +76,7 @@ public partial class ApplicationProfilesOptionsViewModel : ObservableObject
             ApplicationProfileNodes.Clear();
 
             foreach (var kvp in profiles.OrderBy(p => p.Key))
-            {
-                var profileNode = new ApplicationProfileNode(kvp.Value);
-                ApplicationProfileNodes.Add(profileNode);
-            }
+                ApplicationProfileNodes.Add(new ApplicationProfileNode(kvp.Value));
 
             _logger.LogInformation("Loaded {Count} application profiles", ApplicationProfileNodes.Count);
         }

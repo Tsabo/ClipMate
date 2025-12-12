@@ -89,7 +89,6 @@ public class HotkeyManager : IHotkeyManager
         var hwnd = _hwndSource.Handle;
         var hotkeyId = _nextHotkeyId++;
         var modifierFlags = ConvertModifiers(modifiers);
-
         if (!_win32.RegisterHotKey(new HWND(hwnd), hotkeyId, (HOT_KEY_MODIFIERS)modifierFlags, (uint)key))
         {
             var lastError = Marshal.GetLastWin32Error();

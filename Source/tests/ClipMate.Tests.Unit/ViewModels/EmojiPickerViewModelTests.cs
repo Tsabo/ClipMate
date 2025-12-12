@@ -1,11 +1,8 @@
-using System.Collections.ObjectModel;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Emoji.Wpf;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -41,8 +38,8 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService([
-            new() { Emoji = "😀", LastUsed = DateTime.Now, UseCount = 5 },
-            new() { Emoji = "😎", LastUsed = DateTime.Now.AddDays(-1), UseCount = 3 }
+            new RecentEmoji { Emoji = "😀", LastUsed = DateTime.Now, UseCount = 5 },
+            new RecentEmoji { Emoji = "😎", LastUsed = DateTime.Now.AddDays(-1), UseCount = 3 },
         ]);
 
         // Act
@@ -59,8 +56,6 @@ public class EmojiPickerViewModelTests
         // Arrange
         var configService = CreateMockConfigService();
         var viewModel = new EmojiPickerViewModel(configService.Object);
-        var initialCount = viewModel.DisplayedEmojis.Count;
-
         // Act
         viewModel.SearchText = "smile";
 
@@ -73,9 +68,10 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
-
-        viewModel.SearchText = "test";
+        var viewModel = new EmojiPickerViewModel(configService.Object)
+        {
+            SearchText = "test",
+        };
 
         // Act
         viewModel.SearchText = string.Empty;
@@ -249,7 +245,7 @@ public class EmojiPickerViewModelTests
         var mock = new Mock<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
-            RecentEmojis = recentEmojis ?? []
+            RecentEmojis = recentEmojis ?? [],
         };
 
         mock.Setup(c => c.Configuration).Returns(config);

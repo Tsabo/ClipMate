@@ -164,22 +164,16 @@ public class QuickPasteService : IQuickPasteService
         }
 
         var target = DetectTargetWindow();
-        if (target != null)
-        {
-            _currentTarget = target;
-            _logger.LogInformation("Target updated to: {Target}", GetCurrentTargetString());
-            _messenger.Send(new QuickPasteTargetChangedEvent());
-        }
+        if (target == null)
+            return;
+
+        _currentTarget = target;
+        _logger.LogInformation("Target updated to: {Target}", GetCurrentTargetString());
+        _messenger.Send(new QuickPasteTargetChangedEvent());
     }
 
     /// <inheritdoc />
-    public string GetCurrentTargetString()
-    {
-        if (_currentTarget == null)
-            return string.Empty;
-
-        return $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
-    }
+    public string GetCurrentTargetString() => _currentTarget == null ? string.Empty : $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
 
     private void OnConfigurationChanged()
     {
@@ -219,7 +213,6 @@ public class QuickPasteService : IQuickPasteService
         try
         {
             var foregroundWindow = _win32.GetForegroundWindow();
-
             if (foregroundWindow.IsNull)
                 return null;
 
@@ -286,13 +279,13 @@ public class QuickPasteService : IQuickPasteService
         // Check bad targets first (exclusion list)
         foreach (var badTarget in config.QuickPasteBadTargets)
         {
-            if (MatchesTarget(targetString, badTarget))
-            {
-                _logger.LogDebug("Target {Target} matches bad target {BadTarget}, rejecting",
-                    targetString, badTarget);
+            if (!MatchesTarget(targetString, badTarget))
+                continue;
 
-                return false;
-            }
+            _logger.LogDebug("Target {Target} matches bad target {BadTarget}, rejecting",
+                targetString, badTarget);
+
+            return false;
         }
 
         // Good targets are training hints for future window stack enumeration
@@ -323,11 +316,8 @@ public class QuickPasteService : IQuickPasteService
             return false;
 
         // Match class (empty pattern matches any, non-empty uses prefix match)
-        if (!string.IsNullOrEmpty(patternClass) &&
-            !actualClass.StartsWith(patternClass, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return true;
+        return string.IsNullOrEmpty(patternClass) ||
+               actualClass.StartsWith(patternClass, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ExecuteFormattingStringAsync(Clip clip, QuickPasteFormattingString? format,
@@ -535,7 +525,7 @@ public class QuickPasteService : IQuickPasteService
             "RIGHT" => VIRTUAL_KEY.VK_RIGHT,
             "ESCAPE" => VIRTUAL_KEY.VK_ESCAPE,
             "ESC" => VIRTUAL_KEY.VK_ESCAPE,
-            _ => VIRTUAL_KEY.VK_NONAME
+            var _ => VIRTUAL_KEY.VK_NONAME,
         };
 
         if (key != VIRTUAL_KEY.VK_NONAME)
@@ -620,9 +610,9 @@ public class QuickPasteService : IQuickPasteService
                         wScan = c,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             inputs[1] = new INPUT
@@ -636,9 +626,9 @@ public class QuickPasteService : IQuickPasteService
                         wScan = c,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_UNICODE | KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             _win32.SendInput(2, inputs, Marshal.SizeOf<INPUT>());
@@ -691,7 +681,7 @@ public class QuickPasteService : IQuickPasteService
             '7' => VIRTUAL_KEY.VK_7,
             '8' => VIRTUAL_KEY.VK_8,
             '9' => VIRTUAL_KEY.VK_9,
-            _ => VIRTUAL_KEY.VK_NONAME
+            var _ => VIRTUAL_KEY.VK_NONAME,
         };
     }
 
@@ -710,9 +700,9 @@ public class QuickPasteService : IQuickPasteService
                         ? KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP
                         : 0,
                     time = 0,
-                    dwExtraInfo = 0
-                }
-            }
+                    dwExtraInfo = 0,
+                },
+            },
         };
     }
 }

@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Search;
@@ -6,8 +5,6 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -16,8 +13,8 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class SearchViewModelTests
 {
-    private readonly Mock<ISearchService> _mockSearchService;
     private readonly Mock<IMessenger> _mockMessenger;
+    private readonly Mock<ISearchService> _mockSearchService;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly SearchViewModel _viewModel;
 
@@ -25,16 +22,16 @@ public class SearchViewModelTests
     {
         _mockSearchService = new Mock<ISearchService>();
         _mockMessenger = new Mock<IMessenger>();
-        
+
         // Create mock service scope factory
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
         mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
-        
+
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
-        
+
         _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object);
     }
 
@@ -54,9 +51,7 @@ public class SearchViewModelTests
         _viewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.SearchText))
-            {
                 propertyChangedRaised = true;
-            }
         };
 
         // Act
@@ -73,14 +68,15 @@ public class SearchViewModelTests
         // Arrange
         var clips = new List<Clip>
         {
-            new Clip { Id = Guid.NewGuid(), TextContent = "Test result", Type = ClipType.Text, CapturedAt = DateTime.UtcNow }
+            new()
+                { Id = Guid.NewGuid(), TextContent = "Test result", Type = ClipType.Text, CapturedAt = DateTime.UtcNow },
         };
 
         var searchResults = new SearchResults
         {
             Clips = clips,
             TotalMatches = 1,
-            Query = "test"
+            Query = "test",
         };
 
         _mockSearchService
@@ -121,7 +117,7 @@ public class SearchViewModelTests
         {
             Clips = new List<Clip>(),
             TotalMatches = 0,
-            Query = "test"
+            Query = "test",
         };
 
         SearchFilters? capturedFilters = null;
@@ -155,7 +151,7 @@ public class SearchViewModelTests
         {
             Clips = new List<Clip>(),
             TotalMatches = 0,
-            Query = "test"
+            Query = "test",
         };
 
         SearchFilters? capturedFilters = null;
@@ -186,7 +182,7 @@ public class SearchViewModelTests
         {
             Clips = new List<Clip>(),
             TotalMatches = 0,
-            Query = "Test"
+            Query = "Test",
         };
 
         SearchFilters? capturedFilters = null;
@@ -214,7 +210,7 @@ public class SearchViewModelTests
         {
             Clips = new List<Clip>(),
             TotalMatches = 0,
-            Query = "\\d+"
+            Query = "\\d+",
         };
 
         SearchFilters? capturedFilters = null;
@@ -280,14 +276,11 @@ public class SearchViewModelTests
         _viewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.IsSearching))
-            {
                 propertyChangedCount++;
-            }
         };
 
         // Act
-        var task = _viewModel.SearchCommand.ExecuteAsync(null);
-
+        _ = _viewModel.SearchCommand.ExecuteAsync(null);
         // Assert - IsSearching should be true while executing
         await Assert.That(_viewModel.IsSearching).IsTrue();
         await Assert.That(propertyChangedCount).IsGreaterThan(0);

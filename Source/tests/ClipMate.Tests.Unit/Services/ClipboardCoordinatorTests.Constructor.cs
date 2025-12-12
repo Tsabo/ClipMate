@@ -29,7 +29,6 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var _);
-        var configurationService = CreateMockConfigurationService();
         var messenger = new Mock<IMessenger>().Object;
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();

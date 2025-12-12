@@ -56,7 +56,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         await Assert.That(retrievedClip.Type).IsEqualTo(ClipType.Text);
 
         // Cleanup the new context
-        newContext.Dispose();
+        await using (newContext) { }
     }
 
     [Test]

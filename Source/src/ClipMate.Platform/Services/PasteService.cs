@@ -58,7 +58,7 @@ public class PasteService : IPasteService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error pasting clip {ClipId} to active window", clip?.Id);
+            _logger.LogError(ex, "Error pasting clip {ClipId} to active window", clip.Id);
 
             return false;
         }
@@ -139,9 +139,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // V key down
@@ -156,9 +156,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = 0,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // V key up
@@ -173,9 +173,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // Ctrl key up
@@ -190,9 +190,9 @@ public class PasteService : IPasteService
                         wScan = 0,
                         dwFlags = KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP,
                         time = 0,
-                        dwExtraInfo = 0
-                    }
-                }
+                        dwExtraInfo = 0,
+                    },
+                },
             };
 
             // Send the inputs

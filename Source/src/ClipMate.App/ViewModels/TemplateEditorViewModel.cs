@@ -56,10 +56,7 @@ public partial class TemplateEditorViewModel : ObservableObject
     {
         // Extract variables when content changes
         if (!string.IsNullOrWhiteSpace(value))
-        {
-            var variables = _templateService.ExtractVariables(value);
-            ExtractedVariables = new ObservableCollection<string>(variables);
-        }
+            ExtractedVariables = new ObservableCollection<string>(_templateService.ExtractVariables(value));
         else
             ExtractedVariables.Clear();
 
@@ -75,12 +72,12 @@ public partial class TemplateEditorViewModel : ObservableObject
 
     partial void OnSelectedTemplateChanged(Template? value)
     {
-        if (value != null)
-        {
-            TemplateName = value.Name;
-            TemplateContent = value.Content;
-            TemplateDescription = value.Description;
-        }
+        if (value == null)
+            return;
+
+        TemplateName = value.Name;
+        TemplateContent = value.Content;
+        TemplateDescription = value.Description;
     }
 
     /// <summary>

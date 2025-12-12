@@ -44,7 +44,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await SetupAsync();
 
         // Create real services using base DbContext
-        var clipLogger = Mock.Of<ILogger<ClipService>>();
         var clipboardLogger = Mock.Of<ILogger<ClipboardService>>();
         var filterLogger = Mock.Of<ILogger<ApplicationFilterService>>();
         var coordinatorLogger = Mock.Of<ILogger<ClipboardCoordinator>>();

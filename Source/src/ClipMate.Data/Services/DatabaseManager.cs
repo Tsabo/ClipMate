@@ -48,9 +48,7 @@ public class DatabaseManager : IDisposable
 
         foreach (var item in _configuration.Databases.Where(p => p.Value.AutoLoad))
         {
-            var dbId = item.Key;
             var dbConfig = item.Value;
-
             try
             {
                 _logger.LogInformation("Auto-loading database: {Name} at {Path}", dbConfig.Name, dbConfig.Directory);
@@ -133,10 +131,7 @@ public class DatabaseManager : IDisposable
         var dbEntry = _configuration.Databases
             .FirstOrDefault(p => p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
 
-        if (dbEntry.Key == null)
-            return false;
-
-        return _contextFactory.CloseDatabase(dbEntry.Value.Directory);
+        return dbEntry.Key != null && _contextFactory.CloseDatabase(dbEntry.Value.Directory);
     }
 
     /// <summary>

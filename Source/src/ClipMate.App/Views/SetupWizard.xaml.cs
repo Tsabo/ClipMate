@@ -38,7 +38,7 @@ public partial class SetupWizard
 
         Directory.CreateDirectory(appDataPath);
 
-        DatabasePath = Path.Combine(appDataPath, "clipmate.db");
+        DatabasePath = Path.Join(appDataPath, "clipmate.db");
         DatabasePathTextBox.Text = DatabasePath;
         DatabaseNameTextBox.Text = "My Clips";
     }
@@ -57,14 +57,14 @@ public partial class SetupWizard
             FileName = "clipmate.db",
             DefaultExt = ".db",
             Filter = "SQLite Database|*.db|All Files|*.*",
-            InitialDirectory = Path.GetDirectoryName(DatabasePath)
+            InitialDirectory = Path.GetDirectoryName(DatabasePath),
         };
 
-        if (dialog.ShowDialog() == true)
-        {
-            DatabasePath = dialog.FileName;
-            DatabasePathTextBox.Text = DatabasePath;
-        }
+        if (dialog.ShowDialog() != true)
+            return;
+
+        DatabasePath = dialog.FileName;
+        DatabasePathTextBox.Text = DatabasePath;
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e)
@@ -209,7 +209,7 @@ public partial class SetupWizard
                 AllowBackup = true,
                 ReadOnly = false,
                 CleanupMethod = 3, // Daily
-                PurgeDays = 7
+                PurgeDays = 7,
             };
 
             // Use "default" as the key for the first database

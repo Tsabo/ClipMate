@@ -287,7 +287,6 @@ public class ClipboardService : IClipboardService, IDisposable
             }
 
             _lastContentHash = clip.ContentHash;
-
             // Get source application info
             var foregroundWindow = _win32.GetForegroundWindow();
             if (!foregroundWindow.IsNull)
@@ -381,13 +380,7 @@ public class ClipboardService : IClipboardService, IDisposable
     /// Checks if a clipboard format is allowed based on application profile filtering.
     /// If no filtering is active (allowedFormats is null), all formats are allowed.
     /// </summary>
-    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats)
-    {
-        if (allowedFormats == null)
-            return true;
-
-        return allowedFormats.Contains(formatName);
-    }
+    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats) => allowedFormats == null || allowedFormats.Contains(formatName);
 
     /// <summary>
     /// Extracts text-based clipboard content (Plain Text, RTF, HTML) based on allowed formats.
@@ -489,8 +482,9 @@ public class ClipboardService : IClipboardService, IDisposable
                 _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
 
                 // Decode PNG to get dimensions for the title
+                using var pngStream = new MemoryStream(pngData);
                 var decoder = BitmapDecoder.Create(
-                    new MemoryStream(pngData),
+                    pngStream,
                     BitmapCreateOptions.DelayCreation,
                     BitmapCacheOption.None);
 

@@ -155,7 +155,7 @@ public partial class App
             Debug.WriteLine($"Failed to create log directory: {ex.Message}");
         }
 
-        var logFilePath = Path.Combine(logDirectory, "clipmate-.log");
+        var logFilePath = Path.Join(logDirectory, "clipmate-.log");
 
         // Create early logger for database setup
         Log.Logger = new LoggerConfiguration()
@@ -183,7 +183,7 @@ public partial class App
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
-        _databasePath = Path.Combine(appDataPath, "clipmate.db");
+        _databasePath = Path.Join(appDataPath, "clipmate.db");
         earlyLogger.Information("Default database path: {DatabasePath}", _databasePath);
 
         // Check if database file exists and has tables
@@ -268,7 +268,7 @@ public partial class App
 
         Directory.CreateDirectory(logDirectory);
 
-        var logFilePath = Path.Combine(logDirectory, "clipmate-.log");
+        var logFilePath = Path.Join(logDirectory, "clipmate-.log");
 
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()

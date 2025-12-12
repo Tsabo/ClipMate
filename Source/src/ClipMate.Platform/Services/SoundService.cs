@@ -58,7 +58,7 @@ public class SoundService : ISoundService
                     using var outputDevice = new WaveOutEvent();
                     outputDevice.Init(audioFile);
                     outputDevice.Play();
-                    
+
                     // Wait for playback to complete
                     while (outputDevice.PlaybackState == PlaybackState.Playing)
                     {
@@ -140,11 +140,11 @@ public class SoundService : ISoundService
             return string.Empty;
 
         // Check for WAV first, then MP3
-        var wavPath = Path.Combine(_soundsDirectory, $"{baseFileName}.wav");
+        var wavPath = Path.Join(_soundsDirectory, $"{baseFileName}.wav");
         if (File.Exists(wavPath))
             return wavPath;
 
-        var mp3Path = Path.Combine(_soundsDirectory, $"{baseFileName}.mp3");
+        var mp3Path = Path.Join(_soundsDirectory, $"{baseFileName}.mp3");
         if (File.Exists(mp3Path))
             return mp3Path;
 

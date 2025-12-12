@@ -31,7 +31,7 @@ public class StartupManager : IStartupManager
             {
                 _logger.LogWarning("Unable to open Run registry key for reading");
 
-                return Task.FromResult((false, false, (string?)"Unable to access Windows startup settings."));
+                return Task.FromResult<(bool, bool, string?)>((false, false, "Unable to access Windows startup settings."));
             }
 
             var value = key.GetValue(_appName) as string;
@@ -45,19 +45,19 @@ public class StartupManager : IStartupManager
         {
             _logger.LogError(ex, "Security exception checking startup status");
 
-            return Task.FromResult((false, false, (string?)"Access denied. You may not have permission to access startup settings."));
+            return Task.FromResult<(bool, bool, string?)>((false, false, "Access denied. You may not have permission to access startup settings."));
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogError(ex, "Unauthorized access checking startup status");
 
-            return Task.FromResult((false, false, (string?)"Access denied. Administrator privileges may be required."));
+            return Task.FromResult<(bool, bool, string?)>((false, false, "Access denied. Administrator privileges may be required."));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error checking startup status");
 
-            return Task.FromResult((false, false, (string?)$"Unexpected error: {ex.Message}"));
+            return Task.FromResult<(bool, bool, string?)>((false, false, $"Unexpected error: {ex.Message}"));
         }
     }
 
@@ -73,7 +73,7 @@ public class StartupManager : IStartupManager
             {
                 _logger.LogError("Unable to determine executable path for startup configuration");
 
-                return Task.FromResult((false, (string?)"Unable to determine application location."));
+                return Task.FromResult<(bool, string?)>((false, "Unable to determine application location."));
             }
 
             // Wrap path in quotes to handle spaces
@@ -84,7 +84,7 @@ public class StartupManager : IStartupManager
             {
                 _logger.LogError("Unable to open Run registry key for writing");
 
-                return Task.FromResult((false, (string?)"Unable to access Windows startup settings."));
+                return Task.FromResult<(bool, string?)>((false, "Unable to access Windows startup settings."));
             }
 
             key.SetValue(_appName, commandLine, RegistryValueKind.String);
@@ -96,25 +96,25 @@ public class StartupManager : IStartupManager
         {
             _logger.LogError(ex, "Security exception enabling startup");
 
-            return Task.FromResult((false, (string?)"Access denied. You may not have permission to modify startup settings."));
+            return Task.FromResult<(bool, string?)>((false, "Access denied. You may not have permission to modify startup settings."));
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogError(ex, "Unauthorized access enabling startup");
 
-            return Task.FromResult((false, (string?)"Access denied. Administrator privileges may be required."));
+            return Task.FromResult<(bool, string?)>((false, "Access denied. Administrator privileges may be required."));
         }
         catch (IOException ex)
         {
             _logger.LogError(ex, "IO exception enabling startup");
 
-            return Task.FromResult((false, (string?)$"Registry error: {ex.Message}"));
+            return Task.FromResult<(bool, string?)>((false, $"Registry error: {ex.Message}"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error enabling startup");
 
-            return Task.FromResult((false, (string?)$"Unexpected error: {ex.Message}"));
+            return Task.FromResult<(bool, string?)>((false, $"Unexpected error: {ex.Message}"));
         }
     }
 
@@ -128,7 +128,7 @@ public class StartupManager : IStartupManager
             {
                 _logger.LogError("Unable to open Run registry key for writing");
 
-                return Task.FromResult((false, (string?)"Unable to access Windows startup settings."));
+                return Task.FromResult<(bool, string?)>((false, "Unable to access Windows startup settings."));
             }
 
             // Check if value exists before trying to delete
@@ -147,25 +147,25 @@ public class StartupManager : IStartupManager
         {
             _logger.LogError(ex, "Security exception disabling startup");
 
-            return Task.FromResult((false, (string?)"Access denied. You may not have permission to modify startup settings."));
+            return Task.FromResult<(bool, string?)>((false, "Access denied. You may not have permission to modify startup settings."));
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogError(ex, "Unauthorized access disabling startup");
 
-            return Task.FromResult((false, (string?)"Access denied. Administrator privileges may be required."));
+            return Task.FromResult<(bool, string?)>((false, "Access denied. Administrator privileges may be required."));
         }
         catch (IOException ex)
         {
             _logger.LogError(ex, "IO exception disabling startup");
 
-            return Task.FromResult((false, (string?)$"Registry error: {ex.Message}"));
+            return Task.FromResult<(bool, string?)>((false, $"Registry error: {ex.Message}"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error disabling startup");
 
-            return Task.FromResult((false, (string?)$"Unexpected error: {ex.Message}"));
+            return Task.FromResult<(bool, string?)>((false, $"Unexpected error: {ex.Message}"));
         }
     }
 }

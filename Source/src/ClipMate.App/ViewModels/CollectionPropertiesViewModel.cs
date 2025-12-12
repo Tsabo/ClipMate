@@ -165,7 +165,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         {
             CollectionType.Virtual => CollectionLmType.Virtual,
             CollectionType.Folder => CollectionLmType.Folder,
-            _ => CollectionLmType.Normal // Normal and Trashcan
+            var _ => CollectionLmType.Normal, // Normal and Trashcan
         };
 
         // Set ListType for virtual collections
@@ -209,7 +209,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         // Find the CollectionPropertiesWindow that owns this ViewModel
         var owner = Application.Current.Windows
             .OfType<CollectionPropertiesWindow>()
-            .FirstOrDefault(w => w.DataContext == this);
+            .FirstOrDefault(w => ReferenceEquals(w.DataContext, this));
 
         if (owner != null)
             picker.Owner = owner;

@@ -86,7 +86,7 @@ namespace WpfHexaEditor.Core
             get => _caretHeight;
             set
             {
-                if (_caretHeight == value) return;
+                if (Math.Abs(_caretHeight - value) < double.Epsilon) return;
                 if (value < 0) value = 0;
 
                 _caretHeight = value;
@@ -105,7 +105,7 @@ namespace WpfHexaEditor.Core
             get => _caretWidth;
             set
             {
-                if (_caretWidth == value) return;
+                if (Math.Abs(_caretWidth - value) < double.Epsilon) return;
                 if (value < 0) value = 0;
 
                 _caretWidth = value;
@@ -127,7 +127,7 @@ namespace WpfHexaEditor.Core
             get => _position.X;
             private set
             {
-                if (_position.X == value) return;
+                if (Math.Abs(_position.X - value) < double.Epsilon) return;
 
                 _position.X = Math.Floor(value);
                 if (Visible) Visible = false;
@@ -145,7 +145,7 @@ namespace WpfHexaEditor.Core
             get => _position.Y;
             private set
             {
-                if (_position.Y == value) return;
+                if (Math.Abs(_position.Y - value) < double.Epsilon) return;
 
                 _position.Y = Math.Floor(value);
                 if (Visible) Visible = false;

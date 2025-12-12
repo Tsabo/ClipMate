@@ -99,7 +99,7 @@ public class ClassicWindowCoordinatorTests
         var messenger = CreateDefaultMocks();
         var logger = new Mock<ILogger<ClassicWindowCoordinator>>();
 
-        var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
+        using var coordinator = new ClassicWindowCoordinator(serviceProvider.Object, messenger.Object, logger.Object);
 
         // Act & Assert - should not throw
         await Task.CompletedTask;

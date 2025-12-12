@@ -84,7 +84,7 @@ public class StartupInitializationPipelineTests
     public async Task RunAsync_ShouldPassCancellationTokenToSteps()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var receivedToken = CancellationToken.None;
 
         var step = new Mock<IStartupInitializationStep>();
