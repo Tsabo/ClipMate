@@ -34,6 +34,14 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
     # Initialize CodeQL tools for scanning
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
@@ -43,19 +51,17 @@ jobs:
         # Optional: Add custom queries
         # queries: ./path/to/local/query, security-extended
 
+    - name: AddDevExpressLicense
+      shell: cmd
+      run: |
+        set "DEST=%APPDATA%\DevExpress"
+        if not exist "%DEST%" mkdir "%DEST%"
+        echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
+
     # Restore .NET tools for build
     - name: Restore .NET tools
       if: matrix.language == 'csharp'
       run: dotnet tool restore
-
-    # Add DevExpress NuGet source (required for build)
-    - name: Add DevExpress NuGet source
-      if: matrix.language == 'csharp'
-      run: |
-        dotnet nuget add source "https://nuget.devexpress.com/${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}/api/v3/index.json" --name "DevExpress Online" 2>$null || echo "Source may already exist"
-      env:
-        DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
-      continue-on-error: true
 
     # Build the .NET solution
     - name: Build Solution
@@ -64,6 +70,7 @@ jobs:
         dotnet cake build/build.cake --target=Build --configuration=Release --verbosity=Minimal
       env:
         DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+        DevExpress_License: ${{ secrets.DEVEXPRESS_LICENSE }}
 
     # JavaScript/TypeScript files (Monaco editor assets) are analyzed without build
 
