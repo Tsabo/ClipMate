@@ -16,6 +16,7 @@ public class OptionsViewModelTests
 {
     private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
     private CapturingOptionsViewModel _capturingViewModel = null!;
+    private DatabaseOptionsViewModel _databaseViewModel = null!;
     private EditorOptionsViewModel _editorViewModel = null!;
 
     // Child ViewModels
@@ -96,6 +97,10 @@ public class OptionsViewModelTests
             _mockConfigurationService.Object,
             _mockHotkeyService.Object,
             mockHotkeyCoordinator.Object);
+
+        _databaseViewModel = new DatabaseOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<ILogger<DatabaseOptionsViewModel>>().Object);
     }
 
     private OptionsViewModel CreateViewModel() =>
@@ -110,7 +115,8 @@ public class OptionsViewModelTests
             _capturingViewModel,
             _applicationProfilesViewModel,
             _soundsViewModel,
-            _hotkeysViewModel);
+            _hotkeysViewModel,
+            _databaseViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
@@ -131,7 +137,8 @@ public class OptionsViewModelTests
             _capturingViewModel,
             applicationProfilesViewModel,
             _soundsViewModel,
-            _hotkeysViewModel);
+            _hotkeysViewModel,
+            _databaseViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();

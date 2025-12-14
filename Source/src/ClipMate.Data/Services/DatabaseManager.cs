@@ -51,9 +51,9 @@ public class DatabaseManager : IDisposable
             var dbConfig = item.Value;
             try
             {
-                _logger.LogInformation("Auto-loading database: {Name} at {Path}", dbConfig.Name, dbConfig.Directory);
+                _logger.LogInformation("Auto-loading database: {Name} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
-                var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
+                var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
 
                 // Ensure database exists and is migrated
                 await context.Database.EnsureCreatedAsync(cancellationToken);
@@ -63,7 +63,7 @@ public class DatabaseManager : IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load database: {Title} at {Path}", dbConfig.Name, dbConfig.Directory);
+                _logger.LogError(ex, "Failed to load database: {Title} at {Path}", dbConfig.Name, dbConfig.FilePath);
             }
         }
 
@@ -74,34 +74,29 @@ public class DatabaseManager : IDisposable
     }
 
     /// <summary>
-    /// Loads a specific database by name.
+    /// Loads a specific database by its configuration key.
     /// </summary>
-    /// <param name="databaseName">Name of the database to load.</param>
+    /// <param name="databaseKey">Configuration key of the database to load.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if successfully loaded.</returns>
-    public async Task<bool> LoadDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
+    public async Task<bool> LoadDatabaseAsync(string databaseKey, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         _configuration ??= await _configService.LoadAsync(cancellationToken);
 
-        var dbEntry = _configuration.Databases.FirstOrDefault(p =>
-            p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
-
-        if (dbEntry.Key == null)
+        if (!_configuration.Databases.TryGetValue(databaseKey, out var dbConfig))
         {
-            _logger.LogWarning("Database not found in configuration: {Name}", databaseName);
+            _logger.LogWarning("Database not found in configuration: {Key}", databaseKey);
 
             return false;
         }
 
-        var dbConfig = dbEntry.Value;
-
         try
         {
-            _logger.LogInformation("Loading database: {Name} at {Path}", dbConfig.Name, dbConfig.Directory);
+            _logger.LogInformation("Loading database: {Name} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
-            var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
+            var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
             await context.Database.EnsureCreatedAsync(cancellationToken);
 
             _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
@@ -110,7 +105,7 @@ public class DatabaseManager : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load database: {Title} at {Path}", dbConfig.Name, dbConfig.Directory);
+            _logger.LogError(ex, "Failed to load database: {Title} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
             return false;
         }
@@ -119,19 +114,16 @@ public class DatabaseManager : IDisposable
     /// <summary>
     /// Unloads a specific database.
     /// </summary>
-    /// <param name="databaseTitle">Title of the database to unload.</param>
+    /// <param name="databaseKey">Configuration key of the database to unload.</param>
     /// <returns>True if successfully unloaded.</returns>
-    public bool UnloadDatabase(string databaseName)
+    public bool UnloadDatabase(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
             return false;
 
-        var dbEntry = _configuration.Databases
-            .FirstOrDefault(p => p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
-
-        return dbEntry.Key != null && _contextFactory.CloseDatabase(dbEntry.Value.Directory);
+        return _configuration.Databases.TryGetValue(databaseKey, out var dbConfig) && _contextFactory.CloseDatabase(dbConfig.FilePath);
     }
 
     /// <summary>
@@ -148,35 +140,30 @@ public class DatabaseManager : IDisposable
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
 
         return _configuration.Databases
-            .Where(p => loadedPaths.Contains(p.Value.Directory, StringComparer.OrdinalIgnoreCase))
+            .Where(p => loadedPaths.Contains(p.Value.FilePath, StringComparer.OrdinalIgnoreCase))
             .Select(p => p.Value);
     }
 
     /// <summary>
-    /// Gets the database context for a specific database name.
+    /// Gets the database context for a specific database key.
     /// </summary>
-    /// <param name="databaseName">Name of the database.</param>
+    /// <param name="databaseKey">Configuration key of the database.</param>
     /// <returns>The database context, or null if not loaded.</returns>
-    public ClipMateDbContext? GetDatabaseContext(string databaseName)
+    public virtual ClipMateDbContext? GetDatabaseContext(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_configuration == null)
             return null;
 
-        var dbEntry = _configuration.Databases
-            .FirstOrDefault(p => p.Value.Name.Equals(databaseName, StringComparison.OrdinalIgnoreCase));
-
-        if (dbEntry.Key == null)
+        if (!_configuration.Databases.TryGetValue(databaseKey, out var dbConfig))
             return null;
 
-        var dbConfig = dbEntry.Value;
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
 
-        if (!loadedPaths.Contains(dbConfig.Directory, StringComparer.OrdinalIgnoreCase))
-            return null;
-
-        return _contextFactory.GetOrCreateContext(dbConfig.Directory);
+        return !loadedPaths.Contains(dbConfig.FilePath, StringComparer.OrdinalIgnoreCase)
+            ? null
+            : _contextFactory.GetOrCreateContext(dbConfig.FilePath);
     }
 
     /// <summary>
@@ -193,10 +180,10 @@ public class DatabaseManager : IDisposable
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
 
         foreach (var item in _configuration.Databases.Where(p =>
-                     loadedPaths.Contains(p.Value.Directory, StringComparer.OrdinalIgnoreCase)))
+                     loadedPaths.Contains(p.Value.FilePath, StringComparer.OrdinalIgnoreCase)))
         {
             var dbConfig = item.Value;
-            var context = _contextFactory.GetOrCreateContext(dbConfig.Directory);
+            var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
 
             yield return (dbConfig.Name, context);
         }

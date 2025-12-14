@@ -23,7 +23,9 @@ namespace ClipMate.App;
 /// Responsible only for window chrome (tray icon, window state, etc.)
 /// All business logic is in ExplorerWindowViewModel.
 /// </summary>
-public partial class ExplorerWindow : IWindow, IRecipient<ShowExplorerWindowEvent>, IRecipient<ShowTaskbarIconChangedEvent>
+public partial class ExplorerWindow : IWindow,
+    IRecipient<ShowExplorerWindowEvent>,
+    IRecipient<ShowTaskbarIconChangedEvent>
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ExplorerWindow>? _logger;

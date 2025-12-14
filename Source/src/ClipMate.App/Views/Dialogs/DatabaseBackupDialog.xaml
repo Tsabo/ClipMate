@@ -1,0 +1,156 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.DatabaseBackupDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 Title="ClipMate Database Backup"
+                 Width="550"
+                 Height="400"
+                 ShowIcon="False"
+                 ShowInTaskbar="False"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize">
+
+    <!-- Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Click="OkButton_Click"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     Click="CancelButton_Click"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="{Binding HeaderText}"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,15" />
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      Margin="0,0,0,10">
+            <dxlc:LayoutControl Orientation="Vertical"
+                                ItemSpace="10">
+                <!-- Backup Directory -->
+                <dxlc:LayoutGroup Header="Backup Location"
+                                  View="GroupBox"
+                                  Orientation="Vertical">
+                    <dxlc:LayoutItem Label="Backup Directory:">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <dxe:TextEdit Grid.Column="0"
+                                          Text="{Binding BackupDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                          GotFocus="OnUserInteraction" />
+                            <Button Grid.Column="1"
+                                    Content="Browse..."
+                                    Width="80"
+                                    Margin="5,0,0,0"
+                                    Click="BrowseButton_Click" />
+                        </Grid>
+                    </dxlc:LayoutItem>
+                </dxlc:LayoutGroup>
+
+                <!-- Backup Interval -->
+                <dxlc:LayoutGroup Header="Backup Schedule"
+                                  View="GroupBox"
+                                  Orientation="Vertical">
+                    <dxlc:LayoutItem Label="Backup Interval (Days):">
+                        <dxe:SpinEdit Value="{Binding BackupIntervalDays, UpdateSourceTrigger=PropertyChanged}"
+                                      MinValue="0"
+                                      MaxValue="9999"
+                                      Increment="1"
+                                      IsFloatValue="False"
+                                      GotFocus="OnUserInteraction"
+                                      EditValueChanged="OnUserInteraction"
+                                      Mask="####"
+                                      MaskUseAsDisplayFormat="True" />
+                    </dxlc:LayoutItem>
+                    <TextBlock Text="(0 = Never, 9999 = Never)"
+                               FontSize="11"
+                               Foreground="Gray"
+                               Margin="0,5,0,0" />
+                </dxlc:LayoutGroup>
+
+                <!-- Auto-Confirm Prompts -->
+                <dxlc:LayoutGroup Header="Prompts"
+                                  View="GroupBox"
+                                  Orientation="Vertical">
+                    <dxe:CheckEdit Content="Automatically OK this dialog after"
+                                   IsChecked="{Binding AutoConfirmEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                   GotFocus="OnUserInteraction"
+                                   Checked="OnUserInteraction"
+                                   Unchecked="OnUserInteraction" />
+                    <Grid Margin="25,5,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <dxe:SpinEdit Grid.Column="0"
+                                      Width="80"
+                                      Value="{Binding AutoConfirmSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                      MinValue="1"
+                                      MaxValue="60"
+                                      Increment="1"
+                                      IsFloatValue="False"
+                                      IsEnabled="{Binding AutoConfirmEnabled}"
+                                      GotFocus="OnUserInteraction"
+                                      EditValueChanged="OnUserInteraction"
+                                      Mask="##"
+                                      MaskUseAsDisplayFormat="True" />
+                        <TextBlock Grid.Column="1"
+                                   Text="seconds"
+                                   VerticalAlignment="Center"
+                                   Margin="5,0,0,0" />
+                    </Grid>
+
+                    <!-- Countdown Display -->
+                    <Border BorderBrush="LightGray"
+                            BorderThickness="1"
+                            Background="#F5F5F5"
+                            Padding="10"
+                            Margin="0,10,0,0"
+                            Visibility="{Binding CountdownVisible, Converter={dx:BooleanToVisibilityConverter}}">
+                        <TextBlock HorizontalAlignment="Center"
+                                   VerticalAlignment="Center">
+                            <Run Text="Automatically confirming in " />
+                            <Run Text="{Binding CountdownSeconds, Mode=OneWay}"
+                                 FontWeight="Bold"
+                                 FontSize="14" />
+                            <Run Text=" seconds..." />
+                        </TextBlock>
+                    </Border>
+                </dxlc:LayoutGroup>
+            </dxlc:LayoutControl>
+        </ScrollViewer>
+
+        <!-- Information Text -->
+        <TextBlock Grid.Row="2"
+                   TextWrapping="Wrap"
+                   Foreground="Gray"
+                   FontSize="11"
+                   Margin="0,0,0,10">
+            <Run Text="The backup will be saved as: " />
+            <Run Text="{Binding BackupFileName, Mode=OneWay}"
+                 FontWeight="SemiBold" />
+        </TextBlock>
+
+    </Grid>
+</dx:ThemedWindow>

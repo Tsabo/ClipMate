@@ -37,7 +37,7 @@ public partial class CollectionTreeViewModelTests
                 ["default"] = new DatabaseConfiguration
                 {
                     Name = "My Clips",
-                    Directory = "C:\\test",
+                    FilePath = "C:\\test\\clipmate.db",
                     AutoLoad = true
                 }
             },

@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Data.Services;
@@ -13,6 +14,7 @@ public class CollectionService : ICollectionService
 {
     private readonly IServiceProvider _serviceProvider;
     private Guid? _activeCollectionId;
+    private string? _activeDatabaseKey;
 
     public CollectionService(IServiceProvider serviceProvider)
     {
@@ -29,7 +31,7 @@ public class CollectionService : ICollectionService
             Name = name,
             Description = description,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow
+            ModifiedAt = DateTime.UtcNow,
         };
 
         using var scope = _serviceProvider.CreateScope();
@@ -59,27 +61,45 @@ public class CollectionService : ICollectionService
         if (_activeCollectionId == null)
             throw new InvalidOperationException("No active collection set.");
 
+        if (_activeDatabaseKey == null)
+            throw new InvalidOperationException("Active collection database key is not set.");
+
         using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
-        var collection = await repository.GetByIdAsync(_activeCollectionId.Value, cancellationToken);
+        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
+
+        if (dbContext == null)
+            throw new InvalidOperationException($"Database context for key '{_activeDatabaseKey}' not found.");
+
+        var collection = await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == _activeCollectionId.Value, cancellationToken);
 
         if (collection == null)
-            throw new InvalidOperationException($"Active collection {_activeCollectionId} not found.");
+            throw new InvalidOperationException($"Active collection {_activeCollectionId} not found in database '{_activeDatabaseKey}'.");
 
         return collection;
     }
 
-    public async Task SetActiveAsync(Guid id, CancellationToken cancellationToken = default)
+    public string? GetActiveDatabaseKey() => _activeDatabaseKey;
+
+    public async Task SetActiveAsync(Guid id, string databaseKey, CancellationToken cancellationToken = default)
     {
-        // Verify collection exists
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
+
+        // Verify collection exists in the specified database
         using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
-        var collection = await repository.GetByIdAsync(id, cancellationToken);
+        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(databaseKey);
+
+        if (dbContext == null)
+            throw new ArgumentException($"Database context for key '{databaseKey}' not found.", nameof(databaseKey));
+
+        var collection = await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         if (collection == null)
-            throw new ArgumentException($"Collection {id} not found.", nameof(id));
+            throw new ArgumentException($"Collection {id} not found in database '{databaseKey}'.", nameof(id));
 
         _activeCollectionId = id;
+        _activeDatabaseKey = databaseKey;
     }
 
     public async Task UpdateAsync(Collection collection, CancellationToken cancellationToken = default)
@@ -98,7 +118,10 @@ public class CollectionService : ICollectionService
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         if (_activeCollectionId == id)
+        {
             _activeCollectionId = null;
+            _activeDatabaseKey = null;
+        }
 
         using var scope = _serviceProvider.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();

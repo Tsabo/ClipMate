@@ -7,6 +7,11 @@
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892</NoWarn>
     <OutputType>Exe</OutputType>
+    <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+    <IsTestProject>true</IsTestProject>
+    <UseTestingPlatformProtocol>true</UseTestingPlatformProtocol>
+    <IsTestingPlatformEnabled>true</IsTestingPlatformEnabled>
   </PropertyGroup>
 
   <ItemGroup>

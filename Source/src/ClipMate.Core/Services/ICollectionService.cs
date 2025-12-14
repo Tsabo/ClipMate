@@ -30,6 +30,12 @@ public interface ICollectionService
     Task<Collection> GetActiveAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the database key for the currently active collection.
+    /// </summary>
+    /// <returns>The database key, or null if no active collection.</returns>
+    string? GetActiveDatabaseKey();
+
+    /// <summary>
     /// Creates a new collection.
     /// </summary>
     /// <param name="name">Collection name.</param>
@@ -37,6 +43,14 @@ public interface ICollectionService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The created collection.</returns>
     Task<Collection> CreateAsync(string name, string? description = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the active collection.
+    /// </summary>
+    /// <param name="id">The collection ID to set as active.</param>
+    /// <param name="databaseKey">The database key where this collection resides.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SetActiveAsync(Guid id, string databaseKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates an existing collection.
@@ -51,11 +65,4 @@ public interface ICollectionService
     /// <param name="id">The collection ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Sets the active collection.
-    /// </summary>
-    /// <param name="id">The collection ID to activate.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    Task SetActiveAsync(Guid id, CancellationToken cancellationToken = default);
 }

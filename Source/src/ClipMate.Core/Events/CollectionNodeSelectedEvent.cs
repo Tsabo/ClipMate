@@ -11,10 +11,12 @@ public class CollectionNodeSelectedEvent
     /// </summary>
     /// <param name="collectionId">The selected collection ID.</param>
     /// <param name="folderId">The selected folder ID, or null for collection-level selection.</param>
-    public CollectionNodeSelectedEvent(Guid collectionId, Guid? folderId)
+    /// <param name="databaseKey">The database key (configuration key) where this collection resides.</param>
+    public CollectionNodeSelectedEvent(Guid collectionId, Guid? folderId, string databaseKey)
     {
         CollectionId = collectionId;
         FolderId = folderId;
+        DatabaseKey = databaseKey ?? throw new ArgumentNullException(nameof(databaseKey));
     }
 
     /// <summary>
@@ -26,4 +28,9 @@ public class CollectionNodeSelectedEvent
     /// The ID of the selected folder, or null if a collection is selected.
     /// </summary>
     public Guid? FolderId { get; }
+
+    /// <summary>
+    /// The database configuration key where this collection resides.
+    /// </summary>
+    public string DatabaseKey { get; }
 }

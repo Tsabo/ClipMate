@@ -13,16 +13,16 @@ public partial class MainMenuViewModel : ObservableObject
 {
     private readonly IMessenger _messenger;
 
-    public MainMenuViewModel(IMessenger messenger)
-    {
-        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-    }
-
     [ObservableProperty]
     private bool _isExplodeMode;
 
     [ObservableProperty]
     private bool _isLoopMode;
+
+    public MainMenuViewModel(IMessenger messenger)
+    {
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+    }
 
     // ==========================
     // File Menu Commands
@@ -88,6 +88,25 @@ public partial class MainMenuViewModel : ObservableObject
     [RelayCommand]
     private void DeactivateDatabase() { }
 
+    // Database Maintenance submenu
+    [RelayCommand]
+    private void BackupDatabase() => _messenger.Send(new BackupDatabaseRequestedEvent());
+
+    [RelayCommand]
+    private void RestoreDatabase() => _messenger.Send(new RestoreDatabaseRequestedEvent());
+
+    [RelayCommand]
+    private void EmptyTrash() => _messenger.Send(new EmptyTrashRequestedEvent());
+
+    [RelayCommand]
+    private void SimpleRepair() => _messenger.Send(new SimpleRepairRequestedEvent());
+
+    [RelayCommand]
+    private void ComprehensiveRepair() => _messenger.Send(new ComprehensiveRepairRequestedEvent());
+
+    [RelayCommand]
+    private void RunCleanupNow() => _messenger.Send(new RunCleanupNowRequestedEvent());
+
     [RelayCommand]
     private void Print() { }
 
@@ -98,10 +117,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void PrintOptions() { }
 
     [RelayCommand]
-    private void Exit()
-    {
-        _messenger.Send(new ExitApplicationEvent());
-    }
+    private void Exit() => _messenger.Send(new ExitApplicationEvent());
 
     // ==========================
     // Edit Menu Commands
@@ -114,10 +130,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void SelectAll() { }
 
     [RelayCommand]
-    private void CaptureSpecial()
-    {
-        _messenger.Send(new ManualCaptureClipboardEvent());
-    }
+    private void CaptureSpecial() => _messenger.Send(new ManualCaptureClipboardEvent());
 
     [RelayCommand]
     private void AppendClips() { }
@@ -163,19 +176,13 @@ public partial class MainMenuViewModel : ObservableObject
     // ==========================
 
     [RelayCommand]
-    private void AutoCapture()
-    {
-        _messenger.Send(new ToggleAutoCaptureEvent());
-    }
+    private void AutoCapture() => _messenger.Send(new ToggleAutoCaptureEvent());
 
     [RelayCommand]
     private void FilterOutbound() { }
 
     [RelayCommand]
-    private void Options()
-    {
-        _messenger.Send(new OpenOptionsDialogEvent());
-    }
+    private void Options() => _messenger.Send(new OpenOptionsDialogEvent());
 
     [RelayCommand]
     private void AppProfile() { }
@@ -202,16 +209,10 @@ public partial class MainMenuViewModel : ObservableObject
     private void ShowEventLog() { }
 
     [RelayCommand]
-    private void ManageTemplates()
-    {
-        _messenger.Send(new OpenTemplateEditorDialogEvent());
-    }
+    private void ManageTemplates() => _messenger.Send(new OpenTemplateEditorDialogEvent());
 
     [RelayCommand]
-    private void TextTools()
-    {
-        _messenger.Send(new OpenTextToolsDialogEvent());
-    }
+    private void TextTools() => _messenger.Send(new OpenTextToolsDialogEvent());
 
     // ==========================
     // View Menu Commands
@@ -221,16 +222,10 @@ public partial class MainMenuViewModel : ObservableObject
     private void Search() { }
 
     [RelayCommand]
-    private void SelectPrevious()
-    {
-        _messenger.Send(new SelectPreviousClipEvent());
-    }
+    private void SelectPrevious() => _messenger.Send(new SelectPreviousClipEvent());
 
     [RelayCommand]
-    private void SelectNext()
-    {
-        _messenger.Send(new SelectNextClipEvent());
-    }
+    private void SelectNext() => _messenger.Send(new SelectNextClipEvent());
 
     [RelayCommand]
     private void SwitchToLastCollection() { }
@@ -251,22 +246,13 @@ public partial class MainMenuViewModel : ObservableObject
     private void ViewClip() { }
 
     [RelayCommand]
-    private void SwitchView()
-    {
-        _messenger.Send(new ShowExplorerWindowEvent());
-    }
+    private void SwitchView() => _messenger.Send(new ShowExplorerWindowEvent());
 
     [RelayCommand]
-    private void OpenExplorer()
-    {
-        _messenger.Send(new ShowExplorerWindowEvent());
-    }
+    private void OpenExplorer() => _messenger.Send(new ShowExplorerWindowEvent());
 
     [RelayCommand]
-    private void OpenClassic()
-    {
-        _messenger.Send(new ShowClipBarRequestedEvent());
-    }
+    private void OpenClassic() => _messenger.Send(new ShowClipBarRequestedEvent());
 
     [RelayCommand]
     private void CloseAllWindows() { }

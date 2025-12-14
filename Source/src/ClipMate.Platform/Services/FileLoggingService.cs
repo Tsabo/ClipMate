@@ -47,7 +47,7 @@ public class FileLoggingService : IFileLoggingService
 
             var logFiles = Directory.GetFiles(LogDirectory, "clipmate-*.log")
                 .Union(Directory.GetFiles(LogDirectory, "clipmate-*.txt"))
-                .OrderByDescending(f => new FileInfo(f).CreationTime)
+                .OrderByDescending(p => new FileInfo(p).CreationTime)
                 .ToList();
 
             return logFiles;
@@ -83,7 +83,7 @@ public class FileLoggingService : IFileLoggingService
             {
                 FileName = LogDirectory,
                 UseShellExecute = true,
-                Verb = "open"
+                Verb = "open",
             });
 
             _logger.LogInformation("Opened log directory in Explorer: {LogDirectory}", LogDirectory);
@@ -130,21 +130,21 @@ public class FileLoggingService : IFileLoggingService
             var logFiles = GetLogFiles();
             var deletedCount = 0;
 
-            foreach (var logFile in logFiles)
+            foreach (var item in logFiles)
             {
                 try
                 {
-                    var fileInfo = new FileInfo(logFile);
+                    var fileInfo = new FileInfo(item);
                     if (fileInfo.CreationTime < cutoffDate)
                     {
-                        File.Delete(logFile);
+                        File.Delete(item);
                         deletedCount++;
                         _logger.LogDebug("Deleted old log file: {FileName}", fileInfo.Name);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete log file: {LogFile}", logFile);
+                    _logger.LogWarning(ex, "Failed to delete log file: {LogFile}", item);
                 }
             }
 
@@ -183,16 +183,16 @@ public class FileLoggingService : IFileLoggingService
             // Create ZIP archive
             using (var archive = ZipFile.Open(outputPath, ZipArchiveMode.Create))
             {
-                foreach (var logFile in logFiles)
+                foreach (var item in logFiles)
                 {
                     try
                     {
-                        var fileName = Path.GetFileName(logFile);
+                        var fileName = Path.GetFileName(item);
 
                         // Copy file to temp location first to avoid locking issues
                         var tempFile = Path.GetTempFileName();
 
-                        await using (var sourceStream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        await using (var sourceStream = new FileStream(item, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         await using (var destStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write))
                         {
                             await sourceStream.CopyToAsync(destStream);
@@ -206,7 +206,7 @@ public class FileLoggingService : IFileLoggingService
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to add log file to archive: {LogFile}", logFile);
+                        _logger.LogWarning(ex, "Failed to add log file to archive: {LogFile}", item);
                     }
                 }
             }

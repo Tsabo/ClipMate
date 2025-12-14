@@ -33,6 +33,7 @@ public class DefaultDataInitializationService
         {
             using var scope = _serviceProvider.CreateScope();
             var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+            var configurationService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
 
             // Get all collections
             var collections = await collectionService.GetAllAsync(cancellationToken);
@@ -52,7 +53,14 @@ public class DefaultDataInitializationService
             }
 
             // Set Inbox as the active collection for new clips
-            await collectionService.SetActiveAsync(inboxCollection.Id, cancellationToken);
+            // Set Inbox as the active collection
+            var configuration = configurationService.Configuration;
+            var defaultDatabaseKey = configuration.DefaultDatabase;
+            if (string.IsNullOrEmpty(defaultDatabaseKey))
+                _logger.LogWarning("No default database configured, cannot set active collection");
+            else
+                await collectionService.SetActiveAsync(inboxCollection.Id, defaultDatabaseKey, cancellationToken);
+
             _logger.LogInformation("Set Inbox collection (ID: {CollectionId}) as active for new clips", inboxCollection.Id);
         }
         catch (Exception ex)

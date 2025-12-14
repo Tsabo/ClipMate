@@ -74,7 +74,12 @@ public partial class ExplorerWindowViewModel : ObservableObject
                     using (var scope = _serviceProvider.CreateScope())
                     {
                         var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                        await collectionService.SetActiveAsync(targetCollection.Collection.Id);
+                        // Find the database key by traversing up from target node
+                        var databaseKey = GetDatabaseKeyForNode(targetCollection);
+                        if (!string.IsNullOrEmpty(databaseKey))
+                            await collectionService.SetActiveAsync(targetCollection.Collection.Id, databaseKey);
+                        else if (_logger != null)
+                            _logger.LogWarning("Could not determine database key for target collection");
                     }
 
                     // Check if this is a default collection (Inbox, Safe, Overflow)
@@ -172,6 +177,31 @@ public partial class ExplorerWindowViewModel : ObservableObject
         {
             _logger?.LogError(ex, "Error updating QuickPaste target on window deactivation");
         }
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Gets the database configuration key for a tree node by traversing up to the database node.
+    /// </summary>
+    private static string? GetDatabaseKeyForNode(TreeNodeBase? node)
+    {
+        if (node == null)
+            return null;
+
+        // Traverse up the tree to find the DatabaseTreeNode
+        var current = node;
+        while (current != null)
+        {
+            if (current is DatabaseTreeNode dbNode)
+                return dbNode.DatabasePath;
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 
     #endregion

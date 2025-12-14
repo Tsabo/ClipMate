@@ -30,7 +30,8 @@ public partial class OptionsViewModel : ObservableObject
         CapturingOptionsViewModel capturingOptionsViewModel,
         ApplicationProfilesOptionsViewModel applicationProfilesOptionsViewModel,
         SoundsOptionsViewModel soundsOptionsViewModel,
-        HotkeysOptionsViewModel hotkeysOptionsViewModel)
+        HotkeysOptionsViewModel hotkeysOptionsViewModel,
+        DatabaseOptionsViewModel databaseOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -44,6 +45,7 @@ public partial class OptionsViewModel : ObservableObject
         ApplicationProfiles = applicationProfilesOptionsViewModel ?? throw new ArgumentNullException(nameof(applicationProfilesOptionsViewModel));
         Sounds = soundsOptionsViewModel ?? throw new ArgumentNullException(nameof(soundsOptionsViewModel));
         Hotkeys = hotkeysOptionsViewModel ?? throw new ArgumentNullException(nameof(hotkeysOptionsViewModel));
+        Database = databaseOptionsViewModel ?? throw new ArgumentNullException(nameof(databaseOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
@@ -57,6 +59,7 @@ public partial class OptionsViewModel : ObservableObject
     public ApplicationProfilesOptionsViewModel ApplicationProfiles { get; }
     public SoundsOptionsViewModel Sounds { get; }
     public HotkeysOptionsViewModel Hotkeys { get; }
+    public DatabaseOptionsViewModel Database { get; }
 
     /// <summary>
     /// Selects a tab by name.
@@ -72,7 +75,13 @@ public partial class OptionsViewModel : ObservableObject
             "GENERAL" => 0,
             "PASTING" => 1,
             "QUICKPASTE" => 2,
-            "HOTKEYS" => 3,
+            "EDITOR" => 3,
+            "CAPTURING" => 4,
+            "APPPROFILES" => 5,
+            "APPEARANCE" => 6,
+            "SOUNDS" => 7,
+            "HOTKEYS" => 8,
+            "DATABASE" => 9,
             var _ => SelectedTabIndex,
         };
 
@@ -92,6 +101,7 @@ public partial class OptionsViewModel : ObservableObject
         await ApplicationProfiles.LoadAsync();
         Sounds.LoadAsync();
         await Hotkeys.LoadConfigurationAsync();
+        await Database.LoadAsync();
 
         _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
@@ -113,6 +123,7 @@ public partial class OptionsViewModel : ObservableObject
             await ApplicationProfiles.SaveAsync();
             Sounds.SaveAsync();
             await Hotkeys.SaveConfigurationAsync();
+            await Database.SaveAsync();
 
             // Save to disk
             await _configurationService.SaveAsync();

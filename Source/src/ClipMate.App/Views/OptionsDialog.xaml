@@ -84,6 +84,11 @@
             <views:HotkeysOptionsView DataContext="{Binding Hotkeys}" />
         </dx:DXTabItem>
 
+        <!-- Database Tab -->
+        <dx:DXTabItem Header="Database">
+            <options:DatabaseOptionsControl DataContext="{Binding Database}" />
+        </dx:DXTabItem>
+
     </dx:DXTabControl>
 
 </dx:ThemedWindow>

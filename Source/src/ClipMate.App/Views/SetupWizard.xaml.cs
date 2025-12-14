@@ -204,11 +204,11 @@ public partial class SetupWizard
             var dbConfig = new DatabaseConfiguration
             {
                 Name = databaseName,
-                Directory = databaseDirectory,
+                FilePath = Path.Combine(databaseDirectory, "clipmate.db"),
                 AutoLoad = true,
                 AllowBackup = true,
                 ReadOnly = false,
-                CleanupMethod = 3, // Daily
+                CleanupMethod = CleanupMethod.AtStartup,
                 PurgeDays = 7,
             };
 

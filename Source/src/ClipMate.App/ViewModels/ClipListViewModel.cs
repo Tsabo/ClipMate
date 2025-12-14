@@ -116,15 +116,15 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public async void Receive(CollectionNodeSelectedEvent message)
     {
-        _logger.LogInformation("CollectionNodeSelectedEvent received: CollectionId={CollectionId}, FolderId={FolderId}",
-            message.CollectionId, message.FolderId);
+        _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}",
+            message.DatabaseKey, message.CollectionId, message.FolderId);
 
         // Set the active collection and folder for new clipboard captures
         using (var scope = CreateScope())
         {
             var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
             var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-            await collectionService.SetActiveAsync(message.CollectionId);
+            await collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
             await folderService.SetActiveAsync(message.FolderId);
         }
 

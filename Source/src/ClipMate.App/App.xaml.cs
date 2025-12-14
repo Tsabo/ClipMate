@@ -6,10 +6,13 @@ using ClipMate.App.Services;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.DependencyInjection;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
+using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +22,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using Tomlyn;
+using ILogger = Serilog.ILogger;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App;
@@ -93,8 +98,14 @@ public partial class App
             var pipeline = ServiceProvider.GetRequiredService<StartupInitializationPipeline>();
             await pipeline.RunAsync();
 
+            // Initialize coordinators (registers for events)
+            _ = ServiceProvider.GetRequiredService<DatabaseMaintenanceCoordinator>();
+
             // Start all hosted services (clipboard monitoring, PowerPaste, etc)
             await _host.StartAsync();
+
+            // Check if any databases need backup
+            await CheckAndPromptForBackupsAsync();
 
             // Apply icon configuration
             var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
@@ -130,6 +141,136 @@ public partial class App
                 MessageBoxImage.Error);
 
             Shutdown(1);
+        }
+    }
+
+    /// <summary>
+    /// Checks if any databases are due for backup and prompts the user.
+    /// </summary>
+    private async Task CheckAndPromptForBackupsAsync()
+    {
+        try
+        {
+            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
+            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
+
+            var config = configService.Configuration;
+
+            // Check if backup interval is disabled globally
+            if (config.Preferences.BackupIntervalDays is 0 or >= 9999)
+            {
+                _logger?.LogDebug("Automatic backups disabled (interval: {Days} days)", config.Preferences.BackupIntervalDays);
+                return;
+            }
+
+            // Get list of databases that need backup
+            var databasesDue = await maintenanceService.CheckBackupDueAsync(config.Databases.Values);
+
+            if (!databasesDue.Any())
+            {
+                _logger?.LogDebug("No databases due for backup");
+                return;
+            }
+
+            _logger?.LogInformation("Found {Count} database(s) due for backup", databasesDue.Count);
+
+            // Filter out databases that were recently prompted (within 3 days)
+            var promptSnoozesDays = 3;
+            var now = DateTime.UtcNow;
+            var databasesToPrompt = databasesDue
+                .Where(p => p.LastBackupPromptDate == null || 
+                             (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays)
+                .ToList();
+
+            if (!databasesToPrompt.Any())
+            {
+                _logger?.LogDebug("All databases due for backup were recently prompted (within {Days} days)", promptSnoozesDays);
+                return;
+            }
+
+            // Show backup dialog(s) based on count
+            if (databasesToPrompt.Count == 1)
+            {
+                // Single database - show simple backup dialog
+                var dbConfig = databasesToPrompt[0];
+                var dialog = new DatabaseBackupDialog(
+                    dbConfig,
+                    config.Preferences.BackupIntervalDays,
+                    config.Preferences.AutoConfirmBackupSeconds);
+
+                // Record that we prompted the user
+                dbConfig.LastBackupPromptDate = DateTime.UtcNow;
+
+                if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
+                    await PerformBackupAsync(dbConfig, dialog.UpdatedConfiguration);
+                else
+                    await configService.SaveAsync(); // Save the prompt date even if cancelled
+            }
+            else
+            {
+                // Multiple databases - show batch backup dialog
+                var dialog = new MultipleDatabaseBackupDialog(
+                    databasesToPrompt,
+                    config.Preferences.BackupIntervalDays,
+                    config.Preferences.AutoConfirmBackupSeconds);
+
+                // Record that we prompted the user for all databases
+                foreach (var item in databasesToPrompt)
+                    item.LastBackupPromptDate = DateTime.UtcNow;
+
+                if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Any())
+                {
+                    foreach (var item in dialog.SelectedDatabases)
+                        await PerformBackupAsync(item, item);
+                }
+                else
+                    await configService.SaveAsync(); // Save the prompt dates even if cancelled
+            }
+
+            // Save configuration with updated backup dates
+            await configService.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error checking for backup-due databases");
+        }
+    }
+
+    /// <summary>
+    /// Performs a database backup operation.
+    /// </summary>
+    private async Task PerformBackupAsync(DatabaseConfiguration dbConfig, DatabaseConfiguration updatedConfig)
+    {
+        try
+        {
+            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
+
+            var backupPath = await maintenanceService.BackupDatabaseAsync(
+                dbConfig,
+                updatedConfig.BackupDirectory);
+
+            // Update last backup date
+            dbConfig.LastBackupDate = DateTime.Now;
+            dbConfig.BackupDirectory = updatedConfig.BackupDirectory;
+
+            _logger?.LogInformation("Backup completed: {Path}", backupPath);
+
+            // Show success notification (optional - could use toast notification)
+            MessageBox.Show(
+                $"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
+                "Backup Complete",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Backup failed for database: {Database}", dbConfig.Name);
+
+            MessageBox.Show(
+                $"Database backup failed:\n\n{ex.Message}",
+                "Backup Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
@@ -178,51 +319,19 @@ public partial class App
         var earlyLogger = Log.ForContext<App>();
         earlyLogger.Information("Checking database setup...");
 
-        // Default database path
+        // Default paths
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
-        _databasePath = Path.Join(appDataPath, "clipmate.db");
-        earlyLogger.Information("Default database path: {DatabasePath}", _databasePath);
+        var configPath = Path.Join(appDataPath, "clipmate.toml");
 
-        // Check if database file exists and has tables
-        var databaseExists = File.Exists(_databasePath);
-        earlyLogger.Information("Database file exists: {Exists}", databaseExists);
-
-        var databaseValid = false;
-
-        if (databaseExists)
+        // Check if configuration exists
+        if (!File.Exists(configPath))
         {
-            try
-            {
-                earlyLogger.Debug("Validating database schema...");
+            earlyLogger.Information("No configuration file found - launching setup wizard");
 
-                // Check if database has the required tables
-                var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
-                optionsBuilder.UseSqlite($"Data Source={_databasePath}");
-
-                await using var context = new ClipMateDbContext(optionsBuilder.Options);
-
-                // Try to query Collections table (will throw if doesn't exist)
-                await context.Collections.AnyAsync();
-                databaseValid = true;
-                earlyLogger.Information("Database schema validation successful");
-            }
-            catch (Exception ex)
-            {
-                // Database exists but is invalid/empty
-                databaseValid = false;
-                earlyLogger.Warning(ex, "Database validation failed - database exists but schema is invalid or incomplete");
-            }
-        }
-
-        if (!databaseValid)
-        {
-            earlyLogger.Information("Database setup required - launching setup wizard");
-
-            // Show setup wizard
-            // Create a minimal logger for the wizard
+            // Show setup wizard for first-time setup
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddSerilog();
@@ -237,20 +346,125 @@ public partial class App
 
             if (result != true || !setupWizard.SetupCompleted)
             {
-                // User cancelled setup
                 earlyLogger.Warning("User cancelled database setup");
-
                 return false;
             }
 
-            // Use the path chosen in setup wizard
             _databasePath = setupWizard.DatabasePath;
             earlyLogger.Information("Setup wizard completed successfully. Database path: {DatabasePath}", _databasePath);
+            return true;
+        }
 
-            // Configuration has been saved by the wizard
+        // Load configuration to check databases
+        earlyLogger.Information("Loading configuration from {ConfigPath}", configPath);
+        using var configLoggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.AddSerilog();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
+        var configLogger = configLoggerFactory.CreateLogger<ConfigurationService>();
+        var configService = new ConfigurationService(appDataPath, configLogger);
+
+        ClipMateConfiguration? config;
+
+        try
+        {
+            config = await configService.LoadAsync();
+        }
+        catch (TomlException ex)
+        {
+            // TOML parsing error - file is malformed
+            earlyLogger.Error(ex, "Configuration file has invalid TOML syntax");
+            config = await HandleBadConfigurationFileAsync(earlyLogger, configPath, $"TOML syntax error: {ex.Message}");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Configuration validation failed"))
+        {
+            // Validation error - file parsed but content is invalid
+            earlyLogger.Error(ex, "Configuration validation failed");
+            var errorDetails = ex.Message.Replace("Configuration validation failed:\n", "");
+            config = await HandleBadConfigurationFileAsync(earlyLogger, configPath, errorDetails);
+        }
+        catch (OperationCanceledException)
+        {
+            // User cancelled configuration recovery
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Unexpected error during configuration loading
+            earlyLogger.Error(ex, "Unexpected error loading configuration file");
+            MessageBox.Show(
+                $"An unexpected error occurred while loading the configuration:\n\n{ex.Message}\n\n" +
+                "The application will now exit. Please check the log files for details.",
+                "Fatal Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return false;
+        }
+
+        // If config failed to load or has no databases, run setup wizard
+        if (config == null || config.Databases.Count == 0)
+        {
+            if (config?.Databases.Count == 0)
+                earlyLogger.Warning("Configuration exists but no databases configured - launching setup wizard");
+
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddSerilog();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
+
+            var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
+            var setupWizard = new SetupWizard(setupLogger, appDataPath);
+
+            var result = setupWizard.ShowDialog();
+
+            if (result != true || !setupWizard.SetupCompleted)
+            {
+                earlyLogger.Warning("User cancelled database setup");
+                return false;
+            }
+
+            _databasePath = setupWizard.DatabasePath;
+            earlyLogger.Information("Setup wizard completed successfully. Database path: {DatabasePath}", _databasePath);
+            return true;
+        }
+
+        // Find the default database (validation already done in ConfigurationService)
+        var defaultDbKey = config.DefaultDatabase!;
+        var dbConfig = config.Databases[defaultDbKey];
+
+        _databasePath = Environment.ExpandEnvironmentVariables(dbConfig.FilePath);
+
+        earlyLogger.Information("Using database: {Name} at {Path}", dbConfig.Name, _databasePath);
+
+        // Check if database file exists
+        if (!File.Exists(_databasePath))
+        {
+            earlyLogger.Warning("Configured database file does not exist: {Path}", _databasePath);
+            earlyLogger.Information("Database will be created during initialization");
         }
         else
-            earlyLogger.Information("Database is valid - skipping setup wizard");
+        {
+            // Validate existing database
+            try
+            {
+                earlyLogger.Debug("Validating database schema...");
+                var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
+                optionsBuilder.UseSqlite($"Data Source={_databasePath}");
+
+                await using var context = new ClipMateDbContext(optionsBuilder.Options);
+                await context.Collections.AnyAsync();
+
+                earlyLogger.Information("Database schema validation successful");
+            }
+            catch (Exception ex)
+            {
+                earlyLogger.Warning(ex, "Database validation failed - database will be repaired during initialization");
+            }
+        }
 
         return true;
     }
@@ -362,17 +576,23 @@ public partial class App
                 services.AddTransient<ApplicationProfilesOptionsViewModel>();
                 services.AddTransient<SoundsOptionsViewModel>();
                 services.AddTransient<HotkeysOptionsViewModel>();
+                services.AddTransient<DatabaseOptionsViewModel>();
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
 
-                // Register hotkey coordinator
+                // Register database dialogs
+                services.AddTransient<DatabaseRestoreWizard>();
+
+                // Register coordinators
                 services.AddSingleton<HotkeyCoordinator>();
+                services.AddSingleton<DatabaseMaintenanceCoordinator>();
                 services.AddTransient<HotkeyWindow>();
 
                 // Register initialization pipeline and steps
                 services.AddSingleton<StartupInitializationPipeline>();
                 services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
+                services.AddSingleton<IStartupInitializationStep, DatabaseLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
@@ -456,5 +676,58 @@ public partial class App
 
         // Mark as observed to prevent application crash
         e.SetObserved();
+    }
+
+    /// <summary>
+    /// Handles a bad configuration file by offering to backup and run setup wizard.
+    /// </summary>
+    /// <returns>Null if user chooses to backup and continue to setup wizard, throws if user exits.</returns>
+    private static Task<ClipMateConfiguration?> HandleBadConfigurationFileAsync(ILogger logger,
+        string configPath,
+        string errorDetails)
+    {
+        var result = MessageBox.Show(
+            $"Your configuration file has errors:\n\n{errorDetails}\n\n" +
+            $"Configuration file: {configPath}\n\n" +
+            "Click 'Yes' to rename the bad file and run setup wizard\n" +
+            "Click 'No' to exit and fix the file manually",
+            "Configuration Error",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Error);
+
+        if (result == MessageBoxResult.No)
+        {
+            logger.Information("User chose to exit and fix configuration manually");
+            throw new OperationCanceledException("User cancelled configuration recovery");
+        }
+
+        // Rename the bad configuration file
+        try
+        {
+            var backupPath = $"{configPath}.bad.{DateTime.Now:yyyyMMdd-HHmmss}";
+            File.Move(configPath, backupPath);
+            logger.Information("Renamed bad configuration file to {BackupPath}", backupPath);
+
+            MessageBox.Show(
+                $"Your configuration file has been renamed to:\n{Path.GetFileName(backupPath)}\n\n" +
+                "The setup wizard will now help you create a new configuration.",
+                "Configuration Backup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception moveEx)
+        {
+            logger.Error(moveEx, "Failed to rename bad configuration file");
+            MessageBox.Show(
+                "Could not rename the bad configuration file.\n\n" +
+                "Please manually rename or delete it and restart the application.",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            throw new OperationCanceledException("Failed to backup configuration file", moveEx);
+        }
+
+        return Task.FromResult<ClipMateConfiguration?>(null); // Fall through to setup wizard
     }
 }

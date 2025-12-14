@@ -1,0 +1,119 @@
+<UserControl x:Class="ClipMate.App.Views.Options.DatabaseOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:wpf="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+             d:DataContext="{d:DesignInstance Type=vm:DatabaseOptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Database Definitions Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Database Definitions" Orientation="Vertical">
+
+            <!-- Database Definitions Grid -->
+            <dxlc:LayoutItem>
+                <dxg:GridControl ItemsSource="{Binding Databases}"
+                                 CurrentItem="{Binding SelectedDatabase, Mode=TwoWay}"
+                                 Height="200">
+                    <dxg:GridControl.View>
+                        <dxg:TableView ShowGroupPanel="False"
+                                       AllowEditing="False"
+                                       NavigationStyle="Row"
+                                       ShowIndicator="False" />
+                    </dxg:GridControl.View>
+                    <dxg:GridControl.Columns>
+                        <dxg:GridColumn FieldName="Status" Header="Status" Width="50"
+                                        CellToolTipBinding="{Binding StatusTooltip}">
+                            <dxg:GridColumn.CellTemplate>
+                                <DataTemplate>
+                                    <wpf:TextBlock Text="{Binding Value}"
+                                                     HorizontalAlignment="Left"
+                                                     VerticalAlignment="Center"
+                                                     Margin="3,0,0,0" />
+                                </DataTemplate>
+                            </dxg:GridColumn.CellTemplate>
+                        </dxg:GridColumn>
+                        <dxg:GridColumn FieldName="Name" Header="Name" Width="120" />
+                        <dxg:GridColumn FieldName="FilePath" Header="File Path" Width="200" />
+                        <dxg:GridColumn FieldName="ReadOnly" Header="Read Only" Width="80" />
+                        <dxg:GridColumn FieldName="MultiUser" Header="Multi-User" Width="80" />
+                        <dxg:GridColumn FieldName="UserName" Header="Username" Width="100" />
+                        <dxg:GridColumn FieldName="PurgeDays" Header="Purge Days" Width="80" />
+                        <dxg:GridColumn FieldName="RemoteHost" Header="Remote Host" Width="*" />
+                    </dxg:GridControl.Columns>
+                </dxg:GridControl>
+            </dxlc:LayoutItem>
+
+            <!-- Database Management Buttons -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Add"
+                            Command="{Binding AddDatabaseCommand}"
+                            Padding="10,5"
+                            Margin="0,0,10,0"
+                            ToolTip="Add a new database definition" />
+                    <Button Content="Edit"
+                            Command="{Binding EditDatabaseCommand}"
+                            Padding="10,5"
+                            Margin="0,0,10,0"
+                            ToolTip="Edit the selected database definition" />
+                    <Button Content="Delete"
+                            Command="{Binding DeleteDatabaseCommand}"
+                            Padding="10,5"
+                            Margin="0,0,10,0"
+                            ToolTip="Delete the selected database definition" />
+                    <Button Content="Open Folder in Windows Explorer"
+                            Command="{Binding OpenFolderCommand}"
+                            Padding="10,5"
+                            ToolTip="Open the database folder in Windows Explorer" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Database Maintenance Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Database Maintenance" Orientation="Vertical">
+
+            <!-- Backup Interval -->
+            <dxlc:LayoutItem Label="Database Backup Interval:" LabelPosition="Left">
+                <StackPanel Orientation="Horizontal">
+                    <dxe:SpinEdit Value="{Binding BackupIntervalDays}"
+                                  MinValue="0"
+                                  MaxValue="9999"
+                                  Increment="1"
+                                  IsFloatValue="False"
+                                  Width="80"
+                                  Margin="0,0,5,0"
+                                  ToolTip="Number of days between automatic backup prompts" />
+                    <TextBlock Text="Days (0 or 9999 means NEVER)"
+                               VerticalAlignment="Center"
+                               Foreground="Gray" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Auto-Confirm Backup -->
+            <dxlc:LayoutItem Label="Auto-Confirm Countdown (seconds):" LabelPosition="Left">
+                <dxe:SpinEdit Value="{Binding AutoConfirmBackupSeconds}"
+                              MinValue="0"
+                              MaxValue="60"
+                              Increment="1"
+                              IsFloatValue="False"
+                              Width="80"
+                              ToolTip="Number of seconds before auto-confirming backup dialog (0 = disabled)" />
+            </dxlc:LayoutItem>
+
+            <!-- Set Database Offline Daily -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Set Database Offline Daily At: 12:01 AM"
+                               ToolTip="Automatically close databases daily to allow external backup tools to access files (feature not yet implemented)" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

@@ -98,6 +98,18 @@ public class PreferencesConfiguration
     public bool ShowHint { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets the backup interval in days for all databases.
+    /// 0 or 9999 means never backup automatically.
+    /// </summary>
+    public int BackupIntervalDays { get; set; } = 7;
+
+    /// <summary>
+    /// Gets or sets the number of seconds to auto-confirm the backup dialog.
+    /// 0 means auto-confirm is disabled.
+    /// </summary>
+    public int AutoConfirmBackupSeconds { get; set; } = 0;
+
+    /// <summary>
     /// Gets or sets the hint hide pause duration (in milliseconds).
     /// </summary>
     public int HintHidePause { get; set; } = 4500;

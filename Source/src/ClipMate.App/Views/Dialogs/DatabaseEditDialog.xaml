@@ -1,0 +1,169 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.DatabaseEditDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:config="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
+                 mc:Ignorable="d"
+                 Title="Database Properties"
+                 Width="600"
+                 Height="600"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False">
+
+    <!-- Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Click="OkButton_Click"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Help"
+                                     DialogResult="None"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <dxlc:LayoutControl Orientation="Vertical" Padding="10">
+
+            <!-- Title -->
+            <dxlc:LayoutItem Label="Title:" LabelPosition="Top">
+                <dxe:TextEdit x:Name="TitleTextBox"
+                              EditValue="{Binding DatabaseName, Mode=TwoWay}"
+                              ToolTip="Display name for this database" />
+            </dxlc:LayoutItem>
+
+            <!-- Directory -->
+            <dxlc:LayoutItem Label="Database File:" LabelPosition="Top">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <dxe:TextEdit x:Name="DirectoryTextBox"
+                                  Grid.Column="0"
+                                  EditValue="{Binding DatabaseFilePath, Mode=TwoWay}"
+                                  ToolTip="Full path to the database file (local or UNC path)" />
+                    <Button Grid.Column="1"
+                            Content="Browse ..."
+                            Click="BrowseButton_Click"
+                            Padding="10,5"
+                            Margin="5,0,0,0"
+                            ToolTip="Browse for database file location" />
+                    <Button Grid.Column="2"
+                            Content="Expand ..."
+                            Click="ExpandButton_Click"
+                            Padding="10,5"
+                            Margin="5,0,0,0"
+                            ToolTip="Expand environment variables in path" />
+                </Grid>
+            </dxlc:LayoutItem>
+
+            <!-- Auto Load and Multi-User -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Vertical">
+                    <dxe:CheckEdit x:Name="AutoLoadCheckBox"
+                                   Content="Auto Load Data Source At Startup?"
+                                   IsChecked="{Binding AutoLoad, Mode=TwoWay}"
+                                   Margin="0,0,0,5"
+                                   ToolTip="Automatically load this database when ClipMate starts" />
+                    <dxe:CheckEdit x:Name="MultiUserCheckBox"
+                                   Content="Multi-User, Networked Database?"
+                                   IsChecked="{Binding MultiUser, Mode=TwoWay}"
+                                   ToolTip="Enable if multiple users will access this database simultaneously" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Username -->
+            <dxlc:LayoutItem Label="Your UserName In Database:" LabelPosition="Top">
+                <dxe:TextEdit x:Name="UserNameTextBox"
+                              EditValue="{Binding UserName, Mode=TwoWay}"
+                              ToolTip="Username for this database (defaults to Windows username)" />
+            </dxlc:LayoutItem>
+
+            <!-- Backup and Read-Only -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Vertical">
+                    <dxe:CheckEdit x:Name="AllowBackupCheckBox"
+                                   Content="Allow this user to backup the database?"
+                                   IsChecked="{Binding AllowBackup, Mode=TwoWay}"
+                                   Margin="0,0,0,5"
+                                   ToolTip="Enable backup prompts for this database (turn off for multi-user scenarios where only one user should backup)" />
+                    <dxe:CheckEdit x:Name="ReadOnlyCheckBox"
+                                   Content="Read Only?"
+                                   IsChecked="{Binding ReadOnly, Mode=TwoWay}"
+                                   ToolTip="Prevent modifications to this database" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Purge Days -->
+            <dxlc:LayoutItem Label="Days to keep deleted data in trashcan before purging:" LabelPosition="Top">
+                <dxe:SpinEdit x:Name="PurgeDaysSpinEdit"
+                              Value="{Binding PurgeDays, Mode=TwoWay}"
+                              MinValue="0"
+                              MaxValue="365"
+                              Increment="1"
+                              IsFloatValue="False"
+                              Width="80"
+                              HorizontalAlignment="Left"
+                              ToolTip="Number of days to retain deleted items (0-365)" />
+            </dxlc:LayoutItem>
+
+            <!-- Data Purging and Aging -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Data Purging and Aging" Orientation="Horizontal">
+                <UniformGrid Rows="2" Columns="2" HorizontalAlignment="Stretch">
+                    <RadioButton x:Name="CleanupNeverRadio"
+                             Content="Never"
+                             IsChecked="{Binding CleanupMethod, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:CleanupMethod.Never}}"
+                             ToolTip="Never run automatic cleanup" />
+                    <RadioButton x:Name="CleanupAtStartupRadio"
+                             Content="At Startup"
+                             IsChecked="{Binding CleanupMethod, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:CleanupMethod.AtStartup}}"
+                             ToolTip="Run cleanup when application starts" />
+                    <RadioButton x:Name="CleanupAtShutdownRadio"
+                             Content="At Shutdown"
+                             IsChecked="{Binding CleanupMethod, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:CleanupMethod.AtShutdown}}"
+                             ToolTip="Run cleanup when application exits" />
+                    <RadioButton x:Name="CleanupAfterHourRadio"
+                             Content="After Every Hour Of Idle Time"
+                             IsChecked="{Binding CleanupMethod, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:CleanupMethod.AfterHourIdle}}"
+                             ToolTip="Run cleanup after one hour of inactivity" />
+                </UniformGrid>
+            </dxlc:LayoutGroup>
+
+            <!-- Temp File Location -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Temp File Location" Orientation="Horizontal">
+                <UniformGrid Rows="2" Columns="2" HorizontalAlignment="Stretch">
+                    <RadioButton x:Name="TempDatabaseDirRadio"
+                             Content="Database directory"
+                             IsChecked="{Binding TempFileLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TempFileLocation.DatabaseDirectory}}"
+                             ToolTip="Store temporary files in the database directory (best performance for local databases)" />
+                    <RadioButton x:Name="TempSystemTmpRadio"
+                             Content="System TMP directory"
+                             IsChecked="{Binding TempFileLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TempFileLocation.SystemTmp}}"
+                             ToolTip="Store temporary files in the system temp directory" />
+                    <RadioButton x:Name="TempProgramDirRadio"
+                             Content="Program directory"
+                             IsChecked="{Binding TempFileLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TempFileLocation.ProgramDirectory}}"
+                             ToolTip="Store temporary files in the ClipMate program directory" />
+                    <RadioButton x:Name="TempClipMateDirRadio"
+                             Content="ClipMate Temp directory"
+                             IsChecked="{Binding TempFileLocation, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TempFileLocation.ClipMateTemp}}"
+                             ToolTip="Store temporary files in ClipMate's dedicated temp directory" />
+                </UniformGrid>
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutControl>
+    </ScrollViewer>
+
+</dx:ThemedWindow>

@@ -65,14 +65,22 @@ public class ConfigurationService : IConfigurationService
                 _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", Configuration.MonacoEditor.EnableDebug);
                 _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", Configuration.MonacoEditor.Theme);
 
-                return Configuration;
+                // Validate the configuration
+                var validationErrors = ValidateConfiguration(Configuration);
+                if (validationErrors.Count <= 0)
+                    return Configuration;
+
+                _logger.LogError("Configuration validation failed with {Count} error(s):", validationErrors.Count);
+                foreach (var error in validationErrors)
+                    _logger.LogError("  - {Error}", error);
+
+                throw new InvalidOperationException(
+                    $"Configuration validation failed:\n{string.Join("\n", validationErrors.ToArray())}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to parse configuration file. Using defaults.");
-                Configuration = CreateDefaultConfiguration();
-
-                return Configuration;
+                _logger.LogError(ex, "Failed to load or validate configuration file");
+                throw; // Re-throw to let caller handle the error
             }
         }
         finally
@@ -117,8 +125,7 @@ public class ConfigurationService : IConfigurationService
             throw new ArgumentException("Database ID cannot be null or empty.", nameof(databaseId));
 
 #pragma warning disable IDE0016
-        if (database == null)
-            throw new ArgumentNullException(nameof(database));
+        ArgumentNullException.ThrowIfNull(database);
 #pragma warning restore IDE0016
 
         Configuration.Databases[databaseId] = database;
@@ -146,8 +153,7 @@ public class ConfigurationService : IConfigurationService
             throw new ArgumentException("Application name cannot be null or empty.", nameof(applicationName));
 
 #pragma warning disable IDE0016
-        if (profile == null)
-            throw new ArgumentNullException(nameof(profile));
+        ArgumentNullException.ThrowIfNull(profile);
 #pragma warning restore IDE0016
 
         Configuration.ApplicationProfiles[applicationName] = profile;
@@ -202,9 +208,9 @@ public class ConfigurationService : IConfigurationService
 
     private ClipMateConfiguration CreateDefaultConfiguration()
     {
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        // var appDataPath = Path.Combine(
+        //     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        //     "ClipMate");
 
         var config = new ClipMateConfiguration
         {
@@ -212,6 +218,7 @@ public class ConfigurationService : IConfigurationService
             Preferences = new PreferencesConfiguration(),
             Hotkeys = new HotkeyConfiguration(),
             MonacoEditor = new MonacoEditorConfiguration(),
+            /*
             DefaultDatabase = "MyClips",
             Databases =
             {
@@ -219,11 +226,11 @@ public class ConfigurationService : IConfigurationService
                 ["MyClips"] = new DatabaseConfiguration
                 {
                     Name = "My Clips",
-                    Directory = appDataPath,
+                    FilePath = Path.Combine(appDataPath, "clipmate.db"),
                     AutoLoad = true,
                     AllowBackup = true,
                     ReadOnly = false,
-                    CleanupMethod = 3,
+                    CleanupMethod = CleanupMethod.AtStartup,
                     PurgeDays = 7,
                     UserName = Environment.UserName,
                     IsRemote = false,
@@ -231,8 +238,57 @@ public class ConfigurationService : IConfigurationService
                     UseModificationTimeStamp = true,
                 },
             },
+            */
         };
 
         return config;
+    }
+
+    private List<string> ValidateConfiguration(ClipMateConfiguration config)
+    {
+        var errors = new List<string>();
+
+        // Validate databases exist
+        if (config.Databases.Count == 0)
+            errors.Add("No databases configured. At least one database is required.");
+        else
+        {
+            // Validate each database configuration
+            foreach (var dbEntry in config.Databases)
+            {
+                var dbKey = dbEntry.Key;
+                var db = dbEntry.Value;
+
+                if (string.IsNullOrWhiteSpace(db.Name))
+                    errors.Add($"Database '{dbKey}': Name is required");
+
+                if (string.IsNullOrWhiteSpace(db.FilePath))
+                    errors.Add($"Database '{dbKey}': FilePath is required");
+                else if (db.FilePath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+                    errors.Add($"Database '{dbKey}': FilePath contains invalid characters");
+
+                // Validate PurgeDays range
+                if (db.PurgeDays < 0)
+                    errors.Add($"Database '{dbKey}': PurgeDays must be >= 0");
+            }
+
+            // Validate default database exists
+            if (!string.IsNullOrWhiteSpace(config.DefaultDatabase))
+            {
+                if (!config.Databases.ContainsKey(config.DefaultDatabase))
+                {
+                    var availableKeys = string.Join(", ", config.Databases.Keys);
+                    errors.Add($"Default database '{config.DefaultDatabase}' not found. Available: {availableKeys}");
+                }
+            }
+            else if (config.Databases.Count > 0)
+            {
+                // Auto-assign first database as default if not specified
+                config.DefaultDatabase = config.Databases.Keys.First();
+                _logger.LogInformation("No default database specified. Using first database: {Key}", config.DefaultDatabase);
+            }
+        }
+
+        return errors;
     }
 }

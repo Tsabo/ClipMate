@@ -59,6 +59,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
         services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
+        services.AddScoped<IDatabaseMaintenanceService, DatabaseMaintenanceService>(); // Database maintenance (backup/restore/repair)
 
         // Register default data initialization service (ensures Inbox exists and is set as active)
         services.AddSingleton<DefaultDataInitializationService>();

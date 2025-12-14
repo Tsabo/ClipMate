@@ -76,7 +76,7 @@ public class DatabaseManagerTests
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
             {
-                { "test", new DatabaseConfiguration { Name = "Test DB", Directory = "test.db", AutoLoad = false } }
+                { "test", new DatabaseConfiguration { Name = "Test DB", FilePath = "test.db", AutoLoad = false } }
             }
         };
 

@@ -1,11 +1,13 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using ClipMate.App.Views;
 using ClipMate.Core.Events;
-using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
@@ -52,29 +54,64 @@ public partial class CollectionTreeViewModel : ObservableObject
     {
         _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
 
+        // Get the database key by traversing up to the database node
+        var databaseKey = GetDatabaseKeyForNode(value);
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogWarning("Could not determine database key for selected node");
+            return;
+        }
+
         // Send messenger event with collection/folder IDs based on node type
         switch (value)
         {
             case CollectionTreeNode collectionNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", collectionNode.Collection.Id);
-                _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId=null",
+                    databaseKey, collectionNode.Collection.Id);
+
+                _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null, databaseKey));
 
                 break;
 
             case FolderTreeNode folderNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId={FolderId}", folderNode.Folder.CollectionId, folderNode.Folder.Id);
-                _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}",
+                    databaseKey, folderNode.Folder.CollectionId, folderNode.Folder.Id);
+
+                _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id, databaseKey));
 
                 break;
 
             case VirtualCollectionTreeNode virtualNode:
-                _logger.LogInformation("Sending CollectionNodeSelectedEvent: CollectionId={CollectionId}, FolderId=null", virtualNode.VirtualCollection.Id);
-                _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null));
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId=null",
+                    databaseKey, virtualNode.VirtualCollection.Id);
+
+                _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null, databaseKey));
 
                 break;
 
             // Database and VirtualCollectionsContainer nodes don't trigger selection changes
         }
+    }
+
+    /// <summary>
+    /// Gets the database configuration key for a tree node by traversing up to the database node.
+    /// </summary>
+    private string? GetDatabaseKeyForNode(TreeNodeBase? node)
+    {
+        if (node == null)
+            return null;
+
+        // Traverse up the tree to find the DatabaseTreeNode
+        var current = node;
+        while (current != null)
+        {
+            if (current is DatabaseTreeNode dbNode)
+                return dbNode.DatabasePath;
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -88,93 +125,93 @@ public partial class CollectionTreeViewModel : ObservableObject
         // Load configuration to get database definitions
         var configuration = _configurationService.Configuration;
 
-        // Load all collections (currently from the active database)
-        IReadOnlyCollection<Collection> allCollections;
-        using (var scope = _serviceScopeFactory.CreateScope())
-        {
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-            allCollections = await collectionService.GetAllAsync(cancellationToken);
-        }
-
-        // Separate regular collections from virtual ones
-        var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
-        var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
-
         // Create a database node for each configured database
         if (configuration.Databases.Any())
         {
-            foreach (var dbEntry in configuration.Databases)
+            _logger.LogInformation("Creating database nodes for {Count} databases: {DatabaseKeys}",
+                configuration.Databases.Count,
+                string.Join(", ", configuration.Databases.Keys));
+
+            // Get database manager to access all loaded databases
+            using var scope = _serviceScopeFactory.CreateScope();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+
+            foreach (var (databaseId, databaseConfig) in configuration.Databases)
             {
-                var databaseId = dbEntry.Key;
-                var databaseConfig = dbEntry.Value;
+                // Check if database file exists
+                var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+                var hasError = !File.Exists(dbFile);
 
-                // Create database node with title from configuration
-                var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId);
+                // Create database node with title from configuration and error status
+                var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId, hasError);
 
-                // Only load collections for the default/active database
-                // TODO: In the future, support loading collections from multiple databases
-                if (databaseId == configuration.DefaultDatabase)
+                // Load collections for this database if it exists
+                if (!hasError)
                 {
-                    // Add regular collections to database node
-                    foreach (var collection in regularCollections.OrderBy(p => p.SortKey))
+                    try
                     {
-                        var collectionNode = new CollectionTreeNode(collection);
-                        await LoadFoldersAsync(collectionNode, cancellationToken);
+                        // Get the database context for this specific database
+                        var dbContext = databaseManager.GetDatabaseContext(databaseId);
 
-                        databaseNode.Children.Add(collectionNode);
-                    }
-
-                    // Add virtual collections container if any virtual collections exist
-                    if (virtualCollections.Any())
-                    {
-                        var virtualContainer = new VirtualCollectionsContainerNode();
-
-                        foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
+                        if (dbContext != null)
                         {
-                            var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
-                            virtualContainer.Children.Add(virtualNode);
+                            // Load collections directly from this database context
+                            var allCollections = await dbContext.Collections.ToListAsync(cancellationToken);
+
+                            // Separate regular collections from virtual ones
+                            var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
+                            var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
+
+                            _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
+                                regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
+
+                            // Add regular collections to database node
+                            foreach (var item in regularCollections.OrderBy(p => p.SortKey))
+                            {
+                                var collectionNode = new CollectionTreeNode(item)
+                                {
+                                    Parent = databaseNode
+                                };
+                                await LoadFoldersAsync(collectionNode, cancellationToken);
+
+                                databaseNode.Children.Add(collectionNode);
+                            }
+
+                            // Add virtual collections container if any virtual collections exist
+                            if (virtualCollections.Any())
+                            {
+                                var virtualContainer = new VirtualCollectionsContainerNode()
+                                {
+                                    Parent = databaseNode
+                                };
+
+                                foreach (var item in virtualCollections.OrderBy(p => p.SortKey))
+                                {
+                                    var virtualNode = new VirtualCollectionTreeNode(item)
+                                    {
+                                        Parent = virtualContainer
+                                    };
+                                    virtualContainer.Children.Add(virtualNode);
+                                }
+
+                                databaseNode.Children.Add(virtualContainer);
+                            }
                         }
-
-                        databaseNode.Children.Add(virtualContainer);
+                        else
+                            _logger.LogWarning("Database context not loaded for: {DatabaseName}", databaseConfig.Name);
                     }
-
-                    // Expand the active database node by default
-                    databaseNode.IsExpanded = true;
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to load collections from database: {DatabaseName}", databaseConfig.Name);
+                    }
                 }
+
+                // Expand the default database node by default
+                if (databaseId == configuration.DefaultDatabase)
+                    databaseNode.IsExpanded = true;
 
                 RootNodes.Add(databaseNode);
             }
-        }
-        else
-        {
-            // Fallback: If no databases configured, create a default node
-            var databaseNode = new DatabaseTreeNode("My Clips", "default");
-
-            // Add regular collections to database node
-            foreach (var collection in regularCollections.OrderBy(p => p.SortKey))
-            {
-                var collectionNode = new CollectionTreeNode(collection);
-                await LoadFoldersAsync(collectionNode, cancellationToken);
-
-                databaseNode.Children.Add(collectionNode);
-            }
-
-            // Add virtual collections container if any virtual collections exist
-            if (virtualCollections.Any())
-            {
-                var virtualContainer = new VirtualCollectionsContainerNode();
-
-                foreach (var virtualCollection in virtualCollections.OrderBy(p => p.SortKey))
-                {
-                    var virtualNode = new VirtualCollectionTreeNode(virtualCollection);
-                    virtualContainer.Children.Add(virtualNode);
-                }
-
-                databaseNode.Children.Add(virtualContainer);
-            }
-
-            RootNodes.Add(databaseNode);
-            databaseNode.IsExpanded = true;
         }
     }
 
@@ -187,9 +224,12 @@ public partial class CollectionTreeViewModel : ObservableObject
         var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
         var rootFolders = await folderService.GetRootFoldersAsync(collectionNode.Collection.Id, cancellationToken);
 
-        foreach (var folder in rootFolders)
+        foreach (var item in rootFolders)
         {
-            var folderNode = new FolderTreeNode(folder);
+            var folderNode = new FolderTreeNode(item)
+            {
+                Parent = collectionNode
+            };
             await LoadSubFoldersAsync(folderNode, cancellationToken);
 
             collectionNode.Children.Add(folderNode);
@@ -205,9 +245,12 @@ public partial class CollectionTreeViewModel : ObservableObject
         var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
         var subFolders = await folderService.GetChildFoldersAsync(folderNode.Folder.Id, cancellationToken);
 
-        foreach (var subFolder in subFolders)
+        foreach (var item in subFolders)
         {
-            var subFolderNode = new FolderTreeNode(subFolder);
+            var subFolderNode = new FolderTreeNode(item)
+            {
+                Parent = folderNode
+            };
             await LoadSubFoldersAsync(subFolderNode, cancellationToken);
 
             folderNode.Children.Add(subFolderNode);
@@ -310,7 +353,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
         var window = new CollectionPropertiesWindow(viewModel, _configurationService)
         {
-            Owner = Application.Current.MainWindow
+            Owner = Application.Current.MainWindow,
         };
 
         if (window.ShowDialog() == true)
