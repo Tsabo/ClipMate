@@ -55,6 +55,13 @@ public interface IClipRepository
     Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves deleted clips (where Del=true) for the Trashcan virtual collection.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of deleted clips.</returns>
+    Task<IReadOnlyList<Clip>> GetDeletedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Searches clips by text content.
     /// </summary>
     /// <param name="searchText">The text to search for.</param>
@@ -126,4 +133,19 @@ public interface IClipRepository
     /// <param name="databaseKey">Database identifier.</param>
     /// <param name="clipIds">Clips to delete.</param>
     Task DeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds);
+
+    /// <summary>
+    /// Soft-deletes clips by setting Del=true (moves to Trashcan).
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="clipIds">Clips to soft-delete.</param>
+    Task SoftDeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds);
+
+    /// <summary>
+    /// Restores soft-deleted clips by setting Del=false and moving to target collection.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="clipIds">Clips to restore.</param>
+    /// <param name="targetCollectionId">Target collection for restored clips.</param>
+    Task RestoreClipsAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId);
 }

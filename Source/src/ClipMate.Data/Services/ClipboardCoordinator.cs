@@ -33,7 +33,6 @@ public class ClipboardCoordinator : IHostedService,
         IConfigurationService configurationService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
-        ISoundService soundService,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
@@ -360,6 +359,27 @@ public class ClipboardCoordinator : IHostedService,
                 _logger.LogDebug("Active collection is read-only, ignoring clip: {CollectionName}", activeCollection.Title);
                 await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
                 return;
+            }
+
+            // Bounce tracking: if active collection doesn't accept new clips, find first collection that does
+            if (!activeCollection.AcceptNewClips)
+            {
+                _logger.LogDebug("Active collection does not accept new clips, bouncing: {CollectionName}", activeCollection.Title);
+
+                var bounceCollection = await collectionService.GetFirstAcceptingCollectionAsync(cancellationToken);
+                if (bounceCollection != null)
+                {
+                    _logger.LogInformation("Clip bounced from '{FromCollection}' to '{ToCollection}'",
+                        activeCollection.Title, bounceCollection.Title);
+
+                    activeCollection = bounceCollection;
+                }
+                else
+                {
+                    _logger.LogWarning("No accepting collection found for bounce, clip will be ignored");
+                    await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+                    return;
+                }
             }
 
             clip.CollectionId = activeCollection.Id;

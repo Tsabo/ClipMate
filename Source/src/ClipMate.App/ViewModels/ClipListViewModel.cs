@@ -118,22 +118,31 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public async void Receive(CollectionNodeSelectedEvent message)
     {
-        _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}",
-            message.DatabaseKey, message.CollectionId, message.FolderId);
+        _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
+            message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
 
         // Set the active collection and folder for new clipboard captures
-        using (var scope = CreateScope())
+        // Skip this for virtual collections like Trashcan (they don't receive new clips)
+        if (!message.IsTrashcan)
         {
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-            var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-            await collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
-            await folderService.SetActiveAsync(message.FolderId);
+            using (var scope = CreateScope())
+            {
+                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+                var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
+                await collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
+                await folderService.SetActiveAsync(message.FolderId);
+            }
+
+            _logger.LogInformation("Active collection and folder updated for new clipboard captures");
         }
 
-        _logger.LogInformation("Active collection and folder updated for new clipboard captures");
-
         // Load clips for the selected node
-        if (message.FolderId.HasValue)
+        if (message.IsTrashcan)
+        {
+            // Load deleted clips for the Trashcan virtual collection
+            await LoadDeletedClipsAsync(message.DatabaseKey);
+        }
+        else if (message.FolderId.HasValue)
         {
             // Load clips for the selected folder
             await LoadClipsByFolderAsync(message.CollectionId, message.FolderId.Value);
@@ -493,6 +502,62 @@ public partial class ClipListViewModel : ObservableObject,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clips for folder: {FolderId}", folderId);
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads deleted clips for the Trashcan virtual collection.
+    /// </summary>
+    /// <param name="databaseKey">The database key to load from.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task LoadDeletedClipsAsync(string databaseKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            CurrentCollectionId = null;
+            CurrentFolderId = null;
+
+            _logger.LogInformation("Loading deleted clips for database: {DatabaseKey}", databaseKey);
+            IReadOnlyCollection<Clip> clips;
+            using (var scope = CreateScope())
+            {
+                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+                var dbContext = databaseManager.GetDatabaseContext(databaseKey);
+                if (dbContext == null)
+                {
+                    _logger.LogError("Database context for '{DatabaseKey}' not found, cannot load deleted clips", databaseKey);
+                    clips = Array.Empty<Clip>();
+                }
+                else
+                {
+                    // Create repository with the specified database context
+                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
+                    var clipRepository = new ClipRepository(dbContext, logger);
+                    clips = await clipRepository.GetDeletedAsync(cancellationToken);
+                    _logger.LogInformation("Retrieved {Count} deleted clips from database '{DatabaseKey}'", clips.Count, databaseKey);
+                }
+            }
+
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Clips.Clear();
+                foreach (var clip in clips)
+                    Clips.Add(clip);
+
+                _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
+                SelectedClip = Clips.FirstOrDefault();
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading deleted clips for database: {DatabaseKey}", databaseKey);
             await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally

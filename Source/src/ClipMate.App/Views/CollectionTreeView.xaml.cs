@@ -42,19 +42,13 @@ public partial class CollectionTreeView
             {
                 // Don't allow dropping into read-only or virtual collections
                 if (collectionNode.Collection.ReadOnly || collectionNode.Collection.IsVirtual)
-                {
                     e.Effects = DragDropEffects.None;
-                }
                 else
-                {
                     e.Effects = DragDropEffects.Move;
-                }
             }
             else
-            {
                 e.Effects = DragDropEffects.None;
-            }
-            
+
             e.Handled = true;
             return;
         }
@@ -116,8 +110,7 @@ public partial class CollectionTreeView
         // Check if we're dropping clips (from ClipListView)
         if (e.Data.GetDataPresent(typeof(Clip[])))
         {
-            var clips = e.Data.GetData(typeof(Clip[])) as Clip[];
-            if (clips == null || clips.Length == 0)
+            if (e.Data.GetData(typeof(Clip[])) is not Clip[] clips || clips.Length == 0)
                 return;
 
             // Get target collection node
@@ -125,14 +118,11 @@ public partial class CollectionTreeView
             if (clipTargetNode?.Content is not CollectionTreeNode clipTargetCollection)
                 return;
 
-            // Mark as handled to prevent DevExpress from trying to insert Clip objects into the tree
-            e.Handled = true;
-
             try
             {
                 // Call ViewModel method to move clips to the target collection
                 await viewModel.MoveClipsToCollectionAsync(
-                    clips.Select(c => c.Id).ToList(),
+                    clips.Select(p => p.Id).ToList(),
                     clipTargetCollection.Collection.Id,
                     null); // DatabaseId will be determined by the ViewModel
             }

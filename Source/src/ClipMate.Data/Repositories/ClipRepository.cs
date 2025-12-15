@@ -171,6 +171,22 @@ public class ClipRepository : IClipRepository
         return clips;
     }
 
+    public async Task<IReadOnlyList<Clip>> GetDeletedAsync(CancellationToken cancellationToken = default)
+    {
+        // Fetch deleted clips (where Del=true) for the Trashcan virtual collection
+        var clips = await _context.Clips
+            .Where(p => p.Del)
+            .ToListAsync(cancellationToken);
+
+        // Sort by deletion date (most recently deleted first)
+        clips = clips.OrderByDescending(p => p.DelDate ?? p.CapturedAt).ToList();
+
+        // Load format flags from ClipData table (not actual content)
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+
+        return clips;
+    }
+
     public async Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentHash))
@@ -324,6 +340,45 @@ public class ClipRepository : IClipRepository
         // TODO: Implement bulk delete with proper database key handling
         foreach (var clipId in clipIds)
             await DeleteAsync(clipId);
+    }
+
+    public async Task SoftDeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds)
+    {
+        var ids = clipIds.ToList();
+        if (ids.Count == 0)
+            return;
+
+        var clips = await _context.Clips
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync();
+
+        foreach (var clip in clips)
+        {
+            clip.Del = true;
+            clip.DelDate = DateTimeOffset.Now;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RestoreClipsAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId)
+    {
+        var ids = clipIds.ToList();
+        if (ids.Count == 0)
+            return;
+
+        var clips = await _context.Clips
+            .Where(c => ids.Contains(c.Id))
+            .ToListAsync();
+
+        foreach (var clip in clips)
+        {
+            clip.Del = false;
+            clip.DelDate = null;
+            clip.CollectionId = targetCollectionId;
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<IEnumerable<Clip>> GetAllAsync(CancellationToken cancellationToken = default)

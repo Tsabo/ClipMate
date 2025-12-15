@@ -3,6 +3,7 @@ using System.IO;
 using ClipMate.App.Views;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
@@ -48,6 +49,11 @@ public partial class CollectionTreeViewModel : ObservableObject
     public ObservableCollection<TreeNodeBase> RootNodes { get; } = [];
 
     /// <summary>
+    /// Gets the current application configuration.
+    /// </summary>
+    public ClipMateConfiguration Configuration => _configurationService.Configuration;
+
+    /// <summary>
     /// Helper to create a scope and resolve a scoped service.
     /// </summary>
     private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
@@ -80,6 +86,13 @@ public partial class CollectionTreeViewModel : ObservableObject
                     databaseKey, folderNode.Folder.CollectionId, folderNode.Folder.Id);
 
                 _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id, databaseKey));
+
+                break;
+
+            case TrashcanVirtualCollectionNode trashcanNode:
+                _logger.LogInformation("Sending CollectionNodeSelectedEvent for Trashcan: DatabaseKey={DatabaseKey}", databaseKey);
+
+                _messenger.Send(new CollectionNodeSelectedEvent(trashcanNode.VirtualId, null, databaseKey, isTrashcan: true));
 
                 break;
 
@@ -167,8 +180,14 @@ public partial class CollectionTreeViewModel : ObservableObject
                             _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
                                 regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
 
+                            // Determine sort order based on global preference
+                            var sortByAlpha = _configurationService.Configuration.Preferences.SortCollectionsAlphabetically;
+                            var orderedCollections = sortByAlpha
+                                ? regularCollections.OrderBy(p => p.Title)
+                                : regularCollections.OrderBy(p => p.SortKey);
+
                             // Add regular collections to database node
-                            foreach (var item in regularCollections.OrderBy(p => p.SortKey))
+                            foreach (var item in orderedCollections)
                             {
                                 var collectionNode = new CollectionTreeNode(item)
                                 {
@@ -180,6 +199,14 @@ public partial class CollectionTreeViewModel : ObservableObject
                                 databaseNode.Children.Add(collectionNode);
                             }
 
+                            // Add Trashcan at bottom of collections (after all regular collections)
+                            // Trashcan is read-only (rejects new clips), which makes it display in red
+                            var trashcanNode = new TrashcanVirtualCollectionNode(databaseConfig.FilePath)
+                            {
+                                Parent = databaseNode,
+                            };
+                            databaseNode.Children.Add(trashcanNode);
+
                             // Add virtual collections container if any virtual collections exist
                             if (virtualCollections.Count > 0)
                             {
@@ -188,7 +215,13 @@ public partial class CollectionTreeViewModel : ObservableObject
                                     Parent = databaseNode,
                                 };
 
-                                foreach (var item in virtualCollections.OrderBy(p => p.SortKey))
+                                // Virtual collections also respect the SortByAlpha preference
+                                var orderedVirtualCollections = sortByAlpha
+                                    ? virtualCollections.OrderBy(p => p.Title)
+                                    : virtualCollections.OrderBy(p => p.SortKey);
+
+                                // Add other virtual collections
+                                foreach (var item in orderedVirtualCollections)
                                 {
                                     var virtualNode = new VirtualCollectionTreeNode(item)
                                     {
@@ -480,6 +513,10 @@ public partial class CollectionTreeViewModel : ObservableObject
         if (collectionNode.Collection.IsVirtual)
             return false;
 
+        // Cannot manually reorder when alphabetic sorting is enabled (global preference)
+        if (_configurationService.Configuration.Preferences.SortCollectionsAlphabetically)
+            return false;
+
         // Check if there's a collection above this one (not at index 0)
         if (collectionNode.Parent is not DatabaseTreeNode parent)
             return false;
@@ -551,6 +588,10 @@ public partial class CollectionTreeViewModel : ObservableObject
 
         // Cannot move virtual collections
         if (collectionNode.Collection.IsVirtual)
+            return false;
+
+        // Cannot manually reorder when alphabetic sorting is enabled (global preference)
+        if (_configurationService.Configuration.Preferences.SortCollectionsAlphabetically)
             return false;
 
         // Check if there's a collection below this one
@@ -692,6 +733,32 @@ public partial class CollectionTreeViewModel : ObservableObject
         await clipRepository.MoveClipsToCollectionAsync(databaseNode.DatabasePath, clipIds, targetCollectionId);
 
         _logger.LogInformation("Moved {Count} clips to collection {CollectionId}", clipIds.Count, targetCollectionId);
+    }
+
+    /// <summary>
+    /// Soft-deletes clips by setting Del=true (moves to Trashcan).
+    /// </summary>
+    public async Task SoftDeleteClipsAsync(List<Guid> clipIds, string databaseKey)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
+        
+        await clipRepository.SoftDeleteClipsAsync(databaseKey, clipIds);
+        
+        _logger.LogInformation("Soft-deleted {Count} clips to Trashcan", clipIds.Count);
+    }
+
+    /// <summary>
+    /// Restores clips from Trashcan by setting Del=false and moving to target collection.
+    /// </summary>
+    public async Task RestoreClipsAsync(List<Guid> clipIds, Guid targetCollectionId, string databaseKey)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
+        
+        await clipRepository.RestoreClipsAsync(databaseKey, clipIds, targetCollectionId);
+        
+        _logger.LogInformation("Restored {Count} clips from Trashcan to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }
 
     /// <summary>

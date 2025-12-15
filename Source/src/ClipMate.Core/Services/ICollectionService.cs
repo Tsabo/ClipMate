@@ -30,6 +30,14 @@ public interface ICollectionService
     Task<Collection> GetActiveAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the first collection (ordered by SortKey) that accepts new clips.
+    /// Used for bounce tracking when active collection has AcceptNewClips=false.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The first accepting collection, or null if none found.</returns>
+    Task<Collection?> GetFirstAcceptingCollectionAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the database key for the currently active collection.
     /// </summary>
     /// <returns>The database key, or null if no active collection.</returns>

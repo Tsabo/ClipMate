@@ -81,6 +81,25 @@ public class CollectionService : ICollectionService
 
     public string? GetActiveDatabaseKey() => _activeDatabaseKey;
 
+    public async Task<Collection?> GetFirstAcceptingCollectionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_activeDatabaseKey == null)
+            return null;
+
+        using var scope = _serviceProvider.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
+
+        if (dbContext == null)
+            return null;
+
+        // Find first non-virtual collection that accepts new clips, ordered by SortKey
+        return await dbContext.Collections
+            .Where(c => !c.IsVirtual && c.AcceptNewClips && !c.ReadOnly)
+            .OrderBy(c => c.SortKey)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task SetActiveAsync(Guid id, string databaseKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);

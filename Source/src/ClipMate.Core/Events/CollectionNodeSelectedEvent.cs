@@ -12,11 +12,13 @@ public class CollectionNodeSelectedEvent
     /// <param name="collectionId">The selected collection ID.</param>
     /// <param name="folderId">The selected folder ID, or null for collection-level selection.</param>
     /// <param name="databaseKey">The database key (configuration key) where this collection resides.</param>
-    public CollectionNodeSelectedEvent(Guid collectionId, Guid? folderId, string databaseKey)
+    /// <param name="isTrashcan">True if this is the Trashcan virtual collection.</param>
+    public CollectionNodeSelectedEvent(Guid collectionId, Guid? folderId, string databaseKey, bool isTrashcan = false)
     {
         CollectionId = collectionId;
         FolderId = folderId;
         DatabaseKey = databaseKey ?? throw new ArgumentNullException(nameof(databaseKey));
+        IsTrashcan = isTrashcan;
     }
 
     /// <summary>
@@ -33,4 +35,9 @@ public class CollectionNodeSelectedEvent
     /// The database configuration key where this collection resides.
     /// </summary>
     public string DatabaseKey { get; }
+
+    /// <summary>
+    /// True if this is the Trashcan virtual collection (shows all deleted clips).
+    /// </summary>
+    public bool IsTrashcan { get; }
 }
