@@ -212,11 +212,12 @@ public partial class SetupWizard
                 PurgeDays = 7,
             };
 
-            // Use "default" as the key for the first database
-            config.Databases["default"] = dbConfig;
-            config.DefaultDatabase = "default";
+            // Generate a unique GUID-based key for the database (same pattern as DatabaseOptionsViewModel)
+            var databaseKey = $"db_{Guid.NewGuid():N}";
+            config.Databases[databaseKey] = dbConfig;
+            config.DefaultDatabase = databaseKey;
 
-            _logger.LogDebug("Saving configuration to disk...");
+            _logger.LogDebug("Saving configuration to disk with database key: {DatabaseKey}...", databaseKey);
 
             // Save configuration
             await configService.SaveAsync(config);

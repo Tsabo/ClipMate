@@ -66,9 +66,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DefaultDataInitializationService>();
 
         // Register configuration service
-        // Extract directory from database path
-        var configDirectory = Path.GetDirectoryName(databasePath) ??
-                              Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
+        // Configuration is always stored in the AppData\ClipMate directory, not in the database directory
+        var configDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClipMate");
 
         services.AddSingleton<IConfigurationService>(p =>
             new ConfigurationService(configDirectory, p.GetRequiredService<ILogger<ConfigurationService>>()));
