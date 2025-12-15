@@ -22,7 +22,8 @@ public class DatabaseLoadingStep : IStartupInitializationStep
 
     public string Name => "Database Loading";
 
-    public int Order => 15; // After DatabaseSchema (10), before DefaultData (20)
+    // Order 25: After DatabaseSchema (20) and before DefaultData (30)
+    public int Order => 25;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

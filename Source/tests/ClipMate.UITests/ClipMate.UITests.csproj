@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWPF>true</UseWPF>
+    <!-- UI tests are excluded from CI/CD - run on-demand only -->
+    <NoWarn>$(NoWarn);xUnit1051;CA2000;CA2201;CS8604;CS8892;CS1998</NoWarn>
+    <OutputType>Exe</OutputType>
+    <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
+    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>
+    <IsTestProject>true</IsTestProject>
+    <UseTestingPlatformProtocol>true</UseTestingPlatformProtocol>
+    <IsTestingPlatformEnabled>true</IsTestingPlatformEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WpfPilot" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit.Core" />
+    <Using Include="TUnit.Assertions" />
+    <Using Include="TUnit.Assertions.Extensions" />
+    <Using Include="WpfPilot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ClipMate.App\ClipMate.App.csproj" />
+    <ProjectReference Include="..\..\src\ClipMate.Core\ClipMate.Core.csproj" />
+  </ItemGroup>
+
+</Project>

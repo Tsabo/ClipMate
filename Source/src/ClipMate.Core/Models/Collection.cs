@@ -64,6 +64,34 @@ public class Collection
     public int RetentionLimit { get; set; }
 
     /// <summary>
+    /// Maximum clips to retain (alias for RetentionLimit).
+    /// Used for clarity in retention enforcement logic.
+    /// </summary>
+    public int MaxClips
+    {
+        get => RetentionLimit;
+        set => RetentionLimit = value;
+    }
+
+    /// <summary>
+    /// Maximum bytes to retain in collection.
+    /// 0 = unlimited. When exceeded, oldest clips moved to Overflow/Trashcan.
+    /// </summary>
+    public long MaxBytes { get; set; }
+
+    /// <summary>
+    /// Maximum age in days for clips in this collection.
+    /// 0 = unlimited. Clips older than this are deleted during maintenance.
+    /// </summary>
+    public int MaxAgeDays { get; set; }
+
+    /// <summary>
+    /// Special role or purpose for retention behavior.
+    /// Determines Overflow → Trashcan logic. Default is None (normal collection).
+    /// </summary>
+    public CollectionRole Role { get; set; } = CollectionRole.None;
+
+    /// <summary>
     /// Where new clips go (NEWCLIPSGO in ClipMate 7.5).
     /// 1 = New clips come to this collection
     /// 0 = New clips go elsewhere
@@ -202,9 +230,9 @@ public class Collection
     /// <summary>
     /// Whether this is a virtual/smart collection.
     /// </summary>
-    public bool IsVirtual => LmType == CollectionLmType.Virtual || 
-                            ListType == CollectionListType.Smart || 
-                            ListType == CollectionListType.SqlBased;
+    public bool IsVirtual => LmType == CollectionLmType.Virtual ||
+                             ListType == CollectionListType.Smart ||
+                             ListType == CollectionListType.SqlBased;
 
     /// <summary>
     /// Whether this collection is active (receives new clips).
@@ -212,14 +240,16 @@ public class Collection
     public bool IsActive
     {
         get => NewClipsGo == 1;
-        set => NewClipsGo = value ? 1 : 0;
+        set => NewClipsGo = value
+            ? 1
+            : 0;
     }
 
     /// <summary>
     /// Whether this is a special collection (Trash Can, Search Results).
     /// </summary>
     public bool IsSpecial => Title.Contains("Trash", StringComparison.OrdinalIgnoreCase) ||
-                            Title.Contains("Search Results", StringComparison.OrdinalIgnoreCase);
+                             Title.Contains("Search Results", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether this collection is read-only (rejects new clips, shown in red).
@@ -248,9 +278,8 @@ public class Collection
         get
         {
             if (RetentionLimit == 0)
-            {
                 return PurgePolicy.Never;
-            }
+
             return PurgePolicy.KeepLast;
         }
     }
@@ -274,5 +303,5 @@ public enum PurgePolicy
     /// <summary>
     /// Purge clips older than specified days.
     /// </summary>
-    PurgeByAge
+    PurgeByAge,
 }

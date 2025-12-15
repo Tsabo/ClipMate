@@ -49,6 +49,9 @@ public static class ServiceCollectionExtensions
         // Register FileLoggingService for log management
         services.AddSingleton<IFileLoggingService, FileLoggingService>();
 
+        // Register Win32IdleDetector for system idle detection
+        services.AddSingleton<IWin32IdleDetector, Win32IdleDetector>();
+
         // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;

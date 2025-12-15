@@ -206,8 +206,7 @@ public class ClipRepository : IClipRepository
 
     public async Task<Clip> CreateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
-        if (clip == null)
-            throw new ArgumentNullException(nameof(clip));
+        ArgumentNullException.ThrowIfNull(clip);
 
         // Generate auto-increment SortKey for ClipMate 7.5 compatibility
         // SortKey = (count + 1) * 100 to allow manual re-ordering between clips
@@ -241,8 +240,7 @@ public class ClipRepository : IClipRepository
 
     public async Task<bool> UpdateAsync(Clip clip, CancellationToken cancellationToken = default)
     {
-        if (clip == null)
-            throw new ArgumentNullException(nameof(clip));
+        ArgumentNullException.ThrowIfNull(clip);
 
         _context.Clips.Update(clip);
         await _context.SaveChangesAsync(cancellationToken);
@@ -298,6 +296,34 @@ public class ClipRepository : IClipRepository
             .Where(p => p.ClipId == clipId)
             .OrderBy(p => p.FormatName)
             .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(string databaseKey, Guid collectionId)
+    {
+        // TODO: Implement with proper database key handling
+        return GetByCollectionAsync(collectionId);
+    }
+
+    /// <inheritdoc />
+    public async Task MoveClipsToCollectionAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId)
+    {
+        // TODO: Implement bulk move with proper database key handling
+        foreach (var clipId in clipIds)
+        {
+            var clip = await _context.Clips.FindAsync(clipId);
+            clip?.CollectionId = targetCollectionId;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds)
+    {
+        // TODO: Implement bulk delete with proper database key handling
+        foreach (var clipId in clipIds)
+            await DeleteAsync(clipId);
     }
 
     public async Task<IEnumerable<Clip>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -552,7 +578,7 @@ public class ClipRepository : IClipRepository
     {
         var clipsList = clips.ToList();
 
-        if (!clipsList.Any())
+        if (clipsList.Count == 0)
             return;
 
         var clipIds = clipsList.Select(p => p.Id).ToList();
@@ -578,16 +604,16 @@ public class ClipRepository : IClipRepository
         var formatFlagsDict = formatFlags.ToDictionary(p => p.ClipId);
 
         // Apply format flags to clips
-        foreach (var clip in clipsList)
+        foreach (var item in clipsList)
         {
-            if (formatFlagsDict.TryGetValue(clip.Id, out var flags))
+            if (formatFlagsDict.TryGetValue(item.Id, out var flags))
             {
                 // Set format flags directly
-                clip.HasText = flags.HasText;
-                clip.HasRtf = flags.HasRtf;
-                clip.HasHtml = flags.HasHtml;
-                clip.HasBitmap = flags.HasBitmap;
-                clip.HasFiles = flags.HasFiles;
+                item.HasText = flags.HasText;
+                item.HasRtf = flags.HasRtf;
+                item.HasHtml = flags.HasHtml;
+                item.HasBitmap = flags.HasBitmap;
+                item.HasFiles = flags.HasFiles;
 
                 // Pre-compute and cache the icon string
                 var icons = new List<string>();
@@ -606,36 +632,36 @@ public class ClipRepository : IClipRepository
                 if (flags.HasText)
                     icons.Add("📄");
 
-                clip.IconGlyph = icons.Count > 0
+                item.IconGlyph = icons.Count > 0
                     ? string.Join("", icons)
                     : "❓";
 
-                _logger.LogDebug("Clip {ClipId}: Formats loaded - {FormatNames}, Icon: {Icon}", clip.Id, flags.FormatNames, clip.IconGlyph);
+                _logger.LogDebug("Clip {ClipId}: Formats loaded - {FormatNames}, Icon: {Icon}", item.Id, flags.FormatNames, item.IconGlyph);
             }
             else
             {
-                _logger.LogDebug("Clip {ClipId}: No ClipData found, using Type={ClipType} fallback", clip.Id, clip.Type);
+                _logger.LogDebug("Clip {ClipId}: No ClipData found, using Type={ClipType} fallback", item.Id, item.Type);
 
                 // Fallback for clips created before ClipData implementation
-                switch (clip.Type)
+                switch (item.Type)
                 {
                     case ClipType.Text:
-                        clip.HasText = true;
-                        clip.IconGlyph = "📄";
+                        item.HasText = true;
+                        item.IconGlyph = "📄";
 
                         break;
                     case ClipType.Image:
-                        clip.HasBitmap = true;
-                        clip.IconGlyph = "🖼";
+                        item.HasBitmap = true;
+                        item.IconGlyph = "🖼";
 
                         break;
                     case ClipType.Files:
-                        clip.HasFiles = true;
-                        clip.IconGlyph = "📁";
+                        item.HasFiles = true;
+                        item.IconGlyph = "📁";
 
                         break;
                     default:
-                        clip.IconGlyph = "❓";
+                        item.IconGlyph = "❓";
 
                         break;
                 }

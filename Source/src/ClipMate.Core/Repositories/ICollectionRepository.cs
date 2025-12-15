@@ -52,4 +52,28 @@ public interface ICollectionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if deleted successfully; otherwise, false.</returns>
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves collection by ID with database key prefix.
+    /// Used by retention enforcement.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="collectionId">Collection identifier.</param>
+    /// <returns>The collection if found; otherwise, null.</returns>
+    Task<Collection?> GetByIdAsync(string databaseKey, Guid collectionId);
+
+    /// <summary>
+    /// Retrieves the Overflow collection for the database.
+    /// Creates it if it doesn't exist.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <returns>The Overflow collection.</returns>
+    Task<Collection> GetOverflowCollectionAsync(string databaseKey);
+
+    /// <summary>
+    /// Retrieves the Trashcan collection for the database.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <returns>The Trashcan collection.</returns>
+    Task<Collection> GetTrashcanCollectionAsync(string databaseKey);
 }

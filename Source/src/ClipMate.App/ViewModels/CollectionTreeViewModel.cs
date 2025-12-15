@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -126,7 +128,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         var configuration = _configurationService.Configuration;
 
         // Create a database node for each configured database
-        if (configuration.Databases.Any())
+        if (configuration.Databases.Count > 0)
         {
             _logger.LogInformation("Creating database nodes for {Count} databases: {DatabaseKeys}",
                 configuration.Databases.Count,
@@ -170,27 +172,29 @@ public partial class CollectionTreeViewModel : ObservableObject
                             {
                                 var collectionNode = new CollectionTreeNode(item)
                                 {
-                                    Parent = databaseNode
+                                    Parent = databaseNode,
                                 };
+
                                 await LoadFoldersAsync(collectionNode, cancellationToken);
 
                                 databaseNode.Children.Add(collectionNode);
                             }
 
                             // Add virtual collections container if any virtual collections exist
-                            if (virtualCollections.Any())
+                            if (virtualCollections.Count > 0)
                             {
-                                var virtualContainer = new VirtualCollectionsContainerNode()
+                                var virtualContainer = new VirtualCollectionsContainerNode
                                 {
-                                    Parent = databaseNode
+                                    Parent = databaseNode,
                                 };
 
                                 foreach (var item in virtualCollections.OrderBy(p => p.SortKey))
                                 {
                                     var virtualNode = new VirtualCollectionTreeNode(item)
                                     {
-                                        Parent = virtualContainer
+                                        Parent = virtualContainer,
                                     };
+
                                     virtualContainer.Children.Add(virtualNode);
                                 }
 
@@ -228,8 +232,9 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var folderNode = new FolderTreeNode(item)
             {
-                Parent = collectionNode
+                Parent = collectionNode,
             };
+
             await LoadSubFoldersAsync(folderNode, cancellationToken);
 
             collectionNode.Children.Add(folderNode);
@@ -249,8 +254,9 @@ public partial class CollectionTreeViewModel : ObservableObject
         {
             var subFolderNode = new FolderTreeNode(item)
             {
-                Parent = folderNode
+                Parent = folderNode,
             };
+
             await LoadSubFoldersAsync(subFolderNode, cancellationToken);
 
             folderNode.Children.Add(subFolderNode);
@@ -316,6 +322,10 @@ public partial class CollectionTreeViewModel : ObservableObject
 
         switch (SelectedNode)
         {
+            case DatabaseTreeNode databaseNode:
+                ShowDatabaseProperties(databaseNode);
+                break;
+
             case CollectionTreeNode collectionNode:
                 await ShowCollectionPropertiesAsync(collectionNode.Collection.Id);
 
@@ -350,7 +360,16 @@ public partial class CollectionTreeViewModel : ObservableObject
             return;
         }
 
-        var viewModel = new CollectionPropertiesViewModel(collection, _configurationService);
+        // Get the active database key
+        var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+
+        var viewModel = new CollectionPropertiesViewModel(
+            collection,
+            _configurationService,
+            false,
+            scope.ServiceProvider,
+            activeDatabaseKey);
+
         var window = new CollectionPropertiesWindow(viewModel, _configurationService)
         {
             Owner = Application.Current.MainWindow,
@@ -367,4 +386,331 @@ public partial class CollectionTreeViewModel : ObservableObject
             await LoadAsync(); // Reload tree to reflect changes
         }
     }
+
+    /// <summary>
+    /// Shows the database properties dialog for editing database configuration.
+    /// </summary>
+    private void ShowDatabaseProperties(DatabaseTreeNode databaseNode)
+    {
+        // Get the database configuration using the database key
+        var databaseKey = databaseNode.DatabasePath;
+        var config = _configurationService.Configuration;
+
+        if (!config.Databases.TryGetValue(databaseKey, out var databaseConfig))
+        {
+            _logger.LogWarning("Database configuration not found for key: {DatabaseKey}", databaseKey);
+            return;
+        }
+
+        // Show the database edit dialog
+        var dialog = new DatabaseEditDialog(databaseConfig)
+        {
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() == true && dialog.DatabaseConfig != null)
+        {
+            // Update the configuration
+            config.Databases[databaseKey] = dialog.DatabaseConfig;
+
+            _logger.LogInformation("Updated database configuration: {DatabaseName}", dialog.DatabaseConfig.Name);
+
+            // Reload the tree to reflect the changes
+            _ = LoadAsync();
+        }
+    }
+
+    /// <summary>
+    /// Moves the selected collection up in the sort order (decreases SortKey).
+    /// Keyboard shortcut: +
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanMoveUp))]
+    private async Task MoveUpAsync()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return;
+
+        var databaseKey = GetDatabaseKeyForNode(collectionNode);
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogWarning("Cannot move collection: database key not found");
+            return;
+        }
+
+        using var scope = CreateScope();
+        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+
+        if (dbContext == null)
+        {
+            _logger.LogWarning("Cannot move collection: database context not found for {DatabaseKey}", databaseKey);
+            return;
+        }
+
+        // Get all non-virtual collections in the same database, ordered by SortKey
+        var collections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync();
+
+        var currentIndex = collections.FindIndex(p => p.Id == collectionNode.Collection.Id);
+        if (currentIndex <= 0) // Already at top or not found
+            return;
+
+        // Swap SortKey with previous collection
+        var previousCollection = collections[currentIndex - 1];
+        (previousCollection.SortKey, collectionNode.Collection.SortKey) = (collectionNode.Collection.SortKey, previousCollection.SortKey);
+
+        await dbContext.SaveChangesAsync();
+        _logger.LogInformation("Moved collection {CollectionName} up (SortKey: {SortKey})",
+            collectionNode.Collection.Name, collectionNode.Collection.SortKey);
+
+        await LoadAsync(); // Reload tree to reflect new sort order
+    }
+
+    /// <summary>
+    /// Determines if the selected collection can be moved up.
+    /// </summary>
+    private bool CanMoveUp()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return false;
+
+        // Cannot move virtual collections
+        if (collectionNode.Collection.IsVirtual)
+            return false;
+
+        // Check if there's a collection above this one (not at index 0)
+        if (collectionNode.Parent is not DatabaseTreeNode parent)
+            return false;
+
+        var siblings = parent.Children.OfType<CollectionTreeNode>()
+            .Where(p => !p.Collection.IsVirtual)
+            .OrderBy(p => p.Collection.SortKey)
+            .ToList();
+
+        var currentIndex = siblings.FindIndex(p => p.Collection.Id == collectionNode.Collection.Id);
+        return currentIndex > 0;
+    }
+
+    /// <summary>
+    /// Moves the selected collection down in the sort order (increases SortKey).
+    /// Keyboard shortcut: -
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanMoveDown))]
+    private async Task MoveDownAsync()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return;
+
+        var databaseKey = GetDatabaseKeyForNode(collectionNode);
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogWarning("Cannot move collection: database key not found");
+            return;
+        }
+
+        using var scope = CreateScope();
+        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+
+        if (dbContext == null)
+        {
+            _logger.LogWarning("Cannot move collection: database context not found for {DatabaseKey}", databaseKey);
+            return;
+        }
+
+        // Get all non-virtual collections in the same database, ordered by SortKey
+        var collections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync();
+
+        var currentIndex = collections.FindIndex(p => p.Id == collectionNode.Collection.Id);
+        if (currentIndex < 0 || currentIndex >= collections.Count - 1) // Already at bottom or not found
+            return;
+
+        // Swap SortKey with next collection
+        var nextCollection = collections[currentIndex + 1];
+        (nextCollection.SortKey, collectionNode.Collection.SortKey) = (collectionNode.Collection.SortKey, nextCollection.SortKey);
+
+        await dbContext.SaveChangesAsync();
+        _logger.LogInformation("Moved collection {CollectionName} down (SortKey: {SortKey})",
+            collectionNode.Collection.Name, collectionNode.Collection.SortKey);
+
+        await LoadAsync(); // Reload tree to reflect new sort order
+    }
+
+    /// <summary>
+    /// Determines if the selected collection can be moved down.
+    /// </summary>
+    private bool CanMoveDown()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return false;
+
+        // Cannot move virtual collections
+        if (collectionNode.Collection.IsVirtual)
+            return false;
+
+        // Check if there's a collection below this one
+        if (collectionNode.Parent is not DatabaseTreeNode parent)
+            return false;
+
+        var siblings = parent.Children.OfType<CollectionTreeNode>()
+            .Where(p => !p.Collection.IsVirtual)
+            .OrderBy(p => p.Collection.SortKey)
+            .ToList();
+
+        var currentIndex = siblings.FindIndex(p => p.Collection.Id == collectionNode.Collection.Id);
+        return currentIndex >= 0 && currentIndex < siblings.Count - 1;
+    }
+
+    /// <summary>
+    /// Reorders collections after a drag-drop operation by updating SortKey values.
+    /// </summary>
+    /// <param name="droppedCollectionIds">IDs of collections being dropped.</param>
+    /// <param name="targetCollectionId">ID of the target collection.</param>
+    /// <param name="insertAfter">True to insert after target, false to insert before.</param>
+    public async Task ReorderCollectionsAsync(List<Guid> droppedCollectionIds, Guid targetCollectionId, bool insertAfter)
+    {
+        if (droppedCollectionIds.Count == 0)
+            return;
+
+        // Get database key from the first dropped collection
+        var firstDroppedNode = FindNodeById(droppedCollectionIds.First());
+        if (firstDroppedNode == null)
+        {
+            _logger.LogWarning("Could not find dropped collection node");
+            return;
+        }
+
+        var databaseKey = GetDatabaseKeyForNode(firstDroppedNode);
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogWarning("Cannot reorder collections: database key not found");
+            return;
+        }
+
+        using var scope = CreateScope();
+        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+
+        if (dbContext == null)
+        {
+            _logger.LogWarning("Cannot reorder collections: database context not found for {DatabaseKey}", databaseKey);
+            return;
+        }
+
+        // Get all non-virtual collections in the database, ordered by SortKey
+        var allCollections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync();
+
+        // Remove dropped collections from current positions
+        var droppedCollections = allCollections.Where(p => droppedCollectionIds.Contains(p.Id)).ToList();
+        foreach (var dropped in droppedCollections)
+            allCollections.Remove(dropped);
+
+        // Find target collection index
+        var targetIndex = allCollections.FindIndex(p => p.Id == targetCollectionId);
+        if (targetIndex < 0)
+        {
+            _logger.LogWarning("Target collection not found: {TargetId}", targetCollectionId);
+            return;
+        }
+
+        // Insert dropped collections at new position
+        var insertIndex = insertAfter
+            ? targetIndex + 1
+            : targetIndex;
+
+        allCollections.InsertRange(insertIndex, droppedCollections);
+
+        // Reassign SortKey values based on new order
+        for (var i = 0; i < allCollections.Count; i++)
+            allCollections[i].SortKey = i;
+
+        await dbContext.SaveChangesAsync();
+        _logger.LogInformation("Reordered {Count} collections, inserted at position {Position}",
+            droppedCollectionIds.Count, insertIndex);
+
+        await LoadAsync(); // Reload tree to reflect new order
+    }
+
+    /// <summary>
+    /// Finds a tree node by collection ID.
+    /// </summary>
+    private TreeNodeBase? FindNodeById(Guid collectionId) => RootNodes.Select(p => FindNodeByIdRecursive(p, collectionId)).OfType<TreeNodeBase>().FirstOrDefault();
+
+    /// <summary>
+    /// Recursively searches for a node by collection ID.
+    /// </summary>
+    private TreeNodeBase? FindNodeByIdRecursive(TreeNodeBase node, Guid collectionId)
+    {
+        if (node is CollectionTreeNode collectionNode && collectionNode.Collection.Id == collectionId || node is VirtualCollectionTreeNode virtualNode && virtualNode.VirtualCollection.Id == collectionId)
+            return node;
+
+        return node.Children.Select(p => FindNodeByIdRecursive(p, collectionId)).OfType<TreeNodeBase>().FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Moves clips from one collection to another.
+    /// Updates both CollectionId and DatabaseId if moving across databases.
+    /// </summary>
+    public async Task MoveClipsToCollectionAsync(List<Guid> clipIds, Guid targetCollectionId, Guid? targetDatabaseId)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+
+        // Find the target collection node to get the database key
+        var targetNode = FindNodeById(targetCollectionId);
+        if (targetNode == null)
+        {
+            _logger.LogError("Target collection not found: {CollectionId}", targetCollectionId);
+            return;
+        }
+
+        // Find the database node by walking up the tree
+        var databaseNode = GetDatabaseNode(targetNode);
+        if (databaseNode == null)
+        {
+            _logger.LogError("Could not find database node for collection {CollectionId}", targetCollectionId);
+            return;
+        }
+
+        var dbContext = databaseManager.GetDatabaseContext(databaseNode.DatabasePath);
+        if (dbContext == null)
+        {
+            _logger.LogError("Database context not found for path {Path}", databaseNode.DatabasePath);
+            return;
+        }
+
+        // Use ClipRepository to move clips
+        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
+        await clipRepository.MoveClipsToCollectionAsync(databaseNode.DatabasePath, clipIds, targetCollectionId);
+
+        _logger.LogInformation("Moved {Count} clips to collection {CollectionId}", clipIds.Count, targetCollectionId);
+    }
+
+    /// <summary>
+    /// Walks up the tree to find the DatabaseTreeNode ancestor.
+    /// </summary>
+    private DatabaseTreeNode? GetDatabaseNode(TreeNodeBase node)
+    {
+        // Walk up the tree to find the database node
+        foreach (var root in RootNodes)
+        {
+            if (root is DatabaseTreeNode dbNode && IsDescendantOf(node, dbNode))
+                return dbNode;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if a node is a descendant of a potential ancestor.
+    /// </summary>
+    private bool IsDescendantOf(TreeNodeBase node, TreeNodeBase potentialAncestor) => node == potentialAncestor || potentialAncestor.Children.Any(p => IsDescendantOf(node, p));
 }

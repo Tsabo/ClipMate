@@ -38,4 +38,6 @@ SetProcessDpiAwareness
 GetDpiForWindow
 GetSystemMetrics
 SendInput
+GetLastInputInfo
+GetTickCount64
 

@@ -2,8 +2,10 @@ using System.Windows;
 using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
@@ -17,7 +19,9 @@ public partial class CollectionPropertiesViewModel : ObservableObject
 {
     private readonly Collection _collection;
     private readonly IConfigurationService _configurationService;
+    private readonly string? _databaseKey;
     private readonly bool _isNewCollection;
+    private readonly IServiceProvider? _serviceProvider;
 
     [ObservableProperty]
     private bool _acceptDuplicates;
@@ -26,7 +30,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     private bool _acceptNewClips = true;
 
     [ObservableProperty]
-    private CollectionType _collectionType = CollectionType.Normal;
+    private UiCollectionType _collectionType = UiCollectionType.Normal;
 
     [ObservableProperty]
     private string _databaseInfo = string.Empty;
@@ -64,11 +68,13 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     [ObservableProperty]
     private string _title = string.Empty;
 
-    public CollectionPropertiesViewModel(Collection collection, IConfigurationService configurationService, bool isNewCollection = false)
+    public CollectionPropertiesViewModel(Collection collection, IConfigurationService configurationService, bool isNewCollection = false, IServiceProvider? serviceProvider = null, string? databaseKey = null)
     {
         _collection = collection;
         _isNewCollection = isNewCollection;
         _configurationService = configurationService;
+        _serviceProvider = serviceProvider;
+        _databaseKey = databaseKey;
 
         LoadFromModel();
     }
@@ -76,17 +82,17 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     /// <summary>
     /// Whether purging rules are visible (Normal, Folder, Trashcan only).
     /// </summary>
-    public bool ShowPurgingRules => CollectionType == CollectionType.Normal;
+    public bool ShowPurgingRules => CollectionType == UiCollectionType.Normal;
 
     /// <summary>
     /// Whether SQL editor is visible (Virtual collections only).
     /// </summary>
-    public bool ShowSqlEditor => CollectionType == CollectionType.Virtual;
+    public bool ShowSqlEditor => CollectionType == UiCollectionType.Virtual;
 
     /// <summary>
     /// Whether garbage avoidance options are visible (Normal collections only).
     /// </summary>
-    public bool ShowGarbageAvoidance => CollectionType == CollectionType.Normal;
+    public bool ShowGarbageAvoidance => CollectionType == UiCollectionType.Normal;
 
     /// <summary>
     /// Whether the purging value textbox should be enabled.
@@ -118,13 +124,13 @@ public partial class CollectionPropertiesViewModel : ObservableObject
 
         // Determine collection type
         if (_collection.IsVirtual)
-            CollectionType = CollectionType.Virtual;
+            CollectionType = UiCollectionType.Virtual;
         else if (_collection.IsFolder)
-            CollectionType = CollectionType.Folder;
+            CollectionType = UiCollectionType.Folder;
         else if (_collection.Title.Contains("Trash", StringComparison.OrdinalIgnoreCase))
-            CollectionType = CollectionType.Trashcan;
+            CollectionType = UiCollectionType.Trashcan;
         else
-            CollectionType = CollectionType.Normal;
+            CollectionType = UiCollectionType.Normal;
 
         // Determine purging rule
         if (_collection.RetentionLimit == 0)
@@ -140,11 +146,59 @@ public partial class CollectionPropertiesViewModel : ObservableObject
             PurgingValue = _collection.RetentionLimit;
         }
 
-        // TODO: Load item count from repository
-        ItemCount = _collection.LastKnownCount ?? 0;
+        // Load item count from the actual database
+        ItemCount = LoadItemCount();
 
-        // TODO: Load database info (might need to pass in database name)
-        DatabaseInfo = "DBName: [My Clips], Version: [4.34 Build 2], User: [0]";
+        // Load database info from configuration
+        DatabaseInfo = LoadDatabaseInfo();
+    }
+
+    /// <summary>
+    /// Loads the actual item count from the database for this collection.
+    /// </summary>
+    private int LoadItemCount()
+    {
+        if (_serviceProvider == null || string.IsNullOrEmpty(_databaseKey))
+            return _collection.LastKnownCount ?? 0;
+
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+            var dbContext = databaseManager.GetDatabaseContext(_databaseKey);
+
+            if (dbContext == null)
+                return _collection.LastKnownCount ?? 0;
+
+            // Count clips in this collection
+            return dbContext.Clips.Count(c => c.CollectionId == _collection.Id && !c.Del);
+        }
+        catch
+        {
+            return _collection.LastKnownCount ?? 0;
+        }
+    }
+
+    /// <summary>
+    /// Loads the database info string from configuration.
+    /// </summary>
+    private string LoadDatabaseInfo()
+    {
+        if (string.IsNullOrEmpty(_databaseKey))
+            return "Database: [Unknown]";
+
+        try
+        {
+            var config = _configurationService.Configuration;
+            if (config.Databases.TryGetValue(_databaseKey, out var dbConfig))
+                return $"Database: DBName: [{dbConfig.Name}], Version: [4.34 Build 2], User: [0]";
+        }
+        catch
+        {
+            // Ignore errors
+        }
+
+        return "Database: [Unknown]";
     }
 
     /// <summary>
@@ -163,13 +217,13 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         // Set LmType based on collection type
         _collection.LmType = CollectionType switch
         {
-            CollectionType.Virtual => CollectionLmType.Virtual,
-            CollectionType.Folder => CollectionLmType.Folder,
+            UiCollectionType.Virtual => CollectionLmType.Virtual,
+            UiCollectionType.Folder => CollectionLmType.Folder,
             var _ => CollectionLmType.Normal, // Normal and Trashcan
         };
 
         // Set ListType for virtual collections
-        if (CollectionType == CollectionType.Virtual)
+        if (CollectionType == UiCollectionType.Virtual)
         {
             _collection.ListType = CollectionListType.SqlBased;
             _collection.Sql = SqlQuery;
@@ -188,7 +242,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         _collection.LastUpdateTime = DateTime.UtcNow;
     }
 
-    partial void OnCollectionTypeChanged(CollectionType value)
+    partial void OnCollectionTypeChanged(UiCollectionType value)
     {
         OnPropertyChanged(nameof(ShowPurgingRules));
         OnPropertyChanged(nameof(ShowSqlEditor));
@@ -209,7 +263,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         // Find the CollectionPropertiesWindow that owns this ViewModel
         var owner = Application.Current.Windows
             .OfType<CollectionPropertiesWindow>()
-            .FirstOrDefault(w => ReferenceEquals(w.DataContext, this));
+            .FirstOrDefault(p => ReferenceEquals(p.DataContext, this));
 
         if (owner != null)
             picker.Owner = owner;
@@ -249,4 +303,16 @@ public partial class CollectionPropertiesViewModel : ObservableObject
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
+}
+
+/// <summary>
+/// UI-level collection type for CollectionPropertiesViewModel.
+/// Determines which UI sections are visible.
+/// </summary>
+public enum UiCollectionType
+{
+    Normal,
+    Virtual,
+    Folder,
+    Trashcan,
 }

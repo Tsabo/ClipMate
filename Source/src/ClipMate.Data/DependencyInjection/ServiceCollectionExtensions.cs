@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
         services.AddScoped<IDatabaseMaintenanceService, DatabaseMaintenanceService>(); // Database maintenance (backup/restore/repair)
+        services.AddScoped<IRetentionEnforcementService, RetentionEnforcementService>(); // Retention enforcement service
 
         // Register default data initialization service (ensures Inbox exists and is set as active)
         services.AddSingleton<DefaultDataInitializationService>();
@@ -69,8 +70,8 @@ public static class ServiceCollectionExtensions
         var configDirectory = Path.GetDirectoryName(databasePath) ??
                               Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
 
-        services.AddSingleton<IConfigurationService>(sp =>
-            new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
+        services.AddSingleton<IConfigurationService>(p =>
+            new ConfigurationService(configDirectory, p.GetRequiredService<ILogger<ConfigurationService>>()));
 
         // Register multi-database management
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
@@ -79,8 +80,12 @@ public static class ServiceCollectionExtensions
         // Register ClipboardCoordinator as singleton first (so it can be injected)
         services.AddSingleton<ClipboardCoordinator>();
 
-        // Register hosted services (use the singleton instance)
-        services.AddHostedService(sp => sp.GetRequiredService<ClipboardCoordinator>());
+        // Register MaintenanceSchedulerService as singleton
+        services.AddSingleton<MaintenanceSchedulerService>();
+
+        // Register hosted services (use the singleton instances)
+        services.AddHostedService(p => p.GetRequiredService<ClipboardCoordinator>());
+        services.AddHostedService(p => p.GetRequiredService<MaintenanceSchedulerService>());
 
         return services;
     }

@@ -166,7 +166,7 @@ public partial class App
             // Get list of databases that need backup
             var databasesDue = await maintenanceService.CheckBackupDueAsync(config.Databases.Values);
 
-            if (!databasesDue.Any())
+            if (databasesDue.Count == 0)
             {
                 _logger?.LogDebug("No databases due for backup");
                 return;
@@ -178,11 +178,11 @@ public partial class App
             var promptSnoozesDays = 3;
             var now = DateTime.UtcNow;
             var databasesToPrompt = databasesDue
-                .Where(p => p.LastBackupPromptDate == null || 
-                             (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays)
+                .Where(p => p.LastBackupPromptDate == null ||
+                            (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays)
                 .ToList();
 
-            if (!databasesToPrompt.Any())
+            if (databasesToPrompt.Count == 0)
             {
                 _logger?.LogDebug("All databases due for backup were recently prompted (within {Days} days)", promptSnoozesDays);
                 return;
@@ -196,7 +196,10 @@ public partial class App
                 var dialog = new DatabaseBackupDialog(
                     dbConfig,
                     config.Preferences.BackupIntervalDays,
-                    config.Preferences.AutoConfirmBackupSeconds);
+                    config.Preferences.AutoConfirmBackupSeconds)
+                {
+                    Owner = Current.MainWindow,
+                };
 
                 // Record that we prompted the user
                 dbConfig.LastBackupPromptDate = DateTime.UtcNow;
@@ -212,7 +215,10 @@ public partial class App
                 var dialog = new MultipleDatabaseBackupDialog(
                     databasesToPrompt,
                     config.Preferences.BackupIntervalDays,
-                    config.Preferences.AutoConfirmBackupSeconds);
+                    config.Preferences.AutoConfirmBackupSeconds)
+                {
+                    Owner = Current.MainWindow,
+                };
 
                 // Record that we prompted the user for all databases
                 foreach (var item in databasesToPrompt)
@@ -590,11 +596,11 @@ public partial class App
 
                 // Register initialization pipeline and steps
                 services.AddSingleton<StartupInitializationPipeline>();
-                services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
+                services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, DatabaseLoadingStep>();
-                services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
                 services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
+                services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
             });
     }

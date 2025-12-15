@@ -138,7 +138,9 @@
                            AutoWidth="False"
                            NavigationStyle="Row"
                            ShowIndicator="True"
-                           HorizontalScrollbarVisibility="Auto" />
+                           HorizontalScrollbarVisibility="Auto"
+                           AllowDragDrop="True"
+                           StartRecordDrag="TableView_StartRecordDrag" />
         </dxg:GridControl.View>
         <dxg:GridControl.Columns>
             <!-- Icon Column - Shows all format types present -->

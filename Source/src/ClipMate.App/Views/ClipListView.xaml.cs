@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
+using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Grid;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
@@ -209,6 +210,21 @@ public partial class ClipListView
                 MessageBox.Show($"Failed to open URL: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+    }
+
+    /// <summary>
+    /// Handles the start of a record drag operation to enable dragging clips to collection tree.
+    /// Adds Clip objects to the drag data so they can be dropped on collections.
+    /// </summary>
+    private void TableView_StartRecordDrag(object sender, StartRecordDragEventArgs e)
+    {
+        // Get the dragged clips
+        var draggedClips = e.Records.OfType<Clip>().ToList();
+        if (draggedClips.Any())
+        {
+            // Add clips to drag data using a custom format
+            e.Data.SetData(typeof(Clip[]), draggedClips.ToArray());
         }
     }
 }

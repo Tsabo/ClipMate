@@ -5,6 +5,7 @@ namespace ClipMate.App.Services.Initialization;
 
 /// <summary>
 /// Initialization step that loads application configuration from disk.
+/// MUST run first (Order 10) so other steps can access database configuration.
 /// </summary>
 public class ConfigurationLoadingStep : IStartupInitializationStep
 {
@@ -20,7 +21,8 @@ public class ConfigurationLoadingStep : IStartupInitializationStep
 
     public string Name => "Configuration Loading";
 
-    public int Order => 20;
+    // Order 10: MUST run first - all other steps depend on configuration
+    public int Order => 10;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {

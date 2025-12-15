@@ -102,46 +102,46 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Clip>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
             // ClipMate 7.5 fields with max lengths
-            entity.Property(e => e.Title).HasMaxLength(60);
-            entity.Property(e => e.Creator).HasMaxLength(60);
-            entity.Property(e => e.SourceUrl).HasMaxLength(250);
-            entity.Property(e => e.CapturedAt).IsRequired();
-            entity.Property(e => e.Type).IsRequired();
-            entity.Property(e => e.ContentHash).IsRequired().HasMaxLength(64);
+            entity.Property(p => p.Title).HasMaxLength(60);
+            entity.Property(p => p.Creator).HasMaxLength(60);
+            entity.Property(p => p.SourceUrl).HasMaxLength(250);
+            entity.Property(p => p.CapturedAt).IsRequired();
+            entity.Property(p => p.Type).IsRequired();
+            entity.Property(p => p.ContentHash).IsRequired().HasMaxLength(64);
 
             // Transient properties - NOT stored in Clips table (loaded from BLOB tables)
-            entity.Ignore(e => e.TextContent);
-            entity.Ignore(e => e.RtfContent);
-            entity.Ignore(e => e.HtmlContent);
-            entity.Ignore(e => e.ImageData);
-            entity.Ignore(e => e.FilePathsJson);
+            entity.Ignore(p => p.TextContent);
+            entity.Ignore(p => p.RtfContent);
+            entity.Ignore(p => p.HtmlContent);
+            entity.Ignore(p => p.ImageData);
+            entity.Ignore(p => p.FilePathsJson);
 
             // Format flag properties - NOT stored in Clips table
-            entity.Ignore(e => e.IconGlyph);
-            entity.Ignore(e => e.HasText);
-            entity.Ignore(e => e.HasRtf);
-            entity.Ignore(e => e.HasHtml);
-            entity.Ignore(e => e.HasBitmap);
-            entity.Ignore(e => e.HasFiles);
+            entity.Ignore(p => p.IconGlyph);
+            entity.Ignore(p => p.HasText);
+            entity.Ignore(p => p.HasRtf);
+            entity.Ignore(p => p.HasHtml);
+            entity.Ignore(p => p.HasBitmap);
+            entity.Ignore(p => p.HasFiles);
 
             // Navigation properties
-            entity.Ignore(e => e.ClipDataFormats); // For now, explicit queries
+            entity.Ignore(p => p.ClipDataFormats); // For now, explicit queries
 
             // Indexes for performance - ClipMate 7.5 compatibility
-            entity.HasIndex(e => e.CapturedAt).HasDatabaseName("IX_Clips_CapturedAt");
-            entity.HasIndex(e => e.Type).HasDatabaseName("IX_Clips_Type");
-            entity.HasIndex(e => e.ContentHash).HasDatabaseName("IX_Clips_ContentHash");
-            entity.HasIndex(e => e.SourceApplicationName).HasDatabaseName("IX_Clips_SourceApplicationName");
-            entity.HasIndex(e => e.IsFavorite).HasDatabaseName("IX_Clips_IsFavorite");
-            entity.HasIndex(e => e.CollectionId).HasDatabaseName("IX_Clips_CollectionId");
-            entity.HasIndex(e => e.FolderId).HasDatabaseName("IX_Clips_FolderId");
-            entity.HasIndex(e => e.Del).HasDatabaseName("IX_Clips_Del"); // Soft delete index
-            entity.HasIndex(e => e.SortKey).HasDatabaseName("IX_Clips_SortKey");
-            entity.HasIndex(e => e.Checksum).HasDatabaseName("IX_Clips_Checksum");
+            entity.HasIndex(p => p.CapturedAt).HasDatabaseName("IX_Clips_CapturedAt");
+            entity.HasIndex(p => p.Type).HasDatabaseName("IX_Clips_Type");
+            entity.HasIndex(p => p.ContentHash).HasDatabaseName("IX_Clips_ContentHash");
+            entity.HasIndex(p => p.SourceApplicationName).HasDatabaseName("IX_Clips_SourceApplicationName");
+            entity.HasIndex(p => p.IsFavorite).HasDatabaseName("IX_Clips_IsFavorite");
+            entity.HasIndex(p => p.CollectionId).HasDatabaseName("IX_Clips_CollectionId");
+            entity.HasIndex(p => p.FolderId).HasDatabaseName("IX_Clips_FolderId");
+            entity.HasIndex(p => p.Del).HasDatabaseName("IX_Clips_Del"); // Soft delete index
+            entity.HasIndex(p => p.SortKey).HasDatabaseName("IX_Clips_SortKey");
+            entity.HasIndex(p => p.Checksum).HasDatabaseName("IX_Clips_Checksum");
         });
     }
 
@@ -149,25 +149,31 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Collection>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
             // ClipMate 7.5 fields with max lengths
-            entity.Property(e => e.Title).IsRequired().HasMaxLength(60);
-            entity.Property(e => e.Sql).HasMaxLength(256);
+            entity.Property(p => p.Title).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.Sql).HasMaxLength(256);
+
+            // Retention properties (new fields)
+            entity.Property(p => p.MaxBytes).HasDefaultValue(0L);
+            entity.Property(p => p.MaxAgeDays).HasDefaultValue(0);
+            entity.Property(p => p.Role).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.Title).HasDatabaseName("IX_Collections_Title");
-            entity.HasIndex(e => e.ParentId).HasDatabaseName("IX_Collections_ParentId");
-            entity.HasIndex(e => e.SortKey).HasDatabaseName("IX_Collections_SortKey");
-            entity.HasIndex(e => e.LmType).HasDatabaseName("IX_Collections_LmType");
-            entity.HasIndex(e => e.NewClipsGo).HasDatabaseName("IX_Collections_NewClipsGo");
-            entity.HasIndex(e => e.Favorite).HasDatabaseName("IX_Collections_Favorite");
+            entity.HasIndex(p => p.Title).HasDatabaseName("IX_Collections_Title");
+            entity.HasIndex(p => p.ParentId).HasDatabaseName("IX_Collections_ParentId");
+            entity.HasIndex(p => p.SortKey).HasDatabaseName("IX_Collections_SortKey");
+            entity.HasIndex(p => p.LmType).HasDatabaseName("IX_Collections_LmType");
+            entity.HasIndex(p => p.NewClipsGo).HasDatabaseName("IX_Collections_NewClipsGo");
+            entity.HasIndex(p => p.Favorite).HasDatabaseName("IX_Collections_Favorite");
+            entity.HasIndex(p => p.Role).HasDatabaseName("IX_Collections_Role");
 
             // Self-referencing relationship for hierarchy
-            entity.HasOne(e => e.Parent)
+            entity.HasOne(p => p.Parent)
                 .WithMany(e => e.Children)
-                .HasForeignKey(e => e.ParentId)
+                .HasForeignKey(p => p.ParentId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
@@ -176,22 +182,22 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<ClipData>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.FormatName).IsRequired().HasMaxLength(60);
-            entity.Property(e => e.ClipId).IsRequired();
-            entity.Property(e => e.Format).IsRequired();
+            entity.Property(p => p.FormatName).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.ClipId).IsRequired();
+            entity.Property(p => p.Format).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_ClipData_ClipId");
-            entity.HasIndex(e => e.Format).HasDatabaseName("IX_ClipData_Format");
-            entity.HasIndex(e => e.StorageType).HasDatabaseName("IX_ClipData_StorageType");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_ClipData_ClipId");
+            entity.HasIndex(p => p.Format).HasDatabaseName("IX_ClipData_Format");
+            entity.HasIndex(p => p.StorageType).HasDatabaseName("IX_ClipData_StorageType");
 
             // Relationship to Clip
-            entity.HasOne(e => e.Clip)
+            entity.HasOne(p => p.Clip)
                 .WithMany()
-                .HasForeignKey(e => e.ClipId)
+                .HasForeignKey(p => p.ClipId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -200,21 +206,21 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobTxt>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.ClipDataId).IsRequired();
-            entity.Property(e => e.ClipId).IsRequired(); // Denormalized
-            entity.Property(e => e.Data).IsRequired();
+            entity.Property(p => p.ClipDataId).IsRequired();
+            entity.Property(p => p.ClipId).IsRequired(); // Denormalized
+            entity.Property(p => p.Data).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobTxt_ClipId");
-            entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobTxt_ClipDataId");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_BlobTxt_ClipId");
+            entity.HasIndex(p => p.ClipDataId).HasDatabaseName("IX_BlobTxt_ClipDataId");
 
             // Relationship to ClipData
-            entity.HasOne(e => e.ClipData)
+            entity.HasOne(p => p.ClipData)
                 .WithMany()
-                .HasForeignKey(e => e.ClipDataId)
+                .HasForeignKey(p => p.ClipDataId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -223,21 +229,21 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobJpg>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.ClipDataId).IsRequired();
-            entity.Property(e => e.ClipId).IsRequired(); // Denormalized
-            entity.Property(e => e.Data).IsRequired();
+            entity.Property(p => p.ClipDataId).IsRequired();
+            entity.Property(p => p.ClipId).IsRequired(); // Denormalized
+            entity.Property(p => p.Data).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobJpg_ClipId");
-            entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobJpg_ClipDataId");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_BlobJpg_ClipId");
+            entity.HasIndex(p => p.ClipDataId).HasDatabaseName("IX_BlobJpg_ClipDataId");
 
             // Relationship to ClipData
-            entity.HasOne(e => e.ClipData)
+            entity.HasOne(p => p.ClipData)
                 .WithMany()
-                .HasForeignKey(e => e.ClipDataId)
+                .HasForeignKey(p => p.ClipDataId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -246,21 +252,21 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobPng>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.ClipDataId).IsRequired();
-            entity.Property(e => e.ClipId).IsRequired(); // Denormalized
-            entity.Property(e => e.Data).IsRequired();
+            entity.Property(p => p.ClipDataId).IsRequired();
+            entity.Property(p => p.ClipId).IsRequired(); // Denormalized
+            entity.Property(p => p.Data).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobPng_ClipId");
-            entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobPng_ClipDataId");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_BlobPng_ClipId");
+            entity.HasIndex(p => p.ClipDataId).HasDatabaseName("IX_BlobPng_ClipDataId");
 
             // Relationship to ClipData
-            entity.HasOne(e => e.ClipData)
+            entity.HasOne(p => p.ClipData)
                 .WithMany()
-                .HasForeignKey(e => e.ClipDataId)
+                .HasForeignKey(p => p.ClipDataId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -269,21 +275,21 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobBlob>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.ClipDataId).IsRequired();
-            entity.Property(e => e.ClipId).IsRequired(); // Denormalized
-            entity.Property(e => e.Data).IsRequired();
+            entity.Property(p => p.ClipDataId).IsRequired();
+            entity.Property(p => p.ClipId).IsRequired(); // Denormalized
+            entity.Property(p => p.Data).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_BlobBlob_ClipId");
-            entity.HasIndex(e => e.ClipDataId).HasDatabaseName("IX_BlobBlob_ClipDataId");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_BlobBlob_ClipId");
+            entity.HasIndex(p => p.ClipDataId).HasDatabaseName("IX_BlobBlob_ClipDataId");
 
             // Relationship to ClipData
-            entity.HasOne(e => e.ClipData)
+            entity.HasOne(p => p.ClipData)
                 .WithMany()
-                .HasForeignKey(e => e.ClipDataId)
+                .HasForeignKey(p => p.ClipDataId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -292,20 +298,20 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Shortcut>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Nickname).IsRequired().HasMaxLength(64);
-            entity.Property(e => e.ClipId).IsRequired();
+            entity.Property(p => p.Nickname).IsRequired().HasMaxLength(64);
+            entity.Property(p => p.ClipId).IsRequired();
 
             // Unique index on Nickname - PowerPaste requires unique shortcuts
-            entity.HasIndex(e => e.Nickname).IsUnique().HasDatabaseName("IX_Shortcuts_Nickname");
-            entity.HasIndex(e => e.ClipId).HasDatabaseName("IX_Shortcuts_ClipId");
+            entity.HasIndex(p => p.Nickname).IsUnique().HasDatabaseName("IX_Shortcuts_Nickname");
+            entity.HasIndex(p => p.ClipId).HasDatabaseName("IX_Shortcuts_ClipId");
 
             // Relationship to Clip
-            entity.HasOne(e => e.Clip)
+            entity.HasOne(p => p.Clip)
                 .WithMany()
-                .HasForeignKey(e => e.ClipId)
+                .HasForeignKey(p => p.ClipId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
@@ -314,16 +320,16 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Workstation).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.LastDate).IsRequired();
+            entity.Property(p => p.Username).IsRequired().HasMaxLength(50);
+            entity.Property(p => p.Workstation).IsRequired().HasMaxLength(50);
+            entity.Property(p => p.LastDate).IsRequired();
 
             // Indexes for performance
-            entity.HasIndex(e => e.Username).HasDatabaseName("IX_Users_Username");
-            entity.HasIndex(e => e.Workstation).HasDatabaseName("IX_Users_Workstation");
+            entity.HasIndex(p => p.Username).HasDatabaseName("IX_Users_Username");
+            entity.HasIndex(p => p.Workstation).HasDatabaseName("IX_Users_Workstation");
         });
     }
 
@@ -331,15 +337,15 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Template>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Content).IsRequired();
-            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.Content).IsRequired();
+            entity.Property(p => p.CreatedAt).IsRequired();
 
-            entity.HasIndex(e => e.Name).HasDatabaseName("IX_Templates_Name");
-            entity.HasIndex(e => e.CollectionId).HasDatabaseName("IX_Templates_CollectionId");
+            entity.HasIndex(p => p.Name).HasDatabaseName("IX_Templates_Name");
+            entity.HasIndex(p => p.CollectionId).HasDatabaseName("IX_Templates_CollectionId");
         });
     }
 
@@ -347,15 +353,15 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<SearchQuery>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.QueryText).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.QueryText).IsRequired().HasMaxLength(500);
+            entity.Property(p => p.CreatedAt).IsRequired();
 
-            entity.HasIndex(e => e.LastExecutedAt).HasDatabaseName("IX_SearchQueries_LastExecutedAt");
-            entity.HasIndex(e => e.QueryText).HasDatabaseName("IX_SearchQueries_QueryText");
+            entity.HasIndex(p => p.LastExecutedAt).HasDatabaseName("IX_SearchQueries_LastExecutedAt");
+            entity.HasIndex(p => p.QueryText).HasDatabaseName("IX_SearchQueries_QueryText");
         });
     }
 
@@ -363,15 +369,15 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<ApplicationFilter>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.CreatedAt).IsRequired();
 
-            entity.HasIndex(e => e.Name).HasDatabaseName("IX_ApplicationFilters_Name");
-            entity.HasIndex(e => e.ProcessName).HasDatabaseName("IX_ApplicationFilters_ProcessName");
-            entity.HasIndex(e => e.IsEnabled).HasDatabaseName("IX_ApplicationFilters_IsEnabled");
+            entity.HasIndex(p => p.Name).HasDatabaseName("IX_ApplicationFilters_Name");
+            entity.HasIndex(p => p.ProcessName).HasDatabaseName("IX_ApplicationFilters_ProcessName");
+            entity.HasIndex(p => p.IsEnabled).HasDatabaseName("IX_ApplicationFilters_IsEnabled");
         });
     }
 
@@ -379,22 +385,22 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<MonacoEditorState>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
-            entity.Property(e => e.ClipDataId).IsRequired();
-            entity.Property(e => e.Language).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ViewState);
-            entity.Property(e => e.LastModified).IsRequired();
+            entity.Property(p => p.ClipDataId).IsRequired();
+            entity.Property(p => p.Language).IsRequired().HasMaxLength(50);
+            entity.Property(p => p.ViewState);
+            entity.Property(p => p.LastModified).IsRequired();
 
             // One-to-one relationship with ClipData
-            entity.HasOne(e => e.ClipData)
+            entity.HasOne(p => p.ClipData)
                 .WithMany()
-                .HasForeignKey(e => e.ClipDataId)
+                .HasForeignKey(p => p.ClipDataId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Unique constraint on ClipDataId (one-to-one)
-            entity.HasIndex(e => e.ClipDataId)
+            entity.HasIndex(p => p.ClipDataId)
                 .IsUnique()
                 .HasDatabaseName("IX_MonacoEditorStates_ClipDataId");
         });

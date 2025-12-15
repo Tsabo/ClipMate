@@ -94,6 +94,8 @@ public partial class Clip
     /// <summary>
     /// Timestamp when deleted (DELDATE).
     /// Stored as DateTimeOffset to preserve the original timezone/offset.
+    /// TODO: Implement bounce tracking - when clip moves Trash→InBox→Trash,
+    /// track the bounce with timestamps to prevent infinite bounce loops.
     /// </summary>
     public DateTimeOffset? DelDate { get; set; }
 
@@ -198,5 +200,4 @@ public partial class Clip
     /// NOT stored in Clips table.
     /// </summary>
     public string? FilePathsJson { get; set; }
-
 }

@@ -3,6 +3,8 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data.Repositories;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -379,11 +381,34 @@ public partial class ClipListViewModel : ObservableObject,
             IReadOnlyCollection<Clip> clips;
             using (var scope = CreateScope())
             {
-                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-                clips = await clipService.GetByCollectionAsync(collectionId, cancellationToken);
-            }
+                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
 
-            _logger.LogInformation("Retrieved {Count} clips from database", clips.Count);
+                // Get the active database key and context
+                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+                if (string.IsNullOrEmpty(activeDatabaseKey))
+                {
+                    _logger.LogError("No active database key found, cannot load clips");
+                    clips = Array.Empty<Clip>();
+                }
+                else
+                {
+                    var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
+                    if (dbContext == null)
+                    {
+                        _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot load clips", activeDatabaseKey);
+                        clips = Array.Empty<Clip>();
+                    }
+                    else
+                    {
+                        // Create repository with the active database context
+                        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
+                        var clipRepository = new ClipRepository(dbContext, logger);
+                        clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
+                        _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
+                    }
+                }
+            }
 
             // Update collection on UI thread
             await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -422,11 +447,37 @@ public partial class ClipListViewModel : ObservableObject,
             CurrentCollectionId = collectionId;
             CurrentFolderId = folderId;
 
+            _logger.LogInformation("Loading clips for folder: {FolderId}", folderId);
             IReadOnlyCollection<Clip> clips;
             using (var scope = CreateScope())
             {
-                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-                clips = await clipService.GetByFolderAsync(folderId, cancellationToken);
+                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+
+                // Get the active database key and context
+                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+                if (string.IsNullOrEmpty(activeDatabaseKey))
+                {
+                    _logger.LogError("No active database key found, cannot load clips");
+                    clips = Array.Empty<Clip>();
+                }
+                else
+                {
+                    var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
+                    if (dbContext == null)
+                    {
+                        _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot load clips", activeDatabaseKey);
+                        clips = Array.Empty<Clip>();
+                    }
+                    else
+                    {
+                        // Create repository with the active database context
+                        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
+                        var clipRepository = new ClipRepository(dbContext, logger);
+                        clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
+                        _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
+                    }
+                }
             }
 
             // Update collection on UI thread

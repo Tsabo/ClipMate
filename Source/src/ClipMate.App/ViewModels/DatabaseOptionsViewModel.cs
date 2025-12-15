@@ -6,6 +6,7 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -88,14 +89,18 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     [RelayCommand]
     private void AddDatabase()
     {
-        var dialog = new DatabaseEditDialog();
-        if (dialog.ShowDialog() == true && dialog.DatabaseConfig != null)
+        var dialog = new DatabaseEditDialog
         {
-            // Generate a unique GUID-based key for the new database
-            var key = $"db_{Guid.NewGuid():N}";
-            Databases.Add(new DatabaseConfigurationViewModel(key, dialog.DatabaseConfig));
-            _logger.LogDebug("Added database: {Name} with key {Key}", dialog.DatabaseConfig.Name, key);
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)
+            return;
+
+        // Generate a unique GUID-based key for the new database
+        var key = $"db_{Guid.NewGuid():N}";
+        Databases.Add(new DatabaseConfigurationViewModel(key, dialog.DatabaseConfig));
+        _logger.LogDebug("Added database: {Name} with key {Key}", dialog.DatabaseConfig.Name, key);
     }
 
     /// <summary>
@@ -110,19 +115,23 @@ public partial class DatabaseOptionsViewModel : ObservableObject
             return;
         }
 
-        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration);
-        if (dialog.ShowDialog() == true && dialog.DatabaseConfig != null)
+        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration)
         {
-            var index = Databases.IndexOf(SelectedDatabase);
-            if (index >= 0)
-            {
-                // Preserve the original key when updating
-                var originalKey = SelectedDatabase.DatabaseKey;
-                Databases[index] = new DatabaseConfigurationViewModel(originalKey, dialog.DatabaseConfig);
-                SelectedDatabase = Databases[index];
-                _logger.LogDebug("Edited database: {Name}", dialog.DatabaseConfig.Name);
-            }
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)
+            return;
+
+        var index = Databases.IndexOf(SelectedDatabase);
+        if (index < 0)
+            return;
+
+        // Preserve the original key when updating
+        var originalKey = SelectedDatabase.DatabaseKey;
+        Databases[index] = new DatabaseConfigurationViewModel(originalKey, dialog.DatabaseConfig);
+        SelectedDatabase = Databases[index];
+        _logger.LogDebug("Edited database: {Name}", dialog.DatabaseConfig.Name);
     }
 
     /// <summary>

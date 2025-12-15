@@ -2,6 +2,8 @@ using System.Threading.Channels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data;
+using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -45,17 +47,20 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
     private IServiceProvider CreateMockServiceProvider(Mock<IClipService>? clipService = null,
         Mock<ICollectionService>? collectionService = null,
         Mock<IFolderService>? folderService = null,
-        Mock<IApplicationFilterService>? filterService = null)
+        Mock<IApplicationFilterService>? filterService = null,
+        Mock<DatabaseManager>? databaseManager = null)
     {
         var clipServiceProvided = clipService != null;
         var collectionServiceProvided = collectionService != null;
         var folderServiceProvided = folderService != null;
         var filterServiceProvided = filterService != null;
+        var databaseManagerProvided = databaseManager != null;
 
         clipService ??= new Mock<IClipService>();
         collectionService ??= new Mock<ICollectionService>();
         folderService ??= new Mock<IFolderService>();
         filterService ??= new Mock<IApplicationFilterService>();
+        databaseManager ??= new Mock<DatabaseManager>();
 
         // Setup default behaviors only if not provided by caller
         if (!clipServiceProvided)
@@ -74,6 +79,10 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                     Title = "Inbox",
                     LmType = CollectionLmType.Normal,
                 });
+            
+            // Setup GetActiveDatabaseKey to return a test database key
+            collectionService.Setup(p => p.GetActiveDatabaseKey())
+                .Returns("test-database");
         }
 
         if (!folderServiceProvided)
@@ -93,11 +102,23 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                 .ReturnsAsync(false);
         }
 
+        if (!databaseManagerProvided)
+        {
+            // Setup DatabaseManager to return a mock DbContext
+            // For unit tests, we'll need to return null or a mock context
+            // The actual implementation will handle the null case
+            databaseManager.Setup(p => p.GetDatabaseContext(It.IsAny<string>()))
+                .Returns((ClipMate.Data.ClipMateDbContext?)null);
+        }
+
         var services = new ServiceCollection();
         services.AddScoped(_ => clipService.Object);
         services.AddScoped(_ => collectionService.Object);
         services.AddScoped(_ => folderService.Object);
         services.AddScoped(_ => filterService.Object);
+        services.AddScoped(_ => databaseManager.Object);
+        services.AddScoped(_ => new Mock<ISoundService>().Object);
+        services.AddLogging();
 
         return services.BuildServiceProvider();
     }

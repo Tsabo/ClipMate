@@ -4,6 +4,7 @@ using ClipMate.App.Views;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -200,7 +201,10 @@ public partial class HotkeysOptionsViewModel : ObservableObject
         if (string.IsNullOrEmpty(propertyName))
             return;
 
-        var dialog = new HotkeyBindDialog();
+        var dialog = new HotkeyBindDialog
+        {
+            Owner = Application.Current.MainWindow,
+        };
 
         if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.CapturedHotkey))
         {

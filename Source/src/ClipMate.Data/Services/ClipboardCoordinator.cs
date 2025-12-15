@@ -2,6 +2,7 @@ using System.Windows;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data.Repositories;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,6 @@ public class ClipboardCoordinator : IHostedService,
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ISoundService _soundService;
     private CancellationTokenSource? _cts;
     private bool _isMonitoring;
     private Task? _processingTask;
@@ -40,7 +40,6 @@ public class ClipboardCoordinator : IHostedService,
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Register for preferences changed events and hotkey events
@@ -320,10 +319,11 @@ public class ClipboardCoordinator : IHostedService,
     {
         // Create a scope to resolve scoped services
         using var scope = _serviceProvider.CreateScope();
-        var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
         var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
         var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
         var filterService = scope.ServiceProvider.GetRequiredService<IApplicationFilterService>();
+        var soundService = scope.ServiceProvider.GetRequiredService<ISoundService>();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
 
         // Check if clip should be filtered based on source application
         var shouldFilter = await filterService.ShouldFilterAsync(
@@ -347,10 +347,21 @@ public class ClipboardCoordinator : IHostedService,
             clip.ContentHash,
             clip.TextContent?.Length ?? 0);
 
+        Collection? activeCollection = null;
+
         // Assign clip to the active collection and folder
         try
         {
-            var activeCollection = await collectionService.GetActiveAsync(cancellationToken);
+            activeCollection = await collectionService.GetActiveAsync(cancellationToken);
+
+            // Check if collection is read-only
+            if (activeCollection.ReadOnly)
+            {
+                _logger.LogDebug("Active collection is read-only, ignoring clip: {CollectionName}", activeCollection.Title);
+                await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+                return;
+            }
+
             clip.CollectionId = activeCollection.Id;
 
             // Get the active folder (or default to Inbox folder)
@@ -392,22 +403,67 @@ public class ClipboardCoordinator : IHostedService,
             // Continue saving the clip even if we can't get active collection/folder
         }
 
-        // ClipService handles duplicate detection via content hash
-        var savedClip = await clipService.CreateAsync(clip, cancellationToken);
+        // Get the active database context from DatabaseManager
+        var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(activeDatabaseKey))
+        {
+            _logger.LogError("No active database key found, cannot save clip");
+            return;
+        }
 
-        var wasDuplicate = savedClip.Id != clip.Id;
+        var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
+        if (dbContext == null)
+        {
+            _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot save clip", activeDatabaseKey);
+            return;
+        }
+
+        // Create repository with the active database context
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
+        var clipRepository = new ClipRepository(dbContext, logger);
+
+        // Check for duplicate by content hash (in the active database)
+        var existing = await clipRepository.GetByContentHashAsync(clip.ContentHash, cancellationToken);
+        Clip savedClip;
+        bool wasDuplicate;
+
+        if (existing != null)
+        {
+            wasDuplicate = true;
+
+            // Check if collection accepts duplicates
+            if (activeCollection is { AcceptDuplicates: false })
+            {
+                _logger.LogDebug(
+                    "Duplicate clip detected and collection does not accept duplicates, ignoring: {ExistingId}",
+                    existing.Id);
+
+                await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+                return;
+            }
+
+            // Return existing clip instead of creating duplicate
+            savedClip = existing;
+        }
+        else
+        {
+            // Create new clip in the active database
+            savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
+            wasDuplicate = false;
+        }
 
         if (!wasDuplicate)
         {
-            _logger.LogInformation("Clip saved successfully: {ClipId}", savedClip.Id);
+            _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
 
             // Play sound for new clipboard data captured
-            await _soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate);
+            await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);
         }
         else
         {
             _logger.LogDebug(
-                "Duplicate clip detected, using existing: {ExistingId}",
+                "Duplicate clip detected in database '{DatabaseKey}', using existing: {ExistingId}",
+                activeDatabaseKey,
                 savedClip.Id);
         }
 

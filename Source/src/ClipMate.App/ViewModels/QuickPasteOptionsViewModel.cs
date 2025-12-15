@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Views;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -6,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -48,8 +50,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedGoodTargetIndex = -1;
 
-    public QuickPasteOptionsViewModel(
-        IConfigurationService configurationService,
+    public QuickPasteOptionsViewModel(IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<QuickPasteOptionsViewModel> logger)
     {
@@ -102,16 +103,20 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     [RelayCommand]
     private void AddGoodTarget()
     {
-        var dialog = new Views.QuickPasteTargetDialog();
-        if (dialog.ShowDialog() == true)
+        var dialog = new QuickPasteTargetDialog
         {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteGoodTargets.Contains(target))
-            {
-                QuickPasteGoodTargets.Add(target);
-                _logger.LogDebug("Added GOOD target: {Target}", target);
-            }
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var target = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(target) || QuickPasteGoodTargets.Contains(target))
+            return;
+
+        QuickPasteGoodTargets.Add(target);
+        _logger.LogDebug("Added GOOD target: {Target}", target);
     }
 
     /// <summary>
@@ -127,16 +132,20 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         }
 
         var currentTarget = QuickPasteGoodTargets[SelectedGoodTargetIndex];
-        var dialog = new Views.QuickPasteTargetDialog(currentTarget);
-        if (dialog.ShowDialog() == true)
+        var dialog = new QuickPasteTargetDialog(currentTarget)
         {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                QuickPasteGoodTargets[SelectedGoodTargetIndex] = target;
-                _logger.LogDebug("Edited GOOD target from {Old} to {New}", currentTarget, target);
-            }
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var target = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(target))
+            return;
+
+        QuickPasteGoodTargets[SelectedGoodTargetIndex] = target;
+        _logger.LogDebug("Edited GOOD target from {Old} to {New}", currentTarget, target);
     }
 
     /// <summary>
@@ -162,16 +171,20 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     [RelayCommand]
     private void AddBadTarget()
     {
-        var dialog = new Views.QuickPasteTargetDialog();
-        if (dialog.ShowDialog() == true)
+        var dialog = new QuickPasteTargetDialog
         {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target) && !QuickPasteBadTargets.Contains(target))
-            {
-                QuickPasteBadTargets.Add(target);
-                _logger.LogDebug("Added BAD target: {Target}", target);
-            }
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var target = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(target) || QuickPasteBadTargets.Contains(target))
+            return;
+
+        QuickPasteBadTargets.Add(target);
+        _logger.LogDebug("Added BAD target: {Target}", target);
     }
 
     /// <summary>
@@ -187,16 +200,20 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         }
 
         var currentTarget = QuickPasteBadTargets[SelectedBadTargetIndex];
-        var dialog = new Views.QuickPasteTargetDialog(currentTarget);
-        if (dialog.ShowDialog() == true)
+        var dialog = new QuickPasteTargetDialog(currentTarget)
         {
-            var target = dialog.TargetSpecification;
-            if (!string.IsNullOrWhiteSpace(target))
-            {
-                QuickPasteBadTargets[SelectedBadTargetIndex] = target;
-                _logger.LogDebug("Edited BAD target from {Old} to {New}", currentTarget, target);
-            }
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var target = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(target))
+            return;
+
+        QuickPasteBadTargets[SelectedBadTargetIndex] = target;
+        _logger.LogDebug("Edited BAD target from {Old} to {New}", currentTarget, target);
     }
 
     /// <summary>
@@ -222,12 +239,16 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     [RelayCommand]
     private void AddFormattingString()
     {
-        var dialog = new Views.QuickPasteFormattingStringDialog();
-        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
+        var dialog = new QuickPasteFormattingStringDialog
         {
-            QuickPasteFormattingStrings.Add(dialog.FormattingString);
-            _logger.LogDebug("Added formatting string: {Title}", dialog.FormattingString.Title);
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true || dialog.FormattingString == null)
+            return;
+
+        QuickPasteFormattingStrings.Add(dialog.FormattingString);
+        _logger.LogDebug("Added formatting string: {Title}", dialog.FormattingString.Title);
     }
 
     /// <summary>
@@ -249,12 +270,16 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
             return;
         }
 
-        var dialog = new Views.QuickPasteFormattingStringDialog(SelectedFormattingString);
-        if (dialog.ShowDialog() == true && dialog.FormattingString != null)
+        var dialog = new QuickPasteFormattingStringDialog(SelectedFormattingString)
         {
-            QuickPasteFormattingStrings[index] = dialog.FormattingString;
-            _logger.LogDebug("Edited formatting string: {Title}", dialog.FormattingString.Title);
-        }
+            Owner = Application.Current.MainWindow,
+        };
+
+        if (dialog.ShowDialog() != true || dialog.FormattingString == null)
+            return;
+
+        QuickPasteFormattingStrings[index] = dialog.FormattingString;
+        _logger.LogDebug("Edited formatting string: {Title}", dialog.FormattingString.Title);
     }
 
     /// <summary>

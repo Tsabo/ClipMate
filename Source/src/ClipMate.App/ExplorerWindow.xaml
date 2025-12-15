@@ -238,7 +238,7 @@
 
                 <dxdo:LayoutGroup Orientation="Horizontal">
                     <dxdo:LayoutPanel Caption="Collections"
-                                      ItemWidth="110.16*"
+                                      ItemWidth="135.16*"
                                       AllowDrag="False"
                                       AllowFloat="False"
                                       AllowHide="False"

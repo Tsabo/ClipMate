@@ -101,4 +101,29 @@ public interface IClipRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of clipboard formats stored for the clip.</returns>
     Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all clips in a collection with database key prefix.
+    /// Used by retention enforcement.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="collectionId">Collection identifier.</param>
+    /// <returns>List of clips in the collection.</returns>
+    Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(string databaseKey, Guid collectionId);
+
+    /// <summary>
+    /// Moves multiple clips to a target collection.
+    /// Updates CollectionId for each clip.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="clipIds">Clips to move.</param>
+    /// <param name="targetCollectionId">Target collection.</param>
+    Task MoveClipsToCollectionAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId);
+
+    /// <summary>
+    /// Deletes multiple clips permanently.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="clipIds">Clips to delete.</param>
+    Task DeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds);
 }

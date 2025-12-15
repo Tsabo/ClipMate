@@ -6,6 +6,7 @@
                  xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
                  xmlns:models="clr-namespace:ClipMate.Core.Models;assembly=ClipMate.Core"
+                 xmlns:viewModels="clr-namespace:ClipMate.App.ViewModels"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  Title="Collection Properties"
                  Width="550"
@@ -94,13 +95,13 @@
                           Orientation="Horizontal"
                           Height="67">
             <RadioButton Content="Normal"
-                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Normal}}" />
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static viewModels:UiCollectionType.Normal}}" />
             <RadioButton Content="Folder"
-                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Folder}}" />
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static viewModels:UiCollectionType.Folder}}" />
             <RadioButton Content="Trashcan"
-                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Trashcan}}" />
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static viewModels:UiCollectionType.Trashcan}}" />
             <RadioButton Content="Virtual"
-                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:CollectionType.Virtual}}" />
+                         IsChecked="{Binding CollectionType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static viewModels:UiCollectionType.Virtual}}" />
         </dxlc:LayoutGroup>
 
         <!-- Purging Rules (Visible for Normal, Folder, Trashcan) -->

@@ -7,9 +7,13 @@
              xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="250">
-    <UserControl.Resources>
-        <!-- Styles are handled in cell template directly -->
-    </UserControl.Resources>
+    <UserControl.InputBindings>
+        <!-- Keyboard shortcuts for Move Up/Down -->
+        <KeyBinding Key="OemPlus" Command="{Binding MoveUpCommand}" />
+        <KeyBinding Key="Add" Command="{Binding MoveUpCommand}" />
+        <KeyBinding Key="OemMinus" Command="{Binding MoveDownCommand}" />
+        <KeyBinding Key="Subtract" Command="{Binding MoveDownCommand}" />
+    </UserControl.InputBindings>
 
     <!-- DevExpress TreeViewControl for hierarchical collection tree -->
     <dxg:TreeViewControl x:Name="TreeView"
@@ -19,18 +23,49 @@
                          ChildNodesPath="Children"
                          ShowBorder="True"
                          TreeLineStyle="Solid"
-                         SelectedItem="{Binding SelectedNode, Mode=TwoWay}" ShowNodeImages="True">
+                         SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                         ShowNodeImages="True"
+                         AllowDragDrop="True"
+                         AutoExpandOnDrag="True"
+                         DragRecordOver="TreeView_DragRecordOver"
+                         DropRecord="TreeView_DropRecord">
+        <dxg:TreeViewControl.NodeContentTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding Row.Name}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <!-- ReadOnly collections: Red foreground (only for CollectionTreeNode) -->
+                                <DataTrigger Binding="{Binding Row.Collection.IsReadOnly, FallbackValue=False}"
+                                             Value="True">
+                                    <Setter Property="Foreground" Value="Red" />
+                                </DataTrigger>
+                                <!-- Safe collections (PurgePolicy=Never): Underline (only for CollectionTreeNode) -->
+                                <DataTrigger Binding="{Binding Row.Collection.PurgePolicy, FallbackValue=KeepLast}"
+                                             Value="Never">
+                                    <Setter Property="TextDecorations" Value="Underline" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </DataTemplate>
+        </dxg:TreeViewControl.NodeContentTemplate>
 
         <!-- Context Menu -->
         <dxg:TreeViewControl.ContextMenu>
             <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                 <!-- Move Up/Down -->
-                <MenuItem Header="Move Up In Sort Order" InputGestureText="(+)">
+                <MenuItem Header="Move Up In Sort Order"
+                          InputGestureText="(+)"
+                          Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="⬆️" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Move Down In Sort Order" InputGestureText="(-)">
+                <MenuItem Header="Move Down In Sort Order"
+                          InputGestureText="(-)"
+                          Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="⬇️" FontSize="14" />
                     </MenuItem.Icon>
