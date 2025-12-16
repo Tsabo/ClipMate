@@ -20,7 +20,7 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(null!, configurationService.Object, serviceProvider, messenger, soundService.Object, logger))
+        await Assert.That(() => new ClipboardCoordinator(null!, configurationService.Object, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -34,7 +34,7 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, null!, messenger, soundService.Object, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, null!, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -49,7 +49,7 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, null!, soundService.Object, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, null!, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -64,7 +64,7 @@ public partial class ClipboardCoordinatorTests
         var soundService = CreateMockSoundService();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, soundService.Object, null!))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -80,7 +80,7 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();

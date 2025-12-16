@@ -5,8 +5,10 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:views="clr-namespace:ClipMate.App.Views"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
+                 xmlns:converters="clr-namespace:ClipMate.App.Converters"
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
                  mc:Ignorable="d"
                  Title="ClipMate - Clipboard Manager"
@@ -16,6 +18,10 @@
                  MinHeight="545"
                  MinWidth="1000"
                  StateChanged="Window_StateChanged">
+    <dx:ThemedWindow.Resources>
+        <converters:StatusBarStatisticsConverter x:Key="StatusBarStatisticsConverter" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </dx:ThemedWindow.Resources>
     <dx:ThemedWindow.InputBindings>
         <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
     </dx:ThemedWindow.InputBindings>
@@ -284,8 +290,38 @@
         <!-- Status Bar at Bottom -->
         <dxb:BarContainerControl ContainerType="Bottom" Grid.Row="3">
             <dxb:StatusBarControl>
-                <dxb:BarStaticItem Content="Ready" />
-                <dxb:BarStaticItem Content="0 clips | 0 bytes, 0 chars, 0 words" Alignment="Far" />
+                <!-- Far Left: Loading progress bar (visible when loading) -->
+                <!-- TODO: Implement progress tracking for clip loading
+                <dxb:BarStaticItem>
+                    <dxb:BarStaticItem.ContentTemplate>
+                        <DataTemplate>
+                            <dxe:ProgressBarEdit Width="50"
+                                                 MaxWidth="200" 
+                                                 Height="16" 
+                                                 StyleSettings="{dxe:ProgressBarMarqueeStyleSettings}"
+                                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </DataTemplate>
+                    </dxb:BarStaticItem.ContentTemplate>
+                </dxb:BarStaticItem>
+                -->
+                
+                <!-- Left side: Status message -->
+                <dxb:BarStaticItem Content="{Binding StatusMessage}" />
+                
+                <!-- Right side: Statistics (Bytes/Chars/Words or Image dimensions) -->
+                <dxb:BarStaticItem Alignment="Far">
+                    <dxb:BarStaticItem.Content>
+                        <MultiBinding Converter="{StaticResource StatusBarStatisticsConverter}">
+                            <Binding Path="TotalBytes" />
+                            <Binding Path="TotalChars" />
+                            <Binding Path="TotalWords" />
+                            <Binding Path="IsImageSelected" />
+                            <Binding Path="IsLoadingImage" />
+                            <Binding Path="ImageWidth" />
+                            <Binding Path="ImageHeight" />
+                        </MultiBinding>
+                    </dxb:BarStaticItem.Content>
+                </dxb:BarStaticItem>
             </dxb:StatusBarControl>
         </dxb:BarContainerControl>
     </Grid>

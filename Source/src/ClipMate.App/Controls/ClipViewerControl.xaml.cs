@@ -1,11 +1,11 @@
 using System.ComponentModel;
 using System.IO;
 using System.Text;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media.Imaging;
-using ClipMate.Core.Constants;
+using ClipMate.App.ViewModels;
+using ClipMate.App.Views;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Application = System.Windows.Application;
+using Clipboard = System.Windows.Clipboard;
 using DataFormats = System.Windows.DataFormats;
 using MessageBox = System.Windows.MessageBox;
 
@@ -44,9 +45,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
 
         // Initialize toolbar ViewModel
-        _toolbarViewModel = serviceProvider.GetRequiredService<ViewModels.ClipViewerToolbarViewModel>();
+        _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
         TextEditorToolbar.DataContext = _toolbarViewModel;
-        
+
         // Wire up toolbar command handlers
         WireToolbarCommands();
 
@@ -115,6 +116,16 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     #endregion
 
+    #region Property Changed Handlers
+
+    private static async void OnClipIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is ClipViewerControl control && e.NewValue is Guid clipId)
+            await control.LoadClipDataAsync(clipId);
+    }
+
+    #endregion
+
     #region Messenger Event Handlers
 
     /// <summary>
@@ -134,16 +145,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         _logger.LogInformation("[ClipViewer] Received PreferencesChangedEvent - Applying editor settings");
         ApplyEditorSettings();
-    }
-
-    #endregion
-
-    #region Property Changed Handlers
-
-    private static async void OnClipIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is ClipViewerControl control && e.NewValue is Guid clipId)
-            await control.LoadClipDataAsync(clipId);
     }
 
     #endregion
@@ -184,7 +185,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly ILogger<ClipViewerControl> _logger;
     private readonly IMessenger _messenger;
     private readonly IConfigurationService _configurationService;
-    private readonly ViewModels.ClipViewerToolbarViewModel _toolbarViewModel;
+    private readonly ClipViewerToolbarViewModel _toolbarViewModel;
     private readonly ITextTransformService _textTransformService;
 
     private List<ClipData> _currentClipData = [];
@@ -299,7 +300,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
         var textFormat = _currentClipData
             .FirstOrDefault(p =>
-                p is { StorageType: StorageType.Text } && 
+                p is { StorageType: StorageType.Text } &&
                 (p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code));
 
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
@@ -494,6 +495,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
                 _logger.LogDebug("[LoadPicture] PictureViewer updated - Source set: {HasSource}, ActualWidth: {Width}, ActualHeight: {Height}, IsVisible: {IsVisible}",
                     PictureViewer.Source != null, PictureViewer.ActualWidth, PictureViewer.ActualHeight, PictureViewer.IsVisible);
+
+                // Broadcast image dimensions for status bar
+                if (ClipId.HasValue)
+                    _messenger.Send(new ImageDimensionsLoadedEvent(ClipId.Value, bitmap.PixelWidth, bitmap.PixelHeight));
 
                 return Task.CompletedTask;
             }
@@ -964,7 +969,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         var preferences = _configurationService.Configuration.Preferences;
 
         // Apply Binary tab visibility
-        BinaryTab.Visibility = preferences.EnableBinaryView ? Visibility.Visible : Visibility.Collapsed;
+        BinaryTab.Visibility = preferences.EnableBinaryView
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         _logger.LogDebug("[ClipViewer] Applied editor settings - BinaryTab visible: {BinaryVisible}",
             preferences.EnableBinaryView);
@@ -984,26 +991,32 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             case EditorViewType.Unicode:
                 if (TextTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = TextTab;
+
                 break;
             case EditorViewType.Html:
                 if (HtmlTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = HtmlTab;
+
                 break;
             case EditorViewType.Rtf:
                 if (RtfTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = RtfTab;
+
                 break;
             case EditorViewType.Bitmap:
                 if (BitmapTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = BitmapTab;
+
                 break;
             case EditorViewType.Picture:
                 if (PictureTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = PictureTab;
+
                 break;
             case EditorViewType.Binary:
                 if (BinaryTab.Visibility == Visibility.Visible)
                     FormatTabControl.SelectedItem = BinaryTab;
+
                 break;
         }
 
@@ -1020,7 +1033,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         // Get first line
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        var firstLine = lines.Length > 0 ? lines[0].Trim() : text.Trim();
+        var firstLine = lines.Length > 0
+            ? lines[0].Trim()
+            : text.Trim();
 
         // Limit to 100 characters
         if (firstLine.Length > 100)
@@ -1073,13 +1088,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _toolbarViewModel.PropertyChanged += async (_, e) =>
         {
             if (e.PropertyName == nameof(_toolbarViewModel.IsWordWrapEnabled))
-            {
                 await TextEditor.SetWordWrapAsync(_toolbarViewModel.IsWordWrapEnabled);
-            }
             else if (e.PropertyName == nameof(_toolbarViewModel.ShowNonPrintingCharacters))
-            {
                 await TextEditor.SetRenderWhitespaceAsync(_toolbarViewModel.ShowNonPrintingCharacters);
-            }
         };
 
         // Wire up toolbar command handlers
@@ -1116,7 +1127,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var selectedText = await TextEditor.GetSelectedTextAsync();
             if (!string.IsNullOrEmpty(selectedText))
             {
-                System.Windows.Clipboard.SetText(selectedText);
+                Clipboard.SetText(selectedText);
                 await TextEditor.ReplaceSelectionAsync(string.Empty);
                 _logger.LogDebug("Cut {Length} characters", selectedText.Length);
             }
@@ -1134,7 +1145,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var selectedText = await TextEditor.GetSelectedTextAsync();
             if (!string.IsNullOrEmpty(selectedText))
             {
-                System.Windows.Clipboard.SetText(selectedText);
+                Clipboard.SetText(selectedText);
                 _logger.LogDebug("Copied {Length} characters", selectedText.Length);
             }
         }
@@ -1148,9 +1159,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         try
         {
-            if (System.Windows.Clipboard.ContainsText())
+            if (Clipboard.ContainsText())
             {
-                var text = System.Windows.Clipboard.GetText();
+                var text = Clipboard.GetText();
                 await TextEditor.ReplaceSelectionAsync(text);
                 _logger.LogDebug("Pasted {Length} characters", text.Length);
             }
@@ -1171,10 +1182,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             var lineBreakMode = mode switch
             {
-                "PreserveParagraphs" => Core.Models.LineBreakMode.PreserveParagraphs,
-                "RemoveAll" => Core.Models.LineBreakMode.RemoveAll,
-                "UrlCrunch" => Core.Models.LineBreakMode.UrlCrunch,
-                _ => Core.Models.LineBreakMode.PreserveParagraphs
+                "PreserveParagraphs" => LineBreakMode.PreserveParagraphs,
+                "RemoveAll" => LineBreakMode.RemoveAll,
+                "UrlCrunch" => LineBreakMode.UrlCrunch,
+                var _ => LineBreakMode.PreserveParagraphs,
             };
 
             var result = _textTransformService.RemoveLineBreaks(text, lineBreakMode);
@@ -1192,32 +1203,30 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         try
         {
             var selectedText = await TextEditor.GetSelectedTextAsync();
-            var text = string.IsNullOrEmpty(selectedText) ? await TextEditor.GetTextAsync() : selectedText;
-            
+            var text = string.IsNullOrEmpty(selectedText)
+                ? await TextEditor.GetTextAsync()
+                : selectedText;
+
             if (string.IsNullOrEmpty(text))
                 return;
 
             var conversion = caseType switch
             {
-                "Uppercase" => Core.Models.CaseConversion.Uppercase,
-                "Lowercase" => Core.Models.CaseConversion.Lowercase,
-                "TitleCase" => Core.Models.CaseConversion.TitleCase,
-                "SentenceCase" => Core.Models.CaseConversion.SentenceCase,
-                "InvertCase" => Core.Models.CaseConversion.InvertCase,
-                _ => Core.Models.CaseConversion.Uppercase
+                "Uppercase" => CaseConversion.Uppercase,
+                "Lowercase" => CaseConversion.Lowercase,
+                "TitleCase" => CaseConversion.TitleCase,
+                "SentenceCase" => CaseConversion.SentenceCase,
+                "InvertCase" => CaseConversion.InvertCase,
+                var _ => CaseConversion.Uppercase,
             };
 
             var result = _textTransformService.ConvertCase(text, conversion);
-            
+
             if (string.IsNullOrEmpty(selectedText))
-            {
                 await TextEditor.SetTextAsync(result);
-            }
             else
-            {
                 await TextEditor.ReplaceSelectionAsync(result);
-            }
-            
+
             _logger.LogDebug("Converted case to: {CaseType}", caseType);
         }
         catch (Exception ex)
@@ -1250,7 +1259,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             // Get current text from editor
             var currentText = await TextEditor.GetTextAsync();
-            
+
             if (string.IsNullOrEmpty(currentText))
             {
                 MessageBox.Show("No text to clean up.", "Text Cleanup", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1262,17 +1271,17 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             {
                 // Get dialog from DI container
                 var app = (App)Application.Current;
-                var dialog = app.ServiceProvider.GetRequiredService<Views.TextCleanupDialog>();
-                
+                var dialog = app.ServiceProvider.GetRequiredService<TextCleanupDialog>();
+
                 // Set owner to prevent focus issues
                 dialog.Owner = Window.GetWindow(this);
-                
+
                 // Set input text
                 dialog.SetInputText(currentText);
-                
+
                 // Show dialog and get result
                 var result = dialog.ShowDialog();
-                
+
                 if (result == true && !string.IsNullOrEmpty(dialog.ResultText))
                 {
                     // Apply cleaned text to editor

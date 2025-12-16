@@ -34,7 +34,7 @@ public partial class ClipboardCoordinatorTests
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start
@@ -77,7 +77,7 @@ public partial class ClipboardCoordinatorTests
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -117,7 +117,7 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -149,7 +149,7 @@ public partial class ClipboardCoordinatorTests
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -208,7 +208,7 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -225,3 +225,4 @@ public partial class ClipboardCoordinatorTests
         // Test passes if no exception is thrown
     }
 }
+

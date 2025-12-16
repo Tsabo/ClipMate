@@ -30,6 +30,7 @@ var appProject = sourceDir.Combine("src/ClipMate.App").CombineWithFilePath("Clip
 
 // Publish output directory
 var publishDir = buildDir.Combine($"publish/{configuration}");
+var publishSingleFileDir = buildDir.Combine($"publish-singlefile/{configuration}");
 
 // Version information
 string version = "";
@@ -103,6 +104,7 @@ Task("Clean")
     Information("Cleaning build artifacts...");
     
     CleanDirectory(buildDir.Combine("publish"));
+    CleanDirectory(buildDir.Combine("publish-singlefile"));
     CleanDirectory(installerOutputDir);
     CleanDirectory(logsDir);
     
@@ -291,6 +293,49 @@ Task("Publish")
     
     var elapsed = DateTime.Now - startTime;
     Information($"Framework-dependent publish completed in {elapsed.TotalSeconds:F2}s");
+});
+
+Task("Publish-SingleFile")
+    .IsDependentOn("Build")
+    .Does(() =>
+{
+    var startTime = DateTime.Now;
+    Information("Publishing self-contained single-file application...");
+    
+    CleanDirectory(publishSingleFileDir);
+    
+    DotNetPublish(appProject.FullPath, new DotNetPublishSettings
+    {
+        Configuration = configuration,
+        OutputDirectory = publishSingleFileDir,
+        SelfContained = true,
+        Runtime = "win-x64",
+        MSBuildSettings = new DotNetMSBuildSettings()
+            .SetVersion(version)
+            .WithProperty("AssemblyVersion", version.Split('-')[0] + ".0")
+            .WithProperty("FileVersion", version.Split('-')[0] + ".0")
+            .WithProperty("InformationalVersion", version)
+            .WithProperty("PublishSingleFile", "true")
+            .WithProperty("IncludeNativeLibrariesForSelfExtract", "true")
+            .WithProperty("EnableCompressionInSingleFile", "true")
+    });
+    
+    // Find the exe file
+    var exeFile = GetFiles($"{publishSingleFileDir}/*.exe").FirstOrDefault();
+    if (exeFile != null)
+    {
+        var exeSize = new System.IO.FileInfo(exeFile.FullPath).Length;
+        Information($"Single-file executable: {exeFile.GetFilename()}");
+        Information($"Size: {exeSize / 1024 / 1024:F2} MB");
+        Information($"Output directory: {publishSingleFileDir}");
+    }
+    else
+    {
+        Warning("Could not find .exe file in output directory");
+    }
+    
+    var elapsed = DateTime.Now - startTime;
+    Information($"Single-file publish completed in {elapsed.TotalSeconds:F2}s");
 });
 
 Task("Build-Installer")

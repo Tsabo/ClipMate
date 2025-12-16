@@ -21,6 +21,8 @@ The logging verbosity level. Default is Normal.
 .EXAMPLE
 .\build.ps1 -Target Build
 .\build.ps1 -Target Release -Version "1.0.0"
+.\build.ps1 -Verbosity Diagnostic
+.\build.ps1 --target Build --verbosity Diagnostic
 #>
 
 [CmdletBinding()]
@@ -29,7 +31,9 @@ Param(
     [string]$Version = "",
     [string]$Configuration = "Release",
     [ValidateSet("Quiet", "Minimal", "Normal", "Verbose", "Diagnostic")]
-    [string]$Verbosity = "Normal"
+    [string]$Verbosity = "Normal",
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RemainingArguments
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,9 +43,43 @@ $ProgressPreference = "SilentlyContinue"
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
+# Process remaining arguments to handle double-dash syntax
+# This allows: .\build.ps1 --target Build --verbosity Diagnostic
+if ($RemainingArguments) {
+    for ($i = 0; $i -lt $RemainingArguments.Length; $i++) {
+        $arg = $RemainingArguments[$i]
+        
+        switch -Regex ($arg) {
+            '^--target$|^-t$' {
+                if ($i + 1 -lt $RemainingArguments.Length) {
+                    $Target = $RemainingArguments[++$i]
+                }
+            }
+            '^--configuration$|^-c$' {
+                if ($i + 1 -lt $RemainingArguments.Length) {
+                    $Configuration = $RemainingArguments[++$i]
+                }
+            }
+            '^--version$|^-v$' {
+                if ($i + 1 -lt $RemainingArguments.Length) {
+                    $Version = $RemainingArguments[++$i]
+                }
+            }
+            '^--verbosity$' {
+                if ($i + 1 -lt $RemainingArguments.Length) {
+                    $Verbosity = $RemainingArguments[++$i]
+                }
+            }
+        }
+    }
+}
+
 Write-Host "ClipMate Build Script" -ForegroundColor Cyan
 Write-Host "Target: $Target" -ForegroundColor Gray
 Write-Host "Configuration: $Configuration" -ForegroundColor Gray
+if ($Verbosity -ne "Normal") {
+    Write-Host "Verbosity: $Verbosity" -ForegroundColor Gray
+}
 Write-Host ""
 
 # Ensure Cake tool is installed
@@ -72,9 +110,6 @@ $cakeArgs = @(
 if ($Version) {
     $cakeArgs += "--version=$Version"
 }
-
-# Pass through any additional arguments
-$cakeArgs += $args
 
 # Execute Cake
 Write-Host "Executing Cake build..." -ForegroundColor Yellow

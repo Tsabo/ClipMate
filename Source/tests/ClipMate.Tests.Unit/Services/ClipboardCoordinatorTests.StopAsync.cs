@@ -19,7 +19,7 @@ public partial class ClipboardCoordinatorTests
         var messenger = new Mock<IMessenger>().Object;
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, soundService.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start

@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -66,8 +65,8 @@ public class StartupManager : IStartupManager
     {
         try
         {
-            // Get the executable path
-            var executablePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
+            // Get the executable path - use Environment.ProcessPath for single-file compatibility
+            var executablePath = Environment.ProcessPath;
 
             if (string.IsNullOrEmpty(executablePath))
             {

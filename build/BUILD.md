@@ -46,6 +46,24 @@ dotnet tool restore
 .\build\build.ps1 -Target Test
 ```
 
+#### Build Single-File Executable
+
+```powershell
+# Build a self-contained single .exe file (~200MB)
+.\build\build.ps1 -Target Publish-SingleFile
+```
+
+The single-file executable will be located at:
+```
+build/publish-singlefile/Release/ClipMate.exe
+```
+
+This creates a fully self-contained executable with:
+- All dependencies bundled
+- No .NET runtime installation required
+- Native libraries extracted on first run
+- Compressed for smaller file size
+
 #### Build Installer
 
 ```powershell
@@ -77,6 +95,7 @@ This will:
 | `Build` | Compile the solution |
 | `Test` | Run all unit tests |
 | `Publish` | Publish framework-dependent app |
+| `Publish-SingleFile` | Publish self-contained single executable |
 | `Build-Installer` | Create Windows installer (downloads runtimes at install time) |
 | `Sign-Installer` | Sign installer (when SignPath configured) |
 | `Sanitize-Logs` | Remove sensitive data from logs |
@@ -91,6 +110,8 @@ This will:
 Specify the build target to execute:
 
 ```powershell
+# PowerShell syntax (either works)
+.\build\build.ps1 -Target Build
 .\build\build.ps1 --target Build
 ```
 
@@ -99,6 +120,8 @@ Specify the build target to execute:
 Override auto-detected version:
 
 ```powershell
+# PowerShell syntax (either works)
+.\build\build.ps1 -Target Release -Version "1.2.3"
 .\build\build.ps1 --target Release --version "1.2.3"
 ```
 
@@ -107,6 +130,8 @@ Override auto-detected version:
 Set build configuration (Debug or Release):
 
 ```powershell
+# PowerShell syntax (either works)
+.\build\build.ps1 -Configuration Debug
 .\build\build.ps1 --configuration Debug
 ```
 
@@ -115,6 +140,8 @@ Set build configuration (Debug or Release):
 Set logging detail level (Quiet, Minimal, Normal, Verbose, Diagnostic):
 
 ```powershell
+# PowerShell syntax (either works)
+.\build\build.ps1 -Verbosity Diagnostic
 .\build\build.ps1 --verbosity Diagnostic
 ```
 
@@ -186,6 +213,8 @@ After building, artifacts are located in:
 ```
 build/
 ├── publish/Release/                # Framework-dependent output
+├── publish-singlefile/Release/     # Single-file executable
+│   └── ClipMate.exe                # ~200MB self-contained exe
 ├── installer/output/               # Compiled installer
 │   ├── ClipMate-Setup-{version}.exe
 │   └── ClipMate-Setup-{version}.exe.sha256

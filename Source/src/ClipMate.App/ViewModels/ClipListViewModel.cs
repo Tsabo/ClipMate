@@ -308,6 +308,9 @@ public partial class ClipListViewModel : ObservableObject,
 
             await clipboardService.SetClipboardContentAsync(clip);
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
+
+            // Notify that clipboard has been updated
+            _messenger.Send(new ClipboardCopiedEvent(clip));
         }
         catch (Exception ex)
         {
@@ -359,7 +362,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                SelectedClip = Clips.FirstOrDefault();
+                // Don't auto-select a clip - let the user select one
+                SelectedClip = null;
             });
         }
         catch (Exception ex)
@@ -428,7 +432,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                SelectedClip = Clips.FirstOrDefault();
+                // Don't auto-select a clip - let the user select one
+                SelectedClip = null;
             });
         }
         catch (Exception ex)
@@ -497,6 +502,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+                // Don't auto-select a clip - let the user select one
+                SelectedClip = null;
             });
         }
         catch (Exception ex)
@@ -552,7 +559,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
-                SelectedClip = Clips.FirstOrDefault();
+                // Don't auto-select a clip - let the user select one
+                SelectedClip = null;
             });
         }
         catch (Exception ex)

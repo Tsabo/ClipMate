@@ -1,7 +1,11 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -12,9 +16,10 @@ namespace ClipMate.App.ViewModels;
 /// Orchestrates child ViewModels and coordinates the three-pane interface.
 /// Manages window state and application-level concerns.
 /// </summary>
-public partial class ExplorerWindowViewModel : ObservableObject
+public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<ClipSelectedEvent>, IRecipient<ImageDimensionsLoadedEvent>, IRecipient<ClipboardCopiedEvent>
 {
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
+    private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IServiceProvider _serviceProvider;
 
@@ -26,6 +31,7 @@ public partial class ExplorerWindowViewModel : ObservableObject
         MainMenuViewModel mainMenuViewModel,
         IServiceProvider serviceProvider,
         IQuickPasteService quickPasteService,
+        IMessenger messenger,
         ILogger<ExplorerWindowViewModel>? logger = null)
     {
         CollectionTree = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
@@ -36,7 +42,18 @@ public partial class ExplorerWindowViewModel : ObservableObject
         MainMenu = mainMenuViewModel ?? throw new ArgumentNullException(nameof(mainMenuViewModel));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger;
+
+        // Subscribe to clip collection changes to update status bar statistics
+        PrimaryClipList.Clips.CollectionChanged += OnClipsCollectionChanged;
+        PrimaryClipList.PropertyChanged += OnClipListPropertyChanged;
+        CollectionTree.PropertyChanged += OnCollectionTreePropertyChanged;
+
+        // Subscribe to messenger events for status bar updates
+        _messenger.Register<ClipSelectedEvent>(this);
+        _messenger.Register<ImageDimensionsLoadedEvent>(this);
+        _messenger.Register<ClipboardCopiedEvent>(this);
     }
 
     /// <summary>
@@ -159,6 +176,17 @@ public partial class ExplorerWindowViewModel : ObservableObject
             : string.Empty;
     }
 
+    /// <summary>
+    /// Sets the loading state with progress for status bar display.
+    /// </summary>
+    /// <param name="isLoading">Whether clips are currently loading.</param>
+    /// <param name="progress">Loading progress percentage (0-100).</param>
+    public void SetLoading(bool isLoading, int progress = 0)
+    {
+        IsLoading = isLoading;
+        LoadingProgress = progress;
+    }
+
     #region Window Event Handlers
 
     /// <summary>
@@ -202,6 +230,150 @@ public partial class ExplorerWindowViewModel : ObservableObject
         }
 
         return null;
+    }
+
+    #endregion
+
+    #region Status Bar Statistics
+
+    /// <summary>
+    /// Handles changes to the clip list collection to update status bar statistics.
+    /// </summary>
+    private void OnClipsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Clear selected clip reference when collection changes (new collection loaded)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            _selectedClip = null;
+            _clipboardCopied = false;
+        }
+        
+        UpdateStatusBarStatistics(_selectedClip);
+    }
+
+    /// <summary>
+    /// Handles property changes from ClipListViewModel to update status message.
+    /// </summary>
+    private void OnClipListPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ClipListViewModel.CurrentCollectionId) ||
+            e.PropertyName == nameof(ClipListViewModel.CurrentFolderId))
+        {
+            // Clear selected clip when collection/folder changes
+            _selectedClip = null;
+            _clipboardCopied = false;
+            UpdateStatusMessage(_selectedClip);
+        }
+        else if (e.PropertyName == nameof(ClipListViewModel.IsLoading))
+        {
+            // Mirror the loading state from ClipListViewModel
+            IsLoading = PrimaryClipList.IsLoading;
+
+            // Show indeterminate progress (50%) when loading
+            if (IsLoading)
+                LoadingProgress = 50;
+            else
+                LoadingProgress = 0; // Clear progress when done
+        }
+    }
+
+    /// <summary>
+    /// Handles property changes from CollectionTreeViewModel to update status message.
+    /// </summary>
+    private void OnCollectionTreePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CollectionTreeViewModel.SelectedNode))
+            UpdateStatusMessage(_selectedClip);
+    }
+
+    /// <summary>
+    /// Updates status bar statistics (bytes, characters, words) based on loaded clips.
+    /// </summary>
+    /// <param name="selectedClip">The currently selected clip, or null to show collection totals.</param>
+    private void UpdateStatusBarStatistics(Clip? selectedClip)
+    {
+        long bytes = 0;
+        long chars = 0;
+        long words = 0;
+
+        if (selectedClip != null && selectedClip.Type == ClipType.Text)
+        {
+            // Show statistics for the selected text clip
+            bytes = selectedClip.Size;
+            chars = selectedClip.TextContent?.Length ?? 0;
+            words = CountWords(selectedClip.TextContent ?? string.Empty);
+        }
+        else if (selectedClip == null || selectedClip.Type != ClipType.Image)
+        {
+            // Show collection totals when no clip is selected or non-text/non-image clip is selected
+            var clips = PrimaryClipList.Clips;
+
+            foreach (var clip in clips)
+            {
+                bytes += clip.Size;
+                if (clip.Type == ClipType.Text && !string.IsNullOrEmpty(clip.TextContent))
+                {
+                    chars += clip.TextContent.Length;
+                    words += CountWords(clip.TextContent);
+                }
+            }
+        }
+
+        TotalBytes = bytes;
+        TotalChars = chars;
+        TotalWords = words;
+
+        UpdateStatusMessage(selectedClip);
+    }
+
+    /// <summary>
+    /// Updates the status message based on the current collection/folder selection and selected clip.
+    /// </summary>
+    /// <param name="selectedClip">The currently selected clip, or null to show collection info.</param>
+    private void UpdateStatusMessage(Clip? selectedClip)
+    {
+        var clipCount = PrimaryClipList.Clips.Count;
+
+        // Empty state: no clips in collection and no clip selected
+        if (clipCount == 0 && selectedClip == null)
+        {
+            StatusMessage = "There is nothing to display. Copy some data from an application, or select an existing clip.";
+            return;
+        }
+
+        // Clip selected: show clip title with clipboard status
+        if (selectedClip != null)
+        {
+            var clipTitle = selectedClip.Type == ClipType.Image
+                ? $"Graphic: {selectedClip.CapturedAt:g}"
+                : selectedClip.Title ?? "Untitled Clip";
+
+            var copiedSuffix = _clipboardCopied ? " Copied to the System Clipboard." : string.Empty;
+            StatusMessage = $"📋Clip Item [{clipTitle}]{copiedSuffix}";
+            return;
+        }
+
+        // Collection loaded: show collection information
+        var selectedNode = CollectionTree.SelectedNode;
+        string containerName = "Items";
+
+        if (selectedNode is CollectionTreeNode collectionNode)
+            containerName = collectionNode.Name;
+        else if (selectedNode is FolderTreeNode folderNode)
+            containerName = folderNode.Name;
+
+        StatusMessage = $"Loaded - {clipCount} Items from [{containerName}]";
+    }
+
+    /// <summary>
+    /// Counts words in text (whitespace-separated tokens).
+    /// </summary>
+    private static long CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+
+        return text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).LongLength;
     }
 
     #endregion
@@ -256,6 +428,70 @@ public partial class ExplorerWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    /// <summary>
+    /// Loading progress percentage (0-100). Visible when IsLoading is true.
+    /// </summary>
+    [ObservableProperty]
+    private int _loadingProgress;
+
+    /// <summary>
+    /// Indicates whether clips are currently being loaded (shows progress bar).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLoading;
+
+    /// <summary>
+    /// Total bytes across all loaded clips.
+    /// </summary>
+    [ObservableProperty]
+    private long _totalBytes;
+
+    /// <summary>
+    /// Total character count across all loaded clips.
+    /// </summary>
+    [ObservableProperty]
+    private long _totalChars;
+
+    /// <summary>
+    /// Total word count across all loaded clips.
+    /// </summary>
+    [ObservableProperty]
+    private long _totalWords;
+
+    /// <summary>
+    /// Width of the currently selected image clip in pixels.
+    /// </summary>
+    [ObservableProperty]
+    private int _imageWidth;
+
+    /// <summary>
+    /// Height of the currently selected image clip in pixels.
+    /// </summary>
+    [ObservableProperty]
+    private int _imageHeight;
+
+    /// <summary>
+    /// Indicates whether an image clip is currently selected.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isImageSelected;
+
+    /// <summary>
+    /// Indicates whether image dimensions are being loaded for the selected clip.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLoadingImage;
+
+    /// <summary>
+    /// Currently selected clip (cached for status bar updates).
+    /// </summary>
+    private Clip? _selectedClip;
+
+    /// <summary>
+    /// Tracks whether the selected clip has been copied to the clipboard.
+    /// </summary>
+    private bool _clipboardCopied;
 
     [ObservableProperty]
     private double _leftPaneWidth = 250;
@@ -376,6 +612,55 @@ public partial class ExplorerWindowViewModel : ObservableObject
         {
             _logger?.LogError(ex, "Failed to start PowerPaste");
             SetStatus("Error starting PowerPaste");
+        }
+    }
+
+    #endregion
+
+    #region Messenger Event Handlers
+
+    /// <summary>
+    /// Handles ClipSelectedEvent to update status bar when a clip is selected.
+    /// </summary>
+    public void Receive(ClipSelectedEvent message)
+    {
+        _selectedClip = message.SelectedClip;
+        _clipboardCopied = false; // Reset clipboard status when clip changes
+
+        // Reset image-related state
+        IsImageSelected = _selectedClip?.Type == ClipType.Image;
+        IsLoadingImage = IsImageSelected; // Show "Loading..." until dimensions arrive
+        ImageWidth = 0;
+        ImageHeight = 0;
+
+        // Update statistics and message for the selected clip
+        UpdateStatusBarStatistics(_selectedClip);
+    }
+
+    /// <summary>
+    /// Handles ImageDimensionsLoadedEvent to update status bar when image dimensions are loaded.
+    /// </summary>
+    public void Receive(ImageDimensionsLoadedEvent message)
+    {
+        // Only update if this is for the currently selected clip
+        if (_selectedClip?.Id == message.ClipId)
+        {
+            ImageWidth = message.Width;
+            ImageHeight = message.Height;
+            IsLoadingImage = false;
+        }
+    }
+
+    /// <summary>
+    /// Handles ClipboardCopiedEvent to update status bar when a clip is copied to the clipboard.
+    /// </summary>
+    public void Receive(ClipboardCopiedEvent message)
+    {
+        // Only update if this is the currently selected clip
+        if (_selectedClip?.Id == message.Clip.Id)
+        {
+            _clipboardCopied = true;
+            UpdateStatusMessage(_selectedClip);
         }
     }
 

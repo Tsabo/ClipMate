@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
@@ -107,6 +108,9 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         var soundService = new Mock<ISoundService>();
         soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
+        var configService = new Mock<IConfigurationService>();
+        configService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
+
+        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, configService.Object, soundService.Object);
     }
 }

@@ -92,6 +92,7 @@ public class ExplorerWindowViewModelTests
             mainMenuViewModel,
             mockServiceProvider.Object,
             mockQuickPasteService.Object,
+            mockMessenger.Object, // Use the existing mockMessenger.Object from earlier
             mockMainLogger.Object);
     }
 
