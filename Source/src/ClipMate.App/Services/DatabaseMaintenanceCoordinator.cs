@@ -71,7 +71,7 @@ public class DatabaseMaintenanceCoordinator :
 
                 var dialog = new DatabaseBackupDialog(currentDb, globalBackupInterval, globalAutoConfirm)
                 {
-                    Owner = Application.Current.MainWindow,
+                    Owner = Application.Current.GetDialogOwner(),
                 };
 
                 _logger.LogInformation("Showing backup dialog for database: {Name}", currentDb.Name);
@@ -192,10 +192,7 @@ public class DatabaseMaintenanceCoordinator :
             try
             {
                 var wizard = _serviceProvider.GetRequiredService<DatabaseRestoreWizard>();
-                var activeWindow = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive)
-                                   ?? Application.Current.MainWindow;
-
-                wizard.Owner = activeWindow;
+                wizard.Owner = Application.Current.GetDialogOwner();
                 wizard.ShowDialog();
             }
             catch (Exception ex)

@@ -92,7 +92,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             case TrashcanVirtualCollectionNode trashcanNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent for Trashcan: DatabaseKey={DatabaseKey}", databaseKey);
 
-                _messenger.Send(new CollectionNodeSelectedEvent(trashcanNode.VirtualId, null, databaseKey, isTrashcan: true));
+                _messenger.Send(new CollectionNodeSelectedEvent(trashcanNode.VirtualId, null, databaseKey, true));
 
                 break;
 
@@ -205,6 +205,7 @@ public partial class CollectionTreeViewModel : ObservableObject
                             {
                                 Parent = databaseNode,
                             };
+
                             databaseNode.Children.Add(trashcanNode);
 
                             // Add virtual collections container if any virtual collections exist
@@ -403,10 +404,17 @@ public partial class CollectionTreeViewModel : ObservableObject
             scope.ServiceProvider,
             activeDatabaseKey);
 
-        var window = new CollectionPropertiesWindow(viewModel, _configurationService)
+        var window = new CollectionPropertiesWindow(viewModel, _configurationService);
+
+        // Find the ExplorerWindow to use as owner (MainWindow might be HotkeyWindow)
+        var explorerWindow = Application.Current.Windows.OfType<ExplorerWindow>().FirstOrDefault();
+        if (explorerWindow != null)
+            window.Owner = explorerWindow;
+        else
         {
-            Owner = Application.Current.MainWindow,
-        };
+            _logger.LogWarning("ExplorerWindow not found, using MainWindow as owner");
+            window.Owner = Application.Current.MainWindow;
+        }
 
         if (window.ShowDialog() == true)
         {
@@ -438,7 +446,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         // Show the database edit dialog
         var dialog = new DatabaseEditDialog(databaseConfig)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() == true && dialog.DatabaseConfig != null)
@@ -742,9 +750,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     {
         using var scope = _serviceScopeFactory.CreateScope();
         var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-        
+
         await clipRepository.SoftDeleteClipsAsync(databaseKey, clipIds);
-        
+
         _logger.LogInformation("Soft-deleted {Count} clips to Trashcan", clipIds.Count);
     }
 
@@ -755,9 +763,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     {
         using var scope = _serviceScopeFactory.CreateScope();
         var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-        
+
         await clipRepository.RestoreClipsAsync(databaseKey, clipIds, targetCollectionId);
-        
+
         _logger.LogInformation("Restored {Count} clips from Trashcan to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }
 

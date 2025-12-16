@@ -10,10 +10,11 @@
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  Title="Collection Properties"
                  Width="550"
-                 Height="Auto"
+                 Height="600"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="NoResize"
-                 ShowInTaskbar="False">
+                 ShowInTaskbar="False"
+                 SizeToContent="Height">
 
     <!-- DevExpress Dialog Buttons -->
     <dx:ThemedWindow.DialogButtons>

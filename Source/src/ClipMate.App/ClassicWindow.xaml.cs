@@ -1,5 +1,5 @@
 using System.ComponentModel;
-using System.Windows;
+using System.Diagnostics;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 
@@ -12,8 +12,8 @@ namespace ClipMate.App;
 public partial class ClassicWindow
 {
     private readonly IConfigurationService _configurationService;
-    private readonly IQuickPasteService _quickPasteService;
     private readonly bool _isHotkeyTriggered;
+    private readonly IQuickPasteService _quickPasteService;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicWindow(ClassicViewModel viewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, bool isHotkeyTriggered = false)
@@ -30,6 +30,7 @@ public partial class ClassicWindow
 
         // Subscribe to window deactivation for QuickPaste target updates
         Deactivated += ClassicWindow_Deactivated;
+        Activated += ClassicWindow_Activated;
 
         // Load configuration values
         Topmost = _configurationService.Configuration.Preferences.ClassicStayOnTop;
@@ -39,6 +40,22 @@ public partial class ClassicWindow
     {
         if (e.PropertyName == nameof(ClassicViewModel.ShouldCloseWindow) && _viewModel.ShouldCloseWindow)
             Close();
+    }
+
+    private void ClassicWindow_Activated(object? sender, EventArgs e)
+    {
+        // When main window is activated, bring any owned modal dialogs to front
+        // This fixes the issue where dialogs can get hidden when switching between apps
+        foreach (Window ownedWindow in OwnedWindows)
+        {
+            if (!ownedWindow.IsVisible || ownedWindow.IsActive)
+                continue;
+
+            ownedWindow.Activate();
+            ownedWindow.Topmost = true;
+            ownedWindow.Topmost = false; // Flash to bring to front
+            break; // Only activate the top-most owned dialog
+        }
     }
 
     private async void ClassicWindow_Deactivated(object? sender, EventArgs e)
@@ -52,7 +69,7 @@ public partial class ClassicWindow
         catch (Exception ex)
         {
             // Log error silently - QuickPaste target update failures should not crash the window
-            System.Diagnostics.Debug.WriteLine($"Error updating QuickPaste target on window deactivation: {ex.Message}");
+            Debug.WriteLine($"Error updating QuickPaste target on window deactivation: {ex.Message}");
         }
     }
 
@@ -85,6 +102,7 @@ public partial class ClassicWindow
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        Activated -= ClassicWindow_Activated;
         Deactivated -= ClassicWindow_Deactivated;
 
         var config = _configurationService.Configuration.Preferences;

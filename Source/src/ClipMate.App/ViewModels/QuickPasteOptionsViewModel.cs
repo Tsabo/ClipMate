@@ -105,7 +105,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     {
         var dialog = new QuickPasteTargetDialog
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true)
@@ -134,7 +134,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         var currentTarget = QuickPasteGoodTargets[SelectedGoodTargetIndex];
         var dialog = new QuickPasteTargetDialog(currentTarget)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true)
@@ -173,7 +173,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     {
         var dialog = new QuickPasteTargetDialog
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true)
@@ -202,7 +202,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         var currentTarget = QuickPasteBadTargets[SelectedBadTargetIndex];
         var dialog = new QuickPasteTargetDialog(currentTarget)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true)
@@ -241,7 +241,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     {
         var dialog = new QuickPasteFormattingStringDialog
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true || dialog.FormattingString == null)
@@ -272,7 +272,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
 
         var dialog = new QuickPasteFormattingStringDialog(SelectedFormattingString)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true || dialog.FormattingString == null)

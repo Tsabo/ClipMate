@@ -203,7 +203,7 @@ public partial class HotkeysOptionsViewModel : ObservableObject
 
         var dialog = new HotkeyBindDialog
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.CapturedHotkey))

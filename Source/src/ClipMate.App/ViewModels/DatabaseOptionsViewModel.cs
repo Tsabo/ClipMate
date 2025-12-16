@@ -91,7 +91,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     {
         var dialog = new DatabaseEditDialog
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)
@@ -117,7 +117,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
 
         var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = Application.Current.GetDialogOwner(),
         };
 
         if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ClipMate.App.Services;
@@ -60,6 +59,7 @@ public partial class ExplorerWindow : IWindow,
         Loaded += ExplorerWindow_Loaded;
         Closing += ExplorerWindow_Closing;
         PreviewKeyDown += ExplorerWindow_PreviewKeyDown;
+        Activated += ExplorerWindow_Activated;
         Deactivated += ExplorerWindow_Deactivated;
 
         // Subscribe to events
@@ -124,11 +124,11 @@ public partial class ExplorerWindow : IWindow,
 
     private void ExplorerWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.T && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-        {
-            ShowTextTools();
-            e.Handled = true;
-        }
+        if (e.Key != Key.T || (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+            return;
+
+        ShowTextTools();
+        e.Handled = true;
     }
 
     private void ExplorerWindow_Deactivated(object? sender, EventArgs e)
@@ -137,17 +137,33 @@ public partial class ExplorerWindow : IWindow,
         _viewModel.OnWindowDeactivated();
     }
 
+    private void ExplorerWindow_Activated(object? sender, EventArgs e)
+    {
+        // When main window is activated, bring any owned modal dialogs to front
+        // This fixes the issue where dialogs can get hidden when switching between apps
+        foreach (Window ownedWindow in OwnedWindows)
+        {
+            if (!ownedWindow.IsVisible || ownedWindow.IsActive)
+                continue;
+
+            ownedWindow.Activate();
+            ownedWindow.Topmost = true;
+            ownedWindow.Topmost = false; // Flash to bring to front
+            break; // Only activate the top-most owned dialog
+        }
+    }
+
     private void TextTools_Click(object sender, RoutedEventArgs e) => ShowTextTools();
 
     private void ShowTextTools()
     {
         try
         {
-            if (_serviceProvider.GetService(typeof(TextToolsDialog)) is TextToolsDialog textToolsDialog)
-            {
-                textToolsDialog.Owner = this;
-                textToolsDialog.ShowDialog();
-            }
+            if (_serviceProvider.GetService(typeof(TextToolsDialog)) is not TextToolsDialog textToolsDialog)
+                return;
+
+            textToolsDialog.Owner = this;
+            textToolsDialog.ShowDialog();
         }
         catch (Exception ex)
         {
@@ -162,18 +178,18 @@ public partial class ExplorerWindow : IWindow,
     {
         try
         {
-            if (_serviceProvider.GetService(typeof(OptionsDialog)) is OptionsDialog optionsDialog)
-            {
-                // Set the selected tab if specified
-                if (!string.IsNullOrEmpty(selectedTab) && optionsDialog.DataContext is OptionsViewModel viewModel)
-                    viewModel.SelectTab(selectedTab);
+            if (_serviceProvider.GetService(typeof(OptionsDialog)) is not OptionsDialog optionsDialog)
+                return;
 
-                optionsDialog.Owner = this;
-                var result = optionsDialog.ShowDialog();
+            // Set the selected tab if specified
+            if (!string.IsNullOrEmpty(selectedTab) && optionsDialog.DataContext is OptionsViewModel viewModel)
+                viewModel.SelectTab(selectedTab);
 
-                if (result == true)
-                    _logger?.LogInformation("Options saved successfully");
-            }
+            optionsDialog.Owner = this;
+            var result = optionsDialog.ShowDialog();
+
+            if (result == true)
+                _logger?.LogInformation("Options saved successfully");
         }
         catch (Exception ex)
         {
@@ -188,14 +204,14 @@ public partial class ExplorerWindow : IWindow,
     {
         try
         {
-            if (_serviceProvider.GetService(typeof(TemplateEditorDialog)) is TemplateEditorDialog templateEditorDialog)
-            {
-                templateEditorDialog.Owner = this;
-                templateEditorDialog.ShowDialog();
+            if (_serviceProvider.GetService(typeof(TemplateEditorDialog)) is not TemplateEditorDialog templateEditorDialog)
+                return;
 
-                // Reload template menu after dialog closes
-                LoadTemplateMenu();
-            }
+            templateEditorDialog.Owner = this;
+            templateEditorDialog.ShowDialog();
+
+            // Reload template menu after dialog closes
+            LoadTemplateMenu();
         }
         catch (Exception ex)
         {

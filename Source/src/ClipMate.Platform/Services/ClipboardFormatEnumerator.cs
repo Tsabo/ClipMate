@@ -27,7 +27,7 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
         [(uint)Formats.UnicodeText.Code] = Formats.UnicodeText.Name,
         [(uint)Formats.EnhMetafile.Code] = Formats.EnhMetafile.Name,
         [(uint)Formats.HDrop.Code] = Formats.HDrop.Name,
-        [(uint)Formats.Locale.Code] = Formats.Locale.Name
+        [(uint)Formats.Locale.Code] = Formats.Locale.Name,
     };
 
     private readonly ILogger<ClipboardFormatEnumerator> _logger;
@@ -44,6 +44,12 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
 
         try
         {
+            // BUGFIX: Small delay to allow clipboard owner to finish writing formats
+            // Some applications (like SnagitEditor) write formats asynchronously after WM_CLIPBOARDUPDATE fires
+            // Without this delay, EnumClipboardFormats may return 0 formats even though formats are being written
+            // 100ms is a balance between waiting for slow apps and not delaying normal clipboard operations
+            Thread.Sleep(100);
+
             // Try to open the clipboard with retry logic (clipboard may be locked by another app)
             const int maxRetries = 5;
             const int delayMs = 10;
@@ -58,11 +64,11 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
                     break;
                 }
 
-                if (i < maxRetries - 1)
-                {
-                    _logger.LogDebug("Clipboard locked, retry {Retry}/{MaxRetries}", i + 1, maxRetries);
-                    Thread.Sleep(delayMs * (i + 1)); // Exponential backoff
-                }
+                if (i >= maxRetries - 1)
+                    continue;
+
+                _logger.LogDebug("Clipboard locked, retry {Retry}/{MaxRetries}", i + 1, maxRetries);
+                Thread.Sleep(delayMs * (i + 1)); // Exponential backoff
             }
 
             if (!clipboardOpened)
@@ -80,11 +86,11 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
                 {
                     var formatName = GetFormatName(format);
 
-                    if (!string.IsNullOrEmpty(formatName))
-                    {
-                        formats.Add(new ClipboardFormatInfo(formatName, format));
-                        _logger.LogDebug("Enumerated clipboard format: {FormatName} (code: {FormatCode})", formatName, format);
-                    }
+                    if (string.IsNullOrEmpty(formatName))
+                        continue;
+
+                    formats.Add(new ClipboardFormatInfo(formatName, format));
+                    _logger.LogDebug("Enumerated clipboard format: {FormatName} (code: {FormatCode})", formatName, format);
                 }
 
                 _logger.LogInformation("Enumerated {Count} clipboard formats", formats.Count);

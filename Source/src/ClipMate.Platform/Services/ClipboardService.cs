@@ -37,6 +37,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IApplicationProfileService _applicationProfileService;
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
+    private readonly IConfigurationService _configurationService;
 
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
@@ -50,12 +51,14 @@ public class ClipboardService : IClipboardService, IDisposable
         IWin32ClipboardInterop win32Interop,
         IApplicationProfileService applicationProfileService,
         IClipboardFormatEnumerator clipboardFormatEnumerator,
+        IConfigurationService configurationService,
         ISoundService soundService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
@@ -254,9 +257,11 @@ public class ClipboardService : IClipboardService, IDisposable
         try
         {
             // Debouncing: ignore if too soon after last change
+            // Use 150ms to filter out rapid-fire WM_CLIPBOARDUPDATE events from apps
+            // that write clipboard formats sequentially (like SnagitEditor)
             var now = DateTime.UtcNow;
 
-            if ((now - _lastClipboardChange).TotalMilliseconds < _debounceMilliseconds)
+            if ((now - _lastClipboardChange).TotalMilliseconds < 150)
                 return;
 
             _lastClipboardChange = now;
@@ -265,6 +270,10 @@ public class ClipboardService : IClipboardService, IDisposable
 
             if (clip == null)
                 return;
+
+            // Update timestamp AFTER getting clipboard content to prevent duplicate processing
+            // if multiple WM_CLIPBOARDUPDATE events fire simultaneously
+            _lastClipboardChange = DateTime.UtcNow;
 
             // Check if we should suppress this capture (we set the clipboard programmatically)
             if (_suppressCaptureForHash != null && clip.ContentHash == _suppressCaptureForHash)
@@ -280,8 +289,11 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 _logger.LogDebug("Ignoring duplicate clipboard content");
 
-                // Play ignore sound for duplicate content
-                await _soundService.PlaySoundAsync(SoundEvent.Ignore);
+                // Only play sound if this is a user-initiated duplicate (not rapid-fire events from slow clipboard owners)
+                // If duplicate arrives >200ms after last change, it's likely intentional (user copied same thing twice)
+                var timeSinceLastChange = (DateTime.UtcNow - _lastClipboardChange).TotalMilliseconds;
+                if (timeSinceLastChange > 200)
+                    await _soundService.PlaySoundAsync(SoundEvent.Ignore);
 
                 return;
             }
@@ -356,7 +368,7 @@ public class ClipboardService : IClipboardService, IDisposable
         var hasText = IsFormatAllowed(Formats.UnicodeText.Name, allowedFormats) && WpfClipboard.ContainsText();
         var hasRtf = IsFormatAllowed(Formats.RichText.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Rtf);
         var hasHtml = IsFormatAllowed(Formats.Html.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Html);
-        var hasImage = IsFormatAllowed(Formats.Dib.Name, allowedFormats) && WpfClipboard.ContainsImage();
+        var hasImage = (IsFormatAllowed(Formats.Dib.Name, allowedFormats) || IsFormatAllowed(Formats.Bitmap.Name, allowedFormats)) && WpfClipboard.ContainsImage();
         var hasFiles = IsFormatAllowed(Formats.HDrop.Name, allowedFormats) && WpfClipboard.ContainsFileDropList();
 
         // Priority 1: Text formats (includes RTF and HTML)
