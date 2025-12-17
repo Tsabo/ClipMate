@@ -111,7 +111,7 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Assert - Verify foreign keys exist by attempting constrained operations
-        var collection = new Collection { Name = "Test Collection" };
+        var collection = new Collection { Name = "Test Collection", MaxAgeDays = 0, MaxBytes = 0 };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
@@ -174,7 +174,7 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Act - Test CRUD operations work correctly
-        var collection = new Collection { Name = "Integration Test" };
+        var collection = new Collection { Name = "Integration Test", MaxAgeDays = 0, MaxBytes = 0 };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
@@ -220,7 +220,7 @@ public class DatabaseSchemaMigrationTests
         await migrationService.MigrateAsync(_context!);
 
         // Seed test data
-        var collection = new Collection { Name = "Test Collection" };
+        var collection = new Collection { Name = "Test Collection", MaxAgeDays = 0, MaxBytes = 0 };
         _context!.Collections.Add(collection);
         await _context.SaveChangesAsync();
 
@@ -303,9 +303,9 @@ public class DatabaseSchemaMigrationTests
         // Act - Create multiple collections with clips
         var collections = new[]
         {
-            new Collection { Name = "Work" },
-            new Collection { Name = "Personal" },
-            new Collection { Name = "Archive" },
+            new Collection { Name = "Work", MaxAgeDays = 0, MaxBytes = 0 },
+            new Collection { Name = "Personal", MaxAgeDays = 0, MaxBytes = 0 },
+            new Collection { Name = "Archive", MaxAgeDays = 0, MaxBytes = 0 },
         };
 
         _context!.Collections.AddRange(collections);

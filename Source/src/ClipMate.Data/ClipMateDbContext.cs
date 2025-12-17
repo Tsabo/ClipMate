@@ -157,8 +157,8 @@ public class ClipMateDbContext : DbContext
             entity.Property(p => p.Sql).HasMaxLength(256);
 
             // Retention properties (new fields)
-            entity.Property(p => p.MaxBytes).HasDefaultValue(0L);
-            entity.Property(p => p.MaxAgeDays).HasDefaultValue(0);
+            entity.Property(p => p.MaxBytes).HasDefaultValueSql("0");
+            entity.Property(p => p.MaxAgeDays).HasDefaultValueSql("0");
             entity.Property(p => p.Role).IsRequired();
 
             // Indexes for performance
