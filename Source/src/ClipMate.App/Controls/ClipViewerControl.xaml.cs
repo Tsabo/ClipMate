@@ -120,8 +120,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private static async void OnClipIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is ClipViewerControl control && e.NewValue is Guid clipId)
+        if (d is not ClipViewerControl control)
+            return;
+
+        if (e.NewValue is Guid clipId)
+        {
             await control.LoadClipDataAsync(clipId);
+        }
+        else
+        {
+            // No clip selected - hide all tabs
+            control.HideAllTabs();
+        }
     }
 
     #endregion
@@ -947,16 +957,69 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private void SelectFirstAvailableTab()
     {
+        // Try to respect user's preferred default view first
+        var preferences = _configurationService.Configuration.Preferences;
+        var defaultView = preferences.DefaultEditorView;
+
+        // First, try the user's preferred view
+        switch (defaultView)
+        {
+            case EditorViewType.Text:
+            case EditorViewType.Unicode:
+                if (TextTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = TextTab;
+                    return;
+                }
+                break;
+            case EditorViewType.Html:
+                if (HtmlTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = HtmlTab;
+                    return;
+                }
+                break;
+            case EditorViewType.Rtf:
+                if (RtfTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = RtfTab;
+                    return;
+                }
+                break;
+            case EditorViewType.Picture:
+                if (PictureTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = PictureTab;
+                    return;
+                }
+                break;
+            case EditorViewType.Bitmap:
+                if (BitmapTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = BitmapTab;
+                    return;
+                }
+                break;
+            case EditorViewType.Binary:
+                if (BinaryTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = BinaryTab;
+                    return;
+                }
+                break;
+        }
+
+        // Fallback: select first available in priority order (Text > HTML > RTF > Picture > Bitmap > Binary)
         if (TextTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = TextTab;
         else if (HtmlTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = HtmlTab;
         else if (RtfTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = RtfTab;
-        else if (BitmapTab.Visibility == Visibility.Visible)
-            FormatTabControl.SelectedItem = BitmapTab;
         else if (PictureTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = PictureTab;
+        else if (BitmapTab.Visibility == Visibility.Visible)
+            FormatTabControl.SelectedItem = BitmapTab;
         else if (BinaryTab.Visibility == Visibility.Visible)
             FormatTabControl.SelectedItem = BinaryTab;
     }
@@ -982,45 +1045,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     /// </summary>
     private void SetDefaultActiveTab()
     {
+        // SelectFirstAvailableTab now handles both preference and fallback logic
+        SelectFirstAvailableTab();
+        
         var preferences = _configurationService.Configuration.Preferences;
-        var defaultView = preferences.DefaultEditorView;
-
-        switch (defaultView)
-        {
-            case EditorViewType.Text:
-            case EditorViewType.Unicode:
-                if (TextTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = TextTab;
-
-                break;
-            case EditorViewType.Html:
-                if (HtmlTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = HtmlTab;
-
-                break;
-            case EditorViewType.Rtf:
-                if (RtfTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = RtfTab;
-
-                break;
-            case EditorViewType.Bitmap:
-                if (BitmapTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = BitmapTab;
-
-                break;
-            case EditorViewType.Picture:
-                if (PictureTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = PictureTab;
-
-                break;
-            case EditorViewType.Binary:
-                if (BinaryTab.Visibility == Visibility.Visible)
-                    FormatTabControl.SelectedItem = BinaryTab;
-
-                break;
-        }
-
-        _logger.LogDebug("[ClipViewer] Set default active tab to {DefaultView}", defaultView);
+        _logger.LogDebug("[ClipViewer] Set active tab based on preference: {DefaultView}", preferences.DefaultEditorView);
     }
 
     /// <summary>

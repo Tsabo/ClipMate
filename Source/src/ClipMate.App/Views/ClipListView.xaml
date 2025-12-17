@@ -28,16 +28,16 @@
             <ContextMenu>
                 <MenuItem Header="Clip Properties" InputGestureText="Alt+Enter" Click="ClipProperties_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="📋" FontSize="14" />
+                        <emoji:TextBlock Text="📋" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="QuickPaste Tools">
                     <MenuItem.Icon>
-                        <TextBlock Text="➤" FontSize="14" />
+                        <emoji:TextBlock Text="➤" FontSize="14" />
                     </MenuItem.Icon>
                     <MenuItem Header="Paste Now" Click="PasteNow_Click">
                         <MenuItem.Icon>
-                            <TextBlock Text="➤" FontSize="14" Foreground="Green" />
+                            <emoji:TextBlock Text="➤" FontSize="14" Foreground="Green" />
                         </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Header="TAB" InputGestureText="F9" />
@@ -45,12 +45,12 @@
                     <Separator />
                     <MenuItem Header="Lock QuickPaste Target">
                         <MenuItem.Icon>
-                            <TextBlock Text="🔒" FontSize="14" Foreground="Red" />
+                            <emoji:TextBlock Text="🔒" FontSize="14" Foreground="Red" />
                         </MenuItem.Icon>
                     </MenuItem>
                     <MenuItem Header="QuickPaste GoBack">
                         <MenuItem.Icon>
-                            <TextBlock Text="↩" FontSize="14" />
+                            <emoji:TextBlock Text="↩" FontSize="14" />
                         </MenuItem.Icon>
                     </MenuItem>
                     <Separator />
@@ -60,63 +60,63 @@
                 <Separator />
                 <MenuItem Header="Create New, Empty Clip" InputGestureText="Ctrl+N" Click="CreateNewClip_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="📄" FontSize="14" />
+                        <emoji:TextBlock Text="📄" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="View Clip" InputGestureText="F2" Click="ViewClip_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="👁" FontSize="14" />
+                        <emoji:TextBlock Text="👁" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Export Clips (Save To Individual Files)" Click="ExportClips_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="💾" FontSize="14" />
+                        <emoji:TextBlock Text="💾" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Change Title and Shortcut" InputGestureText="Ctrl+R" Click="ChangeTitle_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="✏" FontSize="14" />
+                        <emoji:TextBlock Text="✏" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Delete Selected Items" InputGestureText="Del" Click="DeleteItems_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="🗑" FontSize="14" Foreground="Red" />
+                        <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray" />
                 <Separator />
                 <MenuItem Header="Encrypt selected clips">
                     <MenuItem.Icon>
-                        <TextBlock Text="🔒" FontSize="14" />
+                        <emoji:TextBlock Text="🔒" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Decrypt and remove encryption on selected clips" IsEnabled="False" Foreground="Gray">
                     <MenuItem.Icon>
-                        <TextBlock Text="🔓" FontSize="14" />
+                        <emoji:TextBlock Text="🔓" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Toggle Macros On/Off For This Clip">
                     <MenuItem.Icon>
-                        <TextBlock Text="⚙" FontSize="14" />
+                        <emoji:TextBlock Text="⚙" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A">
                     <MenuItem.Icon>
-                        <TextBlock Text="🔗" FontSize="14" />
+                        <emoji:TextBlock Text="🔗" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Convert File Pointer To Text" />
                 <Separator />
                 <MenuItem Header="Open Source URL In Browser" InputGestureText="Ctrl+O" Click="OpenSourceUrl_Click">
                     <MenuItem.Icon>
-                        <TextBlock Text="🌐" FontSize="14" />
+                        <emoji:TextBlock Text="🌐" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Place Source URL On Clipboard">
                     <MenuItem.Icon>
-                        <TextBlock Text="➕" FontSize="14" Foreground="Green" />
+                        <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator />

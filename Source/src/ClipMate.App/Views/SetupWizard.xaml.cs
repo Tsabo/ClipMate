@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Data;
 using ClipMate.Data.Services;

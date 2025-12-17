@@ -300,8 +300,19 @@ public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<Clip
         {
             // Show statistics for the selected text clip
             bytes = selectedClip.Size;
-            chars = selectedClip.TextContent?.Length ?? 0;
-            words = CountWords(selectedClip.TextContent ?? string.Empty);
+            
+            // If TextContent is loaded, use it for accurate counts
+            if (!string.IsNullOrEmpty(selectedClip.TextContent))
+            {
+                chars = selectedClip.TextContent.Length;
+                words = CountWords(selectedClip.TextContent);
+            }
+            else
+            {
+                // Estimate from Size (Unicode text = 2 bytes per char)
+                chars = selectedClip.Size / 2;
+                words = EstimateWords(chars);
+            }
         }
         else if (selectedClip == null || selectedClip.Type != ClipType.Image)
         {
@@ -311,10 +322,22 @@ public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<Clip
             foreach (var clip in clips)
             {
                 bytes += clip.Size;
-                if (clip.Type == ClipType.Text && !string.IsNullOrEmpty(clip.TextContent))
+                
+                if (clip.Type == ClipType.Text)
                 {
-                    chars += clip.TextContent.Length;
-                    words += CountWords(clip.TextContent);
+                    // If TextContent is loaded, use it for accurate counts
+                    if (!string.IsNullOrEmpty(clip.TextContent))
+                    {
+                        chars += clip.TextContent.Length;
+                        words += CountWords(clip.TextContent);
+                    }
+                    else
+                    {
+                        // Estimate from Size (Unicode text = 2 bytes per char)
+                        var estimatedChars = clip.Size / 2;
+                        chars += estimatedChars;
+                        words += EstimateWords(estimatedChars);
+                    }
                 }
             }
         }
@@ -337,7 +360,7 @@ public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<Clip
         // Empty state: no clips in collection and no clip selected
         if (clipCount == 0 && selectedClip == null)
         {
-            StatusMessage = "There is nothing to display. Copy some data from an application, or select an existing clip.";
+            StatusMessage = "ℹ There is nothing to display. Copy some data from an application, or select an existing clip.";
             return;
         }
 
@@ -362,7 +385,7 @@ public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<Clip
         else if (selectedNode is FolderTreeNode folderNode)
             containerName = folderNode.Name;
 
-        StatusMessage = $"Loaded - {clipCount} Items from [{containerName}]";
+        StatusMessage = $"ℹ Loaded - {clipCount} Items from [{containerName}]";
     }
 
     /// <summary>
@@ -374,6 +397,18 @@ public partial class ExplorerWindowViewModel : ObservableObject, IRecipient<Clip
             return 0;
 
         return text.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).LongLength;
+    }
+
+    /// <summary>
+    /// Estimates word count from character count (average 5 chars per word + space).
+    /// </summary>
+    private static long EstimateWords(long charCount)
+    {
+        if (charCount == 0)
+            return 0;
+
+        // Average English word is ~5 characters + 1 space = 6 characters per word
+        return charCount / 6;
     }
 
     #endregion

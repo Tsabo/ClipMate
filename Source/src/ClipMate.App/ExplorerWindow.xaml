@@ -10,6 +10,7 @@
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  xmlns:converters="clr-namespace:ClipMate.App.Converters"
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
+                 xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
                  mc:Ignorable="d"
                  Title="ClipMate - Clipboard Manager"
                  WindowStartupLocation="CenterScreen"
@@ -306,7 +307,13 @@
                 -->
                 
                 <!-- Left side: Status message -->
-                <dxb:BarStaticItem Content="{Binding StatusMessage}" />
+                <dxb:BarStaticItem Content="{Binding StatusMessage}">
+                    <dxb:BarStaticItem.ContentTemplate>
+                        <DataTemplate>
+                            <emoji:TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </dxb:BarStaticItem.ContentTemplate>
+                </dxb:BarStaticItem>
                 
                 <!-- Right side: Statistics (Bytes/Chars/Words or Image dimensions) -->
                 <dxb:BarStaticItem Alignment="Far">
