@@ -23,9 +23,6 @@
         <converters:StatusBarStatisticsConverter x:Key="StatusBarStatisticsConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </dx:ThemedWindow.Resources>
-    <dx:ThemedWindow.InputBindings>
-        <KeyBinding Key="T" Modifiers="Control+Shift" Command="{Binding ManageTemplatesCommand}" />
-    </dx:ThemedWindow.InputBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -218,13 +215,6 @@
                         <dxb:BarSubItem Content="Visibility" />
                         <dxb:BarSubItem Content="Classic Options" />
                         <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}" />
-                    </dxb:BarSubItem>
-
-                    <!-- Templates Menu -->
-                    <dxb:BarSubItem Content="T_emplates">
-                        <dxb:BarButtonItem Content="_Manage Templates..."
-                                           Command="{Binding MainMenu.ManageTemplatesCommand}"
-                                           KeyGesture="Ctrl+Shift+T" />
                     </dxb:BarSubItem>
 
                     <!-- Help Menu -->

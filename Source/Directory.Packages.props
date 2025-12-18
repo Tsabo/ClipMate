@@ -12,7 +12,6 @@
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
     <PackageVersion Include="Tomlyn.Signed" Version="0.19.0" />
-    <PackageVersion Include="WPF-UI" Version="4.0.3" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />

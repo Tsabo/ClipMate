@@ -55,7 +55,6 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IFolderService, FolderService>();
         services.AddScoped<ISearchService, SearchService>();
-        services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
         services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service

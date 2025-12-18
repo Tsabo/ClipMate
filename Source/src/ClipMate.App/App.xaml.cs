@@ -568,11 +568,6 @@ public partial class App
                 // Register Text Cleanup dialog (no ViewModel - uses code-behind)
                 services.AddTransient<TextCleanupDialog>();
 
-                // Register Template components
-                services.AddTransient<TemplateEditorViewModel>();
-                services.AddTransient<TemplateEditorDialog>();
-                services.AddTransient<PromptDialog>();
-
                 // Register Options dialog components
                 services.AddTransient<GeneralOptionsViewModel>();
                 services.AddTransient<PowerPasteOptionsViewModel>();

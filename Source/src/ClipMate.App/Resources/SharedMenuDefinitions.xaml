@@ -165,11 +165,6 @@
             <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}" />
         </dxb:BarSubItem>
 
-        <dxb:BarSubItem Content="T_emplates">
-            <dxb:BarButtonItem Content="_Manage Templates..." Command="{Binding MainMenu.ManageTemplatesCommand}"
-                               KeyGesture="Ctrl+Shift+T" />
-        </dxb:BarSubItem>
-
         <dxb:BarSubItem Content="_Help">
             <dxb:BarButtonItem Content="About ClipMate" Command="{Binding MainMenu.AboutCommand}" />
             <dxb:BarItemSeparator />
