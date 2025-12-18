@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
 using System.Windows.Threading;
 using ClipMate.App.Services;
 using ClipMate.App.Services.Initialization;
