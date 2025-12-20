@@ -5,9 +5,9 @@
   </PropertyGroup>
   <ItemGroup Label="UI Frameworks">
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageVersion Include="DevExpress.Wpf" Version="25.1.7" />
-    <PackageVersion Include="DevExpress.Mvvm" Version="25.1.7" />
-    <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.1.7" />
+    <PackageVersion Include="DevExpress.Wpf" Version="25.2.3" />
+    <PackageVersion Include="DevExpress.Mvvm" Version="25.2.3" />
+    <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.2.3" />
     <PackageVersion Include="Emoji.Wpf" Version="0.3.4" />
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
@@ -45,11 +45,13 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup Label="Windows Platform">
-    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.259" />
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.264" />
   </ItemGroup>
   <ItemGroup Label="Testing">
-    <PackageVersion Include="TUnit" Version="1.5.48" />
+    <PackageVersion Include="TUnit" Version="1.5.80" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="WpfPilot" Version="2.1.1" />
+    <!-- Exclude to avoid IAsyncEnumerable conflict with .NET 9 System.Runtime -->
+    <PackageVersion Include="System.Interactive.Async" Version="3.0.0" />
   </ItemGroup>
 </Project>
