@@ -31,7 +31,7 @@ public partial class QuickPasteServiceTests
             });
 
         var mockWin32 = CreateMockWin32();
-        mockWin32.Setup(w => w.GetForegroundWindow())
+        mockWin32.Setup(p => p.GetForegroundWindow())
             .Returns(new HWND(12345));
 
         var service = new QuickPasteService(
@@ -54,7 +54,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockConfig = CreateMockConfigurationService();
-        mockConfig.Setup(c => c.Configuration)
+        mockConfig.Setup(p => p.Configuration)
             .Returns(new ClipMateConfiguration
             {
                 Preferences = new PreferencesConfiguration
@@ -94,7 +94,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockConfig = CreateMockConfigurationService();
-        mockConfig.Setup(c => c.Configuration)
+        mockConfig.Setup(p => p.Configuration)
             .Returns(new ClipMateConfiguration
             {
                 Preferences = new PreferencesConfiguration

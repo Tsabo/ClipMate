@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region Command Tests
-
     [Test]
     public async Task ApplyTransformCommand_WithEmptyInput_ShouldSetOutputToEmpty()
     {
@@ -60,6 +58,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(canExecute).IsFalse();
     }
-
-    #endregion
 }

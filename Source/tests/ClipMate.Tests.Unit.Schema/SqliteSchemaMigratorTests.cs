@@ -3,9 +3,6 @@ using ClipMate.Data.Schema.Models;
 using ClipMate.Data.Schema.Sqlite;
 using Microsoft.Data.Sqlite;
 using Moq;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Schema;
 
@@ -23,7 +20,7 @@ public class SqliteSchemaMigratorTests
         var diff = new SchemaDiff();
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: false);
+        var result = await migrator.MigrateAsync(diff, false);
 
         // Assert
         await Assert.That(result.Success).IsTrue();
@@ -42,17 +39,17 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL)"
-                }
-            ]
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL)",
+                },
+            ],
         };
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: false);
+        var result = await migrator.MigrateAsync(diff);
 
         // Assert
         await Assert.That(result.Success).IsTrue();
@@ -77,32 +74,32 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
                 },
 
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.AddColumn,
                     TableName = "Users",
                     ColumnName = "Email",
-                    Sql = "ALTER TABLE Users ADD COLUMN Email TEXT"
+                    Sql = "ALTER TABLE Users ADD COLUMN Email TEXT",
                 },
 
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateIndex,
                     IndexName = "IX_Users_Email",
-                    Sql = "CREATE INDEX IX_Users_Email ON Users (Email)"
-                }
-            ]
+                    Sql = "CREATE INDEX IX_Users_Email ON Users (Email)",
+                },
+            ],
         };
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: false);
+        var result = await migrator.MigrateAsync(diff);
 
         // Assert
         await Assert.That(result.Success).IsTrue();
@@ -123,17 +120,17 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
-                }
-            ]
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
+                },
+            ],
         };
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: true);
+        var result = await migrator.MigrateAsync(diff, true);
 
         // Assert
         await Assert.That(result.Success).IsTrue();
@@ -155,7 +152,7 @@ public class SqliteSchemaMigratorTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         // Create initial table
         using var setupCmd = connection.CreateCommand();
         setupCmd.CommandText = "CREATE TABLE ExistingTable (Id INTEGER PRIMARY KEY)";
@@ -166,24 +163,24 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
                 },
 
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "InvalidTable",
-                    Sql = "INVALID SQL SYNTAX HERE"
-                }
-            ]
+                    Sql = "INVALID SQL SYNTAX HERE",
+                },
+            ],
         };
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: false);
+        var result = await migrator.MigrateAsync(diff);
 
         // Assert
         await Assert.That(result.Success).IsFalse();
@@ -215,20 +212,20 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
-                }
-            ]
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
+                },
+            ],
         };
 
         // Act
-        await migrator.MigrateAsync(diff, dryRun: false);
+        await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(h => h.OnBeforeMigrationAsync(It.IsAny<MigrationContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockHook.Verify(p => p.OnBeforeMigrationAsync(It.IsAny<MigrationContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -243,23 +240,23 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
-                }
-            ]
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
+                },
+            ],
         };
 
         // Act
-        await migrator.MigrateAsync(diff, dryRun: false);
+        await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(h => h.OnAfterMigrationAsync(
-            It.Is<MigrationContext>(ctx => !ctx.IsDryRun), 
-            It.Is<MigrationResult>(r => r.Success), 
-            It.IsAny<CancellationToken>()), 
+        mockHook.Verify(p => p.OnAfterMigrationAsync(
+                It.Is<MigrationContext>(ctx => !ctx.IsDryRun),
+                It.Is<MigrationResult>(r => r.Success),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -275,23 +272,23 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Invalid",
-                    Sql = "INVALID SQL"
-                }
-            ]
+                    Sql = "INVALID SQL",
+                },
+            ],
         };
 
         // Act
-        await migrator.MigrateAsync(diff, dryRun: false);
+        await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(h => h.OnAfterMigrationAsync(
-            It.IsAny<MigrationContext>(), 
-            It.IsAny<MigrationResult>(), 
-            It.IsAny<CancellationToken>()), 
+        mockHook.Verify(p => p.OnAfterMigrationAsync(
+                It.IsAny<MigrationContext>(),
+                It.IsAny<MigrationResult>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -307,27 +304,28 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
-                }
-            ]
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
+                },
+            ],
         };
 
         // Act
-        await migrator.MigrateAsync(diff, dryRun: true);
+        await migrator.MigrateAsync(diff, true);
 
         // Assert
-        mockHook.Verify(h => h.OnBeforeMigrationAsync(
-            It.Is<MigrationContext>(ctx => ctx.IsDryRun), 
-            It.IsAny<CancellationToken>()), 
+        mockHook.Verify(p => p.OnBeforeMigrationAsync(
+                It.Is<MigrationContext>(ctx => ctx.IsDryRun),
+                It.IsAny<CancellationToken>()),
             Times.Once);
-        mockHook.Verify(h => h.OnAfterMigrationAsync(
-            It.Is<MigrationContext>(ctx => ctx.IsDryRun), 
-            It.Is<MigrationResult>(r => r.Success), 
-            It.IsAny<CancellationToken>()), 
+
+        mockHook.Verify(p => p.OnAfterMigrationAsync(
+                It.Is<MigrationContext>(ctx => ctx.IsDryRun),
+                It.Is<MigrationResult>(r => r.Success),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -344,18 +342,18 @@ public class SqliteSchemaMigratorTests
         {
             Operations =
             [
-                new()
+                new MigrationOperation
                 {
                     Type = MigrationOperationType.CreateTable,
                     TableName = "Users",
-                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)"
-                }
+                    Sql = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)",
+                },
             ],
-            Warnings = ["Warning: Schema change may cause data loss"]
+            Warnings = ["Warning: Schema change may cause data loss"],
         };
 
         // Act
-        var result = await migrator.MigrateAsync(diff, dryRun: false);
+        var result = await migrator.MigrateAsync(diff);
 
         // Assert
         await Assert.That(result.Success).IsTrue();

@@ -21,6 +21,8 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 {
+    private const string _testDatabaseKey = "db_test0001";
+
 #pragma warning disable TUnit0023 // Field is disposed in CleanupTestAsync
     private IClipboardService _clipboardService = null!;
 #pragma warning restore TUnit0023
@@ -50,13 +52,28 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var clipRepoLogger = Mock.Of<ILogger<ClipRepository>>();
 
         _clipRepository = new ClipRepository(DbContext, clipRepoLogger);
+
+        // Create repository factory for ClipService
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        repositoryFactory.Setup(f => f.CreateRepository(_testDatabaseKey))
+            .Returns(_clipRepository);
+
         var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        _clipService = new ClipService(_clipRepository, soundService.Object);
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
+
+        // Create a mock service provider for scoped services
+        var mockServiceProvider = new Mock<IServiceProvider>();
+
+        _clipService = new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
         var filterSoundService = new Mock<ISoundService>();
-        filterSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        filterSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         _filterService = new ApplicationFilterService(filterRepository, filterSoundService.Object, filterLogger);
 
         var collectionRepository = new CollectionRepository(DbContext);
@@ -75,11 +92,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
 
         var clipboardSoundService = new Mock<ISoundService>();
-        clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        
+        clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         var clipboardConfigService = new Mock<IConfigurationService>();
         clipboardConfigService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
-        
+
         _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardConfigService.Object, clipboardSoundService.Object);
 
         // Setup DI container for ClipboardCoordinator (needs IServiceProvider for scoped services)
@@ -90,10 +108,13 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddScoped<IFolderService>(_ => folderService);
         services.AddScoped<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        services.AddSingleton(repositoryFactory.Object);
 
         // Register sound service mock
         var soundServiceMock = new Mock<ISoundService>();
-        soundServiceMock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        soundServiceMock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         services.AddSingleton(soundServiceMock.Object);
 
         // Add mock IConfigurationService
@@ -108,14 +129,14 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             },
         };
 
-        mockConfigService.Setup(s => s.Configuration).Returns(config);
+        mockConfigService.Setup(p => p.Configuration).Returns(config);
         services.AddSingleton(mockConfigService.Object);
 
         _serviceProvider = services.BuildServiceProvider();
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, _serviceProvider, messenger, coordinatorLogger);
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, repositoryFactory.Object, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed
@@ -135,7 +156,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             CapturedAt = DateTime.UtcNow,
         };
 
-        await _clipService.CreateAsync(clip1);
+        await _clipService.CreateAsync(_testDatabaseKey, clip1);
 
         // Act - Try to create duplicate
         var clip2 = new Clip
@@ -147,7 +168,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             CapturedAt = DateTime.UtcNow.AddSeconds(1),
         };
 
-        var result = await _clipService.CreateAsync(clip2);
+        var result = await _clipService.CreateAsync(_testDatabaseKey, clip2);
 
         // Assert
         await Assert.That(result.Id).IsEqualTo(clip1.Id);
@@ -196,7 +217,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         };
 
         // Act
-        var saved1 = await _clipService.CreateAsync(clip1);
+        var saved1 = await _clipService.CreateAsync(_testDatabaseKey, clip1);
 
         var clip2 = new Clip
         {
@@ -207,7 +228,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             CapturedAt = DateTime.UtcNow.AddSeconds(5),
         };
 
-        var saved2 = await _clipService.CreateAsync(clip2);
+        var saved2 = await _clipService.CreateAsync(_testDatabaseKey, clip2);
 
         // Assert
         await Assert.That(saved1.Id).IsEqualTo(saved2.Id);
@@ -252,11 +273,11 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var win32Mock = new Mock<IWin32ClipboardInterop>();
         var clipboardLogger = Mock.Of<ILogger<ClipboardService>>();
         var testSoundService = new Mock<ISoundService>();
-        testSoundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        
+        testSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
         var testConfigService = new Mock<IConfigurationService>();
-        testConfigService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
-        
+        testConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+
         using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testConfigService.Object, testSoundService.Object);
 
         // Act & Assert - Service should not filter formats when disabled
@@ -360,7 +381,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await profileServiceMock.Object.UpdateProfileAsync(profile);
 
         // Assert
-        profileServiceMock.Verify(s => s.UpdateProfileAsync(
+        profileServiceMock.Verify(p => p.UpdateProfileAsync(
                 It.Is<CoreApplicationProfile>(p =>
                     p.ApplicationName == "NOTEPAD" &&
                     p.Formats["CF_UNICODETEXT"] == true),

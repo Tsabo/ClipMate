@@ -1,40 +1,39 @@
-using ClipMate.Platform;
-using ClipMate.Platform.Interop;
-using Moq;
 using System.Windows;
-using TUnit.Core.Executors;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
+using ClipMate.Core.Models;
+using ClipMate.Platform;
+using Moq;
+using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyManagerTests
 {
-    #region UnregisterHotkey Tests
-
     [Test]
     [TestExecutor<STAThreadExecutor>]
     public async Task UnregisterHotkey_WithRegisteredId_ShouldReturnTrue()
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(w => w.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
             .Returns(true);
-        mockInterop.Setup(w => w.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()))
+
+        mockInterop.Setup(p => p.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()))
             .Returns(true);
-        
+
         var manager = new HotkeyManager(mockInterop.Object);
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };
-        var hotkeyId = manager.RegisterHotkey(Core.Models.ModifierKeys.Control, 0x56, callback);
+        var hotkeyId = manager.RegisterHotkey(ModifierKeys.Control, 0x56, callback);
 
         // Act
         var result = manager.UnregisterHotkey(hotkeyId);
 
         // Assert
         await Assert.That(result).IsTrue();
-        mockInterop.Verify(w => w.UnregisterHotKey(It.IsAny<HWND>(), hotkeyId), Times.Once);
+        mockInterop.Verify(p => p.UnregisterHotKey(It.IsAny<HWND>(), hotkeyId), Times.Once);
     }
 
     [Test]
@@ -43,9 +42,9 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(w => w.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
             .Returns(true);
-        
+
         var manager = new HotkeyManager(mockInterop.Object);
         var window = new Window();
         manager.Initialize(window);
@@ -69,6 +68,4 @@ public partial class HotkeyManagerTests
         await Assert.That(() => manager.UnregisterHotkey(1))
             .Throws<ObjectDisposedException>();
     }
-
-    #endregion
 }

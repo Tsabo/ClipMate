@@ -33,7 +33,7 @@ public class ClipboardFormatEnumeratorTests
         {
             new("TEXT", 1),
             new("CF_UNICODETEXT", 13),
-            new("LOCALE", 16)
+            new("LOCALE", 16),
         };
 
         mockEnumerator.Setup(p => p.GetAllAvailableFormats())
@@ -59,7 +59,7 @@ public class ClipboardFormatEnumeratorTests
             new("TEXT", 1),
             new("CF_UNICODETEXT", 13),
             new("HTML Format", 49351), // Custom registered format
-            new("Rich Text Format", 49408) // Custom registered format
+            new("Rich Text Format", 49408), // Custom registered format
         };
 
         mockEnumerator.Setup(p => p.GetAllAvailableFormats())
@@ -86,7 +86,7 @@ public class ClipboardFormatEnumeratorTests
         {
             new("HTML Format", 49351), // Note: "Format" is capitalized
             new("dopus_cf_sourcethread", 50123), // Note: all lowercase with underscores
-            new("Preferred DropEffect", 50124) // Note: mixed case with space
+            new("Preferred DropEffect", 50124), // Note: mixed case with space
         };
 
         mockEnumerator.Setup(p => p.GetAllAvailableFormats())

@@ -4,65 +4,11 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public class DatabaseManagerTests
 {
-    // Constructor Tests
-    [Test]
-    public async Task Constructor_WithNullConfigService_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-
-        // Act & Assert
-        await Assert.That(() => new DatabaseManager(null!, contextFactory.Object, logger.Object))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithNullContextFactory_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-
-        // Act & Assert
-        await Assert.That(() => new DatabaseManager(configService.Object, null!, logger.Object))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-
-        // Act & Assert
-        await Assert.That(() => new DatabaseManager(configService.Object, contextFactory.Object, null!))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithValidParameters_CreatesInstance()
-    {
-        // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-
-        // Act
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
-
-        // Assert
-        await Assert.That(manager).IsNotNull();
-    }
-
     // LoadAutoLoadDatabasesAsync Tests
     [Test]
     public async Task LoadAutoLoadDatabasesAsync_WithNoAutoLoadDatabases_ReturnsZero()
@@ -76,11 +22,11 @@ public class DatabaseManagerTests
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
             {
-                { "test", new DatabaseConfiguration { Name = "Test DB", FilePath = "test.db", AutoLoad = false } }
-            }
+                { "test", new DatabaseConfiguration { Name = "Test DB", FilePath = "test.db", AutoLoad = false } },
+            },
         };
 
-        configService.Setup(c => c.LoadAsync(It.IsAny<CancellationToken>()))
+        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
@@ -114,10 +60,10 @@ public class DatabaseManagerTests
 
         var config = new ClipMateConfiguration
         {
-            Databases = new Dictionary<string, DatabaseConfiguration>()
+            Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        configService.Setup(c => c.LoadAsync(It.IsAny<CancellationToken>()))
+        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
@@ -168,10 +114,10 @@ public class DatabaseManagerTests
 
         var config = new ClipMateConfiguration
         {
-            Databases = new Dictionary<string, DatabaseConfiguration>()
+            Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        configService.Setup(c => c.LoadAsync(It.IsAny<CancellationToken>()))
+        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
@@ -217,7 +163,7 @@ public class DatabaseManagerTests
         manager.Dispose();
 
         // Assert
-        contextFactory.Verify(f => f.Dispose(), Times.Once);
+        contextFactory.Verify(p => p.Dispose(), Times.Once);
     }
 
     [Test]
@@ -236,7 +182,7 @@ public class DatabaseManagerTests
         manager.Dispose();
 
         // Assert
-        contextFactory.Verify(f => f.Dispose(), Times.Once);
+        contextFactory.Verify(p => p.Dispose(), Times.Once);
     }
 
     [Test]

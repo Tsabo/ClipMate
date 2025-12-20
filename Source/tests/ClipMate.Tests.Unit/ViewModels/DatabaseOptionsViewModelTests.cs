@@ -39,7 +39,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
             },
         };
 
-        _configServiceMock.Setup(x => x.Configuration).Returns(config);
+        _configServiceMock.Setup(p => p.Configuration).Returns(config);
 
         // Act
         await _viewModel.LoadAsync();
@@ -62,7 +62,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
             Preferences = new PreferencesConfiguration(),
         };
 
-        _configServiceMock.Setup(x => x.Configuration).Returns(config);
+        _configServiceMock.Setup(p => p.Configuration).Returns(config);
 
         _viewModel.Databases.Add(new DatabaseConfigurationViewModel("test", new DatabaseConfiguration { Name = "Test DB" }));
         _viewModel.BackupIntervalDays = 14;

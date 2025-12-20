@@ -15,32 +15,27 @@ public class FolderServiceTests
         _mockRepository = new Mock<IFolderRepository>();
     }
 
-    private IFolderService CreateFolderService()
-    {
-        return new FolderService(_mockRepository.Object);
-    }
+    private IFolderService CreateFolderService() => new FolderService(_mockRepository.Object);
 
-    private Folder CreateTestFolder(Guid? id = null, string name = "Test Folder", Guid? collectionId = null, Guid? parentFolderId = null)
-    {
-        return new Folder
+    private Folder CreateTestFolder(Guid? id = null, string name = "Test Folder", Guid? collectionId = null, Guid? parentFolderId = null) =>
+        new()
         {
             Id = id ?? Guid.NewGuid(),
             Name = name,
             CollectionId = collectionId ?? Guid.NewGuid(),
             ParentFolderId = parentFolderId,
             CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow
+            ModifiedAt = DateTime.UtcNow,
         };
-    }
 
     [Test]
     public async Task CreateAsync_WithValidParameters_ShouldCreateAndReturnFolder()
     {
         // Arrange
-        var name = "New Folder";
+        const string name = "New Folder";
         var collectionId = Guid.NewGuid();
-        
-        _mockRepository.Setup(r => r.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+
+        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Folder f, CancellationToken _) => f);
 
         var service = CreateFolderService();
@@ -54,18 +49,18 @@ public class FolderServiceTests
         await Assert.That(result.CollectionId).IsEqualTo(collectionId);
         await Assert.That(result.ParentFolderId).IsNull();
         await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
-        _mockRepository.Verify(r => r.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockRepository.Verify(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public async Task CreateAsync_WithParentFolder_ShouldSetParentFolderId()
     {
         // Arrange
-        var name = "Subfolder";
+        const string name = "Subfolder";
         var collectionId = Guid.NewGuid();
         var parentFolderId = Guid.NewGuid();
-        
-        _mockRepository.Setup(r => r.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+
+        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Folder f, CancellationToken _) => f);
 
         var service = CreateFolderService();
@@ -93,7 +88,7 @@ public class FolderServiceTests
         // Arrange
         var folderId = Guid.NewGuid();
         var expectedFolder = CreateTestFolder(folderId);
-        _mockRepository.Setup(r => r.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedFolder);
 
         var service = CreateFolderService();
@@ -111,7 +106,7 @@ public class FolderServiceTests
     {
         // Arrange
         var folderId = Guid.NewGuid();
-        _mockRepository.Setup(r => r.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Folder?)null);
 
         var service = CreateFolderService();
@@ -132,10 +127,10 @@ public class FolderServiceTests
         {
             CreateTestFolder(name: "Folder 1", collectionId: collectionId),
             CreateTestFolder(name: "Folder 2", collectionId: collectionId),
-            CreateTestFolder(name: "Folder 3", collectionId: collectionId)
+            CreateTestFolder(name: "Folder 3", collectionId: collectionId),
         };
 
-        _mockRepository.Setup(r => r.GetByCollectionAsync(collectionId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.GetByCollectionAsync(collectionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(folders);
 
         var service = CreateFolderService();
@@ -156,10 +151,10 @@ public class FolderServiceTests
         var rootFolders = new List<Folder>
         {
             CreateTestFolder(name: "Root 1", collectionId: collectionId, parentFolderId: null),
-            CreateTestFolder(name: "Root 2", collectionId: collectionId, parentFolderId: null)
+            CreateTestFolder(name: "Root 2", collectionId: collectionId, parentFolderId: null),
         };
 
-        _mockRepository.Setup(r => r.GetRootFoldersAsync(collectionId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.GetRootFoldersAsync(collectionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(rootFolders);
 
         var service = CreateFolderService();
@@ -169,7 +164,7 @@ public class FolderServiceTests
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
-        await Assert.That(result.All(f => f.ParentFolderId == null)).IsTrue();
+        await Assert.That(result.All(p => p.ParentFolderId == null)).IsTrue();
     }
 
     [Test]
@@ -180,10 +175,10 @@ public class FolderServiceTests
         var childFolders = new List<Folder>
         {
             CreateTestFolder(name: "Child 1", parentFolderId: parentFolderId),
-            CreateTestFolder(name: "Child 2", parentFolderId: parentFolderId)
+            CreateTestFolder(name: "Child 2", parentFolderId: parentFolderId),
         };
 
-        _mockRepository.Setup(r => r.GetChildFoldersAsync(parentFolderId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.GetChildFoldersAsync(parentFolderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(childFolders);
 
         var service = CreateFolderService();
@@ -193,7 +188,7 @@ public class FolderServiceTests
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
-        await Assert.That(result.All(f => f.ParentFolderId == parentFolderId)).IsTrue();
+        await Assert.That(result.All(p => p.ParentFolderId == parentFolderId)).IsTrue();
     }
 
     [Test]
@@ -203,7 +198,7 @@ public class FolderServiceTests
         var folder = CreateTestFolder();
         folder.Name = "Updated Name";
 
-        _mockRepository.Setup(r => r.UpdateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var service = CreateFolderService();
@@ -213,7 +208,7 @@ public class FolderServiceTests
 
         // Assert
         await Assert.That(folder.ModifiedAt).IsNotNull();
-        _mockRepository.Verify(r => r.UpdateAsync(folder, It.IsAny<CancellationToken>()), Times.Once);
+        _mockRepository.Verify(p => p.UpdateAsync(folder, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -231,7 +226,7 @@ public class FolderServiceTests
     {
         // Arrange
         var folderId = Guid.NewGuid();
-        _mockRepository.Setup(r => r.DeleteAsync(folderId, It.IsAny<CancellationToken>()))
+        _mockRepository.Setup(p => p.DeleteAsync(folderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var service = CreateFolderService();
@@ -240,6 +235,6 @@ public class FolderServiceTests
         await service.DeleteAsync(folderId);
 
         // Assert
-        _mockRepository.Verify(r => r.DeleteAsync(folderId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockRepository.Verify(p => p.DeleteAsync(folderId, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

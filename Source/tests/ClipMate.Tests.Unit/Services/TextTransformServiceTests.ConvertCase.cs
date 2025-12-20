@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class TextTransformServiceTests
 {
-    #region ConvertCase Tests
-
     [Test]
     [Arguments("hello world", CaseConversion.Uppercase, "HELLO WORLD")]
     [Arguments("HELLO WORLD", CaseConversion.Lowercase, "hello world")]
@@ -38,6 +36,4 @@ public partial class TextTransformServiceTests
         await Assert.That(() => 
             _service.ConvertCase(null!, CaseConversion.Uppercase)).Throws<ArgumentNullException>();
     }
-
-    #endregion
 }

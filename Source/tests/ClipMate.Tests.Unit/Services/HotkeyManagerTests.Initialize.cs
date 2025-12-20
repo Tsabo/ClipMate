@@ -1,13 +1,11 @@
-using ClipMate.Platform;
 using System.Windows;
+using ClipMate.Platform;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyManagerTests
 {
-    #region Initialize Tests
-
     [Test]
     [TestExecutor<STAThreadExecutor>]
     public async Task Initialize_WithValidWindow_ShouldNotThrow()
@@ -62,6 +60,4 @@ public partial class HotkeyManagerTests
         await Assert.That(() => manager.Initialize(window))
             .Throws<ObjectDisposedException>();
     }
-
-    #endregion
 }

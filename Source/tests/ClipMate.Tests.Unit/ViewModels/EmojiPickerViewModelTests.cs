@@ -131,7 +131,7 @@ public class EmojiPickerViewModelTests
         viewModel.SelectEmojiCommand.Execute(emoji);
 
         // Assert - verify SaveAsync was called to persist usage
-        configService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        configService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class EmojiPickerViewModelTests
         viewModel.SelectEmojiCommand.Execute(emoji2);
 
         // Assert - verify SaveAsync was called multiple times
-        configService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        configService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
     }
 
     // SelectCategoryCommand Tests
@@ -248,8 +248,8 @@ public class EmojiPickerViewModelTests
             RecentEmojis = recentEmojis ?? [],
         };
 
-        mock.Setup(c => c.Configuration).Returns(config);
-        mock.Setup(c => c.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        mock.Setup(p => p.Configuration).Returns(config);
+        mock.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         return mock;
     }

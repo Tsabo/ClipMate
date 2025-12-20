@@ -5,7 +5,6 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -15,7 +14,7 @@ public class CollectionServiceTests
     private const string _testDatabaseKey = "test-db";
     private readonly Mock<ICollectionRepository> _mockRepository;
     private ClipMateDbContext _dbContext = null!;
-    private Mock<DatabaseManager> _mockDatabaseManager = null!;
+    private Mock<IDatabaseManager> _mockDatabaseManager = null!;
 
     public CollectionServiceTests()
     {
@@ -32,17 +31,9 @@ public class CollectionServiceTests
 
         _dbContext = new ClipMateDbContext(options);
 
-        // Mock DatabaseManager - provide constructor arguments as params array
-        var mockConfigService = new Mock<IConfigurationService>();
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        var mockLogger = new Mock<ILogger<DatabaseManager>>();
-
-        _mockDatabaseManager = new Mock<DatabaseManager>(
-            mockConfigService.Object,
-            mockContextFactory.Object,
-            mockLogger.Object);
-
-        _mockDatabaseManager.Setup(m => m.GetDatabaseContext(_testDatabaseKey))
+        // Mock IDatabaseManager - interfaces don't need constructor arguments
+        _mockDatabaseManager = new Mock<IDatabaseManager>();
+        _mockDatabaseManager.Setup(p => p.GetDatabaseContext(_testDatabaseKey))
             .Returns(_dbContext);
     }
 
@@ -74,8 +65,8 @@ public class CollectionServiceTests
     public async Task CreateAsync_WithValidName_ShouldCreateAndReturnCollection()
     {
         // Arrange
-        var name = "Test Collection";
-        var description = "Test Description";
+        const string name = "Test Collection";
+        const string description = "Test Description";
 
         _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Collection c, CancellationToken _) => c);

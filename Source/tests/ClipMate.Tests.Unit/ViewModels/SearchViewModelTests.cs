@@ -26,11 +26,11 @@ public class SearchViewModelTests
         // Create mock service scope factory
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(x => x.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
-        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
+        mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
 
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
+        _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
 
         _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object);
     }
@@ -80,7 +80,7 @@ public class SearchViewModelTests
         };
 
         _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(searchResults);
 
         _viewModel.SearchText = "test";
@@ -91,7 +91,7 @@ public class SearchViewModelTests
         // Assert
         await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(1);
         await Assert.That(_viewModel.TotalMatches).IsEqualTo(1);
-        _mockSearchService.Verify(s => s.SearchAsync("test", It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockSearchService.Verify(p => p.SearchAsync("test", It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -106,7 +106,7 @@ public class SearchViewModelTests
         // Assert
         await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(0);
         await Assert.That(_viewModel.TotalMatches).IsEqualTo(0);
-        _mockSearchService.Verify(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockSearchService.Verify(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -122,7 +122,7 @@ public class SearchViewModelTests
 
         SearchFilters? capturedFilters = null;
         _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
             .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
@@ -156,7 +156,7 @@ public class SearchViewModelTests
 
         SearchFilters? capturedFilters = null;
         _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
             .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
@@ -251,7 +251,7 @@ public class SearchViewModelTests
         // Arrange
         var history = new List<string> { "query 1", "query 2", "query 3" };
         _mockSearchService
-            .Setup(s => s.GetSearchHistoryAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.GetSearchHistoryAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(history.AsReadOnly());
 
         // Act
@@ -268,7 +268,7 @@ public class SearchViewModelTests
         // Arrange
         var tcs = new TaskCompletionSource<SearchResults>();
         _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
             .Returns(tcs.Task);
 
         _viewModel.SearchText = "test";

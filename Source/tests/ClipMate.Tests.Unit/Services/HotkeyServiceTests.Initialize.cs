@@ -7,8 +7,6 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyServiceTests
 {
-    #region Initialize Tests
-
     [Test]
     [TestExecutor<STAThreadExecutor>]
     public async Task Initialize_WithValidWindow_ShouldCallManagerInitialize()
@@ -22,7 +20,7 @@ public partial class HotkeyServiceTests
         service.Initialize(window);
 
         // Assert
-        mockManager.Verify(m => m.Initialize(window), Times.Once);
+        mockManager.Verify(p => p.Initialize(window), Times.Once);
     }
 
     [Test]
@@ -51,6 +49,4 @@ public partial class HotkeyServiceTests
         await Assert.That(() => service.Initialize(window))
             .Throws<ObjectDisposedException>();
     }
-
-    #endregion
 }

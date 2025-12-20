@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region SortLines Tests
-
     [Test]
     public async Task ApplyTransform_SortLinesAlphabetically_ShouldSortLines()
     {
@@ -35,6 +33,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("2\n10\n21\n100");
     }
-
-    #endregion
 }

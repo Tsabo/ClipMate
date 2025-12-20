@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region CleanUpText Tests
-
     [Test]
     public async Task ApplyTransform_CleanUpTextRemoveSpaces_ShouldCollapseSpaces()
     {
@@ -35,6 +33,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("Line 1\nLine 2");
     }
-
-    #endregion
 }

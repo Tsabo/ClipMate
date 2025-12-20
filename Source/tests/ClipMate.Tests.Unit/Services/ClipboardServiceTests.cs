@@ -113,9 +113,9 @@ public class ClipboardServiceTests : TestFixtureBase
 
         try
         {
-            await foreach (var clip in service.ClipsChannel.ReadAllAsync(cts.Token))
+            await foreach (var item in service.ClipsChannel.ReadAllAsync(cts.Token))
             {
-                clips.Add(clip);
+                clips.Add(item);
                 if (clips.Count >= 2)
                     break;
             }

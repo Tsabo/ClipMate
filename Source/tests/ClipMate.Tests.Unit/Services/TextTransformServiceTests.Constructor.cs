@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class TextTransformServiceTests
 {
-    #region Constructor Tests
-
     [Test]
     public async Task Constructor_ShouldCreateInstance()
     {
@@ -15,6 +13,4 @@ public partial class TextTransformServiceTests
         // Assert
         await Assert.That(service).IsNotNull();
     }
-
-    #endregion
 }

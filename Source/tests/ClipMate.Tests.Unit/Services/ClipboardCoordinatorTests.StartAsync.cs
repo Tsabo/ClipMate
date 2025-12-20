@@ -1,3 +1,4 @@
+using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
@@ -15,11 +16,12 @@ public partial class ClipboardCoordinatorTests
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger, logger);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);

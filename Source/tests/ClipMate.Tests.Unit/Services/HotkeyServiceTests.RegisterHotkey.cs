@@ -6,21 +6,19 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyServiceTests
 {
-    #region RegisterHotkey Tests
-
     [Test]
     public async Task RegisterHotkey_WithValidParameters_ShouldReturnTrue()
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
-        
+
         var service = new HotkeyService(mockManager.Object);
         var action = () => { };
 
         // Act
-        var result = service.RegisterHotkey(100, Core.Models.ModifierKeys.Control, 0x56, action); // Ctrl+V
+        var result = service.RegisterHotkey(100, ModifierKeys.Control, 0x56, action); // Ctrl+V
 
         // Assert
         await Assert.That(result).IsTrue();
@@ -35,7 +33,7 @@ public partial class HotkeyServiceTests
         var service = new HotkeyService(mockManager.Object);
 
         // Act & Assert
-        await Assert.That(() => service.RegisterHotkey(100, Core.Models.ModifierKeys.Control, 0x56, null!))
+        await Assert.That(() => service.RegisterHotkey(100, ModifierKeys.Control, 0x56, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -44,16 +42,16 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
-        
+
         var service = new HotkeyService(mockManager.Object);
         var action1 = () => { };
         var action2 = () => { };
 
         // Act - Register twice with same ID
-        var result1 = service.RegisterHotkey(100, Core.Models.ModifierKeys.Control, 0x56, action1);
-        var result2 = service.RegisterHotkey(100, Core.Models.ModifierKeys.Alt, 0x43, action2);
+        var result1 = service.RegisterHotkey(100, ModifierKeys.Control, 0x56, action1);
+        var result2 = service.RegisterHotkey(100, ModifierKeys.Alt, 0x43, action2);
 
         // Assert
         await Assert.That(result1).IsTrue();
@@ -71,7 +69,7 @@ public partial class HotkeyServiceTests
         var action = () => { };
 
         // Act & Assert
-        await Assert.That(() => service.RegisterHotkey(100, Core.Models.ModifierKeys.Control, 0x56, action))
+        await Assert.That(() => service.RegisterHotkey(100, ModifierKeys.Control, 0x56, action))
             .Throws<ObjectDisposedException>();
     }
 
@@ -80,23 +78,21 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var capturedModifiers = Core.Models.ModifierKeys.None;
-        
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<Core.Models.ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
-            .Callback<Core.Models.ModifierKeys, int, Action>((mods, key, action) => capturedModifiers = mods)
+        var capturedModifiers = ModifierKeys.None;
+
+        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+            .Callback<ModifierKeys, int, Action>((mods, key, action) => capturedModifiers = mods)
             .Returns(1);
-        
+
         var service = new HotkeyService(mockManager.Object);
         var action = () => { };
 
         // Act
-        var modifiers = Core.Models.ModifierKeys.Control | Core.Models.ModifierKeys.Alt | Core.Models.ModifierKeys.Shift;
+        var modifiers = ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift;
         service.RegisterHotkey(100, modifiers, 0x56, action);
 
         // Assert
-        var expectedModifiers = Core.Models.ModifierKeys.Control | Core.Models.ModifierKeys.Alt | Core.Models.ModifierKeys.Shift;
+        var expectedModifiers = ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift;
         await Assert.That(capturedModifiers).IsEqualTo(expectedModifiers);
     }
-
-    #endregion
 }

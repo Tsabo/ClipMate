@@ -16,6 +16,8 @@ namespace ClipMate.Tests.Integration.Services;
 /// </summary>
 public class ClipPersistenceTests : IntegrationTestBase
 {
+    private const string _testDatabaseKey = "db_test0001";
+
     [Test]
     public async Task SavedClip_ShouldPersistAcrossDbContextInstances()
     {
@@ -32,7 +34,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         };
 
         // Act - Save in first context
-        var savedClip = await clipService.CreateAsync(clip);
+        var savedClip = await clipService.CreateAsync(_testDatabaseKey, clip);
         var savedId = savedClip.Id;
 
         // Save changes to ensure data is persisted
@@ -49,7 +51,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         var newClipService = CreateClipServiceWithContext(newContext);
 
         // Assert - Retrieve in new context
-        var retrievedClip = await newClipService.GetByIdAsync(savedId);
+        var retrievedClip = await newClipService.GetByIdAsync(_testDatabaseKey, savedId);
         await Assert.That(retrievedClip).IsNotNull();
         await Assert.That(retrievedClip!.ContentHash).IsEqualTo("test_hash_123");
         await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
@@ -91,13 +93,13 @@ public class ClipPersistenceTests : IntegrationTestBase
         };
 
         // Act
-        await clipService.CreateAsync(clip1);
-        await clipService.CreateAsync(clip2);
-        await clipService.CreateAsync(clip3);
+        await clipService.CreateAsync(_testDatabaseKey, clip1);
+        await clipService.CreateAsync(_testDatabaseKey, clip2);
+        await clipService.CreateAsync(_testDatabaseKey, clip3);
         await DbContext.SaveChangesAsync();
 
         // Assert
-        var recentClips = await clipService.GetRecentAsync(10);
+        var recentClips = await clipService.GetRecentAsync(_testDatabaseKey, 10);
         await Assert.That(recentClips.Count).IsEqualTo(3);
         await Assert.That(recentClips[0].TextContent).IsEqualTo("Third"); // Most recent first
         await Assert.That(recentClips[1].TextContent).IsEqualTo("Second");
@@ -119,10 +121,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         };
 
         // Act
-        var savedClip = await clipService.CreateAsync(clip);
+        var savedClip = await clipService.CreateAsync(_testDatabaseKey, clip);
         await DbContext.SaveChangesAsync();
 
-        var retrievedClip = await clipService.GetByIdAsync(savedClip.Id);
+        var retrievedClip = await clipService.GetByIdAsync(_testDatabaseKey, savedClip.Id);
 
         // Assert
         await Assert.That(retrievedClip).IsNotNull();
@@ -145,13 +147,13 @@ public class ClipPersistenceTests : IntegrationTestBase
         };
 
         // Act
-        var savedClip = await clipService.CreateAsync(clip);
+        var savedClip = await clipService.CreateAsync(_testDatabaseKey, clip);
         await DbContext.SaveChangesAsync();
 
-        await clipService.DeleteAsync(savedClip.Id);
+        await clipService.DeleteAsync(_testDatabaseKey, savedClip.Id);
         await DbContext.SaveChangesAsync();
 
-        var deletedClip = await clipService.GetByIdAsync(savedClip.Id);
+        var deletedClip = await clipService.GetByIdAsync(_testDatabaseKey, savedClip.Id);
 
         // Assert
         await Assert.That(deletedClip).IsNull();
@@ -173,10 +175,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         };
 
         // Act
-        await clipService.CreateAsync(clip);
+        await clipService.CreateAsync(_testDatabaseKey, clip);
         await DbContext.SaveChangesAsync();
 
-        var isDuplicate = await clipService.IsDuplicateAsync(contentHash);
+        var isDuplicate = await clipService.IsDuplicateAsync(_testDatabaseKey, contentHash);
 
         // Assert
         await Assert.That(isDuplicate).IsTrue();
@@ -187,12 +189,24 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipService()
     {
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+
+        // Setup factory to return a real repository for the test database
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        repositoryFactory.Setup(p => p.CreateRepository(_testDatabaseKey))
+            .Returns(repository);
 
-        return new ClipService(repository, soundService.Object);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+
+        // Create a mock service provider for scoped services
+        var mockServiceProvider = new Mock<IServiceProvider>();
+
+        return new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, serviceLogger);
     }
 
     /// <summary>
@@ -200,11 +214,23 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+
+        // Setup factory to return a real repository with the provided context
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        repositoryFactory.Setup(p => p.CreateRepository(_testDatabaseKey))
+            .Returns(repository);
 
-        return new ClipService(repository, soundService.Object);
+        var soundService = new Mock<ISoundService>();
+        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+
+        // Create a mock service provider for scoped services
+        var mockServiceProvider = new Mock<IServiceProvider>();
+
+        return new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, serviceLogger);
     }
 }

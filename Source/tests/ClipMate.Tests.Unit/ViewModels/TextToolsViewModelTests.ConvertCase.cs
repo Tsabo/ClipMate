@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region ConvertCase Tests
-
     [Test]
     public async Task ApplyTransform_ConvertCaseUppercase_ShouldConvertToUppercase()
     {
@@ -50,6 +48,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("Hello World");
     }
-
-    #endregion
 }

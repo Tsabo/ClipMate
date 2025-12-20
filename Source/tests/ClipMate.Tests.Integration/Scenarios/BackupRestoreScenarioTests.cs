@@ -163,13 +163,13 @@ public class BackupRestoreScenarioTests : IntegrationTestBase
 
         // Assert - All backups exist
         await Assert.That(backups.Count).IsEqualTo(3);
-        foreach (var backup in backups)
-            await Assert.That(File.Exists(backup)).IsTrue();
+        foreach (var item in backups)
+            await Assert.That(File.Exists(item)).IsTrue();
 
         // Verify each backup can be opened
-        foreach (var backup in backups)
+        foreach (var item in backups)
         {
-            using var archive = ZipFile.OpenRead(backup);
+            using var archive = ZipFile.OpenRead(item);
             await Assert.That(archive.Entries.Count).IsGreaterThan(0);
         }
     }

@@ -4,13 +4,11 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class TextTransformServiceTests
 {
-    #region ConvertFormat Tests
-
     [Test]
     public async Task ConvertFormat_PlainToPlain_ShouldReturnSame()
     {
         // Arrange
-        var input = "Plain text";
+        const string input = "Plain text";
 
         // Act
         var result = _service.ConvertFormat(input, TextFormat.Plain, TextFormat.Plain);
@@ -23,8 +21,8 @@ public partial class TextTransformServiceTests
     public async Task ConvertFormat_PlainToHtml_ShouldWrapInParagraph()
     {
         // Arrange
-        var input = "Line 1\nLine 2";
-        var expected = "<p>Line 1<br/>Line 2</p>";
+        const string input = "Line 1\nLine 2";
+        const string expected = "<p>Line 1<br/>Line 2</p>";
 
         // Act
         var result = _service.ConvertFormat(input, TextFormat.Plain, TextFormat.Html);
@@ -37,8 +35,8 @@ public partial class TextTransformServiceTests
     public async Task ConvertFormat_HtmlToPlain_ShouldStripTags()
     {
         // Arrange
-        var input = "<p>Hello <strong>world</strong>!</p>";
-        var expected = "Hello world!";
+        const string input = "<p>Hello <strong>world</strong>!</p>";
+        const string expected = "Hello world!";
 
         // Act
         var result = _service.ConvertFormat(input, TextFormat.Html, TextFormat.Plain);
@@ -46,6 +44,4 @@ public partial class TextTransformServiceTests
         // Assert
         await Assert.That(result).IsEqualTo(expected);
     }
-
-    #endregion
 }

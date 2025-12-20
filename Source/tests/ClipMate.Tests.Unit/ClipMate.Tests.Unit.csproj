@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0-windows</TargetFramework>
@@ -20,6 +20,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Moq" />
     <PackageReference Include="TUnit" />
+    <!-- Explicitly exclude System.Interactive.Async to avoid conflict with System.Runtime in .NET 9 -->
+    <PackageReference Include="System.Interactive.Async" ExcludeAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

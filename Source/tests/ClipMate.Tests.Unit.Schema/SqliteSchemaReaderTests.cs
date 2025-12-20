@@ -28,15 +28,17 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Users (
-                Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Name TEXT NOT NULL,
-                Email TEXT,
-                Age INTEGER DEFAULT 0
-            )";
+        cmd.CommandText = """
+                          CREATE TABLE Users (
+                              Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                              Name TEXT NOT NULL,
+                              Email TEXT,
+                              Age INTEGER DEFAULT 0
+                          )
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var reader = new SqliteSchemaReader(connection);
@@ -47,30 +49,30 @@ public class SqliteSchemaReaderTests
         // Assert
         await Assert.That(schema.Tables).Count().IsEqualTo(1);
         await Assert.That(schema.Tables.ContainsKey("Users")).IsTrue();
-        
+
         var table = schema.Tables["Users"];
         await Assert.That(table.Name).IsEqualTo("Users");
         await Assert.That(table.Columns).Count().IsEqualTo(4);
-        
+
         // Verify columns
-        var idCol = table.Columns.FirstOrDefault(c => c.Name == "Id");
+        var idCol = table.Columns.FirstOrDefault(p => p.Name == "Id");
         await Assert.That(idCol).IsNotNull();
         await Assert.That(idCol!.Type).IsEqualTo("INTEGER");
         await Assert.That(idCol.IsPrimaryKey).IsTrue();
         await Assert.That(idCol.IsNullable).IsFalse();
-        
-        var nameCol = table.Columns.FirstOrDefault(c => c.Name == "Name");
+
+        var nameCol = table.Columns.FirstOrDefault(p => p.Name == "Name");
         await Assert.That(nameCol).IsNotNull();
         await Assert.That(nameCol!.Type).IsEqualTo("TEXT");
         await Assert.That(nameCol.IsPrimaryKey).IsFalse();
         await Assert.That(nameCol.IsNullable).IsFalse();
-        
-        var emailCol = table.Columns.FirstOrDefault(c => c.Name == "Email");
+
+        var emailCol = table.Columns.FirstOrDefault(p => p.Name == "Email");
         await Assert.That(emailCol).IsNotNull();
         await Assert.That(emailCol!.Type).IsEqualTo("TEXT");
         await Assert.That(emailCol.IsNullable).IsTrue();
-        
-        var ageCol = table.Columns.FirstOrDefault(c => c.Name == "Age");
+
+        var ageCol = table.Columns.FirstOrDefault(p => p.Name == "Age");
         await Assert.That(ageCol).IsNotNull();
         await Assert.That(ageCol!.Type).IsEqualTo("INTEGER");
         await Assert.That(ageCol.DefaultValue).IsEqualTo("0");
@@ -82,17 +84,18 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Products (
-                Id INTEGER PRIMARY KEY,
-                Name TEXT NOT NULL,
-                Category TEXT
-            );
-            CREATE INDEX IX_Products_Name ON Products(Name);
-            CREATE UNIQUE INDEX IX_Products_Category ON Products(Category);
-        ";
+        cmd.CommandText = """
+                          CREATE TABLE Products (
+                              Id INTEGER PRIMARY KEY,
+                              Name TEXT NOT NULL,
+                              Category TEXT
+                          );
+                          CREATE INDEX IX_Products_Name ON Products(Name);
+                          CREATE UNIQUE INDEX IX_Products_Category ON Products(Category);
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var reader = new SqliteSchemaReader(connection);
@@ -103,13 +106,13 @@ public class SqliteSchemaReaderTests
         // Assert
         var table = schema.Tables["Products"];
         await Assert.That(table.Indexes).Count().IsEqualTo(2);
-        
-        var nameIndex = table.Indexes.FirstOrDefault(i => i.Name == "IX_Products_Name");
+
+        var nameIndex = table.Indexes.FirstOrDefault(p => p.Name == "IX_Products_Name");
         await Assert.That(nameIndex).IsNotNull();
         await Assert.That(nameIndex!.IsUnique).IsFalse();
         await Assert.That(nameIndex.Columns).Contains("Name");
-        
-        var categoryIndex = table.Indexes.FirstOrDefault(i => i.Name == "IX_Products_Category");
+
+        var categoryIndex = table.Indexes.FirstOrDefault(p => p.Name == "IX_Products_Category");
         await Assert.That(categoryIndex).IsNotNull();
         await Assert.That(categoryIndex!.IsUnique).IsTrue();
         await Assert.That(categoryIndex.Columns).Contains("Category");
@@ -121,25 +124,26 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         // Need to enable foreign keys for this test
         await using var enableFK = connection.CreateCommand();
         enableFK.CommandText = "PRAGMA foreign_keys = ON";
         await enableFK.ExecuteNonQueryAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Categories (
-                Id INTEGER PRIMARY KEY,
-                Name TEXT NOT NULL
-            );
-            CREATE TABLE Products (
-                Id INTEGER PRIMARY KEY,
-                CategoryId INTEGER NOT NULL,
-                Name TEXT NOT NULL,
-                FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE CASCADE ON UPDATE NO ACTION
-            );
-        ";
+        cmd.CommandText = """
+                          CREATE TABLE Categories (
+                              Id INTEGER PRIMARY KEY,
+                              Name TEXT NOT NULL
+                          );
+                          CREATE TABLE Products (
+                              Id INTEGER PRIMARY KEY,
+                              CategoryId INTEGER NOT NULL,
+                              Name TEXT NOT NULL,
+                              FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE CASCADE ON UPDATE NO ACTION
+                          );
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var reader = new SqliteSchemaReader(connection);
@@ -150,7 +154,7 @@ public class SqliteSchemaReaderTests
         // Assert
         var productsTable = schema.Tables["Products"];
         await Assert.That(productsTable.ForeignKeys).Count().IsEqualTo(1);
-        
+
         var fk = productsTable.ForeignKeys[0];
         await Assert.That(fk.ColumnName).IsEqualTo("CategoryId");
         await Assert.That(fk.ReferencedTable).IsEqualTo("Categories");
@@ -165,19 +169,21 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Users (Id INTEGER PRIMARY KEY);
-            CREATE TABLE __InternalTable (Id INTEGER PRIMARY KEY);
-            CREATE TABLE Products (Id INTEGER PRIMARY KEY);
-        ";
+        cmd.CommandText = """
+                          CREATE TABLE Users (Id INTEGER PRIMARY KEY);
+                          CREATE TABLE __InternalTable (Id INTEGER PRIMARY KEY);
+                          CREATE TABLE Products (Id INTEGER PRIMARY KEY);
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var options = new SchemaOptions
         {
-            IgnoredTables = ["__InternalTable"]
+            IgnoredTables = ["__InternalTable"],
         };
+
         var reader = new SqliteSchemaReader(connection, options);
 
         // Act
@@ -196,23 +202,26 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Users (
-                Id INTEGER PRIMARY KEY,
-                Name TEXT NOT NULL,
-                RowVersion BLOB
-            )";
+        cmd.CommandText = """
+                          CREATE TABLE Users (
+                              Id INTEGER PRIMARY KEY,
+                              Name TEXT NOT NULL,
+                              RowVersion BLOB
+                          )
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var options = new SchemaOptions
         {
             IgnoredColumns = new Dictionary<string, HashSet<string>>
             {
-                ["Users"] = ["RowVersion"]
-            }
+                ["Users"] = ["RowVersion"],
+            },
         };
+
         var reader = new SqliteSchemaReader(connection, options);
 
         // Act
@@ -221,9 +230,9 @@ public class SqliteSchemaReaderTests
         // Assert
         var table = schema.Tables["Users"];
         await Assert.That(table.Columns).Count().IsEqualTo(2);
-        await Assert.That(table.Columns.Any(c => c.Name == "Id")).IsTrue();
-        await Assert.That(table.Columns.Any(c => c.Name == "Name")).IsTrue();
-        await Assert.That(table.Columns.Any(c => c.Name == "RowVersion")).IsFalse();
+        await Assert.That(table.Columns.Any(p => p.Name == "Id")).IsTrue();
+        await Assert.That(table.Columns.Any(p => p.Name == "Name")).IsTrue();
+        await Assert.That(table.Columns.Any(p => p.Name == "RowVersion")).IsFalse();
     }
 
     [Test]
@@ -232,7 +241,7 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)";
         await cmd.ExecuteNonQueryAsync();
@@ -242,12 +251,12 @@ public class SqliteSchemaReaderTests
 
         // Act
         var schema1 = await reader.ReadSchemaAsync();
-        
+
         // Add another table after first read
         await using var cmd2 = connection.CreateCommand();
         cmd2.CommandText = "CREATE TABLE Products (Id INTEGER PRIMARY KEY)";
         await cmd2.ExecuteNonQueryAsync();
-        
+
         var schema2 = await reader.ReadSchemaAsync();
 
         // Assert - should still only have Users because of cache
@@ -262,7 +271,7 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "CREATE TABLE Users (Id INTEGER PRIMARY KEY)";
         await cmd.ExecuteNonQueryAsync();
@@ -272,12 +281,12 @@ public class SqliteSchemaReaderTests
 
         // Act
         var schema1 = await reader.ReadSchemaAsync();
-        
+
         // Add another table after first read
         await using var cmd2 = connection.CreateCommand();
         cmd2.CommandText = "CREATE TABLE Products (Id INTEGER PRIMARY KEY)";
         await cmd2.ExecuteNonQueryAsync();
-        
+
         var schema2 = await reader.ReadSchemaAsync();
 
         // Assert - should have both tables on second read
@@ -291,15 +300,17 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE OrderItems (
-                OrderId INTEGER NOT NULL,
-                ProductId INTEGER NOT NULL,
-                Quantity INTEGER NOT NULL,
-                PRIMARY KEY (OrderId, ProductId)
-            )";
+        cmd.CommandText = """
+                          CREATE TABLE OrderItems (
+                              OrderId INTEGER NOT NULL,
+                              ProductId INTEGER NOT NULL,
+                              Quantity INTEGER NOT NULL,
+                              PRIMARY KEY (OrderId, ProductId)
+                          )
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var reader = new SqliteSchemaReader(connection);
@@ -310,10 +321,10 @@ public class SqliteSchemaReaderTests
         // Assert
         var table = schema.Tables["OrderItems"];
         var pkColumns = table.Columns.Where(c => c.IsPrimaryKey).ToList();
-        
+
         await Assert.That(pkColumns).Count().IsEqualTo(2);
-        await Assert.That(pkColumns.Any(c => c.Name == "OrderId")).IsTrue();
-        await Assert.That(pkColumns.Any(c => c.Name == "ProductId")).IsTrue();
+        await Assert.That(pkColumns.Any(p => p.Name == "OrderId")).IsTrue();
+        await Assert.That(pkColumns.Any(p => p.Name == "ProductId")).IsTrue();
     }
 
     [Test]
@@ -322,15 +333,17 @@ public class SqliteSchemaReaderTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = @"
-            CREATE TABLE Users (
-                Id INTEGER PRIMARY KEY,
-                FirstName TEXT,
-                LastName TEXT,
-                Email TEXT
-            )";
+        cmd.CommandText = """
+                          CREATE TABLE Users (
+                              Id INTEGER PRIMARY KEY,
+                              FirstName TEXT,
+                              LastName TEXT,
+                              Email TEXT
+                          )
+                          """;
+
         await cmd.ExecuteNonQueryAsync();
 
         var reader = new SqliteSchemaReader(connection);

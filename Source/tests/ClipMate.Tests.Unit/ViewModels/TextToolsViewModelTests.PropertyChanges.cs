@@ -5,8 +5,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region Property Change Tests
-
     [Test]
     public async Task InputText_WhenChanged_ShouldRaisePropertyChanged()
     {
@@ -39,6 +37,4 @@ public partial class TextToolsViewModelTests
         await Assert.That(_viewModel.SelectedTool).IsEqualTo(TextTool.SortLines);
         await Assert.That(_viewModel.SelectedTool).IsNotEqualTo(initialTool);
     }
-
-    #endregion
 }

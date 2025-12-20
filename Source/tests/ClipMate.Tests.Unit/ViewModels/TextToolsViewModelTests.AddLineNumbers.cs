@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region AddLineNumbers Tests
-
     [Test]
     public async Task ApplyTransform_AddLineNumbers_ShouldAddNumbers()
     {
@@ -34,6 +32,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("[001] Line one\n[002] Line two");
     }
-
-    #endregion
 }

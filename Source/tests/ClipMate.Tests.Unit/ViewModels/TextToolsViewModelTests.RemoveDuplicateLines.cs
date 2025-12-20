@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region RemoveDuplicateLines Tests
-
     [Test]
     public async Task ApplyTransform_RemoveDuplicateLines_ShouldRemoveDuplicates()
     {
@@ -34,6 +32,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("Apple\napple\nAPPLE");
     }
-
-    #endregion
 }

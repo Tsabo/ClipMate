@@ -1,5 +1,5 @@
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
@@ -12,13 +12,14 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// <summary>
 /// Base class for CollectionTreeViewModel tests containing shared setup.
 /// </summary>
-public partial class CollectionTreeViewModelTests
+public class CollectionTreeViewModelTests
 {
     private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IFolderService> _mockFolderService;
+    private readonly Mock<ICollectionTreeBuilder> _mockCollectionTreeBuilder;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
-    private readonly Mock<IMessenger> _mockMessenger;
+    private readonly Mock<IFolderService> _mockFolderService;
     private readonly Mock<ILogger<CollectionTreeViewModel>> _mockLogger;
+    private readonly Mock<IMessenger> _mockMessenger;
     private readonly CollectionTreeViewModel _viewModel;
 
     public CollectionTreeViewModelTests()
@@ -28,37 +29,43 @@ public partial class CollectionTreeViewModelTests
         _mockConfigurationService = new Mock<IConfigurationService>();
         _mockMessenger = new Mock<IMessenger>();
         _mockLogger = new Mock<ILogger<CollectionTreeViewModel>>();
-        
+        _mockCollectionTreeBuilder = new Mock<ICollectionTreeBuilder>();
+
         // Setup default configuration with a single database
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
             {
-                ["default"] = new DatabaseConfiguration
+                ["default"] = new()
                 {
                     Name = "My Clips",
                     FilePath = "C:\\test\\clipmate.db",
-                    AutoLoad = true
-                }
+                    AutoLoad = true,
+                },
             },
-            DefaultDatabase = "default"
+            DefaultDatabase = "default",
         };
-        _mockConfigurationService.Setup(x => x.Configuration).Returns(config);
-        
+
+        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+
         // Create a mock service scope factory that returns our mock services
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(_mockFolderService.Object);
-        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
-        
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(_mockFolderService.Object);
+        mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
+
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
-        
+        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
+
+        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+
         _viewModel = new CollectionTreeViewModel(
             mockServiceScopeFactory.Object,
             _mockConfigurationService.Object,
+            mockRepositoryFactory.Object,
             _mockMessenger.Object,
+            _mockCollectionTreeBuilder.Object,
             _mockLogger.Object);
     }
 }

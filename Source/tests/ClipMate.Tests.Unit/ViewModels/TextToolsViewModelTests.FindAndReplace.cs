@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region FindAndReplace Tests
-
     [Test]
     public async Task ApplyTransform_FindAndReplaceLiteral_ShouldReplaceText()
     {
@@ -38,6 +36,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("Contact: [EMAIL]");
     }
-
-    #endregion
 }

@@ -1,4 +1,5 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
 
@@ -16,7 +17,10 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
     public void Setup()
     {
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
-        _viewModel = new MainMenuViewModel(_messengerMock.Object);
+        _viewModel = new MainMenuViewModel(
+            _messengerMock.Object,
+            new Mock<IClipService>().Object,
+            new Mock<IUndoService>().Object);
     }
 
     [Test]

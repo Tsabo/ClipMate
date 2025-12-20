@@ -22,7 +22,7 @@ public class StartupInitializationPipelineTests
         var step1 = new Mock<IStartupInitializationStep>();
         step1.Setup(p => p.Name).Returns("Step 1");
         step1.Setup(p => p.Order).Returns(10);
-        step1.Setup(s => s.InitializeAsync(It.IsAny<CancellationToken>()))
+        step1.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
             .Callback(() => executionOrder.Add("Step 1"));
 
@@ -48,7 +48,7 @@ public class StartupInitializationPipelineTests
         await pipeline.RunAsync();
 
         // Assert
-        await Assert.That(executionOrder).IsEquivalentTo(new[] { "Step 1", "Step 2", "Step 3" });
+        await Assert.That(executionOrder).IsEquivalentTo(["Step 1", "Step 2", "Step 3"]);
     }
 
     [Test]

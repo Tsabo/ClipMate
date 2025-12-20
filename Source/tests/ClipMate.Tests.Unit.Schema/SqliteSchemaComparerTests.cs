@@ -1,8 +1,5 @@
 using ClipMate.Data.Schema.Models;
 using ClipMate.Data.Schema.Sqlite;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Schema;
 
@@ -35,17 +32,17 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 },
                     ],
-                    CreateSql = "CREATE TABLE Users (...)"
-                }
-            }
+                    CreateSql = "CREATE TABLE Users (...)",
+                },
+            },
         };
 
         // Act
@@ -67,27 +64,28 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
+
         var expected = new SchemaDefinition
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -110,43 +108,44 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 },
                     ],
-                    Indexes = []
-                }
-            }
+                    Indexes = [],
+                },
+            },
         };
+
         var expected = new SchemaDefinition
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 },
                     ],
                     Indexes =
                     [
-                        new()
+                        new IndexDefinition
                         {
                             Name = "IX_Users_Email",
                             TableName = "Users",
                             Columns = ["Email"],
                             IsUnique = false,
-                            CreateSql = "CREATE INDEX IX_Users_Email ON Users (Email)"
-                        }
-                    ]
-                }
-            }
+                            CreateSql = "CREATE INDEX IX_Users_Email ON Users (Email)",
+                        },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -168,13 +167,14 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
+
         var expected = new SchemaDefinition();
 
         // Act
@@ -182,7 +182,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
-        await Assert.That(diff.Warnings.Any(w => w.Contains("Users"))).IsTrue();
+        await Assert.That(diff.Warnings.Any(p => p.Contains("Users"))).IsTrue();
     }
 
     [Test]
@@ -194,27 +194,28 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "OldColumn", Type = "TEXT", IsNullable = true, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "OldColumn", Type = "TEXT", IsNullable = true, Position = 1 },
+                    ],
+                },
+            },
         };
+
         var expected = new SchemaDefinition
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -222,7 +223,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
-        await Assert.That(diff.Warnings.Any(w => w.Contains("OldColumn"))).IsTrue();
+        await Assert.That(diff.Warnings.Any(p => p.Contains("OldColumn"))).IsTrue();
     }
 
     [Test]
@@ -234,31 +235,32 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Age", Type = "TEXT", IsNullable = true, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Age", Type = "TEXT", IsNullable = true, Position = 1 },
+                    ],
+                },
+            },
         };
+
         var expected = new SchemaDefinition
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Age", Type = "INTEGER", IsNullable = true, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Age", Type = "INTEGER", IsNullable = true, Position = 1 },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -266,7 +268,7 @@ public class SqliteSchemaComparerTests
 
         // Assert
         await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
-        await Assert.That(diff.Warnings.Any(w => w.Contains("Age") && w.Contains("type"))).IsTrue();
+        await Assert.That(diff.Warnings.Any(p => p.Contains("Age") && p.Contains("type"))).IsTrue();
     }
 
     [Test]
@@ -278,33 +280,34 @@ public class SqliteSchemaComparerTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
+
         var expected = new SchemaDefinition
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 }
-                    ]
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Email", Type = "TEXT", IsNullable = true, Position = 1 },
+                    ],
                 },
-                ["Products"] = new TableDefinition
+                ["Products"] = new()
                 {
                     Name = "Products",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
-                    CreateSql = "CREATE TABLE Products (...)"
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                    CreateSql = "CREATE TABLE Products (...)",
+                },
+            },
         };
 
         // Act
@@ -313,7 +316,7 @@ public class SqliteSchemaComparerTests
         // Assert
         await Assert.That(diff.HasChanges).IsTrue();
         await Assert.That(diff.Operations).Count().IsEqualTo(2);
-        await Assert.That(diff.Operations.Any(op => op.Type == MigrationOperationType.CreateTable && op.TableName == "Products")).IsTrue();
-        await Assert.That(diff.Operations.Any(op => op.Type == MigrationOperationType.AddColumn && op.ColumnName == "Email")).IsTrue();
+        await Assert.That(diff.Operations.Any(p => p is { Type: MigrationOperationType.CreateTable, TableName: "Products" })).IsTrue();
+        await Assert.That(diff.Operations.Any(p => p is { Type: MigrationOperationType.AddColumn, ColumnName: "Email" })).IsTrue();
     }
 }

@@ -12,7 +12,7 @@ public partial class HotkeyServiceTests : TestFixtureBase
     {
         var mock = new Mock<IHotkeyManager>();
         // Setup UnregisterHotkey to return true by default
-        mock.Setup(m => m.UnregisterHotkey(It.IsAny<int>())).Returns(true);
+        mock.Setup(p => p.UnregisterHotkey(It.IsAny<int>())).Returns(true);
         return mock;
     }
 }

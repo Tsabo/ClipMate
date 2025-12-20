@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyServiceTests
 {
-    #region Constructor Tests
-
     [Test]
     public async Task Constructor_WithNullManager_ShouldThrowArgumentNullException()
     {
@@ -26,6 +24,4 @@ public partial class HotkeyServiceTests
         // Assert
         await Assert.That(service).IsNotNull();
     }
-
-    #endregion
 }

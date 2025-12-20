@@ -10,18 +10,16 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyManagerTests
 {
-    #region Dispose Tests
-
     [Test]
     [TestExecutor<STAThreadExecutor>]
     public async Task Dispose_ShouldUnregisterAllHotkeys()
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(w => w.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
             .Returns(true);
 
-        mockInterop.Setup(w => w.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()))
+        mockInterop.Setup(p => p.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()))
             .Returns(true);
 
         var manager = new HotkeyManager(mockInterop.Object);
@@ -36,7 +34,7 @@ public partial class HotkeyManagerTests
         manager2.Dispose();
 
         // Assert
-        mockInterop.Verify(w => w.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()), Times.AtLeast(2));
+        mockInterop.Verify(p => p.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()), Times.AtLeast(2));
     }
 
     [Test]
@@ -55,6 +53,4 @@ public partial class HotkeyManagerTests
             })
             .ThrowsNothing();
     }
-
-    #endregion
 }

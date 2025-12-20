@@ -48,25 +48,28 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         Mock<ICollectionService>? collectionService = null,
         Mock<IFolderService>? folderService = null,
         Mock<IApplicationFilterService>? filterService = null,
-        Mock<DatabaseManager>? databaseManager = null)
+        Mock<IDatabaseManager>? databaseManager = null,
+        Mock<IClipRepositoryFactory>? repositoryFactory = null)
     {
         var clipServiceProvided = clipService != null;
         var collectionServiceProvided = collectionService != null;
         var folderServiceProvided = folderService != null;
         var filterServiceProvided = filterService != null;
         var databaseManagerProvided = databaseManager != null;
+        var repositoryFactoryProvided = repositoryFactory != null;
 
         clipService ??= new Mock<IClipService>();
         collectionService ??= new Mock<ICollectionService>();
         folderService ??= new Mock<IFolderService>();
         filterService ??= new Mock<IApplicationFilterService>();
-        databaseManager ??= new Mock<DatabaseManager>();
+        databaseManager ??= new Mock<IDatabaseManager>();
+        repositoryFactory ??= new Mock<IClipRepositoryFactory>();
 
         // Setup default behaviors only if not provided by caller
         if (!clipServiceProvided)
         {
-            clipService.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Clip clip, CancellationToken ct) => clip);
+            clipService.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string dbKey, Clip clip, CancellationToken ct) => clip);
         }
 
         if (!collectionServiceProvided)
@@ -79,7 +82,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                     Title = "Inbox",
                     LmType = CollectionLmType.Normal,
                 });
-            
+
             // Setup GetActiveDatabaseKey to return a test database key
             collectionService.Setup(p => p.GetActiveDatabaseKey())
                 .Returns("test-database");
@@ -108,7 +111,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
             // For unit tests, we'll need to return null or a mock context
             // The actual implementation will handle the null case
             databaseManager.Setup(p => p.GetDatabaseContext(It.IsAny<string>()))
-                .Returns((ClipMate.Data.ClipMateDbContext?)null);
+                .Returns((ClipMateDbContext?)null);
         }
 
         var services = new ServiceCollection();
@@ -117,6 +120,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         services.AddScoped(_ => folderService.Object);
         services.AddScoped(_ => filterService.Object);
         services.AddScoped(_ => databaseManager.Object);
+        services.AddScoped(_ => repositoryFactory.Object);
         services.AddScoped(_ => new Mock<ISoundService>().Object);
         services.AddLogging();
 

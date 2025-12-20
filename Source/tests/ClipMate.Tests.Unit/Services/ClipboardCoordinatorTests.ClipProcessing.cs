@@ -27,15 +27,16 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clip);
 
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start
@@ -49,7 +50,7 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.Is<Clip>(c => c.ContentHash == "hash123"), It.IsAny<CancellationToken>()), Times.Once);
+        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.Is<Clip>(c => c.ContentHash == "hash123"), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -74,11 +75,12 @@ public partial class ClipboardCoordinatorTests
         };
 
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock, filterService: filterServiceMock);
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -92,7 +94,7 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
+        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -110,15 +112,16 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clip);
 
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -143,15 +146,16 @@ public partial class ClipboardCoordinatorTests
         var clipboardService = CreateMockClipboardService(out var channel);
         var clipServiceMock = new Mock<IClipService>();
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip c, CancellationToken ct) => c);
+        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string dbKey, Clip c, CancellationToken ct) => c);
 
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messenger = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -174,7 +178,7 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Test]
@@ -202,15 +206,16 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow.AddMinutes(-1),
         };
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingClip); // Return existing clip to simulate duplicate detection
 
         var configurationService = CreateMockConfigurationService();
+        var repositoryFactory = new Mock<IClipRepositoryFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
         var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -227,4 +232,3 @@ public partial class ClipboardCoordinatorTests
         // Test passes if no exception is thrown
     }
 }
-

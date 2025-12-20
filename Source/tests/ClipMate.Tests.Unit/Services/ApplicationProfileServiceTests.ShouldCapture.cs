@@ -97,7 +97,7 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
             .ReturnsAsync((ApplicationProfile?)null);
 
-        MockStore.Setup(s => s.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -105,7 +105,7 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
 
         // Assert
         await Assert.That(result).IsTrue(); // TEXT is in smart defaults
-        MockStore.Verify(s => s.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(p => p.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
+        MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(p => p.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -116,7 +116,7 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         MockStore.Setup(p => p.GetProfileAsync("CHROME", It.IsAny<CancellationToken>()))
             .ReturnsAsync((ApplicationProfile?)null);
 
-        MockStore.Setup(s => s.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

@@ -2,14 +2,12 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class TextTransformServiceTests
 {
-    #region RemoveDuplicateLines Tests
-
     [Test]
     public async Task RemoveDuplicateLines_WithDuplicates_ShouldRemoveThem()
     {
         // Arrange
-        var input = "Apple\nBanana\nApple\nCherry\nBanana";
-        var expected = "Apple\nBanana\nCherry";
+        const string input = "Apple\nBanana\nApple\nCherry\nBanana";
+        const string expected = "Apple\nBanana\nCherry";
 
         // Act
         var result = _service.RemoveDuplicateLines(input);
@@ -22,8 +20,8 @@ public partial class TextTransformServiceTests
     public async Task RemoveDuplicateLines_CaseInsensitive_ShouldRemoveDuplicates()
     {
         // Arrange
-        var input = "Apple\napple\nAPPLE\nBanana";
-        var expected = "Apple\nBanana";
+        const string input = "Apple\napple\nAPPLE\nBanana";
+        const string expected = "Apple\nBanana";
 
         // Act
         var result = _service.RemoveDuplicateLines(input, caseSensitive: false);
@@ -36,8 +34,8 @@ public partial class TextTransformServiceTests
     public async Task RemoveDuplicateLines_CaseSensitive_ShouldKeepDifferentCase()
     {
         // Arrange
-        var input = "Apple\napple\nAPPLE\nBanana";
-        var expected = "Apple\napple\nAPPLE\nBanana";
+        const string input = "Apple\napple\nAPPLE\nBanana";
+        const string expected = "Apple\napple\nAPPLE\nBanana";
 
         // Act
         var result = _service.RemoveDuplicateLines(input, caseSensitive: true);
@@ -50,8 +48,8 @@ public partial class TextTransformServiceTests
     public async Task RemoveDuplicateLines_WithEmptyLines_ShouldKeepOneEmptyLine()
     {
         // Arrange
-        var input = "Apple\n\nBanana\n\nCherry\n";
-        var expected = "Apple\n\nBanana\nCherry";
+        const string input = "Apple\n\nBanana\n\nCherry\n";
+        const string expected = "Apple\n\nBanana\nCherry";
 
         // Act
         var result = _service.RemoveDuplicateLines(input);
@@ -59,6 +57,4 @@ public partial class TextTransformServiceTests
         // Assert
         await Assert.That(result).IsEqualTo(expected);
     }
-
-    #endregion
 }

@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region Constructor Tests
-
     [Test]
     public async Task Constructor_WithValidService_ShouldCreateInstance()
     {
@@ -25,6 +23,4 @@ public partial class TextToolsViewModelTests
         await Assert.That(() => new TextToolsViewModel(null!))
             .Throws<ArgumentNullException>();
     }
-
-    #endregion
 }

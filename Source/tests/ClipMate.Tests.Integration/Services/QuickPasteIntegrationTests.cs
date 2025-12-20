@@ -49,7 +49,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
                         Preamble = "",
                         PasteKeystrokes = "^v",
                         Postamble = "",
-                        TitleTrigger = "*"
+                        TitleTrigger = "*",
                     },
 
                     new QuickPasteFormattingString
@@ -58,7 +58,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
                         Preamble = "^{HOME}^@{DOWN}",
                         PasteKeystrokes = "^v",
                         Postamble = "{DOWN}",
-                        TitleTrigger = "Microsoft Excel"
+                        TitleTrigger = "Microsoft Excel",
                     },
 
                     new QuickPasteFormattingString
@@ -67,21 +67,21 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
                         Preamble = "#CURRENTDATE# - ",
                         PasteKeystrokes = "^v",
                         Postamble = "{ENTER}",
-                        TitleTrigger = "Notepad"
-                    }
+                        TitleTrigger = "Notepad",
+                    },
                 ],
                 QuickPasteGoodTargets =
                 [
                     "NOTEPAD:EDIT",
                     "CODE:CHROME_WIDGETWIN_1",
-                    "DEVENV:HWNDWRAPPER"
+                    "DEVENV:HWNDWRAPPER",
                 ],
                 QuickPasteBadTargets =
                 [
                     "CLIPMATE:WINDOW",
-                    "EXPLORER:CABINETWCLASS"
-                ]
-            }
+                    "EXPLORER:CABINETWCLASS",
+                ],
+            },
         };
 
         var tempDir = Path.Combine(Path.GetTempPath(), "ClipMateTests", Guid.NewGuid().ToString());
@@ -132,7 +132,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     {
         // Arrange
         var excelFormat = _testConfig.Preferences.QuickPasteFormattingStrings
-            .First(f => f.Title == "Excel - Fill Column");
+            .First(p => p.Title == "Excel - Fill Column");
 
         // Act
         _quickPasteService.SelectFormattingString(excelFormat);
@@ -179,7 +179,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             Type = ClipType.Text,
             TextContent = "Integration test content",
             CapturedAt = DateTimeOffset.Now,
-            ContentHash = "TestHash"
+            ContentHash = "TestHash",
         };
 
         // Act
@@ -208,7 +208,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             Preamble = "",
             PasteKeystrokes = "^v",
             Postamble = "",
-            TitleTrigger = "*"
+            TitleTrigger = "*",
         });
 
         // Act - Trigger configuration change event
@@ -230,12 +230,12 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         var formats = _testConfig.Preferences.QuickPasteFormattingStrings;
 
         // Act & Assert - Switch through all formats
-        foreach (var format in formats)
+        foreach (var item in formats)
         {
-            _quickPasteService.SelectFormattingString(format);
+            _quickPasteService.SelectFormattingString(item);
             var selected = _quickPasteService.GetSelectedFormattingString();
-            await Assert.That(selected).IsEqualTo(format);
-            await Assert.That(selected!.Title).IsEqualTo(format.Title);
+            await Assert.That(selected).IsEqualTo(item);
+            await Assert.That(selected!.Title).IsEqualTo(item.Title);
         }
     }
 

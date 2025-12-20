@@ -40,7 +40,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             },
         };
 
-        _mockConfigurationService.Setup(x => x.Configuration).Returns(config);
+        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
 
         // Setup service provider chain for CreateScope pattern
         _mockServiceScope.Setup(p => p.ServiceProvider).Returns(_mockScopedServiceProvider.Object);

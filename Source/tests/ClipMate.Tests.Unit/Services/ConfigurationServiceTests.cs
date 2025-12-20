@@ -25,16 +25,17 @@ public class ConfigurationServiceTests
         // Manually create a valid configuration file to avoid validation errors
         Directory.CreateDirectory(_testConfigDirectory);
         var configPath = Path.Combine(_testConfigDirectory, "config.toml");
-        var validConfig = @"version = 1
-default_database = ""MyClips""
-[preferences]
-[hotkeys]
-[monaco_editor]
-[databases.MyClips]
-name = ""My Clips""
-file_path = ""clipmate.db""
-auto_load = true
-";
+        const string validConfig = """
+                                   version = 1
+                                   default_database = "MyClips"
+                                   [preferences]
+                                   [hotkeys]
+                                   [monaco_editor]
+                                   [databases.MyClips]
+                                   name = "My Clips"
+                                   file_path = "clipmate.db"
+                                   auto_load = true
+                                   """;
 
         await File.WriteAllTextAsync(configPath, validConfig);
         await service.LoadAsync();

@@ -4,42 +4,43 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
 public class ClipListViewModelTests
 {
     private readonly Mock<IClipService> _mockClipService;
-    private readonly Mock<IMessenger> _mockMessenger;
-    private readonly Mock<IFolderService> _mockFolderService;
     private readonly Mock<ICollectionService> _mockCollectionService;
+    private readonly Mock<IFolderService> _mockFolderService;
     private readonly Mock<ILogger<ClipListViewModel>> _mockLogger;
+    private readonly Mock<IMessenger> _mockMessenger;
+    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly ClipListViewModel _viewModel;
 
     public ClipListViewModelTests()
     {
         _mockClipService = new Mock<IClipService>();
+        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         _mockMessenger = new Mock<IMessenger>();
         _mockFolderService = new Mock<IFolderService>();
         _mockCollectionService = new Mock<ICollectionService>();
         _mockLogger = new Mock<ILogger<ClipListViewModel>>();
-        
+
         // Create mock service scope factory
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(x => x.GetService(typeof(IClipService))).Returns(_mockClipService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(IFolderService))).Returns(_mockFolderService.Object);
-        mockServiceProvider.Setup(x => x.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
-        mockServiceScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
-        
+        mockServiceProvider.Setup(p => p.GetService(typeof(IClipService))).Returns(_mockClipService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(_mockFolderService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
+        mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
+
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(mockServiceScope.Object);
-        
+        _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
+
         _viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
+            _mockRepositoryFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
     }
@@ -49,8 +50,10 @@ public class ClipListViewModelTests
     {
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
+            _mockRepositoryFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
+
         await Assert.That(viewModel.IsListView).IsTrue();
     }
 
@@ -59,8 +62,10 @@ public class ClipListViewModelTests
     {
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
+            _mockRepositoryFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
+
         await Assert.That(viewModel.IsGridView).IsFalse();
     }
 
@@ -72,9 +77,10 @@ public class ClipListViewModelTests
         // Testing actual message handling is done via integration tests
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
+            _mockRepositoryFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
-        
+
         await Assert.That(viewModel).IsNotNull();
     }
 }

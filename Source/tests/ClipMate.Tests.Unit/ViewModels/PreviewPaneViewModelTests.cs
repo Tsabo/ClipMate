@@ -1,10 +1,8 @@
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Models;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -38,7 +36,7 @@ public class PreviewPaneViewModelTests
             Id = Guid.NewGuid(),
             Type = ClipType.Text,
             TextContent = "Test content",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -64,7 +62,7 @@ public class PreviewPaneViewModelTests
             Type = ClipType.Html,
             HtmlContent = "<h1>Test</h1>",
             TextContent = "Test",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -90,7 +88,7 @@ public class PreviewPaneViewModelTests
             Type = ClipType.RichText,
             RtfContent = @"{\rtf1\ansi Test RTF}",
             TextContent = "Test RTF",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -116,7 +114,7 @@ public class PreviewPaneViewModelTests
             Id = Guid.NewGuid(),
             Type = ClipType.Image,
             ImageData = imageData,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         // Act
@@ -141,8 +139,9 @@ public class PreviewPaneViewModelTests
             Id = Guid.NewGuid(),
             Type = ClipType.Text,
             TextContent = "Test",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Act
@@ -169,8 +168,9 @@ public class PreviewPaneViewModelTests
             Id = Guid.NewGuid(),
             Type = ClipType.Text,
             TextContent = "Test",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         var propertyChangedRaised = false;
         viewModel.PropertyChanged += (s, e) =>
         {
@@ -196,8 +196,9 @@ public class PreviewPaneViewModelTests
             Id = Guid.NewGuid(),
             Type = ClipType.Text,
             TextContent = "Test",
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         viewModel.Receive(new ClipSelectedEvent(clip));
 
         // Act

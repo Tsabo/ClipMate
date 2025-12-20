@@ -1,3 +1,4 @@
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -41,9 +42,11 @@ public class ExplorerWindowViewModelTests
         var mockCollectionService = new Mock<ICollectionService>();
         var mockConfigurationService = new Mock<IConfigurationService>();
         var mockSearchService = new Mock<ISearchService>();
+        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         var mockLogger = new Mock<ILogger<ClipListViewModel>>();
         var mockTreeLogger = new Mock<ILogger<CollectionTreeViewModel>>();
         var mockMainLogger = new Mock<ILogger<ExplorerWindowViewModel>>();
+        var mockCollectionTreeBuilder = new Mock<ICollectionTreeBuilder>();
 
         var mockServiceScopeFactory = CreateMockServiceScopeFactory(
             mockCollectionService, mockFolderService, mockClipService, mockSearchService);
@@ -51,11 +54,14 @@ public class ExplorerWindowViewModelTests
         var collectionTreeVM = new CollectionTreeViewModel(
             mockServiceScopeFactory.Object,
             mockConfigurationService.Object,
+            mockRepositoryFactory.Object,
             mockMessenger.Object,
+            mockCollectionTreeBuilder.Object,
             mockTreeLogger.Object);
 
         var clipListVM = new ClipListViewModel(
             mockServiceScopeFactory.Object,
+            mockRepositoryFactory.Object,
             mockMessenger.Object,
             mockLogger.Object);
 
@@ -81,7 +87,10 @@ public class ExplorerWindowViewModelTests
         mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory))).Returns(mockServiceScopeFactory.Object);
 
         var mockMenuMessenger = new Mock<IMessenger>();
-        var mainMenuViewModel = new MainMenuViewModel(mockMenuMessenger.Object);
+        var mainMenuViewModel = new MainMenuViewModel(
+            mockMenuMessenger.Object,
+            new Mock<IClipService>().Object,
+            new Mock<IUndoService>().Object);
 
         return new ExplorerWindowViewModel(
             collectionTreeVM,
@@ -92,6 +101,7 @@ public class ExplorerWindowViewModelTests
             mainMenuViewModel,
             mockServiceProvider.Object,
             mockQuickPasteService.Object,
+            new Mock<IPowerPasteService>().Object,
             mockMessenger.Object, // Use the existing mockMessenger.Object from earlier
             mockMainLogger.Object);
     }

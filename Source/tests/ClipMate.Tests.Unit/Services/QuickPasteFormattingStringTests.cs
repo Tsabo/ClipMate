@@ -68,7 +68,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_ParsesCorrectly_WithAllFields()
     {
         // Arrange
-        var registryFormat = "[Excel],[^{HOME}],[^v],[{TAB}],[Microsoft Excel]";
+        const string registryFormat = "[Excel],[^{HOME}],[^v],[{TAB}],[Microsoft Excel]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -85,7 +85,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_ParsesCorrectly_WithEmptyFields()
     {
         // Arrange
-        var registryFormat = "[Plain],[],[^v],[],[]";
+        const string registryFormat = "[Plain],[],[^v],[],[]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -102,7 +102,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_HandlesComplexMetaCharacters()
     {
         // Arrange
-        var registryFormat = "[Complex],[^~@{F1}#DATE#],[~{INSERT}],[#PAUSE#{ENTER}],[*]";
+        const string registryFormat = "[Complex],[^~@{F1}#DATE#],[~{INSERT}],[#PAUSE#{ENTER}],[*]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -119,7 +119,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_ReturnsEmptyInstance_WhenInvalidFormat()
     {
         // Arrange
-        var invalidFormat = "[Excel],[^v]"; // Only 2 parts instead of 5
+        const string invalidFormat = "[Excel],[^v]"; // Only 2 parts instead of 5
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(invalidFormat);
@@ -136,7 +136,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_ReturnsEmptyInstance_WhenEmptyString()
     {
         // Arrange
-        var emptyFormat = "";
+        const string emptyFormat = "";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(emptyFormat);
@@ -154,7 +154,7 @@ public class QuickPasteFormattingStringTests
     {
         // Arrange - Note: Real registry format shouldn't have commas within fields,
         // but testing that commas WITHIN brackets don't break parsing
-        var registryFormat = "[Title with, comma],[Pre],[^v],[Post],[Trigger]";
+        const string registryFormat = "[Title with, comma],[Pre],[^v],[Post],[Trigger]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -196,7 +196,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_HandlesActualRegistryExample_Default()
     {
         // Arrange - Real example from ClipMate 7.5 registry
-        var registryFormat = "[Default - Ctrl+V],[],[^v],[],[*]";
+        const string registryFormat = "[Default - Ctrl+V],[],[^v],[],[*]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -213,7 +213,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_HandlesActualRegistryExample_Excel()
     {
         // Arrange - Real example from ClipMate 7.5 registry
-        var registryFormat = "[Excel - Fill Column],[^{HOME}^@{DOWN}],[^v],[{DOWN}],[Microsoft Excel]";
+        const string registryFormat = "[Excel - Fill Column],[^{HOME}^@{DOWN}],[^v],[{DOWN}],[Microsoft Excel]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -230,7 +230,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_HandlesActualRegistryExample_CommandPrompt()
     {
         // Arrange - Real example from ClipMate 7.5 registry
-        var registryFormat = "[Command Prompt],[],[~{INSERT}],[{ENTER}],[]";
+        const string registryFormat = "[Command Prompt],[],[~{INSERT}],[{ENTER}],[]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);
@@ -247,7 +247,7 @@ public class QuickPasteFormattingStringTests
     public async Task FromRegistryFormat_HandlesActualRegistryExample_WordDate()
     {
         // Arrange - Real example from ClipMate 7.5 registry
-        var registryFormat = "[Word with Date],[#CURRENTDATE# - ],[^v],[],[Microsoft Word]";
+        const string registryFormat = "[Word with Date],[#CURRENTDATE# - ],[^v],[],[Microsoft Word]";
 
         // Act
         var result = QuickPasteFormattingString.FromRegistryFormat(registryFormat);

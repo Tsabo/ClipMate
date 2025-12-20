@@ -107,7 +107,7 @@ public partial class QuickPasteServiceTests : TestFixtureBase
     private Mock<IConfigurationService> CreateMockConfigurationService()
     {
         var mock = new Mock<IConfigurationService>();
-        mock.Setup(x => x.Configuration).Returns(_testConfiguration);
+        mock.Setup(p => p.Configuration).Returns(_testConfiguration);
         return mock;
     }
 

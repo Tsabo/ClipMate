@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -13,11 +14,26 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class ClipServiceTests
 {
+    private const string _testDatabaseKey = "db_test0001";
+    private readonly Mock<ILogger<ClipService>> _mockLogger;
     private readonly Mock<IClipRepository> _mockRepository;
+    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
+    private readonly Mock<ISoundService> _mockSoundService;
 
     public ClipServiceTests()
     {
         _mockRepository = new Mock<IClipRepository>();
+        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+        _mockSoundService = new Mock<ISoundService>();
+        _mockLogger = new Mock<ILogger<ClipService>>();
+
+        // Setup factory to return our mock repository
+        _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
+            .Returns(_mockRepository.Object);
+
+        // Setup sound service
+        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Test]
@@ -32,7 +48,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetByIdAsync(clipId);
+        var result = await service.GetByIdAsync(_testDatabaseKey, clipId);
 
         // Assert
         await Assert.That(result).IsNotNull();
@@ -50,7 +66,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetByIdAsync(clipId);
+        var result = await service.GetByIdAsync(_testDatabaseKey, clipId);
 
         // Assert
         await Assert.That(result).IsNull();
@@ -74,7 +90,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetRecentAsync(10);
+        var result = await service.GetRecentAsync(_testDatabaseKey, 10);
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(3);
@@ -88,7 +104,7 @@ public class ClipServiceTests
     {
         // Arrange
         var clips = Enumerable.Range(0, 5)
-            .Select(i => CreateTestClip(Guid.NewGuid()))
+            .Select(_ => CreateTestClip(Guid.NewGuid()))
             .ToList();
 
         _mockRepository.Setup(p => p.GetRecentAsync(3, It.IsAny<CancellationToken>()))
@@ -97,7 +113,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetRecentAsync(3);
+        var result = await service.GetRecentAsync(_testDatabaseKey, 3);
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(3);
@@ -115,7 +131,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.CreateAsync(clip);
+        var result = await service.CreateAsync(_testDatabaseKey, clip);
 
         // Assert
         await Assert.That(result).IsNotNull();
@@ -136,7 +152,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.CreateAsync(newClip);
+        var result = await service.CreateAsync(_testDatabaseKey, newClip);
 
         // Assert
         await Assert.That(result).IsNotNull();
@@ -155,7 +171,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        await service.UpdateAsync(clip);
+        await service.UpdateAsync(_testDatabaseKey, clip);
 
         // Assert
         _mockRepository.Verify(p => p.UpdateAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
@@ -172,7 +188,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        await service.DeleteAsync(clipId);
+        await service.DeleteAsync(_testDatabaseKey, clipId);
 
         // Assert
         _mockRepository.Verify(p => p.DeleteAsync(clipId, It.IsAny<CancellationToken>()), Times.Once);
@@ -195,7 +211,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetByCollectionAsync(collectionId);
+        var result = await service.GetByCollectionAsync(_testDatabaseKey, collectionId);
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
@@ -218,7 +234,7 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act
-        var result = await service.GetFavoritesAsync();
+        var result = await service.GetFavoritesAsync(_testDatabaseKey);
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
@@ -232,16 +248,16 @@ public class ClipServiceTests
         var service = CreateClipService();
 
         // Act & Assert
-        await Assert.That(async () => await service.CreateAsync(null!)).Throws<ArgumentNullException>();
+        await Assert.That(async () => await service.CreateAsync(_testDatabaseKey, null!)).Throws<ArgumentNullException>();
     }
 
-    private IClipService CreateClipService()
-    {
-        // Now using real ClipService implementation with mocked repository
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        return new ClipService(_mockRepository.Object, soundService.Object);
-    }
+    private IClipService CreateClipService() =>
+        // Create ClipService with factory
+        new ClipService(
+            _mockRepositoryFactory.Object,
+            Mock.Of<IServiceProvider>(),
+            _mockSoundService.Object,
+            _mockLogger.Object);
 
     private Clip CreateTestClip(Guid id,
         DateTime? capturedAt = null,

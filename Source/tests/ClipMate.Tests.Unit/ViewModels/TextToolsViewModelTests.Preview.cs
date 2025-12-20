@@ -4,8 +4,6 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public partial class TextToolsViewModelTests
 {
-    #region Preview Tests
-
     [Test]
     public async Task PreviewTransform_ShouldUpdateOutputWithoutApplying()
     {
@@ -35,6 +33,4 @@ public partial class TextToolsViewModelTests
         // Assert
         await Assert.That(_viewModel.OutputText).IsEqualTo("HELLO WORLD");
     }
-
-    #endregion
 }

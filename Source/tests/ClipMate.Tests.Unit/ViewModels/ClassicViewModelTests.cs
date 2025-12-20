@@ -16,16 +16,17 @@ public class ClassicViewModelTests
 {
     private readonly ClipListViewModel _clipListViewModel;
     private readonly MainMenuViewModel _mainMenuViewModel;
-    private readonly Mock<IClipService> _mockClipService;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly QuickPasteToolbarViewModel _quickPasteToolbar;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicViewModelTests()
     {
-        _mockClipService = new Mock<IClipService>();
         _mockMessenger = new Mock<IMessenger>();
-        _mainMenuViewModel = new MainMenuViewModel(_mockMessenger.Object);
+        _mainMenuViewModel = new MainMenuViewModel(
+            _mockMessenger.Object,
+            new Mock<IClipService>().Object,
+            new Mock<IUndoService>().Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
         var mockQuickPasteService = new Mock<IQuickPasteService>();
@@ -40,19 +41,24 @@ public class ClassicViewModelTests
 
         // Create ClipListViewModel with mocked dependencies
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         _clipListViewModel = new ClipListViewModel(
             mockServiceScopeFactory.Object,
+            mockRepositoryFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
-        _viewModel = new ClassicViewModel(_mockClipService.Object, _mainMenuViewModel, _quickPasteToolbar, _clipListViewModel);
+        _viewModel = new ClassicViewModel(_mainMenuViewModel, _quickPasteToolbar, _clipListViewModel);
     }
 
     [Test]
     public async Task Constructor_ShouldInitializeWithDefaultValues()
     {
         // Arrange & Act
-        var mainMenu = new MainMenuViewModel(_mockMessenger.Object);
+        var mainMenu = new MainMenuViewModel(
+            _mockMessenger.Object,
+            new Mock<IClipService>().Object,
+            new Mock<IUndoService>().Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();
         var mockConfigService = new Mock<IConfigurationService>();
@@ -64,12 +70,14 @@ public class ClassicViewModelTests
             NullLogger<QuickPasteToolbarViewModel>.Instance);
 
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         var clipListViewModel = new ClipListViewModel(
             mockServiceScopeFactory.Object,
+            mockRepositoryFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
-        var viewModel = new ClassicViewModel(_mockClipService.Object, mainMenu, quickPasteToolbar, clipListViewModel);
+        var viewModel = new ClassicViewModel(mainMenu, quickPasteToolbar, clipListViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();

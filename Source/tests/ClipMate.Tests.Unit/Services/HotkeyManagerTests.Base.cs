@@ -1,6 +1,3 @@
-using ClipMate.Platform.Interop;
-using Moq;
-
 namespace ClipMate.Tests.Unit.Services;
 
 /// <summary>

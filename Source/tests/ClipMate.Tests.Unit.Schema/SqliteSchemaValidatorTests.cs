@@ -1,15 +1,12 @@
 using ClipMate.Data.Schema.Models;
 using ClipMate.Data.Schema.Sqlite;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
 
 namespace ClipMate.Tests.Unit.Schema;
 
 public class SqliteSchemaValidatorTests
 {
     // ===== Valid Schema Tests =====
-    
+
     [Test]
     public async Task Validate_EmptySchema_ReturnsValid()
     {
@@ -34,16 +31,16 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -65,12 +62,12 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["123Invalid"] = new TableDefinition
+                ["123Invalid"] = new()
                 {
                     Name = "123Invalid",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -79,7 +76,7 @@ public class SqliteSchemaValidatorTests
         // Assert
         await Assert.That(result.IsValid).IsFalse();
         await Assert.That(result.Errors).Count().IsGreaterThan(0);
-        await Assert.That(result.Errors.Any(e => e.Contains("123Invalid") && e.Contains("table name"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("123Invalid") && p.Contains("table name"))).IsTrue();
     }
 
     [Test]
@@ -91,12 +88,12 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["sqlite_master"] = new TableDefinition
+                ["sqlite_master"] = new()
                 {
                     Name = "sqlite_master",
-                    Columns = [new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -104,7 +101,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("sqlite_") && e.Contains("reserved"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("sqlite_") && p.Contains("reserved"))).IsTrue();
     }
 
     // ===== Column Validation Tests =====
@@ -118,12 +115,12 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "123Invalid", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "123Invalid", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -131,7 +128,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("123Invalid") && e.Contains("column name"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("123Invalid") && p.Contains("column name"))).IsTrue();
     }
 
     [Test]
@@ -143,12 +140,12 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Id", Type = "INVALID_TYPE", IsPrimaryKey = true, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INVALID_TYPE", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -156,7 +153,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("INVALID_TYPE") && e.Contains("type"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("INVALID_TYPE") && p.Contains("type"))).IsTrue();
     }
 
     // ===== Duplicate Name Tests =====
@@ -170,16 +167,16 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Id", Type = "TEXT", IsNullable = false, Position = 1 }
-                    ]
-                }
-            }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Id", Type = "TEXT", IsNullable = false, Position = 1 },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -187,7 +184,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("duplicate") && e.Contains("Id"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("duplicate") && p.Contains("Id"))).IsTrue();
     }
 
     [Test]
@@ -199,21 +196,21 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Email", Type = "TEXT", IsNullable = false, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Email", Type = "TEXT", IsNullable = false, Position = 1 },
                     ],
                     Indexes =
                     [
-                        new() { Name = "IX_Users", TableName = "Users", Columns = ["Id"], IsUnique = false },
-                        new() { Name = "IX_Users", TableName = "Users", Columns = ["Email"], IsUnique = false }
-                    ]
-                }
-            }
+                        new IndexDefinition { Name = "IX_Users", TableName = "Users", Columns = ["Id"], IsUnique = false },
+                        new IndexDefinition { Name = "IX_Users", TableName = "Users", Columns = ["Email"], IsUnique = false },
+                    ],
+                },
+            },
         };
 
         // Act
@@ -221,7 +218,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("duplicate") && e.Contains("IX_Users"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("duplicate") && p.Contains("IX_Users"))).IsTrue();
     }
 
     // ===== Foreign Key Tests =====
@@ -235,18 +232,18 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Collections"] = new TableDefinition
+                ["Collections"] = new()
                 {
                     Name = "Collections",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 },
-                        new() { Name = "ParentId", Type = "INTEGER", IsNullable = true, Position = 2 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "Name", Type = "TEXT", IsNullable = false, Position = 1 },
+                        new ColumnDefinition { Name = "ParentId", Type = "INTEGER", IsNullable = true, Position = 2 },
                     ],
-                    ForeignKeys = [new() { ColumnName = "ParentId", ReferencedTable = "Collections", ReferencedColumn = "Id" }]
-                }
-            }
+                    ForeignKeys = [new ForeignKeyDefinition { ColumnName = "ParentId", ReferencedTable = "Collections", ReferencedColumn = "Id" }],
+                },
+            },
         };
 
         // Act
@@ -266,27 +263,27 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["TableA"] = new TableDefinition
+                ["TableA"] = new()
                 {
                     Name = "TableA",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "TableBId", Type = "INTEGER", IsNullable = true, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "TableBId", Type = "INTEGER", IsNullable = true, Position = 1 },
                     ],
-                    ForeignKeys = [new() { ColumnName = "TableBId", ReferencedTable = "TableB", ReferencedColumn = "Id" }]
+                    ForeignKeys = [new ForeignKeyDefinition { ColumnName = "TableBId", ReferencedTable = "TableB", ReferencedColumn = "Id" }],
                 },
-                ["TableB"] = new TableDefinition
+                ["TableB"] = new()
                 {
                     Name = "TableB",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "TableAId", Type = "INTEGER", IsNullable = true, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "TableAId", Type = "INTEGER", IsNullable = true, Position = 1 },
                     ],
-                    ForeignKeys = [new() { ColumnName = "TableAId", ReferencedTable = "TableA", ReferencedColumn = "Id" }]
-                }
-            }
+                    ForeignKeys = [new ForeignKeyDefinition { ColumnName = "TableAId", ReferencedTable = "TableA", ReferencedColumn = "Id" }],
+                },
+            },
         };
 
         // Act
@@ -294,7 +291,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("circular") && e.Contains("foreign key"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("circular") && p.Contains("foreign key"))).IsTrue();
     }
 
     [Test]
@@ -306,17 +303,17 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
                     Columns =
                     [
-                        new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
-                        new() { Name = "DepartmentId", Type = "INTEGER", IsNullable = true, Position = 1 }
+                        new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+                        new ColumnDefinition { Name = "DepartmentId", Type = "INTEGER", IsNullable = true, Position = 1 },
                     ],
-                    ForeignKeys = [new() { ColumnName = "DepartmentId", ReferencedTable = "NonExistentTable", ReferencedColumn = "Id" }]
-                }
-            }
+                    ForeignKeys = [new ForeignKeyDefinition { ColumnName = "DepartmentId", ReferencedTable = "NonExistentTable", ReferencedColumn = "Id" }],
+                },
+            },
         };
 
         // Act
@@ -324,7 +321,7 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Errors.Any(e => e.Contains("NonExistentTable") && e.Contains("does not exist"))).IsTrue();
+        await Assert.That(result.Errors.Any(p => p.Contains("NonExistentTable") && p.Contains("does not exist"))).IsTrue();
     }
 
     // ===== Primary Key Tests =====
@@ -338,12 +335,12 @@ public class SqliteSchemaValidatorTests
         {
             Tables = new Dictionary<string, TableDefinition>
             {
-                ["Users"] = new TableDefinition
+                ["Users"] = new()
                 {
                     Name = "Users",
-                    Columns = [new() { Name = "Name", Type = "TEXT", IsPrimaryKey = false, IsNullable = false, Position = 0 }]
-                }
-            }
+                    Columns = [new ColumnDefinition { Name = "Name", Type = "TEXT", IsPrimaryKey = false, IsNullable = false, Position = 0 }],
+                },
+            },
         };
 
         // Act
@@ -351,6 +348,6 @@ public class SqliteSchemaValidatorTests
 
         // Assert
         await Assert.That(result.Warnings).Count().IsGreaterThan(0);
-        await Assert.That(result.Warnings.Any(w => w.Contains("Users") && w.Contains("primary key"))).IsTrue();
+        await Assert.That(result.Warnings.Any(p => p.Contains("Users") && p.Contains("primary key"))).IsTrue();
     }
 }

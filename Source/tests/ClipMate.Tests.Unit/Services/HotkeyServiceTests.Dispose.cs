@@ -6,14 +6,12 @@ namespace ClipMate.Tests.Unit.Services;
 
 public partial class HotkeyServiceTests
 {
-    #region Dispose Tests
-
     [Test]
     public async Task Dispose_ShouldDisposeManagerAndClearRegistrations()
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(m => m.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
             .Returns(1);
 
         using var service = new HotkeyService(mockManager.Object);
@@ -44,6 +42,4 @@ public partial class HotkeyServiceTests
             })
             .ThrowsNothing();
     }
-
-    #endregion
 }
