@@ -2,7 +2,6 @@ using System.Windows;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using ClipMate.Data.Repositories;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +23,7 @@ public class ClipboardCoordinator : IHostedService,
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
+    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cts;
     private bool _isMonitoring;
@@ -31,12 +31,14 @@ public class ClipboardCoordinator : IHostedService,
 
     public ClipboardCoordinator(IClipboardService clipboardService,
         IConfigurationService configurationService,
+        IClipRepositoryFactory repositoryFactory,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -322,7 +324,6 @@ public class ClipboardCoordinator : IHostedService,
         var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
         var filterService = scope.ServiceProvider.GetRequiredService<IApplicationFilterService>();
         var soundService = scope.ServiceProvider.GetRequiredService<ISoundService>();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
 
         // Check if clip should be filtered based on source application
         var shouldFilter = await filterService.ShouldFilterAsync(
@@ -423,7 +424,7 @@ public class ClipboardCoordinator : IHostedService,
             // Continue saving the clip even if we can't get active collection/folder
         }
 
-        // Get the active database context from DatabaseManager
+        // Get the active database key
         var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
         if (string.IsNullOrEmpty(activeDatabaseKey))
         {
@@ -431,16 +432,8 @@ public class ClipboardCoordinator : IHostedService,
             return;
         }
 
-        var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
-        if (dbContext == null)
-        {
-            _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot save clip", activeDatabaseKey);
-            return;
-        }
-
-        // Create repository with the active database context
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
-        var clipRepository = new ClipRepository(dbContext, logger);
+        // Create repository using the factory
+        var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
 
         // Check for duplicate by content hash (in the active database)
         var existing = await clipRepository.GetByContentHashAsync(clip.ContentHash, cancellationToken);

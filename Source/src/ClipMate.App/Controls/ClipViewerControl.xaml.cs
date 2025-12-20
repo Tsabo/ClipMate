@@ -1303,7 +1303,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 var dialog = app.ServiceProvider.GetRequiredService<TextCleanupDialog>();
 
                 // Set owner to prevent focus issues
-                dialog.Owner = Window.GetWindow(this);
+                dialog.Owner = Application.Current.GetDialogOwner();
 
                 // Set input text
                 dialog.SetInputText(currentText);

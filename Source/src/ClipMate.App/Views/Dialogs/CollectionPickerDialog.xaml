@@ -1,0 +1,53 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.CollectionPickerDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 mc:Ignorable="d"
+                 Title="Select Collection"
+                 Width="500"
+                 Height="400"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="CanResize"
+                 ShowInTaskbar="False">
+
+    <!-- Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Click="OkButton_Click"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80"
+                                     x:Name="OkButton"
+                                     IsEnabled="{Binding HasSelection}" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="10">
+        <!-- Instructions -->
+        <dxlc:LayoutItem>
+            <TextBlock Text="{Binding Message}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,10" />
+        </dxlc:LayoutItem>
+
+        <!-- Collections TreeView -->
+        <dxlc:LayoutGroup Header="Available Collections" View="Group" Orientation="Vertical">
+            <dxg:TreeViewControl ItemsSource="{Binding RootNodes}"
+                                 TreeViewFieldName="Name"
+                                 ImageFieldName="IconImage"
+                                 ChildNodesPath="Children"
+                                 ShowBorder="True"
+                                 TreeLineStyle="Solid"
+                                 ShowNodeImages="True"
+                                 SelectedItemChanged="CollectionsTreeView_SelectedItemChanged" />
+        </dxlc:LayoutGroup>
+    </dxlc:LayoutControl>
+
+</dx:ThemedWindow>

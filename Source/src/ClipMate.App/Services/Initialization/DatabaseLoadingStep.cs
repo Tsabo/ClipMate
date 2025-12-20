@@ -32,7 +32,7 @@ public class DatabaseLoadingStep : IStartupInitializationStep
         try
         {
             using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
 
             // Load all databases configured with AutoLoad=true
             var loadedCount = await databaseManager.LoadAutoLoadDatabasesAsync(cancellationToken);

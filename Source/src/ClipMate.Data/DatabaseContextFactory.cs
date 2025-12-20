@@ -84,15 +84,14 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         var normalizedPath = Path.GetFullPath(databasePath);
 
-        if (_contexts.Remove(normalizedPath, out var context))
-        {
-            _logger.LogInformation("Closing database: {DatabasePath}", normalizedPath);
-            context.Dispose();
+        if (!_contexts.Remove(normalizedPath, out var context))
+            return false;
 
-            return true;
-        }
+        _logger.LogInformation("Closing database: {DatabasePath}", normalizedPath);
+        context.Dispose();
 
-        return false;
+        return true;
+
     }
 
     /// <summary>

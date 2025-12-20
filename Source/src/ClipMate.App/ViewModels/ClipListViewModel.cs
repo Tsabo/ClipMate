@@ -3,8 +3,6 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
-using ClipMate.Data.Repositories;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +26,7 @@ public partial class ClipListViewModel : ObservableObject,
 {
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
@@ -55,10 +54,12 @@ public partial class ClipListViewModel : ObservableObject,
     private ObservableCollection<Clip> _selectedClips = [];
 
     public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
+        IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -268,20 +269,18 @@ public partial class ClipListViewModel : ObservableObject,
             var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id);
             var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
 
-            foreach (var clipData in clipDataList)
+            foreach (var item in clipDataList)
             {
-                if (textBlobsDict.TryGetValue(clipData.Id, out var textBlob))
-                {
-                    // Determine content type based on format
-                    if (clipData.Format == Formats.Text.Code ||
-                        clipData.Format == Formats.UnicodeText.Code)
-                        clip.TextContent = textBlob.Data;
-                    else if (clipData.Format == Formats.RichText.Code)
-                        clip.RtfContent = textBlob.Data;
-                    else if (clipData.Format == Formats.Html.Code ||
-                             clipData.Format == Formats.HtmlAlt.Code)
-                        clip.HtmlContent = textBlob.Data;
-                }
+                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
+                    continue;
+
+                // Determine content type based on format
+                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
+                    clip.TextContent = textBlob.Data;
+                else if (item.Format == Formats.RichText.Code)
+                    clip.RtfContent = textBlob.Data;
+                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
+                    clip.HtmlContent = textBlob.Data;
             }
 
             // For images, load image data
@@ -348,8 +347,19 @@ public partial class ClipListViewModel : ObservableObject,
             IReadOnlyCollection<Clip> clips;
             using (var scope = CreateScope())
             {
-                var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-                clips = await clipService.GetRecentAsync(count);
+                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+
+                if (string.IsNullOrEmpty(activeDatabaseKey))
+                {
+                    _logger.LogWarning("No active database key found, cannot load recent clips");
+                    clips = [];
+                }
+                else
+                {
+                    var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+                    clips = await clipService.GetRecentAsync(activeDatabaseKey, count);
+                }
             }
 
             _logger.LogInformation("Retrieved {Count} recent clips. First clip CollectionId: {CollectionId}", clips.Count, clips.FirstOrDefault()?.CollectionId);
@@ -358,8 +368,8 @@ public partial class ClipListViewModel : ObservableObject,
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 Clips.Clear();
-                foreach (var clip in clips)
-                    Clips.Add(clip);
+                foreach (var item in clips)
+                    Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
                 // Don't auto-select a clip - let the user select one
@@ -395,31 +405,20 @@ public partial class ClipListViewModel : ObservableObject,
             using (var scope = CreateScope())
             {
                 var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
 
-                // Get the active database key and context
+                // Get the active database key
                 var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
                 if (string.IsNullOrEmpty(activeDatabaseKey))
                 {
                     _logger.LogError("No active database key found, cannot load clips");
-                    clips = Array.Empty<Clip>();
+                    clips = [];
                 }
                 else
                 {
-                    var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
-                    if (dbContext == null)
-                    {
-                        _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot load clips", activeDatabaseKey);
-                        clips = Array.Empty<Clip>();
-                    }
-                    else
-                    {
-                        // Create repository with the active database context
-                        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
-                        var clipRepository = new ClipRepository(dbContext, logger);
-                        clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
-                        _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-                    }
+                    // Create repository using the factory
+                    var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                    clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
+                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
                 }
             }
 
@@ -428,8 +427,8 @@ public partial class ClipListViewModel : ObservableObject,
             {
                 Clips.Clear();
                 var clipList = clips.ToList();
-                foreach (var clip in clipList)
-                    Clips.Add(clip);
+                foreach (var item in clipList)
+                    Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
                 // Don't auto-select a clip - let the user select one
@@ -466,31 +465,20 @@ public partial class ClipListViewModel : ObservableObject,
             using (var scope = CreateScope())
             {
                 var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
 
-                // Get the active database key and context
+                // Get the active database key
                 var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
                 if (string.IsNullOrEmpty(activeDatabaseKey))
                 {
                     _logger.LogError("No active database key found, cannot load clips");
-                    clips = Array.Empty<Clip>();
+                    clips = [];
                 }
                 else
                 {
-                    var dbContext = databaseManager.GetDatabaseContext(activeDatabaseKey);
-                    if (dbContext == null)
-                    {
-                        _logger.LogError("Database context for active database '{DatabaseKey}' not found, cannot load clips", activeDatabaseKey);
-                        clips = Array.Empty<Clip>();
-                    }
-                    else
-                    {
-                        // Create repository with the active database context
-                        var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
-                        var clipRepository = new ClipRepository(dbContext, logger);
-                        clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
-                        _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-                    }
+                    // Create repository using the factory
+                    var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                    clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
+                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
                 }
             }
 
@@ -531,32 +519,18 @@ public partial class ClipListViewModel : ObservableObject,
             CurrentFolderId = null;
 
             _logger.LogInformation("Loading deleted clips for database: {DatabaseKey}", databaseKey);
-            IReadOnlyCollection<Clip> clips;
-            using (var scope = CreateScope())
-            {
-                var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
-                var dbContext = databaseManager.GetDatabaseContext(databaseKey);
-                if (dbContext == null)
-                {
-                    _logger.LogError("Database context for '{DatabaseKey}' not found, cannot load deleted clips", databaseKey);
-                    clips = Array.Empty<Clip>();
-                }
-                else
-                {
-                    // Create repository with the specified database context
-                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<ClipRepository>>();
-                    var clipRepository = new ClipRepository(dbContext, logger);
-                    clips = await clipRepository.GetDeletedAsync(cancellationToken);
-                    _logger.LogInformation("Retrieved {Count} deleted clips from database '{DatabaseKey}'", clips.Count, databaseKey);
-                }
-            }
+
+            // Create repository using the factory
+            var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+            IReadOnlyCollection<Clip> clips = await clipRepository.GetDeletedAsync(cancellationToken);
+            _logger.LogInformation("Retrieved {Count} deleted clips from database '{DatabaseKey}'", clips.Count, databaseKey);
 
             // Update collection on UI thread
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 Clips.Clear();
-                foreach (var clip in clips)
-                    Clips.Add(clip);
+                foreach (var item in clips)
+                    Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
                 // Don't auto-select a clip - let the user select one

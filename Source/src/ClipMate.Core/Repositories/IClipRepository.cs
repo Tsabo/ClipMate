@@ -110,42 +110,37 @@ public interface IClipRepository
     Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves all clips in a collection with database key prefix.
+    /// Retrieves all clips in a collection.
     /// Used by retention enforcement.
     /// </summary>
-    /// <param name="databaseKey">Database identifier.</param>
     /// <param name="collectionId">Collection identifier.</param>
     /// <returns>List of clips in the collection.</returns>
-    Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(string databaseKey, Guid collectionId);
+    Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(Guid collectionId);
 
     /// <summary>
     /// Moves multiple clips to a target collection.
     /// Updates CollectionId for each clip.
     /// </summary>
-    /// <param name="databaseKey">Database identifier.</param>
     /// <param name="clipIds">Clips to move.</param>
     /// <param name="targetCollectionId">Target collection.</param>
-    Task MoveClipsToCollectionAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId);
+    Task MoveClipsToCollectionAsync(IEnumerable<Guid> clipIds, Guid targetCollectionId);
 
     /// <summary>
     /// Deletes multiple clips permanently.
     /// </summary>
-    /// <param name="databaseKey">Database identifier.</param>
     /// <param name="clipIds">Clips to delete.</param>
-    Task DeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds);
+    Task DeleteClipsAsync(IEnumerable<Guid> clipIds);
 
     /// <summary>
     /// Soft-deletes clips by setting Del=true (moves to Trashcan).
     /// </summary>
-    /// <param name="databaseKey">Database identifier.</param>
     /// <param name="clipIds">Clips to soft-delete.</param>
-    Task SoftDeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds);
+    Task SoftDeleteClipsAsync(IEnumerable<Guid> clipIds);
 
     /// <summary>
     /// Restores soft-deleted clips by setting Del=false and moving to target collection.
     /// </summary>
-    /// <param name="databaseKey">Database identifier.</param>
     /// <param name="clipIds">Clips to restore.</param>
     /// <param name="targetCollectionId">Target collection for restored clips.</param>
-    Task RestoreClipsAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId);
+    Task RestoreClipsAsync(IEnumerable<Guid> clipIds, Guid targetCollectionId);
 }

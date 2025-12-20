@@ -5,7 +5,11 @@ using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Xpf.Bars;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
@@ -137,14 +141,14 @@ public partial class ExplorerWindow : IWindow,
     {
         // When main window is activated, bring any owned modal dialogs to front
         // This fixes the issue where dialogs can get hidden when switching between apps
-        foreach (Window ownedWindow in OwnedWindows)
+        foreach (Window item in OwnedWindows)
         {
-            if (!ownedWindow.IsVisible || ownedWindow.IsActive)
+            if (!item.IsVisible || item.IsActive)
                 continue;
 
-            ownedWindow.Activate();
-            ownedWindow.Topmost = true;
-            ownedWindow.Topmost = false; // Flash to bring to front
+            item.Activate();
+            item.Topmost = true;
+            item.Topmost = false; // Flash to bring to front
             break; // Only activate the top-most owned dialog
         }
     }
@@ -200,11 +204,217 @@ public partial class ExplorerWindow : IWindow,
         {
             // Initialize ExplorerWindowViewModel (loads all child VMs, data, etc.)
             await _viewModel.InitializeAsync();
+
+            // Load collection dropdowns
+            //await LoadCollectionDropdownsAsync();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to initialize ExplorerWindow");
         }
+    }
+
+    /// <summary>
+    /// Loads collections from all databases and populates the Copy/Move dropdown menus.
+    /// </summary>
+    private async Task LoadCollectionDropdownsAsync()
+    {
+        try
+        {
+            _logger?.LogInformation("Starting to load collection dropdowns...");
+
+            CopyToCollectionDropdown.Items.Clear();
+            MoveToCollectionDropdown.Items.Clear();
+
+            using var scope = _serviceProvider.CreateScope();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+
+            // Get all loaded databases and their contexts
+            var databaseContexts = databaseManager.GetAllDatabaseContexts().ToList();
+
+            _logger?.LogInformation("Found {Count} database contexts", databaseContexts.Count);
+
+            if (databaseContexts.Count == 0)
+            {
+                _logger?.LogWarning("No databases loaded for collection dropdowns");
+                return;
+            }
+
+            // Build dropdown items for each database
+            foreach (var (databaseName, context) in databaseContexts)
+            {
+                _logger?.LogInformation("Processing database: {DatabaseName}", databaseName);
+
+                // Get all collections from this database, then filter non-virtual in memory
+                var allCollections = await context.Collections
+                    .OrderBy(p => p.SortKey)
+                    .ToListAsync();
+
+                var collections = allCollections.Where(p => !p.IsVirtual).ToList();
+
+                _logger?.LogInformation("Found {Count} collections in {Database}", collections.Count, databaseName);
+
+                if (collections.Count == 0)
+                    continue;
+
+                // Add database header (disabled) if we have multiple databases
+                if (databaseContexts.Count > 1)
+                {
+                    var dbHeaderCopy = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                    var dbHeaderMove = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                    CopyToCollectionDropdown.Items.Add(dbHeaderCopy);
+                    MoveToCollectionDropdown.Items.Add(dbHeaderMove);
+                }
+
+                // Add collection items
+                foreach (var item in collections)
+                {
+                    var collectionId = item.Id; // Capture for closure
+
+                    _logger?.LogDebug("Adding collection: {CollectionName} ({CollectionId})", item.Name, collectionId);
+
+                    var copyItem = new BarButtonItem
+                    {
+                        Content = item.Name,
+                        Tag = collectionId,
+                    };
+
+                    copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId);
+
+                    var moveItem = new BarButtonItem
+                    {
+                        Content = item.Name,
+                        Tag = collectionId,
+                    };
+
+                    moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId);
+
+                    CopyToCollectionDropdown.Items.Add(copyItem);
+                    MoveToCollectionDropdown.Items.Add(moveItem);
+                }
+
+                // Add separator between databases if we have multiple
+                if (databaseContexts.Count > 1 && databaseContexts.Last().Item1 != databaseName)
+                {
+                    CopyToCollectionDropdown.Items.Add(new BarItemSeparator());
+                    MoveToCollectionDropdown.Items.Add(new BarItemSeparator());
+                }
+            }
+
+            _logger?.LogInformation("Loaded collection dropdowns: Copy={CopyCount} items, Move={MoveCount} items",
+                CopyToCollectionDropdown.Items.Count, MoveToCollectionDropdown.Items.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load collection dropdowns");
+        }
+    }
+
+    /// <summary>
+    /// Copies selected clips to the specified collection.
+    /// </summary>
+    private async Task CopyToCollectionAsync(Guid collectionId)
+    {
+        try
+        {
+            var selectedClips = _viewModel.PrimaryClipList.SelectedClips;
+            if (selectedClips.Count == 0)
+            {
+                _viewModel.SetStatus("No clips selected");
+                return;
+            }
+
+            // Get database key from currently selected tree node
+            var sourceDatabaseKey = GetDatabaseKeyForNode(_viewModel.CollectionTree.SelectedNode);
+            if (string.IsNullOrEmpty(sourceDatabaseKey))
+            {
+                _logger?.LogError("Cannot copy clips: source database key not found");
+                _viewModel.SetStatus("Error: source database not found");
+                return;
+            }
+
+            var clipService = _serviceProvider.GetRequiredService<IClipService>();
+
+            var copiedCount = 0;
+            foreach (var item in selectedClips)
+            {
+                // For toolbar dropdown, we're copying within the same database
+                await clipService.CopyClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                copiedCount++;
+            }
+
+            _viewModel.SetStatus($"Copied {copiedCount} clip(s)");
+            await _viewModel.PrimaryClipList.LoadClipsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to copy clips from toolbar dropdown");
+            _viewModel.SetStatus("Error copying clips");
+        }
+    }
+
+    /// <summary>
+    /// Moves selected clips to the specified collection.
+    /// </summary>
+    private async Task MoveToCollectionAsync(Guid collectionId)
+    {
+        try
+        {
+            var selectedClips = _viewModel.PrimaryClipList.SelectedClips;
+            if (selectedClips.Count == 0)
+            {
+                _viewModel.SetStatus("No clips selected");
+                return;
+            }
+
+            // Get database key from currently selected tree node
+            var sourceDatabaseKey = GetDatabaseKeyForNode(_viewModel.CollectionTree.SelectedNode);
+            if (string.IsNullOrEmpty(sourceDatabaseKey))
+            {
+                _logger?.LogError("Cannot move clips: source database key not found");
+                _viewModel.SetStatus("Error: source database not found");
+                return;
+            }
+
+            var clipService = _serviceProvider.GetRequiredService<IClipService>();
+
+            var movedCount = 0;
+            foreach (var item in selectedClips)
+            {
+                // For toolbar dropdown, we're moving within the same database
+                await clipService.MoveClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                movedCount++;
+            }
+
+            _viewModel.SetStatus($"Moved {movedCount} clip(s)");
+            await _viewModel.PrimaryClipList.LoadClipsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to move clips from toolbar dropdown");
+            _viewModel.SetStatus("Error moving clips");
+        }
+    }
+
+    /// <summary>
+    /// Gets the database configuration key for a tree node by traversing up to the database node.
+    /// </summary>
+    private static string? GetDatabaseKeyForNode(TreeNodeBase? node)
+    {
+        if (node == null)
+            return null;
+
+        // Traverse up the tree to find the DatabaseTreeNode
+        var current = node;
+        while (current != null)
+        {
+            if (current is DatabaseTreeNode dbNode)
+                return dbNode.DatabasePath;
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -212,7 +212,8 @@ public partial class SetupWizard
             };
 
             // Generate a unique GUID-based key for the database (same pattern as DatabaseOptionsViewModel)
-            var databaseKey = $"db_{Guid.NewGuid():N}";
+            var guid = Guid.NewGuid().ToString("N");
+            var databaseKey = $"db_{guid[..8]}";
             config.Databases[databaseKey] = dbConfig;
             config.DefaultDatabase = databaseKey;
 

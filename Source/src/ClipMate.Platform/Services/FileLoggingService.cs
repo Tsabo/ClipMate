@@ -43,7 +43,7 @@ public class FileLoggingService : IFileLoggingService
         try
         {
             if (!Directory.Exists(LogDirectory))
-                return Array.Empty<string>();
+                return [];
 
             var logFiles = Directory.GetFiles(LogDirectory, "clipmate-*.log")
                 .Union(Directory.GetFiles(LogDirectory, "clipmate-*.txt"))
@@ -56,7 +56,7 @@ public class FileLoggingService : IFileLoggingService
         {
             _logger.LogError(ex, "Failed to get log files from {LogDirectory}", LogDirectory);
 
-            return Array.Empty<string>();
+            return [];
         }
     }
 

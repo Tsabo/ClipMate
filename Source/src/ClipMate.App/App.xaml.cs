@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Tomlyn;
+using Application = System.Windows.Application;
 using ILogger = Serilog.ILogger;
 using MessageBox = System.Windows.MessageBox;
 
@@ -197,7 +198,7 @@ public partial class App
                     config.Preferences.BackupIntervalDays,
                     config.Preferences.AutoConfirmBackupSeconds)
                 {
-                    Owner = Current.MainWindow,
+                    Owner = Current.GetDialogOwner(),
                 };
 
                 // Record that we prompted the user
@@ -216,7 +217,7 @@ public partial class App
                     config.Preferences.BackupIntervalDays,
                     config.Preferences.AutoConfirmBackupSeconds)
                 {
-                    Owner = Current.MainWindow,
+                    Owner = Current.GetDialogOwner(),
                 };
 
                 // Record that we prompted the user for all databases
@@ -543,6 +544,9 @@ public partial class App
                 // Register ClipBar (quick paste picker) components
                 services.AddTransient<ClassicViewModel>();
                 services.AddTransient<ClassicWindow>();
+
+                // Register Collection Tree Builder
+                services.AddTransient<ICollectionTreeBuilder, CollectionTreeBuilder>();
 
                 // Register ViewModels
                 services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel

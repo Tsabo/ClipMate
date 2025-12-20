@@ -1,10 +1,8 @@
 using System.Collections.ObjectModel;
-using System.IO;
+using ClipMate.App.Services;
 using ClipMate.App.Views;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
-using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -24,9 +22,11 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject
 {
+    private readonly ICollectionTreeBuilder _collectionTreeBuilder;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
@@ -34,12 +34,16 @@ public partial class CollectionTreeViewModel : ObservableObject
 
     public CollectionTreeViewModel(IServiceScopeFactory serviceScopeFactory,
         IConfigurationService configurationService,
+        IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,
+        ICollectionTreeBuilder collectionTreeBuilder,
         ILogger<CollectionTreeViewModel> logger)
     {
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -47,11 +51,6 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// Root nodes of the tree (typically Database nodes).
     /// </summary>
     public ObservableCollection<TreeNodeBase> RootNodes { get; } = [];
-
-    /// <summary>
-    /// Gets the current application configuration.
-    /// </summary>
-    public ClipMateConfiguration Configuration => _configurationService.Configuration;
 
     /// <summary>
     /// Helper to create a scope and resolve a scoped service.
@@ -136,165 +135,11 @@ public partial class CollectionTreeViewModel : ObservableObject
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         RootNodes.Clear();
+        var treeNodes = await _collectionTreeBuilder.BuildTreeAsync(
+            TreeNodeType.None, cancellationToken);
 
-        // Load configuration to get database definitions
-        var configuration = _configurationService.Configuration;
-
-        // Create a database node for each configured database
-        if (configuration.Databases.Count > 0)
-        {
-            _logger.LogInformation("Creating database nodes for {Count} databases: {DatabaseKeys}",
-                configuration.Databases.Count,
-                string.Join(", ", configuration.Databases.Keys));
-
-            // Get database manager to access all loaded databases
-            using var scope = _serviceScopeFactory.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
-
-            foreach (var (databaseId, databaseConfig) in configuration.Databases)
-            {
-                // Check if database file exists
-                var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
-                var hasError = !File.Exists(dbFile);
-
-                // Create database node with title from configuration and error status
-                var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId, hasError);
-
-                // Load collections for this database if it exists
-                if (!hasError)
-                {
-                    try
-                    {
-                        // Get the database context for this specific database
-                        var dbContext = databaseManager.GetDatabaseContext(databaseId);
-
-                        if (dbContext != null)
-                        {
-                            // Load collections directly from this database context
-                            var allCollections = await dbContext.Collections.ToListAsync(cancellationToken);
-
-                            // Separate regular collections from virtual ones
-                            var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
-                            var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
-
-                            _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
-                                regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
-
-                            // Determine sort order based on global preference
-                            var sortByAlpha = _configurationService.Configuration.Preferences.SortCollectionsAlphabetically;
-                            var orderedCollections = sortByAlpha
-                                ? regularCollections.OrderBy(p => p.Title)
-                                : regularCollections.OrderBy(p => p.SortKey);
-
-                            // Add regular collections to database node
-                            foreach (var item in orderedCollections)
-                            {
-                                var collectionNode = new CollectionTreeNode(item)
-                                {
-                                    Parent = databaseNode,
-                                };
-
-                                await LoadFoldersAsync(collectionNode, cancellationToken);
-
-                                databaseNode.Children.Add(collectionNode);
-                            }
-
-                            // Add Trashcan at bottom of collections (after all regular collections)
-                            // Trashcan is read-only (rejects new clips), which makes it display in red
-                            var trashcanNode = new TrashcanVirtualCollectionNode(databaseConfig.FilePath)
-                            {
-                                Parent = databaseNode,
-                            };
-
-                            databaseNode.Children.Add(trashcanNode);
-
-                            // Add virtual collections container if any virtual collections exist
-                            if (virtualCollections.Count > 0)
-                            {
-                                var virtualContainer = new VirtualCollectionsContainerNode
-                                {
-                                    Parent = databaseNode,
-                                };
-
-                                // Virtual collections also respect the SortByAlpha preference
-                                var orderedVirtualCollections = sortByAlpha
-                                    ? virtualCollections.OrderBy(p => p.Title)
-                                    : virtualCollections.OrderBy(p => p.SortKey);
-
-                                // Add other virtual collections
-                                foreach (var item in orderedVirtualCollections)
-                                {
-                                    var virtualNode = new VirtualCollectionTreeNode(item)
-                                    {
-                                        Parent = virtualContainer,
-                                    };
-
-                                    virtualContainer.Children.Add(virtualNode);
-                                }
-
-                                databaseNode.Children.Add(virtualContainer);
-                            }
-                        }
-                        else
-                            _logger.LogWarning("Database context not loaded for: {DatabaseName}", databaseConfig.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to load collections from database: {DatabaseName}", databaseConfig.Name);
-                    }
-                }
-
-                // Expand the default database node by default
-                if (databaseId == configuration.DefaultDatabase)
-                    databaseNode.IsExpanded = true;
-
-                RootNodes.Add(databaseNode);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Loads the folder hierarchy for a collection.
-    /// </summary>
-    private async Task LoadFoldersAsync(CollectionTreeNode collectionNode, CancellationToken cancellationToken)
-    {
-        using var scope = CreateScope();
-        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-        var rootFolders = await folderService.GetRootFoldersAsync(collectionNode.Collection.Id, cancellationToken);
-
-        foreach (var item in rootFolders)
-        {
-            var folderNode = new FolderTreeNode(item)
-            {
-                Parent = collectionNode,
-            };
-
-            await LoadSubFoldersAsync(folderNode, cancellationToken);
-
-            collectionNode.Children.Add(folderNode);
-        }
-    }
-
-    /// <summary>
-    /// Recursively loads subfolders for a folder node.
-    /// </summary>
-    private async Task LoadSubFoldersAsync(FolderTreeNode folderNode, CancellationToken cancellationToken)
-    {
-        using var scope = CreateScope();
-        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-        var subFolders = await folderService.GetChildFoldersAsync(folderNode.Folder.Id, cancellationToken);
-
-        foreach (var item in subFolders)
-        {
-            var subFolderNode = new FolderTreeNode(item)
-            {
-                Parent = folderNode,
-            };
-
-            await LoadSubFoldersAsync(subFolderNode, cancellationToken);
-
-            folderNode.Children.Add(subFolderNode);
-        }
+        foreach (var node in treeNodes)
+            RootNodes.Add(node);
     }
 
     /// <summary>
@@ -404,17 +249,10 @@ public partial class CollectionTreeViewModel : ObservableObject
             scope.ServiceProvider,
             activeDatabaseKey);
 
-        var window = new CollectionPropertiesWindow(viewModel, _configurationService);
-
-        // Find the ExplorerWindow to use as owner (MainWindow might be HotkeyWindow)
-        var explorerWindow = Application.Current.Windows.OfType<ExplorerWindow>().FirstOrDefault();
-        if (explorerWindow != null)
-            window.Owner = explorerWindow;
-        else
+        var window = new CollectionPropertiesWindow(viewModel, _configurationService)
         {
-            _logger.LogWarning("ExplorerWindow not found, using MainWindow as owner");
-            window.Owner = Application.Current.MainWindow;
-        }
+            Owner = Application.Current.GetDialogOwner(),
+        };
 
         if (window.ShowDialog() == true)
         {
@@ -449,16 +287,16 @@ public partial class CollectionTreeViewModel : ObservableObject
             Owner = Application.Current.GetDialogOwner(),
         };
 
-        if (dialog.ShowDialog() == true && dialog.DatabaseConfig != null)
-        {
-            // Update the configuration
-            config.Databases[databaseKey] = dialog.DatabaseConfig;
+        if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)
+            return;
 
-            _logger.LogInformation("Updated database configuration: {DatabaseName}", dialog.DatabaseConfig.Name);
+        // Update the configuration
+        config.Databases[databaseKey] = dialog.DatabaseConfig;
 
-            // Reload the tree to reflect the changes
-            _ = LoadAsync();
-        }
+        _logger.LogInformation("Updated database configuration: {DatabaseName}", dialog.DatabaseConfig.Name);
+
+        // Reload the tree to reflect the changes
+        _ = LoadAsync();
     }
 
     /// <summary>
@@ -479,7 +317,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         }
 
         using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = dbManager.GetDatabaseContext(databaseKey);
 
         if (dbContext == null)
@@ -556,7 +394,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         }
 
         using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = dbManager.GetDatabaseContext(databaseKey);
 
         if (dbContext == null)
@@ -642,7 +480,7 @@ public partial class CollectionTreeViewModel : ObservableObject
         }
 
         using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = dbManager.GetDatabaseContext(databaseKey);
 
         if (dbContext == null)
@@ -659,8 +497,8 @@ public partial class CollectionTreeViewModel : ObservableObject
 
         // Remove dropped collections from current positions
         var droppedCollections = allCollections.Where(p => droppedCollectionIds.Contains(p.Id)).ToList();
-        foreach (var dropped in droppedCollections)
-            allCollections.Remove(dropped);
+        foreach (var item in droppedCollections)
+            allCollections.Remove(item);
 
         // Find target collection index
         var targetIndex = allCollections.FindIndex(p => p.Id == targetCollectionId);
@@ -711,7 +549,7 @@ public partial class CollectionTreeViewModel : ObservableObject
     public async Task MoveClipsToCollectionAsync(List<Guid> clipIds, Guid targetCollectionId, Guid? targetDatabaseId)
     {
         using var scope = _serviceScopeFactory.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
 
         // Find the target collection node to get the database key
         var targetNode = FindNodeById(targetCollectionId);
@@ -736,9 +574,9 @@ public partial class CollectionTreeViewModel : ObservableObject
             return;
         }
 
-        // Use ClipRepository to move clips
-        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-        await clipRepository.MoveClipsToCollectionAsync(databaseNode.DatabasePath, clipIds, targetCollectionId);
+        // Use factory to create repository for the database
+        var clipRepository = _repositoryFactory.CreateRepository(databaseNode.DatabasePath);
+        await clipRepository.MoveClipsToCollectionAsync(clipIds, targetCollectionId);
 
         _logger.LogInformation("Moved {Count} clips to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }
@@ -748,10 +586,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// </summary>
     public async Task SoftDeleteClipsAsync(List<Guid> clipIds, string databaseKey)
     {
-        using var scope = _serviceScopeFactory.CreateScope();
-        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-
-        await clipRepository.SoftDeleteClipsAsync(databaseKey, clipIds);
+        // Use factory to create repository for the database
+        var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+        await clipRepository.SoftDeleteClipsAsync(clipIds);
 
         _logger.LogInformation("Soft-deleted {Count} clips to Trashcan", clipIds.Count);
     }
@@ -761,10 +598,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// </summary>
     public async Task RestoreClipsAsync(List<Guid> clipIds, Guid targetCollectionId, string databaseKey)
     {
-        using var scope = _serviceScopeFactory.CreateScope();
-        var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
-
-        await clipRepository.RestoreClipsAsync(databaseKey, clipIds, targetCollectionId);
+        // Use factory to create repository for the database
+        var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+        await clipRepository.RestoreClipsAsync(clipIds, targetCollectionId);
 
         _logger.LogInformation("Restored {Count} clips from Trashcan to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }

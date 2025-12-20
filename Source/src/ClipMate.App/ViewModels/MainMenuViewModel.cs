@@ -1,7 +1,9 @@
 using ClipMate.Core.Events;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 
 namespace ClipMate.App.ViewModels;
 
@@ -11,7 +13,9 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject
 {
+    private readonly IClipService _clipService;
     private readonly IMessenger _messenger;
+    private readonly IUndoService _undoService;
 
     [ObservableProperty]
     private bool _isExplodeMode;
@@ -19,9 +23,13 @@ public partial class MainMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoopMode;
 
-    public MainMenuViewModel(IMessenger messenger)
+    public MainMenuViewModel(IMessenger messenger,
+        IClipService clipService,
+        IUndoService undoService)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
     }
 
     // ==========================
@@ -29,25 +37,25 @@ public partial class MainMenuViewModel : ObservableObject
     // ==========================
 
     [RelayCommand]
-    private void CreateNewClip() { }
+    private void CreateNewClip() => _messenger.Send(new CreateNewClipRequestedEvent(Guid.Empty));
 
     [RelayCommand]
     private void ClipProperties() { }
 
     [RelayCommand]
-    private void RenameClip() { }
+    private void RenameClip() => _messenger.Send(new RenameClipRequestedEvent(Guid.Empty, string.Empty));
 
     [RelayCommand]
-    private void DeleteSelected() { }
+    private void DeleteSelected() => _messenger.Send(new DeleteClipsRequestedEvent([]));
 
     [RelayCommand]
     private void UnDelete() { }
 
     [RelayCommand]
-    private void CopyToCollection() { }
+    private void CopyToCollection() => _messenger.Send(new CopyToCollectionRequestedEvent([]));
 
     [RelayCommand]
-    private void MoveToCollection() { }
+    private void MoveToCollection() => _messenger.Send(new MoveToCollectionRequestedEvent([]));
 
     [RelayCommand]
     private void ExportClips() { }
@@ -123,8 +131,15 @@ public partial class MainMenuViewModel : ObservableObject
     // Edit Menu Commands
     // ==========================
 
-    [RelayCommand]
-    private void Undo() { }
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        var previousState = _undoService.Undo();
+        if (previousState != null)
+            _messenger.Send(new RestoreTextStateEvent(previousState));
+    }
+
+    private bool CanUndo() => _undoService.CanUndo;
 
     [RelayCommand]
     private void SelectAll() { }
@@ -163,13 +178,13 @@ public partial class MainMenuViewModel : ObservableObject
     private void UnicodeToAnsi() { }
 
     [RelayCommand]
-    private void PowerPasteUp() { }
+    private void PowerPasteUp() => _messenger.Send(new PowerPasteUpRequestedEvent());
 
     [RelayCommand]
-    private void PowerPasteDown() { }
+    private void PowerPasteDown() => _messenger.Send(new PowerPasteDownRequestedEvent());
 
     [RelayCommand]
-    private void PowerPasteToggle() { }
+    private void PowerPasteToggle() => _messenger.Send(new PowerPasteToggleRequestedEvent());
 
     // ==========================
     // Tools Menu Commands

@@ -8,7 +8,7 @@ namespace ClipMate.Data.Services;
 /// Manages multiple database connections based on configuration.
 /// Implements ClipMate 7.5 multi-database architecture.
 /// </summary>
-public class DatabaseManager : IDisposable
+internal class DatabaseManager : IDatabaseManager
 {
     private readonly IConfigurationService _configService;
     private readonly IDatabaseContextFactory _contextFactory;

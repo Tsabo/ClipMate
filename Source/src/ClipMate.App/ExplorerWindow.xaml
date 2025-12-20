@@ -43,6 +43,16 @@
                                        ToolTip="Click to start PowerPaste. Click again to change direction or stop."
                                        LargeGlyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}"
                                        Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
+                    
+                    <!-- Copy to Collection Dropdown -->
+                    <dxb:BarSubItem x:Name="CopyToCollectionDropdown"
+                                    Content="Copy to Collection"
+                                    Glyph="{dx:DXImage 'SvgImages/Actions/Copy.svg'}" />
+                    
+                    <!-- Move to Collection Dropdown -->
+                    <dxb:BarSubItem x:Name="MoveToCollectionDropdown"
+                                    Content="Move to Collection"
+                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveDown.svg'}" />
                 </dxb:Bar>
 
                 <!-- Menu Bar -->
@@ -255,7 +265,8 @@
                                       ShowBorder="False">
                         <views:ClipListView x:Name="DockedClipListView"
                                             Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                            SelectedItem="{Binding PrimaryClipList.SelectedClip}" />
+                                            SelectedItem="{Binding PrimaryClipList.SelectedClip}"
+                                            SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
                     </dxdo:LayoutPanel>
                 </dxdo:LayoutGroup>
 

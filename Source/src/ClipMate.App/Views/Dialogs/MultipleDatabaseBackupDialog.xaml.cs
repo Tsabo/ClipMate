@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows;
 using System.Windows.Threading;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
@@ -55,7 +54,7 @@ public partial class MultipleDatabaseBackupDialog
     /// <summary>
     /// Gets the list of databases selected for backup with updated configurations.
     /// </summary>
-    public List<DatabaseConfiguration> SelectedDatabases { get; private set; } = new();
+    public List<DatabaseConfiguration> SelectedDatabases { get; private set; } = [];
 
     /// <summary>
     /// Gets whether backups should proceed.

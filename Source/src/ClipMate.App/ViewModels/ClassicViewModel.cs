@@ -13,8 +13,6 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class ClassicViewModel : ObservableObject
 {
-    private readonly IClipService _clipService;
-
     [ObservableProperty]
     private bool _isDroppedDown;
 
@@ -25,17 +23,15 @@ public partial class ClassicViewModel : ObservableObject
     private Clip? _selectedClip;
 
     [ObservableProperty]
-    private ObservableCollection<Clip> _selectedClips = new();
+    private ObservableCollection<Clip> _selectedClips = [];
 
     [ObservableProperty]
     private bool _shouldCloseWindow;
 
-    public ClassicViewModel(IClipService clipService,
-        MainMenuViewModel mainMenu,
+    public ClassicViewModel(MainMenuViewModel mainMenu,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         ClipListViewModel clipListViewModel)
     {
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         ClipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));

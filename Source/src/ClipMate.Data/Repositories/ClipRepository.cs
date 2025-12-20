@@ -294,11 +294,11 @@ public class ClipRepository : IClipRepository
             .Where(p => p.CapturedAt.DateTime < cutoffDate)
             .ToList();
 
-        foreach (var clip in clipsToDelete)
+        foreach (var item in clipsToDelete)
         {
-            clip.Del = true;
-            clip.DelDate = DateTimeOffset.Now;
-            await DeleteClipBlobsAsync(clip.Id, cancellationToken);
+            item.Del = true;
+            item.DelDate = DateTimeOffset.Now;
+            await DeleteClipBlobsAsync(item.Id, cancellationToken);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -315,67 +315,70 @@ public class ClipRepository : IClipRepository
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(string databaseKey, Guid collectionId)
-    {
-        // TODO: Implement with proper database key handling
-        return GetByCollectionAsync(collectionId);
-    }
+    public Task<IReadOnlyList<Clip>> GetClipsInCollectionAsync(Guid collectionId) => GetByCollectionAsync(collectionId);
 
     /// <inheritdoc />
-    public async Task MoveClipsToCollectionAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId)
-    {
-        // TODO: Implement bulk move with proper database key handling
-        foreach (var clipId in clipIds)
-        {
-            var clip = await _context.Clips.FindAsync(clipId);
-            clip?.CollectionId = targetCollectionId;
-        }
-
-        await _context.SaveChangesAsync();
-    }
-
-    /// <inheritdoc />
-    public async Task DeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds)
-    {
-        // TODO: Implement bulk delete with proper database key handling
-        foreach (var clipId in clipIds)
-            await DeleteAsync(clipId);
-    }
-
-    public async Task SoftDeleteClipsAsync(string databaseKey, IEnumerable<Guid> clipIds)
+    public async Task MoveClipsToCollectionAsync(IEnumerable<Guid> clipIds, Guid targetCollectionId)
     {
         var ids = clipIds.ToList();
         if (ids.Count == 0)
             return;
 
         var clips = await _context.Clips
-            .Where(c => ids.Contains(c.Id))
+            .Where(p => ids.Contains(p.Id))
             .ToListAsync();
 
-        foreach (var clip in clips)
-        {
-            clip.Del = true;
-            clip.DelDate = DateTimeOffset.Now;
-        }
+        foreach (var item in clips)
+            item.CollectionId = targetCollectionId;
 
         await _context.SaveChangesAsync();
     }
 
-    public async Task RestoreClipsAsync(string databaseKey, IEnumerable<Guid> clipIds, Guid targetCollectionId)
+    /// <inheritdoc />
+    public async Task DeleteClipsAsync(IEnumerable<Guid> clipIds)
+    {
+        var ids = clipIds.ToList();
+        if (ids.Count == 0)
+            return;
+
+        foreach (var item in ids)
+            await DeleteAsync(item);
+    }
+
+    public async Task SoftDeleteClipsAsync(IEnumerable<Guid> clipIds)
     {
         var ids = clipIds.ToList();
         if (ids.Count == 0)
             return;
 
         var clips = await _context.Clips
-            .Where(c => ids.Contains(c.Id))
+            .Where(p => ids.Contains(p.Id))
             .ToListAsync();
 
-        foreach (var clip in clips)
+        foreach (var item in clips)
         {
-            clip.Del = false;
-            clip.DelDate = null;
-            clip.CollectionId = targetCollectionId;
+            item.Del = true;
+            item.DelDate = DateTimeOffset.Now;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RestoreClipsAsync(IEnumerable<Guid> clipIds, Guid targetCollectionId)
+    {
+        var ids = clipIds.ToList();
+        if (ids.Count == 0)
+            return;
+
+        var clips = await _context.Clips
+            .Where(p => ids.Contains(p.Id))
+            .ToListAsync();
+
+        foreach (var item in clips)
+        {
+            item.Del = false;
+            item.DelDate = null;
+            item.CollectionId = targetCollectionId;
         }
 
         await _context.SaveChangesAsync();
@@ -616,7 +619,7 @@ public class ClipRepository : IClipRepository
     {
         // EF Core will cascade delete BLOBs when we delete ClipData (configured in OnModelCreating)
         var clipDataEntries = await _context.ClipData
-            .Where(cd => cd.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.ClipData.RemoveRange(clipDataEntries);

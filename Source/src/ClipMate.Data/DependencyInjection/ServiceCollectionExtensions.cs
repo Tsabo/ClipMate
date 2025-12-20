@@ -44,9 +44,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMonacoEditorStateRepository, MonacoEditorStateRepository>();
 
-        // Register services as Scoped (they inject Scoped repositories)
-        // Note: IClipboardService implementation is in Platform layer
-        services.AddScoped<IClipService, ClipService>();
+        // Register repository factory for multi-database support
+        // Singleton because it's stateless and creates repositories on demand
+        services.AddSingleton<IClipRepositoryFactory, ClipRepositoryFactory>();
+
+        // Register services
+        // ClipService is singleton because it supports multi-database operations via IClipRepositoryFactory
+        // and must be shared across the entire application
+        services.AddSingleton<IClipService, ClipService>();
+
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
 
         // CollectionService is singleton because it maintains in-memory state (_activeCollectionId)
@@ -60,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
         services.AddScoped<IDatabaseMaintenanceService, DatabaseMaintenanceService>(); // Database maintenance (backup/restore/repair)
         services.AddScoped<IRetentionEnforcementService, RetentionEnforcementService>(); // Retention enforcement service
+        services.AddSingleton<IUndoService, UndoService>(); // Undo/Redo service
 
         // Register default data initialization service (ensures Inbox exists and is set as active)
         services.AddSingleton<DefaultDataInitializationService>();
@@ -75,7 +82,7 @@ public static class ServiceCollectionExtensions
 
         // Register multi-database management
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
-        services.AddSingleton<DatabaseManager>();
+        services.AddSingleton<IDatabaseManager, DatabaseManager>();
 
         // Register ClipboardCoordinator as singleton first (so it can be injected)
         services.AddSingleton<ClipboardCoordinator>();
@@ -88,27 +95,5 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(p => p.GetRequiredService<MaintenanceSchedulerService>());
 
         return services;
-    }
-
-    /// <summary>
-    /// Initializes the database schema and applies migrations.
-    /// </summary>
-    /// <param name="serviceProvider">The service provider.</param>
-    /// <returns>True if initialization was successful.</returns>
-    public static bool InitializeDatabase(this IServiceProvider serviceProvider)
-    {
-        using var scope = serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
-
-        try
-        {
-            // Ensure database is created
-            dbContext.Database.EnsureCreated();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

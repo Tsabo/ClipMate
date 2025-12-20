@@ -65,13 +65,13 @@ public class CollectionService : ICollectionService
             throw new InvalidOperationException("Active collection database key is not set.");
 
         using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
 
         if (dbContext == null)
             throw new InvalidOperationException($"Database context for key '{_activeDatabaseKey}' not found.");
 
-        var collection = await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == _activeCollectionId.Value, cancellationToken);
+        var collection = await dbContext.Collections.FirstOrDefaultAsync(p => p.Id == _activeCollectionId.Value, cancellationToken);
 
         if (collection == null)
             throw new InvalidOperationException($"Active collection {_activeCollectionId} not found in database '{_activeDatabaseKey}'.");
@@ -87,7 +87,7 @@ public class CollectionService : ICollectionService
             return null;
 
         using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
 
         if (dbContext == null)
@@ -95,8 +95,8 @@ public class CollectionService : ICollectionService
 
         // Find first non-virtual collection that accepts new clips, ordered by SortKey
         return await dbContext.Collections
-            .Where(c => !c.IsVirtual && c.AcceptNewClips && !c.ReadOnly)
-            .OrderBy(c => c.SortKey)
+            .Where(p => !p.IsVirtual && p.AcceptNewClips && !p.ReadOnly)
+            .OrderBy(p => p.SortKey)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -106,13 +106,13 @@ public class CollectionService : ICollectionService
 
         // Verify collection exists in the specified database
         using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
         var dbContext = databaseManager.GetDatabaseContext(databaseKey);
 
         if (dbContext == null)
             throw new ArgumentException($"Database context for key '{databaseKey}' not found.", nameof(databaseKey));
 
-        var collection = await dbContext.Collections.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        var collection = await dbContext.Collections.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (collection == null)
             throw new ArgumentException($"Collection {id} not found in database '{databaseKey}'.", nameof(id));

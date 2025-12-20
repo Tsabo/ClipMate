@@ -31,7 +31,7 @@ public class CollectionTreeNode : TreeNodeBase
                 {
                     var name when name.Contains("trash") => "🗑️",
                     var name when name.Contains("search") => "🔍",
-                    _ => "⭐"
+                    var _ => "⭐",
                 };
             }
 
@@ -42,7 +42,7 @@ public class CollectionTreeNode : TreeNodeBase
                 "safe" => "🔒",
                 "overflow" => "🌊",
                 "samples" => "📋",
-                _ => Collection.Icon ?? "📁"
+                var _ => Collection.Icon ?? "📁",
             };
         }
     }

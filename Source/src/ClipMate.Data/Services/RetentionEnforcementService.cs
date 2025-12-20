@@ -47,7 +47,7 @@ public class RetentionEnforcementService : IRetentionEnforcementService
         var clipsProcessed = 0;
 
         // Get all clips in collection ordered by timestamp (oldest first)
-        var allClips = await _clipRepository.GetClipsInCollectionAsync(databaseKey, collectionId);
+        var allClips = await _clipRepository.GetClipsInCollectionAsync(collectionId);
         var clips = allClips.OrderBy(p => p.CapturedAt).ToList();
 
         // Enforce MaxAge first (delete old clips)
@@ -64,7 +64,7 @@ public class RetentionEnforcementService : IRetentionEnforcementService
                     collection.MaxAgeDays,
                     collection.Title);
 
-                await _clipRepository.DeleteClipsAsync(databaseKey, oldClips.Select(c => c.Id));
+                await _clipRepository.DeleteClipsAsync(oldClips.Select(c => c.Id));
                 clipsProcessed += oldClips.Count;
                 clips = clips.Except(oldClips).ToList();
             }
@@ -163,7 +163,7 @@ public class RetentionEnforcementService : IRetentionEnforcementService
             _logger.LogInformation("Moving {Count} clips to Overflow", clips.Count);
         }
 
-        await _clipRepository.MoveClipsToCollectionAsync(databaseKey, clips.Select(p => p.Id), destinationId);
+        await _clipRepository.MoveClipsToCollectionAsync(clips.Select(p => p.Id), destinationId);
         return clips.Count;
     }
 }

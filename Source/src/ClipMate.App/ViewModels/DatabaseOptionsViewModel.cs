@@ -98,7 +98,8 @@ public partial class DatabaseOptionsViewModel : ObservableObject
             return;
 
         // Generate a unique GUID-based key for the new database
-        var key = $"db_{Guid.NewGuid():N}";
+        var guid = Guid.NewGuid().ToString("N");
+        var key = $"db_{guid[..8]}";
         Databases.Add(new DatabaseConfigurationViewModel(key, dialog.DatabaseConfig));
         _logger.LogDebug("Added database: {Name} with key {Key}", dialog.DatabaseConfig.Name, key);
     }

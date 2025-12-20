@@ -1,4 +1,3 @@
-using System.Windows;
 using ClipMate.App.Views;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -164,14 +163,14 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         try
         {
             using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<DatabaseManager>();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
             var dbContext = databaseManager.GetDatabaseContext(_databaseKey);
 
             if (dbContext == null)
                 return _collection.LastKnownCount ?? 0;
 
             // Count clips in this collection
-            return dbContext.Clips.Count(c => c.CollectionId == _collection.Id && !c.Del);
+            return dbContext.Clips.Count(p => p.CollectionId == _collection.Id && !p.Del);
         }
         catch
         {
@@ -258,15 +257,10 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     [RelayCommand]
     private void ChangeIcon()
     {
-        var picker = new EmojiPickerWindow(_configurationService, Icon);
-
-        // Find the CollectionPropertiesWindow that owns this ViewModel
-        var owner = Application.Current.Windows
-            .OfType<CollectionPropertiesWindow>()
-            .FirstOrDefault(p => ReferenceEquals(p.DataContext, this));
-
-        if (owner != null)
-            picker.Owner = owner;
+        var picker = new EmojiPickerWindow(_configurationService, Icon)
+        {
+            Owner = Application.Current.GetDialogOwner(),
+        };
 
         if (picker.ShowDialog() == true && !string.IsNullOrEmpty(picker.SelectedEmoji))
             Icon = picker.SelectedEmoji;

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Windows;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using DevExpress.Xpf.Core;
@@ -148,13 +147,13 @@ public partial class ClipListView
 
         var dialog = new ClipPropertiesDialog();
         var app = (App)Application.Current;
-        if (app.ServiceProvider.GetService(typeof(ClipPropertiesViewModel)) is ClipPropertiesViewModel viewModel)
-        {
-            await viewModel.LoadClipAsync(SelectedItem);
-            dialog.DataContext = viewModel;
-            dialog.Owner = Window.GetWindow(this);
-            dialog.ShowDialog();
-        }
+        if (app.ServiceProvider.GetService(typeof(ClipPropertiesViewModel)) is not ClipPropertiesViewModel viewModel)
+            return;
+
+        await viewModel.LoadClipAsync(SelectedItem);
+        dialog.DataContext = viewModel;
+        dialog.Owner = Application.Current.GetDialogOwner();
+        dialog.ShowDialog();
     }
 
     private async void PasteNow_Click(object sender, RoutedEventArgs e)

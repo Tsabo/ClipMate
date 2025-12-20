@@ -27,7 +27,12 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private string _collectionId = string.Empty;
 
     [ObservableProperty]
+    private string _collectionName = string.Empty;
+
+    [ObservableProperty]
     private string _creator = string.Empty;
+
+    private string? _databaseKey;
 
     [ObservableProperty]
     private ObservableCollection<DataFormatInfo> _dataFormats = [];
@@ -78,37 +83,43 @@ public partial class ClipPropertiesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Loads clip data into the view model.
+    /// Loads a clip's data into the properties dialog.
     /// </summary>
-#pragma warning disable IDE0016 // Null-coalescing is more readable than pattern matching in this method
+    /// <param name="clip">The clip to load.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task LoadClipAsync(Clip clip, CancellationToken cancellationToken = default)
     {
-        if (clip == null)
-            throw new ArgumentNullException(nameof(clip));
+        ArgumentNullException.ThrowIfNull(clip);
 
         _originalClip = clip;
+
+        // Get database key from active collection
+        _databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(_databaseKey))
+            throw new InvalidOperationException("No active database key found");
 
         ClipId = clip.Id.ToString();
         CollectionId = clip.CollectionId?.ToString() ?? string.Empty;
 
-        // Load folder name or collection name
+        // Load collection and folder names
+        if (clip.CollectionId.HasValue)
+        {
+            var collection = await _collectionService.GetByIdAsync(clip.CollectionId.Value, cancellationToken);
+            if (collection != null)
+                CollectionName = collection.Title;
+            else
+                CollectionName = "(Unknown Collection)";
+        }
+        else
+            CollectionName = "(No Collection)";
+
         if (clip.FolderId.HasValue)
         {
             var folder = await _folderService.GetByIdAsync(clip.FolderId.Value, cancellationToken);
-            FolderName = folder is not null
-                ? folder.Name
-                : "Unknown";
-        }
-        else if (clip.CollectionId.HasValue)
-        {
-            // When no folder is assigned, show the collection name
-            var collection = await _collectionService.GetByIdAsync(clip.CollectionId.Value, cancellationToken);
-            FolderName = collection is not null
-                ? collection.Name
-                : "(Unknown Collection)";
+            FolderName = folder?.Name ?? "(Unknown Folder)";
         }
         else
-            FolderName = "(No Collection)";
+            FolderName = "(No Folder)";
 
         Title = clip.Title;
         SourceUrl = clip.SourceUrl;
@@ -125,7 +136,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
 
         // Load data formats through service layer
         DataFormats.Clear();
-        var clipDataFormats = await _clipService.GetClipFormatsAsync(clip.Id, cancellationToken);
+        var clipDataFormats = await _clipService.GetClipFormatsAsync(_databaseKey, clip.Id, cancellationToken);
 
         foreach (var item in clipDataFormats.OrderBy(p => p.FormatName))
         {
@@ -133,16 +144,15 @@ public partial class ClipPropertiesViewModel : ObservableObject
             DataFormats.Add(new DataFormatInfo
             {
                 Icon = icon,
-                FormatName = $"{item.FormatName} (Format: {item.Format}, Size: {item.Size} bytes)"
+                FormatName = $"{item.FormatName} (Format: {item.Format}, Size: {item.Size} bytes)",
             });
         }
     }
-#pragma warning restore IDE0016
 
     [RelayCommand]
     private async Task OkAsync()
     {
-        if (_originalClip == null)
+        if (_originalClip == null || string.IsNullOrEmpty(_databaseKey))
             return;
 
         // Update the clip with edited values
@@ -154,7 +164,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
         _originalClip.Macro = Macro;
         _originalClip.LastModified = DateTimeOffset.Now;
 
-        await _clipService.UpdateAsync(_originalClip);
+        await _clipService.UpdateAsync(_databaseKey, _originalClip);
 
         StatusText = "Status: Clip updated successfully.";
     }
@@ -172,7 +182,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
         Process.Start(new ProcessStartInfo
         {
             FileName = "https://clipmate.com/help/clip-properties",
-            UseShellExecute = true
+            UseShellExecute = true,
         });
     }
 
