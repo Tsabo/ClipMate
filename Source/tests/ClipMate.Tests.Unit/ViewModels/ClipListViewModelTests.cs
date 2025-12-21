@@ -1,5 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
+using ClipMate.Data;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -41,6 +43,8 @@ public class ClipListViewModelTests
         _viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
             _mockRepositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             _mockLogger.Object);
     }
@@ -51,6 +55,8 @@ public class ClipListViewModelTests
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
             _mockRepositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             _mockLogger.Object);
 
@@ -63,6 +69,8 @@ public class ClipListViewModelTests
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
             _mockRepositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             _mockLogger.Object);
 
@@ -78,6 +86,8 @@ public class ClipListViewModelTests
         var viewModel = new ClipListViewModel(
             _mockServiceScopeFactory.Object,
             _mockRepositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             _mockLogger.Object);
 

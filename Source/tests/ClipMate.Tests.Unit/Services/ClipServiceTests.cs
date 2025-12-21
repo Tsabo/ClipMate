@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
@@ -255,7 +256,8 @@ public class ClipServiceTests
         // Create ClipService with factory
         new ClipService(
             _mockRepositoryFactory.Object,
-            Mock.Of<IServiceProvider>(),
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
             _mockSoundService.Object,
             _mockLogger.Object);
 

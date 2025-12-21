@@ -410,7 +410,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
 
         // Collection loaded: show collection information
         var selectedNode = CollectionTree.SelectedNode;
-        string containerName = "Items";
+        var containerName = "Items";
 
         if (selectedNode is CollectionTreeNode collectionNode)
             containerName = collectionNode.Name;
@@ -771,8 +771,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
 
             var clipService = _serviceProvider.GetRequiredService<IClipService>();
 
-            foreach (var clip in selectedClips)
-                await clipService.DeleteAsync(databaseKey, clip.Id);
+            foreach (var item in selectedClips)
+                await clipService.DeleteAsync(databaseKey, item.Id);
 
             SetStatus($"Deleted {clipCount} clip(s)");
 
@@ -958,14 +958,14 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             var isCrossDatabase = !sourceDatabaseKey.Equals(targetDatabaseKey, StringComparison.OrdinalIgnoreCase);
 
             var copiedCount = 0;
-            foreach (var clip in selectedClips)
+            foreach (var item in selectedClips)
             {
                 if (isCrossDatabase)
                 {
                     // Cross-database copy
                     await clipService.CopyClipCrossDatabaseAsync(
                         sourceDatabaseKey,
-                        clip.Id,
+                        item.Id,
                         targetDatabaseKey,
                         dialog.SelectedCollectionId.Value);
                 }
@@ -974,7 +974,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                     // Same-database copy
                     await clipService.CopyClipAsync(
                         sourceDatabaseKey,
-                        clip.Id,
+                        item.Id,
                         dialog.SelectedCollectionId.Value);
                 }
 
@@ -1039,14 +1039,14 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             var isCrossDatabase = !sourceDatabaseKey.Equals(targetDatabaseKey, StringComparison.OrdinalIgnoreCase);
 
             var movedCount = 0;
-            foreach (var clip in selectedClips)
+            foreach (var item in selectedClips)
             {
                 if (isCrossDatabase)
                 {
                     // Cross-database move (copy + delete)
                     await clipService.MoveClipCrossDatabaseAsync(
                         sourceDatabaseKey,
-                        clip.Id,
+                        item.Id,
                         targetDatabaseKey,
                         dialog.SelectedCollectionId.Value);
                 }
@@ -1055,7 +1055,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                     // Same-database move (update CollectionId)
                     await clipService.MoveClipAsync(
                         sourceDatabaseKey,
-                        clip.Id,
+                        item.Id,
                         dialog.SelectedCollectionId.Value);
                 }
 

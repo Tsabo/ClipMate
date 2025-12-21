@@ -95,7 +95,9 @@ public class CollectionService : ICollectionService
 
         // Find first non-virtual collection that accepts new clips, ordered by SortKey
         return await dbContext.Collections
-            .Where(p => !p.IsVirtual && p.AcceptNewClips && !p.ReadOnly)
+            .Where(p =>
+                !(p.LmType == CollectionLmType.Virtual || p.ListType == CollectionListType.Smart || p.ListType == CollectionListType.SqlBased) // not virtual
+                && p.AcceptNewClips && !p.ReadOnly)
             .OrderBy(p => p.SortKey)
             .FirstOrDefaultAsync(cancellationToken);
     }

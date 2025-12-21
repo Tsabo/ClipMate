@@ -5,7 +5,6 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
-                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:views="clr-namespace:ClipMate.App.Views"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  xmlns:converters="clr-namespace:ClipMate.App.Converters"
@@ -21,7 +20,6 @@
                  StateChanged="Window_StateChanged">
     <dx:ThemedWindow.Resources>
         <converters:StatusBarStatisticsConverter x:Key="StatusBarStatisticsConverter" />
-        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </dx:ThemedWindow.Resources>
 
     <Grid>
@@ -43,16 +41,18 @@
                                        ToolTip="Click to start PowerPaste. Click again to change direction or stop."
                                        LargeGlyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}"
                                        Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
-                    
+
                     <!-- Copy to Collection Dropdown -->
                     <dxb:BarSubItem x:Name="CopyToCollectionDropdown"
                                     Content="Copy to Collection"
-                                    Glyph="{dx:DXImage 'SvgImages/Actions/Copy.svg'}" />
-                    
+                                    Glyph="{dx:DXImage 'SvgImages/Actions/Copy.svg'}"
+                                    GetItemData="CopyToCollectionDropdown_GetItemData" />
+
                     <!-- Move to Collection Dropdown -->
                     <dxb:BarSubItem x:Name="MoveToCollectionDropdown"
                                     Content="Move to Collection"
-                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveDown.svg'}" />
+                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveDown.svg'}"
+                                    GetItemData="MoveToCollectionDropdown_GetItemData" />
                 </dxb:Bar>
 
                 <!-- Menu Bar -->
@@ -306,7 +306,7 @@
                     </dxb:BarStaticItem.ContentTemplate>
                 </dxb:BarStaticItem>
                 -->
-                
+
                 <!-- Left side: Status message -->
                 <dxb:BarStaticItem Content="{Binding StatusMessage}">
                     <dxb:BarStaticItem.ContentTemplate>
@@ -315,7 +315,7 @@
                         </DataTemplate>
                     </dxb:BarStaticItem.ContentTemplate>
                 </dxb:BarStaticItem>
-                
+
                 <!-- Right side: Statistics (Bytes/Chars/Words or Image dimensions) -->
                 <dxb:BarStaticItem Alignment="Far">
                     <dxb:BarStaticItem.Content>

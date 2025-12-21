@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ public class CreateNewClipTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
     private readonly Mock<IClipRepository> _mockClipRepository;
+    private readonly Mock<IDatabaseManager> _mockDatabaseManager;
     private readonly Mock<ILogger<ClipService>> _mockLogger;
     private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<ISoundService> _mockSoundService;
@@ -23,6 +25,7 @@ public class CreateNewClipTests : TestFixtureBase
     {
         _mockClipRepository = MockRepository.Create<IClipRepository>();
         _mockRepositoryFactory = MockRepository.Create<IClipRepositoryFactory>();
+        _mockDatabaseManager = MockRepository.Create<IDatabaseManager>();
         _mockSoundService = MockRepository.Create<ISoundService>();
         _mockLogger = MockRepository.Create<ILogger<ClipService>>();
 
@@ -33,7 +36,8 @@ public class CreateNewClipTests : TestFixtureBase
 
     private ClipService CreateService() => new(
         _mockRepositoryFactory.Object,
-        Mock.Of<IServiceProvider>(),
+        Mock.Of<IDatabaseContextFactory>(),
+        _mockDatabaseManager.Object,
         _mockSoundService.Object,
         _mockLogger.Object);
 

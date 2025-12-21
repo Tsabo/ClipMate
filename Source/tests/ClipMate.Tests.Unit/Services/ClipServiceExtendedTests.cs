@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,8 @@ public class ClipServiceExtendedTests : TestFixtureBase
     private readonly Mock<IBlobRepository> _mockBlobRepository;
     private readonly Mock<IClipDataRepository> _mockClipDataRepository;
     private readonly Mock<IClipRepository> _mockClipRepository;
+    private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
+    private readonly Mock<IDatabaseManager> _mockDatabaseManager;
     private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IServiceScope> _mockServiceScope;
@@ -33,6 +36,8 @@ public class ClipServiceExtendedTests : TestFixtureBase
         _mockClipDataRepository = new Mock<IClipDataRepository>(MockBehavior.Loose);
         _mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
         _mockRepositoryFactory = MockRepository.Create<IClipRepositoryFactory>();
+        _mockDatabaseContextFactory = MockRepository.Create<IDatabaseContextFactory>();
+        _mockDatabaseManager = MockRepository.Create<IDatabaseManager>();
         _mockSoundService = MockRepository.Create<ISoundService>();
         _logger = CreateLogger<ClipService>();
 
@@ -58,11 +63,19 @@ public class ClipServiceExtendedTests : TestFixtureBase
         // Setup factory to return mock repository
         _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
             .Returns(_mockClipRepository.Object);
+
+        // Setup DatabaseContextFactory to return mock repositories
+        _mockDatabaseContextFactory.Setup(p => p.GetClipDataRepository(It.IsAny<ClipMateDbContext>()))
+            .Returns(_mockClipDataRepository.Object);
+
+        _mockDatabaseContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<ClipMateDbContext>()))
+            .Returns(_mockBlobRepository.Object);
     }
 
     private ClipService CreateService() => new(
         _mockRepositoryFactory.Object,
-        _mockServiceProvider.Object,
+        _mockDatabaseContextFactory.Object,
+        _mockDatabaseManager.Object,
         _mockSoundService.Object,
         _logger);
 

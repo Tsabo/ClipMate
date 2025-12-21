@@ -36,14 +36,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISearchQueryRepository, SearchQueryRepository>();
         services.AddScoped<IApplicationFilterRepository, ApplicationFilterRepository>();
 
-
-        // Register ClipMate 7.5 compatibility repositories
-        services.AddScoped<IClipDataRepository, ClipDataRepository>();
-        services.AddScoped<IBlobRepository, BlobRepository>();
-        services.AddScoped<IShortcutRepository, ShortcutRepository>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IMonacoEditorStateRepository, MonacoEditorStateRepository>();
-
         // Register repository factory for multi-database support
         // Singleton because it's stateless and creates repositories on demand
         services.AddSingleton<IClipRepositoryFactory, ClipRepositoryFactory>();

@@ -25,7 +25,7 @@ public class QuickPasteService : IQuickPasteService
     private readonly IWin32InputInterop _win32;
     private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
 
-    private bool _goBackEnabled = true;
+    private bool _goBackEnabled;
     private QuickPasteFormattingString? _selectedFormattingString;
     private int _sequenceCounter = 1;
     private bool _targetLocked;
@@ -173,7 +173,9 @@ public class QuickPasteService : IQuickPasteService
     }
 
     /// <inheritdoc />
-    public string GetCurrentTargetString() => _currentTarget == null ? string.Empty : $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
+    public string GetCurrentTargetString() => _currentTarget == null
+        ? string.Empty
+        : $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
 
     private void OnConfigurationChanged()
     {

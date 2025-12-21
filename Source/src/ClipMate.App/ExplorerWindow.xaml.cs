@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Windows.Media;
+using ClipMate.App.Helpers;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
@@ -8,7 +10,6 @@ using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Bars;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
@@ -204,9 +205,6 @@ public partial class ExplorerWindow : IWindow,
         {
             // Initialize ExplorerWindowViewModel (loads all child VMs, data, etc.)
             await _viewModel.InitializeAsync();
-
-            // Load collection dropdowns
-            //await LoadCollectionDropdownsAsync();
         }
         catch (Exception ex)
         {
@@ -215,44 +213,35 @@ public partial class ExplorerWindow : IWindow,
     }
 
     /// <summary>
-    /// Loads collections from all databases and populates the Copy/Move dropdown menus.
+    /// Dynamically populates Copy to Collection dropdown when opened.
     /// </summary>
-    private async Task LoadCollectionDropdownsAsync()
+    private void CopyToCollectionDropdown_GetItemData(object sender, EventArgs e)
     {
+        if (sender is not BarSubItem subItem)
+            return;
+
         try
         {
-            _logger?.LogInformation("Starting to load collection dropdowns...");
-
-            CopyToCollectionDropdown.Items.Clear();
-            MoveToCollectionDropdown.Items.Clear();
+            subItem.ItemLinks.Clear();
 
             using var scope = _serviceProvider.CreateScope();
             var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-
-            // Get all loaded databases and their contexts
             var databaseContexts = databaseManager.GetAllDatabaseContexts().ToList();
-
-            _logger?.LogInformation("Found {Count} database contexts", databaseContexts.Count);
 
             if (databaseContexts.Count == 0)
             {
-                _logger?.LogWarning("No databases loaded for collection dropdowns");
+                _logger?.LogWarning("No databases loaded for Copy to Collection dropdown");
                 return;
             }
 
-            // Build dropdown items for each database
-            foreach (var (databaseName, context) in databaseContexts)
+            foreach (var (databaseKey, context) in databaseContexts)
             {
-                _logger?.LogInformation("Processing database: {DatabaseName}", databaseName);
-
                 // Get all collections from this database, then filter non-virtual in memory
-                var allCollections = await context.Collections
+                var allCollections = context.Collections
                     .OrderBy(p => p.SortKey)
-                    .ToListAsync();
+                    .ToList();
 
                 var collections = allCollections.Where(p => !p.IsVirtual).ToList();
-
-                _logger?.LogInformation("Found {Count} collections in {Database}", collections.Count, databaseName);
 
                 if (collections.Count == 0)
                     continue;
@@ -260,60 +249,122 @@ public partial class ExplorerWindow : IWindow,
                 // Add database header (disabled) if we have multiple databases
                 if (databaseContexts.Count > 1)
                 {
-                    var dbHeaderCopy = new BarButtonItem { Content = databaseName, IsEnabled = false };
-                    var dbHeaderMove = new BarButtonItem { Content = databaseName, IsEnabled = false };
-                    CopyToCollectionDropdown.Items.Add(dbHeaderCopy);
-                    MoveToCollectionDropdown.Items.Add(dbHeaderMove);
+                    var dbHeader = new BarButtonItem { Content = databaseKey, IsEnabled = false };
+                    subItem.ItemLinks.Add(dbHeader);
                 }
 
                 // Add collection items
                 foreach (var item in collections)
                 {
                     var collectionId = item.Id; // Capture for closure
-
-                    _logger?.LogDebug("Adding collection: {CollectionName} ({CollectionId})", item.Name, collectionId);
-
+                    var targetDatabaseKey = databaseKey; // Capture database key for closure
                     var copyItem = new BarButtonItem
                     {
                         Content = item.Name,
-                        Tag = collectionId,
+                        Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
                     };
 
-                    copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId);
-
-                    var moveItem = new BarButtonItem
+                    // Add emoji icon if available
+                    if (!string.IsNullOrEmpty(item.Icon))
                     {
-                        Content = item.Name,
-                        Tag = collectionId,
-                    };
+                        var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
+                        copyItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                    }
 
-                    moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId);
-
-                    CopyToCollectionDropdown.Items.Add(copyItem);
-                    MoveToCollectionDropdown.Items.Add(moveItem);
+                    copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId, targetDatabaseKey);
+                    subItem.ItemLinks.Add(copyItem);
                 }
 
                 // Add separator between databases if we have multiple
-                if (databaseContexts.Count > 1 && databaseContexts.Last().Item1 != databaseName)
-                {
-                    CopyToCollectionDropdown.Items.Add(new BarItemSeparator());
-                    MoveToCollectionDropdown.Items.Add(new BarItemSeparator());
-                }
+                if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                    subItem.ItemLinks.Add(new BarItemSeparator());
             }
-
-            _logger?.LogInformation("Loaded collection dropdowns: Copy={CopyCount} items, Move={MoveCount} items",
-                CopyToCollectionDropdown.Items.Count, MoveToCollectionDropdown.Items.Count);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to load collection dropdowns");
+            _logger?.LogError(ex, "Failed to populate Copy to Collection dropdown");
+        }
+    }
+
+    /// <summary>
+    /// Dynamically populates Move to Collection dropdown when opened.
+    /// </summary>
+    private void MoveToCollectionDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            using var scope = _serviceProvider.CreateScope();
+            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+            var databaseContexts = databaseManager.GetAllDatabaseContexts().ToList();
+
+            if (databaseContexts.Count == 0)
+            {
+                _logger?.LogWarning("No databases loaded for Move to Collection dropdown");
+                return;
+            }
+
+            foreach (var (databaseKey, context) in databaseContexts)
+            {
+                // Get all collections from this database, then filter non-virtual in memory
+                var allCollections = context.Collections
+                    .OrderBy(p => p.SortKey)
+                    .ToList();
+
+                var collections = allCollections.Where(p => !p.IsVirtual).ToList();
+
+                if (collections.Count == 0)
+                    continue;
+
+                // Add database header (disabled) if we have multiple databases
+                if (databaseContexts.Count > 1)
+                {
+                    var dbHeader = new BarButtonItem { Content = databaseKey, IsEnabled = false };
+                    subItem.ItemLinks.Add(dbHeader);
+                }
+
+                // Add collection items
+                foreach (var item in collections)
+                {
+                    var collectionId = item.Id; // Capture for closure
+                    var targetDatabaseKey = databaseKey; // Capture database key for closure
+                    var moveItem = new BarButtonItem
+                    {
+                        Content = item.Name,
+                        Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
+                    };
+
+                    // Add emoji icon if available
+                    if (!string.IsNullOrEmpty(item.Icon))
+                    {
+                        var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
+                        moveItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                    }
+
+                    moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId, targetDatabaseKey);
+                    subItem.ItemLinks.Add(moveItem);
+                }
+
+                // Add separator between databases if we have multiple
+                if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                    subItem.ItemLinks.Add(new BarItemSeparator());
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to populate Move to Collection dropdown");
         }
     }
 
     /// <summary>
     /// Copies selected clips to the specified collection.
+    /// Supports both same-database and cross-database operations.
     /// </summary>
-    private async Task CopyToCollectionAsync(Guid collectionId)
+    private async Task CopyToCollectionAsync(Guid collectionId, string targetDatabaseKey)
     {
         try
         {
@@ -338,8 +389,18 @@ public partial class ExplorerWindow : IWindow,
             var copiedCount = 0;
             foreach (var item in selectedClips)
             {
-                // For toolbar dropdown, we're copying within the same database
-                await clipService.CopyClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                // Check if cross-database operation
+                if (sourceDatabaseKey == targetDatabaseKey)
+                {
+                    // Same database - use simple copy
+                    await clipService.CopyClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                }
+                else
+                {
+                    // Cross-database - copy with ClipData and blobs
+                    await clipService.CopyClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, collectionId);
+                }
+
                 copiedCount++;
             }
 
@@ -355,8 +416,10 @@ public partial class ExplorerWindow : IWindow,
 
     /// <summary>
     /// Moves selected clips to the specified collection.
+    /// Supports both same-database and cross-database operations.
+    /// Handles ClipData and blob migration for cross-database moves.
     /// </summary>
-    private async Task MoveToCollectionAsync(Guid collectionId)
+    private async Task MoveToCollectionAsync(Guid collectionId, string targetDatabaseKey)
     {
         try
         {
@@ -381,8 +444,18 @@ public partial class ExplorerWindow : IWindow,
             var movedCount = 0;
             foreach (var item in selectedClips)
             {
-                // For toolbar dropdown, we're moving within the same database
-                await clipService.MoveClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                // Check if cross-database operation
+                if (sourceDatabaseKey == targetDatabaseKey)
+                {
+                    // Same database - use simple move
+                    await clipService.MoveClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                }
+                else
+                {
+                    // Cross-database - move with ClipData and blobs, then delete original
+                    await clipService.MoveClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, collectionId);
+                }
+
                 movedCount++;
             }
 

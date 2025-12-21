@@ -169,8 +169,8 @@ internal class DatabaseManager : IDatabaseManager
     /// <summary>
     /// Gets all database contexts currently loaded.
     /// </summary>
-    /// <returns>Collection of all loaded contexts with their names.</returns>
-    public IEnumerable<(string Name, ClipMateDbContext Context)> GetAllDatabaseContexts()
+    /// <returns>Collection of all loaded contexts with their database keys.</returns>
+    public IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> GetAllDatabaseContexts()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -179,13 +179,12 @@ internal class DatabaseManager : IDatabaseManager
 
         var loadedPaths = _contextFactory.GetLoadedDatabasePaths();
 
-        foreach (var item in _configuration.Databases.Where(p =>
+        foreach (var (databaseKey, dbConfig) in _configuration.Databases.Where(p =>
                      loadedPaths.Contains(p.Value.FilePath, StringComparer.OrdinalIgnoreCase)))
         {
-            var dbConfig = item.Value;
             var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
 
-            yield return (dbConfig.Name, context);
+            yield return (databaseKey, context);
         }
     }
 }

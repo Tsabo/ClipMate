@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Text;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +27,8 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>
 {
+    private readonly IDatabaseContextFactory _databaseContextFactory;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IClipRepositoryFactory _repositoryFactory;
@@ -34,6 +39,9 @@ public partial class ClipListViewModel : ObservableObject,
 
     [ObservableProperty]
     private Guid? _currentCollectionId;
+
+    [ObservableProperty]
+    private string? _currentDatabaseKey;
 
     [ObservableProperty]
     private Guid? _currentFolderId;
@@ -55,11 +63,15 @@ public partial class ClipListViewModel : ObservableObject,
 
     public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
         IClipRepositoryFactory repositoryFactory,
+        IDatabaseContextFactory databaseContextFactory,
+        IDatabaseManager databaseManager,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
+        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -121,6 +133,9 @@ public partial class ClipListViewModel : ObservableObject,
     {
         _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
             message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
+
+        // Store the current database key
+        CurrentDatabaseKey = message.DatabaseKey;
 
         // Set the active collection and folder for new clipboard captures
         // Skip this for virtual collections like Trashcan (they don't receive new clips)
@@ -232,10 +247,10 @@ public partial class ClipListViewModel : ObservableObject,
     partial void OnSelectedClipChanged(Clip? value)
     {
         // Send messenger event when selection changes
-        _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}",
-            value?.Id, value?.DisplayTitle);
+        _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}, DatabaseKey: {DatabaseKey}",
+            value?.Id, value?.DisplayTitle, CurrentDatabaseKey);
 
-        _messenger.Send(new ClipSelectedEvent(value));
+        _messenger.Send(new ClipSelectedEvent(value, CurrentDatabaseKey));
 
         // Automatically load the selected clip onto the system clipboard
         // This is ClipMate's standard "Pick, Flip, and Paste" behavior
@@ -251,9 +266,18 @@ public partial class ClipListViewModel : ObservableObject,
     {
         try
         {
+            // Get database context for the current database
+            if (string.IsNullOrEmpty(CurrentDatabaseKey))
+                throw new InvalidOperationException("No database is currently selected");
+
+            var context = _databaseManager.GetDatabaseContext(CurrentDatabaseKey)
+                          ?? throw new InvalidOperationException($"Database context for '{CurrentDatabaseKey}' not found");
+
+            // Create repositories using factory
+            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(context);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
+
             using var scope = CreateScope();
-            var clipDataRepository = scope.ServiceProvider.GetRequiredService<IClipDataRepository>();
-            var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
             var clipboardService = scope.ServiceProvider.GetRequiredService<IClipboardService>();
 
             // Load ClipData for this clip
@@ -297,7 +321,20 @@ public partial class ClipListViewModel : ObservableObject,
                 }
             }
 
-            // For files, file paths are already in clip.FilePathsJson
+            // For files, load file paths from binary blobs
+            if (clip.Type == ClipType.Files)
+            {
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id);
+                // Find the CF_HDROP format (format 15) which contains file paths
+                var filePathBlob = binaryBlobs.FirstOrDefault(b => 
+                    clipDataList.Any(cd => cd.Id == b.ClipDataId && cd.Format == Formats.HDrop.Code));
+                
+                if (filePathBlob != null)
+                {
+                    // The blob data is the JSON string
+                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+                }
+            }
 
             _logger.LogInformation("[ClipListViewModel] About to set clipboard - Type: {Type}, TextContent: {HasText}, RtfContent: {HasRtf}, HtmlContent: {HasHtml}",
                 clip.Type,

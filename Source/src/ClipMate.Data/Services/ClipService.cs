@@ -2,29 +2,31 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
 
 /// <summary>
 /// Service for managing clips (CRUD operations, history management).
-/// Registered as singleton to support multi-database operations via IClipRepositoryFactory.
+/// Registered as singleton to support multi-database operations via repository factories.
 /// </summary>
 public class ClipService : IClipService
 {
+    private readonly IDatabaseContextFactory _databaseContextFactory;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipService> _logger;
     private readonly IClipRepositoryFactory _repositoryFactory;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ISoundService _soundService;
 
     public ClipService(IClipRepositoryFactory repositoryFactory,
-        IServiceProvider serviceProvider,
+        IDatabaseContextFactory databaseContextFactory,
+        IDatabaseManager databaseManager,
         ISoundService soundService,
         ILogger<ClipService> logger)
     {
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -184,8 +186,8 @@ public class ClipService : IClipService
 
         var createdClip = await repository.CreateAsync(copiedClip, cancellationToken);
 
-        // Copy all ClipData formats and associated BLOB data
-        await CopyClipDataAndBlobsAsync(sourceClipId, createdClip.Id, cancellationToken);
+        // Copy all ClipData formats and associated BLOB data (same database for both source and target)
+        await CopyClipDataAndBlobsAsync(databaseKey, sourceClipId, databaseKey, createdClip.Id, cancellationToken);
 
         _logger.LogInformation("Successfully copied clip {SourceClipId} to {TargetClipId} in same database",
             sourceClipId, createdClip.Id);
@@ -230,22 +232,19 @@ public class ClipService : IClipService
         var copiedClip = new Clip
         {
             Title = $"{sourceClip.Title} (Copy)",
-            TextContent = sourceClip.TextContent,
-            RtfContent = sourceClip.RtfContent,
-            HtmlContent = sourceClip.HtmlContent,
-            ImageData = sourceClip.ImageData,
-            FilePathsJson = sourceClip.FilePathsJson,
+            // NOTE: Don't copy non-persisted properties (TextContent, RtfContent, HtmlContent, ImageData, FilePathsJson)
+            // These are loaded from BLOB tables when needed and aren't stored in the Clips table
             ContentHash = sourceClip.ContentHash,
             Type = sourceClip.Type,
+            SortKey = sourceClip.SortKey,
             CollectionId = targetCollectionId,
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = sourceClip.CapturedAt, // Preserve original capture timestamp
         };
 
         var createdClip = await targetRepository.CreateAsync(copiedClip, cancellationToken);
 
-        // Copy all ClipData formats and associated BLOB data
-        // Note: Cross-database copy uses the same ClipData/BLOB repositories since they're shared
-        await CopyClipDataAndBlobsAsync(sourceClipId, createdClip.Id, cancellationToken);
+        // Copy all ClipData formats and associated BLOB data from source database to target database
+        await CopyClipDataAndBlobsAsync(sourceDatabaseKey, sourceClipId, targetDatabaseKey, createdClip.Id, cancellationToken);
 
         _logger.LogInformation("Successfully copied clip {SourceClipId} to new clip {TargetClipId} in target database",
             sourceClipId, createdClip.Id);
@@ -288,38 +287,53 @@ public class ClipService : IClipService
 
     /// <summary>
     /// Copies all ClipData formats and associated BLOB data from source clip to target clip.
+    /// Supports cross-database operations by using database-specific repositories.
     /// </summary>
+    /// <param name="sourceDatabaseKey">Source database key.</param>
     /// <param name="sourceClipId">Source clip ID.</param>
+    /// <param name="targetDatabaseKey">Target database key.</param>
     /// <param name="targetClipId">Target clip ID (newly created clip).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    private async Task CopyClipDataAndBlobsAsync(Guid sourceClipId, Guid targetClipId, CancellationToken cancellationToken)
+    private async Task CopyClipDataAndBlobsAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetClipId, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Copying ClipData and BLOBs from {SourceClipId} to {TargetClipId}", sourceClipId, targetClipId);
+        _logger.LogDebug("Copying ClipData and BLOBs from {SourceDb}:{SourceClipId} to {TargetDb}:{TargetClipId}",
+            sourceDatabaseKey, sourceClipId, targetDatabaseKey, targetClipId);
 
-        // Create a scope to resolve scoped repositories
-        using var scope = _serviceProvider.CreateScope();
-        var clipDataRepository = scope.ServiceProvider.GetRequiredService<IClipDataRepository>();
-        var blobRepository = scope.ServiceProvider.GetRequiredService<IBlobRepository>();
+        // Get database contexts
+        var sourceContext = _databaseManager.GetDatabaseContext(sourceDatabaseKey)
+                            ?? throw new InvalidOperationException($"Source database context for key '{sourceDatabaseKey}' not found.");
+
+        var targetContext = _databaseManager.GetDatabaseContext(targetDatabaseKey)
+                            ?? throw new InvalidOperationException($"Target database context for key '{targetDatabaseKey}' not found.");
+
+        // Get database-specific repositories
+        var sourceClipDataRepo = _databaseContextFactory.GetClipDataRepository(sourceContext);
+        var sourceBlobRepo = _databaseContextFactory.GetBlobRepository(sourceContext);
+        var targetClipDataRepo = _databaseContextFactory.GetClipDataRepository(targetContext);
+        var targetBlobRepo = _databaseContextFactory.GetBlobRepository(targetContext);
 
         // Get all ClipData formats for source clip
-        var sourceClipFormats = await clipDataRepository.GetByClipIdAsync(sourceClipId, cancellationToken);
+        var sourceClipFormats = await sourceClipDataRepo.GetByClipIdAsync(sourceClipId, cancellationToken);
+
+        _logger.LogInformation("Found {Count} ClipData formats in source clip {SourceClipId}", sourceClipFormats.Count, sourceClipId);
 
         if (sourceClipFormats.Count == 0)
         {
-            _logger.LogDebug("No ClipData formats to copy");
+            _logger.LogWarning("No ClipData formats to copy for clip {SourceClipId}", sourceClipId);
             return;
         }
 
-        // Track which BLOB types we've already copied (avoid duplicates within a clip)
-        var copiedBlobTypes = new HashSet<int>();
+        // Create a mapping between source and target ClipDataIds
+        var clipDataIdMap = new Dictionary<Guid, Guid>();
 
-        // Copy each ClipData format and its associated BLOB
+        // Copy each ClipData format
         foreach (var item in sourceClipFormats)
         {
             // Create new ClipData for target clip
+            var targetClipDataId = Guid.NewGuid();
             var target = new ClipData
             {
-                Id = Guid.NewGuid(),
+                Id = targetClipDataId,
                 ClipId = targetClipId,
                 FormatName = item.FormatName,
                 Format = item.Format,
@@ -327,35 +341,44 @@ public class ClipService : IClipService
                 StorageType = item.StorageType,
             };
 
-            await clipDataRepository.CreateAsync(target, cancellationToken);
+            await targetClipDataRepo.CreateAsync(target, cancellationToken);
+            _logger.LogDebug("Created ClipData {ClipDataId} for target clip {TargetClipId}, Format: {Format}", targetClipDataId, targetClipId, item.Format);
 
-            // Copy BLOB data based on StorageType (only once per type)
-            if (copiedBlobTypes.Add(item.StorageType))
+            // Map source ClipDataId to target ClipDataId
+            clipDataIdMap[item.Id] = targetClipDataId;
+        }
+
+        // Verify ClipData was created
+        var verifyCount = await targetClipDataRepo.GetByClipIdAsync(targetClipId, cancellationToken);
+        _logger.LogInformation("Verification: Found {Count} ClipData entries for target clip {TargetClipId}", verifyCount.Count, targetClipId);
+
+        // Now copy BLOBs with the correct ClipDataId mappings
+        // Group by StorageType to copy each type once
+        var storageTypes = sourceClipFormats.Select(f => f.StorageType).Distinct();
+
+        foreach (var storageType in storageTypes)
+        {
+            switch (storageType)
             {
-                switch (item.StorageType)
-                {
-                    case 1: // BLOBTXT (text formats)
-                        await CopyTextBlobsAsync(blobRepository, sourceClipId, targetClipId, cancellationToken);
-                        break;
+                case 1: // BLOBTXT (text formats)
+                    await CopyTextBlobsAsync(sourceBlobRepo, targetBlobRepo, sourceClipId, targetClipId, clipDataIdMap, cancellationToken);
+                    break;
 
-                    case 2: // BLOBJPG (JPEG images)
-                        await CopyJpgBlobsAsync(blobRepository, sourceClipId, targetClipId, cancellationToken);
-                        break;
+                case 2: // BLOBJPG (JPEG images)
+                    await CopyJpgBlobsAsync(sourceBlobRepo, targetBlobRepo, sourceClipId, targetClipId, clipDataIdMap, cancellationToken);
+                    break;
 
-                    case 3: // BLOBPNG (PNG images)
-                        await CopyPngBlobsAsync(blobRepository, sourceClipId, targetClipId, cancellationToken);
-                        break;
+                case 3: // BLOBPNG (PNG images)
+                    await CopyPngBlobsAsync(sourceBlobRepo, targetBlobRepo, sourceClipId, targetClipId, clipDataIdMap, cancellationToken);
+                    break;
 
-                    case 4: // BLOBBLOB (other binary data)
-                        await CopyBinaryBlobsAsync(blobRepository, sourceClipId, targetClipId, cancellationToken);
-                        break;
+                case 4: // BLOBBLOB (other binary data)
+                    await CopyBinaryBlobsAsync(sourceBlobRepo, targetBlobRepo, sourceClipId, targetClipId, clipDataIdMap, cancellationToken);
+                    break;
 
-                    default:
-                        _logger.LogWarning("Unknown StorageType {StorageType} for format {FormatName}",
-                            item.StorageType, item.FormatName);
-
-                        break;
-                }
+                default:
+                    _logger.LogWarning("Unknown StorageType {StorageType}", storageType);
+                    break;
             }
         }
 
@@ -365,19 +388,28 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies text BLOBs from source to target clip.
     /// </summary>
-    private async Task CopyTextBlobsAsync(IBlobRepository blobRepository, Guid sourceClipId, Guid targetClipId, CancellationToken cancellationToken)
+    /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    private async Task CopyTextBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
-        var sourceBlobs = await blobRepository.GetTextByClipIdAsync(sourceClipId, cancellationToken);
+        var sourceBlobs = await sourceBlobRepo.GetTextByClipIdAsync(sourceClipId, cancellationToken);
         foreach (var item in sourceBlobs)
         {
+            // Map the source ClipDataId to the target ClipDataId
+            if (!clipDataIdMap.TryGetValue(item.ClipDataId, out var targetClipDataId))
+            {
+                _logger.LogWarning("No ClipDataId mapping found for source ClipDataId {ClipDataId}, skipping BLOB", item.ClipDataId);
+                continue;
+            }
+
             var target = new BlobTxt
             {
                 Id = Guid.NewGuid(),
+                ClipDataId = targetClipDataId,
                 ClipId = targetClipId,
                 Data = item.Data,
             };
 
-            await blobRepository.CreateTextAsync(target, cancellationToken);
+            await targetBlobRepo.CreateTextAsync(target, cancellationToken);
         }
 
         _logger.LogDebug("Copied {Count} text BLOBs", sourceBlobs.Count);
@@ -386,19 +418,28 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies JPEG BLOBs from source to target clip.
     /// </summary>
-    private async Task CopyJpgBlobsAsync(IBlobRepository blobRepository, Guid sourceClipId, Guid targetClipId, CancellationToken cancellationToken)
+    /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    private async Task CopyJpgBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
-        var sourceBlobs = await blobRepository.GetJpgByClipIdAsync(sourceClipId, cancellationToken);
+        var sourceBlobs = await sourceBlobRepo.GetJpgByClipIdAsync(sourceClipId, cancellationToken);
         foreach (var item in sourceBlobs)
         {
+            // Map the source ClipDataId to the target ClipDataId
+            if (!clipDataIdMap.TryGetValue(item.ClipDataId, out var targetClipDataId))
+            {
+                _logger.LogWarning("No ClipDataId mapping found for source ClipDataId {ClipDataId}, skipping BLOB", item.ClipDataId);
+                continue;
+            }
+
             var target = new BlobJpg
             {
                 Id = Guid.NewGuid(),
+                ClipDataId = targetClipDataId,
                 ClipId = targetClipId,
                 Data = item.Data,
             };
 
-            await blobRepository.CreateJpgAsync(target, cancellationToken);
+            await targetBlobRepo.CreateJpgAsync(target, cancellationToken);
         }
 
         _logger.LogDebug("Copied {Count} JPEG BLOBs", sourceBlobs.Count);
@@ -407,19 +448,28 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies PNG BLOBs from source to target clip.
     /// </summary>
-    private async Task CopyPngBlobsAsync(IBlobRepository blobRepository, Guid sourceClipId, Guid targetClipId, CancellationToken cancellationToken)
+    /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    private async Task CopyPngBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
-        var sourceBlobs = await blobRepository.GetPngByClipIdAsync(sourceClipId, cancellationToken);
+        var sourceBlobs = await sourceBlobRepo.GetPngByClipIdAsync(sourceClipId, cancellationToken);
         foreach (var item in sourceBlobs)
         {
+            // Map the source ClipDataId to the target ClipDataId
+            if (!clipDataIdMap.TryGetValue(item.ClipDataId, out var targetClipDataId))
+            {
+                _logger.LogWarning("No ClipDataId mapping found for source ClipDataId {ClipDataId}, skipping BLOB", item.ClipDataId);
+                continue;
+            }
+
             var target = new BlobPng
             {
                 Id = Guid.NewGuid(),
+                ClipDataId = targetClipDataId,
                 ClipId = targetClipId,
                 Data = item.Data,
             };
 
-            await blobRepository.CreatePngAsync(target, cancellationToken);
+            await targetBlobRepo.CreatePngAsync(target, cancellationToken);
         }
 
         _logger.LogDebug("Copied {Count} PNG BLOBs", sourceBlobs.Count);
@@ -428,19 +478,28 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies binary BLOBs from source to target clip.
     /// </summary>
-    private async Task CopyBinaryBlobsAsync(IBlobRepository blobRepository, Guid sourceClipId, Guid targetClipId, CancellationToken cancellationToken)
+    /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    private async Task CopyBinaryBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
-        var sourceBlobs = await blobRepository.GetBlobByClipIdAsync(sourceClipId, cancellationToken);
+        var sourceBlobs = await sourceBlobRepo.GetBlobByClipIdAsync(sourceClipId, cancellationToken);
         foreach (var item in sourceBlobs)
         {
+            // Map the source ClipDataId to the target ClipDataId
+            if (!clipDataIdMap.TryGetValue(item.ClipDataId, out var targetClipDataId))
+            {
+                _logger.LogWarning("No ClipDataId mapping found for source ClipDataId {ClipDataId}, skipping BLOB", item.ClipDataId);
+                continue;
+            }
+
             var target = new BlobBlob
             {
                 Id = Guid.NewGuid(),
+                ClipDataId = targetClipDataId,
                 ClipId = targetClipId,
                 Data = item.Data,
             };
 
-            await blobRepository.CreateBlobAsync(target, cancellationToken);
+            await targetBlobRepo.CreateBlobAsync(target, cancellationToken);
         }
 
         _logger.LogDebug("Copied {Count} binary BLOBs", sourceBlobs.Count);

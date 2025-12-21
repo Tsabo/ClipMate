@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
@@ -67,7 +68,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         // Create a mock service provider for scoped services
         var mockServiceProvider = new Mock<IServiceProvider>();
 
-        _clipService = new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, clipServiceLogger);
+        _clipService = new ClipService(
+            repositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
+            soundService.Object,
+            clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
         var filterSoundService = new Mock<ISoundService>();

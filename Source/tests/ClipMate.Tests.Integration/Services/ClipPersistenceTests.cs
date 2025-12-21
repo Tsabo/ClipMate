@@ -203,10 +203,12 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
-        // Create a mock service provider for scoped services
-        var mockServiceProvider = new Mock<IServiceProvider>();
-
-        return new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, serviceLogger);
+        return new ClipService(
+            repositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
+            soundService.Object,
+            serviceLogger);
     }
 
     /// <summary>
@@ -228,9 +230,11 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
-        // Create a mock service provider for scoped services
-        var mockServiceProvider = new Mock<IServiceProvider>();
-
-        return new ClipService(repositoryFactory.Object, mockServiceProvider.Object, soundService.Object, serviceLogger);
+        return new ClipService(
+            repositoryFactory.Object,
+            Mock.Of<IDatabaseContextFactory>(),
+            Mock.Of<IDatabaseManager>(),
+            soundService.Object,
+            serviceLogger);
     }
 }

@@ -42,6 +42,6 @@ public interface IDatabaseManager : IDisposable
     /// <summary>
     /// Gets all database contexts currently loaded.
     /// </summary>
-    /// <returns>Collection of all loaded contexts with their names.</returns>
-    IEnumerable<(string Name, ClipMateDbContext Context)> GetAllDatabaseContexts();
+    /// <returns>Collection of all loaded contexts with their database keys.</returns>
+    IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> GetAllDatabaseContexts();
 }

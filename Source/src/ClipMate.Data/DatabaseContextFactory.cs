@@ -1,20 +1,27 @@
+using ClipMate.Core.Repositories;
+using ClipMate.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data;
 
 /// <summary>
-/// Factory for creating ClipMateDbContext instances for multiple databases.
+/// Factory for creating ClipMateDbContext instances for multiple databases
+/// and database-specific repository instances.
 /// Supports the multi-database architecture from ClipMate 7.5.
 /// </summary>
 public class DatabaseContextFactory : IDatabaseContextFactory
 {
     private readonly Dictionary<string, ClipMateDbContext> _contexts;
     private readonly ILogger<DatabaseContextFactory> _logger;
+    private readonly IServiceProvider _serviceProvider;
     private bool _disposed;
 
-    public DatabaseContextFactory(ILogger<DatabaseContextFactory> logger)
+    public DatabaseContextFactory(IServiceProvider serviceProvider,
+        ILogger<DatabaseContextFactory> logger)
     {
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _contexts = new Dictionary<string, ClipMateDbContext>(StringComparer.OrdinalIgnoreCase);
     }
@@ -91,7 +98,76 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         context.Dispose();
 
         return true;
+    }
 
+    /// <summary>
+    /// Creates a ClipDataRepository instance for the specified database context.
+    /// </summary>
+    public IClipDataRepository GetClipDataRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        return ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
+               ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a BlobRepository instance for the specified database context.
+    /// </summary>
+    public IBlobRepository GetBlobRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        return ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
+               ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a ShortcutRepository instance for the specified database context.
+    /// </summary>
+    public IShortcutRepository GetShortcutRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        return ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
+               ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a UserRepository instance for the specified database context.
+    /// </summary>
+    public IUserRepository GetUserRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        return ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
+               ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a MonacoEditorStateRepository instance for the specified database context.
+    /// </summary>
+    public IMonacoEditorStateRepository GetMonacoEditorStateRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        return ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
+               ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
     }
 
     /// <summary>
