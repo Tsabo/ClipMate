@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Grid;
 using Application = System.Windows.Application;
@@ -65,9 +67,15 @@ public partial class ClipListView
             typeof(RoutedEventHandler),
             typeof(ClipListView));
 
+    private readonly IMessenger _messenger;
+
     public ClipListView()
     {
         InitializeComponent();
+
+        // Get messenger from DI container
+        var app = (App)Application.Current;
+        _messenger = (IMessenger)app.ServiceProvider.GetService(typeof(IMessenger))!;
     }
 
     /// <summary>
@@ -189,7 +197,9 @@ public partial class ClipListView
 
     private void DeleteItems_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement delete
+        // Send delete event with IDs of currently selected clips
+        var clipIds = SelectedItems.OfType<Clip>().Select(c => c.Id).ToList();
+        _messenger.Send(new DeleteClipsRequestedEvent(clipIds));
     }
 
     private void OpenSourceUrl_Click(object sender, RoutedEventArgs e)
