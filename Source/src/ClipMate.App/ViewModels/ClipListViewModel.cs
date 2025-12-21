@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Text;
-using ClipMate.Core.Constants;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -23,6 +22,7 @@ namespace ClipMate.App.ViewModels;
 public partial class ClipListViewModel : ObservableObject,
     IRecipient<ClipAddedEvent>,
     IRecipient<CollectionNodeSelectedEvent>,
+    IRecipient<SearchResultsSelectedEvent>,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>
@@ -199,6 +199,22 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Receives SearchResultsSelectedEvent when search results are selected in the collection tree.
+    /// Loads the specific clips that match the search query.
+    /// </summary>
+    public async void Receive(SearchResultsSelectedEvent message)
+    {
+        _logger.LogInformation("SearchResultsSelectedEvent received: DatabaseKey={DatabaseKey}, Query={Query}, ClipCount={Count}",
+            message.DatabaseKey, message.Query, message.ClipIds.Count);
+
+        // Store the current database key
+        CurrentDatabaseKey = message.DatabaseKey;
+
+        // Load clips by the specific IDs from search results
+        await LoadClipsByIdsAsync(message.ClipIds, message.DatabaseKey);
+    }
+
+    /// <summary>
     /// Handles SelectNextClipEvent by moving selection to the next clip in the list.
     /// </summary>
     public void Receive(SelectNextClipEvent message)
@@ -326,9 +342,9 @@ public partial class ClipListViewModel : ObservableObject,
             {
                 var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id);
                 // Find the CF_HDROP format (format 15) which contains file paths
-                var filePathBlob = binaryBlobs.FirstOrDefault(b => 
-                    clipDataList.Any(cd => cd.Id == b.ClipDataId && cd.Format == Formats.HDrop.Code));
-                
+                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
+                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
+
                 if (filePathBlob != null)
                 {
                     // The blob data is the JSON string
@@ -523,8 +539,8 @@ public partial class ClipListViewModel : ObservableObject,
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 Clips.Clear();
-                foreach (var clip in clips)
-                    Clips.Add(clip);
+                foreach (var item in clips)
+                    Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
                 // Don't auto-select a clip - let the user select one
@@ -577,6 +593,59 @@ public partial class ClipListViewModel : ObservableObject,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading deleted clips for database: {DatabaseKey}", databaseKey);
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads specific clips by their IDs (used for search results).
+    /// </summary>
+    /// <param name="clipIds">The list of clip IDs to load.</param>
+    /// <param name="databaseKey">The database key to load clips from.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task LoadClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            CurrentCollectionId = null;
+            CurrentFolderId = null;
+
+            _logger.LogInformation("Loading {Count} clips by IDs for database: {DatabaseKey}", clipIds.Count, databaseKey);
+
+            // Create repository using the factory
+            var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+
+            // Load each clip by ID
+            var clips = new List<Clip>();
+            foreach (var item in clipIds)
+            {
+                var clip = await clipRepository.GetByIdAsync(item, cancellationToken);
+                if (clip != null)
+                    clips.Add(clip);
+            }
+
+            _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, databaseKey);
+
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Clips.Clear();
+                foreach (var item in clips)
+                    Clips.Add(item);
+
+                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+                // Don't auto-select a clip - let the user select one
+                SelectedClip = null;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading clips by IDs for database: {DatabaseKey}", databaseKey);
             await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally

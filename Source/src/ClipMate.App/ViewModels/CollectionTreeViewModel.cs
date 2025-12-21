@@ -95,6 +95,14 @@ public partial class CollectionTreeViewModel : ObservableObject
 
                 break;
 
+            case SearchResultsVirtualCollectionNode searchNode:
+                _logger.LogInformation("Sending SearchResultsSelectedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
+                    databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.Count);
+
+                _messenger.Send(new SearchResultsSelectedEvent(databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.ClipIds));
+
+                break;
+
             case VirtualCollectionTreeNode virtualNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId=null",
                     databaseKey, virtualNode.VirtualCollection.Id);
