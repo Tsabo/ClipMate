@@ -1,4 +1,4 @@
-using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 
 namespace ClipMate.Core.Services;
@@ -34,30 +34,37 @@ public interface ISearchService
     Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Searches clips using a saved search query.
-    /// </summary>
-    /// <param name="searchQueryId">The ID of the saved search query.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Search results with matching clips.</returns>
-    Task<SearchResults> ExecuteSavedSearchAsync(Guid searchQueryId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Saves a search query for later reuse.
+    /// Saves a search query for later reuse in configuration.
     /// </summary>
     /// <param name="name">Display name for the search.</param>
     /// <param name="query">The search query text.</param>
     /// <param name="isCaseSensitive">Whether the search is case-sensitive.</param>
     /// <param name="isRegex">Whether to use regex matching.</param>
+    /// <param name="filtersJson">Optional JSON representation of search filters.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The created SearchQuery entity.</returns>
-    Task<SearchQuery> SaveSearchQueryAsync(string name, string query, bool isCaseSensitive, bool isRegex, CancellationToken cancellationToken = default);
+    Task SaveSearchQueryAsync(string name, string query, bool isCaseSensitive, bool isRegex, string? filtersJson = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes a saved search query.
+    /// Gets all saved search queries from configuration.
     /// </summary>
-    /// <param name="id">The search query ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task DeleteSearchQueryAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <returns>List of all saved search queries.</returns>
+    Task<IReadOnlyList<SavedSearchQuery>> GetSavedQueriesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Renames a saved search query in configuration.
+    /// </summary>
+    /// <param name="oldName">The current name of the search query.</param>
+    /// <param name="newName">The new name for the search query.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RenameSearchQueryAsync(string oldName, string newName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a saved search query from configuration.
+    /// </summary>
+    /// <param name="name">The name of the search query to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task DeleteSearchQueryAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the search history (recent searches).

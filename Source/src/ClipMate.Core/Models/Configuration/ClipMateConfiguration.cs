@@ -46,4 +46,10 @@ public class ClipMateConfiguration
     /// Gets or sets the Monaco Editor configuration settings.
     /// </summary>
     public MonacoEditorConfiguration MonacoEditor { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the list of saved search queries.
+    /// These are stored in configuration and shared across all databases.
+    /// </summary>
+    public List<SavedSearchQuery> SavedSearchQueries { get; set; } = [];
 }

@@ -1,5 +1,6 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
@@ -13,34 +14,32 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class SearchViewModelTests
 {
-    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly Mock<ISearchService> _mockSearchService;
-    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly SearchViewModel _viewModel;
 
     public SearchViewModelTests()
     {
         _mockSearchService = new Mock<ISearchService>();
-        _mockCollectionService = new Mock<ICollectionService>();
+        var mockCollectionService = new Mock<ICollectionService>();
         _mockMessenger = new Mock<IMessenger>();
         _searchResultsCache = new SearchResultsCache();
 
         // Setup mock collection service to return a database key
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
+        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
 
         // Create mock service scope factory
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
         mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
 
-        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
+        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
 
-        _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object, _searchResultsCache);
+        _viewModel = new SearchViewModel(mockServiceScopeFactory.Object, _mockMessenger.Object, _searchResultsCache);
     }
 
     [Test]
@@ -56,7 +55,7 @@ public class SearchViewModelTests
     {
         // Arrange
         var propertyChangedRaised = false;
-        _viewModel.PropertyChanged += (s, e) =>
+        _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.SearchText))
                 propertyChangedRaised = true;
@@ -150,7 +149,7 @@ public class SearchViewModelTests
         SearchFilters? capturedFilters = null;
         _mockSearchService
             .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
+            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
         _viewModel.SearchText = "test";
@@ -164,7 +163,7 @@ public class SearchViewModelTests
         await Assert.That(capturedFilters).IsNotNull();
         await Assert.That(capturedFilters!.ContentTypes).IsNotNull();
         await Assert.That(capturedFilters.ContentTypes!.Contains(ClipType.Text)).IsTrue();
-        await Assert.That(capturedFilters.ContentTypes.Contains(ClipType.Image)).IsFalse();
+        await Assert.That(capturedFilters.ContentTypes!.Contains(ClipType.Image)).IsFalse();
     }
 
     [Test]
@@ -184,7 +183,7 @@ public class SearchViewModelTests
         SearchFilters? capturedFilters = null;
         _mockSearchService
             .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
+            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
         _viewModel.SearchText = "test";
@@ -217,7 +216,7 @@ public class SearchViewModelTests
         SearchFilters? capturedFilters = null;
         _mockSearchService
             .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
+            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
         _viewModel.SearchText = "Test";
@@ -245,7 +244,7 @@ public class SearchViewModelTests
         SearchFilters? capturedFilters = null;
         _mockSearchService
             .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((q, f, ct) => capturedFilters = f)
+            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
             .ReturnsAsync(searchResults);
 
         _viewModel.SearchText = "\\d+";
@@ -278,17 +277,23 @@ public class SearchViewModelTests
     public async Task LoadSearchHistoryCommand_ShouldLoadHistoryFromService()
     {
         // Arrange
-        var history = new List<string> { "query 1", "query 2", "query 3" };
+        var queries = new List<SavedSearchQuery>
+        {
+            new() { Name = "Query 1", Query = "query 1" },
+            new() { Name = "Query 2", Query = "query 2" },
+            new() { Name = "Query 3", Query = "query 3" },
+        };
+
         _mockSearchService
-            .Setup(p => p.GetSearchHistoryAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(history.AsReadOnly());
+            .Setup(p => p.GetSavedQueriesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(queries.AsReadOnly());
 
         // Act
-        await _viewModel.LoadSearchHistoryCommand.ExecuteAsync(null);
+        await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
 
         // Assert
-        await Assert.That(_viewModel.SearchHistory.Count).IsEqualTo(3);
-        await Assert.That(_viewModel.SearchHistory[0]).IsEqualTo("query 1");
+        await Assert.That(_viewModel.SavedQueries.Count).IsEqualTo(3);
+        await Assert.That(_viewModel.SavedQueries[0].Name).IsEqualTo("Query 1");
     }
 
     [Test]
@@ -302,7 +307,7 @@ public class SearchViewModelTests
 
         _viewModel.SearchText = "test";
         var propertyChangedCount = 0;
-        _viewModel.PropertyChanged += (s, e) =>
+        _viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(_viewModel.IsSearching))
                 propertyChangedCount++;

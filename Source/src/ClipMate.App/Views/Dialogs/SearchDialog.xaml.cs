@@ -18,6 +18,19 @@ public partial class SearchDialog
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         DataContext = _viewModel;
+
+        // Load formats, collections, and saved queries when dialog opens
+        Loaded += async (_, _) =>
+        {
+            if (_viewModel.LoadFormatsCommand.CanExecute(null))
+                await _viewModel.LoadFormatsCommand.ExecuteAsync(null);
+
+            if (_viewModel.LoadCollectionsCommand.CanExecute(null))
+                await _viewModel.LoadCollectionsCommand.ExecuteAsync(null);
+
+            if (_viewModel.LoadSavedQueriesCommand.CanExecute(null))
+                await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
+        };
     }
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)

@@ -1,5 +1,7 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
@@ -60,8 +62,9 @@ public class SearchServiceTests : IntegrationTestBase
 
         // Arrange - Create services
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
-        var searchQueryRepository = new SearchQueryRepository(DbContext);
-        var searchService = new SearchService(clipRepository, searchQueryRepository, DbContext);
+        var mockConfigService = new Mock<IConfigurationService>();
+        mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
+        var searchService = new SearchService(clipRepository, mockConfigService.Object, DbContext);
 
         // Act
         var filters = new SearchFilters
@@ -81,8 +84,9 @@ public class SearchServiceTests : IntegrationTestBase
     {
         // Arrange
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
-        var searchQueryRepository = new SearchQueryRepository(DbContext);
-        var searchService = new SearchService(clipRepository, searchQueryRepository, DbContext);
+        var mockConfigService = new Mock<IConfigurationService>();
+        mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
+        var searchService = new SearchService(clipRepository, mockConfigService.Object, DbContext);
 
         // Act
         var filters = new SearchFilters

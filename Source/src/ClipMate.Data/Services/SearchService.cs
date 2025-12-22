@@ -1,6 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
-using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
@@ -21,14 +21,14 @@ public class SearchService : ISearchService
         { "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXEC", "EXECUTE", "PRAGMA" };
 
     private readonly IClipRepository _clipRepository;
+    private readonly IConfigurationService _configurationService;
     private readonly ClipMateDbContext _dbContext;
     private readonly List<string> _searchHistory = [];
-    private readonly ISearchQueryRepository _searchQueryRepository;
 
-    public SearchService(IClipRepository clipRepository, ISearchQueryRepository searchQueryRepository, ClipMateDbContext dbContext)
+    public SearchService(IClipRepository clipRepository, IConfigurationService configurationService, ClipMateDbContext dbContext)
     {
         _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
-        _searchQueryRepository = searchQueryRepository ?? throw new ArgumentNullException(nameof(searchQueryRepository));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
@@ -154,41 +154,68 @@ public class SearchService : ISearchService
         return $"Select DISTINCT Clips.* from {fromClause}\n{whereClause}\nOrder By Clips.ID;";
     }
 
-    public async Task<SearchResults> ExecuteSavedSearchAsync(Guid searchQueryId, CancellationToken cancellationToken = default)
-    {
-        var searchQuery = await _searchQueryRepository.GetByIdAsync(searchQueryId, cancellationToken);
-
-        if (searchQuery == null)
-            throw new ArgumentException($"Search query {searchQueryId} not found", nameof(searchQueryId));
-
-        var filters = new SearchFilters
-        {
-            CaseSensitive = searchQuery.IsCaseSensitive,
-            IsRegex = searchQuery.IsRegex,
-        };
-
-        return await SearchAsync(searchQuery.QueryText, filters, cancellationToken);
-    }
-
-    public async Task<SearchQuery> SaveSearchQueryAsync(string name, string query, bool isCaseSensitive, bool isRegex, CancellationToken cancellationToken = default)
+    public async Task SaveSearchQueryAsync(string name, string query, bool isCaseSensitive, bool isRegex, string? filtersJson = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
 
-        var searchQuery = new SearchQuery
+        var savedQuery = new SavedSearchQuery
         {
-            Id = Guid.NewGuid(),
             Name = name,
-            QueryText = query,
+            Query = query,
             IsCaseSensitive = isCaseSensitive,
             IsRegex = isRegex,
-            CreatedAt = DateTime.UtcNow,
+            FiltersJson = filtersJson,
         };
 
-        return await _searchQueryRepository.CreateAsync(searchQuery, cancellationToken);
+        var config = _configurationService.Configuration;
+
+        // Remove existing query with same name if it exists
+        config.SavedSearchQueries.RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        // Add new query
+        config.SavedSearchQueries.Add(savedQuery);
+
+        await _configurationService.SaveAsync(cancellationToken);
     }
 
-    public async Task DeleteSearchQueryAsync(Guid id, CancellationToken cancellationToken = default) => await _searchQueryRepository.DeleteAsync(id, cancellationToken);
+    public Task<IReadOnlyList<SavedSearchQuery>> GetSavedQueriesAsync(CancellationToken cancellationToken = default)
+    {
+        var queries = _configurationService.Configuration.SavedSearchQueries
+            .OrderBy(p => p.Name)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyList<SavedSearchQuery>>(queries);
+    }
+
+    public async Task RenameSearchQueryAsync(string oldName, string newName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName);
+
+        var config = _configurationService.Configuration;
+        var query = config.SavedSearchQueries.FirstOrDefault(p => p.Name.Equals(oldName, StringComparison.OrdinalIgnoreCase));
+
+        if (query == null)
+            throw new InvalidOperationException($"Search query '{oldName}' not found");
+
+        query.Name = newName;
+        await _configurationService.SaveAsync(cancellationToken);
+    }
+
+    public async Task DeleteSearchQueryAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var config = _configurationService.Configuration;
+        var removed = config.SavedSearchQueries.RemoveAll(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        if (removed == 0)
+            throw new InvalidOperationException($"Search query '{name}' not found");
+
+        await _configurationService.SaveAsync(cancellationToken);
+    }
 
     public Task<IReadOnlyList<string>> GetSearchHistoryAsync(int count = 10, CancellationToken cancellationToken = default)
     {

@@ -1,13 +1,23 @@
 using System.Collections.ObjectModel;
+using System.Windows.Controls;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Xpf.Core;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Application = System.Windows.Application;
+using HorizontalAlignment = System.Windows.HorizontalAlignment;
+using Orientation = System.Windows.Controls.Orientation;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace ClipMate.App.ViewModels;
 
@@ -110,7 +120,7 @@ public partial class SearchViewModel : ObservableObject
 
     // Saved Queries
     [ObservableProperty]
-    private string? _selectedSavedQuery;
+    private SavedSearchQuery? _selectedSavedQuery;
 
     // SQL
     [ObservableProperty]
@@ -126,7 +136,7 @@ public partial class SearchViewModel : ObservableObject
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
 
         // Subscribe to property changes to regenerate SQL
-        PropertyChanged += (s, e) =>
+        PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(SqlQuery) && e.PropertyName != nameof(IsSearching) &&
                 e.PropertyName != nameof(TotalMatches) && e.PropertyName != null)
@@ -143,9 +153,19 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<Clip> SearchResults { get; } = [];
 
     /// <summary>
-    /// Collection of recent search queries.
+    /// Collection of saved search queries.
     /// </summary>
-    public ObservableCollection<string> SearchHistory { get; } = [];
+    public ObservableCollection<SavedSearchQuery> SavedQueries { get; } = [];
+
+    /// <summary>
+    /// Collection of available clipboard formats.
+    /// </summary>
+    public ObservableCollection<string> AvailableFormats { get; } = [];
+
+    /// <summary>
+    /// Collection of available collections for filtering.
+    /// </summary>
+    public ObservableCollection<string> AvailableCollections { get; } = [];
 
     private void UpdateSqlQuery()
     {
@@ -233,54 +253,261 @@ public partial class SearchViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Loads recent search history.
+    /// Loads saved search queries.
     /// </summary>
     [RelayCommand]
-    private async Task LoadSearchHistory()
+    private async Task LoadSavedQueriesAsync()
     {
-        IReadOnlyCollection<string> history;
-        using (var scope = CreateScope())
+        try
         {
+            using var scope = CreateScope();
             var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-            history = await searchService.GetSearchHistoryAsync();
-        }
+            var queries = await searchService.GetSavedQueriesAsync();
 
-        SearchHistory.Clear();
-        foreach (var item in history)
-            SearchHistory.Add(item);
+            SavedQueries.Clear();
+            foreach (var query in queries)
+                SavedQueries.Add(query);
+        }
+        catch (Exception)
+        {
+            // Database error - just clear the list
+            SavedQueries.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Loads available clipboard formats from the database.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadFormatsAsync()
+    {
+        try
+        {
+            using var scope = CreateScope();
+            var contextFactory = scope.ServiceProvider.GetRequiredService<IDatabaseContextFactory>();
+            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+            var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+
+            if (string.IsNullOrEmpty(activeDatabaseKey))
+                return;
+
+            var dbContext = contextFactory.GetOrCreateContext(activeDatabaseKey);
+
+            // Check if database exists and has the ClipData table
+            if (!await dbContext.Database.CanConnectAsync())
+                return;
+
+            var formats = await dbContext.ClipData
+                .Select(p => p.FormatName)
+                .Distinct()
+                .OrderBy(p => p)
+                .ToListAsync();
+
+            AvailableFormats.Clear();
+            foreach (var item in formats)
+                AvailableFormats.Add(item);
+        }
+        catch (SqliteException)
+        {
+            // Database doesn't exist yet or table not created - this is ok, just leave formats empty
+            AvailableFormats.Clear();
+        }
+        catch (Exception)
+        {
+            // Other errors - also just clear the list
+            AvailableFormats.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Loads available collections from the database.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadCollectionsAsync()
+    {
+        try
+        {
+            using var scope = CreateScope();
+            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+
+            var collections = await collectionService.GetAllAsync();
+
+            AvailableCollections.Clear();
+            foreach (var item in collections.Where(p => !p.IsVirtual).OrderBy(p => p.Title))
+                AvailableCollections.Add(item.Title);
+        }
+        catch (Exception)
+        {
+            // Database error - just clear the list
+            AvailableCollections.Clear();
+        }
     }
 
     /// <summary>
     /// Saves the current search query with a name.
     /// </summary>
     [RelayCommand]
-    private Task SaveQueryAsync()
+    private async Task SaveQueryAsync()
     {
-        // TODO: Implement save query functionality
-        // This would show a dialog to enter a name and save the current search criteria
-        return Task.CompletedTask;
+        // Show input dialog to get query name
+        var name = await ShowInputDialogAsync("Save Search Query", "Enter query name:");
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        // Generate a descriptive query from current filters
+        var queryDescription = !string.IsNullOrWhiteSpace(SearchText) ? SearchText :
+            !string.IsNullOrWhiteSpace(SearchClipText) ? SearchClipText :
+            !string.IsNullOrWhiteSpace(SearchCreator) ? SearchCreator :
+            !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
+            "(filtered search)";
+
+        using var scope = CreateScope();
+        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+        await searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex);
+
+        // Reload saved queries
+        if (LoadSavedQueriesCommand.CanExecute(null))
+            await LoadSavedQueriesCommand.ExecuteAsync(null);
     }
 
     /// <summary>
     /// Renames the selected saved query.
     /// </summary>
-    [RelayCommand]
-    private Task RenameQueryAsync()
+    [RelayCommand(CanExecute = nameof(CanExecuteQueryOperations))]
+    private async Task RenameQueryAsync()
     {
-        // TODO: Implement rename query functionality
-        // This would show a dialog to enter a new name for the selected query
-        return Task.CompletedTask;
+        if (SelectedSavedQuery == null)
+            return;
+
+        var newName = await ShowInputDialogAsync("Rename Search Query", "Enter new name:", SelectedSavedQuery.Name);
+        if (string.IsNullOrWhiteSpace(newName) || newName == SelectedSavedQuery.Name)
+            return;
+
+        using var scope = CreateScope();
+        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+        await searchService.RenameSearchQueryAsync(SelectedSavedQuery.Name, newName);
+
+        // Reload saved queries
+        if (LoadSavedQueriesCommand.CanExecute(null))
+            await LoadSavedQueriesCommand.ExecuteAsync(null);
     }
 
     /// <summary>
     /// Deletes the selected saved query.
     /// </summary>
-    [RelayCommand]
-    private Task DeleteQueryAsync()
+    [RelayCommand(CanExecute = nameof(CanExecuteQueryOperations))]
+    private async Task DeleteQueryAsync()
     {
-        // TODO: Implement delete query functionality
-        // This would delete the selected saved query after confirmation
-        return Task.CompletedTask;
+        if (SelectedSavedQuery == null)
+            return;
+
+        // Show confirmation dialog
+        var result = DXMessageBox.Show(
+            $"Are you sure you want to delete the saved query '{SelectedSavedQuery.Name}'?",
+            "Delete Query",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        using var scope = CreateScope();
+        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+        await searchService.DeleteSearchQueryAsync(SelectedSavedQuery.Name);
+
+        // Reload saved queries
+        if (LoadSavedQueriesCommand.CanExecute(null))
+            await LoadSavedQueriesCommand.ExecuteAsync(null);
+    }
+
+    private bool CanExecuteQueryOperations() => SelectedSavedQuery != null;
+
+    private async Task<string?> ShowInputDialogAsync(string title, string prompt, string defaultValue = "")
+    {
+        return await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var dialog = new ThemedWindow
+            {
+                Title = title,
+                Width = 400,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var stackPanel = new StackPanel
+            {
+                Margin = new Thickness(15),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var label = new TextBlock
+            {
+                Text = prompt,
+                Margin = new Thickness(0, 0, 0, 5),
+            };
+
+            var textBox = new TextBox
+            {
+                Text = defaultValue,
+                MinWidth = 350,
+            };
+
+            textBox.SelectAll();
+
+            stackPanel.Children.Add(label);
+            stackPanel.Children.Add(textBox);
+            grid.Children.Add(stackPanel);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(15, 0, 15, 15),
+            };
+
+            Grid.SetRow(buttonPanel, 1);
+
+            var okButton = new SimpleButton
+            {
+                Content = "OK",
+                Width = 75,
+                Margin = new Thickness(0, 0, 10, 0),
+            };
+
+            var cancelButton = new SimpleButton
+            {
+                Content = "Cancel",
+                Width = 75,
+            };
+
+            okButton.Click += (_, _) =>
+            {
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            cancelButton.Click += (_, _) =>
+            {
+                dialog.DialogResult = false;
+                dialog.Close();
+            };
+
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+
+            grid.Children.Add(buttonPanel);
+            dialog.Content = grid;
+
+            var result = dialog.ShowDialog();
+            return result == true
+                ? textBox.Text
+                : null;
+        });
     }
 
     private SearchFilters BuildSearchFilters()

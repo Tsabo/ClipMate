@@ -1,6 +1,8 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
+using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
@@ -14,14 +16,14 @@ namespace ClipMate.Tests.Unit.Services;
 public class SearchServiceTests
 {
     private readonly Mock<IClipRepository> _mockClipRepository;
+    private readonly Mock<IConfigurationService> _mockConfigurationService;
     private ClipMateDbContext _dbContext = null!;
-    private readonly Mock<ISearchQueryRepository> _mockSearchQueryRepository;
     private SearchService _searchService = null!;
 
     public SearchServiceTests()
     {
         _mockClipRepository = new Mock<IClipRepository>();
-        _mockSearchQueryRepository = new Mock<ISearchQueryRepository>();
+        _mockConfigurationService = new Mock<IConfigurationService>();
     }
 
     [Before(Test)]
@@ -35,7 +37,11 @@ public class SearchServiceTests
         _dbContext = new ClipMateDbContext(options);
         _dbContext.Database.OpenConnection();
         _dbContext.Database.EnsureCreated();
-        _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object, _dbContext);
+
+        var config = new ClipMateConfiguration();
+        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
+
+        _searchService = new SearchService(_mockClipRepository.Object, _mockConfigurationService.Object, _dbContext);
     }
 
     [After(Test)]
@@ -46,16 +52,7 @@ public class SearchServiceTests
     }
 
     [Test]
-    public async Task Constructor_WithNullClipRepository_ShouldThrowArgumentNullException()
-    {
-        // Act & Assert
-        await Assert.That(() =>
-                new SearchService(null!, _mockSearchQueryRepository.Object, _dbContext))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithNullSearchQueryRepository_ShouldThrowArgumentNullException()
+    public async Task Constructor_WithNullConfigurationService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
         await Assert.That(() =>
@@ -106,14 +103,6 @@ public class SearchServiceTests
         {
             Id = Guid.NewGuid(),
             TextContent = "Hello World",
-            Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        var nonMatchingClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            TextContent = "Goodbye",
             Type = ClipType.Text,
             CapturedAt = DateTime.UtcNow,
         };
@@ -179,14 +168,6 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        var imageClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            TextContent = "image.png",
-            Type = ClipType.Image,
-            CapturedAt = DateTime.UtcNow,
-        };
-
         var filters = new SearchFilters { ContentTypes = [ClipType.Text] };
 
         _mockClipRepository
@@ -206,13 +187,6 @@ public class SearchServiceTests
     {
         // Arrange
         var now = DateTime.UtcNow;
-        var oldClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            TextContent = "Old",
-            Type = ClipType.Text,
-            CapturedAt = now.AddDays(-10),
-        };
 
         var recentClip = new Clip
         {
@@ -251,14 +225,6 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        var nonEmailClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            TextContent = "No email here",
-            Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow,
-        };
-
         var filters = new SearchFilters { IsRegex = true };
 
         _mockClipRepository
@@ -286,90 +252,42 @@ public class SearchServiceTests
     }
 
     [Test]
-    public async Task SaveSearchQueryAsync_ShouldCreateAndReturnSearchQuery()
+    public async Task SaveSearchQueryAsync_ShouldSaveQueryToConfiguration()
     {
         // Arrange
-        var expectedQuery = new SearchQuery
-        {
-            Id = Guid.NewGuid(),
-            Name = "My Search",
-            QueryText = "test",
-            IsCaseSensitive = true,
-            IsRegex = false,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        _mockSearchQueryRepository
-            .Setup(p => p.CreateAsync(It.IsAny<SearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedQuery);
+        var config = new ClipMateConfiguration();
+        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
+        _mockConfigurationService.Setup(c => c.SaveAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _searchService.SaveSearchQueryAsync("My Search", "test", true, false);
+        await _searchService.SaveSearchQueryAsync("My Search", "test", true, false);
 
         // Assert
-        await Assert.That(result.Name).IsEqualTo("My Search");
-        await Assert.That(result.QueryText).IsEqualTo("test");
-        await Assert.That(result.IsCaseSensitive).IsTrue();
-        await Assert.That(result.IsRegex).IsFalse();
-        _mockSearchQueryRepository.Verify(r => r.CreateAsync(It.IsAny<SearchQuery>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
-    public async Task ExecuteSavedSearchAsync_ShouldExecuteQueryAndReturnResults()
-    {
-        // Arrange
-        var searchQueryId = Guid.NewGuid();
-        var savedQuery = new SearchQuery
-        {
-            Id = searchQueryId,
-            Name = "Saved Search",
-            QueryText = "important",
-            IsCaseSensitive = false,
-            IsRegex = false,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        var clips = new List<Clip>
-        {
-            new()
-            {
-                Id = Guid.NewGuid(),
-                TextContent = "Important document",
-                Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow,
-            },
-        };
-
-        _mockSearchQueryRepository
-            .Setup(p => p.GetByIdAsync(searchQueryId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(savedQuery);
-
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
-
-        // Act
-        var results = await _searchService.ExecuteSavedSearchAsync(searchQueryId);
-
-        // Assert
-        await Assert.That(results.Clips.Count).IsEqualTo(1);
-        await Assert.That(results.Query).IsEqualTo("important");
+        await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(1);
+        await Assert.That(config.SavedSearchQueries[0].Name).IsEqualTo("My Search");
+        await Assert.That(config.SavedSearchQueries[0].Query).IsEqualTo("test");
+        await Assert.That(config.SavedSearchQueries[0].IsCaseSensitive).IsEqualTo(true);
+        await Assert.That(config.SavedSearchQueries[0].IsRegex).IsEqualTo(false);
+        _mockConfigurationService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
     public async Task DeleteSearchQueryAsync_ShouldDeleteQuery()
     {
         // Arrange
-        var queryId = Guid.NewGuid();
-        _mockSearchQueryRepository
-            .Setup(p => p.DeleteAsync(queryId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        var config = new ClipMateConfiguration();
+        config.SavedSearchQueries.Add(new SavedSearchQuery { Name = "Test Query", Query = "test" });
+        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
+        _mockConfigurationService.Setup(c => c.SaveAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Act
-        await _searchService.DeleteSearchQueryAsync(queryId);
+        await _searchService.DeleteSearchQueryAsync("Test Query");
 
         // Assert
-        _mockSearchQueryRepository.Verify(p => p.DeleteAsync(queryId, It.IsAny<CancellationToken>()), Times.Once);
+        await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(0);
+        _mockConfigurationService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

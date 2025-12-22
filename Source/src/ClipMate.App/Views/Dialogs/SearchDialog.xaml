@@ -48,8 +48,8 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:TextEdit Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             NullText="Enter search text..."
-                             IsEnabled="{Binding SearchTitleEnabled}" />
+                                  NullText="Enter search text..."
+                                  IsEnabled="{Binding SearchTitleEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
 
@@ -59,8 +59,8 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:TextEdit Text="{Binding SearchClipText, UpdateSourceTrigger=PropertyChanged}"
-                                 NullText="Search in clip content..."
-                                 IsEnabled="{Binding SearchClipTextEnabled}" />
+                                  NullText="Search in clip content..."
+                                  IsEnabled="{Binding SearchClipTextEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
 
@@ -70,8 +70,8 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:TextEdit Text="{Binding SearchCreator, UpdateSourceTrigger=PropertyChanged}"
-                                 NullText="Creator name..."
-                                 IsEnabled="{Binding SearchCreatorEnabled}" />
+                                  NullText="Creator name..."
+                                  IsEnabled="{Binding SearchCreatorEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
 
@@ -81,14 +81,14 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:TextEdit Text="{Binding SearchSourceUrl, UpdateSourceTrigger=PropertyChanged}"
-                                 NullText="Source URL..."
-                                 IsEnabled="{Binding SearchSourceUrlEnabled}" />
+                                  NullText="Source URL..."
+                                  IsEnabled="{Binding SearchSourceUrlEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
         </dxlc:LayoutGroup>
 
         <!-- Filtering Criteria Section -->
-        <dxlc:LayoutGroup Header="🔍 Filtering Criteria..." View="GroupBox" Orientation="Vertical"  IsCollapsible="True">
+        <dxlc:LayoutGroup Header="🔍 Filtering Criteria..." View="GroupBox" Orientation="Vertical" IsCollapsible="True">
             <dxlc:LayoutGroup.HeaderTemplate>
                 <DataTemplate>
                     <emoji:TextBlock Text="{Binding}" />
@@ -100,8 +100,9 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:ComboBoxEdit NullText="Select format..."
-                                     EditValue="{Binding SelectedFormat}"
-                                     IsEnabled="{Binding HasFormatEnabled}" />
+                                      ItemsSource="{Binding AvailableFormats}"
+                                      EditValue="{Binding SelectedFormat}"
+                                      IsEnabled="{Binding HasFormatEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
             <dxlc:LayoutGroup Orientation="Horizontal">
@@ -110,7 +111,7 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:DateEdit DateTime="{Binding DateFrom}"
-                                 IsEnabled="{Binding CapturedAfterEnabled}" />
+                                  IsEnabled="{Binding CapturedAfterEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
             <dxlc:LayoutGroup Orientation="Horizontal">
@@ -119,7 +120,7 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:DateEdit DateTime="{Binding DateTo}"
-                                 IsEnabled="{Binding CapturedBeforeEnabled}" />
+                                  IsEnabled="{Binding CapturedBeforeEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
             <dxlc:LayoutGroup Orientation="Horizontal">
@@ -128,8 +129,9 @@
                 </dxlc:LayoutItem>
                 <dxlc:LayoutItem HorizontalAlignment="Stretch">
                     <dxe:ComboBoxEdit NullText="Select collection..."
-                                     EditValue="{Binding SelectedCollection}"
-                                     IsEnabled="{Binding MemberOfCollectionEnabled}" />
+                                      ItemsSource="{Binding AvailableCollections}"
+                                      EditValue="{Binding SelectedCollection}"
+                                      IsEnabled="{Binding MemberOfCollectionEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
 
@@ -141,7 +143,8 @@
         </dxlc:LayoutGroup>
 
         <!-- SQL Section -->
-        <dxlc:LayoutGroup Header="🔍 SQL" View="GroupBox" Orientation="Vertical" IsCollapsible="True" IsCollapsed="True">
+        <dxlc:LayoutGroup Header="🔍 SQL" View="GroupBox" Orientation="Vertical" IsCollapsible="True"
+                          IsCollapsed="True">
             <dxlc:LayoutGroup.HeaderTemplate>
                 <DataTemplate>
                     <emoji:TextBlock Text="{Binding}" />
@@ -156,7 +159,8 @@
         </dxlc:LayoutGroup>
 
         <!-- Save/Recall Stored Queries Section -->
-        <dxlc:LayoutGroup Header="🔍 Save/Recall Stored Queries" View="GroupBox" Orientation="Vertical" IsCollapsible="True">
+        <dxlc:LayoutGroup Header="🔍 Save/Recall Stored Queries" View="GroupBox" Orientation="Vertical"
+                          IsCollapsible="True">
             <dxlc:LayoutGroup.HeaderTemplate>
                 <DataTemplate>
                     <emoji:TextBlock Text="{Binding}" />
@@ -164,17 +168,18 @@
             </dxlc:LayoutGroup.HeaderTemplate>
             <dxlc:LayoutItem>
                 <dxe:ComboBoxEdit NullText="Select saved query..."
-                                 ItemsSource="{Binding SearchHistory}"
-                                 EditValue="{Binding SelectedSavedQuery}" />
+                                  ItemsSource="{Binding SavedQueries}"
+                                  DisplayMember="Name"
+                                  EditValue="{Binding SelectedSavedQuery}" />
             </dxlc:LayoutItem>
 
             <dxlc:LayoutGroup Orientation="Horizontal" VerticalAlignment="Top">
                 <dx:SimpleButton Content="Save" Width="80" Margin="0,0,10,0"
-                                Command="{Binding SaveQueryCommand}" />
+                                 Command="{Binding SaveQueryCommand}" />
                 <dx:SimpleButton Content="Rename" Width="80" Margin="0,0,10,0"
-                                Command="{Binding RenameQueryCommand}" />
+                                 Command="{Binding RenameQueryCommand}" />
                 <dx:SimpleButton Content="Delete" Width="80"
-                                Command="{Binding DeleteQueryCommand}" />
+                                 Command="{Binding DeleteQueryCommand}" />
             </dxlc:LayoutGroup>
         </dxlc:LayoutGroup>
     </dxlc:LayoutControl>
