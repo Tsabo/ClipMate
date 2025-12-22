@@ -96,7 +96,7 @@ public class SearchServiceTests : IntegrationTestBase
         Console.WriteLine(sql);
 
         // Assert
-        await Assert.That(sql).Contains("Select Clips.*");
+        await Assert.That(sql).Contains("Select DISTINCT Clips.*");
         await Assert.That(sql).Contains("TextSearch(Clips.TITLE,");
         await Assert.That(sql).Contains("Clips.Del = False");
     }

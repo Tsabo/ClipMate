@@ -3,6 +3,7 @@ using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -13,16 +14,35 @@ namespace ClipMate.Tests.Unit.Services;
 public class SearchServiceTests
 {
     private readonly Mock<IClipRepository> _mockClipRepository;
-    private readonly Mock<ClipMateDbContext> _mockDbContext;
+    private ClipMateDbContext _dbContext = null!;
     private readonly Mock<ISearchQueryRepository> _mockSearchQueryRepository;
-    private readonly SearchService _searchService;
+    private SearchService _searchService = null!;
 
     public SearchServiceTests()
     {
         _mockClipRepository = new Mock<IClipRepository>();
         _mockSearchQueryRepository = new Mock<ISearchQueryRepository>();
-        _mockDbContext = new Mock<ClipMateDbContext>();
-        _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object, _mockDbContext.Object);
+    }
+
+    [Before(Test)]
+    public void Setup()
+    {
+        // Use SQLite in-memory database for testing (supports relational features and SQL execution)
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite("DataSource=:memory:")
+            .Options;
+
+        _dbContext = new ClipMateDbContext(options);
+        _dbContext.Database.OpenConnection();
+        _dbContext.Database.EnsureCreated();
+        _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object, _dbContext);
+    }
+
+    [After(Test)]
+    public void Cleanup()
+    {
+        _dbContext.Database.CloseConnection();
+        _dbContext.Dispose();
     }
 
     [Test]
@@ -30,7 +50,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(null!, _mockSearchQueryRepository.Object, _mockDbContext.Object))
+                new SearchService(null!, _mockSearchQueryRepository.Object, _dbContext))
             .Throws<ArgumentNullException>();
     }
 
@@ -39,7 +59,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(_mockClipRepository.Object, null!, _mockDbContext.Object))
+                new SearchService(_mockClipRepository.Object, null!, _dbContext))
             .Throws<ArgumentNullException>();
     }
 
@@ -66,7 +86,7 @@ public class SearchServiceTests
         };
 
         _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips);
 
         // Act
@@ -99,8 +119,8 @@ public class SearchServiceTests
         };
 
         _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Clip> { matchingClip, nonMatchingClip });
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Clip> { matchingClip });
 
         // Act
         var results = await _searchService.SearchAsync("World");
@@ -133,11 +153,11 @@ public class SearchServiceTests
             },
         };
 
-        _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
-
         var filters = new SearchFilters { CaseSensitive = true };
+
+        _mockClipRepository
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([clips[0]]);
 
         // Act
         var results = await _searchService.SearchAsync("Hello", filters);
@@ -167,11 +187,11 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Clip> { textClip, imageClip });
-
         var filters = new SearchFilters { ContentTypes = [ClipType.Text] };
+
+        _mockClipRepository
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([textClip]);
 
         // Act
         var results = await _searchService.SearchAsync("", filters);
@@ -202,14 +222,14 @@ public class SearchServiceTests
             CapturedAt = now.AddDays(-2),
         };
 
-        _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Clip> { oldClip, recentClip });
-
         var filters = new SearchFilters
         {
             DateRange = new DateRange(now.AddDays(-7), now),
         };
+
+        _mockClipRepository
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([recentClip]);
 
         // Act
         var results = await _searchService.SearchAsync("", filters);
@@ -239,11 +259,11 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Clip> { emailClip, nonEmailClip });
-
         var filters = new SearchFilters { IsRegex = true };
+
+        _mockClipRepository
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([emailClip]);
 
         // Act - Email regex pattern
         var results = await _searchService.SearchAsync(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", filters);
@@ -325,7 +345,7 @@ public class SearchServiceTests
             .ReturnsAsync(savedQuery);
 
         _mockClipRepository
-            .Setup(p => p.GetRecentAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clips);
 
         // Act

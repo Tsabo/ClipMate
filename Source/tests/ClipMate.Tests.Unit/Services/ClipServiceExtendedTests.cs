@@ -4,6 +4,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -27,14 +28,14 @@ public class ClipServiceExtendedTests : TestFixtureBase
 
     public ClipServiceExtendedTests()
     {
-        _mockClipRepository = MockRepository.Create<IClipRepository>();
-        // Use loose behavior for ClipData and Blob repositories since not all tests need them
+        // Use loose mocks since not all methods require all dependencies to be called
+        _mockClipRepository = new Mock<IClipRepository>(MockBehavior.Loose);
         _mockClipDataRepository = new Mock<IClipDataRepository>(MockBehavior.Loose);
         var mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
-        _mockRepositoryFactory = MockRepository.Create<IClipRepositoryFactory>();
-        _mockDatabaseContextFactory = MockRepository.Create<IDatabaseContextFactory>();
-        _mockDatabaseManager = MockRepository.Create<IDatabaseManager>();
-        _mockSoundService = MockRepository.Create<ISoundService>();
+        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>(MockBehavior.Loose);
+        _mockDatabaseContextFactory = new Mock<IDatabaseContextFactory>(MockBehavior.Loose);
+        _mockDatabaseManager = new Mock<IDatabaseManager>(MockBehavior.Loose);
+        _mockSoundService = new Mock<ISoundService>(MockBehavior.Loose);
         _logger = CreateLogger<ClipService>();
 
         // Setup scoped service provider for ClipData and Blob repositories
@@ -163,6 +164,17 @@ public class ClipServiceExtendedTests : TestFixtureBase
             CollectionId = targetCollectionId,
             CapturedAt = DateTime.UtcNow,
         };
+
+        // Create real SQLite in-memory database context for CopyClipDataAndBlobsAsync
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite("DataSource=:memory:")
+            .Options;
+        using var dbContext = new ClipMateDbContext(options);
+        dbContext.Database.OpenConnection();
+        dbContext.Database.EnsureCreated();
+
+        _mockDatabaseManager.Setup(p => p.GetDatabaseContext(_testDatabaseKey))
+            .Returns(dbContext);
 
         _mockClipRepository.Setup(p => p.GetByIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(sourceClip);

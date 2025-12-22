@@ -146,16 +146,16 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     [Test]
     public async Task QuickPaste_GoBackState_TogglesCorrectly()
     {
-        // Arrange - Initially true
-        await Assert.That(_quickPasteService.GetGoBackState()).IsTrue();
-
-        // Act - Toggle off
-        _quickPasteService.SetGoBackState(false);
+        // Arrange - Initially false (default value)
         await Assert.That(_quickPasteService.GetGoBackState()).IsFalse();
 
-        // Act - Toggle back on
+        // Act - Toggle on
         _quickPasteService.SetGoBackState(true);
         await Assert.That(_quickPasteService.GetGoBackState()).IsTrue();
+
+        // Act - Toggle back off
+        _quickPasteService.SetGoBackState(false);
+        await Assert.That(_quickPasteService.GetGoBackState()).IsFalse();
     }
 
     [Test]

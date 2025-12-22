@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
     private readonly ILogger<DefaultDataInitializationService> _logger;
     private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
+    private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
     private readonly Mock<IServiceProvider> _mockScopedServiceProvider;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IServiceScope> _mockServiceScope;
@@ -23,6 +25,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
     {
         _mockCollectionService = new Mock<ICollectionService>();
         _mockConfigurationService = new Mock<IConfigurationService>();
+        _mockDatabaseContextFactory = new Mock<IDatabaseContextFactory>();
         _mockScopedServiceProvider = new Mock<IServiceProvider>();
         _mockServiceScope = new Mock<IServiceScope>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
@@ -36,7 +39,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             Databases = new Dictionary<string, DatabaseConfiguration>
             {
                 [_testDatabaseKey] = new()
-                    { Name = "Test Database" },
+                    { Name = "Test Database", FilePath = ":memory:" },
             },
         };
 
@@ -46,6 +49,7 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
         _mockServiceScope.Setup(p => p.ServiceProvider).Returns(_mockScopedServiceProvider.Object);
         _mockScopedServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
         _mockScopedServiceProvider.Setup(p => p.GetService(typeof(IConfigurationService))).Returns(_mockConfigurationService.Object);
+        _mockScopedServiceProvider.Setup(p => p.GetService(typeof(IDatabaseContextFactory))).Returns(_mockDatabaseContextFactory.Object);
         _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(_mockServiceScope.Object);
         _mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory))).Returns(_mockServiceScopeFactory.Object);
     }
@@ -88,36 +92,25 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             ModifiedAt = DateTime.UtcNow,
         };
 
-        var newInboxCollection = new Collection
-        {
-            Id = Guid.NewGuid(),
-            Name = "Inbox",
-            Description = "Default collection for clipboard captures",
-            CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow,
-        };
-
         _mockCollectionService.Setup(p => p.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([otherCollection]);
-
-        _mockCollectionService.Setup(p => p.CreateAsync(
-                "Inbox",
-                "Default collection for clipboard captures",
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(newInboxCollection);
 
         var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
 
         // Act
         await service.InitializeAsync();
 
-        // Assert
+        // Assert - Service should log error and return without creating or setting active
+        // Database seeding (DatabaseSchemaInitializationStep) is responsible for creating Inbox
         _mockCollectionService.Verify(p => p.CreateAsync(
-            "Inbox",
-            "Default collection for clipboard captures",
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
 
-        _mockCollectionService.Verify(p => p.SetActiveAsync(newInboxCollection.Id, _testDatabaseKey, It.IsAny<CancellationToken>()), Times.Once);
+        _mockCollectionService.Verify(p => p.SetActiveAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

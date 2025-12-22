@@ -24,12 +24,14 @@ public class CollectionServiceTests
     [Before(Test)]
     public void Setup()
     {
-        // Create in-memory database for testing
+        // Use SQLite in-memory database for testing (supports relational features)
         var options = new DbContextOptionsBuilder<ClipMateDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseSqlite("DataSource=:memory:")
             .Options;
 
         _dbContext = new ClipMateDbContext(options);
+        _dbContext.Database.OpenConnection();
+        _dbContext.Database.EnsureCreated();
 
         // Mock IDatabaseManager - interfaces don't need constructor arguments
         _mockDatabaseManager = new Mock<IDatabaseManager>();
@@ -40,6 +42,7 @@ public class CollectionServiceTests
     [After(Test)]
     public void Cleanup()
     {
+        _dbContext.Database.CloseConnection();
         _dbContext.Dispose();
     }
 

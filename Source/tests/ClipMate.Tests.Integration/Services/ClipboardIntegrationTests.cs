@@ -63,6 +63,20 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        // Setup ClipboardService first (needed by ClipService)
+        var win32Mock = new Mock<IWin32ClipboardInterop>();
+        var profileServiceMock = new Mock<IApplicationProfileService>();
+        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
+        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
+        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
+        var clipboardSoundService = new Mock<ISoundService>();
+        clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var clipboardConfigService = new Mock<IConfigurationService>();
+        clipboardConfigService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
+
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardConfigService.Object, clipboardSoundService.Object);
+
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
         _clipService = new ClipService(
@@ -84,25 +98,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var folderRepository = new FolderRepository(DbContext);
         var folderService = new FolderService(folderRepository);
-
-        var win32Mock = new Mock<IWin32ClipboardInterop>();
-
-        // Mock IApplicationProfileService (disabled by default)
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
-
-        // Mock IClipboardFormatEnumerator
-        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
-        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
-
-        var clipboardSoundService = new Mock<ISoundService>();
-        clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        var clipboardConfigService = new Mock<IConfigurationService>();
-        clipboardConfigService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
-
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardConfigService.Object, clipboardSoundService.Object);
 
         // Setup DI container for ClipboardCoordinator (needs IServiceProvider for scoped services)
         var services = new ServiceCollection();

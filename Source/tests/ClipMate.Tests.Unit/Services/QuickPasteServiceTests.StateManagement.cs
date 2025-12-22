@@ -60,8 +60,8 @@ public partial class QuickPasteServiceTests
         // Arrange
         var service = CreateService();
 
-        // Act & Assert
-        await Assert.That(service.GetGoBackState()).IsTrue();
+        // Act & Assert - Default value is false
+        await Assert.That(service.GetGoBackState()).IsFalse();
     }
 
     [Test]
