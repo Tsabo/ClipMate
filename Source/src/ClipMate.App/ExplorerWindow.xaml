@@ -9,6 +9,7 @@
                  xmlns:converters="clr-namespace:ClipMate.App.Converters"
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+                 xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
                  mc:Ignorable="d"
                  Title="ClipMate - Clipboard Manager"
                  WindowStartupLocation="CenterScreen"
@@ -57,7 +58,7 @@
                     <dxb:BarButtonItem Content="Search"
                                        Command="{Binding MainMenu.SearchCommand}"
                                        ToolTip="Search clips (Ctrl+F)"
-                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Find.svg'}" />
+                                       Glyph="{helpers:EmojiIconSource Emoji='🔍'}" />
                 </dxb:Bar>
 
                 <!-- Menu Bar -->
