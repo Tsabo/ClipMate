@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using DevExpress.Xpf.Dialogs;

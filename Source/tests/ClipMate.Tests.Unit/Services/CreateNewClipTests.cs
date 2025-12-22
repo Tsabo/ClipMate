@@ -39,6 +39,7 @@ public class CreateNewClipTests : TestFixtureBase
         Mock.Of<IDatabaseContextFactory>(),
         _mockDatabaseManager.Object,
         _mockSoundService.Object,
+        Mock.Of<IClipboardService>(),
         _mockLogger.Object);
 
     #region CreateAsync Tests

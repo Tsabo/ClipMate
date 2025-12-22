@@ -1,6 +1,6 @@
 using ClipMate.App.Helpers;
 using ClipMate.App.Services;
-using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;

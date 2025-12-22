@@ -1,8 +1,7 @@
-using System.Windows;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Custom emoji picker dialog with search, categories, and recently used tracking.

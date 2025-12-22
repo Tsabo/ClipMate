@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Package References">
+    <PackageReference Include="Dapper" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>

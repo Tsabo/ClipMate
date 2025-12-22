@@ -67,12 +67,12 @@ public class DatabaseSchemaMigrationTests
         await Assert.That(tables).Contains("BlobJpg");
         await Assert.That(tables).Contains("BlobPng");
         await Assert.That(tables).Contains("BlobBlob");
-        await Assert.That(tables).Contains("Shortcuts");
+        await Assert.That(tables).Contains("ShortCut");
         await Assert.That(tables).Contains("Users");
         await Assert.That(tables).Contains("Templates");
         await Assert.That(tables).Contains("SearchQueries");
         await Assert.That(tables).Contains("ApplicationFilters");
-        await Assert.That(tables).Contains("MonacoEditorStates");
+        await Assert.That(tables).Contains("MonacoEditorState");
     }
 
     [Test]
@@ -311,13 +311,13 @@ public class DatabaseSchemaMigrationTests
         _context!.Collections.AddRange(collections);
         await _context.SaveChangesAsync();
 
-        foreach (var collection in collections)
+        foreach (var item in collections)
         {
             var clip = new Clip
             {
-                CollectionId = collection.Id,
+                CollectionId = item.Id,
                 Type = ClipType.Text,
-                ContentHash = $"hash-{collection.Name}",
+                ContentHash = $"hash-{item.Name}",
                 CapturedAt = DateTimeOffset.UtcNow,
             };
 
@@ -327,8 +327,8 @@ public class DatabaseSchemaMigrationTests
         await _context.SaveChangesAsync();
 
         // Assert - Verify collections and clips are properly related
-        var workCollection = collections.First(c => c.Name == "Work");
-        var personalCollection = collections.First(c => c.Name == "Personal");
+        var workCollection = collections.First(p => p.Name == "Work");
+        var personalCollection = collections.First(p => p.Name == "Personal");
 
         var workClips = await _context.Clips
             .Where(p => p.CollectionId == workCollection.Id)

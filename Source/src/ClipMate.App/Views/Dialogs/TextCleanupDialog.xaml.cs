@@ -1,12 +1,11 @@
 using System.Text.RegularExpressions;
-using System.Windows;
 using System.Windows.Controls;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Text Cleanup dialog for advanced text transformations.

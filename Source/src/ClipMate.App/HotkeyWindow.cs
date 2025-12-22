@@ -1,4 +1,3 @@
-using System.Windows;
 using System.Windows.Interop;
 using Brushes = System.Windows.Media.Brushes;
 

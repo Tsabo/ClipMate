@@ -1,3 +1,5 @@
+using ClipMate.Core.Models;
+
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
@@ -15,6 +17,15 @@ public class TrashcanVirtualCollectionNode : TreeNodeBase
     /// The database path for loading clips from this virtual collection.
     /// </summary>
     public string DatabasePath { get; }
+
+    /// <summary>
+    /// The underlying collection model representing the trashcan. Used for metadata only.
+    /// </summary>
+    public Collection Collection { get; } = new()
+    {
+        AcceptNewClips = false,
+        RetentionLimit = 200,
+    };
 
     public override string Name => "Trashcan";
 

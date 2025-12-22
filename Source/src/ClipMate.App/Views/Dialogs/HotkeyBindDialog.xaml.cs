@@ -1,10 +1,9 @@
-using System.Windows;
 using System.Windows.Input;
 using ClipMate.App.Helpers;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using ModifierKeys = ClipMate.Core.Models.ModifierKeys;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Dialog for capturing hotkey input.

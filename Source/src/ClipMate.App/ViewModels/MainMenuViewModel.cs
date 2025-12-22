@@ -13,7 +13,6 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject
 {
-    private readonly IClipService _clipService;
     private readonly IMessenger _messenger;
     private readonly IUndoService _undoService;
 
@@ -23,12 +22,9 @@ public partial class MainMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoopMode;
 
-    public MainMenuViewModel(IMessenger messenger,
-        IClipService clipService,
-        IUndoService undoService)
+    public MainMenuViewModel(IMessenger messenger, IUndoService undoService)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
     }
 
@@ -234,7 +230,7 @@ public partial class MainMenuViewModel : ObservableObject
     // ==========================
 
     [RelayCommand]
-    private void Search() { }
+    private void Search() => _messenger.Send(new ShowSearchWindowEvent());
 
     [RelayCommand]
     private void SelectPrevious() => _messenger.Send(new SelectPreviousClipEvent());

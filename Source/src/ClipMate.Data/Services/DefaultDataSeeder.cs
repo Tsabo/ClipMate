@@ -20,19 +20,23 @@ public class DefaultDataSeeder
     }
 
     /// <summary>
-    /// Seeds the database with default ClipMate 7.5 collection structure if it doesn't exist.
+    /// Seeds the database with default ClipMate 7.5 collection structure.
+    /// Should only be called for newly created databases.
     /// </summary>
-    public async Task SeedDefaultDataAsync()
+    /// <param name="force">If true, seeds even if collections exist. Use with caution.</param>
+    public async Task SeedDefaultDataAsync(bool force = false)
     {
         try
         {
-            // Check if collections already exist
-            var existingCollections = await _context.Collections.AnyAsync();
-            if (existingCollections)
+            // Check if collections already exist (unless forced)
+            if (!force)
             {
-                _logger?.LogInformation("Collections already exist, skipping default data seeding");
-
-                return;
+                var existingCollections = await _context.Collections.AnyAsync();
+                if (existingCollections)
+                {
+                    _logger?.LogInformation("Collections already exist, skipping default data seeding");
+                    return;
+                }
             }
 
             _logger?.LogInformation("Seeding default ClipMate 7.5 collection structure");
@@ -237,7 +241,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATE#' and del = false order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.TimeStamp >= '#DATE#' and Del = false order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -269,7 +273,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.TimeStamp >= '#DATEMINUSLIMIT#' and Del = false order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -301,7 +305,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.TimeStamp >= '#DATEMINUSLIMIT#' and del = false order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.TimeStamp >= '#DATEMINUSLIMIT#' and Del = false order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -333,7 +337,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -365,7 +369,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTIMPORT#' and del = false order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.LastModified >= '#DATELASTIMPORT#' and Del = false order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -397,7 +401,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where Clip.LastModified >= '#DATELASTEXPORT#' and del = false order by ID;",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.LastModified >= '#DATELASTEXPORT#' and Del = false order by ID;",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -429,7 +433,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where del = false and clip.id in (select clip_id from clipdata where ClipData.Format = 2)",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Del = false and Clips.ID in (select ClipId from ClipData where ClipData.Format = 2)",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,
@@ -461,7 +465,7 @@ public class DefaultDataSeeder
                     LastUserId = 1,
                     LastUpdateTime = null,
                     LastKnownCount = 0,
-                    Sql = "Select clip.*, shortcut.nickname as Nickname from clip left outer join shortcut on shortcut.clip_GUID = clip.CLIP_GUID where clip.macro = true",
+                    Sql = "Select Clips.*, ShortCut.Nickname from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID where Clips.Macro = true",
                     CreatedAt = now,
                     Role = CollectionRole.None,
                     MaxAgeDays = 0,

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using ClipMate.App.ViewModels;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using CommunityToolkit.Mvvm.Messaging;
@@ -9,13 +10,13 @@ using DevExpress.Xpf.Grid;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Controls;
 
 /// <summary>
 /// Reusable ClipList grid component that displays clipboard clips.
 /// Supports dual ClipList scenarios where multiple instances can be shown simultaneously.
 /// </summary>
-public partial class ClipListView
+public partial class ClipListControl
 {
     /// <summary>
     /// Dependency property for the collection of clips to display
@@ -24,7 +25,7 @@ public partial class ClipListView
         DependencyProperty.Register(
             nameof(Items),
             typeof(ObservableCollection<Clip>),
-            typeof(ClipListView),
+            typeof(ClipListControl),
             new PropertyMetadata(null, OnItemsChanged));
 
     /// <summary>
@@ -34,7 +35,7 @@ public partial class ClipListView
         DependencyProperty.Register(
             nameof(SelectedItem),
             typeof(Clip),
-            typeof(ClipListView),
+            typeof(ClipListControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
     /// <summary>
@@ -44,7 +45,7 @@ public partial class ClipListView
         DependencyProperty.Register(
             nameof(HeaderText),
             typeof(string),
-            typeof(ClipListView),
+            typeof(ClipListControl),
             new PropertyMetadata("Clips"));
 
     /// <summary>
@@ -54,7 +55,7 @@ public partial class ClipListView
         DependencyProperty.Register(
             nameof(SelectedItems),
             typeof(ObservableCollection<Clip>),
-            typeof(ClipListView),
+            typeof(ClipListControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemsChanged));
 
     /// <summary>
@@ -65,11 +66,11 @@ public partial class ClipListView
             nameof(SelectionChanged),
             RoutingStrategy.Bubble,
             typeof(RoutedEventHandler),
-            typeof(ClipListView));
+            typeof(ClipListControl));
 
     private readonly IMessenger _messenger;
 
-    public ClipListView()
+    public ClipListControl()
     {
         InitializeComponent();
 
@@ -204,21 +205,21 @@ public partial class ClipListView
 
     private void OpenSourceUrl_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem?.SourceUrl != null)
+        if (SelectedItem?.SourceUrl == null)
+            return;
+
+        try
         {
-            try
+            Process.Start(new ProcessStartInfo
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = SelectedItem.SourceUrl,
-                    UseShellExecute = true,
-                });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to open URL: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                FileName = SelectedItem.SourceUrl,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to open URL: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -230,7 +231,7 @@ public partial class ClipListView
     {
         // Get the dragged clips
         var draggedClips = e.Records.OfType<Clip>().ToList();
-        if (draggedClips.Any())
+        if (draggedClips.Count != 0)
         {
             // Add clips to drag data using a custom format
             e.Data.SetData(typeof(Clip[]), draggedClips.ToArray());

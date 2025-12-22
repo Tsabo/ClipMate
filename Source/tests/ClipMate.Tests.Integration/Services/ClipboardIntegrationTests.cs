@@ -36,7 +36,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public void Dispose()
     {
         // IDisposable implementation for legacy compatibility
-        _serviceProvider?.Dispose();
+        _serviceProvider.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -65,14 +65,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
-        // Create a mock service provider for scoped services
-        var mockServiceProvider = new Mock<IServiceProvider>();
-
         _clipService = new ClipService(
             repositoryFactory.Object,
             Mock.Of<IDatabaseContextFactory>(),
             Mock.Of<IDatabaseManager>(),
             soundService.Object,
+            _clipboardService,
             clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
@@ -250,7 +248,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         if (_clipboardService is IDisposable disposable)
             disposable.Dispose();
 
-        _serviceProvider?.Dispose();
+        await _serviceProvider.DisposeAsync();
         await CleanupAsync();
     }
 
@@ -388,9 +386,9 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Assert
         profileServiceMock.Verify(p => p.UpdateProfileAsync(
-                It.Is<CoreApplicationProfile>(p =>
-                    p.ApplicationName == "NOTEPAD" &&
-                    p.Formats["CF_UNICODETEXT"] == true),
+                It.Is<CoreApplicationProfile>(i =>
+                    i.ApplicationName == "NOTEPAD" &&
+                    i.Formats["CF_UNICODETEXT"] == true),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

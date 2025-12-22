@@ -22,7 +22,6 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Tomlyn;
-using Application = System.Windows.Application;
 using ILogger = Serilog.ILogger;
 using MessageBox = System.Windows.MessageBox;
 

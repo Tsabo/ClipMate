@@ -126,6 +126,14 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
                             };
 
                             databaseNode.Children.Add(trashcanNode);
+
+                            // Add Search Results node after Trashcan
+                            var searchResultsNode = new SearchResultsVirtualCollectionNode(databaseConfig.FilePath)
+                            {
+                                Parent = databaseNode,
+                            };
+
+                            databaseNode.Children.Add(searchResultsNode);
                         }
                     }
                     else

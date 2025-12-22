@@ -6,6 +6,26 @@ namespace ClipMate.Core.Models.Search;
 public class SearchFilters
 {
     /// <summary>
+    /// Search in clip titles.
+    /// </summary>
+    public string? TitleQuery { get; init; }
+
+    /// <summary>
+    /// Search in clip text content.
+    /// </summary>
+    public string? TextContentQuery { get; init; }
+
+    /// <summary>
+    /// Search in creator field.
+    /// </summary>
+    public string? CreatorQuery { get; init; }
+
+    /// <summary>
+    /// Search in source URL field.
+    /// </summary>
+    public string? SourceUrlQuery { get; init; }
+
+    /// <summary>
     /// Content types to include in search (null = all types).
     /// </summary>
     public IEnumerable<ClipType>? ContentTypes { get; init; }
@@ -29,6 +49,26 @@ public class SearchFilters
     /// Folder ID to search within (when Scope = CurrentFolder).
     /// </summary>
     public Guid? FolderId { get; init; }
+
+    /// <summary>
+    /// Filter by specific format (clipboard format).
+    /// </summary>
+    public string? Format { get; init; }
+
+    /// <summary>
+    /// Filter to only encrypted clips.
+    /// </summary>
+    public bool? EncryptedOnly { get; init; }
+
+    /// <summary>
+    /// Filter to only clips with shortcuts.
+    /// </summary>
+    public bool? HasShortcutOnly { get; init; }
+
+    /// <summary>
+    /// Include deleted clips in results.
+    /// </summary>
+    public bool IncludeDeleted { get; init; }
 
     /// <summary>
     /// Whether to use case-sensitive search.

@@ -1,13 +1,11 @@
-using System.Windows;
 using ClipMate.App.ViewModels;
-using DevExpress.Xpf.Core;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Options dialog for configuring application settings.
 /// </summary>
-public partial class OptionsDialog : ThemedWindow
+public partial class OptionsDialog
 {
     public OptionsDialog(OptionsViewModel viewModel)
     {

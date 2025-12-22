@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using ClipMate.App.Services;
-using ClipMate.App.Views;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
@@ -20,13 +19,14 @@ namespace ClipMate.App.ViewModels;
 /// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
 /// Sends CollectionNodeSelectedEvent via messenger when selection changes.
 /// </summary>
-public partial class CollectionTreeViewModel : ObservableObject
+public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>
 {
     private readonly ICollectionTreeBuilder _collectionTreeBuilder;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IClipRepositoryFactory _repositoryFactory;
+    private readonly SearchResultsCache _searchResultsCache;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
@@ -37,7 +37,8 @@ public partial class CollectionTreeViewModel : ObservableObject
         IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,
         ICollectionTreeBuilder collectionTreeBuilder,
-        ILogger<CollectionTreeViewModel> logger)
+        ILogger<CollectionTreeViewModel> logger,
+        SearchResultsCache searchResultsCache)
     {
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -45,12 +46,66 @@ public partial class CollectionTreeViewModel : ObservableObject
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
+
+        // Register to receive SearchExecutedEvent
+        _messenger.Register(this);
     }
 
     /// <summary>
     /// Root nodes of the tree (typically Database nodes).
     /// </summary>
     public ObservableCollection<TreeNodeBase> RootNodes { get; } = [];
+
+    /// <summary>
+    /// Receives SearchExecutedEvent to update search results in the virtual node.
+    /// </summary>
+    public void Receive(SearchExecutedEvent message)
+    {
+        _logger.LogInformation("Received SearchExecutedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
+            message.DatabaseKey, message.Query, message.ClipIds.Count);
+
+        // Find the database node for this search
+        var databaseNode = RootNodes.OfType<DatabaseTreeNode>()
+            .FirstOrDefault(p => p.DatabasePath == message.DatabaseKey);
+
+        if (databaseNode == null)
+        {
+            _logger.LogWarning("Database node not found for key: {DatabaseKey}", message.DatabaseKey);
+            return;
+        }
+
+        // Get the search result from cache
+        var searchResult = _searchResultsCache.GetResults(message.DatabaseKey);
+        if (searchResult == null)
+        {
+            _logger.LogWarning("Search result not found in cache for database: {DatabaseKey}", message.DatabaseKey);
+            return;
+        }
+
+        // UI updates must be on UI thread
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            // Find existing SearchResultsVirtualCollectionNode
+            var existingNode = FindSearchResultsNode(databaseNode);
+
+            if (existingNode != null)
+            {
+                // Update existing node with new search result
+                _logger.LogInformation("Updating existing search results node");
+                existingNode.SearchResult = searchResult;
+
+                // If this node is currently selected, trigger a reload by re-selecting it
+                if (SelectedNode != existingNode)
+                    return;
+
+                _logger.LogInformation("Search results node is selected, triggering clip reload");
+                OnSelectedNodeChanged(existingNode);
+            }
+            else
+                _logger.LogWarning("SearchResultsVirtualCollectionNode not found for database: {DatabaseKey}", message.DatabaseKey);
+        });
+    }
 
     /// <summary>
     /// Helper to create a scope and resolve a scoped service.
@@ -96,10 +151,19 @@ public partial class CollectionTreeViewModel : ObservableObject
                 break;
 
             case SearchResultsVirtualCollectionNode searchNode:
-                _logger.LogInformation("Sending SearchResultsSelectedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
-                    databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.Count);
+                if (searchNode.SearchResult is { ClipIds.Count: > 0 })
+                {
+                    _logger.LogInformation("Sending SearchResultsSelectedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
+                        databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.Count);
 
-                _messenger.Send(new SearchResultsSelectedEvent(databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.ClipIds));
+                    _messenger.Send(new SearchResultsSelectedEvent(databaseKey, searchNode.SearchResult.Query, searchNode.SearchResult.ClipIds));
+                }
+                else
+                {
+                    // No search results - show search window
+                    _logger.LogInformation("No search results - triggering search window display");
+                    _messenger.Send(new ShowSearchWindowEvent());
+                }
 
                 break;
 
@@ -146,8 +210,8 @@ public partial class CollectionTreeViewModel : ObservableObject
         var treeNodes = await _collectionTreeBuilder.BuildTreeAsync(
             TreeNodeType.None, cancellationToken);
 
-        foreach (var node in treeNodes)
-            RootNodes.Add(node);
+        foreach (var item in treeNodes)
+            RootNodes.Add(item);
     }
 
     /// <summary>
@@ -257,7 +321,7 @@ public partial class CollectionTreeViewModel : ObservableObject
             scope.ServiceProvider,
             activeDatabaseKey);
 
-        var window = new CollectionPropertiesWindow(viewModel, _configurationService)
+        var window = new CollectionPropertiesDialog(viewModel, _configurationService)
         {
             Owner = Application.Current.GetDialogOwner(),
         };
@@ -619,9 +683,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     private DatabaseTreeNode? GetDatabaseNode(TreeNodeBase node)
     {
         // Walk up the tree to find the database node
-        foreach (var root in RootNodes)
+        foreach (var item in RootNodes)
         {
-            if (root is DatabaseTreeNode dbNode && IsDescendantOf(node, dbNode))
+            if (item is DatabaseTreeNode dbNode && IsDescendantOf(node, dbNode))
                 return dbNode;
         }
 
@@ -632,4 +696,9 @@ public partial class CollectionTreeViewModel : ObservableObject
     /// Checks if a node is a descendant of a potential ancestor.
     /// </summary>
     private bool IsDescendantOf(TreeNodeBase node, TreeNodeBase potentialAncestor) => node == potentialAncestor || potentialAncestor.Children.Any(p => IsDescendantOf(node, p));
+
+    /// <summary>
+    /// Finds the SearchResultsVirtualCollectionNode within a database node's children.
+    /// </summary>
+    private SearchResultsVirtualCollectionNode? FindSearchResultsNode(DatabaseTreeNode databaseNode) => databaseNode.Children.OfType<SearchResultsVirtualCollectionNode>().FirstOrDefault();
 }

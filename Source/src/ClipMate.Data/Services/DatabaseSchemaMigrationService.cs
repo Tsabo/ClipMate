@@ -11,6 +11,7 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Service for managing database schema migrations.
 /// Can be called at any time for any database context.
+/// Automatically backs up databases before migration.
 /// </summary>
 public class DatabaseSchemaMigrationService
 {
@@ -90,6 +91,11 @@ public class DatabaseSchemaMigrationService
             if (diff.Warnings.Count > 0)
                 _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
 
+            // Backup database before migration
+            var databasePath = GetDatabasePath(connectionString);
+            if (!string.IsNullOrEmpty(databasePath))
+                await BackupDatabaseAsync(databasePath, connection);
+
             // Apply migrations with logging hook
             var hook = new LoggingMigrationHook(_logger);
             var migrator = new SqliteSchemaMigrator(connection, hook);
@@ -110,6 +116,135 @@ public class DatabaseSchemaMigrationService
             if (shouldCloseConnection && connection.State == ConnectionState.Open)
                 await connection.CloseAsync();
         }
+    }
+
+    /// <summary>
+    /// Backs up a database file before migration.
+    /// Creates a timestamped backup in a 'Backups' subfolder.
+    /// </summary>
+    private Task BackupDatabaseAsync(string databasePath, IDbConnection connection)
+    {
+        try
+        {
+            // Close connection temporarily for file copy
+            var wasOpen = connection.State == ConnectionState.Open;
+            if (wasOpen)
+                connection.Close();
+
+            if (!File.Exists(databasePath))
+            {
+                _logger?.LogWarning("Database file not found for backup: {Path}", databasePath);
+                if (wasOpen)
+                    connection.Open();
+
+                return Task.CompletedTask;
+            }
+
+            // Create Backups directory in same location as database
+            var databaseDirectory = Path.GetDirectoryName(databasePath) ?? string.Empty;
+            var backupDirectory = Path.Combine(databaseDirectory, "MigrationBackups");
+
+            if (!Directory.Exists(backupDirectory))
+            {
+                Directory.CreateDirectory(backupDirectory);
+                _logger?.LogInformation("Created migration backup directory: {Path}", backupDirectory);
+            }
+
+            // Create backup filename with timestamp
+            var databaseFileName = Path.GetFileNameWithoutExtension(databasePath);
+            var databaseExtension = Path.GetExtension(databasePath);
+            var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var backupFileName = $"{databaseFileName}-migration-{timestamp}{databaseExtension}";
+            var backupPath = Path.Combine(backupDirectory, backupFileName);
+
+            // Copy database file
+            _logger?.LogInformation("Creating pre-migration database backup: {BackupPath}", backupPath);
+            File.Copy(databasePath, backupPath, false);
+
+            var backupFileInfo = new FileInfo(backupPath);
+            _logger?.LogInformation("✓ Pre-migration backup created successfully ({Size:N0} bytes)", backupFileInfo.Length);
+
+            // Reopen connection if it was open
+            if (wasOpen)
+                connection.Open();
+
+            // Clean up old backups (keep last 10)
+            CleanupOldBackups(backupDirectory, databaseFileName, databaseExtension);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to create database backup. Migration will continue anyway.");
+
+            // Reopen connection if needed
+            if (connection.State != ConnectionState.Open)
+                connection.Open();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Cleans up old backup files, keeping only the most recent 10.
+    /// </summary>
+    private void CleanupOldBackups(string backupDirectory, string databaseFileName, string extension)
+    {
+        try
+        {
+            var searchPattern = $"{databaseFileName}-migration-*{extension}";
+            var backupFiles = Directory.GetFiles(backupDirectory, searchPattern)
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.CreationTime)
+                .ToList();
+
+            if (backupFiles.Count > 10)
+            {
+                var filesToDelete = backupFiles.Skip(10).ToList();
+                foreach (var file in filesToDelete)
+                {
+                    file.Delete();
+                    _logger?.LogDebug("Deleted old migration backup: {FileName}", file.Name);
+                }
+
+                _logger?.LogInformation("Cleaned up {Count} old migration backup file(s)", filesToDelete.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to clean up old backups");
+        }
+    }
+
+    /// <summary>
+    /// Extracts the database file path from a SQLite connection string.
+    /// </summary>
+    private static string? GetDatabasePath(string connectionString)
+    {
+        // Handle various SQLite connection string formats
+        // Data Source=path; Filename=path; URI=file:path
+        var patterns = new[] { "Data Source=", "Filename=", "URI=file:" };
+
+        foreach (var pattern in patterns)
+        {
+            var index = connectionString.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0)
+            {
+                var startIndex = index + pattern.Length;
+                var endIndex = connectionString.IndexOf(';', startIndex);
+                var path = endIndex > startIndex
+                    ? connectionString.Substring(startIndex, endIndex - startIndex)
+                    : connectionString.Substring(startIndex);
+
+                // Clean up the path
+                path = path.Trim().Trim('"', '\'');
+
+                // Expand environment variables
+                path = Environment.ExpandEnvironmentVariables(path);
+
+                return path;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -158,7 +293,7 @@ public class DatabaseSchemaMigrationService
                 MigrationOperationType.CreateTable => $"Create table '{operation.TableName}'",
                 MigrationOperationType.AddColumn => $"Add column '{operation.ColumnName}' to '{operation.TableName}'",
                 MigrationOperationType.CreateIndex => $"Create index '{operation.IndexName}'",
-                _ => operation.Type.ToString()
+                var _ => operation.Type.ToString(),
             };
         }
     }

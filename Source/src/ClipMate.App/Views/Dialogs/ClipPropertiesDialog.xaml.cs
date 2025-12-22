@@ -1,6 +1,4 @@
-using DevExpress.Xpf.Core;
-
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Interaction logic for ClipPropertiesDialog.xaml

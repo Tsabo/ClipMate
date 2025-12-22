@@ -5,7 +5,6 @@
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
-                 xmlns:views="clr-namespace:ClipMate.App.Views"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  xmlns:converters="clr-namespace:ClipMate.App.Converters"
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
@@ -33,7 +32,7 @@
         <dxb:BarManager x:Name="BarManager" Grid.Row="0">
             <dxb:BarManager.Bars>
                 <!-- Main Toolbar -->
-                <dxb:Bar Caption="Main Toolbar" IsMainMenu="False" AllowCollapse="True">
+                <dxb:Bar Caption="Main Toolbar" IsMainMenu="False" AllowCollapse="True" GlyphSize="Large">
                     <!-- PowerPaste Button with state indicator -->
                     <dxb:BarButtonItem x:Name="PowerPasteButton"
                                        Content="PowerPaste"
@@ -53,6 +52,12 @@
                                     Content="Move to Collection"
                                     Glyph="{dx:DXImage 'SvgImages/Actions/MoveDown.svg'}"
                                     GetItemData="MoveToCollectionDropdown_GetItemData" />
+
+                    <!-- Search Button -->
+                    <dxb:BarButtonItem Content="Search"
+                                       Command="{Binding MainMenu.SearchCommand}"
+                                       ToolTip="Search clips (Ctrl+F)"
+                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Find.svg'}" />
                 </dxb:Bar>
 
                 <!-- Menu Bar -->
@@ -252,8 +257,8 @@
                                       ShowCaption="False"
                                       ShowCloseButton="False"
                                       ShowBorder="False">
-                        <views:CollectionTreeView x:Name="CollectionTree"
-                                                  DataContext="{Binding CollectionTree}" />
+                        <controls:CollectionTreeControl x:Name="CollectionTree"
+                                                        DataContext="{Binding CollectionTree}" />
                     </dxdo:LayoutPanel>
                     <dxdo:LayoutPanel Caption="Clip List"
                                       ItemWidth="699.0*"
@@ -263,10 +268,10 @@
                                       ShowCaption="False"
                                       ShowCloseButton="False"
                                       ShowBorder="False">
-                        <views:ClipListView x:Name="DockedClipListView"
-                                            Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                            SelectedItem="{Binding PrimaryClipList.SelectedClip}"
-                                            SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
+                        <controls:ClipListControl x:Name="DockedClipListView"
+                                                  Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
+                                                  SelectedItem="{Binding PrimaryClipList.SelectedClip}"
+                                                  SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
                     </dxdo:LayoutPanel>
                 </dxdo:LayoutGroup>
 

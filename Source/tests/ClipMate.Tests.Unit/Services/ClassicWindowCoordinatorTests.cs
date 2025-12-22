@@ -1,4 +1,4 @@
-using ClipMate.App;
+using ClipMate.App.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;

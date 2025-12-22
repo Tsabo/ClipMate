@@ -13,33 +13,41 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class SearchViewModelTests
 {
+    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly Mock<ISearchService> _mockSearchService;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
+    private readonly SearchResultsCache _searchResultsCache;
     private readonly SearchViewModel _viewModel;
 
     public SearchViewModelTests()
     {
         _mockSearchService = new Mock<ISearchService>();
+        _mockCollectionService = new Mock<ICollectionService>();
         _mockMessenger = new Mock<IMessenger>();
+        _searchResultsCache = new SearchResultsCache();
+
+        // Setup mock collection service to return a database key
+        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
 
         // Create mock service scope factory
         var mockServiceScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
         mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
 
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
 
-        _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object);
+        _viewModel = new SearchViewModel(_mockServiceScopeFactory.Object, _mockMessenger.Object, _searchResultsCache);
     }
 
     [Test]
     public async Task Constructor_WithNullSearchService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        await Assert.That(() => new SearchViewModel(null!, _mockMessenger.Object))
+        await Assert.That(() => new SearchViewModel(null!, _mockMessenger.Object, _searchResultsCache))
             .Throws<ArgumentNullException>();
     }
 
@@ -69,7 +77,12 @@ public class SearchViewModelTests
         var clips = new List<Clip>
         {
             new()
-                { Id = Guid.NewGuid(), TextContent = "Test result", Type = ClipType.Text, CapturedAt = DateTime.UtcNow },
+            {
+                Id = Guid.NewGuid(),
+                TextContent = "Test result",
+                Type = ClipType.Text,
+                CapturedAt = DateTime.UtcNow,
+            },
         };
 
         var searchResults = new SearchResults

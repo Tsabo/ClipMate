@@ -18,15 +18,11 @@ public class ClipServiceExtendedTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
     private readonly ILogger<ClipService> _logger;
-    private readonly Mock<IBlobRepository> _mockBlobRepository;
     private readonly Mock<IClipDataRepository> _mockClipDataRepository;
     private readonly Mock<IClipRepository> _mockClipRepository;
     private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
     private readonly Mock<IDatabaseManager> _mockDatabaseManager;
     private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
-    private readonly Mock<IServiceProvider> _mockServiceProvider;
-    private readonly Mock<IServiceScope> _mockServiceScope;
-    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly Mock<ISoundService> _mockSoundService;
 
     public ClipServiceExtendedTests()
@@ -34,7 +30,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
         _mockClipRepository = MockRepository.Create<IClipRepository>();
         // Use loose behavior for ClipData and Blob repositories since not all tests need them
         _mockClipDataRepository = new Mock<IClipDataRepository>(MockBehavior.Loose);
-        _mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
+        var mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
         _mockRepositoryFactory = MockRepository.Create<IClipRepositoryFactory>();
         _mockDatabaseContextFactory = MockRepository.Create<IDatabaseContextFactory>();
         _mockDatabaseManager = MockRepository.Create<IDatabaseManager>();
@@ -42,23 +38,23 @@ public class ClipServiceExtendedTests : TestFixtureBase
         _logger = CreateLogger<ClipService>();
 
         // Setup scoped service provider for ClipData and Blob repositories
-        _mockServiceScope = new Mock<IServiceScope>(MockBehavior.Loose);
-        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>(MockBehavior.Loose);
-        _mockServiceProvider = new Mock<IServiceProvider>(MockBehavior.Loose);
+        var mockServiceScope = new Mock<IServiceScope>(MockBehavior.Loose);
+        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>(MockBehavior.Loose);
+        var mockServiceProvider = new Mock<IServiceProvider>(MockBehavior.Loose);
 
         var scopeServiceProvider = new Mock<IServiceProvider>(MockBehavior.Loose);
         scopeServiceProvider.Setup(p => p.GetService(typeof(IClipDataRepository)))
             .Returns(_mockClipDataRepository.Object);
 
         scopeServiceProvider.Setup(p => p.GetService(typeof(IBlobRepository)))
-            .Returns(_mockBlobRepository.Object);
+            .Returns(mockBlobRepository.Object);
 
-        _mockServiceScope.Setup(p => p.ServiceProvider).Returns(scopeServiceProvider.Object);
-        _mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(_mockServiceScope.Object);
+        mockServiceScope.Setup(p => p.ServiceProvider).Returns(scopeServiceProvider.Object);
+        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
 
         // Setup main service provider to return the scope factory
-        _mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory)))
-            .Returns(_mockServiceScopeFactory.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory)))
+            .Returns(mockServiceScopeFactory.Object);
 
         // Setup factory to return mock repository
         _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
@@ -69,7 +65,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
             .Returns(_mockClipDataRepository.Object);
 
         _mockDatabaseContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<ClipMateDbContext>()))
-            .Returns(_mockBlobRepository.Object);
+            .Returns(mockBlobRepository.Object);
     }
 
     private ClipService CreateService() => new(
@@ -77,6 +73,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
         _mockDatabaseContextFactory.Object,
         _mockDatabaseManager.Object,
         _mockSoundService.Object,
+        Mock.Of<IClipboardService>(),
         _logger);
 
     #region RenameClipAsync Tests

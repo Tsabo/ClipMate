@@ -76,20 +76,39 @@ public class DatabaseSchemaInitializationStep : IStartupInitializationStep
                         _logger.LogInformation("Created database directory: {Directory}", directory);
                     }
 
+                    // Check if database file exists BEFORE creating it
+                    var databaseExisted = File.Exists(databasePath);
+                    _logger.LogInformation("Database '{Name}' file exists: {Exists}", databaseName, databaseExisted);
+
                     // Get or create context for this database
                     var dbContext = contextFactory.GetOrCreateContext(databasePath);
-
-                    var fileExists = File.Exists(databasePath);
-                    _logger.LogInformation("Database '{Name}' file exists: {Exists}", databaseName, fileExists);
 
                     // Ensure database file exists
                     _logger.LogDebug("Ensuring database '{Name}' file is created...", databaseName);
                     await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-                    _logger.LogInformation("Database '{Name}' file creation verified", databaseName);
+                    
+                    if (!databaseExisted)
+                    {
+                        _logger.LogInformation("Database '{Name}' was newly created", databaseName);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Database '{Name}' file already existed", databaseName);
+                    }
 
                     // Migrate schema to match EF Core model
                     _logger.LogInformation("Starting schema migration for database '{Name}'...", databaseName);
                     await migrationService.MigrateAsync(dbContext, cancellationToken);
+
+                    // Seed default data if this was a newly created database
+                    if (!databaseExisted)
+                    {
+                        _logger.LogInformation("Database '{Name}' is new, seeding default collections...", databaseName);
+                        var seeder = new DefaultDataSeeder(dbContext, 
+                            scope.ServiceProvider.GetService<ILogger<DefaultDataSeeder>>());
+                        await seeder.SeedDefaultDataAsync(force: false);
+                        _logger.LogInformation("Default data seeding completed for '{Name}'", databaseName);
+                    }
 
                     successCount++;
                     _logger.LogInformation("✓ Database '{Name}' initialization completed successfully", databaseName);

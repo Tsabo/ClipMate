@@ -1,8 +1,6 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using ClipMate.Data;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,18 +14,14 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class ClassicViewModelTests
 {
-    private readonly ClipListViewModel _clipListViewModel;
-    private readonly MainMenuViewModel _mainMenuViewModel;
     private readonly Mock<IMessenger> _mockMessenger;
-    private readonly QuickPasteToolbarViewModel _quickPasteToolbar;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicViewModelTests()
     {
         _mockMessenger = new Mock<IMessenger>();
-        _mainMenuViewModel = new MainMenuViewModel(
+        var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger.Object,
-            new Mock<IClipService>().Object,
             new Mock<IUndoService>().Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
@@ -35,7 +29,7 @@ public class ClassicViewModelTests
         var mockConfigService = new Mock<IConfigurationService>();
         // Setup Configuration property to return a valid ClipMateConfiguration
         mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
-        _quickPasteToolbar = new QuickPasteToolbarViewModel(
+        var quickPasteToolbar = new QuickPasteToolbarViewModel(
             mockQuickPasteService.Object,
             mockConfigService.Object,
             _mockMessenger.Object,
@@ -44,15 +38,13 @@ public class ClassicViewModelTests
         // Create ClipListViewModel with mocked dependencies
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
-        _clipListViewModel = new ClipListViewModel(
+        var clipListViewModel = new ClipListViewModel(
             mockServiceScopeFactory.Object,
             mockRepositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
-        _viewModel = new ClassicViewModel(_mainMenuViewModel, _quickPasteToolbar, _clipListViewModel);
+        _viewModel = new ClassicViewModel(mainMenuViewModel, quickPasteToolbar, clipListViewModel);
     }
 
     [Test]
@@ -61,7 +53,6 @@ public class ClassicViewModelTests
         // Arrange & Act
         var mainMenu = new MainMenuViewModel(
             _mockMessenger.Object,
-            new Mock<IClipService>().Object,
             new Mock<IUndoService>().Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();
@@ -78,8 +69,6 @@ public class ClassicViewModelTests
         var clipListViewModel = new ClipListViewModel(
             mockServiceScopeFactory.Object,
             mockRepositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 

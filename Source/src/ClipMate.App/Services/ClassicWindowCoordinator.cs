@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
-namespace ClipMate.App;
+namespace ClipMate.App.Services;
 
 /// <summary>
 /// Coordinates Classic window lifecycle and ensures single instance.

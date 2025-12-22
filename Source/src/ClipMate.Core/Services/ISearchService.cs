@@ -18,6 +18,22 @@ public interface ISearchService
     Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Builds a SQL query from search filters without executing it.
+    /// </summary>
+    /// <param name="query">The search query text.</param>
+    /// <param name="filters">Optional search filters.</param>
+    /// <returns>The generated SQL query string.</returns>
+    string BuildSqlQuery(string query, SearchFilters? filters = null);
+
+    /// <summary>
+    /// Validates a SQL query for security and syntax.
+    /// </summary>
+    /// <param name="sql">The SQL query to validate.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Tuple with validation result and optional error message.</returns>
+    Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Searches clips using a saved search query.
     /// </summary>
     /// <param name="searchQueryId">The ID of the saved search query.</param>

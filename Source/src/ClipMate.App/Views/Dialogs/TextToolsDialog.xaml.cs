@@ -1,6 +1,6 @@
 using ClipMate.App.ViewModels;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Interaction logic for TextToolsDialog.xaml

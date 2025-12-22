@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;

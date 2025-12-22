@@ -35,7 +35,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     IRecipient<CreateNewClipRequestedEvent>,
     IRecipient<PowerPasteUpRequestedEvent>,
     IRecipient<PowerPasteDownRequestedEvent>,
-    IRecipient<PowerPasteToggleRequestedEvent>
+    IRecipient<PowerPasteToggleRequestedEvent>,
+    IRecipient<ShowSearchWindowEvent>
 {
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
@@ -84,6 +85,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         _messenger.Register<PowerPasteUpRequestedEvent>(this);
         _messenger.Register<PowerPasteDownRequestedEvent>(this);
         _messenger.Register<PowerPasteToggleRequestedEvent>(this);
+        _messenger.Register<ShowSearchWindowEvent>(this);
     }
 
     /// <summary>
@@ -1203,6 +1205,29 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         {
             _logger?.LogError(ex, "Failed to toggle PowerPaste");
             SetStatus("Error starting PowerPaste");
+        }
+    }
+
+    /// <summary>
+    /// Handles ShowSearchWindowEvent to display the search dialog.
+    /// </summary>
+    public void Receive(ShowSearchWindowEvent message)
+    {
+        _logger?.LogInformation("Showing search window");
+
+        try
+        {
+            var dialog = new SearchDialog(Search)
+            {
+                Owner = Application.Current.GetDialogOwner(),
+            };
+
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show search window");
+            SetStatus("Error showing search window");
         }
     }
 

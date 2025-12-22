@@ -8,6 +8,7 @@ namespace ClipMate.Data.Services;
 /// Service responsible for ensuring default collections and folders exist,
 /// and setting the active collection/folder to Inbox on startup.
 /// This must run BEFORE clipboard monitoring starts.
+/// Uses DefaultDataSeeder to create the full ClipMate 7.5 collection structure.
 /// </summary>
 public class DefaultDataInitializationService
 {
@@ -22,9 +23,12 @@ public class DefaultDataInitializationService
     }
 
     /// <summary>
-    /// Ensures default collections exist and sets Inbox as the active collection.
+    /// Ensures Inbox collection exists and sets it as the active collection.
     /// Should be called during application startup, before clipboard monitoring begins.
+    /// Note: Default data seeding is now handled by DatabaseSchemaInitializationStep
+    /// to ensure it happens immediately after database creation.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Initializing default data and active collection");
@@ -34,8 +38,27 @@ public class DefaultDataInitializationService
             using var scope = _serviceProvider.CreateScope();
             var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
             var configurationService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+            var contextFactory = scope.ServiceProvider.GetRequiredService<IDatabaseContextFactory>();
 
-            // Get all collections
+            var configuration = configurationService.Configuration;
+            var defaultDatabaseKey = configuration.DefaultDatabase;
+
+            if (string.IsNullOrEmpty(defaultDatabaseKey))
+            {
+                _logger.LogWarning("No default database configured, cannot initialize default data");
+                return;
+            }
+
+            // Get the database path for the default database
+            if (!configuration.Databases.TryGetValue(defaultDatabaseKey, out var dbConfig))
+            {
+                _logger.LogWarning("Default database '{Key}' not found in configuration", defaultDatabaseKey);
+                return;
+            }
+
+            var databasePath = Environment.ExpandEnvironmentVariables(dbConfig.FilePath);
+
+            // Get all collections (seeding should have happened in DatabaseSchemaInitializationStep)
             var collections = await collectionService.GetAllAsync(cancellationToken);
 
             // Find Inbox collection (default collection for new clips)
@@ -44,24 +67,14 @@ public class DefaultDataInitializationService
 
             if (inboxCollection == null)
             {
-                // Inbox doesn't exist - create it
-                _logger.LogWarning("Inbox collection not found, creating default Inbox collection");
-                inboxCollection = await collectionService.CreateAsync(
-                    "Inbox",
-                    "Default collection for clipboard captures",
-                    cancellationToken);
+                _logger.LogError("Inbox collection not found - database may not have been seeded properly");
+                return;
             }
 
             // Set Inbox as the active collection for new clips
-            // Set Inbox as the active collection
-            var configuration = configurationService.Configuration;
-            var defaultDatabaseKey = configuration.DefaultDatabase;
-            if (string.IsNullOrEmpty(defaultDatabaseKey))
-                _logger.LogWarning("No default database configured, cannot set active collection");
-            else
-                await collectionService.SetActiveAsync(inboxCollection.Id, defaultDatabaseKey, cancellationToken);
+            await collectionService.SetActiveAsync(inboxCollection.Id, defaultDatabaseKey, cancellationToken);
 
-            _logger.LogInformation("Set Inbox collection (ID: {CollectionId}) as active for new clips", inboxCollection.Id);
+            _logger.LogInformation("Set Inbox collection (ID: \"{CollectionId}\") as active for new clips", inboxCollection.Id);
         }
         catch (Exception ex)
         {

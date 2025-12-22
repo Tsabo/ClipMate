@@ -1,7 +1,6 @@
-using System.Windows;
 using DevExpress.Xpf.Editors;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME).

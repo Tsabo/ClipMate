@@ -4,7 +4,7 @@ using System.Windows.Media;
 using ClipMate.App.Helpers;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
-using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;

@@ -9,8 +9,7 @@ public class VirtualCollectionTreeNode : TreeNodeBase
 {
     public VirtualCollectionTreeNode(Collection virtualCollection)
     {
-        if (virtualCollection == null)
-            throw new ArgumentNullException(nameof(virtualCollection));
+        ArgumentNullException.ThrowIfNull(virtualCollection);
 
         if (!virtualCollection.IsVirtual)
             throw new ArgumentException("Collection must be virtual", nameof(virtualCollection));
@@ -38,7 +37,7 @@ public class VirtualCollectionTreeNode : TreeNodeBase
             "keystrokes macros" or "macros" => "⌨️",
             "since last import" => "📥",
             "since last export" => "📤",
-            _ => "🔍"
+            var _ => "🔍",
         };
 
     public override TreeNodeType NodeType => TreeNodeType.VirtualCollection;

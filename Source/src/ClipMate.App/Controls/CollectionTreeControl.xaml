@@ -1,4 +1,4 @@
-<UserControl x:Class="ClipMate.App.Views.CollectionTreeView"
+<UserControl x:Class="ClipMate.App.Controls.CollectionTreeControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -38,7 +38,7 @@
                                 <!-- ReadOnly collections: Red foreground (only for CollectionTreeNode) -->
                                 <DataTrigger Binding="{Binding Row.Collection.IsReadOnly, FallbackValue=False}"
                                              Value="True">
-                                    <Setter Property="Foreground" Value="Red" />
+                                    <Setter Property="Foreground" Value="Maroon" />
                                 </DataTrigger>
                                 <!-- Safe collections (PurgePolicy=Never): Underline (only for CollectionTreeNode) -->
                                 <DataTrigger Binding="{Binding Row.Collection.PurgePolicy, FallbackValue=KeepLast}"

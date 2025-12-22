@@ -1,4 +1,4 @@
-using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;

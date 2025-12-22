@@ -273,14 +273,5 @@ public class Collection
     /// <summary>
     /// Purge policy for this collection.
     /// </summary>
-    public PurgePolicy PurgePolicy
-    {
-        get
-        {
-            if (RetentionLimit == 0)
-                return PurgePolicy.Never;
-
-            return PurgePolicy.KeepLast;
-        }
-    }
+    public PurgePolicy PurgePolicy => RetentionLimit == 0 ? PurgePolicy.Never : PurgePolicy.KeepLast;
 }

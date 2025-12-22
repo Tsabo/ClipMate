@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows;
 using System.Windows.Threading;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
@@ -92,14 +91,14 @@ public partial class DatabaseBackupDialog
     {
         _userInteracted = true;
 
-        using var folderDialog = new DXFolderBrowserDialog
-        {
-            Description = "Select Backup Directory",
-            SelectedPath = string.IsNullOrWhiteSpace(_viewModel.BackupDirectory)
-                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                : Environment.ExpandEnvironmentVariables(_viewModel.BackupDirectory),
-            ShowNewFolderButton = true,
-        };
+        using var folderDialog = new DXFolderBrowserDialog();
+
+        folderDialog.Description = "Select Backup Directory";
+        folderDialog.SelectedPath = string.IsNullOrWhiteSpace(_viewModel.BackupDirectory)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            : Environment.ExpandEnvironmentVariables(_viewModel.BackupDirectory);
+
+        folderDialog.ShowNewFolderButton = true;
 
         if (folderDialog.ShowDialog() == true)
             _viewModel.BackupDirectory = folderDialog.SelectedPath;

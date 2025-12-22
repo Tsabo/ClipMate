@@ -1,14 +1,14 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Collection Properties dialog window.
 /// </summary>
-public partial class CollectionPropertiesWindow
+public partial class CollectionPropertiesDialog
 {
-    public CollectionPropertiesWindow(CollectionPropertiesViewModel viewModel, IConfigurationService configurationService)
+    public CollectionPropertiesDialog(CollectionPropertiesViewModel viewModel, IConfigurationService configurationService)
     {
         InitializeComponent();
         DataContext = viewModel;

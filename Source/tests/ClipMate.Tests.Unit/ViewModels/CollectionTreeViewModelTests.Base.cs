@@ -66,6 +66,7 @@ public class CollectionTreeViewModelTests
             mockRepositoryFactory.Object,
             _mockMessenger.Object,
             _mockCollectionTreeBuilder.Object,
-            _mockLogger.Object);
+            _mockLogger.Object,
+            new SearchResultsCache());
     }
 }

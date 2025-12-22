@@ -164,4 +164,14 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created clip in the target database.</returns>
     Task<Clip> MoveClipCrossDatabaseAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetCollectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads a clip's full content from the database and sets it to the Windows clipboard.
+    /// This method loads all clip data (text, images, files) and updates the system clipboard.
+    /// Used for "Pick, Flip, and Paste" functionality and after editing clips.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID to load and set to clipboard.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task LoadAndSetClipboardAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
 }

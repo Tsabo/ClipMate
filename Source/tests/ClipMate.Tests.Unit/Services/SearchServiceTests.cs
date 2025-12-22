@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using Moq;
 
@@ -12,6 +13,7 @@ namespace ClipMate.Tests.Unit.Services;
 public class SearchServiceTests
 {
     private readonly Mock<IClipRepository> _mockClipRepository;
+    private readonly Mock<ClipMateDbContext> _mockDbContext;
     private readonly Mock<ISearchQueryRepository> _mockSearchQueryRepository;
     private readonly SearchService _searchService;
 
@@ -19,7 +21,8 @@ public class SearchServiceTests
     {
         _mockClipRepository = new Mock<IClipRepository>();
         _mockSearchQueryRepository = new Mock<ISearchQueryRepository>();
-        _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object);
+        _mockDbContext = new Mock<ClipMateDbContext>();
+        _searchService = new SearchService(_mockClipRepository.Object, _mockSearchQueryRepository.Object, _mockDbContext.Object);
     }
 
     [Test]
@@ -27,7 +30,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(null!, _mockSearchQueryRepository.Object))
+                new SearchService(null!, _mockSearchQueryRepository.Object, _mockDbContext.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -36,7 +39,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(_mockClipRepository.Object, null!))
+                new SearchService(_mockClipRepository.Object, null!, _mockDbContext.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -84,14 +87,15 @@ public class SearchServiceTests
             Id = Guid.NewGuid(),
             TextContent = "Hello World",
             Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         var nonMatchingClip = new Clip
         {
             Id = Guid.NewGuid(),
             TextContent = "Goodbye",
             Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         _mockClipRepository
@@ -118,14 +122,14 @@ public class SearchServiceTests
                 Id = Guid.NewGuid(),
                 TextContent = "Hello World",
                 Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow
+                CapturedAt = DateTime.UtcNow,
             },
             new()
             {
                 Id = Guid.NewGuid(),
                 TextContent = "hello world",
                 Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow
+                CapturedAt = DateTime.UtcNow,
             },
         };
 
@@ -152,14 +156,15 @@ public class SearchServiceTests
             Id = Guid.NewGuid(),
             TextContent = "Text content",
             Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         var imageClip = new Clip
         {
             Id = Guid.NewGuid(),
             TextContent = "image.png",
             Type = ClipType.Image,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         _mockClipRepository
@@ -186,14 +191,15 @@ public class SearchServiceTests
             Id = Guid.NewGuid(),
             TextContent = "Old",
             Type = ClipType.Text,
-            CapturedAt = now.AddDays(-10)
+            CapturedAt = now.AddDays(-10),
         };
+
         var recentClip = new Clip
         {
             Id = Guid.NewGuid(),
             TextContent = "Recent",
             Type = ClipType.Text,
-            CapturedAt = now.AddDays(-2)
+            CapturedAt = now.AddDays(-2),
         };
 
         _mockClipRepository
@@ -222,14 +228,15 @@ public class SearchServiceTests
             Id = Guid.NewGuid(),
             TextContent = "Contact: john@example.com",
             Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
+
         var nonEmailClip = new Clip
         {
             Id = Guid.NewGuid(),
             TextContent = "No email here",
             Type = ClipType.Text,
-            CapturedAt = DateTime.UtcNow
+            CapturedAt = DateTime.UtcNow,
         };
 
         _mockClipRepository
@@ -309,7 +316,7 @@ public class SearchServiceTests
                 Id = Guid.NewGuid(),
                 TextContent = "Important document",
                 Type = ClipType.Text,
-                CapturedAt = DateTime.UtcNow
+                CapturedAt = DateTime.UtcNow,
             },
         };
 

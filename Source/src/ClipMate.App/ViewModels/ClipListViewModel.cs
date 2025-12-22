@@ -1,10 +1,7 @@
 using System.Collections.ObjectModel;
-using System.Text;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using ClipMate.Data;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,12 +24,17 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>
 {
-    private readonly IDatabaseContextFactory _databaseContextFactory;
-    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+
+    /// <summary>
+    /// Indicates whether the current view accepts new clips from clipboard capture.
+    /// False for virtual collections (search results, deleted clips, etc.) that show fixed/filtered content.
+    /// </summary>
+    [ObservableProperty]
+    private bool _acceptsNewClips = true;
 
     [ObservableProperty]
     private ObservableCollection<Clip> _clips = [];
@@ -63,15 +65,11 @@ public partial class ClipListViewModel : ObservableObject,
 
     public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
         IClipRepositoryFactory repositoryFactory,
-        IDatabaseContextFactory databaseContextFactory,
-        IDatabaseManager databaseManager,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
-        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
-        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -82,6 +80,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
+        _messenger.Register<SearchResultsSelectedEvent>(this);
     }
 
     /// <summary>
@@ -207,8 +206,13 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("SearchResultsSelectedEvent received: DatabaseKey={DatabaseKey}, Query={Query}, ClipCount={Count}",
             message.DatabaseKey, message.Query, message.ClipIds.Count);
 
+        _logger.LogInformation("Clip IDs to load: {ClipIds}", string.Join(", ", message.ClipIds.Take(10)));
+
         // Store the current database key
         CurrentDatabaseKey = message.DatabaseKey;
+
+        // Search results don't accept new clips
+        AcceptsNewClips = false;
 
         // Load clips by the specific IDs from search results
         await LoadClipsByIdsAsync(message.ClipIds, message.DatabaseKey);
@@ -286,79 +290,12 @@ public partial class ClipListViewModel : ObservableObject,
             if (string.IsNullOrEmpty(CurrentDatabaseKey))
                 throw new InvalidOperationException("No database is currently selected");
 
-            var context = _databaseManager.GetDatabaseContext(CurrentDatabaseKey)
-                          ?? throw new InvalidOperationException($"Database context for '{CurrentDatabaseKey}' not found");
-
-            // Create repositories using factory
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(context);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
-
             using var scope = CreateScope();
-            var clipboardService = scope.ServiceProvider.GetRequiredService<IClipboardService>();
+            var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
 
-            // Load ClipData for this clip
-            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id);
-            if (clipDataList.Count == 0)
-            {
-                _logger.LogWarning("[ClipListViewModel] No ClipData found for clip: {ClipId}", clip.Id);
+            // Use the centralized service method to load and set clipboard
+            await clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id);
 
-                return;
-            }
-
-            // Load text blobs and populate content properties
-            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id);
-            var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
-
-            foreach (var item in clipDataList)
-            {
-                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
-                    continue;
-
-                // Determine content type based on format
-                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
-                    clip.TextContent = textBlob.Data;
-                else if (item.Format == Formats.RichText.Code)
-                    clip.RtfContent = textBlob.Data;
-                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
-                    clip.HtmlContent = textBlob.Data;
-            }
-
-            // For images, load image data
-            if (clip.Type == ClipType.Image)
-            {
-                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id);
-                if (pngBlobs.Count > 0)
-                    clip.ImageData = pngBlobs[0].Data;
-                else
-                {
-                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id);
-                    if (jpgBlobs.Count > 0)
-                        clip.ImageData = jpgBlobs[0].Data;
-                }
-            }
-
-            // For files, load file paths from binary blobs
-            if (clip.Type == ClipType.Files)
-            {
-                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id);
-                // Find the CF_HDROP format (format 15) which contains file paths
-                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
-                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
-
-                if (filePathBlob != null)
-                {
-                    // The blob data is the JSON string
-                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
-                }
-            }
-
-            _logger.LogInformation("[ClipListViewModel] About to set clipboard - Type: {Type}, TextContent: {HasText}, RtfContent: {HasRtf}, HtmlContent: {HasHtml}",
-                clip.Type,
-                !string.IsNullOrEmpty(clip.TextContent),
-                !string.IsNullOrEmpty(clip.RtfContent),
-                !string.IsNullOrEmpty(clip.HtmlContent));
-
-            await clipboardService.SetClipboardContentAsync(clip);
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
 
             // Notify that clipboard has been updated
@@ -375,6 +312,10 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     private bool ShouldDisplayClip(Clip clip, Guid? clipCollectionId, Guid? clipFolderId)
     {
+        // Views that don't accept new clips (search results, trash, etc.) should reject them
+        if (!AcceptsNewClips)
+            return false;
+
         // If viewing a specific folder, only show clips in that folder
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
             return clipFolderId == CurrentFolderId && clipCollectionId == CurrentCollectionId;
@@ -396,6 +337,7 @@ public partial class ClipListViewModel : ObservableObject,
         try
         {
             IsLoading = true;
+            AcceptsNewClips = true; // Recent clips view accepts new clips
             _logger.LogInformation("Loading recent {Count} clips (no collection filter)", count);
             IReadOnlyCollection<Clip> clips;
             using (var scope = CreateScope())
@@ -452,6 +394,7 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             CurrentCollectionId = collectionId;
             CurrentFolderId = null;
+            AcceptsNewClips = true; // Normal collection view accepts new clips
 
             _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
             IReadOnlyCollection<Clip> clips;
@@ -512,6 +455,7 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             CurrentCollectionId = collectionId;
             CurrentFolderId = folderId;
+            AcceptsNewClips = true; // Normal folder view accepts new clips
 
             _logger.LogInformation("Loading clips for folder: {FolderId}", folderId);
             IReadOnlyCollection<Clip> clips;
@@ -570,6 +514,7 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             CurrentCollectionId = null;
             CurrentFolderId = null;
+            AcceptsNewClips = false; // Trash doesn't accept new clips
 
             _logger.LogInformation("Loading deleted clips for database: {DatabaseKey}", databaseKey);
 
@@ -614,6 +559,7 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             CurrentCollectionId = null;
             CurrentFolderId = null;
+            AcceptsNewClips = false; // Loading by IDs (search results) doesn't accept new clips
 
             _logger.LogInformation("Loading {Count} clips by IDs for database: {DatabaseKey}", clipIds.Count, databaseKey);
 

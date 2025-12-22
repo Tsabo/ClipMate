@@ -1,4 +1,7 @@
+using System.Data;
+using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClipMate.Data;
@@ -12,6 +15,15 @@ public class ClipMateDbContext : DbContext
     public ClipMateDbContext(DbContextOptions<ClipMateDbContext> options)
         : base(options)
     {
+        // Register TextSearch function when connection is opened
+        if (Database.GetDbConnection() is SqliteConnection sqliteConnection)
+        {
+            sqliteConnection.StateChange += (_, e) =>
+            {
+                if (e.CurrentState == ConnectionState.Open)
+                    RegisterTextSearchFunction(sqliteConnection);
+            };
+        }
     }
 
     /// <summary>
@@ -79,6 +91,53 @@ public class ClipMateDbContext : DbContext
     /// </summary>
     public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
 
+    /// <summary>
+    /// Registers the TextSearch custom SQLite function that handles ClipMate search syntax.
+    /// Supports: whole keywords, comma-separated OR logic, * wildcard, % wildcard
+    /// </summary>
+    private static void RegisterTextSearchFunction(SqliteConnection connection)
+    {
+        connection.CreateFunction(
+            "TextSearch",
+            (string fieldValue, string query) =>
+            {
+                if (string.IsNullOrEmpty(fieldValue))
+                    return false;
+
+                // Split by comma for OR logic
+                var keywords = query.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                foreach (var keyword in keywords)
+                {
+                    var pattern = keyword;
+
+                    // Convert * wildcard to % for LIKE matching
+                    if (pattern.EndsWith('*'))
+                        pattern = pattern[..^1] + "%";
+
+                    // If no wildcards, add % at both ends for substring search
+                    if (!pattern.Contains('%'))
+                        pattern = $"%{pattern}%";
+
+                    // Case-insensitive LIKE matching
+                    if (fieldValue.Contains(pattern.Replace("%", ""), StringComparison.OrdinalIgnoreCase))
+                        return true;
+
+                    // Try proper wildcard matching if pattern has %
+                    if (!pattern.Contains('%'))
+                        continue;
+
+                    var regex = "^" + Regex.Escape(pattern)
+                        .Replace("%", ".*") + "$";
+
+                    if (Regex.IsMatch(fieldValue, regex, RegexOptions.IgnoreCase))
+                        return true;
+                }
+
+                return false;
+            });
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -102,10 +161,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Clip>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            // ClipMate 7.5 fields with max lengths
             entity.Property(p => p.Title).HasMaxLength(60);
             entity.Property(p => p.Creator).HasMaxLength(60);
             entity.Property(p => p.SourceUrl).HasMaxLength(250);
@@ -149,10 +204,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Collection>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            // ClipMate 7.5 fields with max lengths
             entity.Property(p => p.Title).IsRequired().HasMaxLength(60);
             entity.Property(p => p.Sql).HasMaxLength(256);
 
@@ -229,10 +280,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobJpg>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.ClipDataId).IsRequired();
             entity.Property(p => p.ClipId).IsRequired(); // Denormalized
             entity.Property(p => p.Data).IsRequired();
 
@@ -252,10 +299,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobPng>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.ClipDataId).IsRequired();
             entity.Property(p => p.ClipId).IsRequired(); // Denormalized
             entity.Property(p => p.Data).IsRequired();
 
@@ -275,10 +318,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<BlobBlob>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.ClipDataId).IsRequired();
             entity.Property(p => p.ClipId).IsRequired(); // Denormalized
             entity.Property(p => p.Data).IsRequired();
 
@@ -298,6 +337,9 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Shortcut>(entity =>
         {
+            // Use ClipMate 7.5 table name
+            entity.ToTable("ShortCut");
+
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Id).ValueGeneratedOnAdd();
 
@@ -320,10 +362,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.Username).IsRequired().HasMaxLength(50);
             entity.Property(p => p.Workstation).IsRequired().HasMaxLength(50);
             entity.Property(p => p.LastDate).IsRequired();
 
@@ -337,10 +375,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<Template>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Content).IsRequired();
             entity.Property(p => p.CreatedAt).IsRequired();
 
@@ -353,10 +387,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<SearchQuery>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
             entity.Property(p => p.QueryText).IsRequired().HasMaxLength(500);
             entity.Property(p => p.CreatedAt).IsRequired();
 
@@ -369,10 +399,6 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<ApplicationFilter>(entity =>
         {
-            entity.HasKey(p => p.Id);
-            entity.Property(p => p.Id).ValueGeneratedOnAdd();
-
-            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
             entity.Property(p => p.CreatedAt).IsRequired();
 
             entity.HasIndex(p => p.Name).HasDatabaseName("IX_ApplicationFilters_Name");
@@ -385,6 +411,9 @@ public class ClipMateDbContext : DbContext
     {
         modelBuilder.Entity<MonacoEditorState>(entity =>
         {
+            // Use ClipMate 7.5 table name
+            entity.ToTable("MonacoEditorState");
+
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Id).ValueGeneratedOnAdd();
 

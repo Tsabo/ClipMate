@@ -7,7 +7,6 @@
     xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
     xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
     xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
-    xmlns:views="clr-namespace:ClipMate.App.Views"
     xmlns:controls="clr-namespace:ClipMate.App.Controls"
     d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
     mc:Ignorable="d"
@@ -270,11 +269,11 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <views:ClipListView Grid.Row="0"
-                                DataContext="{Binding ClipListViewModel}"
-                                Items="{Binding Clips}"
-                                SelectedItem="{Binding SelectedClip}"
-                                SelectedItems="{Binding SelectedClips, Mode=TwoWay}" />
+            <controls:ClipListControl Grid.Row="0"
+                                      DataContext="{Binding ClipListViewModel}"
+                                      Items="{Binding Clips}"
+                                      SelectedItem="{Binding SelectedClip}"
+                                      SelectedItems="{Binding SelectedClips, Mode=TwoWay}" />
 
             <controls:QuickPasteToolbar Grid.Row="1"
                                         DataContext="{Binding QuickPasteToolbarViewModel}" />

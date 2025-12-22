@@ -208,6 +208,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Mock.Of<IDatabaseContextFactory>(),
             Mock.Of<IDatabaseManager>(),
             soundService.Object,
+            Mock.Of<IClipboardService>(),
             serviceLogger);
     }
 
@@ -235,6 +236,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             Mock.Of<IDatabaseContextFactory>(),
             Mock.Of<IDatabaseManager>(),
             soundService.Object,
+            Mock.Of<IClipboardService>(),
             serviceLogger);
     }
 }

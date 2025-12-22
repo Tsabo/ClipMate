@@ -37,6 +37,9 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IApplicationProfileService, ApplicationProfileService>();
 
+        // Register SearchResultsCache as singleton (maintains per-database search result cache)
+        services.AddSingleton<SearchResultsCache>();
+
         // Note: Service implementations are registered in ClipMate.Data
         // via AddClipMateData() extension method
 

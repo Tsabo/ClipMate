@@ -1,3 +1,4 @@
+using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
@@ -12,6 +13,7 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class ClipService : IClipService
 {
+    private readonly IClipboardService _clipboardService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipService> _logger;
@@ -22,12 +24,14 @@ public class ClipService : IClipService
         IDatabaseContextFactory databaseContextFactory,
         IDatabaseManager databaseManager,
         ISoundService soundService,
+        IClipboardService clipboardService,
         ILogger<ClipService> logger)
     {
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -280,6 +284,90 @@ public class ClipService : IClipService
         return copiedClip;
     }
 
+    /// <inheritdoc />
+    public async Task LoadAndSetClipboardAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get database context
+            var context = _databaseManager.GetDatabaseContext(databaseKey)
+                          ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+            // Get the clip
+            var repository = GetRepository(databaseKey);
+            var clip = await repository.GetByIdAsync(clipId, cancellationToken);
+            if (clip == null)
+            {
+                _logger.LogWarning("Clip {ClipId} not found in database {DatabaseKey}", clipId, databaseKey);
+                return;
+            }
+
+            // Create repositories to load full clip content
+            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(context);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
+
+            // Load ClipData for this clip
+            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id, cancellationToken);
+            if (clipDataList.Count == 0)
+            {
+                _logger.LogWarning("No ClipData found for clip: {ClipId}", clip.Id);
+                return;
+            }
+
+            // Load text blobs and populate content properties
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+            var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
+
+            foreach (var item in clipDataList)
+            {
+                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
+                    continue;
+
+                // Determine content type based on format
+                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
+                    clip.TextContent = textBlob.Data;
+                else if (item.Format == Formats.RichText.Code)
+                    clip.RtfContent = textBlob.Data;
+                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
+                    clip.HtmlContent = textBlob.Data;
+            }
+
+            // For images, load image data
+            if (clip.Type == ClipType.Image)
+            {
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
+                if (pngBlobs.Count > 0)
+                    clip.ImageData = pngBlobs[0].Data;
+                else
+                {
+                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
+                    if (jpgBlobs.Count > 0)
+                        clip.ImageData = jpgBlobs[0].Data;
+                }
+            }
+
+            // For files, load file paths from binary blobs
+            if (clip.Type == ClipType.Files)
+            {
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
+                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
+
+                if (filePathBlob != null)
+                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+            }
+
+            // Update the Windows clipboard
+            await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
+            _logger.LogInformation("Set clipboard content for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load and set clipboard for clip {ClipId} from database {DatabaseKey}", clipId, databaseKey);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Gets a repository instance for the specified database.
     /// </summary>
@@ -388,7 +476,12 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies text BLOBs from source to target clip.
     /// </summary>
+    /// <param name="sourceBlobRepo"></param>
+    /// <param name="targetBlobRepo"></param>
+    /// <param name="sourceClipId"></param>
+    /// <param name="targetClipId"></param>
     /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    /// <param name="cancellationToken"></param>
     private async Task CopyTextBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
         var sourceBlobs = await sourceBlobRepo.GetTextByClipIdAsync(sourceClipId, cancellationToken);
@@ -418,7 +511,12 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies JPEG BLOBs from source to target clip.
     /// </summary>
+    /// <param name="sourceBlobRepo"></param>
+    /// <param name="targetBlobRepo"></param>
+    /// <param name="sourceClipId"></param>
+    /// <param name="targetClipId"></param>
     /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    /// <param name="cancellationToken"></param>
     private async Task CopyJpgBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
         var sourceBlobs = await sourceBlobRepo.GetJpgByClipIdAsync(sourceClipId, cancellationToken);
@@ -448,7 +546,12 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies PNG BLOBs from source to target clip.
     /// </summary>
+    /// <param name="sourceBlobRepo"></param>
+    /// <param name="targetBlobRepo"></param>
+    /// <param name="sourceClipId"></param>
+    /// <param name="targetClipId"></param>
     /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    /// <param name="cancellationToken"></param>
     private async Task CopyPngBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
         var sourceBlobs = await sourceBlobRepo.GetPngByClipIdAsync(sourceClipId, cancellationToken);
@@ -478,7 +581,12 @@ public class ClipService : IClipService
     /// <summary>
     /// Copies binary BLOBs from source to target clip.
     /// </summary>
+    /// <param name="sourceBlobRepo"></param>
+    /// <param name="targetBlobRepo"></param>
+    /// <param name="sourceClipId"></param>
+    /// <param name="targetClipId"></param>
     /// <param name="clipDataIdMap">Mapping from source ClipDataId to target ClipDataId.</param>
+    /// <param name="cancellationToken"></param>
     private async Task CopyBinaryBlobsAsync(IBlobRepository sourceBlobRepo, IBlobRepository targetBlobRepo, Guid sourceClipId, Guid targetClipId, Dictionary<Guid, Guid> clipDataIdMap, CancellationToken cancellationToken)
     {
         var sourceBlobs = await sourceBlobRepo.GetBlobByClipIdAsync(sourceClipId, cancellationToken);

@@ -259,6 +259,7 @@ public class ClipServiceTests
             Mock.Of<IDatabaseContextFactory>(),
             Mock.Of<IDatabaseManager>(),
             _mockSoundService.Object,
+            Mock.Of<IClipboardService>(),
             _mockLogger.Object);
 
     private Clip CreateTestClip(Guid id,

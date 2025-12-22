@@ -1,10 +1,51 @@
+using System.Data;
 using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Repositories;
+
+/// <summary>
+/// Type handler for SQLite GUID string conversion.
+/// SQLite stores GUIDs as strings, Dapper needs help converting them.
+/// </summary>
+public class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
+{
+    public override Guid Parse(object value)
+    {
+        return value switch
+        {
+            string s => Guid.Parse(s),
+            Guid g => g,
+            var _ => throw new InvalidOperationException($"Cannot convert {value.GetType()} to Guid"),
+        };
+    }
+
+    public override void SetValue(IDbDataParameter parameter, Guid value) => parameter.Value = value.ToString();
+}
+
+/// <summary>
+/// Type handler for SQLite DateTimeOffset string conversion.
+/// SQLite stores DateTimeOffset as ISO 8601 strings.
+/// </summary>
+public class DateTimeOffsetTypeHandler : SqlMapper.TypeHandler<DateTimeOffset>
+{
+    public override DateTimeOffset Parse(object value)
+    {
+        return value switch
+        {
+            string s => DateTimeOffset.Parse(s),
+            DateTimeOffset dto => dto,
+            DateTime dt => new DateTimeOffset(dt),
+            var _ => throw new InvalidOperationException($"Cannot convert {value.GetType()} to DateTimeOffset"),
+        };
+    }
+
+    public override void SetValue(IDbDataParameter parameter, DateTimeOffset value) => parameter.Value = value.ToString("o"); // ISO 8601
+}
 
 /// <summary>
 /// Entity Framework Core implementation of the clip repository.
@@ -12,6 +53,7 @@ namespace ClipMate.Data.Repositories;
 /// </summary>
 public class ClipRepository : IClipRepository
 {
+    private static bool _dapperConfigured;
     private readonly ClipMateDbContext _context;
     private readonly ILogger<ClipRepository> _logger;
 
@@ -19,6 +61,16 @@ public class ClipRepository : IClipRepository
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Configure Dapper once for GUID and DateTimeOffset handling
+        if (_dapperConfigured)
+            return;
+
+        SqlMapper.AddTypeHandler(new GuidTypeHandler());
+        SqlMapper.AddTypeHandler(new DateTimeOffsetTypeHandler());
+        SqlMapper.RemoveTypeMap(typeof(Guid));
+        SqlMapper.AddTypeMap(typeof(Guid), DbType.String);
+        _dapperConfigured = true;
     }
 
     public async Task<Clip?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -382,6 +434,21 @@ public class ClipRepository : IClipRepository
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Executing search SQL query: {SqlQuery}", sqlQuery);
+
+        // Use Dapper for flexible raw SQL support (handles SELECT *, implicit joins, custom functions)
+        var connection = _context.Database.GetDbConnection();
+        var clips = (await connection.QueryAsync<Clip>(sqlQuery)).ToList();
+
+        // Load format flags for the results
+        if (clips.Count > 0)
+            await LoadFormatFlagsAsync(clips, cancellationToken);
+
+        return clips;
     }
 
     public async Task<IEnumerable<Clip>> GetAllAsync(CancellationToken cancellationToken = default)

@@ -4,16 +4,16 @@ using ClipMate.Core.Models;
 using DevExpress.Xpf.Core;
 using DragDropEffects = System.Windows.DragDropEffects;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Controls;
 
 /// <summary>
-/// Interaction logic for CollectionTreeView.xaml
+/// Interaction logic for CollectionTreeControl.xaml
 /// Displays hierarchical collection tree using DevExpress TreeListControl.
 /// Structure: Database -> Collections/Virtual Collections -> Folders
 /// </summary>
-public partial class CollectionTreeView
+public partial class CollectionTreeControl
 {
-    public CollectionTreeView()
+    public CollectionTreeControl()
     {
         InitializeComponent();
     }

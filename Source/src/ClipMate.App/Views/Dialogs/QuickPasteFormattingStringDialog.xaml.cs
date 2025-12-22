@@ -1,15 +1,13 @@
-using System.Windows;
 using ClipMate.Core.Models.Configuration;
-using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Editors;
 using MessageBox = System.Windows.MessageBox;
 
-namespace ClipMate.App.Views;
+namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
 /// Dialog for creating/editing QuickPaste formatting strings.
 /// </summary>
-public partial class QuickPasteFormattingStringDialog : ThemedWindow
+public partial class QuickPasteFormattingStringDialog
 {
     public QuickPasteFormattingStringDialog()
     {

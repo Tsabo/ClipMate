@@ -5,7 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
-using ClipMate.App.Views;
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
@@ -353,27 +353,24 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
         {
-            if (blobData?.Data != null)
-            {
-                // Wait for Monaco to initialize before setting text
-                await WaitForMonacoInitializationAsync(TextEditor);
+            // Wait for Monaco to initialize before setting text
+            await WaitForMonacoInitializationAsync(TextEditor);
 
-                // Load saved language and view state from MonacoEditorState
-                var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
-                var savedLanguage = editorState?.Language ?? "plaintext";
+            // Load saved language and view state from MonacoEditorState
+            var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
+            var savedLanguage = editorState?.Language ?? "plaintext";
 
-                // Load everything in one atomic operation
-                await TextEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
+            // Load everything in one atomic operation
+            await TextEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
 
-                TextEditor.IsReadOnly = false; // Allow editing
-                TextEditor.Visibility = Visibility.Visible;
-                NoTextMessage.Visibility = Visibility.Collapsed;
-                TextTab.Visibility = Visibility.Visible;
+            TextEditor.IsReadOnly = false; // Allow editing
+            TextEditor.Visibility = Visibility.Visible;
+            NoTextMessage.Visibility = Visibility.Collapsed;
+            TextTab.Visibility = Visibility.Visible;
 
-                // Track the ClipData ID for saving changes
-                _textFormatClipDataId = textFormat.Id;
-                return;
-            }
+            // Track the ClipData ID for saving changes
+            _textFormatClipDataId = textFormat.Id;
+            return;
         }
 
         // No text format available
@@ -390,33 +387,30 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (htmlFormat != null && _textBlobs.TryGetValue(htmlFormat.Id, out var blobData))
         {
-            if (blobData?.Data != null)
-            {
-                // Wait for Monaco to initialize and set HTML source
-                await WaitForMonacoInitializationAsync(HtmlEditor);
+            // Wait for Monaco to initialize and set HTML source
+            await WaitForMonacoInitializationAsync(HtmlEditor);
 
-                // Load saved language and view state from MonacoEditorState
-                var editorState = await monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
-                var savedLanguage = editorState?.Language ?? "html";
+            // Load saved language and view state from MonacoEditorState
+            var editorState = await monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
+            var savedLanguage = editorState?.Language ?? "html";
 
-                // Load everything in one atomic operation
-                await HtmlEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
+            // Load everything in one atomic operation
+            await HtmlEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
 
-                HtmlEditor.IsReadOnly = false; // Allow editing
+            HtmlEditor.IsReadOnly = false; // Allow editing
 
-                // Initialize WebView2 if needed for preview
-                await HtmlPreview.EnsureCoreWebView2Async();
-                HtmlPreview.NavigateToString(blobData.Data);
+            // Initialize WebView2 if needed for preview
+            await HtmlPreview.EnsureCoreWebView2Async();
+            HtmlPreview.NavigateToString(blobData.Data);
 
-                HtmlPreview.Visibility = Visibility.Visible;
-                HtmlEditor.Visibility = Visibility.Collapsed;
-                NoHtmlMessage.Visibility = Visibility.Collapsed;
-                HtmlTab.Visibility = Visibility.Visible;
+            HtmlPreview.Visibility = Visibility.Visible;
+            HtmlEditor.Visibility = Visibility.Collapsed;
+            NoHtmlMessage.Visibility = Visibility.Collapsed;
+            HtmlTab.Visibility = Visibility.Visible;
 
-                // Track the ClipData ID for saving changes
-                _htmlFormatClipDataId = htmlFormat.Id;
-                return;
-            }
+            // Track the ClipData ID for saving changes
+            _htmlFormatClipDataId = htmlFormat.Id;
+            return;
         }
 
         // No HTML format available
@@ -429,32 +423,29 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private Task LoadRtfFormatAsync()
     {
         var rtfFormat = _currentClipData
-            .FirstOrDefault(p => p.FormatName?.Contains("RTF", StringComparison.OrdinalIgnoreCase) == true &&
+            .FirstOrDefault(p => p.FormatName.Contains("RTF", StringComparison.OrdinalIgnoreCase) &&
                                  p.StorageType == StorageType.Text);
 
         if (rtfFormat != null && _textBlobs.TryGetValue(rtfFormat.Id, out var blobData))
         {
-            if (blobData?.Data != null)
+            try
             {
-                try
-                {
-                    // Convert RTF string to FlowDocument
-                    var flowDocument = new FlowDocument();
-                    var textRange = new TextRange(flowDocument.ContentStart, flowDocument.ContentEnd);
+                // Convert RTF string to FlowDocument
+                var flowDocument = new FlowDocument();
+                var textRange = new TextRange(flowDocument.ContentStart, flowDocument.ContentEnd);
 
-                    using var stream = new MemoryStream(Encoding.UTF8.GetBytes(blobData.Data));
-                    textRange.Load(stream, DataFormats.Rtf);
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(blobData.Data));
+                textRange.Load(stream, DataFormats.Rtf);
 
-                    RtfViewer.Document = flowDocument;
-                    RtfViewer.Visibility = Visibility.Visible;
-                    NoRtfMessage.Visibility = Visibility.Collapsed;
-                    RtfTab.Visibility = Visibility.Visible;
-                    return Task.CompletedTask;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error loading RTF format");
-                }
+                RtfViewer.Document = flowDocument;
+                RtfViewer.Visibility = Visibility.Visible;
+                NoRtfMessage.Visibility = Visibility.Collapsed;
+                RtfTab.Visibility = Visibility.Visible;
+                return Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error loading RTF format");
             }
         }
 
@@ -474,21 +465,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (bitmapFormat != null && _binaryBlobs.TryGetValue(bitmapFormat.Id, out var blobData))
         {
-            if (blobData?.Data != null)
+            try
             {
-                try
-                {
-                    var bitmap = BytesToBitmapImage(blobData.Data);
-                    BitmapViewer.Source = bitmap;
-                    BitmapViewer.Visibility = Visibility.Visible;
-                    NoBitmapMessage.Visibility = Visibility.Collapsed;
-                    BitmapTab.Visibility = Visibility.Visible;
-                    return Task.CompletedTask;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error loading bitmap format");
-                }
+                var bitmap = BytesToBitmapImage(blobData.Data);
+                BitmapViewer.Source = bitmap;
+                BitmapViewer.Visibility = Visibility.Visible;
+                NoBitmapMessage.Visibility = Visibility.Collapsed;
+                BitmapTab.Visibility = Visibility.Visible;
+                return Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error loading bitmap format");
             }
         }
 
@@ -514,13 +502,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (pngFormat != null && _pngBlobs.TryGetValue(pngFormat.Id, out var pngBlob))
         {
-            imageData = pngBlob?.Data;
-            _logger.LogDebug("[LoadPicture] Retrieved PNG data: {Size} bytes", imageData?.Length ?? 0);
+            imageData = pngBlob.Data;
+            _logger.LogDebug("[LoadPicture] Retrieved PNG data: {Size} bytes", imageData.Length);
         }
         else if (jpgFormat != null && _jpgBlobs.TryGetValue(jpgFormat.Id, out var jpgBlob))
         {
-            imageData = jpgBlob?.Data;
-            _logger.LogDebug("[LoadPicture] Retrieved JPG data: {Size} bytes", imageData?.Length ?? 0);
+            imageData = jpgBlob.Data;
+            _logger.LogDebug("[LoadPicture] Retrieved JPG data: {Size} bytes", imageData.Length);
         }
 
         if (imageData != null)
@@ -574,13 +562,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var data = item.StorageType switch
             {
                 StorageType.Text when _textBlobs.TryGetValue(item.Id, out var txt) =>
-                    Encoding.UTF8.GetBytes(txt?.Data ?? ""),
+                    Encoding.UTF8.GetBytes(txt.Data),
                 StorageType.Jpeg when _jpgBlobs.TryGetValue(item.Id, out var jpg) =>
-                    jpg?.Data,
+                    jpg.Data,
                 StorageType.Png when _pngBlobs.TryGetValue(item.Id, out var png) =>
-                    png?.Data,
+                    png.Data,
                 StorageType.Binary when _binaryBlobs.TryGetValue(item.Id, out var blob) =>
-                    blob?.Data,
+                    blob.Data,
                 var _ => null,
             };
 
@@ -818,6 +806,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             _logger.LogInformation("[ClipViewer] Saved text editor changes (text: {TextChanged}, language: {LanguageChanged})",
                 textChanged, languageChanged);
+
+            // Update clipboard with the edited content if text changed
+            if (textChanged)
+                await UpdateClipboardAfterEditAsync();
         }
         catch (Exception ex)
         {
@@ -939,12 +931,50 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             _logger.LogInformation("[ClipViewer] Saved HTML editor changes (text: {TextChanged}, language: {LanguageChanged})",
                 textChanged, languageChanged);
+
+            // Update clipboard with the edited content if text changed
+            if (textChanged)
+                await UpdateClipboardAfterEditAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving HTML editor changes");
             MessageBox.Show($"Error saving HTML: {ex.Message}", "Save Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Updates the Windows clipboard with the currently edited clip's content.
+    /// Called after saving changes to ensure clipboard reflects the latest edits.
+    /// </summary>
+    private async Task UpdateClipboardAfterEditAsync()
+    {
+        try
+        {
+            if (!ClipId.HasValue)
+            {
+                _logger.LogWarning("[ClipViewer] Cannot update clipboard - no clip ID");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_currentDatabaseKey))
+            {
+                _logger.LogWarning("[ClipViewer] Cannot update clipboard - no database key");
+                return;
+            }
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
+
+            // Use the centralized service method to load and set clipboard
+            await clipService.LoadAndSetClipboardAsync(_currentDatabaseKey, ClipId.Value);
+            _logger.LogInformation("[ClipViewer] Updated clipboard after editing clip: {ClipId}", ClipId.Value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ClipViewer] Failed to update clipboard after edit");
+            // Don't show error to user - clipboard update failure shouldn't interrupt editing workflow
         }
     }
 

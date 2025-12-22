@@ -19,7 +19,6 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
         _viewModel = new MainMenuViewModel(
             _messengerMock.Object,
-            new Mock<IClipService>().Object,
             new Mock<IUndoService>().Object);
     }
 

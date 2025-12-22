@@ -27,6 +27,8 @@ public class DefaultDataInitializationStep : IStartupInitializationStep
     {
         _logger.LogDebug("Initializing default data (Inbox collection)");
 
+        // Note: Default data seeding now happens in DatabaseSchemaInitializationStep
+        // This step just ensures Inbox is set as the active collection
         await _defaultDataService.InitializeAsync(cancellationToken);
 
         _logger.LogDebug("Default data initialized (Inbox collection set as active)");

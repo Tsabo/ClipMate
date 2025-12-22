@@ -2,8 +2,6 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using ClipMate.Data;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -53,24 +51,23 @@ public class ExplorerWindowViewModelTests
         var mockServiceScopeFactory = CreateMockServiceScopeFactory(
             mockCollectionService, mockFolderService, mockClipService, mockSearchService);
 
-        var collectionTreeVM = new CollectionTreeViewModel(
+        var collectionTreeVm = new CollectionTreeViewModel(
             mockServiceScopeFactory.Object,
             mockConfigurationService.Object,
             mockRepositoryFactory.Object,
             mockMessenger.Object,
             mockCollectionTreeBuilder.Object,
-            mockTreeLogger.Object);
+            mockTreeLogger.Object,
+            new SearchResultsCache());
 
-        var clipListVM = new ClipListViewModel(
+        var clipListVm = new ClipListViewModel(
             mockServiceScopeFactory.Object,
             mockRepositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             mockMessenger.Object,
             mockLogger.Object);
 
-        var previewVM = new PreviewPaneViewModel(mockMessenger.Object);
-        var searchVM = new SearchViewModel(mockServiceScopeFactory.Object, mockMessenger.Object);
+        var previewVm = new PreviewPaneViewModel(mockMessenger.Object);
+        var searchVm = new SearchViewModel(mockServiceScopeFactory.Object, mockMessenger.Object, new SearchResultsCache());
 
         // Create QuickPasteToolbarViewModel mock
         var mockQuickPasteService = new Mock<IQuickPasteService>();
@@ -93,14 +90,13 @@ public class ExplorerWindowViewModelTests
         var mockMenuMessenger = new Mock<IMessenger>();
         var mainMenuViewModel = new MainMenuViewModel(
             mockMenuMessenger.Object,
-            new Mock<IClipService>().Object,
             new Mock<IUndoService>().Object);
 
         return new ExplorerWindowViewModel(
-            collectionTreeVM,
-            clipListVM,
-            previewVM,
-            searchVM,
+            collectionTreeVm,
+            clipListVm,
+            previewVm,
+            searchVm,
             quickPasteToolbarVm,
             mainMenuViewModel,
             mockServiceProvider.Object,
@@ -131,7 +127,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.WindowWidth))
                 propertyChangedRaised = true;
@@ -151,7 +147,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.WindowHeight))
                 propertyChangedRaised = true;
@@ -171,7 +167,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.IsBusy))
                 propertyChangedRaised = true;
@@ -191,7 +187,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.StatusMessage))
                 propertyChangedRaised = true;
@@ -253,7 +249,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.LeftPaneWidth))
                 propertyChangedRaised = true;
@@ -273,7 +269,7 @@ public class ExplorerWindowViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var propertyChangedRaised = false;
-        viewModel.PropertyChanged += (s, e) =>
+        viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ExplorerWindowViewModel.RightPaneWidth))
                 propertyChangedRaised = true;
