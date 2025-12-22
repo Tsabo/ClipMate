@@ -2,8 +2,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Media.Imaging;
+using DevExpress.XtraRichEdit;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -19,7 +19,6 @@ using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
 using Application = System.Windows.Application;
 using Clipboard = System.Windows.Clipboard;
-using DataFormats = System.Windows.DataFormats;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.Controls;
@@ -430,14 +429,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             try
             {
-                // Convert RTF string to FlowDocument
-                var flowDocument = new FlowDocument();
-                var textRange = new TextRange(flowDocument.ContentStart, flowDocument.ContentEnd);
-
+                // Load RTF content into DevExpress RichEditControl
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(blobData.Data));
-                textRange.Load(stream, DataFormats.Rtf);
+                RtfViewer.Document.LoadDocument(stream, DocumentFormat.Rtf);
 
-                RtfViewer.Document = flowDocument;
                 RtfViewer.Visibility = Visibility.Visible;
                 NoRtfMessage.Visibility = Visibility.Collapsed;
                 RtfTab.Visibility = Visibility.Visible;
@@ -1019,7 +1014,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         TextEditor.Text = string.Empty;
         HtmlEditor.Text = string.Empty;
         // Don't reset HtmlPreview here - it will be initialized when HTML tab loads
-        RtfViewer.Document = new FlowDocument();
+        RtfViewer.CreateNewDocument();
         BitmapViewer.Source = null;
         PictureViewer.Source = null;
         HexViewer.Stream = null!;

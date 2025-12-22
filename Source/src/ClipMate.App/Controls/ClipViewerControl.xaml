@@ -9,6 +9,7 @@
              xmlns:wpfHex="clr-namespace:WpfHexaEditor;assembly=WpfHexaEditor"
              xmlns:lmimgz="clr-namespace:LinkingMountains.ImageZoom;assembly=LinkingMountains.ImageZoom"
              xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+             xmlns:dxre="http://schemas.devexpress.com/winfx/2008/xaml/richedit"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="800">
     <dx:DXTabControl x:Name="FormatTabControl">
@@ -103,10 +104,10 @@
                 </DataTemplate>
             </dx:DXTabItem.HeaderTemplate>
             <Grid>
-                <RichTextBox x:Name="RtfViewer"
-                             IsReadOnly="True"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Auto" />
+                <dxre:RichEditControl x:Name="RtfViewer"
+                                      ReadOnly="True"
+                                      ShowBorder="False"
+                                      ActiveViewType="Simple" />
                 <TextBlock x:Name="NoRtfMessage"
                            Text="No RTF format available"
                            HorizontalAlignment="Center"
