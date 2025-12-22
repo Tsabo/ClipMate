@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-    <link rel="stylesheet" data-name="vs/editor/editor.main" href="./min/vs/editor/editor.main.css" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="./min/vs/editor/editor.main.css"/>
     <style>
         html, body { 
             height: 100%; 
@@ -14,18 +14,22 @@
     </style>
 </head>
 <body>
-    <div id="container"></div>
-    <script src="./min/vs/loader.js"></script>
-    <script>
-        require.config({ paths: { 'vs': './min/vs' } });
-    </script>
-    <script src="./min/vs/editor/editor.main.js"></script>
-    <script>
+<div id="container"></div>
+<script src="./min/vs/loader.js"></script>
+<script>
+    require.config({ paths: { 'vs': './min/vs' } });
+</script>
+<script src="./min/vs/editor/editor.main.js"></script>
+<script>
         // Global editor instance
         var monacoEditor = null;
         var debugMode = false;
         var suppressChangeEvents = false;
         var changeListener = null;
+        var sqlSchema = null;
+        var validationTimeout = null;
+        var sqlCompletionProvider = null;
+        var sqlHoverProvider = null;
 
         // Helper function to escape strings for Monaco
         function escapeText(text) {
@@ -66,6 +70,11 @@
                     }
                     if (debugMode) console.log('[Monaco] Content changed');
                     window.chrome.webview.postMessage({ type: 'textChanged' });
+                    
+                    // Trigger SQL validation if IntelliSense is enabled
+                    if (sqlSchema && monacoEditor.getModel().getLanguageId() === 'sql') {
+                        scheduleValidation();
+                    }
                 });
 
                 if (debugMode) {
@@ -342,6 +351,266 @@
             } catch (error) {
                 console.error('[Monaco] Set render whitespace error:', error);
                 return false;
+            }
+        }
+
+        // ============================================================================
+        // SQL IntelliSense Support
+        // ============================================================================
+
+        // Register SQL IntelliSense with schema
+        function registerSqlIntelliSense(schemaJson) {
+            try {
+                if (debugMode) console.log('[Monaco] Registering SQL IntelliSense');
+                
+                sqlSchema = JSON.parse(schemaJson);
+                
+                // Dispose existing providers
+                if (sqlCompletionProvider) {
+                    sqlCompletionProvider.dispose();
+                }
+                if (sqlHoverProvider) {
+                    sqlHoverProvider.dispose();
+                }
+                
+                // Register completion provider
+                sqlCompletionProvider = monaco.languages.registerCompletionItemProvider('sql', {
+                    provideCompletionItems: function(model, position) {
+                        var suggestions = [];
+                        var word = model.getWordUntilPosition(position);
+                        var range = {
+                            startLineNumber: position.lineNumber,
+                            endLineNumber: position.lineNumber,
+                            startColumn: word.startColumn,
+                            endColumn: word.endColumn
+                        };
+                        
+                        // Add tables as classes
+                        if (sqlSchema.Tables) {
+                            sqlSchema.Tables.forEach(function(table) {
+                                suggestions.push({
+                                    label: table.Name,
+                                    kind: monaco.languages.CompletionItemKind.Class,
+                                    detail: 'Table',
+                                    insertText: table.Name,
+                                    range: range
+                                });
+                                
+                                // Add columns for this table
+                                if (table.Columns) {
+                                    table.Columns.forEach(function(column) {
+                                        suggestions.push({
+                                            label: table.Name + '.' + column.Name,
+                                            kind: monaco.languages.CompletionItemKind.Field,
+                                            detail: column.Type + (column.IsNullable ? ' (nullable)' : ''),
+                                            insertText: table.Name + '.' + column.Name,
+                                            documentation: (column.IsPrimaryKey ? 'Primary Key\n' : '') + 
+                                                         'Type: ' + column.Type,
+                                            range: range
+                                        });
+                                        
+                                        // Also add column name without table prefix
+                                        suggestions.push({
+                                            label: column.Name,
+                                            kind: monaco.languages.CompletionItemKind.Field,
+                                            detail: table.Name + '.' + column.Type,
+                                            insertText: column.Name,
+                                            documentation: 'Column from ' + table.Name + '\n' +
+                                                         (column.IsPrimaryKey ? 'Primary Key\n' : '') +
+                                                         'Type: ' + column.Type,
+                                            range: range
+                                        });
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // Add functions
+                        if (sqlSchema.Functions) {
+                            sqlSchema.Functions.forEach(function(func) {
+                                suggestions.push({
+                                    label: func.Name,
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    detail: func.Category + ' function',
+                                    insertText: func.Name + '(',
+                                    documentation: func.Description,
+                                    range: range
+                                });
+                            });
+                        }
+                        
+                        // Add keywords
+                        if (sqlSchema.Keywords) {
+                            sqlSchema.Keywords.forEach(function(keyword) {
+                                suggestions.push({
+                                    label: keyword,
+                                    kind: monaco.languages.CompletionItemKind.Keyword,
+                                    detail: 'SQL Keyword',
+                                    insertText: keyword,
+                                    range: range
+                                });
+                            });
+                        }
+                        
+                        return { suggestions: suggestions };
+                    }
+                });
+                
+                // Register hover provider
+                sqlHoverProvider = monaco.languages.registerHoverProvider('sql', {
+                    provideHover: function(model, position) {
+                        var word = model.getWordAtPosition(position);
+                        if (!word) return null;
+                        
+                        var wordText = word.word.toUpperCase();
+                        
+                        // Check functions
+                        if (sqlSchema.Functions) {
+                            var func = sqlSchema.Functions.find(function(f) { 
+                                return f.Name.toUpperCase() === wordText; 
+                            });
+                            if (func) {
+                                return {
+                                    range: new monaco.Range(
+                                        position.lineNumber, word.startColumn,
+                                        position.lineNumber, word.endColumn
+                                    ),
+                                    contents: [
+                                        { value: '**' + func.Name + '()**' },
+                                        { value: func.Category + ' function' },
+                                        { value: func.Description }
+                                    ]
+                                };
+                            }
+                        }
+                        
+                        // Check columns
+                        if (sqlSchema.Tables) {
+                            for (var i = 0; i < sqlSchema.Tables.length; i++) {
+                                var table = sqlSchema.Tables[i];
+                                if (table.Columns) {
+                                    var column = table.Columns.find(function(c) { 
+                                        return c.Name.toUpperCase() === wordText; 
+                                    });
+                                    if (column) {
+                                        return {
+                                            range: new monaco.Range(
+                                                position.lineNumber, word.startColumn,
+                                                position.lineNumber, word.endColumn
+                                            ),
+                                            contents: [
+                                                { value: '**' + table.Name + '.' + column.Name + '**' },
+                                                { value: 'Type: ' + column.Type },
+                                                { value: (column.IsPrimaryKey ? 'Primary Key | ' : '') + 
+                                                        (column.IsNullable ? 'Nullable' : 'Not Null') }
+                                            ]
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                        
+                        return null;
+                    }
+                });
+                
+                // Enable validation for SQL language
+                if (monacoEditor && monacoEditor.getModel().getLanguageId() === 'sql') {
+                    scheduleValidation();
+                }
+                
+                if (debugMode) console.log('[Monaco] SQL IntelliSense registered successfully');
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Register SQL IntelliSense error:', error);
+                return false;
+            }
+        }
+
+        // Schedule SQL validation with debounce
+        function scheduleValidation() {
+            if (!monacoEditor) return;
+            
+            var model = monacoEditor.getModel();
+            if (!model || model.getLanguageId() !== 'sql') return;
+            
+            clearTimeout(validationTimeout);
+            validationTimeout = setTimeout(function() {
+                var sql = monacoEditor.getValue().trim();
+                
+                // Skip validation for empty SQL
+                if (!sql) {
+                    // Clear any existing markers
+                    monaco.editor.setModelMarkers(model, 'sql-validator', []);
+                    if (debugMode) console.log('[Monaco] SQL empty, clearing markers');
+                    return;
+                }
+                
+                // Skip validation for very short/incomplete SQL (less than 6 chars)
+                if (sql.length < 6) {
+                    if (debugMode) console.log('[Monaco] SQL too short, skipping validation');
+                    return;
+                }
+                
+                if (debugMode) console.log('[Monaco] Requesting SQL validation for:', sql.substring(0, 50));
+                window.chrome.webview.postMessage({ 
+                    type: 'validateSql', 
+                    sql: sql 
+                });
+            }, 800); // 800ms debounce (increased from 500ms)
+        }
+
+        // Set validation markers from C#
+        function setValidationMarkers(markers) {
+            if (!monacoEditor) return false;
+            
+            try {
+                var model = monacoEditor.getModel();
+                monaco.editor.setModelMarkers(model, 'sql-validator', markers || []);
+                if (debugMode) {
+                    if (!markers || markers.length === 0) {
+                        console.log('[Monaco] Validation passed - markers cleared');
+                    } else {
+                        console.log('[Monaco] Validation markers set:', markers.length, markers);
+                    }
+                }
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Set validation markers error:', error);
+                return false;
+            }
+        }
+
+        // Parse SQLite error position from "near token" message
+        function parseErrorPosition(sql, errorMessage) {
+            try {
+                // Extract token from "near \"TOKEN\"" pattern
+                var nearMatch = errorMessage.match(/near\s+"([^"]+)"/i);
+                if (!nearMatch) {
+                    // Default to start of text
+                    return { lineNumber: 1, column: 1 };
+                }
+                
+                var token = nearMatch[1];
+                var tokenIndex = sql.toUpperCase().indexOf(token.toUpperCase());
+                
+                if (tokenIndex === -1) {
+                    return { lineNumber: 1, column: 1 };
+                }
+                
+                // Calculate line and column from character index
+                var lines = sql.substring(0, tokenIndex).split('\n');
+                var lineNumber = lines.length;
+                var column = lines[lines.length - 1].length + 1;
+                
+                return {
+                    lineNumber: lineNumber,
+                    column: column,
+                    endColumn: column + token.length
+                };
+            } catch (error) {
+                console.error('[Monaco] Parse error position error:', error);
+                return { lineNumber: 1, column: 1 };
             }
         }
 

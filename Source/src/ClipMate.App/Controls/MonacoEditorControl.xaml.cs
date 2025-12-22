@@ -1,9 +1,10 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
-using System.Windows;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
@@ -19,6 +20,9 @@ public partial class MonacoEditorControl
 {
     private const int _maxTextLength = 10_000_000; // 10MB limit. Windows clipboard ~2GB max but Monaco performs well to 10MB
 
+    [GeneratedRegex(@"near\s+\""([^""]+)\""", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex ExtractToken();
+
     public static readonly DependencyProperty EnableDebugProperty =
         DependencyProperty.Register(
             nameof(EnableDebug),
@@ -31,6 +35,7 @@ public partial class MonacoEditorControl
 #pragma warning disable CS0649 // Field is assigned via conditional access in message handlers
     private TaskCompletionSource<string>? _pendingCommandResult;
 #pragma warning restore CS0649
+    private ISearchService? _searchService;
     private bool _suppressLanguageChanged;
     private bool _suppressTextChanged;
 
@@ -138,7 +143,7 @@ public partial class MonacoEditorControl
             var initScript = $$"""
                                initializeEditor({
                                    value: '',
-                                   language: '{{Language ?? "plaintext"}}',
+                                   language: '{{Language}}',
                                    theme: '{{options.Theme}}',
                                    fontSize: {{options.FontSize}},
                                    fontFamily: '{{options.FontFamily}}',
@@ -177,8 +182,8 @@ public partial class MonacoEditorControl
                 "json", "markdown", "php", "python", "sql", "typescript", "xml", "yaml",
             };
 
-            foreach (var lang in commonLanguages)
-                AvailableLanguages.Add(lang);
+            foreach (var item in commonLanguages)
+                AvailableLanguages.Add(item);
 
             IsInitialized = true;
             _logger.LogInformation("[{ControlName}] Monaco editor initialization complete", Name ?? "Monaco");
@@ -233,6 +238,12 @@ public partial class MonacoEditorControl
                     ShowToolbar = !ShowToolbar;
                     break;
 
+                case "validateSql":
+                    if (message.RootElement.TryGetProperty("sql", out var sqlElement))
+                        _ = ValidateAndUpdateMarkersAsync(sqlElement.GetString() ?? "");
+
+                    break;
+
                 case "result":
                     if (message.RootElement.TryGetProperty("result", out var result))
                         _pendingCommandResult?.TrySetResult(result.GetRawText());
@@ -261,15 +272,15 @@ public partial class MonacoEditorControl
             Text = text;
 
             // Update word/char count
-            if (DisplayWordAndCharacterCounts)
+            if (!DisplayWordAndCharacterCounts)
+                return;
+
+            var words = text.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length;
+            var chars = text.Length;
+            await Dispatcher.InvokeAsync(() =>
             {
-                var words = text.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length;
-                var chars = text.Length;
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    WordCharCountTextBlock.Text = $"{words:N0} words, {chars:N0} characters";
-                });
-            }
+                WordCharCountTextBlock.Text = $"{words:N0} words, {chars:N0} characters";
+            });
         }
         finally
         {
@@ -282,6 +293,16 @@ public partial class MonacoEditorControl
         if (!_suppressTextChanged && IsInitialized && LanguageComboBox.SelectedItem is string language)
             _ = SetLanguageAsync(language);
     }
+
+    #region Helper Classes
+
+    private class CursorPosition
+    {
+        public int LineNumber { get; set; }
+        public int Column { get; set; }
+    }
+
+    #endregion
 
     #region Dependency Properties
 
@@ -344,6 +365,19 @@ public partial class MonacoEditorControl
             typeof(MonacoEditorControl),
             new PropertyMetadata(new ObservableCollection<string>()));
 
+    public static readonly DependencyProperty SearchServiceProperty =
+        DependencyProperty.Register(
+            nameof(SearchService),
+            typeof(ISearchService),
+            typeof(MonacoEditorControl),
+            new PropertyMetadata(null, OnSearchServiceChanged));
+
+    private static void OnSearchServiceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is MonacoEditorControl control)
+            control._searchService = e.NewValue as ISearchService;
+    }
+
     public string Text
     {
         get => (string)GetValue(TextProperty);
@@ -398,53 +432,53 @@ public partial class MonacoEditorControl
 
     private static void OnTextPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MonacoEditorControl control && !control._suppressTextChanged)
+        if (d is MonacoEditorControl { _suppressTextChanged: false } control)
             _ = control.SetTextAsync((string)e.NewValue);
     }
 
     private static void OnLanguagePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MonacoEditorControl control && control.IsInitialized && !control._suppressLanguageChanged)
+        if (d is MonacoEditorControl { IsInitialized: true, _suppressLanguageChanged: false } control)
             _ = control.SetLanguageAsync((string)e.NewValue);
     }
 
     private static void OnIsReadOnlyPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MonacoEditorControl control && control.IsInitialized)
+        if (d is MonacoEditorControl { IsInitialized: true } control)
             _ = control.UpdateOptionsAsync();
     }
 
     private static async void OnEditorOptionsPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is MonacoEditorControl control && e.NewValue is MonacoEditorConfiguration options)
+        if (d is not MonacoEditorControl control || e.NewValue is not MonacoEditorConfiguration options)
+            return;
+
+        var oldDebug = control.EnableDebug;
+        control._logger.LogInformation("[{ControlName}] OnEditorOptionsPropertyChanged - Setting EnableDebug from {OldValue} to {NewValue}",
+            control.Name ?? "Monaco", oldDebug, options.EnableDebug);
+
+        control.ShowToolbar = options.ShowToolbar;
+        control.DisplayWordAndCharacterCounts = options.DisplayWordAndCharacterCounts;
+        control.EnableDebug = options.EnableDebug;
+
+        if (!control.IsInitialized)
+            return;
+
+        await control.UpdateOptionsAsync();
+
+        // Handle EnableDebug change at runtime
+        if (oldDebug == options.EnableDebug || control.EditorWebView.CoreWebView2 == null)
+            return;
+
+        await control.EditorWebView.ExecuteScriptAsync($"setDebugMode({options.EnableDebug.ToString().ToLower()});");
+
+        if (options.EnableDebug)
         {
-            var oldDebug = control.EnableDebug;
-            control._logger.LogInformation("[{ControlName}] OnEditorOptionsPropertyChanged - Setting EnableDebug from {OldValue} to {NewValue}",
-                control.Name ?? "Monaco", oldDebug, options.EnableDebug);
-
-            control.ShowToolbar = options.ShowToolbar;
-            control.DisplayWordAndCharacterCounts = options.DisplayWordAndCharacterCounts;
-            control.EnableDebug = options.EnableDebug;
-
-            if (control.IsInitialized)
-            {
-                await control.UpdateOptionsAsync();
-
-                // Handle EnableDebug change at runtime
-                if (oldDebug != options.EnableDebug && control.EditorWebView.CoreWebView2 != null)
-                {
-                    await control.EditorWebView.ExecuteScriptAsync($"setDebugMode({options.EnableDebug.ToString().ToLower()});");
-
-                    if (options.EnableDebug)
-                    {
-                        control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
-                        control._logger.LogInformation("[{ControlName}] Debug mode enabled at runtime", control.Name ?? "Monaco");
-                    }
-                    else
-                        control._logger.LogInformation("[{ControlName}] Debug mode disabled at runtime", control.Name ?? "Monaco");
-                }
-            }
+            control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
+            control._logger.LogInformation("[{ControlName}] Debug mode enabled at runtime", control.Name ?? "Monaco");
         }
+        else
+            control._logger.LogInformation("[{ControlName}] Debug mode disabled at runtime", control.Name ?? "Monaco");
     }
 
     #endregion
@@ -468,7 +502,7 @@ public partial class MonacoEditorControl
     {
         var controlName = Name ?? "Monaco";
         _logger.LogDebug("[{ControlName}] LoadContentAsync - Text: {TextLength} chars, Language: {Language}, HasViewState: {HasViewState}, IsInitialized: {IsInitialized}",
-            controlName, text?.Length ?? 0, languageId ?? "null", !string.IsNullOrEmpty(viewStateJson), IsInitialized);
+            controlName, text.Length, languageId ?? "null", !string.IsNullOrEmpty(viewStateJson), IsInitialized);
 
         if (!IsInitialized)
         {
@@ -476,7 +510,6 @@ public partial class MonacoEditorControl
             return false;
         }
 
-        text ??= string.Empty;
         languageId ??= "plaintext";
 
         if (text.Length > _maxTextLength)
@@ -748,7 +781,7 @@ public partial class MonacoEditorControl
         {
             var result = await EditorWebView.ExecuteScriptAsync("getCursorPosition()");
             var position = JsonSerializer.Deserialize<CursorPosition>(result);
-            return (position?.lineNumber ?? 1, position?.column ?? 1);
+            return (position?.LineNumber ?? 1, position?.Column ?? 1);
         }
         catch (Exception ex)
         {
@@ -827,7 +860,10 @@ public partial class MonacoEditorControl
 
         try
         {
-            var renderMode = enabled ? "all" : "none";
+            var renderMode = enabled
+                ? "all"
+                : "none";
+
             var result = await EditorWebView.ExecuteScriptAsync($"setRenderWhitespace(\"{renderMode}\")");
             return result == "true";
         }
@@ -840,12 +876,153 @@ public partial class MonacoEditorControl
 
     #endregion
 
-    #region Helper Classes
+    #region SQL IntelliSense
 
-    private class CursorPosition
+    /// <summary>
+    /// Registers SQL IntelliSense with schema data.
+    /// </summary>
+    /// <param name="schemaJson">JSON-serialized SqlSchema object.</param>
+    public async Task<bool> RegisterSqlIntelliSenseAsync(string schemaJson)
     {
-        public int lineNumber { get; set; }
-        public int column { get; set; }
+        _logger.LogDebug("[{ControlName}] RegisterSqlIntelliSenseAsync called, IsInitialized: {IsInitialized}", 
+            Name ?? "Monaco", IsInitialized);
+
+        if (!IsInitialized)
+        {
+            _logger.LogWarning("[{ControlName}] Cannot register SQL IntelliSense - editor not initialized", Name ?? "Monaco");
+            return false;
+        }
+
+        try
+        {
+            _logger.LogDebug("[{ControlName}] Escaping schema JSON (length: {Length})", Name ?? "Monaco", schemaJson.Length);
+
+            var escapedJson = schemaJson
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r");
+
+            _logger.LogDebug("[{ControlName}] Calling JavaScript registerSqlIntelliSense function", Name ?? "Monaco");
+
+            var result = await EditorWebView.ExecuteScriptAsync($"registerSqlIntelliSense(\"{escapedJson}\");");
+            
+            _logger.LogInformation("[{ControlName}] SQL IntelliSense registration result: {Result}", Name ?? "Monaco", result);
+            
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[{ControlName}] Failed to register SQL IntelliSense", Name ?? "Monaco");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the search service for SQL validation.
+    /// </summary>
+    public ISearchService? SearchService
+    {
+        get => (ISearchService?)GetValue(SearchServiceProperty);
+        set => SetValue(SearchServiceProperty, value);
+    }
+
+    /// <summary>
+    /// Validates SQL and updates Monaco markers.
+    /// </summary>
+    private async Task ValidateAndUpdateMarkersAsync(string sql)
+    {
+        if (_searchService == null)
+        {
+            _logger.LogWarning("[{ControlName}] SearchService not set, cannot validate SQL", Name ?? "Monaco");
+            return;
+        }
+
+        try
+        {
+            _logger.LogDebug("[{ControlName}] Validating SQL: {SqlPreview}", Name ?? "Monaco", 
+                sql.Length > 50 ? sql.Substring(0, 50) + "..." : sql);
+
+            var (isValid, errorMessage) = await _searchService.ValidateSqlQueryAsync(sql, CancellationToken.None);
+
+            var markers = new List<object>();
+            if (!isValid && !string.IsNullOrEmpty(errorMessage))
+            {
+                _logger.LogDebug("[{ControlName}] SQL validation failed: {Error}", Name ?? "Monaco", errorMessage);
+
+                // Parse error position from "near token" if present
+                var position = ParseErrorPosition(sql, errorMessage);
+
+                markers.Add(new
+                {
+                    severity = 8, // monaco.MarkerSeverity.Error
+                    startLineNumber = position.LineNumber,
+                    startColumn = position.Column,
+                    endLineNumber = position.LineNumber,
+                    endColumn = position.EndColumn,
+                    message = errorMessage,
+                });
+            }
+            else
+            {
+                _logger.LogDebug("[{ControlName}] SQL validation passed", Name ?? "Monaco");
+            }
+
+            var markersJson = JsonSerializer.Serialize(markers);
+            var escapedJson = markersJson
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r");
+
+            await EditorWebView.ExecuteScriptAsync($"setValidationMarkers(JSON.parse(\"{escapedJson}\"));");
+            _logger.LogDebug("[{ControlName}] Validation markers updated: {IsValid}, MarkerCount: {Count}", 
+                Name ?? "Monaco", isValid, markers.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[{ControlName}] Failed to validate SQL and update markers", Name ?? "Monaco");
+        }
+    }
+
+    /// <summary>
+    /// Parses SQLite error position from "near token" message.
+    /// </summary>
+    private (int LineNumber, int Column, int EndColumn) ParseErrorPosition(string sql, string errorMessage)
+    {
+        try
+        {
+            // Extract token from "near \"TOKEN\"" pattern
+            var match = ExtractToken().Match(errorMessage);
+            if (!match.Success)
+            {
+                // Default to start of text
+                return (1, 1, sql.Length > 0
+                    ? sql.Split('\n')[0].Length + 1
+                    : 100);
+            }
+
+            var token = match.Groups[1].Value;
+            var tokenIndex = sql.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+
+            if (tokenIndex == -1)
+                return (1, 1, sql.Length > 0
+                    ? sql.Split('\n')[0].Length + 1
+                    : 100);
+
+            // Calculate line and column from character index
+            var lines = sql.Substring(0, tokenIndex).Split('\n');
+            var lineNumber = lines.Length;
+            var column = lines[^1].Length + 1;
+            var endColumn = column + token.Length;
+
+            return (lineNumber, column, endColumn);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse error position");
+            return (1, 1, 100);
+        }
     }
 
     #endregion
