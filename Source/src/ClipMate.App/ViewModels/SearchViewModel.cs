@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using System.Windows.Controls;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
@@ -166,6 +167,151 @@ public partial class SearchViewModel : ObservableObject
     /// Collection of available collections for filtering.
     /// </summary>
     public ObservableCollection<string> AvailableCollections { get; } = [];
+
+    /// <summary>
+    /// Called when SelectedSavedQuery changes. Loads the saved filters into the search form.
+    /// </summary>
+    partial void OnSelectedSavedQueryChanged(SavedSearchQuery? value)
+    {
+        if (value == null)
+            return;
+
+        // Deserialize filters from JSON
+        SearchFilters? filters = null;
+        if (!string.IsNullOrWhiteSpace(value.FiltersJson))
+        {
+            try
+            {
+                filters = JsonSerializer.Deserialize<SearchFilters>(value.FiltersJson);
+            }
+            catch
+            {
+                // If deserialization fails, just use the basic query properties
+            }
+        }
+
+        // Load basic query properties
+        SearchText = value.Query;
+        IsCaseSensitive = value.IsCaseSensitive;
+        IsRegex = value.IsRegex;
+
+        // Load filters if available
+        if (filters == null)
+            return;
+
+        // Title query
+        if (!string.IsNullOrWhiteSpace(filters.TitleQuery))
+        {
+            SearchText = filters.TitleQuery;
+            SearchTitleEnabled = true;
+        }
+        else
+            SearchTitleEnabled = false;
+
+        // Text content query
+        if (!string.IsNullOrWhiteSpace(filters.TextContentQuery))
+        {
+            SearchClipText = filters.TextContentQuery;
+            SearchClipTextEnabled = true;
+        }
+        else
+        {
+            SearchClipText = string.Empty;
+            SearchClipTextEnabled = false;
+        }
+
+        // Creator query
+        if (!string.IsNullOrWhiteSpace(filters.CreatorQuery))
+        {
+            SearchCreator = filters.CreatorQuery;
+            SearchCreatorEnabled = true;
+        }
+        else
+        {
+            SearchCreator = string.Empty;
+            SearchCreatorEnabled = false;
+        }
+
+        // Source URL query
+        if (!string.IsNullOrWhiteSpace(filters.SourceUrlQuery))
+        {
+            SearchSourceUrl = filters.SourceUrlQuery;
+            SearchSourceUrlEnabled = true;
+        }
+        else
+        {
+            SearchSourceUrl = string.Empty;
+            SearchSourceUrlEnabled = false;
+        }
+
+        // Format
+        if (!string.IsNullOrWhiteSpace(filters.Format))
+        {
+            SelectedFormat = filters.Format;
+            HasFormatEnabled = true;
+        }
+        else
+        {
+            SelectedFormat = null;
+            HasFormatEnabled = false;
+        }
+
+        // Date range
+        if (filters.DateRange != null)
+        {
+            if (filters.DateRange.From.HasValue)
+            {
+                DateFrom = filters.DateRange.From.Value;
+                CapturedAfterEnabled = true;
+            }
+            else
+            {
+                DateFrom = null;
+                CapturedAfterEnabled = false;
+            }
+
+            if (filters.DateRange.To.HasValue)
+            {
+                DateTo = filters.DateRange.To.Value;
+                CapturedBeforeEnabled = true;
+            }
+            else
+            {
+                DateTo = null;
+                CapturedBeforeEnabled = false;
+            }
+        }
+        else
+        {
+            DateFrom = null;
+            DateTo = null;
+            CapturedAfterEnabled = false;
+            CapturedBeforeEnabled = false;
+        }
+
+        // Content types
+        if (filters.ContentTypes != null)
+        {
+            var types = filters.ContentTypes.ToList();
+            FilterByText = types.Contains(ClipType.Text);
+            FilterByImage = types.Contains(ClipType.Image);
+            FilterByFiles = types.Contains(ClipType.Files);
+        }
+        else
+        {
+            FilterByText = true;
+            FilterByImage = true;
+            FilterByFiles = true;
+        }
+
+        // Checkboxes
+        EncryptedOnly = filters.EncryptedOnly == true;
+        HasShortcutOnly = filters.HasShortcutOnly == true;
+        IncludeDeletedClips = filters.IncludeDeleted;
+
+        // Search scope and collection
+        SearchScope = filters.Scope;
+    }
 
     private void UpdateSqlQuery()
     {
@@ -361,9 +507,13 @@ public partial class SearchViewModel : ObservableObject
             !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
             "(filtered search)";
 
+        // Serialize filters to JSON
+        var filters = BuildSearchFilters();
+        var filtersJson = JsonSerializer.Serialize(filters);
+
         using var scope = CreateScope();
         var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        await searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex);
+        await searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex, filtersJson);
 
         // Reload saved queries
         if (LoadSavedQueriesCommand.CanExecute(null))

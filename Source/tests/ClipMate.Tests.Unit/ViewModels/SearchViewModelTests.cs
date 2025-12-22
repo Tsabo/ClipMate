@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
@@ -321,5 +322,86 @@ public class SearchViewModelTests
 
         // Complete the search
         tcs.SetResult(new SearchResults { Clips = new List<Clip>(), TotalMatches = 0, Query = "test" });
+    }
+
+    [Test]
+    public async Task SavedQuerySelection_ShouldLoadFiltersFromJson()
+    {
+        // Arrange - Create a saved query with filters
+        var filters = new SearchFilters
+        {
+            TitleQuery = "test title",
+            TextContentQuery = "test content",
+            CreatorQuery = "test creator",
+            SourceUrlQuery = "http://test.com",
+            Format = "text",
+            DateRange = new DateRange(DateTime.Today.AddDays(-7), DateTime.Today),
+            ContentTypes = [ClipType.Text, ClipType.Image],
+            EncryptedOnly = true,
+            HasShortcutOnly = true,
+            IncludeDeleted = true,
+            CaseSensitive = true,
+            IsRegex = true,
+            Scope = SearchScope.AllCollections,
+        };
+
+        var filtersJson = JsonSerializer.Serialize(filters);
+        var savedQuery = new SavedSearchQuery
+        {
+            Name = "Test Query",
+            Query = "test title",
+            IsCaseSensitive = true,
+            IsRegex = true,
+            FiltersJson = filtersJson,
+        };
+
+        // Act - Select the saved query
+        _viewModel.SelectedSavedQuery = savedQuery;
+
+        // Assert - Verify all filters are loaded
+        await Assert.That(_viewModel.SearchText).IsEqualTo("test title");
+        await Assert.That(_viewModel.SearchTitleEnabled).IsTrue();
+        await Assert.That(_viewModel.SearchClipText).IsEqualTo("test content");
+        await Assert.That(_viewModel.SearchClipTextEnabled).IsTrue();
+        await Assert.That(_viewModel.SearchCreator).IsEqualTo("test creator");
+        await Assert.That(_viewModel.SearchCreatorEnabled).IsTrue();
+        await Assert.That(_viewModel.SearchSourceUrl).IsEqualTo("http://test.com");
+        await Assert.That(_viewModel.SearchSourceUrlEnabled).IsTrue();
+        await Assert.That(_viewModel.SelectedFormat).IsEqualTo("text");
+        await Assert.That(_viewModel.HasFormatEnabled).IsTrue();
+        await Assert.That(_viewModel.DateFrom).IsEqualTo(DateTime.Today.AddDays(-7));
+        await Assert.That(_viewModel.CapturedAfterEnabled).IsTrue();
+        await Assert.That(_viewModel.DateTo).IsEqualTo(DateTime.Today);
+        await Assert.That(_viewModel.CapturedBeforeEnabled).IsTrue();
+        await Assert.That(_viewModel.FilterByText).IsTrue();
+        await Assert.That(_viewModel.FilterByImage).IsTrue();
+        await Assert.That(_viewModel.FilterByFiles).IsFalse();
+        await Assert.That(_viewModel.EncryptedOnly).IsTrue();
+        await Assert.That(_viewModel.HasShortcutOnly).IsTrue();
+        await Assert.That(_viewModel.IncludeDeletedClips).IsTrue();
+        await Assert.That(_viewModel.IsCaseSensitive).IsTrue();
+        await Assert.That(_viewModel.IsRegex).IsTrue();
+    }
+
+    [Test]
+    public async Task SavedQuerySelection_WithNullFiltersJson_ShouldLoadBasicProperties()
+    {
+        // Arrange - Create a saved query without filters JSON
+        var savedQuery = new SavedSearchQuery
+        {
+            Name = "Simple Query",
+            Query = "simple test",
+            IsCaseSensitive = false,
+            IsRegex = false,
+            FiltersJson = null,
+        };
+
+        // Act - Select the saved query
+        _viewModel.SelectedSavedQuery = savedQuery;
+
+        // Assert - Verify basic properties are loaded
+        await Assert.That(_viewModel.SearchText).IsEqualTo("simple test");
+        await Assert.That(_viewModel.IsCaseSensitive).IsFalse();
+        await Assert.That(_viewModel.IsRegex).IsFalse();
     }
 }
