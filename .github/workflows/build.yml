@@ -44,6 +44,9 @@ jobs:
     - name: Restore .NET tools
       run: dotnet tool restore
 
+    - name: Setup Ninja (for font building)
+      run: choco install ninja -y
+
     - name: Run CI build
       run: dotnet cake build/build.cake --target=CI --verbosity=Normal
       env:

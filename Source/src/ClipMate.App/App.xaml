@@ -6,7 +6,8 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
-
+            <!-- Font Families -->
+            <FontFamily x:Key="ClipMateEmojis">pack://application:,,,/Assets/#ClipMate Emojis</FontFamily>
             <!-- Global Converters -->
             <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
             <dxmvvm:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />

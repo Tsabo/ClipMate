@@ -1,0 +1,27 @@
+{
+  "font": {
+    "name": "ClipMate Emojis",
+    "version": "1.0",
+    "description": "Supplemental color emoji for ClipMate.",
+    "keywords": ["emoji", "symbols", "wpf", "icons", "ui"],
+    "copyright": "Copyright © 2025 Jeremy Brown and ClipMate Contributors",
+    "designer": "Jeremy Brown",
+    "designerUrl": "https://jeremy.browns.info",
+    "vendor": "ClipMate",
+    "vendorId": "CLPM",
+    "license": "MIT License",
+    "licenseUrl": "https://github.com/Tsabo/ClipMate/blob/master/LICENSE"
+  },
+  "metrics": {
+    "unitsPerEm": 2048,
+    "ascent": 1800,
+    "descent": 248
+  },
+  "colorFormat": "glyf_colr_1",
+  "glyphs": [
+    { "file": "icons8-clipboard.svg", "codepoint": "0xE000", "name": "clipboard" },
+    { "file": "icons8-clipboard-plus.svg", "codepoint": "0xE001", "name": "clipboard-append" },
+    { "file": "icons8-copy.svg", "codepoint": "0xE002", "name": "clipboard-copy" },
+    { "file": "icons8-paste.svg", "codepoint": "0xE003", "name": "clipboard-paste" }
+  ]
+}

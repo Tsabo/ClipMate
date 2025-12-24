@@ -11,6 +11,7 @@
 
   <ItemGroup Label="Resources">
     <Resource Include="Assets\icon.ico" />
+    <Resource Include="Assets\ClipMate.ttf" />
   </ItemGroup>
 
   <ItemGroup Label="Monaco Editor Assets">

@@ -28,6 +28,14 @@ var installerOutputDir = installerDir.Combine("output");
 var solutionFile = sourceDir.CombineWithFilePath("ClipMate.sln");
 var appProject = sourceDir.Combine("src/ClipMate.App").CombineWithFilePath("ClipMate.App.csproj");
 
+// Font building paths
+var fontsDir = repoRoot.Combine("Resources/Fonts");
+var fontBuildScript = fontsDir.CombineWithFilePath("build_color_font.py");
+var fontConfig = fontsDir.CombineWithFilePath("config.json");
+var fontSvgDir = fontsDir.Combine("svgs");
+var fontOutput = fontsDir.CombineWithFilePath("ClipMate.ttf");
+var fontAssetsDir = sourceDir.Combine("src/ClipMate.App/Assets");
+
 // Publish output directory
 var publishDir = buildDir.Combine($"publish/{configuration}");
 var publishSingleFileDir = buildDir.Combine($"publish-singlefile/{configuration}");
@@ -206,8 +214,106 @@ Task("Restore")
     Information($"Restore completed in {elapsed.TotalSeconds:F2}s");
 });
 
+Task("Build-Font")
+    .Does(() =>
+{
+    var startTime = DateTime.Now;
+    Information("Building custom color font...");
+    
+    // Check if Python is available
+    try
+    {
+        var pythonVersion = StartProcess("python", new ProcessSettings
+        {
+            Arguments = "--version",
+            RedirectStandardOutput = true
+        });
+        
+        if (pythonVersion != 0)
+        {
+            throw new Exception("Python not found");
+        }
+    }
+    catch
+    {
+        Warning("Python not found - skipping font build");
+        Warning("Install Python 3.11+ to build custom fonts");
+        return;
+    }
+    
+    // Check if Ninja is available
+    try
+    {
+        var ninjaVersion = StartProcess("ninja", new ProcessSettings
+        {
+            Arguments = "--version",
+            RedirectStandardOutput = true
+        });
+        
+        if (ninjaVersion != 0)
+        {
+            throw new Exception("Ninja not found");
+        }
+    }
+    catch
+    {
+        Warning("Ninja build tool not found - skipping font build");
+        Warning("Install Ninja (https://github.com/ninja-build/ninja/releases) to build custom fonts");
+        return;
+    }
+    
+    // Install Python dependencies
+    Information("Installing Python dependencies...");
+    var pipInstall = StartProcess("python", new ProcessSettings
+    {
+        Arguments = "-m pip install --quiet nanoemoji fonttools",
+        WorkingDirectory = fontsDir
+    });
+    
+    if (pipInstall != 0)
+    {
+        Warning("Failed to install Python dependencies - skipping font build");
+        return;
+    }
+    
+    // Build the font
+    Information("Running font build script...");
+    var fontBuild = StartProcess("python", new ProcessSettings
+    {
+        Arguments = $"build_color_font.py config.json ./svgs/ ClipMate.ttf",
+        WorkingDirectory = fontsDir
+    });
+    
+    if (fontBuild != 0)
+    {
+        throw new Exception("Font build failed");
+    }
+    
+    // Copy font to Assets directory
+    if (!FileExists(fontOutput))
+    {
+        throw new Exception($"Font output not found: {fontOutput}");
+    }
+    
+    Information("Copying font to Assets directory...");
+    EnsureDirectoryExists(fontAssetsDir);
+    CopyFile(fontOutput, fontAssetsDir.CombineWithFilePath("ClipMate.ttf"));
+    
+    var fontSize = new System.IO.FileInfo(fontOutput.FullPath).Length;
+    Information($"Font built successfully: {fontSize / 1024:F2} KB");
+    
+    var elapsed = DateTime.Now - startTime;
+    Information($"Font build completed in {elapsed.TotalSeconds:F2}s");
+})
+.OnError(exception =>
+{
+    Warning($"Font build failed: {exception.Message}");
+    Warning("Continuing without custom font...");
+});
+
 Task("Build")
     .IsDependentOn("Restore")
+    .IsDependentOn("Build-Font")
     .Does(() =>
 {
     var startTime = DateTime.Now;

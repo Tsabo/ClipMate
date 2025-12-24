@@ -426,3 +426,7 @@ clipmate-*.log
 
 # Ignore CodeQL analysis database
 codeql-db/
+
+# Ignore Python namemoji built font resources
+/Resources/Fonts/build/
+ClipMate.ttf
