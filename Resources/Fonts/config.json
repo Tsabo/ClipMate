@@ -6,11 +6,11 @@
     "keywords": ["emoji", "symbols", "wpf", "icons", "ui"],
     "copyright": "Copyright © 2025 Jeremy Brown and ClipMate Contributors",
     "designer": "Jeremy Brown",
-    "designerUrl": "https://jeremy.browns.info",
+    "designerUrl": "https://github.com/tsabo/clipmate",
     "vendor": "ClipMate",
     "vendorId": "CLPM",
     "license": "MIT License",
-    "licenseUrl": "https://github.com/Tsabo/ClipMate/blob/master/LICENSE"
+    "licenseUrl": "https://github.com/tsabo/clipmate/blob/master/LICENSE"
   },
   "metrics": {
     "unitsPerEm": 2048,
