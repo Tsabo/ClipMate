@@ -30,7 +30,8 @@
                             <Setter Property="Content" Value="Add App:Class Combination to GOOD Target List" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding HasTarget}" Value="True">
-                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to GOOD Target List'}" />
+                                    <Setter Property="Content"
+                                            Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to GOOD Target List'}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -44,7 +45,8 @@
                             <Setter Property="Content" Value="Add App:Class Combination to BAD Target List" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding HasTarget}" Value="True">
-                                    <Setter Property="Content" Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to BAD Target List'}" />
+                                    <Setter Property="Content"
+                                            Value="{Binding CurrentTargetString, StringFormat='Add App:Class Combination ({0}) to BAD Target List'}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -56,6 +58,30 @@
                                    Command="{Binding OpenQuickPasteSettingsCommand}" />
             </dxb:PopupMenu>
         </dxb:BarManager.DXContextMenu>
+
+        <!-- Shortcut Filter Display -->
+        <dxb:BarStaticItem Content="{Binding ShortcutFilterText}">
+            <dxb:BarStaticItem.ContentTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger
+                                        Binding="{Binding DataContext.IsShortcutModeActive, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <emoji:TextBlock Text="🫱" FontSize="14" Margin="0,0,4,0" />
+                        <TextBlock Text="{Binding}" />
+                    </StackPanel>
+                </DataTemplate>
+            </dxb:BarStaticItem.ContentTemplate>
+        </dxb:BarStaticItem>
 
         <!-- Button 1: Go Back - Undo icon when not set, Refresh when set -->
         <dxb:BarButtonItem Command="{Binding ToggleGoBackCommand}"

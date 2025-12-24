@@ -72,10 +72,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var clipboardSoundService = new Mock<ISoundService>();
         clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        var clipboardConfigService = new Mock<IConfigurationService>();
-        clipboardConfigService.Setup(s => s.Configuration).Returns(new ClipMateConfiguration());
 
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardConfigService.Object, clipboardSoundService.Object);
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object);
 
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
@@ -274,10 +272,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var testSoundService = new Mock<ISoundService>();
         testSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var testConfigService = new Mock<IConfigurationService>();
-        testConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
-
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testConfigService.Object, testSoundService.Object);
+        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object);
 
         // Act & Assert - Service should not filter formats when disabled
         profileServiceMock.Verify(p => p.ShouldCaptureFormatAsync(

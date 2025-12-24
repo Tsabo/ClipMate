@@ -162,7 +162,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void CheckSpelling() { }
 
     [RelayCommand]
-    private void ChangeTitle() { }
+    private void ChangeTitle() => _messenger.Send(new RenameClipRequestedEvent(Guid.Empty, string.Empty));
 
     [RelayCommand]
     private void StripNonText() { }

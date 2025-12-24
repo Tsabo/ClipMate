@@ -18,7 +18,7 @@ public interface IDatabaseContextFactory : IDisposable
     /// <summary>
     /// Closes and removes a database context.
     /// </summary>
-    /// <param name=\"databasePath\">Path to the database to close.</param>
+    /// <param name="databasePath">Path to the database to close.</param>
     /// <returns>True if the context was found and disposed.</returns>
     bool CloseDatabase(string databasePath);
 
@@ -33,6 +33,13 @@ public interface IDatabaseContextFactory : IDisposable
     /// </summary>
     /// <returns>Collection of database paths.</returns>
     IReadOnlyCollection<string> GetLoadedDatabasePaths();
+
+    /// <summary>
+    /// Creates a ClipRepository instance for the specified database context.
+    /// </summary>
+    /// <param name="context">The database context.</param>
+    /// <returns>A repository instance bound to the specified database context.</returns>
+    IClipRepository GetClipRepository(ClipMateDbContext context);
 
     /// <summary>
     /// Creates a ClipDataRepository instance for the specified database context.

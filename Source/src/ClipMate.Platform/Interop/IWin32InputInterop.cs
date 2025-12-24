@@ -32,4 +32,9 @@ public interface IWin32InputInterop
     /// Retrieves the name of the class to which the specified window belongs.
     /// </summary>
     unsafe int GetClassName(HWND hWnd, char* lpClassName, int nMaxCount);
+
+    /// <summary>
+    /// Brings the specified window to the foreground and activates it.
+    /// </summary>
+    bool SetForegroundWindow(HWND hWnd);
 }

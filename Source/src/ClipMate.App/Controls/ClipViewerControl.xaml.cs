@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
-using DevExpress.XtraRichEdit;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -14,6 +13,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.XtraRichEdit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Timer = System.Timers.Timer;
@@ -726,6 +726,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Create repositories using factory
             var blobRepository = _databaseContextFactory.GetBlobRepository(context);
             var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(context);
+            var clipRepository = _databaseContextFactory.GetClipRepository(context);
 
             // Save text content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_textFormatClipDataId.Value, out var blob))
@@ -734,16 +735,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 await blobRepository.UpdateTextAsync(blob);
                 _logger.LogDebug("[ClipViewer] Saved text content ({TextLength} chars)", newText.Length);
 
-                // Update clip title if AutoChangeClipTitles is enabled
+                // Update clip title if AutoChangeClipTitles is enabled AND CustomTitle is false
+                // If CustomTitle=true, the user manually renamed the clip and title should never auto-update
                 if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
                 {
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
                     var clipData = _currentClipData.FirstOrDefault(p => p.Id == _textFormatClipDataId.Value);
                     if (clipData != null)
                     {
                         var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
-                        if (clip != null)
+                        if (clip is { CustomTitle: false })
                         {
                             var newTitle = GenerateClipTitle(newText);
                             if (clip.Title != newTitle)
@@ -751,8 +751,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                                 clip.Title = newTitle;
                                 await clipRepository.UpdateAsync(clip);
                                 _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
+                                _messenger.Send(new ClipUpdatedMessage(clip.Id, newTitle));
                             }
                         }
+                        else if (clip?.CustomTitle == true)
+                            _logger.LogDebug("[ClipViewer] Skipped title update - CustomTitle flag is set");
                     }
                 }
             }
@@ -847,6 +850,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Create repositories using factory
             var blobRepository = _databaseContextFactory.GetBlobRepository(context);
             var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(context);
+            var clipRepository = _databaseContextFactory.GetClipRepository(context);
 
             // Save HTML content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_htmlFormatClipDataId.Value, out var blob))
@@ -859,16 +863,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 if (HtmlPreview.Visibility == Visibility.Visible)
                     HtmlPreview.NavigateToString(newHtml);
 
-                // Update clip title if AutoChangeClipTitles is enabled
+                // Update clip title if AutoChangeClipTitles is enabled AND CustomTitle is false
+                // If CustomTitle=true, the user manually renamed the clip and title should never auto-update
                 if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
                 {
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var clipRepository = scope.ServiceProvider.GetRequiredService<IClipRepository>();
                     var clipData = _currentClipData.FirstOrDefault(p => p.Id == _htmlFormatClipDataId.Value);
                     if (clipData != null)
                     {
                         var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
-                        if (clip != null)
+                        if (clip is { CustomTitle: false })
                         {
                             var newTitle = GenerateClipTitle(newHtml);
                             if (clip.Title != newTitle)
@@ -878,6 +881,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                                 _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
                             }
                         }
+                        else if (clip?.CustomTitle == true)
+                            _logger.LogDebug("[ClipViewer] Skipped title update - CustomTitle flag is set");
                     }
                 }
             }

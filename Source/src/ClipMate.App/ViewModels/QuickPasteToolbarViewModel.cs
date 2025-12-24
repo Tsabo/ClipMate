@@ -12,7 +12,7 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// ViewModel for the QuickPaste toolbar.
 /// </summary>
-public partial class QuickPasteToolbarViewModel : ObservableObject
+public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<ShortcutModeStatusMessage>
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
@@ -38,10 +38,16 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
     private bool _hasTarget;
 
     [ObservableProperty]
+    private bool _isShortcutModeActive;
+
+    [ObservableProperty]
     private bool _isTargetLocked;
 
     [ObservableProperty]
     private QuickPasteFormattingString? _selectedFormattingString;
+
+    [ObservableProperty]
+    private string _shortcutFilterText = string.Empty;
 
     [ObservableProperty]
     private string _targetLockIcon = "🔓";
@@ -58,10 +64,22 @@ public partial class QuickPasteToolbarViewModel : ObservableObject
 
         // Subscribe to target change events
         _messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => UpdateTargetDisplay());
+        _messenger.Register(this);
 
         LoadFormattingStrings();
         UpdateTargetDisplay();
         UpdateGoBackState();
+    }
+
+    /// <summary>
+    /// Receives ShortcutModeStatusMessage to display shortcut filter on toolbar.
+    /// </summary>
+    public void Receive(ShortcutModeStatusMessage message)
+    {
+        IsShortcutModeActive = message.IsActive;
+        ShortcutFilterText = message.IsActive
+            ? message.Filter
+            : string.Empty;
     }
 
     /// <summary>

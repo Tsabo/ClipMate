@@ -63,6 +63,12 @@ public partial class ClipListViewModel : ObservableObject,
     [ObservableProperty]
     private ObservableCollection<Clip> _selectedClips = [];
 
+    /// <summary>
+    /// Collection of clips representing shortcuts (displayed in shortcuts grid during shortcut mode).
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<Clip> _shortcutClips = [];
+
     public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
         IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,

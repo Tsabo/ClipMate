@@ -32,12 +32,10 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class ClipboardService : IClipboardService, IDisposable
 {
-    private const int _debounceMilliseconds = 50;
     private const int _channelCapacity = 100; // Max queued clips before backpressure
     private readonly IApplicationProfileService _applicationProfileService;
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
-    private readonly IConfigurationService _configurationService;
 
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
@@ -51,14 +49,12 @@ public class ClipboardService : IClipboardService, IDisposable
         IWin32ClipboardInterop win32Interop,
         IApplicationProfileService applicationProfileService,
         IClipboardFormatEnumerator clipboardFormatEnumerator,
-        IConfigurationService configurationService,
         ISoundService soundService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
-        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
@@ -195,8 +191,7 @@ public class ClipboardService : IClipboardService, IDisposable
     /// <inheritdoc />
     public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
     {
-        if (clip == null)
-            throw new ArgumentNullException(nameof(clip));
+        ArgumentNullException.ThrowIfNull(clip);
 
         try
         {
@@ -211,6 +206,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 {
                     case ClipType.Text:
                     case ClipType.Html:
+                    case ClipType.RichText:
                         SetTextToClipboard(clip);
 
                         break;
@@ -727,10 +723,9 @@ public class ClipboardService : IClipboardService, IDisposable
         // Truncate to 60 chars (database field limit)
         const int maxLength = 60;
 
-        if (firstLine.Length > maxLength)
-            return string.Concat(firstLine.AsSpan(0, maxLength - 3), "...");
-
-        return firstLine;
+        return firstLine.Length > maxLength
+            ? string.Concat(firstLine.AsSpan(0, maxLength - 3), "...")
+            : firstLine;
     }
 
     /// <summary>
@@ -764,12 +759,12 @@ public class ClipboardService : IClipboardService, IDisposable
                 var hasNonZeroAlpha = false;
                 for (var i = 3; i < pixelData.Length; i += 4)
                 {
-                    if (pixelData[i] != 0)
-                    {
-                        hasNonZeroAlpha = true;
+                    if (pixelData[i] == 0)
+                        continue;
 
-                        break;
-                    }
+                    hasNonZeroAlpha = true;
+
+                    break;
                 }
 
                 // If ALL alpha bytes are 0, this is the InteropBitmap transparency bug
@@ -872,15 +867,15 @@ public class ClipboardService : IClipboardService, IDisposable
                 BitmapCreateOptions.PreservePixelFormat,
                 BitmapCacheOption.OnLoad);
 
-            if (decoder.Frames.Count > 0)
-            {
-                // Create a writable copy to ensure pixel data is fully accessible
-                // This prevents issues when pasting into some applications
-                var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
-                writableBitmap.Freeze(); // Make immutable for clipboard
+            if (decoder.Frames.Count <= 0)
+                return;
 
-                WpfClipboard.SetImage(writableBitmap);
-            }
+            // Create a writable copy to ensure pixel data is fully accessible
+            // This prevents issues when pasting into some applications
+            var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
+            writableBitmap.Freeze(); // Make immutable for clipboard
+
+            WpfClipboard.SetImage(writableBitmap);
         }
         catch (Exception ex)
         {
@@ -944,18 +939,17 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Accept any non-empty value from SourceURL field
             // Applications put various URL schemes here (http, https, file, vscode-file, etc.)
-            if (!string.IsNullOrEmpty(url))
-            {
-                // Truncate to 250 chars (database field limit)
-                if (url.Length > 250)
-                    url = url[..250];
+            if (string.IsNullOrEmpty(url))
+                return null;
 
-                _logger.LogDebug("Extracted source URL: {Url}", url);
+            // Truncate to 250 chars (database field limit)
+            if (url.Length > 250)
+                url = url[..250];
 
-                return url;
-            }
+            _logger.LogDebug("Extracted source URL: {Url}", url);
 
-            return null;
+            return url;
+
         }
         catch (Exception ex)
         {
@@ -978,10 +972,9 @@ public class ClipboardService : IClipboardService, IDisposable
                 var processName = process.ProcessName;
 
                 // Don't capture profiles for ClipMate itself
-                if (processName.Equals("ClipMate.App", StringComparison.OrdinalIgnoreCase))
-                    return null;
-
-                return processName;
+                return processName.Equals("ClipMate.App", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : processName;
             }
         }
         catch (Exception ex)

@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Windows.Controls;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
@@ -13,9 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 // For ClipApplicationService
 using Application = System.Windows.Application;
-using HorizontalAlignment = System.Windows.HorizontalAlignment;
-using Orientation = System.Windows.Controls.Orientation;
-using TextBox = System.Windows.Controls.TextBox;
+using Shortcut = ClipMate.Core.Models.Shortcut;
 
 namespace ClipMate.App.ViewModels;
 
@@ -36,7 +33,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     IRecipient<PowerPasteUpRequestedEvent>,
     IRecipient<PowerPasteDownRequestedEvent>,
     IRecipient<PowerPasteToggleRequestedEvent>,
-    IRecipient<ShowSearchWindowEvent>
+    IRecipient<ShowSearchWindowEvent>,
+    IRecipient<ShortcutModeStatusMessage>
 {
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
@@ -231,7 +229,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         {
             // Delay to ensure the new foreground window is fully activated
             await Task.Delay(100);
-            _quickPasteService?.UpdateTarget();
+            _quickPasteService.UpdateTarget();
         }
         catch (Exception ex)
         {
@@ -734,6 +732,23 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Handles ShortcutModeStatusMessage to update status bar during shortcut filtering.
+    /// </summary>
+    public void Receive(ShortcutModeStatusMessage message)
+    {
+        if (message.IsActive)
+        {
+            // Show shortcut mode status with filter and match count
+            StatusMessage = $"({message.MatchCount}) All matches on '{message.Filter}' are retrieved and displayed.";
+        }
+        else
+        {
+            // Restore normal status message
+            UpdateStatusMessage(_selectedClip);
+        }
+    }
+
+    /// <summary>
     /// Handles DeleteClipsRequestedEvent to delete selected clips with confirmation.
     /// </summary>
     public async void Receive(DeleteClipsRequestedEvent message)
@@ -800,119 +815,76 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             return;
         }
 
-        // Show DevExpress-styled input dialog
-        var inputDialog = new ThemedWindow
+        // Get database key from current collection tree node
+        var databaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
+        if (string.IsNullOrEmpty(databaseKey))
         {
-            Title = "Rename Clip",
-            Width = 400,
-            Height = 150,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-        };
-
-        var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var stackPanel = new StackPanel
-        {
-            Margin = new Thickness(15),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        var label = new TextBlock
-        {
-            Text = "Enter new title:",
-            Margin = new Thickness(0, 0, 0, 5),
-        };
-
-        var textBox = new TextBox
-        {
-            Text = selectedClip.Title ?? string.Empty,
-            MinWidth = 350,
-        };
-
-        textBox.SelectAll();
-
-        stackPanel.Children.Add(label);
-        stackPanel.Children.Add(textBox);
-        grid.Children.Add(stackPanel);
-
-        var buttonPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(15, 0, 15, 15),
-        };
-
-        Grid.SetRow(buttonPanel, 1);
-
-        var okButton = new SimpleButton
-        {
-            Content = "OK",
-            Width = 75,
-            Margin = new Thickness(0, 0, 10, 0),
-            IsDefault = true,
-        };
-
-        okButton.Click += (s, e) =>
-        {
-            inputDialog.DialogResult = true;
-            inputDialog.Close();
-        };
-
-        var cancelButton = new SimpleButton
-        {
-            Content = "Cancel",
-            Width = 75,
-            IsCancel = true,
-        };
-
-        cancelButton.Click += (s, e) =>
-        {
-            inputDialog.DialogResult = false;
-            inputDialog.Close();
-        };
-
-        buttonPanel.Children.Add(okButton);
-        buttonPanel.Children.Add(cancelButton);
-        grid.Children.Add(buttonPanel);
-
-        inputDialog.Content = grid;
-
-        // Focus the textbox when dialog loads
-        inputDialog.Loaded += (s, e) => textBox.Focus();
-
-        var result = inputDialog.ShowDialog();
-        if (result != true || string.IsNullOrWhiteSpace(textBox.Text))
-        {
-            SetStatus("Rename cancelled");
+            _logger?.LogError("Cannot rename clip: database key not found");
+            SetStatus("Error: database not found");
             return;
         }
 
         try
         {
-            // Get database key from current collection tree node
-            var databaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-            if (string.IsNullOrEmpty(databaseKey))
+            // Get the RenameClipDialogViewModel from DI
+            var viewModel = _serviceProvider.GetService<RenameClipDialogViewModel>();
+            if (viewModel == null)
             {
-                _logger?.LogError("Cannot rename clip: database key not found");
-                SetStatus("Error: database not found");
+                _logger?.LogError("RenameClipDialogViewModel not found in DI container");
+                SetStatus("Error: dialog service not available");
                 return;
             }
 
-            var clipService = _serviceProvider.GetRequiredService<IClipService>();
+            // Get existing shortcut if any
+            var shortcutService = _serviceProvider.GetService<IShortcutService>();
+            Shortcut? existingShortcut = null;
+            if (shortcutService != null)
+            {
+                try
+                {
+                    existingShortcut = await shortcutService.GetByClipIdAsync(databaseKey, selectedClip.Id);
+                }
+                catch (Exception ex) when (ex.Message.Contains("no such table"))
+                {
+                    // ShortCut table doesn't exist yet - this is OK
+                    // The table will be created automatically when first shortcut is saved
+                    _logger?.LogDebug("ShortCut table not found - will be created on first shortcut save");
+                }
+            }
 
-            await clipService.RenameClipAsync(databaseKey, selectedClip.Id, textBox.Text);
-            SetStatus($"Renamed to '{textBox.Text}'");
+            // Initialize the dialog ViewModel
+            await viewModel.InitializeAsync(
+                selectedClip.Id,
+                databaseKey,
+                selectedClip.Title,
+                existingShortcut?.Nickname);
 
-            // Reload to reflect changes
-            await PrimaryClipList.LoadClipsAsync();
+            // Create and show the dialog
+            var dialog = new RenameClipDialog
+            {
+                DataContext = viewModel,
+                Owner = Application.Current.GetDialogOwner(),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                // Update the clip in the collection
+                var clip = PrimaryClipList.Clips.FirstOrDefault(p => p.Id == selectedClip.Id);
+                clip?.Title = viewModel.Title;
+
+                var title = viewModel.Title ?? string.Empty;
+                SetStatus($"Updated clip: {title}");
+
+                // Message will be sent by the ViewModel, which will trigger grid refresh
+            }
+            else
+                SetStatus("Rename cancelled");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to rename clip");
-            SetStatus("Error renaming clip");
+            _logger?.LogError(ex, "Failed to show rename dialog");
+            SetStatus("Error showing rename dialog");
         }
     }
 

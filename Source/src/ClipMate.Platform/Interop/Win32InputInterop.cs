@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
@@ -27,4 +28,16 @@ public class Win32InputInterop : IWin32InputInterop
     /// <inheritdoc />
     public unsafe int GetClassName(HWND hWnd, char* lpClassName, int nMaxCount) =>
         PInvoke.GetClassName(hWnd, lpClassName, nMaxCount);
+
+    /// <inheritdoc />
+    public bool SetForegroundWindow(HWND hWnd)
+    {
+        unsafe
+        {
+            return SetForegroundWindow((IntPtr)hWnd.Value);
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 }

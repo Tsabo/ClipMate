@@ -557,6 +557,7 @@ public partial class App
                 services.AddSingleton<QuickPasteToolbarViewModel>();
                 services.AddTransient<ClipViewerToolbarViewModel>();
                 services.AddTransient<ClipPropertiesViewModel>();
+                services.AddTransient<RenameClipDialogViewModel>();
                 services.AddTransient<ClipViewerViewModel>();
 
                 // Register Clip Viewer factory and manager

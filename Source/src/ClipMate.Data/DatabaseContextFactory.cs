@@ -101,17 +101,29 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     }
 
     /// <summary>
+    /// Creates a ClipRepository instance for the specified database context.
+    /// </summary>
+    public IClipRepository GetClipRepository(ClipMateDbContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<ClipRepository>(_serviceProvider, context) as IClipRepository
+              ?? throw new InvalidOperationException("Failed to create ClipRepository instance.");
+    }
+
+    /// <summary>
     /// Creates a ClipDataRepository instance for the specified database context.
     /// </summary>
     public IClipDataRepository GetClipDataRepository(ClipMateDbContext context)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
-
-        return ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
-               ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
+              ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
     }
 
     /// <summary>
@@ -121,11 +133,10 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
-
-        return ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
-               ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
+              ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
     }
 
     /// <summary>
@@ -135,11 +146,10 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
-
-        return ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
-               ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
+              ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
     }
 
     /// <summary>
@@ -149,11 +159,10 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
-
-        return ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
-               ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
+              ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
     }
 
     /// <summary>

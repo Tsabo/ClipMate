@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
@@ -24,6 +25,8 @@ public class QuickPasteService : IQuickPasteService
     private readonly IMessenger _messenger;
     private readonly IWin32InputInterop _win32;
     private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
+    private nint _currentTargetWindowHandle; // Store the window handle for focus switching
+    private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
 
     private bool _goBackEnabled;
     private QuickPasteFormattingString? _selectedFormattingString;
@@ -102,6 +105,32 @@ public class QuickPasteService : IQuickPasteService
             _logger.LogDebug("QuickPaste: Pasting clip {ClipId} to target {Target}",
                 clip.Id, GetCurrentTargetString());
 
+            // Capture ClipMate's window handle for GoBack functionality (before switching away)
+            if (_goBackEnabled)
+            {
+                var clipMateWindow = _win32.GetForegroundWindow();
+                if (!clipMateWindow.IsNull)
+                {
+                    unsafe
+                    {
+                        _clipMateWindowHandle = (nint)clipMateWindow.Value;
+                        _logger.LogDebug("Captured ClipMate window handle for GoBack: {Handle:X}", _clipMateWindowHandle);
+                    }
+                }
+            }
+
+            // Switch focus to target application and wait for it to activate
+            if (_currentTargetWindowHandle != IntPtr.Zero)
+            {
+                _logger.LogDebug("Switching focus to target window handle: {Handle:X}", _currentTargetWindowHandle);
+                _win32.SetForegroundWindow(new HWND(_currentTargetWindowHandle));
+
+                // Wait for focus switch to complete - give the window time to activate
+                await Task.Delay(100, cancellationToken);
+            }
+            else
+                _logger.LogWarning("No valid window handle for target application");
+
             // Set clipboard content
             await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
             await Task.Delay(50, cancellationToken);
@@ -114,11 +143,17 @@ public class QuickPasteService : IQuickPasteService
 
             _logger.LogInformation("Successfully pasted clip {ClipId} via QuickPaste", clip.Id);
 
-            // Handle GoBack functionality
-            if (_goBackEnabled)
+            // Handle GoBack functionality - return focus to ClipMate
+            if (_goBackEnabled && _clipMateWindowHandle != IntPtr.Zero)
             {
-                // TODO: Implement focus return to ClipMate window
-                _logger.LogDebug("GoBack enabled - should return focus to ClipMate");
+                _logger.LogDebug("GoBack enabled - returning focus to ClipMate window: {Handle:X}", _clipMateWindowHandle);
+                
+                // Small delay to ensure paste operation completes
+                await Task.Delay(50, cancellationToken);
+                
+                // Switch focus back to ClipMate
+                _win32.SetForegroundWindow(new HWND(_clipMateWindowHandle));
+                _logger.LogDebug("Focus returned to ClipMate");
             }
 
             return true;
@@ -163,12 +198,13 @@ public class QuickPasteService : IQuickPasteService
             return;
         }
 
-        var target = DetectTargetWindow();
-        if (target == null)
+        var result = DetectTargetWindow();
+        if (result.target == null)
             return;
 
-        _currentTarget = target;
-        _logger.LogInformation("Target updated to: {Target}", GetCurrentTargetString());
+        _currentTarget = result.target;
+        _currentTargetWindowHandle = result.windowHandle;
+        _logger.LogInformation("Target updated to: {Target} (Handle: {Handle:X})", GetCurrentTargetString(), _currentTargetWindowHandle);
         _messenger.Send(new QuickPasteTargetChangedEvent());
     }
 
@@ -210,19 +246,19 @@ public class QuickPasteService : IQuickPasteService
         return matchedFormat ?? _selectedFormattingString;
     }
 
-    private (string ProcessName, string ClassName, string WindowTitle)? DetectTargetWindow()
+    private ((string ProcessName, string ClassName, string WindowTitle)? target, nint windowHandle) DetectTargetWindow()
     {
         try
         {
             var foregroundWindow = _win32.GetForegroundWindow();
             if (foregroundWindow.IsNull)
-                return null;
+                return (null, IntPtr.Zero);
 
             // Get process name
             _win32.GetWindowThreadProcessId(foregroundWindow, out var processId);
 
             if (processId == 0)
-                return null;
+                return (null, IntPtr.Zero);
 
             string processName;
             try
@@ -232,7 +268,7 @@ public class QuickPasteService : IQuickPasteService
             }
             catch
             {
-                return null;
+                return (null, IntPtr.Zero);
             }
 
             // Get window class name
@@ -262,15 +298,22 @@ public class QuickPasteService : IQuickPasteService
             var targetString = $"{processName}:{className}";
 
             if (!IsValidTarget(targetString))
-                return null;
+                return (null, IntPtr.Zero);
 
-            return (processName, className, windowTitle);
+            // Store window handle for focus switching
+            nint windowHandle;
+            unsafe
+            {
+                windowHandle = (nint)foregroundWindow.Value;
+            }
+
+            return ((processName, className, windowTitle), windowHandle);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error detecting target window");
 
-            return null;
+            return (null, IntPtr.Zero);
         }
     }
 
@@ -279,13 +322,13 @@ public class QuickPasteService : IQuickPasteService
         var config = _configurationService.Configuration.Preferences;
 
         // Check bad targets first (exclusion list)
-        foreach (var badTarget in config.QuickPasteBadTargets)
+        foreach (var item in config.QuickPasteBadTargets)
         {
-            if (!MatchesTarget(targetString, badTarget))
+            if (!MatchesTarget(targetString, item))
                 continue;
 
             _logger.LogDebug("Target {Target} matches bad target {BadTarget}, rejecting",
-                targetString, badTarget);
+                targetString, item);
 
             return false;
         }

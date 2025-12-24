@@ -45,6 +45,9 @@ public static class ServiceCollectionExtensions
         // and must be shared across the entire application
         services.AddSingleton<IClipService, ClipService>();
 
+        // ShortcutService is singleton for multi-database support
+        services.AddSingleton<IShortcutService, ShortcutService>();
+
         services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
 
         // CollectionService is singleton because it maintains in-memory state (_activeCollectionId)
