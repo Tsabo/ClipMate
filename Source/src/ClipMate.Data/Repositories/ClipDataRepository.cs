@@ -19,15 +19,15 @@ public class ClipDataRepository : IClipDataRepository
     public async Task<IReadOnlyList<ClipData>> GetByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.ClipData
-            .Where(cd => cd.ClipId == clipId)
-            .OrderBy(cd => cd.Format)
+            .Where(p => p.ClipId == clipId)
+            .OrderBy(p => p.Format)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<ClipData?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.ClipData
-            .FirstOrDefaultAsync(cd => cd.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task<ClipData> CreateAsync(ClipData clipData, CancellationToken cancellationToken = default)
@@ -46,7 +46,7 @@ public class ClipDataRepository : IClipDataRepository
     public async Task<int> DeleteByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         var clipDataEntries = await _context.ClipData
-            .Where(cd => cd.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.ClipData.RemoveRange(clipDataEntries);

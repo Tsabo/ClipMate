@@ -31,10 +31,7 @@ public class SearchQueryRepository : ISearchQueryRepository
 
     public async Task<SearchQuery> CreateAsync(SearchQuery query, CancellationToken cancellationToken = default)
     {
-        if (query == null)
-        {
-            throw new ArgumentNullException(nameof(query));
-        }
+        ArgumentNullException.ThrowIfNull(query);
 
         _context.SearchQueries.Add(query);
         await _context.SaveChangesAsync(cancellationToken);
@@ -43,10 +40,7 @@ public class SearchQueryRepository : ISearchQueryRepository
 
     public async Task<bool> UpdateAsync(SearchQuery query, CancellationToken cancellationToken = default)
     {
-        if (query == null)
-        {
-            throw new ArgumentNullException(nameof(query));
-        }
+        ArgumentNullException.ThrowIfNull(query);
 
         _context.SearchQueries.Update(query);
         await _context.SaveChangesAsync(cancellationToken);
@@ -57,9 +51,7 @@ public class SearchQueryRepository : ISearchQueryRepository
     {
         var query = await _context.SearchQueries.FindAsync([id], cancellationToken);
         if (query == null)
-        {
             return false;
-        }
 
         _context.SearchQueries.Remove(query);
         await _context.SaveChangesAsync(cancellationToken);

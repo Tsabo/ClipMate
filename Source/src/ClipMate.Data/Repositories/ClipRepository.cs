@@ -2,50 +2,12 @@ using System.Data;
 using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
+using ClipMate.Data.Dapper;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Repositories;
-
-/// <summary>
-/// Type handler for SQLite GUID string conversion.
-/// SQLite stores GUIDs as strings, Dapper needs help converting them.
-/// </summary>
-public class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
-{
-    public override Guid Parse(object value)
-    {
-        return value switch
-        {
-            string s => Guid.Parse(s),
-            Guid g => g,
-            var _ => throw new InvalidOperationException($"Cannot convert {value.GetType()} to Guid"),
-        };
-    }
-
-    public override void SetValue(IDbDataParameter parameter, Guid value) => parameter.Value = value.ToString();
-}
-
-/// <summary>
-/// Type handler for SQLite DateTimeOffset string conversion.
-/// SQLite stores DateTimeOffset as ISO 8601 strings.
-/// </summary>
-public class DateTimeOffsetTypeHandler : SqlMapper.TypeHandler<DateTimeOffset>
-{
-    public override DateTimeOffset Parse(object value)
-    {
-        return value switch
-        {
-            string s => DateTimeOffset.Parse(s),
-            DateTimeOffset dto => dto,
-            DateTime dt => new DateTimeOffset(dt),
-            var _ => throw new InvalidOperationException($"Cannot convert {value.GetType()} to DateTimeOffset"),
-        };
-    }
-
-    public override void SetValue(IDbDataParameter parameter, DateTimeOffset value) => parameter.Value = value.ToString("o"); // ISO 8601
-}
 
 /// <summary>
 /// Entity Framework Core implementation of the clip repository.

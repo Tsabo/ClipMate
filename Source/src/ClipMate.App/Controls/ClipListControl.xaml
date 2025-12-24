@@ -36,6 +36,120 @@
                                  Loaded="ShortcutsDataGrid_Loaded"
                                  CurrentItemChanged="ClipDataGrid_CurrentItemChanged">
 
+                    <!-- Context Menu (same as ClipDataGrid) -->
+                    <dxg:GridControl.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Clip Properties" InputGestureText="Alt+Enter"
+                                      Click="ClipProperties_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📋" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="QuickPaste Tools">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="➤" FontSize="14" />
+                                </MenuItem.Icon>
+                                <MenuItem Header="Paste Now" Click="PasteNow_Click">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="➤" FontSize="14" Foreground="Green" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="TAB" InputGestureText="F9" />
+                                <MenuItem Header="ENTER" InputGestureText="Shift+F9" />
+                                <Separator />
+                                <MenuItem Header="Lock QuickPaste Target">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="🔒" FontSize="14" Foreground="Red" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="QuickPaste GoBack">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="↩" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <Separator />
+                                <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray" />
+                                <MenuItem Header="Reset Sequence" />
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Create New, Empty Clip" InputGestureText="Ctrl+N"
+                                      Click="CreateNewClip_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📄" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="View Clip" InputGestureText="F2" Click="ViewClip_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="👁" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Export Clips (Save To Individual Files)" Click="ExportClips_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="💾" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Change Title and Shortcut" InputGestureText="Ctrl+R"
+                                      Click="ChangeTitle_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="✏" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Delete Selected Items" InputGestureText="Del" Click="DeleteItems_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray" />
+                            <Separator />
+                            <MenuItem Header="Encrypt selected clips">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="🔒" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Decrypt and remove encryption on selected clips" IsEnabled="False"
+                                      Foreground="Gray">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="🔓" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Toggle Macros On/Off For This Clip">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="⚙" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="🔗" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Convert File Pointer To Text" />
+                            <Separator />
+                            <MenuItem Header="Open Source URL In Browser" InputGestureText="Ctrl+O"
+                                      Click="OpenSourceUrl_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="🌐" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Place Source URL On Clipboard">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Move To Top Of Sort Order" />
+                            <MenuItem Header="Move To Bottom Of Sort Order" />
+                            <Separator />
+                            <MenuItem Header="Tack (lock) this window onto this collection" />
+                            <MenuItem Header="Select Another Collection" />
+                            <Separator />
+                            <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True" />
+                            <Separator />
+                            <MenuItem Header="Cancel" />
+                        </ContextMenu>
+                    </dxg:GridControl.ContextMenu>
+
                     <dxg:GridControl.View>
                         <dxg:TableView AllowEditing="False"
                                        ShowGroupPanel="False"

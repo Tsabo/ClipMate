@@ -52,28 +52,28 @@ public class BlobRepository : IBlobRepository
     public async Task<IReadOnlyList<BlobTxt>> GetTextByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.BlobTxt
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<BlobJpg>> GetJpgByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.BlobJpg
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<BlobPng>> GetPngByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.BlobPng
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<BlobBlob>> GetBlobByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.BlobBlob
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
     }
 
@@ -93,7 +93,7 @@ public class BlobRepository : IBlobRepository
 
         // Delete from BlobTxt
         var textBlobs = await _context.BlobTxt
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.BlobTxt.RemoveRange(textBlobs);
@@ -101,7 +101,7 @@ public class BlobRepository : IBlobRepository
 
         // Delete from BlobJpg
         var jpgBlobs = await _context.BlobJpg
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.BlobJpg.RemoveRange(jpgBlobs);
@@ -109,7 +109,7 @@ public class BlobRepository : IBlobRepository
 
         // Delete from BlobPng
         var pngBlobs = await _context.BlobPng
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.BlobPng.RemoveRange(pngBlobs);
@@ -117,7 +117,7 @@ public class BlobRepository : IBlobRepository
 
         // Delete from BlobBlob
         var binaryBlobs = await _context.BlobBlob
-            .Where(b => b.ClipId == clipId)
+            .Where(p => p.ClipId == clipId)
             .ToListAsync(cancellationToken);
 
         _context.BlobBlob.RemoveRange(binaryBlobs);

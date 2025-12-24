@@ -172,11 +172,10 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
-
-        return ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
-               ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
+        return context == null
+            ? throw new ArgumentNullException(nameof(context))
+            : ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
+              ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
     }
 
     /// <summary>

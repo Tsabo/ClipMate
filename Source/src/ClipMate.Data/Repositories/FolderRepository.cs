@@ -139,10 +139,7 @@ public class FolderRepository : IFolderRepository
         if (folderId.HasValue)
         {
             var activeFolder = allFolders.FirstOrDefault(p => p.Id == folderId.Value);
-            if (activeFolder != null)
-            {
-                activeFolder.NewClipsGo = 1;
-            }
+            activeFolder?.NewClipsGo = 1;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

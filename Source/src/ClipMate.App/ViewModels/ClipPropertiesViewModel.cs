@@ -16,6 +16,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
+    private readonly IShortcutService _shortcutService;
 
     [ObservableProperty]
     private DateTimeOffset _capturedAt;
@@ -75,11 +76,12 @@ public partial class ClipPropertiesViewModel : ObservableObject
     [ObservableProperty]
     private int? _userId;
 
-    public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService)
+    public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService, IShortcutService shortcutService)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
     }
 
     /// <summary>
@@ -132,7 +134,10 @@ public partial class ClipPropertiesViewModel : ObservableObject
         Macro = clip.Macro;
         Size = clip.Size;
         UserId = clip.UserId;
-        Shortcut = string.Empty; // TODO: Load from shortcuts table
+
+        // Load shortcut from database
+        var existingShortcut = await _shortcutService.GetByClipIdAsync(_databaseKey, clip.Id, cancellationToken);
+        Shortcut = existingShortcut?.Nickname ?? string.Empty;
 
         // Load data formats through service layer
         DataFormats.Clear();
@@ -155,6 +160,28 @@ public partial class ClipPropertiesViewModel : ObservableObject
         if (_originalClip == null || string.IsNullOrEmpty(_databaseKey))
             return;
 
+        // Validate shortcut uniqueness if it has changed and is not empty
+        if (!string.IsNullOrWhiteSpace(Shortcut))
+        {
+            var existingShortcut = await _shortcutService.GetByClipIdAsync(_databaseKey, _originalClip.Id);
+            var shortcutChanged = existingShortcut?.Nickname != Shortcut;
+
+            if (shortcutChanged)
+            {
+                // Check if this shortcut is already used by another clip
+                var allShortcuts = await _shortcutService.GetAllAsync(_databaseKey);
+                var conflictingShortcut = allShortcuts.FirstOrDefault(s =>
+                    s.Nickname.Equals(Shortcut, StringComparison.OrdinalIgnoreCase) &&
+                    s.ClipId != _originalClip.Id);
+
+                if (conflictingShortcut != null)
+                {
+                    StatusText = $"Error: Shortcut '{Shortcut}' is already used by another clip.";
+                    return;
+                }
+            }
+        }
+
         // Update the clip with edited values
         _originalClip.Title = Title;
         _originalClip.SourceUrl = SourceUrl;
@@ -165,6 +192,9 @@ public partial class ClipPropertiesViewModel : ObservableObject
         _originalClip.LastModified = DateTimeOffset.Now;
 
         await _clipService.UpdateAsync(_databaseKey, _originalClip);
+
+        // Update or delete the shortcut (null/empty shortcut deletes it)
+        await _shortcutService.UpdateClipShortcutAsync(_databaseKey, _originalClip.Id, Shortcut, Title);
 
         StatusText = "Status: Clip updated successfully.";
     }
