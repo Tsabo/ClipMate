@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text.Json;
-using ClipMate.App.Controls;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
 using ClipMate.Data;
@@ -32,6 +31,7 @@ public partial class SearchDialog
         DataContext = _viewModel;
         var logger = serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
         var configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
+        var collectionService = serviceProvider.GetRequiredService<ICollectionService>();
 
         // Load Monaco Editor configuration
         var monacoOptions = configurationService.Configuration.MonacoEditor;
@@ -39,6 +39,11 @@ public partial class SearchDialog
             monacoOptions.EnableDebug, monacoOptions.Theme, monacoOptions.FontSize);
 
         SqlEditor.EditorOptions = monacoOptions;
+
+        // Set database key for SQL validation
+        var databaseKey = collectionService.GetActiveDatabaseKey();
+        if (!string.IsNullOrEmpty(databaseKey))
+            SqlEditor.DatabaseKey = databaseKey;
 
         // Load formats, collections, and saved queries when dialog opens
         Loaded += async (_, _) =>
@@ -70,8 +75,22 @@ public partial class SearchDialog
         var app = (App)Application.Current;
         using var scope = app.ServiceProvider.CreateScope();
         var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
 
-        var (isValid, errorMessage) = await searchService.ValidateSqlQueryAsync(_viewModel.SqlQuery);
+        // Get active database key for validation
+        var databaseKey = collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            DXMessageBox.Show(
+                "No active database selected. Please select a database first.",
+                "Database Required",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
+            return;
+        }
+
+        var (isValid, errorMessage) = await searchService.ValidateSqlQueryAsync(_viewModel.SqlQuery, databaseKey);
 
         if (!isValid)
         {
@@ -131,7 +150,7 @@ public partial class SearchDialog
             // Wait for Monaco editor to be fully initialized
             var maxWaitTime = TimeSpan.FromSeconds(5);
             var startTime = DateTime.Now;
-            
+
             while (!SqlEditor.IsInitialized && DateTime.Now - startTime < maxWaitTime)
             {
                 logger.LogDebug("Waiting for Monaco editor initialization...");
@@ -181,7 +200,7 @@ public partial class SearchDialog
             var app = (App)Application.Current;
             using var scope = app.ServiceProvider.CreateScope();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<SearchDialog>>();
-            
+
             logger.LogError(ex, "Error initializing SQL IntelliSense");
             Debug.WriteLine($"Error initializing SQL IntelliSense: {ex.Message}\n{ex.StackTrace}");
         }

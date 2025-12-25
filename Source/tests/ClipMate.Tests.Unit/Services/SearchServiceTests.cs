@@ -6,6 +6,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -17,6 +18,8 @@ public class SearchServiceTests
 {
     private readonly Mock<IClipRepository> _mockClipRepository;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
+    private readonly Mock<ILogger<SearchService>> _mockLogger;
+    private readonly Mock<ISqlValidationService> _mockSqlValidationService;
     private ClipMateDbContext _dbContext = null!;
     private SearchService _searchService = null!;
 
@@ -24,6 +27,8 @@ public class SearchServiceTests
     {
         _mockClipRepository = new Mock<IClipRepository>();
         _mockConfigurationService = new Mock<IConfigurationService>();
+        _mockSqlValidationService = new Mock<ISqlValidationService>();
+        _mockLogger = new Mock<ILogger<SearchService>>();
     }
 
     [Before(Test)]
@@ -39,9 +44,13 @@ public class SearchServiceTests
         _dbContext.Database.EnsureCreated();
 
         var config = new ClipMateConfiguration();
-        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
+        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
 
-        _searchService = new SearchService(_mockClipRepository.Object, _mockConfigurationService.Object, _dbContext);
+        _searchService = new SearchService(
+            _mockClipRepository.Object,
+            _mockConfigurationService.Object,
+            _mockSqlValidationService.Object,
+            _mockLogger.Object);
     }
 
     [After(Test)]
@@ -56,7 +65,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(_mockClipRepository.Object, null!, _dbContext))
+                new SearchService(_mockClipRepository.Object, null!, _mockSqlValidationService.Object, _mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
 
@@ -256,8 +265,8 @@ public class SearchServiceTests
     {
         // Arrange
         var config = new ClipMateConfiguration();
-        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
-        _mockConfigurationService.Setup(c => c.SaveAsync(It.IsAny<CancellationToken>()))
+        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+        _mockConfigurationService.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -278,8 +287,8 @@ public class SearchServiceTests
         // Arrange
         var config = new ClipMateConfiguration();
         config.SavedSearchQueries.Add(new SavedSearchQuery { Name = "Test Query", Query = "test" });
-        _mockConfigurationService.Setup(c => c.Configuration).Returns(config);
-        _mockConfigurationService.Setup(c => c.SaveAsync(It.IsAny<CancellationToken>()))
+        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+        _mockConfigurationService.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -287,7 +296,7 @@ public class SearchServiceTests
 
         // Assert
         await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(0);
-        _mockConfigurationService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

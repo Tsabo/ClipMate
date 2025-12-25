@@ -151,4 +151,108 @@ public class CollectionService : ICollectionService
         if (!deleted)
             throw new InvalidOperationException($"Failed to delete collection {id}.");
     }
+
+    public async Task<int> GetCollectionItemCountAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        return await dbContext.Clips
+            .CountAsync(p => p.CollectionId == collectionId && !p.Del, cancellationToken);
+    }
+
+    public async Task<bool> MoveCollectionUpAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // Get all non-virtual collections ordered by SortKey
+        var collections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync(cancellationToken);
+
+        var currentIndex = collections.FindIndex(p => p.Id == collectionId);
+        if (currentIndex <= 0) // Already at top or not found
+            return false;
+
+        // Swap SortKey with previous collection
+        var currentCollection = collections[currentIndex];
+        var previousCollection = collections[currentIndex - 1];
+        (previousCollection.SortKey, currentCollection.SortKey) = (currentCollection.SortKey, previousCollection.SortKey);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> MoveCollectionDownAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // Get all non-virtual collections ordered by SortKey
+        var collections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync(cancellationToken);
+
+        var currentIndex = collections.FindIndex(p => p.Id == collectionId);
+        if (currentIndex < 0 || currentIndex >= collections.Count - 1) // Already at bottom or not found
+            return false;
+
+        // Swap SortKey with next collection
+        var currentCollection = collections[currentIndex];
+        var nextCollection = collections[currentIndex + 1];
+        (nextCollection.SortKey, currentCollection.SortKey) = (currentCollection.SortKey, nextCollection.SortKey);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task ReorderCollectionsAsync(List<Guid> droppedCollectionIds,
+        Guid targetCollectionId,
+        bool insertAfter,
+        string databaseKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // Get all non-virtual collections ordered by SortKey
+        var allCollections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync(cancellationToken);
+
+        // Remove dropped collections from current positions
+        var droppedCollections = allCollections.Where(p => droppedCollectionIds.Contains(p.Id)).ToList();
+        foreach (var item in droppedCollections)
+            allCollections.Remove(item);
+
+        // Find target collection index
+        var targetIndex = allCollections.FindIndex(p => p.Id == targetCollectionId);
+        if (targetIndex < 0)
+            throw new InvalidOperationException($"Target collection {targetCollectionId} not found");
+
+        // Insert dropped collections at new position
+        var insertIndex = insertAfter
+            ? targetIndex + 1
+            : targetIndex;
+
+        allCollections.InsertRange(insertIndex, droppedCollections);
+
+        // Reassign SortKey values based on new order
+        for (var i = 0; i < allCollections.Count; i++)
+            allCollections[i].SortKey = i;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

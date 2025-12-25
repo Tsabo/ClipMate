@@ -1,7 +1,6 @@
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +18,6 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     private readonly Collection _collection;
     private readonly IConfigurationService _configurationService;
     private readonly string? _databaseKey;
-    private readonly bool _isNewCollection;
     private readonly IServiceProvider? _serviceProvider;
 
     [ObservableProperty]
@@ -67,10 +65,9 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     [ObservableProperty]
     private string _title = string.Empty;
 
-    public CollectionPropertiesViewModel(Collection collection, IConfigurationService configurationService, bool isNewCollection = false, IServiceProvider? serviceProvider = null, string? databaseKey = null)
+    public CollectionPropertiesViewModel(Collection collection, IConfigurationService configurationService, IServiceProvider? serviceProvider = null, string? databaseKey = null)
     {
         _collection = collection;
-        _isNewCollection = isNewCollection;
         _configurationService = configurationService;
         _serviceProvider = serviceProvider;
         _databaseKey = databaseKey;
@@ -146,7 +143,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         }
 
         // Load item count from the actual database
-        ItemCount = LoadItemCount();
+        ItemCount = LoadItemCountAsync().GetAwaiter().GetResult();
 
         // Load database info from configuration
         DatabaseInfo = LoadDatabaseInfo();
@@ -155,7 +152,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     /// <summary>
     /// Loads the actual item count from the database for this collection.
     /// </summary>
-    private int LoadItemCount()
+    private async Task<int> LoadItemCountAsync()
     {
         if (_serviceProvider == null || string.IsNullOrEmpty(_databaseKey))
             return _collection.LastKnownCount ?? 0;
@@ -163,14 +160,8 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         try
         {
             using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-            var dbContext = databaseManager.GetDatabaseContext(_databaseKey);
-
-            if (dbContext == null)
-                return _collection.LastKnownCount ?? 0;
-
-            // Count clips in this collection
-            return dbContext.Clips.Count(p => p.CollectionId == _collection.Id && !p.Del);
+            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
+            return await collectionService.GetCollectionItemCountAsync(_collection.Id, _databaseKey);
         }
         catch
         {

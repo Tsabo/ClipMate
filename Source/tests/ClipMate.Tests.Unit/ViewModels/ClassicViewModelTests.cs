@@ -2,7 +2,6 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -36,10 +35,16 @@ public class ClassicViewModelTests
             NullLogger<QuickPasteToolbarViewModel>.Instance);
 
         // Create ClipListViewModel with mocked dependencies
-        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        var mockCollectionService = new Mock<ICollectionService>();
+        var mockFolderService = new Mock<IFolderService>();
+        var mockClipService = new Mock<IClipService>();
+        var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
         var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         var clipListViewModel = new ClipListViewModel(
-            mockServiceScopeFactory.Object,
+            mockCollectionService.Object,
+            mockFolderService.Object,
+            mockClipService.Object,
+            mockQuickPasteServiceForClipList.Object,
             mockRepositoryFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
@@ -64,10 +69,16 @@ public class ClassicViewModelTests
             _mockMessenger.Object,
             NullLogger<QuickPasteToolbarViewModel>.Instance);
 
-        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        var mockCollectionService = new Mock<ICollectionService>();
+        var mockFolderService = new Mock<IFolderService>();
+        var mockClipService = new Mock<IClipService>();
+        var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
         var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         var clipListViewModel = new ClipListViewModel(
-            mockServiceScopeFactory.Object,
+            mockCollectionService.Object,
+            mockFolderService.Object,
+            mockClipService.Object,
+            mockQuickPasteServiceForClipList.Object,
             mockRepositoryFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);

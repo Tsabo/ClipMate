@@ -1,8 +1,7 @@
 using System.IO;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Data;
+using ClipMate.Core.Services;
 using ClipMate.Data.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using MessageBox = System.Windows.MessageBox;
@@ -18,11 +17,13 @@ public partial class SetupWizard
 {
     private readonly string _configurationDirectory;
     private readonly ILogger<SetupWizard> _logger;
+    private readonly ISetupService _setupService;
 
-    public SetupWizard(ILogger<SetupWizard> logger, string? configurationDirectory = null)
+    public SetupWizard(ILogger<SetupWizard> logger, ISetupService setupService, string? configurationDirectory = null)
     {
         InitializeComponent();
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _setupService = setupService ?? throw new ArgumentNullException(nameof(setupService));
 
         // Default configuration directory
         _configurationDirectory = configurationDirectory ?? Path.Combine(
@@ -30,14 +31,7 @@ public partial class SetupWizard
             "ClipMate");
 
         // Default path
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "Databases");
-
-        Directory.CreateDirectory(appDataPath);
-
-        DatabasePath = Path.Join(appDataPath, "clipmate.db");
+        DatabasePath = _setupService.GetDefaultDatabasePath();
         DatabasePathTextBox.Text = DatabasePath;
         DatabaseNameTextBox.Text = "My Clips";
     }
@@ -124,27 +118,20 @@ public partial class SetupWizard
             ProgressText.Text = "Creating database schema...";
             await Task.Delay(100); // Let UI update
 
-            // Create DbContext options
-            var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
-            optionsBuilder.UseSqlite($"Data Source={DatabasePath}");
-
-            // Create database and migrate schema
-            await using var context = new ClipMateDbContext(optionsBuilder.Options);
-
+            // Create database using SetupService
             _logger.LogInformation("Creating database and applying schema migrations...");
-            await context.Database.EnsureCreatedAsync();
+            var created = await _setupService.CreateDatabaseAsync(DatabasePath);
 
-            var migrationService = new DatabaseSchemaMigrationService(_logger as ILogger<DatabaseSchemaMigrationService>);
-            await migrationService.MigrateAsync(context);
+            if (!created)
+                throw new InvalidOperationException("Failed to create database. The database may already exist.");
 
             // Update progress
             ProgressText.Text = "Seeding default data...";
             await Task.Delay(100);
 
-            // Seed default collections
-            _logger.LogInformation("Seeding default collections...");
-            var seeder = new DefaultDataSeeder(context, _logger as ILogger<DefaultDataSeeder>);
-            await seeder.SeedDefaultDataAsync();
+            // Seed default data using SetupService (it handles migrations too)
+            _logger.LogInformation("Seeding default collections and applying migrations...");
+            await _setupService.SeedDefaultDataAsync(DatabasePath);
 
             // Update progress
             ProgressText.Text = "Saving configuration...";

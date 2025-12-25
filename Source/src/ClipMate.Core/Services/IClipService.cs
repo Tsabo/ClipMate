@@ -142,6 +142,33 @@ public interface IClipService
     Task<bool> MoveClipAsync(string databaseKey, Guid clipId, Guid targetCollectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Moves multiple clips to a different collection within the same database.
+    /// Updates each clip's collection ID.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">The clip IDs to move.</param>
+    /// <param name="targetCollectionId">The target collection ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task MoveClipsToCollectionAsync(string databaseKey, List<Guid> clipIds, Guid targetCollectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Soft-deletes multiple clips by setting Del=true (moves to Trashcan).
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">The clip IDs to soft-delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SoftDeleteClipsAsync(string databaseKey, List<Guid> clipIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Restores clips from Trashcan by setting Del=false and moving to target collection.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">The clip IDs to restore.</param>
+    /// <param name="targetCollectionId">The target collection ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task RestoreClipsAsync(string databaseKey, List<Guid> clipIds, Guid targetCollectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Copies a clip from one database to another database.
     /// Creates a new clip with same content in the target database and collection.
     /// </summary>

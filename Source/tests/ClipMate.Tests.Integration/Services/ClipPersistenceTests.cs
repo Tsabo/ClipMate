@@ -206,7 +206,6 @@ public class ClipPersistenceTests : IntegrationTestBase
         return new ClipService(
             repositoryFactory.Object,
             Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             soundService.Object,
             Mock.Of<IClipboardService>(),
             serviceLogger);
@@ -234,7 +233,6 @@ public class ClipPersistenceTests : IntegrationTestBase
         return new ClipService(
             repositoryFactory.Object,
             Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             soundService.Object,
             Mock.Of<IClipboardService>(),
             serviceLogger);

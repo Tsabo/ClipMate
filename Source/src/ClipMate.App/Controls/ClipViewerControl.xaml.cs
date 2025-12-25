@@ -11,12 +11,11 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.XtraRichEdit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Timer = System.Timers.Timer;
+using ThrottleDebounce;
 using Application = System.Windows.Application;
 using Clipboard = System.Windows.Clipboard;
 using MessageBox = System.Windows.MessageBox;
@@ -39,13 +38,12 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         var app = (App)Application.Current;
         var serviceProvider = app.ServiceProvider;
 
-        _serviceScopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
         _logger = serviceProvider.GetRequiredService<ILogger<ClipViewerControl>>();
         _messenger = serviceProvider.GetRequiredService<IMessenger>();
         _configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
         _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
-        _databaseManager = serviceProvider.GetRequiredService<IDatabaseManager>();
+        _clipService = serviceProvider.GetRequiredService<IClipService>();
 
         // Initialize toolbar ViewModel
         _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
@@ -72,11 +70,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             ApplyEditorSettings();
 
             // Set up debounced auto-save (1 second after last change)
-            _textEditorSaveTimer = new Timer(1000) { AutoReset = false };
-            _textEditorSaveTimer.Elapsed += async (_, _) => await Dispatcher.InvokeAsync(async () => await SaveTextEditorAsync());
-
-            _htmlEditorSaveTimer = new Timer(1000) { AutoReset = false };
-            _htmlEditorSaveTimer.Elapsed += async (_, _) => await Dispatcher.InvokeAsync(async () => await SaveHtmlEditorAsync());
+            _debouncedTextSave = Debouncer.Debounce(SaveTextEditorDebounced, TimeSpan.FromSeconds(1));
+            _debouncedHtmlSave = Debouncer.Debounce(SaveHtmlEditorDebounced, TimeSpan.FromSeconds(1));
 
             // Monitor Text property changes on editors
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
@@ -98,9 +93,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             _messenger.Unregister<ClipSelectedEvent>(this);
             _messenger.Unregister<PreferencesChangedEvent>(this);
 
-            // Clean up timers
-            _textEditorSaveTimer?.Dispose();
-            _htmlEditorSaveTimer?.Dispose();
+            // Cancel any ongoing load operation
+            _loadCancellationTokenSource?.Cancel();
+            _loadCancellationTokenSource?.Dispose();
+            _loadCancellationTokenSource = null;
 
             // Remove value change handlers
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
@@ -130,7 +126,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             // When ClipId is set directly (not via event), we don't have database key
             // Fall back to current or default database
-            await control.LoadClipDataAsync(clipId, control._currentDatabaseKey);
+            var token = control._loadCancellationTokenSource?.Token ?? CancellationToken.None;
+            await control.LoadClipDataAsync(clipId, control._currentDatabaseKey, token);
         }
         else
         {
@@ -151,6 +148,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         var clipId = message.SelectedClip?.Id;
         var databaseKey = message.DatabaseKey;
         _logger.LogInformation("[ClipViewer] Received ClipSelectedEvent - ClipId: {ClipId}, DatabaseKey: {DatabaseKey}", clipId, databaseKey);
+
+        // Cancel previous load operation
+        _loadCancellationTokenSource?.Cancel();
+        _loadCancellationTokenSource?.Dispose();
+        _loadCancellationTokenSource = new CancellationTokenSource();
 
         // Store the database key before setting ClipId (which triggers load)
         if (!string.IsNullOrEmpty(databaseKey))
@@ -202,15 +204,16 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     #region Fields
 
-    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ClipViewerControl> _logger;
     private readonly IMessenger _messenger;
     private readonly IConfigurationService _configurationService;
     private readonly ClipViewerToolbarViewModel _toolbarViewModel;
     private readonly ITextTransformService _textTransformService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
-    private readonly IDatabaseManager _databaseManager;
+    private readonly IClipService _clipService;
+    private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
+    private CancellationTokenSource? _loadCancellationTokenSource;
     private List<ClipData> _currentClipData = [];
     private Dictionary<Guid, BlobTxt> _textBlobs = [];
     private Dictionary<Guid, BlobJpg> _jpgBlobs = [];
@@ -231,9 +234,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private bool _htmlEditorTextDirty;
     private bool _htmlEditorLanguageDirty;
 
-    // Timers for debounced auto-save
-    private Timer? _textEditorSaveTimer;
-    private Timer? _htmlEditorSaveTimer;
+    // Debounced actions for auto-save
+    private RateLimitedAction? _debouncedTextSave;
+    private RateLimitedAction? _debouncedHtmlSave;
 
     #endregion
 
@@ -241,22 +244,38 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private string? _currentDatabaseKey;
 
-    private async Task LoadClipDataAsync(Guid clipId, string? databaseKey)
+    private async Task LoadClipDataAsync(Guid clipId, string? databaseKey, CancellationToken cancellationToken = default)
     {
-        IsLoading = true;
-        _isLoadingContent = true; // Suppress save operations during load
+        // Wait for any previous load operation to complete to prevent concurrent DbContext access
+        await _loadSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            IsLoading = true;
+            _isLoadingContent = true; // Suppress save operations during load
 
-        // Store the database key for this clip
-        _currentDatabaseKey = databaseKey;
+            // Store the database key for this clip
+            _currentDatabaseKey = databaseKey;
 
-        // Reset dirty flags for new clip
-        _textEditorTextDirty = false;
-        _textEditorLanguageDirty = false;
-        _htmlEditorTextDirty = false;
-        _htmlEditorLanguageDirty = false;
+            // Reset dirty flags for new clip
+            _textEditorTextDirty = false;
+            _textEditorLanguageDirty = false;
+            _htmlEditorTextDirty = false;
+            _htmlEditorLanguageDirty = false;
 
-        _logger.LogInformation("[ClipViewer] LoadClipDataAsync START - ClipId: {ClipId}", clipId);
+            _logger.LogInformation("[ClipViewer] LoadClipDataAsync START - ClipId: {ClipId}", clipId);
 
+            await LoadClipDataInternalAsync(clipId, cancellationToken);
+        }
+        finally
+        {
+            _loadSemaphore.Release();
+            IsLoading = false;
+            _isLoadingContent = false; // Re-enable save operations
+        }
+    }
+
+    private async Task LoadClipDataInternalAsync(Guid clipId, CancellationToken cancellationToken)
+    {
         try
         {
             // Get database context for the clip's database
@@ -269,16 +288,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             if (string.IsNullOrEmpty(_currentDatabaseKey))
                 throw new InvalidOperationException("No database configured");
 
-            var context = _databaseManager.GetDatabaseContext(_currentDatabaseKey)
-                          ?? throw new InvalidOperationException($"Database context for '{_currentDatabaseKey}' not found");
-
-            // Create repositories using factory
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(context);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
-            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(context);
+            // Create repositories using factory (resolves database key to path)
+            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(_currentDatabaseKey);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
+            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
 
             // Load all ClipData entries for this clip
-            _currentClipData = (await clipDataRepository.GetByClipIdAsync(clipId))
+            _currentClipData = (await clipDataRepository.GetByClipIdAsync(clipId, cancellationToken))
                 .OrderBy(p => p.FormatName)
                 .ToList();
 
@@ -292,10 +308,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             }
 
             // Load all BLOBs upfront
-            var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId);
-            var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId);
-            var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId);
-            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId);
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId, cancellationToken);
+            var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId, cancellationToken);
+            var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId, cancellationToken);
+            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId, cancellationToken);
+
+            // Check cancellation after blob loading
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Create lookup dictionaries by ClipDataId
             _textBlobs = textBlobs.ToDictionary(p => p.ClipDataId);
@@ -311,38 +330,43 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             // Load data for each format type
             _logger.LogInformation("[ClipViewer] Loading formats for ClipId: {ClipId}", clipId);
-            await LoadTextFormatsAsync(monacoStateRepository);
+            await LoadTextFormatsAsync(monacoStateRepository, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded text formats");
-            await LoadHtmlFormatAsync(monacoStateRepository);
+            await LoadHtmlFormatAsync(monacoStateRepository, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded HTML format");
-            await LoadRtfFormatAsync();
+            await LoadRtfFormatAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded RTF format");
-            await LoadBitmapFormatsAsync();
+            await LoadBitmapFormatsAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded bitmap formats");
-            await LoadPictureFormatsAsync();
+            await LoadPictureFormatsAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded picture formats");
-            await LoadBinaryFormatsAsync();
+            await LoadBinaryFormatsAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded binary formats");
             _logger.LogInformation("[ClipViewer] All formats loaded for ClipId: {ClipId}", clipId);
 
             // Select default tab based on preferences
             SetDefaultActiveTab();
             _logger.LogInformation("[ClipViewer] Default tab selected and load complete for ClipId: {ClipId}", clipId);
-        } // scope is disposed here
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("Load clip data cancelled for ClipId: {ClipId}", clipId);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clip data for ClipId: {ClipId}", clipId);
             MessageBox.Show($"Error loading clip data: {ex.Message}", "Load Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally
-        {
-            IsLoading = false;
-            _isLoadingContent = false; // Re-enable save operations
-        }
     }
 
-    private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository monacoStateRepository)
+    private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository monacoStateRepository, CancellationToken cancellationToken = default)
     {
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
         var textFormat = _currentClipData
@@ -353,10 +377,12 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
         {
             // Wait for Monaco to initialize before setting text
-            await WaitForMonacoInitializationAsync(TextEditor);
+            await WaitForMonacoInitializationAsync(TextEditor, 10000, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Load saved language and view state from MonacoEditorState
             var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
+            cancellationToken.ThrowIfCancellationRequested();
             var savedLanguage = editorState?.Language ?? "plaintext";
 
             // Load everything in one atomic operation
@@ -378,7 +404,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         TextTab.Visibility = Visibility.Collapsed;
     }
 
-    private async Task LoadHtmlFormatAsync(IMonacoEditorStateRepository monacoStateRepository)
+    private async Task LoadHtmlFormatAsync(IMonacoEditorStateRepository monacoStateRepository, CancellationToken cancellationToken = default)
     {
         var htmlFormat = _currentClipData
             .FirstOrDefault(p =>
@@ -387,14 +413,17 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         if (htmlFormat != null && _textBlobs.TryGetValue(htmlFormat.Id, out var blobData))
         {
             // Wait for Monaco to initialize and set HTML source
-            await WaitForMonacoInitializationAsync(HtmlEditor);
+            await WaitForMonacoInitializationAsync(HtmlEditor, 10000, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Load saved language and view state from MonacoEditorState
             var editorState = await monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
+            cancellationToken.ThrowIfCancellationRequested();
             var savedLanguage = editorState?.Language ?? "html";
 
             // Load everything in one atomic operation
             await HtmlEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
+            cancellationToken.ThrowIfCancellationRequested();
 
             HtmlEditor.IsReadOnly = false; // Allow editing
 
@@ -419,7 +448,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         HtmlTab.Visibility = Visibility.Collapsed;
     }
 
-    private Task LoadRtfFormatAsync()
+    private Task LoadRtfFormatAsync(CancellationToken cancellationToken = default)
     {
         var rtfFormat = _currentClipData
             .FirstOrDefault(p => p.FormatName.Contains("RTF", StringComparison.OrdinalIgnoreCase) &&
@@ -451,7 +480,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
-    private Task LoadBitmapFormatsAsync()
+    private Task LoadBitmapFormatsAsync(CancellationToken cancellationToken = default)
     {
         // Look for CF_BITMAP or CF_DIB formats (stored in BLOBBLOB)
         var bitmapFormat = _currentClipData
@@ -482,7 +511,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
-    private Task LoadPictureFormatsAsync()
+    private Task LoadPictureFormatsAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("[LoadPicture] Looking for PNG or JPG formats in {Count} ClipData entries", _currentClipData.Count);
 
@@ -546,7 +575,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
-    private Task LoadBinaryFormatsAsync()
+    private Task LoadBinaryFormatsAsync(CancellationToken cancellationToken = default)
     {
         _binaryFormats.Clear();
         BinaryFormatComboBox.Items.Clear();
@@ -637,9 +666,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             return;
 
         _textEditorTextDirty = true;
-        // Restart the debounce timer
-        _textEditorSaveTimer?.Stop();
-        _textEditorSaveTimer?.Start();
+        // Trigger debounced save
+        _debouncedTextSave?.Invoke();
         _logger.LogDebug("[ClipViewer] Text editor text changed by user, save scheduled");
     }
 
@@ -653,9 +681,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             return;
 
         _htmlEditorTextDirty = true;
-        // Restart the debounce timer
-        _htmlEditorSaveTimer?.Stop();
-        _htmlEditorSaveTimer?.Start();
+        // Trigger debounced save
+        _debouncedHtmlSave?.Invoke();
         _logger.LogDebug("[ClipViewer] HTML editor text changed by user, save scheduled");
     }
 
@@ -720,13 +747,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             if (string.IsNullOrEmpty(_currentDatabaseKey))
                 throw new InvalidOperationException("No database key available for current clip");
 
-            var context = _databaseManager.GetDatabaseContext(_currentDatabaseKey)
-                          ?? throw new InvalidOperationException($"Database context for '{_currentDatabaseKey}' not found");
-
             // Create repositories using factory
-            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
-            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(context);
-            var clipRepository = _databaseContextFactory.GetClipRepository(context);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
+            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+            var clipRepository = _databaseContextFactory.GetClipRepository(_currentDatabaseKey);
 
             // Save text content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_textFormatClipDataId.Value, out var blob))
@@ -844,13 +868,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             if (string.IsNullOrEmpty(_currentDatabaseKey))
                 throw new InvalidOperationException("No database key available for current clip");
 
-            var context = _databaseManager.GetDatabaseContext(_currentDatabaseKey)
-                          ?? throw new InvalidOperationException($"Database context for '{_currentDatabaseKey}' not found");
-
             // Create repositories using factory
-            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
-            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(context);
-            var clipRepository = _databaseContextFactory.GetClipRepository(context);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
+            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+            var clipRepository = _databaseContextFactory.GetClipRepository(_currentDatabaseKey);
 
             // Save HTML content to BlobTxt only if text changed
             if (textChanged && _textBlobs.TryGetValue(_htmlFormatClipDataId.Value, out var blob))
@@ -945,6 +966,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     }
 
     /// <summary>
+    /// Wrapper for SaveTextEditorAsync that marshals to UI thread.
+    /// Called by debouncer which executes on background thread.
+    /// </summary>
+    private void SaveTextEditorDebounced() => Dispatcher.InvokeAsync(async () => await SaveTextEditorAsync());
+
+    /// <summary>
+    /// Wrapper for SaveHtmlEditorAsync that marshals to UI thread.
+    /// Called by debouncer which executes on background thread.
+    /// </summary>
+    private void SaveHtmlEditorDebounced() => Dispatcher.InvokeAsync(async () => await SaveHtmlEditorAsync());
+
+    /// <summary>
     /// Updates the Windows clipboard with the currently edited clip's content.
     /// Called after saving changes to ensure clipboard reflects the latest edits.
     /// </summary>
@@ -964,11 +997,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 return;
             }
 
-            using var scope = _serviceScopeFactory.CreateScope();
-            var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-
             // Use the centralized service method to load and set clipboard
-            await clipService.LoadAndSetClipboardAsync(_currentDatabaseKey, ClipId.Value);
+            await _clipService.LoadAndSetClipboardAsync(_currentDatabaseKey, ClipId.Value);
             _logger.LogInformation("[ClipViewer] Updated clipboard after editing clip: {ClipId}", ClipId.Value);
         }
         catch (Exception ex)
@@ -982,7 +1012,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     #region Helper Methods
 
-    private async Task WaitForMonacoInitializationAsync(MonacoEditorControl editor, int timeoutMs = 10000)
+    private async Task WaitForMonacoInitializationAsync(MonacoEditorControl editor, int timeoutMs = 10000, CancellationToken cancellationToken = default)
     {
         var editorName = ReferenceEquals(editor, TextEditor)
             ? "TextEditor"
@@ -1000,8 +1030,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         var attempts = 0;
         while (!editor.IsInitialized && (DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             attempts++;
-            await Task.Delay(50);
+            await Task.Delay(50, cancellationToken);
         }
 
         if (!editor.IsInitialized)

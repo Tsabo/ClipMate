@@ -14,7 +14,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
@@ -28,9 +27,11 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
+    private readonly ICollectionService _collectionService;
+    private readonly IDatabaseContextFactory _contextFactory;
     private readonly IMessenger _messenger;
     private readonly SearchResultsCache _searchResultsCache;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly ISearchService _searchService;
 
     // Filtering Criteria - Captured After
     [ObservableProperty]
@@ -130,9 +131,15 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     private int _totalMatches;
 
-    public SearchViewModel(IServiceScopeFactory serviceScopeFactory, IMessenger messenger, SearchResultsCache searchResultsCache)
+    public SearchViewModel(ISearchService searchService,
+        ICollectionService collectionService,
+        IDatabaseContextFactory contextFactory,
+        IMessenger messenger,
+        SearchResultsCache searchResultsCache)
     {
-        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
 
@@ -315,17 +322,10 @@ public partial class SearchViewModel : ObservableObject
 
     private void UpdateSqlQuery()
     {
-        using var scope = CreateScope();
-        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
         var filters = BuildSearchFilters();
         // Pass empty string for query parameter since all search criteria are in filters
-        SqlQuery = searchService.BuildSqlQuery("", filters);
+        SqlQuery = _searchService.BuildSqlQuery("", filters);
     }
-
-    /// <summary>
-    /// Helper to create a scope and resolve a scoped service.
-    /// </summary>
-    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     /// <summary>
     /// Executes the search with current filters.
@@ -338,17 +338,9 @@ public partial class SearchViewModel : ObservableObject
             IsSearching = true;
 
             var filters = BuildSearchFilters();
-            SearchResults results;
-            string? databaseKey;
-            using (var scope = CreateScope())
-            {
-                var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
-                // Pass empty string for query parameter since all search criteria are in filters
-                results = await searchService.SearchAsync("", filters);
-                databaseKey = collectionService.GetActiveDatabaseKey();
-            }
+            // Pass empty string for query parameter since all search criteria are in filters
+            SearchResults results = await _searchService.SearchAsync("", filters);
+            string? databaseKey = _collectionService.GetActiveDatabaseKey();
 
             SearchResults.Clear();
             foreach (var item in results.Clips)
@@ -406,9 +398,7 @@ public partial class SearchViewModel : ObservableObject
     {
         try
         {
-            using var scope = CreateScope();
-            var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-            var queries = await searchService.GetSavedQueriesAsync();
+            var queries = await _searchService.GetSavedQueriesAsync();
 
             SavedQueries.Clear();
             foreach (var query in queries)
@@ -429,15 +419,12 @@ public partial class SearchViewModel : ObservableObject
     {
         try
         {
-            using var scope = CreateScope();
-            var contextFactory = scope.ServiceProvider.GetRequiredService<IDatabaseContextFactory>();
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-            var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
 
             if (string.IsNullOrEmpty(activeDatabaseKey))
                 return;
 
-            var dbContext = contextFactory.GetOrCreateContext(activeDatabaseKey);
+            var dbContext = _contextFactory.GetOrCreateContext(activeDatabaseKey);
 
             // Check if database exists and has the ClipData table
             if (!await dbContext.Database.CanConnectAsync())
@@ -473,10 +460,7 @@ public partial class SearchViewModel : ObservableObject
     {
         try
         {
-            using var scope = CreateScope();
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
-            var collections = await collectionService.GetAllAsync();
+            var collections = await _collectionService.GetAllAsync();
 
             AvailableCollections.Clear();
             foreach (var item in collections.Where(p => !p.IsVirtual).OrderBy(p => p.Title))
@@ -511,9 +495,7 @@ public partial class SearchViewModel : ObservableObject
         var filters = BuildSearchFilters();
         var filtersJson = JsonSerializer.Serialize(filters);
 
-        using var scope = CreateScope();
-        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        await searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex, filtersJson);
+        await _searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex, filtersJson);
 
         // Reload saved queries
         if (LoadSavedQueriesCommand.CanExecute(null))
@@ -533,9 +515,7 @@ public partial class SearchViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(newName) || newName == SelectedSavedQuery.Name)
             return;
 
-        using var scope = CreateScope();
-        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        await searchService.RenameSearchQueryAsync(SelectedSavedQuery.Name, newName);
+        await _searchService.RenameSearchQueryAsync(SelectedSavedQuery.Name, newName);
 
         // Reload saved queries
         if (LoadSavedQueriesCommand.CanExecute(null))
@@ -561,9 +541,7 @@ public partial class SearchViewModel : ObservableObject
         if (result != MessageBoxResult.Yes)
             return;
 
-        using var scope = CreateScope();
-        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        await searchService.DeleteSearchQueryAsync(SelectedSavedQuery.Name);
+        await _searchService.DeleteSearchQueryAsync(SelectedSavedQuery.Name);
 
         // Reload saved queries
         if (LoadSavedQueriesCommand.CanExecute(null))

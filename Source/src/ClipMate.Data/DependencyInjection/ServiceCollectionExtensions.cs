@@ -55,6 +55,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICollectionService, CollectionService>();
 
         services.AddScoped<IFolderService, FolderService>();
+        services.AddSingleton<ISqlValidationService, SqlValidationService>(); // SQL validation for search and virtual collections
+        services.AddSingleton<ISetupService, SetupService>(); // Database setup and initialization
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
         services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service

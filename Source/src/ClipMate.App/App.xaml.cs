@@ -9,12 +9,10 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.DependencyInjection;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using ClipMate.Data;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -343,8 +341,10 @@ public partial class App
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
+            var setupServiceLogger = loggerFactory.CreateLogger<SetupService>();
+            var setupService = new SetupService(setupServiceLogger);
             var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
-            var setupWizard = new SetupWizard(setupLogger, appDataPath);
+            var setupWizard = new SetupWizard(setupLogger, setupService);
 
             earlyLogger.Debug("Showing setup wizard dialog...");
             var result = setupWizard.ShowDialog();
@@ -421,8 +421,10 @@ public partial class App
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
+            var setupServiceLogger = loggerFactory.CreateLogger<SetupService>();
+            var setupService = new SetupService(setupServiceLogger);
             var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
-            var setupWizard = new SetupWizard(setupLogger, appDataPath);
+            var setupWizard = new SetupWizard(setupLogger, setupService);
 
             var result = setupWizard.ShowDialog();
 
@@ -453,17 +455,26 @@ public partial class App
         }
         else
         {
-            // Validate existing database
+            // Validate existing database using SetupService
             try
             {
                 earlyLogger.Debug("Validating database schema...");
-                var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
-                optionsBuilder.UseSqlite($"Data Source={_databasePath}");
 
-                await using var context = new ClipMateDbContext(optionsBuilder.Options);
-                await context.Collections.AnyAsync();
+                // Create temporary SetupService for validation
+                using var loggerFactory = LoggerFactory.Create(builder =>
+                {
+                    builder.AddSerilog();
+                    builder.SetMinimumLevel(LogLevel.Information);
+                });
 
-                earlyLogger.Information("Database schema validation successful");
+                var setupLogger = loggerFactory.CreateLogger<SetupService>();
+                var setupService = new SetupService(setupLogger);
+
+                var isValid = await setupService.ValidateDatabaseAsync(_databasePath);
+                if (isValid)
+                    earlyLogger.Information("Database schema validation successful");
+                else
+                    earlyLogger.Warning("Database validation failed - database will be repaired during initialization");
             }
             catch (Exception ex)
             {

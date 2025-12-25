@@ -3,12 +3,9 @@ using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
-using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
@@ -21,28 +18,31 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>
 {
+    private readonly IClipService _clipService;
+    private readonly ICollectionService _collectionService;
     private readonly ICollectionTreeBuilder _collectionTreeBuilder;
     private readonly IConfigurationService _configurationService;
+    private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
-    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly SearchResultsCache _searchResultsCache;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     [ObservableProperty]
     private TreeNodeBase? _selectedNode;
 
-    public CollectionTreeViewModel(IServiceScopeFactory serviceScopeFactory,
+    public CollectionTreeViewModel(ICollectionService collectionService,
+        IFolderService folderService,
+        IClipService clipService,
         IConfigurationService configurationService,
-        IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,
         ICollectionTreeBuilder collectionTreeBuilder,
         ILogger<CollectionTreeViewModel> logger,
         SearchResultsCache searchResultsCache)
     {
-        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -107,10 +107,6 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         });
     }
 
-    /// <summary>
-    /// Helper to create a scope and resolve a scoped service.
-    /// </summary>
-    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
 
     partial void OnSelectedNodeChanged(TreeNodeBase? value)
     {
@@ -220,9 +216,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     [RelayCommand]
     private async Task CreateCollectionAsync((string name, string? description) parameters)
     {
-        using var scope = CreateScope();
-        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-        await collectionService.CreateAsync(parameters.name, parameters.description);
+        await _collectionService.CreateAsync(parameters.name, parameters.description);
         await LoadAsync();
     }
 
@@ -232,9 +226,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     [RelayCommand]
     private async Task CreateFolderAsync((string name, Guid collectionId, Guid? parentFolderId) parameters)
     {
-        using var scope = CreateScope();
-        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-        await folderService.CreateAsync(parameters.name, parameters.collectionId, parameters.parentFolderId);
+        await _folderService.CreateAsync(parameters.name, parameters.collectionId, parameters.parentFolderId);
         await LoadAsync();
     }
 
@@ -244,9 +236,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     [RelayCommand]
     private async Task DeleteCollectionAsync(Guid collectionId)
     {
-        using var scope = CreateScope();
-        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-        await collectionService.DeleteAsync(collectionId);
+        await _collectionService.DeleteAsync(collectionId);
         await LoadAsync();
     }
 
@@ -256,9 +246,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     [RelayCommand]
     private async Task DeleteFolderAsync(Guid folderId)
     {
-        using var scope = CreateScope();
-        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-        await folderService.DeleteAsync(folderId);
+        await _folderService.DeleteAsync(folderId);
         await LoadAsync();
     }
 
@@ -300,10 +288,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// </summary>
     private async Task ShowCollectionPropertiesAsync(Guid collectionId)
     {
-        using var scope = CreateScope();
-        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
-        var collection = await collectionService.GetByIdAsync(collectionId);
+        var collection = await _collectionService.GetByIdAsync(collectionId);
         if (collection == null)
         {
             _logger.LogWarning("Collection not found: {CollectionId}", collectionId);
@@ -312,13 +297,12 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         }
 
         // Get the active database key
-        var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+        var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
 
         var viewModel = new CollectionPropertiesViewModel(
             collection,
             _configurationService,
-            false,
-            scope.ServiceProvider,
+            null!,
             activeDatabaseKey);
 
         var window = new CollectionPropertiesDialog(viewModel, _configurationService)
@@ -333,7 +317,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             viewModel.SaveToModel();
 
             // Save changes to database
-            await collectionService.UpdateAsync(collection);
+            await _collectionService.UpdateAsync(collection);
             await LoadAsync(); // Reload tree to reflect changes
         }
     }
@@ -388,35 +372,13 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return;
         }
 
-        using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+        var moved = await _collectionService.MoveCollectionUpAsync(collectionNode.Collection.Id, databaseKey);
 
-        if (dbContext == null)
+        if (moved)
         {
-            _logger.LogWarning("Cannot move collection: database context not found for {DatabaseKey}", databaseKey);
-            return;
+            _logger.LogInformation("Moved collection {CollectionName} up", collectionNode.Collection.Name);
+            await LoadAsync(); // Reload tree to reflect new sort order
         }
-
-        // Get all non-virtual collections in the same database, ordered by SortKey
-        var collections = await dbContext.Collections
-            .Where(p => !p.IsVirtual)
-            .OrderBy(p => p.SortKey)
-            .ToListAsync();
-
-        var currentIndex = collections.FindIndex(p => p.Id == collectionNode.Collection.Id);
-        if (currentIndex <= 0) // Already at top or not found
-            return;
-
-        // Swap SortKey with previous collection
-        var previousCollection = collections[currentIndex - 1];
-        (previousCollection.SortKey, collectionNode.Collection.SortKey) = (collectionNode.Collection.SortKey, previousCollection.SortKey);
-
-        await dbContext.SaveChangesAsync();
-        _logger.LogInformation("Moved collection {CollectionName} up (SortKey: {SortKey})",
-            collectionNode.Collection.Name, collectionNode.Collection.SortKey);
-
-        await LoadAsync(); // Reload tree to reflect new sort order
     }
 
     /// <summary>
@@ -465,35 +427,13 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return;
         }
 
-        using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+        var moved = await _collectionService.MoveCollectionDownAsync(collectionNode.Collection.Id, databaseKey);
 
-        if (dbContext == null)
+        if (moved)
         {
-            _logger.LogWarning("Cannot move collection: database context not found for {DatabaseKey}", databaseKey);
-            return;
+            _logger.LogInformation("Moved collection {CollectionName} down", collectionNode.Collection.Name);
+            await LoadAsync(); // Reload tree to reflect new sort order
         }
-
-        // Get all non-virtual collections in the same database, ordered by SortKey
-        var collections = await dbContext.Collections
-            .Where(p => !p.IsVirtual)
-            .OrderBy(p => p.SortKey)
-            .ToListAsync();
-
-        var currentIndex = collections.FindIndex(p => p.Id == collectionNode.Collection.Id);
-        if (currentIndex < 0 || currentIndex >= collections.Count - 1) // Already at bottom or not found
-            return;
-
-        // Swap SortKey with next collection
-        var nextCollection = collections[currentIndex + 1];
-        (nextCollection.SortKey, collectionNode.Collection.SortKey) = (collectionNode.Collection.SortKey, nextCollection.SortKey);
-
-        await dbContext.SaveChangesAsync();
-        _logger.LogInformation("Moved collection {CollectionName} down (SortKey: {SortKey})",
-            collectionNode.Collection.Name, collectionNode.Collection.SortKey);
-
-        await LoadAsync(); // Reload tree to reflect new sort order
     }
 
     /// <summary>
@@ -551,50 +491,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return;
         }
 
-        using var scope = CreateScope();
-        var dbManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = dbManager.GetDatabaseContext(databaseKey);
+        await _collectionService.ReorderCollectionsAsync(droppedCollectionIds, targetCollectionId, insertAfter, databaseKey);
 
-        if (dbContext == null)
-        {
-            _logger.LogWarning("Cannot reorder collections: database context not found for {DatabaseKey}", databaseKey);
-            return;
-        }
-
-        // Get all non-virtual collections in the database, ordered by SortKey
-        var allCollections = await dbContext.Collections
-            .Where(p => !p.IsVirtual)
-            .OrderBy(p => p.SortKey)
-            .ToListAsync();
-
-        // Remove dropped collections from current positions
-        var droppedCollections = allCollections.Where(p => droppedCollectionIds.Contains(p.Id)).ToList();
-        foreach (var item in droppedCollections)
-            allCollections.Remove(item);
-
-        // Find target collection index
-        var targetIndex = allCollections.FindIndex(p => p.Id == targetCollectionId);
-        if (targetIndex < 0)
-        {
-            _logger.LogWarning("Target collection not found: {TargetId}", targetCollectionId);
-            return;
-        }
-
-        // Insert dropped collections at new position
-        var insertIndex = insertAfter
-            ? targetIndex + 1
-            : targetIndex;
-
-        allCollections.InsertRange(insertIndex, droppedCollections);
-
-        // Reassign SortKey values based on new order
-        for (var i = 0; i < allCollections.Count; i++)
-            allCollections[i].SortKey = i;
-
-        await dbContext.SaveChangesAsync();
-        _logger.LogInformation("Reordered {Count} collections, inserted at position {Position}",
-            droppedCollectionIds.Count, insertIndex);
-
+        _logger.LogInformation("Reordered {Count} collections", droppedCollectionIds.Count);
         await LoadAsync(); // Reload tree to reflect new order
     }
 
@@ -620,9 +519,6 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// </summary>
     public async Task MoveClipsToCollectionAsync(List<Guid> clipIds, Guid targetCollectionId, Guid? targetDatabaseId)
     {
-        using var scope = _serviceScopeFactory.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-
         // Find the target collection node to get the database key
         var targetNode = FindNodeById(targetCollectionId);
         if (targetNode == null)
@@ -639,16 +535,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return;
         }
 
-        var dbContext = databaseManager.GetDatabaseContext(databaseNode.DatabasePath);
-        if (dbContext == null)
-        {
-            _logger.LogError("Database context not found for path {Path}", databaseNode.DatabasePath);
-            return;
-        }
-
-        // Use factory to create repository for the database
-        var clipRepository = _repositoryFactory.CreateRepository(databaseNode.DatabasePath);
-        await clipRepository.MoveClipsToCollectionAsync(clipIds, targetCollectionId);
+        // Use service to move clips to the collection
+        await _clipService.MoveClipsToCollectionAsync(databaseNode.DatabasePath, clipIds, targetCollectionId);
 
         _logger.LogInformation("Moved {Count} clips to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }
@@ -658,9 +546,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// </summary>
     public async Task SoftDeleteClipsAsync(List<Guid> clipIds, string databaseKey)
     {
-        // Use factory to create repository for the database
-        var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
-        await clipRepository.SoftDeleteClipsAsync(clipIds);
+        await _clipService.SoftDeleteClipsAsync(databaseKey, clipIds);
 
         _logger.LogInformation("Soft-deleted {Count} clips to Trashcan", clipIds.Count);
     }
@@ -670,9 +556,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// </summary>
     public async Task RestoreClipsAsync(List<Guid> clipIds, Guid targetCollectionId, string databaseKey)
     {
-        // Use factory to create repository for the database
-        var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
-        await clipRepository.RestoreClipsAsync(clipIds, targetCollectionId);
+        await _clipService.RestoreClipsAsync(databaseKey, clipIds, targetCollectionId);
 
         _logger.LogInformation("Restored {Count} clips from Trashcan to collection {CollectionId}", clipIds.Count, targetCollectionId);
     }

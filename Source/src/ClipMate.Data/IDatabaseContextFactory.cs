@@ -35,44 +35,44 @@ public interface IDatabaseContextFactory : IDisposable
     IReadOnlyCollection<string> GetLoadedDatabasePaths();
 
     /// <summary>
-    /// Creates a ClipRepository instance for the specified database context.
+    /// Creates a ClipRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IClipRepository GetClipRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IClipRepository GetClipRepository(string databaseKey);
 
     /// <summary>
-    /// Creates a ClipDataRepository instance for the specified database context.
+    /// Creates a ClipDataRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IClipDataRepository GetClipDataRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IClipDataRepository GetClipDataRepository(string databaseKey);
 
     /// <summary>
-    /// Creates a BlobRepository instance for the specified database context.
+    /// Creates a BlobRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IBlobRepository GetBlobRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IBlobRepository GetBlobRepository(string databaseKey);
 
     /// <summary>
-    /// Creates a ShortcutRepository instance for the specified database context.
+    /// Creates a ShortcutRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IShortcutRepository GetShortcutRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IShortcutRepository GetShortcutRepository(string databaseKey);
 
     /// <summary>
-    /// Creates a UserRepository instance for the specified database context.
+    /// Creates a UserRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IUserRepository GetUserRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IUserRepository GetUserRepository(string databaseKey);
 
     /// <summary>
-    /// Creates a MonacoEditorStateRepository instance for the specified database context.
+    /// Creates a MonacoEditorStateRepository instance for the specified database.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <returns>A repository instance bound to the specified database context.</returns>
-    IMonacoEditorStateRepository GetMonacoEditorStateRepository(ClipMateDbContext context);
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IMonacoEditorStateRepository GetMonacoEditorStateRepository(string databaseKey);
 }

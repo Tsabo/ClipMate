@@ -11,6 +11,7 @@
     <PackageVersion Include="Emoji.Wpf" Version="0.3.4" />
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+    <PackageVersion Include="ThrottleDebounce" Version="2.0.1" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />

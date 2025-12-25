@@ -31,7 +31,7 @@ public interface ISearchService
     /// <param name="sql">The SQL query to validate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Tuple with validation result and optional error message.</returns>
-    Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql, CancellationToken cancellationToken = default);
+    Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql, string databaseKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves a search query for later reuse in configuration.

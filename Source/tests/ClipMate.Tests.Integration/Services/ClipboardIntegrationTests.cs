@@ -80,7 +80,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         _clipService = new ClipService(
             repositoryFactory.Object,
             Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             soundService.Object,
             _clipboardService,
             clipServiceLogger);

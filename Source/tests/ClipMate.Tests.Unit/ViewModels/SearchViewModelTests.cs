@@ -4,17 +4,19 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
 /// <summary>
-/// Tests for SearchViewModel.
+/// Tests for SearchViewModel
 /// </summary>
 public class SearchViewModelTests
 {
+    private readonly Mock<ICollectionService> _mockCollectionService;
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly Mock<ISearchService> _mockSearchService;
     private readonly SearchResultsCache _searchResultsCache;
@@ -23,31 +25,32 @@ public class SearchViewModelTests
     public SearchViewModelTests()
     {
         _mockSearchService = new Mock<ISearchService>();
-        var mockCollectionService = new Mock<ICollectionService>();
+        _mockCollectionService = new Mock<ICollectionService>();
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
         _mockMessenger = new Mock<IMessenger>();
         _searchResultsCache = new SearchResultsCache();
 
         // Setup mock collection service to return a database key
-        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
+        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
 
-        // Create mock service scope factory
-        var mockServiceScope = new Mock<IServiceScope>();
-        var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(p => p.GetService(typeof(ISearchService))).Returns(_mockSearchService.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
-        mockServiceScope.Setup(p => p.ServiceProvider).Returns(mockServiceProvider.Object);
-
-        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
-
-        _viewModel = new SearchViewModel(mockServiceScopeFactory.Object, _mockMessenger.Object, _searchResultsCache);
+        _viewModel = new SearchViewModel(
+            _mockSearchService.Object,
+            _mockCollectionService.Object,
+            _mockContextFactory.Object,
+            _mockMessenger.Object,
+            _searchResultsCache);
     }
 
     [Test]
     public async Task Constructor_WithNullSearchService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        await Assert.That(() => new SearchViewModel(null!, _mockMessenger.Object, _searchResultsCache))
+        await Assert.That(() => new SearchViewModel(
+                null!,
+                _mockCollectionService.Object,
+                _mockContextFactory.Object,
+                _mockMessenger.Object,
+                _searchResultsCache))
             .Throws<ArgumentNullException>();
     }
 

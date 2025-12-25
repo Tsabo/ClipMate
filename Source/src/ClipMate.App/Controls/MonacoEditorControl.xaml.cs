@@ -20,9 +20,6 @@ public partial class MonacoEditorControl
 {
     private const int _maxTextLength = 10_000_000; // 10MB limit. Windows clipboard ~2GB max but Monaco performs well to 10MB
 
-    [GeneratedRegex(@"near\s+\""([^""]+)\""", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex ExtractToken();
-
     public static readonly DependencyProperty EnableDebugProperty =
         DependencyProperty.Register(
             nameof(EnableDebug),
@@ -59,6 +56,9 @@ public partial class MonacoEditorControl
         get => (bool)GetValue(EnableDebugProperty);
         set => SetValue(EnableDebugProperty, value);
     }
+
+    [GeneratedRegex(@"near\s+\""([^""]+)\""", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex ExtractToken();
 
     private static async void OnEnableDebugChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -372,6 +372,13 @@ public partial class MonacoEditorControl
             typeof(MonacoEditorControl),
             new PropertyMetadata(null, OnSearchServiceChanged));
 
+    public static readonly DependencyProperty DatabaseKeyProperty =
+        DependencyProperty.Register(
+            nameof(DatabaseKey),
+            typeof(string),
+            typeof(MonacoEditorControl),
+            new PropertyMetadata(string.Empty));
+
     private static void OnSearchServiceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is MonacoEditorControl control)
@@ -424,6 +431,18 @@ public partial class MonacoEditorControl
     {
         get => (ObservableCollection<string>)GetValue(AvailableLanguagesProperty);
         private set => SetValue(AvailableLanguagesProperty, value);
+    }
+
+    public ISearchService? SearchService
+    {
+        get => (ISearchService?)GetValue(SearchServiceProperty);
+        set => SetValue(SearchServiceProperty, value);
+    }
+
+    public string DatabaseKey
+    {
+        get => (string)GetValue(DatabaseKeyProperty);
+        set => SetValue(DatabaseKeyProperty, value);
     }
 
     #endregion
@@ -884,7 +903,7 @@ public partial class MonacoEditorControl
     /// <param name="schemaJson">JSON-serialized SqlSchema object.</param>
     public async Task<bool> RegisterSqlIntelliSenseAsync(string schemaJson)
     {
-        _logger.LogDebug("[{ControlName}] RegisterSqlIntelliSenseAsync called, IsInitialized: {IsInitialized}", 
+        _logger.LogDebug("[{ControlName}] RegisterSqlIntelliSenseAsync called, IsInitialized: {IsInitialized}",
             Name ?? "Monaco", IsInitialized);
 
         if (!IsInitialized)
@@ -906,9 +925,9 @@ public partial class MonacoEditorControl
             _logger.LogDebug("[{ControlName}] Calling JavaScript registerSqlIntelliSense function", Name ?? "Monaco");
 
             var result = await EditorWebView.ExecuteScriptAsync($"registerSqlIntelliSense(\"{escapedJson}\");");
-            
+
             _logger.LogInformation("[{ControlName}] SQL IntelliSense registration result: {Result}", Name ?? "Monaco", result);
-            
+
             return result == "true";
         }
         catch (Exception ex)
@@ -916,15 +935,6 @@ public partial class MonacoEditorControl
             _logger.LogError(ex, "[{ControlName}] Failed to register SQL IntelliSense", Name ?? "Monaco");
             return false;
         }
-    }
-
-    /// <summary>
-    /// Gets or sets the search service for SQL validation.
-    /// </summary>
-    public ISearchService? SearchService
-    {
-        get => (ISearchService?)GetValue(SearchServiceProperty);
-        set => SetValue(SearchServiceProperty, value);
     }
 
     /// <summary>
@@ -938,12 +948,20 @@ public partial class MonacoEditorControl
             return;
         }
 
+        if (string.IsNullOrEmpty(DatabaseKey))
+        {
+            _logger.LogWarning("[{ControlName}] DatabaseKey not set, cannot validate SQL", Name ?? "Monaco");
+            return;
+        }
+
         try
         {
-            _logger.LogDebug("[{ControlName}] Validating SQL: {SqlPreview}", Name ?? "Monaco", 
-                sql.Length > 50 ? sql.Substring(0, 50) + "..." : sql);
+            _logger.LogDebug("[{ControlName}] Validating SQL: {SqlPreview}", Name ?? "Monaco",
+                sql.Length > 50
+                    ? sql[..50] + "..."
+                    : sql);
 
-            var (isValid, errorMessage) = await _searchService.ValidateSqlQueryAsync(sql, CancellationToken.None);
+            var (isValid, errorMessage) = await _searchService.ValidateSqlQueryAsync(sql, DatabaseKey, CancellationToken.None);
 
             var markers = new List<object>();
             if (!isValid && !string.IsNullOrEmpty(errorMessage))
@@ -964,9 +982,7 @@ public partial class MonacoEditorControl
                 });
             }
             else
-            {
                 _logger.LogDebug("[{ControlName}] SQL validation passed", Name ?? "Monaco");
-            }
 
             var markersJson = JsonSerializer.Serialize(markers);
             var escapedJson = markersJson
@@ -976,7 +992,7 @@ public partial class MonacoEditorControl
                 .Replace("\r", "\\r");
 
             await EditorWebView.ExecuteScriptAsync($"setValidationMarkers(JSON.parse(\"{escapedJson}\"));");
-            _logger.LogDebug("[{ControlName}] Validation markers updated: {IsValid}, MarkerCount: {Count}", 
+            _logger.LogDebug("[{ControlName}] Validation markers updated: {IsValid}, MarkerCount: {Count}",
                 Name ?? "Monaco", isValid, markers.Count);
         }
         catch (Exception ex)
@@ -1006,9 +1022,11 @@ public partial class MonacoEditorControl
             var tokenIndex = sql.IndexOf(token, StringComparison.OrdinalIgnoreCase);
 
             if (tokenIndex == -1)
+            {
                 return (1, 1, sql.Length > 0
                     ? sql.Split('\n')[0].Length + 1
                     : 100);
+            }
 
             // Calculate line and column from character index
             var lines = sql.Substring(0, tokenIndex).Split('\n');

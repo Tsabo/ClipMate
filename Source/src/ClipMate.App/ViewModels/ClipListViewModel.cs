@@ -4,8 +4,8 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ThrottleDebounce;
 using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
@@ -24,10 +24,14 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>
 {
+    private readonly IClipService _clipService;
+    private readonly ICollectionService _collectionService;
+    private readonly RateLimitedAction _debouncedClipSelection;
+    private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IQuickPasteService _quickPasteService;
     private readonly IClipRepositoryFactory _repositoryFactory;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
@@ -63,21 +67,33 @@ public partial class ClipListViewModel : ObservableObject,
     [ObservableProperty]
     private ObservableCollection<Clip> _selectedClips = [];
 
+    private CancellationTokenSource? _setClipboardCts;
+
     /// <summary>
     /// Collection of clips representing shortcuts (displayed in shortcuts grid during shortcut mode).
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<Clip> _shortcutClips = [];
 
-    public ClipListViewModel(IServiceScopeFactory serviceScopeFactory,
+    public ClipListViewModel(ICollectionService collectionService,
+        IFolderService folderService,
+        IClipService clipService,
+        IQuickPasteService quickPasteService,
         IClipRepositoryFactory repositoryFactory,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
-        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Initialize debouncer with 400ms delay to prevent clipboard contention during rapid navigation
+        // Increased from 150ms to allow clipboard operations to complete before next selection
+        _debouncedClipSelection = Debouncer.Debounce(ProcessClipSelection, TimeSpan.FromMilliseconds(400));
 
         // Register this ViewModel as a recipient for clipboard and selection events
         // The messenger will automatically handle weak references and cleanup
@@ -146,13 +162,8 @@ public partial class ClipListViewModel : ObservableObject,
         // Skip this for virtual collections like Trashcan (they don't receive new clips)
         if (!message.IsTrashcan)
         {
-            using (var scope = CreateScope())
-            {
-                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-                await collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
-                await folderService.SetActiveAsync(message.FolderId);
-            }
+            await _collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
+            await _folderService.SetActiveAsync(message.FolderId);
 
             _logger.LogInformation("Active collection and folder updated for new clipboard captures");
         }
@@ -192,10 +203,8 @@ public partial class ClipListViewModel : ObservableObject,
 
         try
         {
-            using var scope = CreateScope();
-            var quickPasteService = scope.ServiceProvider.GetRequiredService<IQuickPasteService>();
             // Paste the clip using QuickPaste
-            await quickPasteService.PasteClipAsync(SelectedClip);
+            await _quickPasteService.PasteClipAsync(SelectedClip);
         }
         catch (Exception ex)
         {
@@ -265,30 +274,50 @@ public partial class ClipListViewModel : ObservableObject,
         });
     }
 
-    /// <summary>
-    /// Helper to create a scope and resolve a scoped service.
-    /// </summary>
-    private IServiceScope CreateScope() => _serviceScopeFactory.CreateScope();
-
     partial void OnSelectedClipChanged(Clip? value)
     {
-        // Send messenger event when selection changes
         _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}, DatabaseKey: {DatabaseKey}",
             value?.Id, value?.DisplayTitle, CurrentDatabaseKey);
 
-        _messenger.Send(new ClipSelectedEvent(value, CurrentDatabaseKey));
+        // Debounce clip selection to only process the final clip after navigation stops
+        // This prevents UI flickering and wasted operations during rapid arrow key navigation
+        _debouncedClipSelection.Invoke();
+    }
 
-        // Automatically load the selected clip onto the system clipboard
-        // This is ClipMate's standard "Pick, Flip, and Paste" behavior
-        if (value != null)
-            _ = SetClipboardContentAsync(value);
+    /// <summary>
+    /// Processes the debounced clip selection.
+    /// Called only after selection has stabilized (150ms with no further changes).
+    /// Executed on a background thread by the debouncer, so marshals back to UI thread.
+    /// </summary>
+    private void ProcessClipSelection()
+    {
+        // Debouncer executes on background thread, so marshal to UI thread
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var clip = SelectedClip;
+            if (clip == null)
+                return;
+
+            // Cancel previous clipboard operation if still running
+            _setClipboardCts?.Cancel();
+            _setClipboardCts?.Dispose();
+            _setClipboardCts = null;
+
+            // Send messenger event when selection changes
+            _messenger.Send(new ClipSelectedEvent(clip, CurrentDatabaseKey));
+
+            // Automatically load the selected clip onto the system clipboard
+            // This is ClipMate's standard "Pick, Flip, and Paste" behavior
+            _setClipboardCts = new CancellationTokenSource();
+            _ = SetClipboardContentAsync(clip, _setClipboardCts.Token);
+        });
     }
 
     /// <summary>
     /// Loads the clip's full content from the database and sets it to the Windows clipboard.
     /// Called automatically when a clip is selected (Pick, Flip, and Paste), or manually via double-click/Enter/context menu.
     /// </summary>
-    public async Task SetClipboardContentAsync(Clip clip)
+    public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -296,11 +325,8 @@ public partial class ClipListViewModel : ObservableObject,
             if (string.IsNullOrEmpty(CurrentDatabaseKey))
                 throw new InvalidOperationException("No database is currently selected");
 
-            using var scope = CreateScope();
-            var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-
             // Use the centralized service method to load and set clipboard
-            await clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id);
+            await _clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id, cancellationToken);
 
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
 
@@ -346,22 +372,15 @@ public partial class ClipListViewModel : ObservableObject,
             AcceptsNewClips = true; // Recent clips view accepts new clips
             _logger.LogInformation("Loading recent {Count} clips (no collection filter)", count);
             IReadOnlyCollection<Clip> clips;
-            using (var scope = CreateScope())
-            {
-                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
+            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
 
-                if (string.IsNullOrEmpty(activeDatabaseKey))
-                {
-                    _logger.LogWarning("No active database key found, cannot load recent clips");
-                    clips = [];
-                }
-                else
-                {
-                    var clipService = scope.ServiceProvider.GetRequiredService<IClipService>();
-                    clips = await clipService.GetRecentAsync(activeDatabaseKey, count);
-                }
+            if (string.IsNullOrEmpty(activeDatabaseKey))
+            {
+                _logger.LogWarning("No active database key found, cannot load recent clips");
+                clips = [];
             }
+            else
+                clips = await _clipService.GetRecentAsync(activeDatabaseKey, count);
 
             _logger.LogInformation("Retrieved {Count} recent clips. First clip CollectionId: {CollectionId}", clips.Count, clips.FirstOrDefault()?.CollectionId);
 
@@ -404,24 +423,19 @@ public partial class ClipListViewModel : ObservableObject,
 
             _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
             IReadOnlyCollection<Clip> clips;
-            using (var scope = CreateScope())
+            // Get the active database key
+            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(activeDatabaseKey))
             {
-                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
-                // Get the active database key
-                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
-                if (string.IsNullOrEmpty(activeDatabaseKey))
-                {
-                    _logger.LogError("No active database key found, cannot load clips");
-                    clips = [];
-                }
-                else
-                {
-                    // Create repository using the factory
-                    var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
-                    clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
-                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-                }
+                _logger.LogError("No active database key found, cannot load clips");
+                clips = [];
+            }
+            else
+            {
+                // Create repository using the factory
+                var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
+                _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
             }
 
             // Update collection on UI thread
@@ -465,24 +479,19 @@ public partial class ClipListViewModel : ObservableObject,
 
             _logger.LogInformation("Loading clips for folder: {FolderId}", folderId);
             IReadOnlyCollection<Clip> clips;
-            using (var scope = CreateScope())
+            // Get the active database key
+            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(activeDatabaseKey))
             {
-                var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
-                // Get the active database key
-                var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
-                if (string.IsNullOrEmpty(activeDatabaseKey))
-                {
-                    _logger.LogError("No active database key found, cannot load clips");
-                    clips = [];
-                }
-                else
-                {
-                    // Create repository using the factory
-                    var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
-                    clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
-                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-                }
+                _logger.LogError("No active database key found, cannot load clips");
+                clips = [];
+            }
+            else
+            {
+                // Create repository using the factory
+                var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
+                _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
             }
 
             // Update collection on UI thread

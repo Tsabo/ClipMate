@@ -15,21 +15,18 @@ public class ClipService : IClipService
 {
     private readonly IClipboardService _clipboardService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
-    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipService> _logger;
     private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly ISoundService _soundService;
 
     public ClipService(IClipRepositoryFactory repositoryFactory,
         IDatabaseContextFactory databaseContextFactory,
-        IDatabaseManager databaseManager,
         ISoundService soundService,
         IClipboardService clipboardService,
         ILogger<ClipService> logger)
     {
         _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
-        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -216,6 +213,33 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
+    public async Task MoveClipsToCollectionAsync(string databaseKey, List<Guid> clipIds, Guid targetCollectionId, CancellationToken cancellationToken = default)
+    {
+        var repository = GetRepository(databaseKey);
+        await repository.MoveClipsToCollectionAsync(clipIds, targetCollectionId);
+        _logger.LogInformation("Moved {Count} clips to collection {CollectionId} in database {DatabaseKey}",
+            clipIds.Count, targetCollectionId, databaseKey);
+    }
+
+    /// <inheritdoc />
+    public async Task SoftDeleteClipsAsync(string databaseKey, List<Guid> clipIds, CancellationToken cancellationToken = default)
+    {
+        var repository = GetRepository(databaseKey);
+        await repository.SoftDeleteClipsAsync(clipIds);
+        _logger.LogInformation("Soft-deleted {Count} clips to Trashcan in database {DatabaseKey}",
+            clipIds.Count, databaseKey);
+    }
+
+    /// <inheritdoc />
+    public async Task RestoreClipsAsync(string databaseKey, List<Guid> clipIds, Guid targetCollectionId, CancellationToken cancellationToken = default)
+    {
+        var repository = GetRepository(databaseKey);
+        await repository.RestoreClipsAsync(clipIds, targetCollectionId);
+        _logger.LogInformation("Restored {Count} clips from Trashcan to collection {CollectionId} in database {DatabaseKey}",
+            clipIds.Count, targetCollectionId, databaseKey);
+    }
+
+    /// <inheritdoc />
     public async Task<Clip> CopyClipCrossDatabaseAsync(string sourceDatabaseKey,
         Guid sourceClipId,
         string targetDatabaseKey,
@@ -289,10 +313,6 @@ public class ClipService : IClipService
     {
         try
         {
-            // Get database context
-            var context = _databaseManager.GetDatabaseContext(databaseKey)
-                          ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
-
             // Get the clip
             var repository = GetRepository(databaseKey);
             var clip = await repository.GetByIdAsync(clipId, cancellationToken);
@@ -303,8 +323,8 @@ public class ClipService : IClipService
             }
 
             // Create repositories to load full clip content
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(context);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(context);
+            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(databaseKey);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
 
             // Load ClipData for this clip
             var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id, cancellationToken);
@@ -387,18 +407,11 @@ public class ClipService : IClipService
         _logger.LogDebug("Copying ClipData and BLOBs from {SourceDb}:{SourceClipId} to {TargetDb}:{TargetClipId}",
             sourceDatabaseKey, sourceClipId, targetDatabaseKey, targetClipId);
 
-        // Get database contexts
-        var sourceContext = _databaseManager.GetDatabaseContext(sourceDatabaseKey)
-                            ?? throw new InvalidOperationException($"Source database context for key '{sourceDatabaseKey}' not found.");
-
-        var targetContext = _databaseManager.GetDatabaseContext(targetDatabaseKey)
-                            ?? throw new InvalidOperationException($"Target database context for key '{targetDatabaseKey}' not found.");
-
         // Get database-specific repositories
-        var sourceClipDataRepo = _databaseContextFactory.GetClipDataRepository(sourceContext);
-        var sourceBlobRepo = _databaseContextFactory.GetBlobRepository(sourceContext);
-        var targetClipDataRepo = _databaseContextFactory.GetClipDataRepository(targetContext);
-        var targetBlobRepo = _databaseContextFactory.GetBlobRepository(targetContext);
+        var sourceClipDataRepo = _databaseContextFactory.GetClipDataRepository(sourceDatabaseKey);
+        var sourceBlobRepo = _databaseContextFactory.GetBlobRepository(sourceDatabaseKey);
+        var targetClipDataRepo = _databaseContextFactory.GetClipDataRepository(targetDatabaseKey);
+        var targetBlobRepo = _databaseContextFactory.GetBlobRepository(targetDatabaseKey);
 
         // Get all ClipData formats for source clip
         var sourceClipFormats = await sourceClipDataRepo.GetByClipIdAsync(sourceClipId, cancellationToken);
@@ -444,9 +457,9 @@ public class ClipService : IClipService
         // Group by StorageType to copy each type once
         var storageTypes = sourceClipFormats.Select(f => f.StorageType).Distinct();
 
-        foreach (var storageType in storageTypes)
+        foreach (var item in storageTypes)
         {
-            switch (storageType)
+            switch (item)
             {
                 case 1: // BLOBTXT (text formats)
                     await CopyTextBlobsAsync(sourceBlobRepo, targetBlobRepo, sourceClipId, targetClipId, clipDataIdMap, cancellationToken);
@@ -465,7 +478,7 @@ public class ClipService : IClipService
                     break;
 
                 default:
-                    _logger.LogWarning("Unknown StorageType {StorageType}", storageType);
+                    _logger.LogWarning("Unknown StorageType {StorageType}", item);
                     break;
             }
         }

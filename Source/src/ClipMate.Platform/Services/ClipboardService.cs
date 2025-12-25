@@ -44,6 +44,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private string _lastContentHash = string.Empty;
     private string? _suppressCaptureForHash;
+    private DateTime _suppressCaptureUntil = DateTime.MinValue;
 
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
@@ -195,9 +196,6 @@ public class ClipboardService : IClipboardService, IDisposable
 
         try
         {
-            // Calculate content hash to suppress capture of this specific content
-            _suppressCaptureForHash = ContentHasher.HashClip(clip);
-
             // Must run on STA thread (UI thread) for WPF Clipboard API
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -223,6 +221,18 @@ public class ClipboardService : IClipboardService, IDisposable
 
                         break;
                 }
+
+                // Suppress capture of this specific content by storing its hash
+                // IMPORTANT: Set this AFTER successfully modifying the clipboard, not before
+                // Use the clip's existing ContentHash - it's already computed for all clip types
+                _suppressCaptureForHash = clip.ContentHash;
+                _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
+                
+                var hashPreview = _suppressCaptureForHash.Length >= 8 
+                    ? _suppressCaptureForHash.Substring(0, 8) 
+                    : _suppressCaptureForHash;
+                _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}", 
+                    hashPreview, clip.Type);
             });
         }
         catch (Exception ex)
@@ -272,12 +282,20 @@ public class ClipboardService : IClipboardService, IDisposable
             _lastClipboardChange = DateTime.UtcNow;
 
             // Check if we should suppress this capture (we set the clipboard programmatically)
-            if (_suppressCaptureForHash != null && clip.ContentHash == _suppressCaptureForHash)
+            // Use time-based suppression window to handle multiple clipboard events
+            if (_suppressCaptureForHash != null && 
+                clip.ContentHash == _suppressCaptureForHash && 
+                DateTime.UtcNow < _suppressCaptureUntil)
             {
-                _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", clip.ContentHash.Substring(0, 8));
-                _suppressCaptureForHash = null;
-
+                var hashPreview = clip.ContentHash.Length >= 8 ? clip.ContentHash.Substring(0, 8) : clip.ContentHash;
+                _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", hashPreview);
                 return;
+            }
+
+            // Clear suppression if time window has expired
+            if (DateTime.UtcNow >= _suppressCaptureUntil)
+            {
+                _suppressCaptureForHash = null;
             }
 
             // Duplicate detection: ignore if same content hash

@@ -1,4 +1,5 @@
 using ClipMate.Core.Repositories;
+using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,14 +17,42 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     private readonly Dictionary<string, ClipMateDbContext> _contexts;
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfigurationService _configurationService;
     private bool _disposed;
 
-    public DatabaseContextFactory(IServiceProvider serviceProvider,
+    public DatabaseContextFactory(
+        IServiceProvider serviceProvider,
+        IConfigurationService configurationService,
         ILogger<DatabaseContextFactory> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _contexts = new Dictionary<string, ClipMateDbContext>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Resolves a database key to its file path using configuration.
+    /// If the input is already a file path (contains path separators), returns it as-is.
+    /// </summary>
+    private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
+    {
+        // If it looks like a file path (contains directory separators), return as-is
+        if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) || 
+            databaseKeyOrPath.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return databaseKeyOrPath;
+        }
+
+        // Otherwise, try to resolve it as a database key from configuration
+        if (_configurationService.Configuration.Databases.TryGetValue(databaseKeyOrPath, out var dbConfig))
+        {
+            return dbConfig.FilePath;
+        }
+
+        // If not found in configuration, assume it's a path anyway
+        _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
+        return databaseKeyOrPath;
     }
 
     /// <summary>
@@ -101,81 +130,87 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     }
 
     /// <summary>
-    /// Creates a ClipRepository instance for the specified database context.
+    /// Creates a ClipRepository instance for the specified database.
     /// </summary>
-    public IClipRepository GetClipRepository(ClipMateDbContext context)
+    public IClipRepository GetClipRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<ClipRepository>(_serviceProvider, context) as IClipRepository
-              ?? throw new InvalidOperationException("Failed to create ClipRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<ClipRepository>(_serviceProvider, context) as IClipRepository
+               ?? throw new InvalidOperationException("Failed to create ClipRepository instance.");
     }
 
     /// <summary>
-    /// Creates a ClipDataRepository instance for the specified database context.
+    /// Creates a ClipDataRepository instance for the specified database.
     /// </summary>
-    public IClipDataRepository GetClipDataRepository(ClipMateDbContext context)
+    public IClipDataRepository GetClipDataRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
-              ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
+               ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
     }
 
     /// <summary>
-    /// Creates a BlobRepository instance for the specified database context.
+    /// Creates a BlobRepository instance for the specified database.
     /// </summary>
-    public IBlobRepository GetBlobRepository(ClipMateDbContext context)
+    public IBlobRepository GetBlobRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
-              ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
+               ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
     }
 
     /// <summary>
-    /// Creates a ShortcutRepository instance for the specified database context.
+    /// Creates a ShortcutRepository instance for the specified database.
     /// </summary>
-    public IShortcutRepository GetShortcutRepository(ClipMateDbContext context)
+    public IShortcutRepository GetShortcutRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
-              ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
+               ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
     }
 
     /// <summary>
-    /// Creates a UserRepository instance for the specified database context.
+    /// Creates a UserRepository instance for the specified database.
     /// </summary>
-    public IUserRepository GetUserRepository(ClipMateDbContext context)
+    public IUserRepository GetUserRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
-              ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
+               ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
     }
 
     /// <summary>
-    /// Creates a MonacoEditorStateRepository instance for the specified database context.
+    /// Creates a MonacoEditorStateRepository instance for the specified database.
     /// </summary>
-    public IMonacoEditorStateRepository GetMonacoEditorStateRepository(ClipMateDbContext context)
+    public IMonacoEditorStateRepository GetMonacoEditorStateRepository(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return context == null
-            ? throw new ArgumentNullException(nameof(context))
-            : ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
-              ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
+               ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
     }
 
     /// <summary>
@@ -188,11 +223,11 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         _logger.LogInformation("Disposing all database contexts ({Count} contexts)", _contexts.Count);
 
-        foreach (var context in _contexts.Values)
+        foreach (var item in _contexts.Values)
         {
             try
             {
-                context.Dispose();
+                item.Dispose();
             }
             catch (Exception ex)
             {

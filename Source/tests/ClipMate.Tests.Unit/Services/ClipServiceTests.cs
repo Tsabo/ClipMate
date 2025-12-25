@@ -257,7 +257,6 @@ public class ClipServiceTests
         new ClipService(
             _mockRepositoryFactory.Object,
             Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IDatabaseManager>(),
             _mockSoundService.Object,
             Mock.Of<IClipboardService>(),
             _mockLogger.Object);

@@ -64,7 +64,12 @@ public class SearchServiceTests : IntegrationTestBase
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
         var mockConfigService = new Mock<IConfigurationService>();
         mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
-        var searchService = new SearchService(clipRepository, mockConfigService.Object, DbContext);
+        var mockSqlValidationService = new Mock<ISqlValidationService>();
+        var searchService = new SearchService(
+            clipRepository,
+            mockConfigService.Object,
+            mockSqlValidationService.Object,
+            Mock.Of<ILogger<SearchService>>());
 
         // Act
         var filters = new SearchFilters
@@ -86,7 +91,12 @@ public class SearchServiceTests : IntegrationTestBase
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
         var mockConfigService = new Mock<IConfigurationService>();
         mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
-        var searchService = new SearchService(clipRepository, mockConfigService.Object, DbContext);
+        var mockSqlValidationService = new Mock<ISqlValidationService>();
+        var searchService = new SearchService(
+            clipRepository,
+            mockConfigService.Object,
+            mockSqlValidationService.Object,
+            Mock.Of<ILogger<SearchService>>());
 
         // Act
         var filters = new SearchFilters

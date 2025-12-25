@@ -62,17 +62,16 @@ public class ClipServiceExtendedTests : TestFixtureBase
             .Returns(_mockClipRepository.Object);
 
         // Setup DatabaseContextFactory to return mock repositories
-        _mockDatabaseContextFactory.Setup(p => p.GetClipDataRepository(It.IsAny<ClipMateDbContext>()))
+        _mockDatabaseContextFactory.Setup(p => p.GetClipDataRepository(It.IsAny<string>()))
             .Returns(_mockClipDataRepository.Object);
 
-        _mockDatabaseContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<ClipMateDbContext>()))
+        _mockDatabaseContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<string>()))
             .Returns(mockBlobRepository.Object);
     }
 
     private ClipService CreateService() => new(
         _mockRepositoryFactory.Object,
         _mockDatabaseContextFactory.Object,
-        _mockDatabaseManager.Object,
         _mockSoundService.Object,
         Mock.Of<IClipboardService>(),
         _logger);
@@ -169,6 +168,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
         var options = new DbContextOptionsBuilder<ClipMateDbContext>()
             .UseSqlite("DataSource=:memory:")
             .Options;
+
         using var dbContext = new ClipMateDbContext(options);
         dbContext.Database.OpenConnection();
         dbContext.Database.EnsureCreated();

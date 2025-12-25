@@ -73,4 +73,45 @@ public interface ICollectionService
     /// <param name="id">The collection ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the count of non-deleted clips in a collection.
+    /// </summary>
+    /// <param name="collectionId">The collection ID.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The count of clips.</returns>
+    Task<int> GetCollectionItemCountAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves a collection up in sort order (decreases SortKey).
+    /// </summary>
+    /// <param name="collectionId">The collection ID to move.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if moved, false if already at top or not found.</returns>
+    Task<bool> MoveCollectionUpAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves a collection down in sort order (increases SortKey).
+    /// </summary>
+    /// <param name="collectionId">The collection ID to move.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if moved, false if already at bottom or not found.</returns>
+    Task<bool> MoveCollectionDownAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reorders collections by inserting dropped collections at a target position.
+    /// </summary>
+    /// <param name="droppedCollectionIds">IDs of collections to move.</param>
+    /// <param name="targetCollectionId">ID of collection to insert near.</param>
+    /// <param name="insertAfter">True to insert after target, false to insert before.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ReorderCollectionsAsync(List<Guid> droppedCollectionIds,
+        Guid targetCollectionId,
+        bool insertAfter,
+        string databaseKey,
+        CancellationToken cancellationToken = default);
 }

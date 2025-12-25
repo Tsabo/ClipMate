@@ -1,11 +1,9 @@
-using System.Data;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
 
@@ -18,18 +16,25 @@ public class SearchService : ISearchService
 
     // SQL validation - prevent dangerous operations
     private static readonly string[] _dangerousKeywords =
-        { "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXEC", "EXECUTE", "PRAGMA" };
+    [
+        "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXEC", "EXECUTE", "PRAGMA",
+    ];
 
     private readonly IClipRepository _clipRepository;
     private readonly IConfigurationService _configurationService;
-    private readonly ClipMateDbContext _dbContext;
+    private readonly ILogger<SearchService> _logger;
     private readonly List<string> _searchHistory = [];
+    private readonly ISqlValidationService _sqlValidationService;
 
-    public SearchService(IClipRepository clipRepository, IConfigurationService configurationService, ClipMateDbContext dbContext)
+    public SearchService(IClipRepository clipRepository,
+        IConfigurationService configurationService,
+        ISqlValidationService sqlValidationService,
+        ILogger<SearchService> logger)
     {
         _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _sqlValidationService = sqlValidationService ?? throw new ArgumentNullException(nameof(sqlValidationService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default)
@@ -233,7 +238,12 @@ public class SearchService : ISearchService
     /// Strategy 2: SELECT-only enforcement
     /// Strategy 4: EXPLAIN QUERY PLAN pre-execution check
     /// </summary>
-    public async Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql, CancellationToken cancellationToken = default)
+    /// <param name="sql">The SQL query to validate.</param>
+    /// <param name="databaseKey">The database key to validate against.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task<(bool IsValid, string? ErrorMessage)> ValidateSqlQueryAsync(string sql,
+        string databaseKey,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return (false, "SQL query cannot be empty");
@@ -253,33 +263,9 @@ public class SearchService : ISearchService
                 return (false, $"Keyword '{item}' is not allowed in search queries");
         }
 
-        // Strategy 4: Use EXPLAIN QUERY PLAN to validate syntax without executing
-        try
-        {
-            var explainSql = $"EXPLAIN QUERY PLAN {trimmedSql}";
-            // Execute EXPLAIN QUERY PLAN directly without mapping results to Clip objects
-            // EXPLAIN returns metadata about query execution, not actual data
-            var connection = _dbContext.Database.GetDbConnection();
-
-            // Ensure connection is open
-            if (connection.State != ConnectionState.Open)
-                await connection.OpenAsync(cancellationToken);
-
-            await using var command = connection.CreateCommand();
-            command.CommandText = explainSql;
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            // Just check if it executes without error - we don't need the results
-            return (true, null);
-        }
-        catch (SqliteException ex)
-        {
-            // Strategy 3: SQLite runtime validation - return friendly error
-            return (false, $"SQL syntax error: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Query validation failed: {ex.Message}");
-        }
+        // Strategy 4: Delegate to SqlValidationService for low-level validation
+        var (isValid, error) = await _sqlValidationService.ValidateSqlQueryAsync(trimmedSql, databaseKey, cancellationToken);
+        return (isValid, error);
     }
 
     /// <summary>
