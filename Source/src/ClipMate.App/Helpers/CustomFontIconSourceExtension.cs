@@ -11,8 +11,8 @@ namespace ClipMate.App.Helpers;
 [MarkupExtensionReturnType(typeof(ImageSource))]
 public class CustomFontIconSourceExtension : MarkupExtension
 {
-    private static Emoji.Wpf.EmojiTypeface? s_customTypeface;
-    private static readonly object s_lock = new();
+    private static Emoji.Wpf.EmojiTypeface? _typeface;
+    private static readonly Lock _lock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CustomFontIconSourceExtension" /> class.
@@ -52,14 +52,14 @@ public class CustomFontIconSourceExtension : MarkupExtension
             return null;
 
         // Lazy-load the custom font typeface once
-        if (s_customTypeface == null)
+        if (_typeface == null)
         {
-            lock (s_lock)
+            lock (_lock)
             {
-                if (s_customTypeface == null)
+                if (_typeface == null)
                 {
-                    var fontUri = "pack://application:,,,/ClipMate.App;component/Assets/ClipMate.ttf";
-                    s_customTypeface = new Emoji.Wpf.EmojiTypeface(fontUri);
+                    const string fontUri = "pack://application:,,,/ClipMate.App;component/Assets/ClipMate.ttf";
+                    _typeface = new Emoji.Wpf.EmojiTypeface(fontUri);
                 }
             }
         }
@@ -68,18 +68,18 @@ public class CustomFontIconSourceExtension : MarkupExtension
         var drawingGroup = new DrawingGroup();
         using (var dc = drawingGroup.Open())
         {
-            var glyphPlans = s_customTypeface.MakeGlyphPlanList(Glyph);
-            var scale = s_customTypeface.GetScale(Size);
-            var baseline = s_customTypeface.Baseline;
+            var glyphPlans = _typeface.MakeGlyphPlanList(Glyph);
+            var scale = _typeface.GetScale(Size);
+            var baseline = _typeface.Baseline;
 
-            foreach (var plan in glyphPlans)
+            foreach (var item in glyphPlans)
             {
-                var xpos = plan.OffsetX * scale;
-                var ypos = baseline + plan.OffsetY * scale;
+                var xPos = item.OffsetX * scale;
+                var yPos = baseline + item.OffsetY * scale;
 
-                foreach (var (glyphRun, brush) in s_customTypeface.DrawGlyph(plan.glyphIndex))
+                foreach (var (glyphRun, brush) in _typeface.DrawGlyph(item.glyphIndex))
                 {
-                    dc.PushTransform(new TranslateTransform(xpos, ypos));
+                    dc.PushTransform(new TranslateTransform(xPos, yPos));
                     dc.PushTransform(new ScaleTransform(scale, scale));
                     dc.DrawGlyphRun(brush, glyphRun);
                     dc.Pop(); // scale
