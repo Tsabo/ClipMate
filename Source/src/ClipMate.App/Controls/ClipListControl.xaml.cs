@@ -696,7 +696,7 @@ public partial class ClipListControl
         {
             BindingOperations.SetBinding(
                 ShortcutsDataGrid.Columns[i],
-                ColumnBase.WidthProperty,
+                BaseColumn.WidthProperty,
                 new Binding("ActualWidth")
                 {
                     Source = ClipDataGrid.Columns[i],
@@ -705,7 +705,7 @@ public partial class ClipListControl
 
             BindingOperations.SetBinding(
                 ClipDataGrid.Columns[i],
-                ColumnBase.WidthProperty,
+                BaseColumn.WidthProperty,
                 new Binding("ActualWidth")
                 {
                     Source = ShortcutsDataGrid.Columns[i],
