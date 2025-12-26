@@ -32,6 +32,7 @@
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\ClipMate.Data\ClipMate.Data.csproj" />
+    <ProjectReference Include="..\ClipMate.EmojiWpf\ClipMate.EmojiWpf.csproj" />
     <ProjectReference Include="..\ClipMate.Platform\ClipMate.Platform.csproj" />
     <ProjectReference Include="..\ClipMate.WpfHexEditor\ClipMate.WpfHexEditor.csproj" />
   </ItemGroup>
@@ -41,7 +42,6 @@
     <PackageReference Include="DevExpress.Wpf" />
     <PackageReference Include="DevExpress.Mvvm" />
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
-    <PackageReference Include="Emoji.Wpf" />
     <PackageReference Include="LinkingMountains.ImageZoom" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

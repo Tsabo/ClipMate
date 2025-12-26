@@ -1,0 +1,15 @@
+Emoji.Wpf
+Copyright © 2017–2023 Sam Hocevar <sam@hocevar.net>
+
+This library has been vendored into ClipMate and extended to support custom color fonts.
+
+Original source: https://github.com/samhocevar/emoji.wpf
+License: WTFPL (Do What The Fuck You Want To Public License)
+
+Includes Typography library:
+Copyright © 2014-2021 Typography Project Contributors
+https://github.com/LayoutFarm/Typography
+License: MIT
+
+Vendoring Date: December 25, 2025
+Vendored Version: 0.3.4

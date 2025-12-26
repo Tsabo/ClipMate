@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Typography.TextLayout</RootNamespace>
+    <AssemblyName>Typography.GlyphLayout</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CA1031;CA1062;CA1707;CA1716;CA1720;CA1822;CA2000;CA2201;IDE0051;IDE0055;IDE0090;IDE1006;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\Typography.GlyphLayout\**\*.cs" Exclude="..\..\..\Typography.GlyphLayout\**\Sample*\**;..\..\..\Typography.GlyphLayout\**\Demo*\**;..\..\..\Typography.GlyphLayout\**\Test*\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Typography.OpenFont\Typography.OpenFont.csproj" />
+  </ItemGroup>
+</Project>

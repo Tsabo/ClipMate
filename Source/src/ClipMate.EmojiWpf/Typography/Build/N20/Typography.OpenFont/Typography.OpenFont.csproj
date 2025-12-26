@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Typography.OpenFont</RootNamespace>
+    <AssemblyName>Typography.OpenFont</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CA1031;CA1062;CA1707;CA1716;CA1720;CA1822;CA2000;CA2201;CS0168;CS0219;CS0414;CS0649;IDE0051;IDE0055;IDE0090;IDE1006;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\Typography.OpenFont\**\*.cs" Exclude="..\..\..\Typography.OpenFont\**\Sample*\**;..\..\..\Typography.OpenFont\**\Demo*\**;..\..\..\Typography.OpenFont\**\Test*\**" />
+  </ItemGroup>
+</Project>

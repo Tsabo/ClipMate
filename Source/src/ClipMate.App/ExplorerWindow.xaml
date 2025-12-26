@@ -10,6 +10,7 @@
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
                  xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
+                 xmlns:local="clr-namespace:ClipMate.App"
                  mc:Ignorable="d"
                  Title="ClipMate - Clipboard Manager"
                  WindowStartupLocation="CenterScreen"
@@ -45,7 +46,7 @@
                     <!-- Copy to Collection Dropdown -->
                     <dxb:BarSubItem x:Name="CopyToCollectionDropdown"
                                     Content="Copy to Collection"
-                                    Glyph="{dx:DXImage 'SvgImages/Actions/Copy.svg'}"
+                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Clipboard}, Size=24}"
                                     GetItemData="CopyToCollectionDropdown_GetItemData" />
 
                     <!-- Move to Collection Dropdown -->

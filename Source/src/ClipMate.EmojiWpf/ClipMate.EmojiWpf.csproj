@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Emoji.Wpf</RootNamespace>
+    <AssemblyName>Emoji.Wpf</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Authors>Sam Hocevar; vendored and extended by ClipMate</Authors>
+    <Description>Emoji.Wpf - Vendored from https://github.com/samhocevar/emoji.wpf with extensions for custom color fonts</Description>
+    <Copyright>Copyright © 2017–2023 Sam Hocevar</Copyright>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <Version>0.3.4</Version>
+    <DefineConstants>$(DefineConstants);SYSTEM_WINDOWS_VECTOR</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    
+    <!-- Relax code analysis rules for vendored third-party code -->
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);CA1031;CA1062;CA1707;CA1716;CA1720;CA1822;CA2000;CA2201;IDE0017;IDE0021;IDE0022;IDE0051;IDE0055;IDE0090;IDE1006;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8632</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <Compile Include="Internal\*.cs" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Remove="Typography\**\*" />
+    <Compile Remove="Typography\**\*.cs" />
+    <EmbeddedResource Remove="Typography\**\*.resx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="LICENSE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JeremyAnsel.HLSL.Targets" GeneratePathProperty="True" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Typography\Build\N20\Typography.GlyphLayout\Typography.GlyphLayout.csproj" />
+    <ProjectReference Include="Typography\Build\N20\Typography.OpenFont\Typography.OpenFont.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Internal\Data\*.gz" />
+    <EmbeddedResource Include="WinFonts\*.txt" />
+  </ItemGroup>
+
+  <!-- Simplified build without HLSL shaders and resource compression -->
+  <ItemGroup>
+    <Compile Remove="Internal\ColorManager.cs" />
+    <Compile Remove="Internal\Shaders.cs" />
+  </ItemGroup>
+
+</Project>
