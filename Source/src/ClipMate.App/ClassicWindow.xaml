@@ -6,6 +6,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
     xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+    xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
+    xmlns:local="clr-namespace:ClipMate.App"
     xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
     xmlns:controls="clr-namespace:ClipMate.App.Controls"
     d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
@@ -53,9 +55,11 @@
                                            Command="{Binding MainMenu.DeleteSelectedCommand}" />
                         <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
                         <dxb:BarButtonItem Content="Copy Item To Collection"
-                                           Command="{Binding MainMenu.CopyToCollectionCommand}" />
+                                           Command="{Binding MainMenu.CopyToCollectionCommand}"
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}, Size=24}"/>
                         <dxb:BarButtonItem Content="Move Item To Collection"
-                                           Command="{Binding MainMenu.MoveToCollectionCommand}" />
+                                           Command="{Binding MainMenu.MoveToCollectionCommand}"
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}}"/>
                         <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
                                            Command="{Binding MainMenu.ExportClipsCommand}" />
                         <dxb:BarButtonItem Content="Export Clip(s) to XML"

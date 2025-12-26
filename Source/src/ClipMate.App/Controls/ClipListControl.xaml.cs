@@ -232,7 +232,7 @@ public partial class ClipListControl
         if (isShortcutGrid)
         {
             // Shortcut grid was selected, clear main grid selection
-            if (ClipDataGrid.CurrentItem != null)
+            if (ClipDataGrid?.CurrentItem != null)
             {
                 ClipDataGrid.CurrentItem = null;
                 Debug.WriteLine("[ClipListView] Cleared ClipDataGrid selection");
@@ -241,7 +241,7 @@ public partial class ClipListControl
         else
         {
             // Main grid was selected, clear shortcut grid selection
-            if (ShortcutsDataGrid.CurrentItem != null)
+            if (ShortcutsDataGrid?.CurrentItem != null)
             {
                 ShortcutsDataGrid.CurrentItem = null;
                 Debug.WriteLine("[ClipListView] Cleared ShortcutsDataGrid selection");

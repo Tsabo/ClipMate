@@ -46,13 +46,13 @@
                     <!-- Copy to Collection Dropdown -->
                     <dxb:BarSubItem x:Name="CopyToCollectionDropdown"
                                     Content="Copy to Collection"
-                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Clipboard}, Size=24}"
+                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}, Size=24}"
                                     GetItemData="CopyToCollectionDropdown_GetItemData" />
 
                     <!-- Move to Collection Dropdown -->
                     <dxb:BarSubItem x:Name="MoveToCollectionDropdown"
                                     Content="Move to Collection"
-                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveDown.svg'}"
+                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}, Size=24}"
                                     GetItemData="MoveToCollectionDropdown_GetItemData" />
 
                     <!-- Search Button -->
@@ -76,9 +76,11 @@
                                            Command="{Binding MainMenu.DeleteSelectedCommand}" />
                         <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
                         <dxb:BarButtonItem Content="Copy Item To Collection"
-                                           Command="{Binding MainMenu.CopyToCollectionCommand}" />
+                                           Command="{Binding MainMenu.CopyToCollectionCommand}"
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}}" />
                         <dxb:BarButtonItem Content="Move Item To Collection"
-                                           Command="{Binding MainMenu.MoveToCollectionCommand}" />
+                                           Command="{Binding MainMenu.MoveToCollectionCommand}"
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}}" />
                         <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
                                            Command="{Binding MainMenu.ExportClipsCommand}" />
                         <dxb:BarButtonItem Content="Export Clip(s) to XML"

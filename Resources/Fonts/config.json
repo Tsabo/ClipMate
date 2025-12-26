@@ -17,11 +17,15 @@
     "ascent": 1800,
     "descent": 248
   },
-  "colorFormat": "glyf_colr_1",
+  "colorFormat": "glyf_colr_0",
   "glyphs": [
     { "file": "icons8-clipboard.svg", "codepoint": "0xE000", "name": "clipboard" },
     { "file": "icons8-clipboard-plus.svg", "codepoint": "0xE001", "name": "clipboard-append" },
     { "file": "icons8-copy.svg", "codepoint": "0xE002", "name": "clipboard-copy" },
-    { "file": "icons8-paste.svg", "codepoint": "0xE003", "name": "clipboard-paste" }
+    { "file": "icons8-cut-paper.svg", "codepoint": "0xE003", "name": "clipboard-cut" },
+    { "file": "icons8-delete-file.svg", "codepoint": "0xE004", "name": "clipboard-delete" },
+    { "file": "icons8-paste.svg", "codepoint": "0xE005", "name": "clipboard-paste" },
+    { "file": "copy-clip-to-collection.svg", "codepoint": "0xE006", "name": "copy-to-collection" },
+    { "file": "move-clip-to-collection.svg", "codepoint": "0xE007", "name": "move-to-collection" }
   ]
 }

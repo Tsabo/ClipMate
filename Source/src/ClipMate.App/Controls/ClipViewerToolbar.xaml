@@ -6,6 +6,8 @@
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
+             xmlns:local="clr-namespace:ClipMate.App"
              d:DataContext="{d:DesignInstance Type=vm:ClipViewerToolbarViewModel}"
              mc:Ignorable="d">
 
@@ -66,17 +68,17 @@
                            ToolTip="Create new empty clip" />
 
         <dxb:BarButtonItem Content="Cut"
-                           Glyph="{dx:DXImage 'Images/Actions/Cut_16x16.png'}"
+                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Cut}}"
                            Command="{Binding CutCommand}"
                            ToolTip="Cut selected text to clipboard" />
 
         <dxb:BarButtonItem Content="Copy"
-                           Glyph="{dx:DXImage 'Images/Actions/Copy_16x16.png'}"
+                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Copy}}"
                            Command="{Binding CopyCommand}"
                            ToolTip="Copy selected text to clipboard" />
 
         <dxb:BarButtonItem Content="Paste"
-                           Glyph="{dx:DXImage 'Images/Actions/Paste_16x16.png'}"
+                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Paste}}"
                            Command="{Binding PasteCommand}"
                            ToolTip="Paste from clipboard" />
 
@@ -150,7 +152,7 @@
                            ToolTip="Undo last edit (Ctrl+Z)" />
 
         <dxb:BarButtonItem Content="Find"
-                           Glyph="{dx:DXImage 'Images/Actions/Find_16x16.png'}"
+                           Glyph="{helpers:EmojiIconSource Emoji='🔍'}"
                            Command="{Binding FindCommand}"
                            ToolTip="Find and Replace (Ctrl+F)" />
 
@@ -158,7 +160,7 @@
 
         <!-- Help -->
         <dxb:BarButtonItem Content="Help"
-                           Glyph="{dx:DXImage 'Images/Support/Help_16x16.png'}"
+                           Glyph="{helpers:EmojiIconSource Emoji='❓'}"
                            Command="{Binding ShowHelpCommand}"
                            ToolTip="Show ClipViewer help" />
 

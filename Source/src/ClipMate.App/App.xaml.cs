@@ -172,7 +172,7 @@ public partial class App
             _logger?.LogInformation("Found {Count} database(s) due for backup", databasesDue.Count);
 
             // Filter out databases that were recently prompted (within 3 days)
-            var promptSnoozesDays = 3;
+            const int promptSnoozesDays = 3;
             var now = DateTime.UtcNow;
             var databasesToPrompt = databasesDue
                 .Where(p => p.LastBackupPromptDate == null ||
@@ -221,7 +221,7 @@ public partial class App
                 foreach (var item in databasesToPrompt)
                     item.LastBackupPromptDate = DateTime.UtcNow;
 
-                if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Any())
+                if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
                 {
                     foreach (var item in dialog.SelectedDatabases)
                         await PerformBackupAsync(item, item);
