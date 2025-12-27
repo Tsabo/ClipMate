@@ -16,9 +16,9 @@ namespace ClipMate.App.ViewModels;
 public partial class CollectionPropertiesViewModel : ObservableObject
 {
     private readonly Collection _collection;
+    private readonly ICollectionService? _collectionService;
     private readonly IConfigurationService _configurationService;
     private readonly string? _databaseKey;
-    private readonly IServiceProvider? _serviceProvider;
 
     [ObservableProperty]
     private bool _acceptDuplicates;
@@ -69,7 +69,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     {
         _collection = collection;
         _configurationService = configurationService;
-        _serviceProvider = serviceProvider;
+        _collectionService = serviceProvider?.GetService<ICollectionService>();
         _databaseKey = databaseKey;
 
         LoadFromModel();
@@ -154,14 +154,12 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     /// </summary>
     private async Task<int> LoadItemCountAsync()
     {
-        if (_serviceProvider == null || string.IsNullOrEmpty(_databaseKey))
+        if (_collectionService == null || string.IsNullOrEmpty(_databaseKey))
             return _collection.LastKnownCount ?? 0;
 
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-            return await collectionService.GetCollectionItemCountAsync(_collection.Id, _databaseKey);
+            return await _collectionService.GetCollectionItemCountAsync(_collection.Id, _databaseKey);
         }
         catch
         {
@@ -232,6 +230,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         _collection.LastUpdateTime = DateTime.UtcNow;
     }
 
+    // ReSharper disable once UnusedParameterInPartialMethod
     partial void OnCollectionTypeChanged(UiCollectionType value)
     {
         OnPropertyChanged(nameof(ShowPurgingRules));
@@ -239,6 +238,7 @@ public partial class CollectionPropertiesViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowGarbageAvoidance));
     }
 
+    // ReSharper disable once UnusedParameterInPartialMethod
     partial void OnSelectedPurgingRuleChanged(PurgingRule value)
     {
         OnPropertyChanged(nameof(IsPurgingValueEnabled));

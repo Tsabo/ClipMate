@@ -89,6 +89,9 @@ public class ClipRepository : IClipRepository
 
             // Pre-compute and cache the icon string
             var icons = new List<string>();
+            if (clip.Macro)
+                icons.Add("⌨");
+
             if (item.HasBitmap)
                 icons.Add("🖼");
 
@@ -704,6 +707,9 @@ public class ClipRepository : IClipRepository
 
                 // Pre-compute and cache the icon string
                 var icons = new List<string>();
+                if (item.Macro)
+                    icons.Add("⌨");
+
                 if (flags.HasBitmap)
                     icons.Add("🖼");
 
@@ -730,28 +736,27 @@ public class ClipRepository : IClipRepository
                 _logger.LogDebug("Clip {ClipId}: No ClipData found, using Type={ClipType} fallback", item.Id, item.Type);
 
                 // Fallback for clips created before ClipData implementation
+                var fallbackIcon = "❓";
                 switch (item.Type)
                 {
                     case ClipType.Text:
                         item.HasText = true;
-                        item.IconGlyph = "📄";
-
+                        fallbackIcon = "📄";
                         break;
                     case ClipType.Image:
                         item.HasBitmap = true;
-                        item.IconGlyph = "🖼";
-
+                        fallbackIcon = "🖼";
                         break;
                     case ClipType.Files:
                         item.HasFiles = true;
-                        item.IconGlyph = "📁";
-
-                        break;
-                    default:
-                        item.IconGlyph = "❓";
-
+                        fallbackIcon = "📁";
                         break;
                 }
+
+                // Prepend macro icon if clip is a macro
+                item.IconGlyph = item.Macro
+                    ? "⌨" + fallbackIcon
+                    : fallbackIcon;
             }
         }
     }

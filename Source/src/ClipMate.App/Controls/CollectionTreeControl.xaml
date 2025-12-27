@@ -28,7 +28,8 @@
                          AllowDragDrop="True"
                          AutoExpandOnDrag="True"
                          DragRecordOver="TreeView_DragRecordOver"
-                         DropRecord="TreeView_DropRecord">
+                         DropRecord="TreeView_DropRecord"
+                         CompleteRecordDragDrop="TreeView_CompleteRecordDragDrop">
         <dxg:TreeViewControl.NodeContentTemplate>
             <DataTemplate>
                 <TextBlock Text="{Binding Row.Name}">

@@ -1,5 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
@@ -148,10 +149,20 @@ public class ApplicationFilterTests : IntegrationTestBase
     private IApplicationFilterService CreateApplicationFilterService()
     {
         var repository = new ApplicationFilterRepository(DbContext);
+        var mockContextFactory = new Mock<IDatabaseContextFactory>();
+        mockContextFactory.Setup(p => p.GetApplicationFilterRepository(It.IsAny<string>()))
+            .Returns(repository);
+
+        var mockCollectionService = new Mock<ICollectionService>();
+        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
         var logger = Mock.Of<ILogger<ApplicationFilterService>>();
         var soundService = new Mock<ISoundService>();
         soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        return new ApplicationFilterService(repository, soundService.Object, logger);
+        return new ApplicationFilterService(
+            mockContextFactory.Object,
+            mockCollectionService.Object,
+            soundService.Object,
+            logger);
     }
 }

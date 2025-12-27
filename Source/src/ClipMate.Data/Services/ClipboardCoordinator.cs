@@ -21,9 +21,9 @@ public class ClipboardCoordinator : IHostedService,
 {
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
-    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cts;
     private bool _isMonitoring;
@@ -31,14 +31,14 @@ public class ClipboardCoordinator : IHostedService,
 
     public ClipboardCoordinator(IClipboardService clipboardService,
         IConfigurationService configurationService,
-        IClipRepositoryFactory repositoryFactory,
+        IDatabaseContextFactory databaseContextFactory,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
+        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -433,7 +433,7 @@ public class ClipboardCoordinator : IHostedService,
         }
 
         // Create repository using the factory
-        var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+        var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
 
         // Check for duplicate by content hash (in the active database)
         var existing = await clipRepository.GetByContentHashAsync(clip.ContentHash, cancellationToken);

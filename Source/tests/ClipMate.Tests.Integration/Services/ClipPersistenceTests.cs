@@ -164,7 +164,7 @@ public class ClipPersistenceTests : IntegrationTestBase
     {
         // Arrange
         var clipService = CreateClipService();
-        var contentHash = "duplicate_hash_test";
+        const string contentHash = "duplicate_hash_test";
 
         var clip = new Clip
         {
@@ -189,12 +189,12 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipService()
     {
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
 
         // Setup factory to return a real repository for the test database
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
-        repositoryFactory.Setup(p => p.CreateRepository(_testDatabaseKey))
+        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
         var soundService = new Mock<ISoundService>();
@@ -204,10 +204,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
         return new ClipService(
-            repositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
+            contextFactory.Object,
             soundService.Object,
             Mock.Of<IClipboardService>(),
+            Mock.Of<ITemplateService>(),
             serviceLogger);
     }
 
@@ -216,12 +216,12 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
 
         // Setup factory to return a real repository with the provided context
         var logger = Mock.Of<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
-        repositoryFactory.Setup(p => p.CreateRepository(_testDatabaseKey))
+        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
         var soundService = new Mock<ISoundService>();
@@ -231,10 +231,10 @@ public class ClipPersistenceTests : IntegrationTestBase
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
         return new ClipService(
-            repositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
+            contextFactory.Object,
             soundService.Object,
             Mock.Of<IClipboardService>(),
+            Mock.Of<ITemplateService>(),
             serviceLogger);
     }
 }

@@ -55,8 +55,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         _clipRepository = new ClipRepository(DbContext, clipRepoLogger);
 
         // Create repository factory for ClipService
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
-        repositoryFactory.Setup(f => f.CreateRepository(_testDatabaseKey))
+        var contextFactory = new Mock<IDatabaseContextFactory>();
+        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(_clipRepository);
 
         var soundService = new Mock<ISoundService>();
@@ -78,23 +78,37 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
         _clipService = new ClipService(
-            repositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
+            contextFactory.Object,
             soundService.Object,
             _clipboardService,
+            Mock.Of<ITemplateService>(),
             clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
+        var mockFilterContextFactory = new Mock<IDatabaseContextFactory>();
+        mockFilterContextFactory.Setup(p => p.GetApplicationFilterRepository(It.IsAny<string>()))
+            .Returns(filterRepository);
+
+        var mockFilterCollectionService = new Mock<ICollectionService>();
+        mockFilterCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
         var filterSoundService = new Mock<ISoundService>();
         filterSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _filterService = new ApplicationFilterService(filterRepository, filterSoundService.Object, filterLogger);
+        _filterService = new ApplicationFilterService(
+            mockFilterContextFactory.Object,
+            mockFilterCollectionService.Object,
+            filterSoundService.Object,
+            filterLogger);
 
         var collectionRepository = new CollectionRepository(DbContext);
 
         var folderRepository = new FolderRepository(DbContext);
-        var folderService = new FolderService(folderRepository);
+        var mockFolderContextFactory = new Mock<IDatabaseContextFactory>();
+        mockFolderContextFactory.Setup(f => f.GetFolderRepository(It.IsAny<string>())).Returns(folderRepository);
+        var mockFolderCollectionService = new Mock<ICollectionService>();
+        mockFolderCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
+        var folderService = new FolderService(mockFolderContextFactory.Object, mockFolderCollectionService.Object);
 
         // Setup DI container for ClipboardCoordinator (needs IServiceProvider for scoped services)
         var services = new ServiceCollection();
@@ -104,7 +118,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddScoped<IFolderService>(_ => folderService);
         services.AddScoped<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
-        services.AddSingleton(repositoryFactory.Object);
+        services.AddSingleton(contextFactory.Object);
 
         // Register sound service mock
         var soundServiceMock = new Mock<ISoundService>();
@@ -132,7 +146,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, repositoryFactory.Object, _serviceProvider, messenger, coordinatorLogger);
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory.Object, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed

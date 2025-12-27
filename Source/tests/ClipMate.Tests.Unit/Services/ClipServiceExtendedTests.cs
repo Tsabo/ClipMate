@@ -23,7 +23,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
     private readonly Mock<IClipRepository> _mockClipRepository;
     private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
     private readonly Mock<IDatabaseManager> _mockDatabaseManager;
-    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<ISoundService> _mockSoundService;
 
     public ClipServiceExtendedTests()
@@ -32,7 +31,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
         _mockClipRepository = new Mock<IClipRepository>(MockBehavior.Loose);
         _mockClipDataRepository = new Mock<IClipDataRepository>(MockBehavior.Loose);
         var mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
-        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>(MockBehavior.Loose);
         _mockDatabaseContextFactory = new Mock<IDatabaseContextFactory>(MockBehavior.Loose);
         _mockDatabaseManager = new Mock<IDatabaseManager>(MockBehavior.Loose);
         _mockSoundService = new Mock<ISoundService>(MockBehavior.Loose);
@@ -58,7 +56,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
             .Returns(mockServiceScopeFactory.Object);
 
         // Setup factory to return mock repository
-        _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
+        _mockDatabaseContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
             .Returns(_mockClipRepository.Object);
 
         // Setup DatabaseContextFactory to return mock repositories
@@ -70,10 +68,10 @@ public class ClipServiceExtendedTests : TestFixtureBase
     }
 
     private ClipService CreateService() => new(
-        _mockRepositoryFactory.Object,
         _mockDatabaseContextFactory.Object,
         _mockSoundService.Object,
         Mock.Of<IClipboardService>(),
+        Mock.Of<ITemplateService>(),
         _logger);
 
     #region RenameClipAsync Tests

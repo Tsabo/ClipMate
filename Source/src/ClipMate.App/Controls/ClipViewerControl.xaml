@@ -5,6 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:ClipMate.App.Controls"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:wpfHex="clr-namespace:WpfHexaEditor;assembly=WpfHexaEditor"
              xmlns:lmimgz="clr-namespace:LinkingMountains.ImageZoom;assembly=LinkingMountains.ImageZoom"
@@ -57,32 +59,35 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- HTML View Toggle -->
-                <Border Grid.Row="0" Background="#2D2D30" Padding="5">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="HtmlPreviewRadio"
-                                     Content="Preview"
-                                     IsChecked="True"
-                                     Foreground="#CCCCCC"
-                                     Margin="0,0,15,0"
-                                     Checked="OnHtmlViewChanged" />
-                        <RadioButton x:Name="HtmlSourceRadio"
-                                     Content="Source"
-                                     Foreground="#CCCCCC"
-                                     Checked="OnHtmlViewChanged" />
-                    </StackPanel>
-                </Border>
+                <!-- HTML Browser Toolbar -->
+                <dxb:ToolBarControl Grid.Row="0" AllowQuickCustomization="False" AllowCustomizationMenu="False">
+                    <dxb:BarStaticItem Content="Source:" />
+                    
+                    <dxb:BarEditItem x:Name="HtmlSourceUrlEdit" EditWidth="350">
+                        <dxb:BarEditItem.EditSettings>
+                            <dxe:TextEditSettings />
+                        </dxb:BarEditItem.EditSettings>
+                    </dxb:BarEditItem>
+                    
+                    <dxb:BarButtonItem Content="Go" 
+                                       Glyph="{dx:DXImage 'Images/Actions/Execute_16x16.png'}"
+                                       ItemClick="OnHtmlNavigateClick" />
+                    
+                    <dxb:BarButtonItem Content="Options" 
+                                       Glyph="{dx:DXImage 'Images/Setup/Properties_16x16.png'}">
+                        <dxb:BarManager.DXContextMenu>
+                            <dxb:PopupMenu>
+                                <dxb:BarCheckItem Content="Use Pictures From Browser Cache" />
+                                <dxb:BarCheckItem Content="Use All HTML In Clip" />
+                                <dxb:BarCheckItem Content="Delete Scripts" />
+                            </dxb:PopupMenu>
+                        </dxb:BarManager.DXContextMenu>
+                    </dxb:BarButtonItem>
+                </dxb:ToolBarControl>
 
                 <Grid Grid.Row="1">
-                    <!-- HTML Preview -->
-                    <wv2:WebView2 x:Name="HtmlPreview"
-                                  Visibility="Visible" />
-
-                    <!-- HTML Source -->
-                    <controls:MonacoEditorControl x:Name="HtmlEditor"
-                                                  IsReadOnly="True"
-                                                  Language="html"
-                                                  Visibility="Collapsed" />
+                    <!-- HTML Preview using built-in WebBrowser (IE engine, but stable) -->
+                    <WebBrowser x:Name="HtmlPreview" />
                 </Grid>
 
                 <TextBlock x:Name="NoHtmlMessage"

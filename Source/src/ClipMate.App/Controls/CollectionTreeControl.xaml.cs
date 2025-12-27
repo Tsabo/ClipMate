@@ -111,12 +111,18 @@ public partial class CollectionTreeControl
         if (e.Data.GetDataPresent(typeof(Clip[])))
         {
             if (e.Data.GetData(typeof(Clip[])) is not Clip[] clips || clips.Length == 0)
+            {
+                e.Handled = true;
                 return;
+            }
 
             // Get target collection node
             var clipTargetNode = TreeView.GetNodeByRowHandle(e.TargetRowHandle);
             if (clipTargetNode?.Content is not CollectionTreeNode clipTargetCollection)
+            {
+                e.Handled = true;
                 return;
+            }
 
             try
             {
@@ -131,21 +137,31 @@ public partial class CollectionTreeControl
                 Debug.WriteLine($"Move clips failed: {ex.Message}");
             }
 
+            e.Handled = true;
             return;
         }
 
         // Original collection reordering logic
         if (e.Data.GetData(typeof(RecordDragDropData)) is not RecordDragDropData dragData)
+        {
+            e.Handled = true;
             return;
+        }
 
         var droppedNodes = dragData.Records.OfType<CollectionTreeNode>().ToList();
         if (droppedNodes.Count == 0)
+        {
+            e.Handled = true;
             return;
+        }
 
         // Get target node for collection reordering
         var targetNode = TreeView.GetNodeByRowHandle(e.TargetRowHandle);
         if (targetNode?.Content is not CollectionTreeNode targetCollectionNode)
+        {
+            e.Handled = true;
             return;
+        }
 
         try
         {
@@ -159,5 +175,14 @@ public partial class CollectionTreeControl
         {
             Debug.WriteLine($"Drop failed: {ex.Message}");
         }
+
+        e.Handled = true;
     }
+
+    /// <summary>
+    /// Prevents DevExpress from automatically modifying the ItemsSource collection.
+    /// This stops it from trying to insert Clip objects into the TreeNodeBase collection.
+    /// All data modifications are handled manually in TreeView_DropRecord.
+    /// </summary>
+    private void TreeView_CompleteRecordDragDrop(object sender, CompleteRecordDragDropEventArgs e) => e.Handled = true;
 }

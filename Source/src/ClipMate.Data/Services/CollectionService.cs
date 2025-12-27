@@ -1,8 +1,6 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Data.Services;
 
@@ -12,18 +10,23 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class CollectionService : ICollectionService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IDatabaseContextFactory _contextFactory;
+    private readonly IDatabaseManager _databaseManager;
     private Guid? _activeCollectionId;
     private string? _activeDatabaseKey;
 
-    public CollectionService(IServiceProvider serviceProvider)
+    public CollectionService(IDatabaseManager databaseManager, IDatabaseContextFactory contextFactory)
     {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
     }
 
     public async Task<Collection> CreateAsync(string name, string? description = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (_activeDatabaseKey == null)
+            throw new InvalidOperationException("No active database set. Cannot create collection.");
 
         var collection = new Collection
         {
@@ -34,26 +37,30 @@ public class CollectionService : ICollectionService
             ModifiedAt = DateTime.UtcNow,
         };
 
-        using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
-
+        var repository = _contextFactory.GetCollectionRepository(_activeDatabaseKey);
         return await repository.CreateAsync(collection, cancellationToken);
     }
 
     public async Task<Collection?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+        if (_activeDatabaseKey == null)
+            throw new InvalidOperationException("No active database set.");
 
+        var repository = _contextFactory.GetCollectionRepository(_activeDatabaseKey);
         return await repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+        var allCollections = new List<Collection>();
 
-        return await repository.GetAllAsync(cancellationToken);
+        foreach (var (dbKey, context) in _databaseManager.GetAllDatabaseContexts())
+        {
+            var collections = await context.Collections.ToListAsync(cancellationToken);
+            allCollections.AddRange(collections);
+        }
+
+        return allCollections;
     }
 
     public async Task<Collection> GetActiveAsync(CancellationToken cancellationToken = default)
@@ -64,19 +71,14 @@ public class CollectionService : ICollectionService
         if (_activeDatabaseKey == null)
             throw new InvalidOperationException("Active collection database key is not set.");
 
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
+        var dbContext = _databaseManager.GetDatabaseContext(_activeDatabaseKey);
 
         if (dbContext == null)
             throw new InvalidOperationException($"Database context for key '{_activeDatabaseKey}' not found.");
 
         var collection = await dbContext.Collections.FirstOrDefaultAsync(p => p.Id == _activeCollectionId.Value, cancellationToken);
 
-        if (collection == null)
-            throw new InvalidOperationException($"Active collection {_activeCollectionId} not found in database '{_activeDatabaseKey}'.");
-
-        return collection;
+        return collection ?? throw new InvalidOperationException($"Active collection {_activeCollectionId} not found in database '{_activeDatabaseKey}'.");
     }
 
     public string? GetActiveDatabaseKey() => _activeDatabaseKey;
@@ -86,9 +88,7 @@ public class CollectionService : ICollectionService
         if (_activeDatabaseKey == null)
             return null;
 
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(_activeDatabaseKey);
+        var dbContext = _databaseManager.GetDatabaseContext(_activeDatabaseKey);
 
         if (dbContext == null)
             return null;
@@ -107,9 +107,7 @@ public class CollectionService : ICollectionService
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
 
         // Verify collection exists in the specified database
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(databaseKey);
+        var dbContext = _databaseManager.GetDatabaseContext(databaseKey);
 
         if (dbContext == null)
             throw new ArgumentException($"Database context for key '{databaseKey}' not found.", nameof(databaseKey));
@@ -126,10 +124,13 @@ public class CollectionService : ICollectionService
     public async Task UpdateAsync(Collection collection, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(collection);
+
+        if (_activeDatabaseKey == null)
+            throw new InvalidOperationException("No active database set. Cannot update collection.");
+
         collection.ModifiedAt = DateTime.UtcNow;
 
-        using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+        var repository = _contextFactory.GetCollectionRepository(_activeDatabaseKey);
         var updated = await repository.UpdateAsync(collection, cancellationToken);
 
         if (!updated)
@@ -138,14 +139,18 @@ public class CollectionService : ICollectionService
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        if (_activeDatabaseKey == null)
+            throw new InvalidOperationException("No active database set. Cannot delete collection.");
+
+        var databaseKey = _activeDatabaseKey; // Save before potentially clearing
+
         if (_activeCollectionId == id)
         {
             _activeCollectionId = null;
             _activeDatabaseKey = null;
         }
 
-        using var scope = _serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICollectionRepository>();
+        var repository = _contextFactory.GetCollectionRepository(databaseKey);
         var deleted = await repository.DeleteAsync(id, cancellationToken);
 
         if (!deleted)
@@ -154,9 +159,7 @@ public class CollectionService : ICollectionService
 
     public async Task<int> GetCollectionItemCountAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
                         ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         return await dbContext.Clips
@@ -165,9 +168,7 @@ public class CollectionService : ICollectionService
 
     public async Task<bool> MoveCollectionUpAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
                         ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey
@@ -191,9 +192,7 @@ public class CollectionService : ICollectionService
 
     public async Task<bool> MoveCollectionDownAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
                         ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey
@@ -221,9 +220,7 @@ public class CollectionService : ICollectionService
         string databaseKey,
         CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-        var dbContext = databaseManager.GetDatabaseContext(databaseKey)
+        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
                         ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey

@@ -16,32 +16,34 @@ namespace ClipMate.App.Views.Dialogs;
 /// </summary>
 public partial class SearchDialog
 {
+    private readonly ICollectionService _collectionService;
+    private readonly ILogger<SearchDialog> _logger;
+    private readonly ISearchService _searchService;
     private readonly SearchViewModel _viewModel;
-    private IServiceScope? _validationScope;
 
-    public SearchDialog(SearchViewModel viewModel)
+    public SearchDialog(SearchViewModel viewModel, ISearchService searchService, ICollectionService collectionService, ILogger<SearchDialog> logger)
     {
         InitializeComponent();
 
-        // Get services from DI container
-        var app = (App)Application.Current;
-        var serviceProvider = app.ServiceProvider;
-
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
         DataContext = _viewModel;
-        var logger = serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
-        var configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
-        var collectionService = serviceProvider.GetRequiredService<ICollectionService>();
+
+        var app = (App)Application.Current;
+        var configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
 
         // Load Monaco Editor configuration
         var monacoOptions = configurationService.Configuration.MonacoEditor;
-        logger.LogInformation("Monaco configuration loaded - EnableDebug: {EnableDebug}, Theme: {Theme}, FontSize: {FontSize}",
+        _logger.LogInformation("Monaco configuration loaded - EnableDebug: {EnableDebug}, Theme: {Theme}, FontSize: {FontSize}",
             monacoOptions.EnableDebug, monacoOptions.Theme, monacoOptions.FontSize);
 
         SqlEditor.EditorOptions = monacoOptions;
 
         // Set database key for SQL validation
-        var databaseKey = collectionService.GetActiveDatabaseKey();
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
         if (!string.IsNullOrEmpty(databaseKey))
             SqlEditor.DatabaseKey = databaseKey;
 
@@ -60,25 +62,13 @@ public partial class SearchDialog
             // Initialize SQL IntelliSense after editor is loaded
             await InitializeSqlIntelliSenseAsync();
         };
-
-        // Dispose validation scope when dialog closes
-        Closed += (_, _) =>
-        {
-            _validationScope?.Dispose();
-            _validationScope = null;
-        };
     }
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
         // Validate SQL query if user has modified it
-        var app = (App)Application.Current;
-        using var scope = app.ServiceProvider.CreateScope();
-        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-
         // Get active database key for validation
-        var databaseKey = collectionService.GetActiveDatabaseKey();
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
         if (string.IsNullOrEmpty(databaseKey))
         {
             DXMessageBox.Show(
@@ -90,7 +80,7 @@ public partial class SearchDialog
             return;
         }
 
-        var (isValid, errorMessage) = await searchService.ValidateSqlQueryAsync(_viewModel.SqlQuery, databaseKey);
+        var (isValid, errorMessage) = await _searchService.ValidateSqlQueryAsync(_viewModel.SqlQuery, databaseKey);
 
         if (!isValid)
         {
@@ -140,12 +130,7 @@ public partial class SearchDialog
     {
         try
         {
-            var app = (App)Application.Current;
-            // Create a scope that lives for the lifetime of the dialog
-            _validationScope = app.ServiceProvider.CreateScope();
-            var logger = _validationScope.ServiceProvider.GetRequiredService<ILogger<SearchDialog>>();
-
-            logger.LogDebug("InitializeSqlIntelliSenseAsync started");
+            _logger.LogDebug("InitializeSqlIntelliSenseAsync started");
 
             // Wait for Monaco editor to be fully initialized
             var maxWaitTime = TimeSpan.FromSeconds(5);
@@ -153,55 +138,51 @@ public partial class SearchDialog
 
             while (!SqlEditor.IsInitialized && DateTime.Now - startTime < maxWaitTime)
             {
-                logger.LogDebug("Waiting for Monaco editor initialization...");
+                _logger.LogDebug("Waiting for Monaco editor initialization...");
                 await Task.Delay(100);
             }
 
             if (!SqlEditor.IsInitialized)
             {
-                logger.LogWarning("Monaco editor not initialized after {Timeout}s, skipping SQL IntelliSense", maxWaitTime.TotalSeconds);
+                _logger.LogWarning("Monaco editor not initialized after {Timeout}s, skipping SQL IntelliSense", maxWaitTime.TotalSeconds);
                 Debug.WriteLine($"Monaco editor not initialized after {maxWaitTime.TotalSeconds}s");
                 return;
             }
 
-            logger.LogDebug("Monaco editor initialized, extracting schema");
+            _logger.LogDebug("Monaco editor initialized, extracting schema");
 
-            // Get DbContext to extract schema (from the long-lived scope)
-            var dbContext = _validationScope.ServiceProvider.GetRequiredService<ClipMateDbContext>();
-            var searchService = _validationScope.ServiceProvider.GetRequiredService<ISearchService>();
+            // Get DbContext to extract schema
+            var app = (App)Application.Current;
+            var dbContext = app.ServiceProvider.GetRequiredService<ClipMateDbContext>();
 
             // Extract schema
             var schema = SqlSchemaProvider.GetSchema(dbContext);
             var schemaJson = JsonSerializer.Serialize(schema);
 
-            logger.LogDebug("Schema extracted: {TableCount} tables, {FunctionCount} functions, {KeywordCount} keywords",
+            _logger.LogDebug("Schema extracted: {TableCount} tables, {FunctionCount} functions, {KeywordCount} keywords",
                 schema.Tables.Count, schema.Functions.Count, schema.Keywords.Count);
 
-            // Set SearchService for validation (it will remain valid until dialog closes)
-            SqlEditor.SearchService = searchService;
+            // Set SearchService for validation
+            SqlEditor.SearchService = _searchService;
 
             // Register IntelliSense
-            logger.LogDebug("Calling RegisterSqlIntelliSenseAsync with schema JSON length: {Length}", schemaJson.Length);
+            _logger.LogDebug("Calling RegisterSqlIntelliSenseAsync with schema JSON length: {Length}", schemaJson.Length);
             var success = await SqlEditor.RegisterSqlIntelliSenseAsync(schemaJson);
 
             if (!success)
             {
-                logger.LogWarning("Failed to register SQL IntelliSense");
+                _logger.LogWarning("Failed to register SQL IntelliSense");
                 Debug.WriteLine("Failed to register SQL IntelliSense");
             }
             else
             {
-                logger.LogInformation("SQL IntelliSense registered successfully");
+                _logger.LogInformation("SQL IntelliSense registered successfully");
                 Debug.WriteLine("SQL IntelliSense registered successfully");
             }
         }
         catch (Exception ex)
         {
-            var app = (App)Application.Current;
-            using var scope = app.ServiceProvider.CreateScope();
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<SearchDialog>>();
-
-            logger.LogError(ex, "Error initializing SQL IntelliSense");
+            _logger.LogError(ex, "Error initializing SQL IntelliSense");
             Debug.WriteLine($"Error initializing SQL IntelliSense: {ex.Message}\n{ex.StackTrace}");
         }
     }

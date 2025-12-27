@@ -88,7 +88,13 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     private void LoadFormattingStrings()
     {
         var config = _configurationService.Configuration.Preferences;
-        FormattingStrings = new ObservableCollection<QuickPasteFormattingString>(config.QuickPasteFormattingStrings);
+
+        // Clear and reload instead of replacing the collection
+        // This ensures proper binding updates with DevExpress controls
+        FormattingStrings.Clear();
+        foreach (var item in config.QuickPasteFormattingStrings)
+            FormattingStrings.Add(item);
+
         SelectedFormattingString = _quickPasteService.GetSelectedFormattingString();
     }
 
@@ -204,11 +210,11 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
 
     partial void OnSelectedFormattingStringChanged(QuickPasteFormattingString? value)
     {
-        if (value != null)
-        {
-            _quickPasteService.SelectFormattingString(value);
-            _logger.LogDebug("Selected formatting string: {Title}", value.Title);
-        }
+        if (value == null)
+            return;
+
+        _quickPasteService.SelectFormattingString(value);
+        _logger.LogDebug("Selected formatting string: {Title}", value.Title);
     }
 
     /// <summary>

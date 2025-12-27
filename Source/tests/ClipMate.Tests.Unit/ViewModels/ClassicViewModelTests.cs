@@ -1,6 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -39,13 +40,13 @@ public class ClassicViewModelTests
         var mockFolderService = new Mock<IFolderService>();
         var mockClipService = new Mock<IClipService>();
         var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
-        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+        var mockContextFactory = new Mock<IDatabaseContextFactory>();
         var clipListViewModel = new ClipListViewModel(
             mockCollectionService.Object,
             mockFolderService.Object,
             mockClipService.Object,
             mockQuickPasteServiceForClipList.Object,
-            mockRepositoryFactory.Object,
+            mockContextFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
@@ -73,13 +74,13 @@ public class ClassicViewModelTests
         var mockFolderService = new Mock<IFolderService>();
         var mockClipService = new Mock<IClipService>();
         var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
-        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+        var mockContextFactory = new Mock<IDatabaseContextFactory>();
         var clipListViewModel = new ClipListViewModel(
             mockCollectionService.Object,
             mockFolderService.Object,
             mockClipService.Object,
             mockQuickPasteServiceForClipList.Object,
-            mockRepositoryFactory.Object,
+            mockContextFactory.Object,
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 

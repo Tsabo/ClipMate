@@ -16,29 +16,27 @@ public class CreateNewClipTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
     private readonly Mock<IClipRepository> _mockClipRepository;
-    private readonly Mock<IDatabaseManager> _mockDatabaseManager;
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<ILogger<ClipService>> _mockLogger;
-    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<ISoundService> _mockSoundService;
 
     public CreateNewClipTests()
     {
         _mockClipRepository = MockRepository.Create<IClipRepository>();
-        _mockRepositoryFactory = MockRepository.Create<IClipRepositoryFactory>();
-        _mockDatabaseManager = MockRepository.Create<IDatabaseManager>();
+        _mockContextFactory = MockRepository.Create<IDatabaseContextFactory>();
         _mockSoundService = MockRepository.Create<ISoundService>();
         _mockLogger = MockRepository.Create<ILogger<ClipService>>();
 
         // Setup factory to return mock repository
-        _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
+        _mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
             .Returns(_mockClipRepository.Object);
     }
 
     private ClipService CreateService() => new(
-        _mockRepositoryFactory.Object,
-        Mock.Of<IDatabaseContextFactory>(),
+        _mockContextFactory.Object,
         _mockSoundService.Object,
         Mock.Of<IClipboardService>(),
+        Mock.Of<ITemplateService>(),
         _mockLogger.Object);
 
     #region CreateAsync Tests

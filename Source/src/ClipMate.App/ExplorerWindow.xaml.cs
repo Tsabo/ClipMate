@@ -29,9 +29,11 @@ public partial class ExplorerWindow : IWindow,
     IRecipient<ShowTaskbarIconChangedEvent>
 {
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ExplorerWindow>? _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ITemplateService _templateService;
     private readonly ExplorerWindowViewModel _viewModel;
     private bool _isExiting;
 
@@ -39,6 +41,8 @@ public partial class ExplorerWindow : IWindow,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         IConfigurationService configurationService,
+        IDatabaseManager databaseManager,
+        ITemplateService templateService,
         ILogger<ExplorerWindow>? logger = null)
     {
         InitializeComponent();
@@ -47,6 +51,8 @@ public partial class ExplorerWindow : IWindow,
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _logger = logger;
 
         DataContext = _viewModel;
@@ -224,9 +230,11 @@ public partial class ExplorerWindow : IWindow,
         {
             subItem.ItemLinks.Clear();
 
-            using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-            var databaseContexts = databaseManager.GetAllDatabaseContexts().ToList();
+            var databaseContexts = _databaseManager.GetAllDatabaseContexts().ToList();
+
+            // Create a dictionary mapping database keys to display names
+            var databaseNames = _configurationService.Configuration.Databases
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Name, StringComparer.OrdinalIgnoreCase);
 
             if (databaseContexts.Count == 0)
             {
@@ -249,7 +257,12 @@ public partial class ExplorerWindow : IWindow,
                 // Add database header (disabled) if we have multiple databases
                 if (databaseContexts.Count > 1)
                 {
-                    var dbHeader = new BarButtonItem { Content = databaseKey, IsEnabled = false };
+                    // Look up the database name using the database key
+                    var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                        ? name
+                        : databaseKey;
+
+                    var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
                     subItem.ItemLinks.Add(dbHeader);
                 }
 
@@ -298,9 +311,11 @@ public partial class ExplorerWindow : IWindow,
         {
             subItem.ItemLinks.Clear();
 
-            using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
-            var databaseContexts = databaseManager.GetAllDatabaseContexts().ToList();
+            var databaseContexts = _databaseManager.GetAllDatabaseContexts().ToList();
+
+            // Create a dictionary mapping database keys to display names
+            var databaseNames = _configurationService.Configuration.Databases
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Name, StringComparer.OrdinalIgnoreCase);
 
             if (databaseContexts.Count == 0)
             {
@@ -323,7 +338,12 @@ public partial class ExplorerWindow : IWindow,
                 // Add database header (disabled) if we have multiple databases
                 if (databaseContexts.Count > 1)
                 {
-                    var dbHeader = new BarButtonItem { Content = databaseKey, IsEnabled = false };
+                    // Look up the database name using the database key
+                    var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                        ? name
+                        : databaseKey;
+
+                    var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
                     subItem.ItemLinks.Add(dbHeader);
                 }
 
@@ -357,6 +377,100 @@ public partial class ExplorerWindow : IWindow,
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to populate Move to Collection dropdown");
+        }
+    }
+
+    /// <summary>
+    /// Dynamically populates Template dropdown when opened.
+    /// </summary>
+    private async void TemplateDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            // "No Template" option (checked when active)
+            var noTemplateItem = new BarCheckItem
+            {
+                Content = "No Template",
+                IsChecked = _templateService.ActiveTemplate == null,
+            };
+
+            noTemplateItem.ItemClick += (_, _) => _viewModel.SelectTemplate(null);
+            subItem.ItemLinks.Add(noTemplateItem);
+
+            // Load and display template files
+            var templates = await _templateService.GetAllTemplatesAsync();
+            foreach (var item in templates)
+            {
+                var templateName = item.Name; // Capture for closure
+                var templateItem = new BarCheckItem
+                {
+                    Content = item.Name,
+                    IsChecked = _templateService.ActiveTemplate?.Name == item.Name,
+                };
+
+                templateItem.ItemClick += (_, _) => _viewModel.SelectTemplate(templateName);
+                subItem.ItemLinks.Add(templateItem);
+            }
+
+            // Separator before commands
+            subItem.ItemLinks.Add(new BarItemSeparator());
+
+            // Refresh Template List
+            var refreshItem = new BarButtonItem { Content = "Refresh Template List" };
+            refreshItem.ItemClick += async (_, _) =>
+            {
+                await _templateService.RefreshTemplatesAsync();
+                _logger?.LogInformation("Template list refreshed");
+            };
+
+            subItem.ItemLinks.Add(refreshItem);
+
+            // Reset Sequence
+            var resetSequenceItem = new BarButtonItem { Content = "Reset Sequence" };
+            resetSequenceItem.ItemClick += (_, _) =>
+            {
+                _viewModel.ResetTemplateSequence();
+                _logger?.LogInformation("Template sequence reset to 1");
+            };
+
+            subItem.ItemLinks.Add(resetSequenceItem);
+
+            // Open Template Directory
+            var openDirItem = new BarButtonItem
+            {
+                Content = "Open Template Directory",
+                Glyph = new EmojiIconSourceExtension("📁") { Size = 16 }.ProvideValue(null!) as ImageSource,
+            };
+
+            openDirItem.ItemClick += (_, _) =>
+            {
+                _templateService.OpenTemplatesDirectory();
+                _logger?.LogInformation("Opened templates directory");
+            };
+
+            subItem.ItemLinks.Add(openDirItem);
+
+            // Template Help
+            var helpItem = new BarButtonItem
+            {
+                Content = "Template Help",
+                Glyph = new EmojiIconSourceExtension("❓") { Size = 16 }.ProvideValue(null!) as ImageSource,
+            };
+
+            helpItem.ItemClick += (_, _) => MessageBox.Show(
+                "Template Help: Templates allow you to merge clip data with placeholders like #TITLE#, #URL#, #DATE#, etc.",
+                "Template Help", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            subItem.ItemLinks.Add(helpItem);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error populating Template dropdown");
         }
     }
 

@@ -100,6 +100,9 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             _mockClipboardService.Object,
             _configurationService,
             _messenger,
+            Mock.Of<IMacroExecutionService>(),
+            Mock.Of<ITemplateService>(),
+            Mock.Of<IDialogService>(),
             quickPasteLogger);
     }
 

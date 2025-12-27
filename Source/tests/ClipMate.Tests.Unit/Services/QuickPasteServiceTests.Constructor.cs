@@ -19,6 +19,9 @@ public partial class QuickPasteServiceTests
                 mockClipboard.Object,
                 mockConfig.Object,
                 mockMessenger.Object,
+                CreateMockMacroExecutionService().Object,
+                CreateMockTemplateService().Object,
+                CreateMockDialogService().Object,
                 mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
@@ -38,6 +41,9 @@ public partial class QuickPasteServiceTests
                 null!,
                 mockConfig.Object,
                 mockMessenger.Object,
+                CreateMockMacroExecutionService().Object,
+                CreateMockTemplateService().Object,
+                CreateMockDialogService().Object,
                 mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
@@ -57,6 +63,9 @@ public partial class QuickPasteServiceTests
                 mockClipboard.Object,
                 null!,
                 mockMessenger.Object,
+                CreateMockMacroExecutionService().Object,
+                CreateMockTemplateService().Object,
+                CreateMockDialogService().Object,
                 mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
@@ -76,6 +85,9 @@ public partial class QuickPasteServiceTests
                 mockClipboard.Object,
                 mockConfig.Object,
                 null!,
+                CreateMockMacroExecutionService().Object,
+                CreateMockTemplateService().Object,
+                CreateMockDialogService().Object,
                 mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
@@ -95,6 +107,9 @@ public partial class QuickPasteServiceTests
                 mockClipboard.Object,
                 mockConfig.Object,
                 mockMessenger.Object,
+                CreateMockMacroExecutionService().Object,
+                CreateMockTemplateService().Object,
+                CreateMockDialogService().Object,
                 null!))
             .Throws<ArgumentNullException>();
     }

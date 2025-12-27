@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using Moq;
 
@@ -8,14 +9,21 @@ namespace ClipMate.Tests.Unit.Services;
 
 public class FolderServiceTests
 {
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
+    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IFolderRepository> _mockRepository;
 
     public FolderServiceTests()
     {
         _mockRepository = new Mock<IFolderRepository>();
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
+        _mockCollectionService = new Mock<ICollectionService>();
+        
+        _mockContextFactory.Setup(f => f.GetFolderRepository(It.IsAny<string>())).Returns(_mockRepository.Object);
+        _mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
     }
 
-    private IFolderService CreateFolderService() => new FolderService(_mockRepository.Object);
+    private IFolderService CreateFolderService() => new FolderService(_mockContextFactory.Object, _mockCollectionService.Object);
 
     private Folder CreateTestFolder(Guid? id = null, string name = "Test Folder", Guid? collectionId = null, Guid? parentFolderId = null) =>
         new()

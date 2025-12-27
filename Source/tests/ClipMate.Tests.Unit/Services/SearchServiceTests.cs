@@ -16,6 +16,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class SearchServiceTests
 {
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
+    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IClipRepository> _mockClipRepository;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
     private readonly Mock<ILogger<SearchService>> _mockLogger;
@@ -25,6 +27,8 @@ public class SearchServiceTests
 
     public SearchServiceTests()
     {
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
+        _mockCollectionService = new Mock<ICollectionService>();
         _mockClipRepository = new Mock<IClipRepository>();
         _mockConfigurationService = new Mock<IConfigurationService>();
         _mockSqlValidationService = new Mock<ISqlValidationService>();
@@ -45,9 +49,12 @@ public class SearchServiceTests
 
         var config = new ClipMateConfiguration();
         _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+        _mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>())).Returns(_mockClipRepository.Object);
+        _mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
 
         _searchService = new SearchService(
-            _mockClipRepository.Object,
+            _mockContextFactory.Object,
+            _mockCollectionService.Object,
             _mockConfigurationService.Object,
             _mockSqlValidationService.Object,
             _mockLogger.Object);
@@ -65,7 +72,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(_mockClipRepository.Object, null!, _mockSqlValidationService.Object, _mockLogger.Object))
+                new SearchService(_mockContextFactory.Object, _mockCollectionService.Object, null!, _mockSqlValidationService.Object, _mockLogger.Object))
             .Throws<ArgumentNullException>();
     }
 

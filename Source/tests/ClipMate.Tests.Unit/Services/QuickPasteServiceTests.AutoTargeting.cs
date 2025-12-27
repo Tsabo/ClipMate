@@ -23,7 +23,7 @@ public partial class QuickPasteServiceTests
                     QuickPasteAutoTargetingEnabled = false,
                     QuickPasteFormattingStrings =
                     [
-                        new() { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
+                        new QuickPasteFormattingString { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
                     ],
                     QuickPasteGoodTargets = ["NOTEPAD:EDIT"],
                     QuickPasteBadTargets = ["CLIPMATE:"],
@@ -39,6 +39,9 @@ public partial class QuickPasteServiceTests
             CreateMockClipboardService().Object,
             mockConfig.Object,
             CreateMockMessenger().Object,
+            CreateMockMacroExecutionService().Object,
+            CreateMockTemplateService().Object,
+            CreateMockDialogService().Object,
             CreateMockLogger().Object);
 
         // Act
@@ -62,7 +65,7 @@ public partial class QuickPasteServiceTests
                     QuickPasteAutoTargetingEnabled = true,
                     QuickPasteFormattingStrings =
                     [
-                        new() { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
+                        new QuickPasteFormattingString { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
                     ],
                     QuickPasteGoodTargets = ["NOTEPAD:EDIT"],
                     QuickPasteBadTargets = ["CLIPMATE:"],
@@ -80,6 +83,9 @@ public partial class QuickPasteServiceTests
             CreateMockClipboardService().Object,
             mockConfig.Object,
             CreateMockMessenger().Object,
+            CreateMockMacroExecutionService().Object,
+            CreateMockTemplateService().Object,
+            CreateMockDialogService().Object,
             CreateMockLogger().Object);
 
         // Act
@@ -102,7 +108,7 @@ public partial class QuickPasteServiceTests
                     QuickPasteAutoTargetingEnabled = true,
                     QuickPasteFormattingStrings =
                     [
-                        new() { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
+                        new QuickPasteFormattingString { Title = "Default", PasteKeystrokes = "^v", TitleTrigger = "*" },
                     ],
                     QuickPasteGoodTargets = ["NOTEPAD:EDIT"],
                     QuickPasteBadTargets = ["CLIPMATE:"],
@@ -115,6 +121,9 @@ public partial class QuickPasteServiceTests
             CreateMockClipboardService().Object,
             mockConfig.Object,
             CreateMockMessenger().Object,
+            CreateMockMacroExecutionService().Object,
+            CreateMockTemplateService().Object,
+            CreateMockDialogService().Object,
             CreateMockLogger().Object);
 
         // Lock the target

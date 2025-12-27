@@ -36,11 +36,15 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     IRecipient<ShowSearchWindowEvent>,
     IRecipient<ShortcutModeStatusMessage>
 {
+    private readonly ICollectionService _collectionService;
+    private readonly IFolderService _folderService;
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
+    private readonly ISearchService _searchService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ITemplateService _templateService;
 
     public ExplorerWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
@@ -51,6 +55,10 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         IServiceProvider serviceProvider,
         IQuickPasteService quickPasteService,
         IPowerPasteService powerPasteService,
+        ICollectionService collectionService,
+        IFolderService folderService,
+        ITemplateService templateService,
+        ISearchService searchService,
         IMessenger messenger,
         ILogger<ExplorerWindowViewModel>? logger = null)
     {
@@ -63,6 +71,10 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger;
 
@@ -118,16 +130,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                     targetCollection.IsExpanded = true;
 
                     // Set this collection as the active collection for new clips
-                    using (var scope = _serviceProvider.CreateScope())
-                    {
-                        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-                        // Find the database key by traversing up from target node
-                        var databaseKey = GetDatabaseKeyForNode(targetCollection);
-                        if (string.IsNullOrEmpty(databaseKey))
-                            _logger?.LogWarning("Could not determine database key for target collection");
-                        else
-                            await collectionService.SetActiveAsync(targetCollection.Collection.Id, databaseKey);
-                    }
+                    // Find the database key by traversing up from target node
+                    var databaseKey = GetDatabaseKeyForNode(targetCollection);
+                    if (string.IsNullOrEmpty(databaseKey))
+                        _logger?.LogWarning("Could not determine database key for target collection");
+                    else
+                        await _collectionService.SetActiveAsync(targetCollection.Collection.Id, databaseKey);
 
                     // Check if this is a default collection (Inbox, Safe, Overflow)
                     var isDefaultCollection = targetCollection.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase) ||
@@ -154,11 +162,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                             CollectionTree.SelectedNode = inboxFolder;
 
                             // Set Inbox folder as the active folder for new clips
-                            using (var scope = _serviceProvider.CreateScope())
-                            {
-                                var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-                                await folderService.SetActiveAsync(inboxFolder.Folder.Id);
-                            }
+                            await _folderService.SetActiveAsync(inboxFolder.Folder.Id);
 
                             _logger?.LogInformation("Inbox folder selected and set as active for new clips");
                         }
@@ -227,8 +231,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     {
         try
         {
-            // Delay to ensure the new foreground window is fully activated
-            await Task.Delay(100);
+            // Brief delay to ensure the new foreground window is fully activated
+            await Task.Delay(50);
             _quickPasteService.UpdateTarget();
         }
         catch (Exception ex)
@@ -556,6 +560,11 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private Clip? _selectedClip;
 
     /// <summary>
+    /// The database key for the currently selected clip.
+    /// </summary>
+    private string? _selectedClipDatabaseKey;
+
+    /// <summary>
     /// Tracks whether the selected clip has been copied to the clipboard.
     /// </summary>
     private bool _clipboardCopied;
@@ -658,16 +667,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                 return;
             }
 
-            // Get PowerPaste service from scope
-            using var scope = _serviceProvider.CreateScope();
-            var powerPasteService = scope.ServiceProvider.GetRequiredService<IPowerPasteService>();
-
             // Start PowerPaste
             var powerPasteDirection = direction == "Up"
                 ? Core.Services.PowerPasteDirection.Up
                 : Core.Services.PowerPasteDirection.Down;
 
-            await powerPasteService.StartAsync(
+            await _powerPasteService.StartAsync(
                 selectedClips,
                 powerPasteDirection,
                 MainMenu.IsExplodeMode);
@@ -692,6 +697,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     public void Receive(ClipSelectedEvent message)
     {
         _selectedClip = message.SelectedClip;
+        _selectedClipDatabaseKey = message.DatabaseKey;
         _clipboardCopied = false; // Reset clipboard status when clip changes
 
         // Reset image-related state
@@ -1181,6 +1187,42 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Selects a template for clip merging.
+    /// If a clip is currently selected, immediately applies the template to it.
+    /// </summary>
+    /// <param name="templateName">Template name, or null for "No Template".</param>
+    public async void SelectTemplate(string? templateName)
+    {
+        try
+        {
+            await _templateService.SetActiveTemplateAsync(templateName);
+
+            var statusMessage = string.IsNullOrWhiteSpace(templateName)
+                ? "Template cleared"
+                : $"Template selected: {templateName}";
+
+            SetStatus(statusMessage);
+
+            // Note: Template will be applied on next clipboard operation
+            // No need to re-trigger clipboard set here
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to select template: {TemplateName}", templateName);
+            SetStatus("Error selecting template");
+        }
+    }
+
+    /// <summary>
+    /// Resets the template sequence counter to 1.
+    /// </summary>
+    public void ResetTemplateSequence()
+    {
+        _templateService.ResetSequenceCounter();
+        SetStatus("Template sequence reset to 1");
+    }
+
+    /// <summary>
     /// Handles ShowSearchWindowEvent to display the search dialog.
     /// </summary>
     public void Receive(ShowSearchWindowEvent message)
@@ -1189,7 +1231,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
 
         try
         {
-            var dialog = new SearchDialog(Search)
+            var logger = _serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
+            var dialog = new SearchDialog(Search, _searchService, _collectionService, logger)
             {
                 Owner = Application.Current.GetDialogOwner(),
             };

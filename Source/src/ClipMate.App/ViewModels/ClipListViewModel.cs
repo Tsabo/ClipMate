@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -26,12 +27,12 @@ public partial class ClipListViewModel : ObservableObject,
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
+    private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly RateLimitedAction _debouncedClipSelection;
     private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
-    private readonly IClipRepositoryFactory _repositoryFactory;
 
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
@@ -79,7 +80,7 @@ public partial class ClipListViewModel : ObservableObject,
         IFolderService folderService,
         IClipService clipService,
         IQuickPasteService quickPasteService,
-        IClipRepositoryFactory repositoryFactory,
+        IDatabaseContextFactory databaseContextFactory,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
@@ -87,7 +88,7 @@ public partial class ClipListViewModel : ObservableObject,
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
-        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
+        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -433,7 +434,7 @@ public partial class ClipListViewModel : ObservableObject,
             else
             {
                 // Create repository using the factory
-                var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
                 clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
                 _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
             }
@@ -489,7 +490,7 @@ public partial class ClipListViewModel : ObservableObject,
             else
             {
                 // Create repository using the factory
-                var clipRepository = _repositoryFactory.CreateRepository(activeDatabaseKey);
+                var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
                 clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
                 _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
             }
@@ -534,7 +535,7 @@ public partial class ClipListViewModel : ObservableObject,
             _logger.LogInformation("Loading deleted clips for database: {DatabaseKey}", databaseKey);
 
             // Create repository using the factory
-            var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+            var clipRepository = _databaseContextFactory.GetClipRepository(databaseKey);
             IReadOnlyCollection<Clip> clips = await clipRepository.GetDeletedAsync(cancellationToken);
             _logger.LogInformation("Retrieved {Count} deleted clips from database '{DatabaseKey}'", clips.Count, databaseKey);
 
@@ -579,7 +580,7 @@ public partial class ClipListViewModel : ObservableObject,
             _logger.LogInformation("Loading {Count} clips by IDs for database: {DatabaseKey}", clipIds.Count, databaseKey);
 
             // Create repository using the factory
-            var clipRepository = _repositoryFactory.CreateRepository(databaseKey);
+            var clipRepository = _databaseContextFactory.GetClipRepository(databaseKey);
 
             // Load each clip by ID
             var clips = new List<Clip>();

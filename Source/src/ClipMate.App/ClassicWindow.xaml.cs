@@ -5,6 +5,8 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App;
 
@@ -14,20 +16,27 @@ namespace ClipMate.App;
 /// </summary>
 public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
 {
+    private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
     private readonly bool _isHotkeyTriggered;
     private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
+    private readonly ISearchService _searchService;
     private readonly SearchViewModel _searchViewModel;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ClassicViewModel _viewModel;
 
-    public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, IMessenger messenger, bool isHotkeyTriggered = false)
+    public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
+        IServiceProvider serviceProvider, IMessenger messenger, bool isHotkeyTriggered = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _isHotkeyTriggered = isHotkeyTriggered;
         DataContext = _viewModel;
@@ -53,7 +62,8 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
     {
         try
         {
-            var dialog = new SearchDialog(_searchViewModel)
+            var logger = _serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
+            var dialog = new SearchDialog(_searchViewModel, _searchService, _collectionService, logger)
             {
                 Owner = this,
             };
@@ -92,8 +102,8 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
     {
         try
         {
-            // Delay to ensure the new foreground window is fully activated
-            await Task.Delay(100);
+            // Brief delay to ensure the new foreground window is fully activated
+            await Task.Delay(50);
             _quickPasteService.UpdateTarget();
         }
         catch (Exception ex)

@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
@@ -14,18 +13,18 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public partial class ClipAppendService : IClipAppendService
 {
-    private readonly IClipRepository _clipRepository;
-    private readonly IConfigurationService _configurationService;
+    private readonly ICollectionService _collectionService;
+    private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<ClipAppendService> _logger;
     private readonly ISoundService _soundService;
 
-    public ClipAppendService(IClipRepository clipRepository,
-        IConfigurationService configurationService,
+    public ClipAppendService(IDatabaseContextFactory contextFactory,
+        ICollectionService collectionService,
         ISoundService soundService,
         ILogger<ClipAppendService> logger)
     {
-        _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
-        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -41,6 +40,12 @@ public partial class ClipAppendService : IClipAppendService
         if (clipList.Count == 0)
             throw new ArgumentException("At least one clip is required for appending.", nameof(clips));
 
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
+        var clipRepository = _contextFactory.GetClipRepository(databaseKey);
+
         _logger.LogInformation("Appending {Count} clips together", clipList.Count);
 
         try
@@ -52,20 +57,20 @@ public partial class ClipAppendService : IClipAppendService
             var combinedText = new StringBuilder();
             var isFirst = true;
 
-            foreach (var clip in clipList)
+            foreach (var item in clipList)
             {
                 // Get the text content (ensure it's loaded)
-                var textContent = clip.TextContent;
+                var textContent = item.TextContent;
                 if (string.IsNullOrEmpty(textContent))
                 {
                     // Try to load text content from repository if not loaded
-                    var loadedClip = await _clipRepository.GetByIdAsync(clip.Id, cancellationToken);
+                    var loadedClip = await clipRepository.GetByIdAsync(item.Id, cancellationToken);
                     textContent = loadedClip?.TextContent;
                 }
 
                 if (string.IsNullOrEmpty(textContent))
                 {
-                    _logger.LogWarning("Clip {ClipId} has no text content, skipping", clip.Id);
+                    _logger.LogWarning("Clip {ClipId} has no text content, skipping", item.Id);
 
                     continue;
                 }
@@ -100,7 +105,7 @@ public partial class ClipAppendService : IClipAppendService
             };
 
             // Save the new clip to the repository
-            var savedClip = await _clipRepository.CreateAsync(newClip, cancellationToken);
+            var savedClip = await clipRepository.CreateAsync(newClip, cancellationToken);
 
             // Play append sound notification
             await _soundService.PlaySoundAsync(SoundEvent.Append, cancellationToken);
@@ -136,22 +141,17 @@ public partial class ClipAppendService : IClipAppendService
     /// <summary>
     /// Strips trailing line breaks (\r\n, \n, or \r) from the text.
     /// </summary>
-    private static string StripTrailingLineBreaks(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return text;
-
-        return TrailingLineBreakRegex().Replace(text, string.Empty);
-    }
+    private static string StripTrailingLineBreaks(string text) => string.IsNullOrEmpty(text)
+        ? text
+        : TrailingLineBreakRegex().Replace(text, string.Empty);
 
     /// <summary>
     /// Computes a SHA-256 hash of the text content for duplicate detection.
     /// </summary>
     private static string ComputeContentHash(string text)
     {
-        using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(text);
-        var hash = sha256.ComputeHash(bytes);
+        var hash = SHA256.HashData(bytes);
 
         return Convert.ToHexString(hash);
     }

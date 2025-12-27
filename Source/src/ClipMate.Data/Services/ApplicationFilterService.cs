@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
@@ -12,15 +11,18 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class ApplicationFilterService : IApplicationFilterService
 {
+    private readonly ICollectionService _collectionService;
+    private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<ApplicationFilterService> _logger;
-    private readonly IApplicationFilterRepository _repository;
     private readonly ISoundService _soundService;
 
-    public ApplicationFilterService(IApplicationFilterRepository repository,
+    public ApplicationFilterService(IDatabaseContextFactory contextFactory,
+        ICollectionService collectionService,
         ISoundService soundService,
         ILogger<ApplicationFilterService> logger)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -32,23 +34,28 @@ public class ApplicationFilterService : IApplicationFilterService
     {
         try
         {
-            var enabledFilters = await _repository.GetEnabledAsync(cancellationToken);
+            var databaseKey = _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(databaseKey))
+                return false; // No active database, don't filter
+
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
+            var enabledFilters = await repository.GetEnabledAsync(cancellationToken);
 
             foreach (var item in enabledFilters)
             {
-                if (MatchesFilter(item, processName, windowTitle))
-                {
-                    _logger.LogDebug(
-                        "Clip filtered by rule '{FilterName}': Process={Process}, Title={Title}",
-                        item.Name,
-                        processName,
-                        windowTitle);
+                if (!MatchesFilter(item, processName, windowTitle))
+                    continue;
 
-                    // Play filter sound when rejecting clipboard capture
-                    await _soundService.PlaySoundAsync(SoundEvent.Filter);
+                _logger.LogDebug(
+                    "Clip filtered by rule '{FilterName}': Process={Process}, Title={Title}",
+                    item.Name,
+                    processName,
+                    windowTitle);
 
-                    return true;
-                }
+                // Play filter sound when rejecting clipboard capture
+                await _soundService.PlaySoundAsync(SoundEvent.Filter, cancellationToken);
+
+                return true;
             }
 
             return false;
@@ -67,7 +74,12 @@ public class ApplicationFilterService : IApplicationFilterService
     {
         try
         {
-            return await _repository.GetAllAsync(cancellationToken);
+            var databaseKey = _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(databaseKey))
+                return Array.Empty<ApplicationFilter>();
+
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
+            return await repository.GetAllAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -82,7 +94,12 @@ public class ApplicationFilterService : IApplicationFilterService
     {
         try
         {
-            return await _repository.GetEnabledAsync(cancellationToken);
+            var databaseKey = _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(databaseKey))
+                return Array.Empty<ApplicationFilter>();
+
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
+            return await repository.GetEnabledAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -104,8 +121,13 @@ public class ApplicationFilterService : IApplicationFilterService
         if (string.IsNullOrWhiteSpace(processName) && string.IsNullOrWhiteSpace(windowTitlePattern))
             throw new ArgumentException("At least one of processName or windowTitlePattern must be specified");
 
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
         try
         {
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
             var filter = new ApplicationFilter
             {
                 Id = Guid.NewGuid(),
@@ -116,7 +138,7 @@ public class ApplicationFilterService : IApplicationFilterService
                 CreatedAt = DateTime.UtcNow,
             };
 
-            var created = await _repository.CreateAsync(filter, cancellationToken);
+            var created = await repository.CreateAsync(filter, cancellationToken);
             _logger.LogInformation("Created filter '{FilterName}' (ID: {FilterId})", name, created.Id);
 
             return created;
@@ -134,10 +156,15 @@ public class ApplicationFilterService : IApplicationFilterService
     {
         ArgumentNullException.ThrowIfNull(filter);
 
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
         try
         {
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
             filter.ModifiedAt = DateTime.UtcNow;
-            await _repository.UpdateAsync(filter, cancellationToken);
+            await repository.UpdateAsync(filter, cancellationToken);
             _logger.LogInformation("Updated filter '{FilterName}' (ID: {FilterId})", filter.Name, filter.Id);
         }
         catch (Exception ex)
@@ -151,9 +178,14 @@ public class ApplicationFilterService : IApplicationFilterService
     /// <inheritdoc />
     public async Task DeleteFilterAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
         try
         {
-            await _repository.DeleteAsync(id, cancellationToken);
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
+            await repository.DeleteAsync(id, cancellationToken);
             _logger.LogInformation("Deleted filter {FilterId}", id);
         }
         catch (Exception ex)
@@ -167,16 +199,21 @@ public class ApplicationFilterService : IApplicationFilterService
     /// <inheritdoc />
     public async Task SetFilterEnabledAsync(Guid id, bool isEnabled, CancellationToken cancellationToken = default)
     {
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
         try
         {
-            var filter = await _repository.GetByIdAsync(id, cancellationToken);
+            var repository = _contextFactory.GetApplicationFilterRepository(databaseKey);
+            var filter = await repository.GetByIdAsync(id, cancellationToken);
 
             if (filter == null)
                 throw new InvalidOperationException($"Filter with ID {id} not found");
 
             filter.IsEnabled = isEnabled;
             filter.ModifiedAt = DateTime.UtcNow;
-            await _repository.UpdateAsync(filter, cancellationToken);
+            await repository.UpdateAsync(filter, cancellationToken);
 
             _logger.LogInformation(
                 "Filter '{FilterName}' (ID: {FilterId}) {Status}",

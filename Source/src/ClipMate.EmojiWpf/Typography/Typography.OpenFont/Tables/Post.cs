@@ -1,4 +1,4 @@
-﻿//Apache2, 2016-present, WinterDev
+//Apache2, 2016-present, WinterDev
 
 using System.IO;
 using System.Collections.Generic;
@@ -137,7 +137,6 @@ namespace Typography.OpenFont.Tables
                 default:
                     {
                         return;
-                        throw new System.NotSupportedException();
                     }
                 case 0x00025000:
                     //deprecated ??

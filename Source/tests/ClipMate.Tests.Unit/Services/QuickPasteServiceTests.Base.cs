@@ -16,8 +16,11 @@ public partial class QuickPasteServiceTests : TestFixtureBase
 {
     private Mock<IClipboardService> _mockClipboardService = null!;
     private Mock<IConfigurationService> _mockConfigurationService = null!;
+    private Mock<IDialogService> _mockDialogService = null!;
     private Mock<ILogger<QuickPasteService>> _mockLogger = null!;
+    private Mock<IMacroExecutionService> _mockMacroExecutionService = null!;
     private Mock<IMessenger> _mockMessenger = null!;
+    private Mock<ITemplateService> _mockTemplateService = null!;
     private Mock<IWin32InputInterop> _mockWin32 = null!;
     private ClipMateConfiguration _testConfiguration = null!;
 
@@ -27,6 +30,9 @@ public partial class QuickPasteServiceTests : TestFixtureBase
         _mockClipboardService = new Mock<IClipboardService>();
         _mockConfigurationService = new Mock<IConfigurationService>();
         _mockMessenger = new Mock<IMessenger>();
+        _mockMacroExecutionService = new Mock<IMacroExecutionService>();
+        _mockTemplateService = new Mock<ITemplateService>();
+        _mockDialogService = new Mock<IDialogService>();
         _mockLogger = new Mock<ILogger<QuickPasteService>>();
 
         // Setup default test configuration
@@ -86,6 +92,9 @@ public partial class QuickPasteServiceTests : TestFixtureBase
             _mockClipboardService.Object,
             _mockConfigurationService.Object,
             _mockMessenger.Object,
+            _mockMacroExecutionService.Object,
+            _mockTemplateService.Object,
+            _mockDialogService.Object,
             _mockLogger.Object);
     }
 
@@ -103,6 +112,12 @@ public partial class QuickPasteServiceTests : TestFixtureBase
     private Mock<IWin32InputInterop> CreateMockWin32() => new();
 
     private Mock<IClipboardService> CreateMockClipboardService() => new();
+
+    private Mock<IMacroExecutionService> CreateMockMacroExecutionService() => new();
+
+    private Mock<ITemplateService> CreateMockTemplateService() => new();
+
+    private Mock<IDialogService> CreateMockDialogService() => new();
 
     private Mock<IConfigurationService> CreateMockConfigurationService()
     {

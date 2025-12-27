@@ -1,4 +1,4 @@
-using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
@@ -15,14 +15,13 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(null!, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(null!, configurationService.Object, contextFactory.Object, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -31,13 +30,12 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var _);
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var messenger = new Mock<IMessenger>().Object;
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, repositoryFactory.Object, null!, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, null!, contextFactory.Object, null!, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -47,13 +45,12 @@ public partial class ClipboardCoordinatorTests
         // Arrange
         var clipboardService = CreateMockClipboardService(out var _);
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, null!, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, null!, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -63,13 +60,12 @@ public partial class ClipboardCoordinatorTests
         // Arrange
         var clipboardService = CreateMockClipboardService(out var _);
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
-        var soundService = CreateMockSoundService();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger, null!))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -79,14 +75,13 @@ public partial class ClipboardCoordinatorTests
         // Arrange
         var clipboardService = CreateMockClipboardService(out var _);
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = new Mock<IMessenger>().Object;
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger, logger);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();

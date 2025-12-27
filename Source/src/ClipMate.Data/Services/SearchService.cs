@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -20,18 +19,22 @@ public class SearchService : ISearchService
         "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXEC", "EXECUTE", "PRAGMA",
     ];
 
-    private readonly IClipRepository _clipRepository;
+    private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
+
+    private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<SearchService> _logger;
     private readonly List<string> _searchHistory = [];
     private readonly ISqlValidationService _sqlValidationService;
 
-    public SearchService(IClipRepository clipRepository,
+    public SearchService(IDatabaseContextFactory contextFactory,
+        ICollectionService collectionService,
         IConfigurationService configurationService,
         ISqlValidationService sqlValidationService,
         ILogger<SearchService> logger)
     {
-        _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
+        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _sqlValidationService = sqlValidationService ?? throw new ArgumentNullException(nameof(sqlValidationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -39,6 +42,13 @@ public class SearchService : ISearchService
 
     public async Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default)
     {
+        // Get active database from collection service
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
+        var clipRepository = _contextFactory.GetClipRepository(databaseKey);
+
         // Track search history (non-empty queries only)
         if (!string.IsNullOrWhiteSpace(query))
             AddToSearchHistory(query);
@@ -47,7 +57,7 @@ public class SearchService : ISearchService
         var sqlQuery = BuildSqlQuery(query, filters);
 
         // Execute SQL query
-        var clips = await _clipRepository.ExecuteSqlQueryAsync(sqlQuery, cancellationToken);
+        var clips = await clipRepository.ExecuteSqlQueryAsync(sqlQuery, cancellationToken);
 
         return new SearchResults
         {

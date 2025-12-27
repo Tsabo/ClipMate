@@ -534,6 +534,9 @@ public partial class App
                 // Register Platform services
                 services.AddClipMatePlatform();
 
+                // Register Dialog service (App-layer implementation for Platform layer)
+                services.AddSingleton<IDialogService, DialogService>();
+
                 // Register Update Checker as hosted service
                 services.AddHostedService<UpdateCheckerService>();
 

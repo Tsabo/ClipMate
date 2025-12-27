@@ -25,7 +25,6 @@ public class ExplorerWindowViewModelTests
         var mockSearchService = new Mock<ISearchService>();
         var mockContextFactory = new Mock<IDatabaseContextFactory>();
         var mockQuickPasteService = new Mock<IQuickPasteService>();
-        var mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
         var mockLogger = new Mock<ILogger<ClipListViewModel>>();
         var mockTreeLogger = new Mock<ILogger<CollectionTreeViewModel>>();
         var mockMainLogger = new Mock<ILogger<ExplorerWindowViewModel>>();
@@ -46,7 +45,7 @@ public class ExplorerWindowViewModelTests
             mockFolderService.Object,
             mockClipService.Object,
             mockQuickPasteService.Object,
-            mockRepositoryFactory.Object,
+            mockContextFactory.Object,
             mockMessenger.Object,
             mockLogger.Object);
 
@@ -90,6 +89,10 @@ public class ExplorerWindowViewModelTests
             mockServiceProvider.Object,
             mockQuickPasteService.Object,
             new Mock<IPowerPasteService>().Object,
+            mockCollectionService.Object,
+            mockFolderService.Object,
+            new Mock<ITemplateService>().Object,
+            mockSearchService.Object,
             mockMessenger.Object, // Use the existing mockMessenger.Object from earlier
             mockMainLogger.Object);
     }

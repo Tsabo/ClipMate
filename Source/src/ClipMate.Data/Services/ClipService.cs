@@ -16,19 +16,19 @@ public class ClipService : IClipService
     private readonly IClipboardService _clipboardService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipService> _logger;
-    private readonly IClipRepositoryFactory _repositoryFactory;
     private readonly ISoundService _soundService;
+    private readonly ITemplateService _templateService;
 
-    public ClipService(IClipRepositoryFactory repositoryFactory,
-        IDatabaseContextFactory databaseContextFactory,
+    public ClipService(IDatabaseContextFactory databaseContextFactory,
         ISoundService soundService,
         IClipboardService clipboardService,
+        ITemplateService templateService,
         ILogger<ClipService> logger)
     {
-        _repositoryFactory = repositoryFactory ?? throw new ArgumentNullException(nameof(repositoryFactory));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -377,6 +377,11 @@ public class ClipService : IClipService
                     clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
             }
 
+            // Apply template transformation if active
+            var transformedClip = _templateService.TryApplyTemplate(clip);
+            if (transformedClip != null)
+                clip = transformedClip;
+
             // Update the Windows clipboard
             await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
             _logger.LogInformation("Set clipboard content for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
@@ -391,7 +396,7 @@ public class ClipService : IClipService
     /// <summary>
     /// Gets a repository instance for the specified database.
     /// </summary>
-    private IClipRepository GetRepository(string databaseKey) => _repositoryFactory.CreateRepository(databaseKey);
+    private IClipRepository GetRepository(string databaseKey) => _databaseContextFactory.GetClipRepository(databaseKey);
 
     /// <summary>
     /// Copies all ClipData formats and associated BLOB data from source clip to target clip.

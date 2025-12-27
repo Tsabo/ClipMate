@@ -16,20 +16,20 @@ namespace ClipMate.Tests.Unit.Services;
 public class ClipServiceTests
 {
     private const string _testDatabaseKey = "db_test0001";
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<ILogger<ClipService>> _mockLogger;
     private readonly Mock<IClipRepository> _mockRepository;
-    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
     private readonly Mock<ISoundService> _mockSoundService;
 
     public ClipServiceTests()
     {
         _mockRepository = new Mock<IClipRepository>();
-        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
         _mockSoundService = new Mock<ISoundService>();
         _mockLogger = new Mock<ILogger<ClipService>>();
 
         // Setup factory to return our mock repository
-        _mockRepositoryFactory.Setup(p => p.CreateRepository(It.IsAny<string>()))
+        _mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
             .Returns(_mockRepository.Object);
 
         // Setup sound service
@@ -255,10 +255,10 @@ public class ClipServiceTests
     private IClipService CreateClipService() =>
         // Create ClipService with factory
         new ClipService(
-            _mockRepositoryFactory.Object,
-            Mock.Of<IDatabaseContextFactory>(),
+            _mockContextFactory.Object,
             _mockSoundService.Object,
             Mock.Of<IClipboardService>(),
+            Mock.Of<ITemplateService>(),
             _mockLogger.Object);
 
     private Clip CreateTestClip(Guid id,

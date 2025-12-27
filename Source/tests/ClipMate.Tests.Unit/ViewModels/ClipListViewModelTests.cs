@@ -1,5 +1,6 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,16 +11,16 @@ public class ClipListViewModelTests
 {
     private readonly Mock<IClipService> _mockClipService;
     private readonly Mock<ICollectionService> _mockCollectionService;
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<IFolderService> _mockFolderService;
     private readonly Mock<ILogger<ClipListViewModel>> _mockLogger;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly Mock<IQuickPasteService> _mockQuickPasteService;
-    private readonly Mock<IClipRepositoryFactory> _mockRepositoryFactory;
 
     public ClipListViewModelTests()
     {
         _mockClipService = new Mock<IClipService>();
-        _mockRepositoryFactory = new Mock<IClipRepositoryFactory>();
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
         _mockMessenger = new Mock<IMessenger>();
         _mockFolderService = new Mock<IFolderService>();
         _mockCollectionService = new Mock<ICollectionService>();
@@ -35,7 +36,7 @@ public class ClipListViewModelTests
             _mockFolderService.Object,
             _mockClipService.Object,
             _mockQuickPasteService.Object,
-            _mockRepositoryFactory.Object,
+            _mockContextFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
 
@@ -50,7 +51,7 @@ public class ClipListViewModelTests
             _mockFolderService.Object,
             _mockClipService.Object,
             _mockQuickPasteService.Object,
-            _mockRepositoryFactory.Object,
+            _mockContextFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
 
@@ -68,7 +69,7 @@ public class ClipListViewModelTests
             _mockFolderService.Object,
             _mockClipService.Object,
             _mockQuickPasteService.Object,
-            _mockRepositoryFactory.Object,
+            _mockContextFactory.Object,
             _mockMessenger.Object,
             _mockLogger.Object);
 

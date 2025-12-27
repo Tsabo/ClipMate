@@ -91,3 +91,19 @@ HTML Format = 1
 Rich Text Format = 0
 
 # More application profiles can be added here as they are discovered
+
+# Directory paths - supports environment variable expansion
+# Examples: %APPDATA%, %LOCALAPPDATA%, %USERPROFILE%, %TEMP%, etc.
+[Directories]
+# LogDirectory = "%LOCALAPPDATA%\\ClipMate\\Logs"
+# TempDirectory = "%TEMP%\\ClipMate"
+# TemplatesDirectory = "%APPDATA%\\ClipMate\\Templates"
+# ExportDirectory = "%USERPROFILE%\\Documents\\ClipMate\\Exports"
+# SoundsDirectory = "[AppDir]\\Resources\\Sounds"
+
+# Note: If not specified, default paths will be used:
+# - Logs: %LOCALAPPDATA%\ClipMate\Logs
+# - Temp: %TEMP%\ClipMate
+# - Templates: %APPDATA%\ClipMate\Templates
+# - Exports: %USERPROFILE%\Documents\ClipMate\Exports
+# - Sounds: [Application Directory]\Resources\Sounds

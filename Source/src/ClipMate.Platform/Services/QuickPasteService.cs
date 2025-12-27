@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using ClipMate.Core.Events;
@@ -21,12 +23,15 @@ public class QuickPasteService : IQuickPasteService
 {
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
+    private readonly IDialogService _dialogService;
     private readonly ILogger<QuickPasteService> _logger;
+    private readonly IMacroExecutionService _macroExecutionService;
     private readonly IMessenger _messenger;
+    private readonly ITemplateService _templateService;
     private readonly IWin32InputInterop _win32;
+    private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
     private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
     private nint _currentTargetWindowHandle; // Store the window handle for focus switching
-    private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
 
     private bool _goBackEnabled;
     private QuickPasteFormattingString? _selectedFormattingString;
@@ -40,12 +45,18 @@ public class QuickPasteService : IQuickPasteService
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         IMessenger messenger,
+        IMacroExecutionService macroExecutionService,
+        ITemplateService templateService,
+        IDialogService dialogService,
         ILogger<QuickPasteService> logger)
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _macroExecutionService = macroExecutionService ?? throw new ArgumentNullException(nameof(macroExecutionService));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Subscribe to configuration changes for immediate reload
@@ -105,6 +116,14 @@ public class QuickPasteService : IQuickPasteService
             _logger.LogDebug("QuickPaste: Pasting clip {ClipId} to target {Target}",
                 clip.Id, GetCurrentTargetString());
 
+            // Update target if not locked - ensures we have the most recent foreground window
+            // This handles cases where user switches windows before double-clicking
+            if (!_targetLocked)
+            {
+                UpdateTarget();
+                _logger.LogDebug("Updated target before paste: {Target}", GetCurrentTargetString());
+            }
+
             // Capture ClipMate's window handle for GoBack functionality (before switching away)
             if (_goBackEnabled)
             {
@@ -125,21 +144,69 @@ public class QuickPasteService : IQuickPasteService
                 _logger.LogDebug("Switching focus to target window handle: {Handle:X}", _currentTargetWindowHandle);
                 _win32.SetForegroundWindow(new HWND(_currentTargetWindowHandle));
 
-                // Wait for focus switch to complete - give the window time to activate
-                await Task.Delay(100, cancellationToken);
+                // Wait longer for focus switch to complete - give the window time to activate
+                // This is especially important for macro execution which requires the window to be active
+                await Task.Delay(300, cancellationToken);
             }
             else
                 _logger.LogWarning("No valid window handle for target application");
 
-            // Set clipboard content
-            await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
-            await Task.Delay(50, cancellationToken);
+            // Check if clip is a macro - if so, execute as macro instead of clipboard paste
+            _logger.LogDebug("Checking macro execution: Macro={Macro}, HasTextContent={HasText}",
+                clip.Macro, !string.IsNullOrEmpty(clip.TextContent));
 
-            // Select formatting string based on title trigger if no manual selection
-            var format = _selectedFormattingString ?? SelectFormattingStringByTarget();
+            if (clip.Macro && !string.IsNullOrEmpty(clip.TextContent))
+            {
+                _logger.LogInformation("Executing clip {ClipId} as macro", clip.Id);
 
-            // Execute the formatting string
-            await ExecuteFormattingStringAsync(clip, format, cancellationToken);
+                // Apply template tag replacement (#DATE#, #TIME#, #CREATOR#, etc.)
+                var macroText = _templateService.ReplaceTagsInText(clip.TextContent, clip, _sequenceCounter);
+                _sequenceCounter++; // Increment for next macro
+
+                _logger.LogDebug("Macro text after tag replacement: {Text}", macroText);
+
+                // Security check before executing macro
+                if (!_macroExecutionService.IsMacroSafe(macroText))
+                {
+                    _logger.LogWarning("Macro contains potentially dangerous commands - showing confirmation dialog");
+
+                    var result = _dialogService.ShowMessage(
+                        "This macro contains potentially dangerous commands (e.g., multiple Alt+F4 keystrokes).\n\n" +
+                        $"Macro text:\n{macroText}\n\n" +
+                        "Do you want to execute it anyway?",
+                        "Macro Security Warning",
+                        DialogButton.YesNo,
+                        DialogIcon.Warning);
+
+                    if (result != DialogResult.Yes)
+                    {
+                        _logger.LogInformation("User declined to execute potentially dangerous macro");
+                        return false;
+                    }
+
+                    _logger.LogInformation("User confirmed execution of potentially dangerous macro");
+                }
+
+                var success = await _macroExecutionService.ExecuteMacroAsync(macroText, cancellationToken);
+                if (!success)
+                {
+                    _logger.LogWarning("Macro execution failed or was cancelled");
+                    return false;
+                }
+            }
+            else
+            {
+                // Normal clipboard paste
+                // Set clipboard content
+                await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
+                await Task.Delay(50, cancellationToken);
+
+                // Select formatting string based on title trigger if no manual selection
+                var format = _selectedFormattingString ?? SelectFormattingStringByTarget();
+
+                // Execute the formatting string
+                await ExecuteFormattingStringAsync(clip, format, cancellationToken);
+            }
 
             _logger.LogInformation("Successfully pasted clip {ClipId} via QuickPaste", clip.Id);
 
@@ -147,10 +214,10 @@ public class QuickPasteService : IQuickPasteService
             if (_goBackEnabled && _clipMateWindowHandle != IntPtr.Zero)
             {
                 _logger.LogDebug("GoBack enabled - returning focus to ClipMate window: {Handle:X}", _clipMateWindowHandle);
-                
+
                 // Small delay to ensure paste operation completes
                 await Task.Delay(50, cancellationToken);
-                
+
                 // Switch focus back to ClipMate
                 _win32.SetForegroundWindow(new HWND(_clipMateWindowHandle));
                 _logger.LogDebug("Focus returned to ClipMate");
@@ -223,7 +290,7 @@ public class QuickPasteService : IQuickPasteService
     {
         var config = _configurationService.Configuration.Preferences;
         _selectedFormattingString = config.QuickPasteFormattingStrings
-            .FirstOrDefault(f => f.TitleTrigger == "*");
+            .FirstOrDefault(p => p.TitleTrigger == "*");
 
         _logger.LogDebug("Default formatting string selected: {Title}",
             _selectedFormattingString?.Title ?? "None");
@@ -239,9 +306,9 @@ public class QuickPasteService : IQuickPasteService
 
         // Find format with matching title trigger (case-insensitive substring match)
         var matchedFormat = config.QuickPasteFormattingStrings
-            .FirstOrDefault(f => !string.IsNullOrEmpty(f.TitleTrigger) &&
-                                 f.TitleTrigger != "*" &&
-                                 targetTitle.Contains(f.TitleTrigger, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(p => !string.IsNullOrEmpty(p.TitleTrigger) &&
+                                 p.TitleTrigger != "*" &&
+                                 targetTitle.Contains(p.TitleTrigger, StringComparison.OrdinalIgnoreCase));
 
         return matchedFormat ?? _selectedFormattingString;
     }
@@ -408,16 +475,34 @@ public class QuickPasteService : IQuickPasteService
                 }
             }
 
-            // Check for special keys ({KEY})
+            // Check for special keys ({KEY}) or parametric commands ({PAUSE:ms})
             if (keystrokes[i] == '{')
             {
                 var endIndex = keystrokes.IndexOf('}', i + 1);
                 if (endIndex > i)
                 {
-                    var key = keystrokes.Substring(i + 1, endIndex - i - 1);
-                    SendSpecialKeyByName(key);
-                    i = endIndex + 1;
+                    var command = keystrokes.Substring(i + 1, endIndex - i - 1);
 
+                    // Check for parametric PAUSE: {PAUSE:milliseconds}
+                    if (command.StartsWith("PAUSE:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var delayPart = command.Substring(6); // Skip "PAUSE:"
+                        if (int.TryParse(delayPart, out var delayMs))
+                        {
+                            // Clamp to 1-10000ms range (max 10 seconds)
+                            delayMs = Math.Clamp(delayMs, 1, 10000);
+                            await Task.Delay(delayMs, cancellationToken);
+                        }
+                        else
+                            _logger.LogWarning("Invalid PAUSE parameter: {Command}", command);
+                    }
+                    else
+                    {
+                        // Regular special key
+                        SendSpecialKeyByName(command);
+                    }
+
+                    i = endIndex + 1;
                     continue;
                 }
             }
@@ -512,6 +597,21 @@ public class QuickPasteService : IQuickPasteService
             case "SEQUENCE":
                 SendLiteralString(_sequenceCounter.ToString(CultureInfo.InvariantCulture));
                 _sequenceCounter++;
+
+                break;
+
+            case "FILENAME":
+                SendLiteralString(GetFileNameFromClip(clip));
+
+                break;
+
+            case "FILEPATH":
+                SendLiteralString(GetFilePathFromClip(clip));
+
+                break;
+
+            case "FILEEXT":
+                SendLiteralString(GetFileExtensionFromClip(clip));
 
                 break;
 
@@ -749,5 +849,53 @@ public class QuickPasteService : IQuickPasteService
                 },
             },
         };
+    }
+
+    /// <summary>
+    /// Extracts the filename from a CF_HDROP clip (file list).
+    /// Returns the first filename if multiple files are present.
+    /// </summary>
+    private static string GetFileNameFromClip(Clip clip)
+    {
+        var filePath = GetFilePathFromClip(clip);
+        return string.IsNullOrEmpty(filePath)
+            ? string.Empty
+            : Path.GetFileName(filePath);
+    }
+
+    /// <summary>
+    /// Extracts the full file path from a CF_HDROP clip (file list).
+    /// Returns the first file path if multiple files are present.
+    /// </summary>
+    private static string GetFilePathFromClip(Clip clip)
+    {
+        // Check if clip has FilePathsJson (from CF_HDROP format)
+        if (string.IsNullOrWhiteSpace(clip.FilePathsJson))
+            return string.Empty;
+
+        try
+        {
+            // FilePathsJson is a JSON array of file paths
+            var filePaths = JsonSerializer.Deserialize<string[]>(clip.FilePathsJson);
+            return filePaths?.Length > 0
+                ? filePaths[0]
+                : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Extracts the file extension from a CF_HDROP clip (file list).
+    /// Returns the extension of the first file if multiple files are present.
+    /// </summary>
+    private static string GetFileExtensionFromClip(Clip clip)
+    {
+        var filePath = GetFilePathFromClip(clip);
+        return string.IsNullOrEmpty(filePath)
+            ? string.Empty
+            : Path.GetExtension(filePath);
     }
 }

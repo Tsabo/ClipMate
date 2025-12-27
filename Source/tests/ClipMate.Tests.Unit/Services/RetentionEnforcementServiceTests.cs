@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -14,6 +15,7 @@ namespace ClipMate.Tests.Unit.Services;
 public class RetentionEnforcementServiceTests
 {
     private const string _testDatabaseKey = "test-db";
+    private Mock<IDatabaseContextFactory> _mockContextFactory = null!;
     private Mock<IClipRepository> _mockClipRepository = null!;
     private Mock<ICollectionRepository> _mockCollectionRepository = null!;
 
@@ -23,12 +25,18 @@ public class RetentionEnforcementServiceTests
         // Mock repositories
         _mockClipRepository = new Mock<IClipRepository>();
         _mockCollectionRepository = new Mock<ICollectionRepository>();
+
+        // Mock context factory to return our mocked repositories
+        _mockContextFactory = new Mock<IDatabaseContextFactory>();
+        _mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>()))
+            .Returns(_mockClipRepository.Object);
+        _mockContextFactory.Setup(f => f.GetCollectionRepository(It.IsAny<string>()))
+            .Returns(_mockCollectionRepository.Object);
     }
 
     private IRetentionEnforcementService CreateService() =>
         new RetentionEnforcementService(
-            _mockClipRepository.Object,
-            _mockCollectionRepository.Object,
+            _mockContextFactory.Object,
             Mock.Of<ILogger<IRetentionEnforcementService>>());
 
     #region ReadOnly Collection Tests

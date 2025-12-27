@@ -75,4 +75,39 @@ public interface IDatabaseContextFactory : IDisposable
     /// <param name="databaseKey">The database key (path).</param>
     /// <returns>A repository instance bound to the specified database.</returns>
     IMonacoEditorStateRepository GetMonacoEditorStateRepository(string databaseKey);
+
+    /// <summary>
+    /// Creates a CollectionRepository instance for the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    ICollectionRepository GetCollectionRepository(string databaseKey);
+
+    /// <summary>
+    /// Creates a FolderRepository instance for the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IFolderRepository GetFolderRepository(string databaseKey);
+
+    /// <summary>
+    /// Creates an ApplicationFilterRepository instance for the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    IApplicationFilterRepository GetApplicationFilterRepository(string databaseKey);
+
+    /// <summary>
+    /// Creates a TemplateRepository instance for the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    ITemplateRepository GetTemplateRepository(string databaseKey);
+
+    /// <summary>
+    /// Creates a SearchQueryRepository instance for the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <returns>A repository instance bound to the specified database.</returns>
+    ISearchQueryRepository GetSearchQueryRepository(string databaseKey);
 }

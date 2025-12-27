@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
@@ -62,11 +63,16 @@ public class SearchServiceTests : IntegrationTestBase
 
         // Arrange - Create services
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
+        var mockContextFactory = new Mock<IDatabaseContextFactory>();
+        mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>())).Returns(clipRepository);
+        var mockCollectionService = new Mock<ICollectionService>();
+        mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
         var mockConfigService = new Mock<IConfigurationService>();
         mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
         var mockSqlValidationService = new Mock<ISqlValidationService>();
         var searchService = new SearchService(
-            clipRepository,
+            mockContextFactory.Object,
+            mockCollectionService.Object,
             mockConfigService.Object,
             mockSqlValidationService.Object,
             Mock.Of<ILogger<SearchService>>());
@@ -88,12 +94,15 @@ public class SearchServiceTests : IntegrationTestBase
     public async Task BuildSqlQuery_WithTitleFilter_GeneratesValidSQL()
     {
         // Arrange
-        var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
+        var mockContextFactory = new Mock<IDatabaseContextFactory>();
+        var mockCollectionService = new Mock<ICollectionService>();
+        mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
         var mockConfigService = new Mock<IConfigurationService>();
         mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
         var mockSqlValidationService = new Mock<ISqlValidationService>();
         var searchService = new SearchService(
-            clipRepository,
+            mockContextFactory.Object,
+            mockCollectionService.Object,
             mockConfigService.Object,
             mockSqlValidationService.Object,
             Mock.Of<ILogger<SearchService>>());

@@ -60,6 +60,13 @@
                                        Command="{Binding MainMenu.SearchCommand}"
                                        ToolTip="Search clips (Ctrl+F)"
                                        Glyph="{helpers:EmojiIconSource Emoji='🔍'}" />
+
+                    <!-- Template Dropdown -->
+                    <dxb:BarSubItem x:Name="TemplateDropdown"
+                                    Content="Templates"
+                                    ToolTip="Select a template for clip merging"
+                                    Glyph="{helpers:EmojiIconSource Emoji='📄'}"
+                                    GetItemData="TemplateDropdown_GetItemData" />
                 </dxb:Bar>
 
                 <!-- Menu Bar -->

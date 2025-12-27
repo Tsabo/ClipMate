@@ -40,6 +40,9 @@ public static class ServiceCollectionExtensions
         // Register QuickPasteService for QuickPaste functionality
         services.AddSingleton<IQuickPasteService, QuickPasteService>();
 
+        // Register MacroExecutionService as singleton for keystroke sending
+        services.AddSingleton<IMacroExecutionService, MacroExecutionService>();
+
         // Register SoundService for audio feedback
         services.AddSingleton<ISoundService, SoundService>();
 

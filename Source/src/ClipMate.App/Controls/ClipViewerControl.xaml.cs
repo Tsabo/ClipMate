@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
@@ -12,6 +13,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Xpf.Bars;
 using DevExpress.XtraRichEdit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,7 +60,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             monacoOptions.EnableDebug, monacoOptions.Theme, monacoOptions.FontSize);
 
         TextEditor.EditorOptions = monacoOptions;
-        HtmlEditor.EditorOptions = monacoOptions;
 
         // Register for ClipSelectedEvent and PreferencesChangedEvent messages
         Loaded += (_, _) =>
@@ -71,21 +72,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             // Set up debounced auto-save (1 second after last change)
             _debouncedTextSave = Debouncer.Debounce(SaveTextEditorDebounced, TimeSpan.FromSeconds(1));
-            _debouncedHtmlSave = Debouncer.Debounce(SaveHtmlEditorDebounced, TimeSpan.FromSeconds(1));
 
-            // Monitor Text property changes on editors
+            // Monitor Text property changes on text editor
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
             textDescriptor?.AddValueChanged(TextEditor, OnTextEditorTextChanged);
 
-            var htmlTextDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
-            htmlTextDescriptor?.AddValueChanged(HtmlEditor, OnHtmlEditorTextChanged);
-
-            // Monitor Language property changes
+            // Monitor Language property changes on text editor
             var textLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
             textLangDescriptor?.AddValueChanged(TextEditor, OnTextEditorLanguageChanged);
-
-            var htmlLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
-            htmlLangDescriptor?.AddValueChanged(HtmlEditor, OnHtmlEditorLanguageChanged);
         };
 
         Unloaded += (_, _) =>
@@ -102,14 +96,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
             textDescriptor?.RemoveValueChanged(TextEditor, OnTextEditorTextChanged);
 
-            var htmlTextDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
-            htmlTextDescriptor?.RemoveValueChanged(HtmlEditor, OnHtmlEditorTextChanged);
-
             var textLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
             textLangDescriptor?.RemoveValueChanged(TextEditor, OnTextEditorLanguageChanged);
-
-            var htmlLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
-            htmlLangDescriptor?.RemoveValueChanged(HtmlEditor, OnHtmlEditorLanguageChanged);
         };
     }
 
@@ -127,13 +115,32 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // When ClipId is set directly (not via event), we don't have database key
             // Fall back to current or default database
             var token = control._loadCancellationTokenSource?.Token ?? CancellationToken.None;
-            await control.LoadClipDataAsync(clipId, control._currentDatabaseKey, token);
+
+            try
+            {
+                await control.LoadClipDataAsync(clipId, control._currentDatabaseKey, token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancellation is expected when user rapidly switches clips - don't log
+            }
         }
         else
         {
             // No clip selected - hide all tabs
             control.HideAllTabs();
         }
+    }
+
+    #endregion
+
+    #region Event Handlers
+
+    private void OnBinaryFormatChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (BinaryFormatComboBox.SelectedItem is string formatName &&
+            _binaryFormats.TryGetValue(formatName, out var data))
+            HexViewer.Stream = new MemoryStream(data);
     }
 
     #endregion
@@ -223,7 +230,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     // Track which ClipData entries are being edited
     private Guid? _textFormatClipDataId;
-    private Guid? _htmlFormatClipDataId;
 
     // Track when we're loading content (not editing)
     private bool _isLoadingContent;
@@ -231,12 +237,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     // Track what changed to optimize saves
     private bool _textEditorTextDirty;
     private bool _textEditorLanguageDirty;
-    private bool _htmlEditorTextDirty;
-    private bool _htmlEditorLanguageDirty;
 
     // Debounced actions for auto-save
     private RateLimitedAction? _debouncedTextSave;
-    private RateLimitedAction? _debouncedHtmlSave;
 
     #endregion
 
@@ -259,8 +262,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Reset dirty flags for new clip
             _textEditorTextDirty = false;
             _textEditorLanguageDirty = false;
-            _htmlEditorTextDirty = false;
-            _htmlEditorLanguageDirty = false;
 
             _logger.LogInformation("[ClipViewer] LoadClipDataAsync START - ClipId: {ClipId}", clipId);
 
@@ -333,7 +334,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             await LoadTextFormatsAsync(monacoStateRepository, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded text formats");
-            await LoadHtmlFormatAsync(monacoStateRepository, cancellationToken);
+            await LoadHtmlFormatAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded HTML format");
             await LoadRtfFormatAsync(cancellationToken);
@@ -368,11 +369,24 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository monacoStateRepository, CancellationToken cancellationToken = default)
     {
+        // Debug log all ClipData entries
+        foreach (var item in _currentClipData)
+        {
+            _logger.LogDebug("[ClipViewer] ClipData: Format={Format}/{FormatName}, StorageType={StorageType}, Id={Id}, HasBlob={HasBlob}",
+                item.Format, item.FormatName, item.StorageType, item.Id, _textBlobs.ContainsKey(item.Id));
+        }
+
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
         var textFormat = _currentClipData
             .FirstOrDefault(p =>
                 p is { StorageType: StorageType.Text } &&
                 (p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code));
+
+        _logger.LogDebug("[ClipViewer] Text format search result: {Result}, Looking for formats {Text}/{Unicode}",
+            textFormat != null
+                ? $"Found {textFormat.FormatName}"
+                : "Not found",
+            Formats.Text.Code, Formats.UnicodeText.Code);
 
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
         {
@@ -381,7 +395,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             cancellationToken.ThrowIfCancellationRequested();
 
             // Load saved language and view state from MonacoEditorState
-            var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id);
+            var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             var savedLanguage = editorState?.Language ?? "plaintext";
 
@@ -404,50 +418,246 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         TextTab.Visibility = Visibility.Collapsed;
     }
 
-    private async Task LoadHtmlFormatAsync(IMonacoEditorStateRepository monacoStateRepository, CancellationToken cancellationToken = default)
+    // ReSharper disable once UnusedParameter.Local
+    private Task LoadHtmlFormatAsync(CancellationToken cancellationToken = default)
     {
         var htmlFormat = _currentClipData
             .FirstOrDefault(p =>
                 (p.Format == Formats.Html.Code || p.Format == Formats.HtmlAlt.Code) && p.StorageType == StorageType.Text);
 
+        _logger.LogDebug("[ClipViewer] HTML format search result: {Result}, Looking for formats {Html}/{HtmlAlt}",
+            htmlFormat != null
+                ? $"Found {htmlFormat.FormatName}"
+                : "Not found",
+            Formats.Html.Code, Formats.HtmlAlt.Code);
+
+        if (htmlFormat != null)
+        {
+            var hasBlob = _textBlobs.ContainsKey(htmlFormat.Id);
+            _logger.LogDebug("[ClipViewer] HTML format has blob: {HasBlob}, BlobData length: {Length}",
+                hasBlob, hasBlob
+                    ? _textBlobs[htmlFormat.Id].Data.Length
+                    : 0);
+        }
+
         if (htmlFormat != null && _textBlobs.TryGetValue(htmlFormat.Id, out var blobData))
         {
-            // Wait for Monaco to initialize and set HTML source
-            await WaitForMonacoInitializationAsync(HtmlEditor, 10000, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                _logger.LogDebug("[ClipViewer] Starting HTML format load");
 
-            // Load saved language and view state from MonacoEditorState
-            var editorState = await monacoStateRepository.GetByClipDataIdAsync(htmlFormat.Id);
-            cancellationToken.ThrowIfCancellationRequested();
-            var savedLanguage = editorState?.Language ?? "html";
+                // Make tab visible so content can be displayed
+                HtmlTab.Visibility = Visibility.Visible;
+                NoHtmlMessage.Visibility = Visibility.Collapsed;
+                HtmlPreview.Visibility = Visibility.Visible;
 
-            // Load everything in one atomic operation
-            await HtmlEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
-            cancellationToken.ThrowIfCancellationRequested();
+                // Parse CF_HTML format to extract actual HTML content
+                var htmlContent = ParseCfHtmlFormat(blobData.Data);
 
-            HtmlEditor.IsReadOnly = false; // Allow editing
+                // Extract source URL from HTML content (if present)
+                var sourceUrl = ExtractSourceUrl(htmlContent);
+                HtmlSourceUrlEdit?.EditValue = sourceUrl ?? "(No source URL found)";
 
-            // Initialize WebView2 if needed for preview
-            await HtmlPreview.EnsureCoreWebView2Async();
-            HtmlPreview.NavigateToString(blobData.Data);
+                // Wrap HTML content with styling for better readability
+                var styledHtml = WrapHtmlWithStyling(htmlContent);
 
-            HtmlPreview.Visibility = Visibility.Visible;
-            HtmlEditor.Visibility = Visibility.Collapsed;
-            NoHtmlMessage.Visibility = Visibility.Collapsed;
-            HtmlTab.Visibility = Visibility.Visible;
+                // Use WPF WebBrowser (IE engine) - instant initialization, no async needed
+                _logger.LogDebug("[ClipViewer] Rendering HTML content in WebBrowser");
+                HtmlPreview.NavigateToString(styledHtml);
 
-            // Track the ClipData ID for saving changes
-            _htmlFormatClipDataId = htmlFormat.Id;
-            return;
+                _logger.LogInformation("[ClipViewer] HTML tab displayed successfully");
+
+                return Task.CompletedTask;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogDebug("[ClipViewer] HTML format load cancelled");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ClipViewer] Error loading HTML format");
+                // Fall through to hide HTML tab
+            }
         }
 
         // No HTML format available
         HtmlPreview.Visibility = Visibility.Collapsed;
-        HtmlEditor.Visibility = Visibility.Collapsed;
         NoHtmlMessage.Visibility = Visibility.Visible;
         HtmlTab.Visibility = Visibility.Collapsed;
+        _logger.LogDebug("[ClipViewer] No HTML format available");
+        return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Parses CF_HTML clipboard format to extract actual HTML content.
+    /// CF_HTML format includes metadata headers like "Version:0.9 StartHTML:..." that need to be stripped.
+    /// </summary>
+    private static string ParseCfHtmlFormat(string cfHtml)
+    {
+        if (string.IsNullOrWhiteSpace(cfHtml))
+            return string.Empty;
+
+        // Check if this is CF_HTML format (has Version: header)
+        if (!cfHtml.StartsWith("Version:", StringComparison.OrdinalIgnoreCase))
+            return cfHtml; // Already plain HTML
+
+        try
+        {
+            // Parse the StartFragment and EndFragment offsets
+            var startFragmentMatch = StartFragmentRegEx().Match(cfHtml);
+            var endFragmentMatch = EndFragmentRegEx().Match(cfHtml);
+
+            if (startFragmentMatch.Success && endFragmentMatch.Success)
+            {
+                var startFragment = int.Parse(startFragmentMatch.Groups[1].Value);
+                var endFragment = int.Parse(endFragmentMatch.Groups[1].Value);
+
+                // Extract the HTML fragment between StartFragment and EndFragment
+                if (startFragment >= 0 && endFragment > startFragment && endFragment <= cfHtml.Length)
+                {
+                    var fragment = cfHtml.Substring(startFragment, endFragment - startFragment);
+
+                    // Remove the <!--StartFragment--> and <!--EndFragment--> markers
+                    fragment = fragment
+                        .Replace("<!--StartFragment-->", "")
+                        .Replace("<!--EndFragment-->", "");
+
+                    return fragment.Trim();
+                }
+            }
+
+            // Fallback: try to extract everything after the last header line
+            var lines = cfHtml.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+            var htmlStartIndex = -1;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!lines[i].StartsWith('<'))
+                    continue;
+
+                htmlStartIndex = i;
+                break;
+            }
+
+            if (htmlStartIndex >= 0)
+                return string.Join(Environment.NewLine, lines.Skip(htmlStartIndex));
+
+            return cfHtml; // Return as-is if parsing fails
+        }
+        catch (Exception)
+        {
+            // If parsing fails, return the original content
+            return cfHtml;
+        }
+    }
+
+    /// <summary>
+    /// Wraps HTML content with base styling for better readability in WebBrowser control.
+    /// Adds appropriate font sizing and styling.
+    /// </summary>
+    private static string WrapHtmlWithStyling(string htmlContent)
+    {
+        if (string.IsNullOrWhiteSpace(htmlContent))
+            return string.Empty;
+
+        // Check if HTML already has <html> and <head> tags
+        var hasHtmlTag = htmlContent.Contains("<html", StringComparison.OrdinalIgnoreCase);
+        var hasHeadTag = htmlContent.Contains("<head", StringComparison.OrdinalIgnoreCase);
+
+        if (!hasHtmlTag || !hasHeadTag)
+        {
+            return $$"""
+                     <!DOCTYPE html>
+                     <html>
+                     <head>
+                     <meta charset="utf-8">
+                     <style>
+                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
+                         * { font-size: inherit; }
+                     </style>
+                     </head>
+                     <body>
+                     {{htmlContent}}
+                     </body>
+                     </html>
+                     """;
+        }
+
+        // Try to inject style into existing <head>
+        var headEndIndex = htmlContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+        if (headEndIndex <= 0)
+        {
+            return $$"""
+                     <!DOCTYPE html>
+                     <html>
+                     <head>
+                     <meta charset="utf-8">
+                     <style>
+                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
+                         * { font-size: inherit; }
+                     </style>
+                     </head>
+                     <body>
+                     {{htmlContent}}
+                     </body>
+                     </html>
+                     """;
+        }
+
+        const string style = """
+                             <style>
+                                 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
+                                 * { font-size: inherit; }
+                             </style>
+                             """;
+
+        return htmlContent.Insert(headEndIndex, style);
+    }
+
+    /// <summary>
+    /// Extracts the source URL from HTML content.
+    /// Looks for <!--SourceURL: http://example.com--> comment pattern.
+    /// </summary>
+    private static string? ExtractSourceUrl(string htmlContent)
+    {
+        if (string.IsNullOrWhiteSpace(htmlContent))
+            return null;
+
+        var match = SourceUrlRegEx().Match(htmlContent);
+
+        return match.Success
+            ? match.Groups[1].Value.Trim()
+            : null;
+    }
+
+    /// <summary>
+    /// Handler for HTML Navigate button click
+    /// </summary>
+    private void OnHtmlNavigateClick(object sender, ItemClickEventArgs e)
+    {
+        if (HtmlSourceUrlEdit?.EditValue is not string url || string.IsNullOrWhiteSpace(url))
+            return;
+
+        try
+        {
+            // Ensure URL has a scheme
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "http://" + url;
+
+            HtmlPreview.Navigate(new Uri(url));
+            _logger.LogInformation("[ClipViewer] Navigated to URL: {Url}", url);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ClipViewer] Error navigating to URL: {Url}", url);
+            MessageBox.Show($"Invalid URL: {ex.Message}", "Navigation Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ReSharper disable once UnusedParameter.Local
     private Task LoadRtfFormatAsync(CancellationToken cancellationToken = default)
     {
         var rtfFormat = _currentClipData
@@ -480,6 +690,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
+    // ReSharper disable once UnusedParameter.Local
     private Task LoadBitmapFormatsAsync(CancellationToken cancellationToken = default)
     {
         // Look for CF_BITMAP or CF_DIB formats (stored in BLOBBLOB)
@@ -511,6 +722,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
+    // ReSharper disable once UnusedParameter.Local
     private Task LoadPictureFormatsAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("[LoadPicture] Looking for PNG or JPG formats in {Count} ClipData entries", _currentClipData.Count);
@@ -575,6 +787,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
+    // ReSharper disable once UnusedParameter.Local
     private Task LoadBinaryFormatsAsync(CancellationToken cancellationToken = default)
     {
         _binaryFormats.Clear();
@@ -625,35 +838,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     #endregion
 
-    #region Event Handlers
-
-    private void OnHtmlViewChanged(object sender, RoutedEventArgs e)
-    {
-        // Guard against initialization before controls are loaded
-        if (HtmlPreviewRadio == null || HtmlPreview == null || HtmlEditor == null)
-            return;
-
-        if (HtmlPreviewRadio.IsChecked == true)
-        {
-            HtmlPreview.Visibility = Visibility.Visible;
-            HtmlEditor.Visibility = Visibility.Collapsed;
-        }
-        else
-        {
-            HtmlPreview.Visibility = Visibility.Collapsed;
-            HtmlEditor.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void OnBinaryFormatChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (BinaryFormatComboBox.SelectedItem is string formatName &&
-            _binaryFormats.TryGetValue(formatName, out var data))
-            HexViewer.Stream = new MemoryStream(data);
-    }
-
-    #endregion
-
     #region Editor Change Handlers
 
     private void OnTextEditorTextChanged(object? sender, EventArgs e)
@@ -671,21 +855,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger.LogDebug("[ClipViewer] Text editor text changed by user, save scheduled");
     }
 
-    private void OnHtmlEditorTextChanged(object? sender, EventArgs e)
-    {
-        // Don't save if we're loading content - only save actual user edits
-        if (_isLoadingContent)
-            return;
-
-        if (_htmlFormatClipDataId == null || HtmlEditor.IsReadOnly)
-            return;
-
-        _htmlEditorTextDirty = true;
-        // Trigger debounced save
-        _debouncedHtmlSave?.Invoke();
-        _logger.LogDebug("[ClipViewer] HTML editor text changed by user, save scheduled");
-    }
-
     private void OnTextEditorLanguageChanged(object? sender, EventArgs e)
     {
         // Don't save if we're loading content - only save actual user changes
@@ -699,21 +868,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         // Save immediately when user changes language (no debounce)
         _ = SaveTextEditorAsync();
         _logger.LogInformation("[ClipViewer] Text editor language changed by user to: {TextEditorLanguage}", TextEditor.Language);
-    }
-
-    private void OnHtmlEditorLanguageChanged(object? sender, EventArgs e)
-    {
-        // Don't save if we're loading content - only save actual user changes
-        if (_isLoadingContent)
-            return;
-
-        if (_htmlFormatClipDataId == null || HtmlEditor.IsReadOnly)
-            return;
-
-        _htmlEditorLanguageDirty = true;
-        // Save immediately when user changes language (no debounce)
-        _ = SaveHtmlEditorAsync();
-        _logger.LogInformation("[ClipViewer] HTML editor language changed by user to: {HtmlEditorLanguage}", HtmlEditor.Language);
     }
 
     #endregion
@@ -841,141 +995,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         }
     }
 
-    public async Task SaveHtmlEditorAsync()
-    {
-        if (_htmlFormatClipDataId == null)
-        {
-            _logger.LogWarning("Cannot save HTML editor - no ClipData ID tracked");
-            return;
-        }
-
-        try
-        {
-            var textChanged = _htmlEditorTextDirty;
-            var languageChanged = _htmlEditorLanguageDirty;
-
-            // Early exit if nothing changed
-            if (!textChanged && !languageChanged)
-            {
-                _logger.LogDebug("[ClipViewer] No changes to save for HTML editor");
-                return;
-            }
-
-            var newHtml = HtmlEditor.Text;
-            var newLanguage = HtmlEditor.Language;
-
-            // Get database context for the current clip
-            if (string.IsNullOrEmpty(_currentDatabaseKey))
-                throw new InvalidOperationException("No database key available for current clip");
-
-            // Create repositories using factory
-            var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
-            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
-            var clipRepository = _databaseContextFactory.GetClipRepository(_currentDatabaseKey);
-
-            // Save HTML content to BlobTxt only if text changed
-            if (textChanged && _textBlobs.TryGetValue(_htmlFormatClipDataId.Value, out var blob))
-            {
-                blob.Data = newHtml;
-                await blobRepository.UpdateTextAsync(blob);
-                _logger.LogDebug("[ClipViewer] Saved HTML content ({TextLength} chars)", newHtml.Length);
-
-                // Update preview if visible
-                if (HtmlPreview.Visibility == Visibility.Visible)
-                    HtmlPreview.NavigateToString(newHtml);
-
-                // Update clip title if AutoChangeClipTitles is enabled AND CustomTitle is false
-                // If CustomTitle=true, the user manually renamed the clip and title should never auto-update
-                if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
-                {
-                    var clipData = _currentClipData.FirstOrDefault(p => p.Id == _htmlFormatClipDataId.Value);
-                    if (clipData != null)
-                    {
-                        var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
-                        if (clip is { CustomTitle: false })
-                        {
-                            var newTitle = GenerateClipTitle(newHtml);
-                            if (clip.Title != newTitle)
-                            {
-                                clip.Title = newTitle;
-                                await clipRepository.UpdateAsync(clip);
-                                _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
-                            }
-                        }
-                        else if (clip?.CustomTitle == true)
-                            _logger.LogDebug("[ClipViewer] Skipped title update - CustomTitle flag is set");
-                    }
-                }
-            }
-
-            // Save language and view state to MonacoEditorState
-            var editorState = await monacoStateRepository.GetByClipDataIdAsync(_htmlFormatClipDataId.Value)
-                              ?? new MonacoEditorState
-                              {
-                                  Id = Guid.NewGuid(),
-                                  ClipDataId = _htmlFormatClipDataId.Value,
-                              };
-
-            if (languageChanged)
-            {
-                editorState.Language = newLanguage;
-                _logger.LogDebug("[ClipViewer] Saved language: {Language}", newLanguage);
-            }
-
-            // Only fetch view state if text changed (cursor/scroll might have moved)
-            // If only language changed, skip the round trip to Monaco
-            if (textChanged)
-            {
-                try
-                {
-                    var viewState = await HtmlEditor.SaveViewStateAsync();
-                    if (!string.IsNullOrEmpty(viewState))
-                    {
-                        editorState.ViewState = viewState;
-                        _logger.LogDebug("[ClipViewer] Saved view state ({ViewStateLength} chars)", viewState.Length);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to save view state for HTML editor");
-                }
-            }
-            else
-                _logger.LogDebug("[ClipViewer] Skipped view state fetch (language-only change)");
-
-            editorState.LastModified = DateTime.UtcNow;
-            await monacoStateRepository.UpsertAsync(editorState);
-
-            // Clear dirty flags
-            _htmlEditorTextDirty = false;
-            _htmlEditorLanguageDirty = false;
-
-            _logger.LogInformation("[ClipViewer] Saved HTML editor changes (text: {TextChanged}, language: {LanguageChanged})",
-                textChanged, languageChanged);
-
-            // Update clipboard with the edited content if text changed
-            if (textChanged)
-                await UpdateClipboardAfterEditAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving HTML editor changes");
-            MessageBox.Show($"Error saving HTML: {ex.Message}", "Save Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
     /// <summary>
     /// Wrapper for SaveTextEditorAsync that marshals to UI thread.
     /// Called by debouncer which executes on background thread.
     /// </summary>
     private void SaveTextEditorDebounced() => Dispatcher.InvokeAsync(async () => await SaveTextEditorAsync());
-
-    /// <summary>
-    /// Wrapper for SaveHtmlEditorAsync that marshals to UI thread.
-    /// Called by debouncer which executes on background thread.
-    /// </summary>
-    private void SaveHtmlEditorDebounced() => Dispatcher.InvokeAsync(async () => await SaveHtmlEditorAsync());
 
     /// <summary>
     /// Updates the Windows clipboard with the currently edited clip's content.
@@ -1046,9 +1070,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private void ResetAllTabs()
     {
-        // Reset editors - if not initialized, SetTextAsync will return early
+        // Hide all tabs first to ensure clean state
+        HideAllTabs();
+
+        // Reset editor - if not initialized, SetTextAsync will return early
         TextEditor.Text = string.Empty;
-        HtmlEditor.Text = string.Empty;
         // Don't reset HtmlPreview here - it will be initialized when HTML tab loads
         RtfViewer.CreateNewDocument();
         BitmapViewer.Source = null;
@@ -1479,6 +1505,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger.LogDebug("Help not yet implemented");
         MessageBox.Show("ClipViewer help will be available in the user manual.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
     }
+
+    [GeneratedRegex(@"StartFragment:(\d+)")]
+    private static partial Regex StartFragmentRegEx();
+    [GeneratedRegex(@"EndFragment:(\d+)")]
+    private static partial Regex EndFragmentRegEx();
+    [GeneratedRegex(@"<!--SourceURL:\s*(.+?)-->")]
+    private static partial Regex SourceUrlRegEx();
 
     #endregion
 }

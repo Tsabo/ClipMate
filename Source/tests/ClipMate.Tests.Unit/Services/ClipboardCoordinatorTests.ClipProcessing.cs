@@ -1,5 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
@@ -31,12 +32,11 @@ public partial class ClipboardCoordinatorTests
             .ReturnsAsync(clip);
 
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messenger = new Mock<IMessenger>();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start
@@ -75,12 +75,11 @@ public partial class ClipboardCoordinatorTests
         };
 
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock, filterService: filterServiceMock);
         var messenger = new Mock<IMessenger>();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -116,12 +115,11 @@ public partial class ClipboardCoordinatorTests
             .ReturnsAsync(clip);
 
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -150,12 +148,11 @@ public partial class ClipboardCoordinatorTests
             .ReturnsAsync((string dbKey, Clip c, CancellationToken ct) => c);
 
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messenger = new Mock<IMessenger>();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -168,8 +165,8 @@ public partial class ClipboardCoordinatorTests
         };
 
         // Act
-        foreach (var clip in clips)
-            await channel.Writer.WriteAsync(clip);
+        foreach (var item in clips)
+            await channel.Writer.WriteAsync(item);
 
         await Task.Delay(400); // Give time to process all clips
 
@@ -210,12 +207,11 @@ public partial class ClipboardCoordinatorTests
             .ReturnsAsync(existingClip); // Return existing clip to simulate duplicate detection
 
         var configurationService = CreateMockConfigurationService();
-        var repositoryFactory = new Mock<IClipRepositoryFactory>();
+        var contextFactory = new Mock<IDatabaseContextFactory>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = new Mock<IMessenger>();
-        var soundService = CreateMockSoundService();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, repositoryFactory.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messengerMock.Object, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);

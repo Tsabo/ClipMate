@@ -1,6 +1,4 @@
-using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
-using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,42 +26,37 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<ClipMateDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath}"));
 
-        // Register repositories as Scoped (tied to DbContext lifetime)
-        services.AddScoped<IClipRepository, ClipRepository>();
-        services.AddScoped<ICollectionRepository, CollectionRepository>();
-        services.AddScoped<IFolderRepository, FolderRepository>();
-        services.AddScoped<ITemplateRepository, TemplateRepository>();
-        services.AddScoped<ISearchQueryRepository, SearchQueryRepository>();
-        services.AddScoped<IApplicationFilterRepository, ApplicationFilterRepository>();
-
-        // Register repository factory for multi-database support
-        // Singleton because it's stateless and creates repositories on demand
-        services.AddSingleton<IClipRepositoryFactory, ClipRepositoryFactory>();
+        // NOTE: Repositories are NOT registered in DI directly
+        // They are created on-demand by IDatabaseContextFactory for multi-database support
+        // The factory pattern allows each repository to use the correct DbContext for its database
 
         // Register services
-        // ClipService is singleton because it supports multi-database operations via IClipRepositoryFactory
-        // and must be shared across the entire application
-        services.AddSingleton<IClipService, ClipService>();
+        // Stateless services that coordinate repository operations - registered as Transient
+        // They get scoped contexts via repository factories, so no need to be Singleton
+        services.AddTransient<IClipService, ClipService>();
+        services.AddTransient<IShortcutService, ShortcutService>();
+        services.AddTransient<IApplicationFilterService, ApplicationFilterService>();
+        services.AddTransient<IFolderService, FolderService>();
+        services.AddTransient<ISqlValidationService, SqlValidationService>();
+        services.AddTransient<ISetupService, SetupService>();
+        services.AddTransient<ISearchService, SearchService>();
+        services.AddTransient<IClipAppendService, ClipAppendService>();
+        services.AddTransient<DatabaseSchemaMigrationService>();
+        services.AddTransient<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
+        services.AddTransient<IRetentionEnforcementService, RetentionEnforcementService>();
 
-        // ShortcutService is singleton for multi-database support
-        services.AddSingleton<IShortcutService, ShortcutService>();
+        // Stateful services that must be Singleton
+        // TemplateService maintains template cache and sequence counter
+        services.AddSingleton<ITemplateService, TemplateService>();
 
-        services.AddScoped<IApplicationFilterService, ApplicationFilterService>();
-
-        // CollectionService is singleton because it maintains in-memory state (_activeCollectionId)
-        // that must be shared across the entire application
+        // CollectionService maintains active collection/database state shared across the app
         services.AddSingleton<ICollectionService, CollectionService>();
 
-        services.AddScoped<IFolderService, FolderService>();
-        services.AddSingleton<ISqlValidationService, SqlValidationService>(); // SQL validation for search and virtual collections
-        services.AddSingleton<ISetupService, SetupService>(); // Database setup and initialization
-        services.AddScoped<ISearchService, SearchService>();
-        services.AddScoped<IPowerPasteService, PowerPasteService>(); // PowerPaste sequential automation service
-        services.AddScoped<IClipAppendService, ClipAppendService>(); // Clip appending service
-        services.AddScoped<DatabaseSchemaMigrationService>(); // Schema migration service
-        services.AddScoped<IDatabaseMaintenanceService, DatabaseMaintenanceService>(); // Database maintenance (backup/restore/repair)
-        services.AddScoped<IRetentionEnforcementService, RetentionEnforcementService>(); // Retention enforcement service
-        services.AddSingleton<IUndoService, UndoService>(); // Undo/Redo service
+        // PowerPasteService maintains explode mode state
+        services.AddSingleton<IPowerPasteService, PowerPasteService>();
+
+        // UndoService maintains undo/redo state
+        services.AddSingleton<IUndoService, UndoService>();
 
         // Register default data initialization service (ensures Inbox exists and is set as active)
         services.AddSingleton<DefaultDataInitializationService>();

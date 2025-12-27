@@ -52,4 +52,9 @@ public class ClipMateConfiguration
     /// These are stored in configuration and shared across all databases.
     /// </summary>
     public List<SavedSearchQuery> SavedSearchQueries { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the directories configuration.
+    /// </summary>
+    public DirectoriesConfiguration Directories { get; set; } = new();
 }

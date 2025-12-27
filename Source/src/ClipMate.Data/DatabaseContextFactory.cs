@@ -14,14 +14,13 @@ namespace ClipMate.Data;
 /// </summary>
 public class DatabaseContextFactory : IDatabaseContextFactory
 {
+    private readonly IConfigurationService _configurationService;
     private readonly Dictionary<string, ClipMateDbContext> _contexts;
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IConfigurationService _configurationService;
     private bool _disposed;
 
-    public DatabaseContextFactory(
-        IServiceProvider serviceProvider,
+    public DatabaseContextFactory(IServiceProvider serviceProvider,
         IConfigurationService configurationService,
         ILogger<DatabaseContextFactory> logger)
     {
@@ -29,30 +28,6 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _contexts = new Dictionary<string, ClipMateDbContext>(StringComparer.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Resolves a database key to its file path using configuration.
-    /// If the input is already a file path (contains path separators), returns it as-is.
-    /// </summary>
-    private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
-    {
-        // If it looks like a file path (contains directory separators), return as-is
-        if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) || 
-            databaseKeyOrPath.Contains(Path.AltDirectorySeparatorChar))
-        {
-            return databaseKeyOrPath;
-        }
-
-        // Otherwise, try to resolve it as a database key from configuration
-        if (_configurationService.Configuration.Databases.TryGetValue(databaseKeyOrPath, out var dbConfig))
-        {
-            return dbConfig.FilePath;
-        }
-
-        // If not found in configuration, assume it's a path anyway
-        _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
-        return databaseKeyOrPath;
     }
 
     /// <summary>
@@ -200,6 +175,76 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     }
 
     /// <summary>
+    /// Creates a CollectionRepository instance for the specified database.
+    /// </summary>
+    public ICollectionRepository GetCollectionRepository(string databaseKey)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<CollectionRepository>(_serviceProvider, context) as ICollectionRepository
+               ?? throw new InvalidOperationException("Failed to create CollectionRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a FolderRepository instance for the specified database.
+    /// </summary>
+    public IFolderRepository GetFolderRepository(string databaseKey)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<FolderRepository>(_serviceProvider, context) as IFolderRepository
+               ?? throw new InvalidOperationException("Failed to create FolderRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates an ApplicationFilterRepository instance for the specified database.
+    /// </summary>
+    public IApplicationFilterRepository GetApplicationFilterRepository(string databaseKey)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<ApplicationFilterRepository>(_serviceProvider, context) as IApplicationFilterRepository
+               ?? throw new InvalidOperationException("Failed to create ApplicationFilterRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a TemplateRepository instance for the specified database.
+    /// </summary>
+    public ITemplateRepository GetTemplateRepository(string databaseKey)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<TemplateRepository>(_serviceProvider, context) as ITemplateRepository
+               ?? throw new InvalidOperationException("Failed to create TemplateRepository instance.");
+    }
+
+    /// <summary>
+    /// Creates a SearchQueryRepository instance for the specified database.
+    /// </summary>
+    public ISearchQueryRepository GetSearchQueryRepository(string databaseKey)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
+        var context = GetOrCreateContext(databasePath);
+
+        return ActivatorUtilities.CreateInstance<SearchQueryRepository>(_serviceProvider, context) as ISearchQueryRepository
+               ?? throw new InvalidOperationException("Failed to create SearchQueryRepository instance.");
+    }
+
+    /// <summary>
     /// Creates a MonacoEditorStateRepository instance for the specified database.
     /// </summary>
     public IMonacoEditorStateRepository GetMonacoEditorStateRepository(string databaseKey)
@@ -237,5 +282,25 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         _contexts.Clear();
         _disposed = true;
+    }
+
+    /// <summary>
+    /// Resolves a database key to its file path using configuration.
+    /// If the input is already a file path (contains path separators), returns it as-is.
+    /// </summary>
+    private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
+    {
+        // If it looks like a file path (contains directory separators), return as-is
+        if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) ||
+            databaseKeyOrPath.Contains(Path.AltDirectorySeparatorChar))
+            return databaseKeyOrPath;
+
+        // Otherwise, try to resolve it as a database key from configuration
+        if (_configurationService.Configuration.Databases.TryGetValue(databaseKeyOrPath, out var dbConfig))
+            return dbConfig.FilePath;
+
+        // If not found in configuration, assume it's a path anyway
+        _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
+        return databaseKeyOrPath;
     }
 }

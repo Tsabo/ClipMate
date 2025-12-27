@@ -1,5 +1,6 @@
 using System.Windows.Markup;
 using System.Windows.Media;
+using Emoji.Wpf;
 
 namespace ClipMate.App.Helpers;
 
@@ -11,7 +12,7 @@ namespace ClipMate.App.Helpers;
 [MarkupExtensionReturnType(typeof(ImageSource))]
 public class CustomFontIconSourceExtension : MarkupExtension
 {
-    private static Emoji.Wpf.EmojiTypeface? _typeface;
+    private static EmojiTypeface? _typeface;
     private static readonly Lock _lock = new();
 
     /// <summary>
@@ -58,8 +59,9 @@ public class CustomFontIconSourceExtension : MarkupExtension
             {
                 if (_typeface == null)
                 {
-                    const string fontUri = "pack://application:,,,/ClipMate.App;component/Assets/ClipMate.ttf";
-                    _typeface = new Emoji.Wpf.EmojiTypeface(fontUri);
+                    // Load font from embedded resource - use proper pack URI format
+                    const string fontUri = "pack://application:,,,/Assets/ClipMate.ttf";
+                    _typeface = new EmojiTypeface(fontUri);
                 }
             }
         }
