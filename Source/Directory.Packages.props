@@ -8,12 +8,15 @@
     <PackageVersion Include="DevExpress.Wpf" Version="25.2.3" />
     <PackageVersion Include="DevExpress.Mvvm" Version="25.2.3" />
     <PackageVersion Include="DevExpress.Wpf.Themes.All" Version="25.2.3" />
-    <PackageVersion Include="JeremyAnsel.HLSL.Targets" Version="1.0.13" />
+    <PackageVersion Include="HtmlRenderer.WPF" Version="1.5.2" />
     <PackageVersion Include="LinkingMountains.ImageZoom" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+  </ItemGroup>
+  <ItemGroup Label="Utilities">
     <PackageVersion Include="ThrottleDebounce" Version="2.0.1" />
   </ItemGroup>
   <ItemGroup Label="Build Tools">
+    <PackageVersion Include="JeremyAnsel.HLSL.Targets" Version="1.0.13" />
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />
   </ItemGroup>
   <ItemGroup Label="Configuration Files">

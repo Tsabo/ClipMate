@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -451,19 +452,28 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 NoHtmlMessage.Visibility = Visibility.Collapsed;
                 HtmlPreview.Visibility = Visibility.Visible;
 
+                // Load HTML viewer options from configuration
+                var config = _configurationService.Configuration;
+                HtmlUsePicturesFromCacheCheckItem.IsChecked = config.Preferences.HtmlUsePicturesFromCache;
+                HtmlUseAllHtmlInClipCheckItem.IsChecked = config.Preferences.HtmlUseAllHtmlInClip;
+                HtmlDeleteScriptsCheckItem.IsChecked = config.Preferences.HtmlDeleteScripts;
+
                 // Parse CF_HTML format to extract actual HTML content
-                var htmlContent = ParseCfHtmlFormat(blobData.Data);
+                var htmlContent = config.Preferences.HtmlUseAllHtmlInClip
+                    ? blobData.Data
+                    : ParseCfHtmlFormat(blobData.Data);
 
                 // Extract source URL from HTML content (if present)
                 var sourceUrl = ExtractSourceUrl(htmlContent);
-                HtmlSourceUrlEdit?.EditValue = sourceUrl ?? "(No source URL found)";
+                HtmlSourceUrlEdit.EditValue = sourceUrl ?? "(No source URL found)";
 
-                // Wrap HTML content with styling for better readability
-                var styledHtml = WrapHtmlWithStyling(htmlContent);
+                // Strip scripts if DeleteScripts option is enabled
+                if (config.Preferences.HtmlDeleteScripts)
+                    htmlContent = StripScripts(htmlContent);
 
-                // Use WPF WebBrowser (IE engine) - instant initialization, no async needed
-                _logger.LogDebug("[ClipViewer] Rendering HTML content in WebBrowser");
-                HtmlPreview.NavigateToString(styledHtml);
+                // Display HTML content using HtmlRenderer.WPF (handles DPI automatically)
+                _logger.LogDebug("[ClipViewer] Rendering HTML content with HtmlRenderer.WPF");
+                HtmlPreview.Text = htmlContent;
 
                 _logger.LogInformation("[ClipViewer] HTML tab displayed successfully");
 
@@ -492,6 +502,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     /// <summary>
     /// Parses CF_HTML clipboard format to extract actual HTML content.
     /// CF_HTML format includes metadata headers like "Version:0.9 StartHTML:..." that need to be stripped.
+    /// Uses StartHTML/EndHTML offsets to preserve full document structure like ClipMate 7.5.
     /// </summary>
     private static string ParseCfHtmlFormat(string cfHtml)
     {
@@ -504,26 +515,21 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         try
         {
-            // Parse the StartFragment and EndFragment offsets
-            var startFragmentMatch = StartFragmentRegEx().Match(cfHtml);
-            var endFragmentMatch = EndFragmentRegEx().Match(cfHtml);
+            // Parse the StartHTML and EndHTML offsets to get the full HTML document
+            // (This preserves <html> and <body> tags with their styles, like ClipMate 7.5)
+            var startHtmlMatch = Regex.Match(cfHtml, @"StartHTML:(\d+)", RegexOptions.IgnoreCase);
+            var endHtmlMatch = Regex.Match(cfHtml, @"EndHTML:(\d+)", RegexOptions.IgnoreCase);
 
-            if (startFragmentMatch.Success && endFragmentMatch.Success)
+            if (startHtmlMatch.Success && endHtmlMatch.Success)
             {
-                var startFragment = int.Parse(startFragmentMatch.Groups[1].Value);
-                var endFragment = int.Parse(endFragmentMatch.Groups[1].Value);
+                var startHtml = int.Parse(startHtmlMatch.Groups[1].Value);
+                var endHtml = int.Parse(endHtmlMatch.Groups[1].Value);
 
-                // Extract the HTML fragment between StartFragment and EndFragment
-                if (startFragment >= 0 && endFragment > startFragment && endFragment <= cfHtml.Length)
+                // Extract the full HTML document between StartHTML and EndHTML
+                if (startHtml >= 0 && endHtml > startHtml && endHtml <= cfHtml.Length)
                 {
-                    var fragment = cfHtml.Substring(startFragment, endFragment - startFragment);
-
-                    // Remove the <!--StartFragment--> and <!--EndFragment--> markers
-                    fragment = fragment
-                        .Replace("<!--StartFragment-->", "")
-                        .Replace("<!--EndFragment-->", "");
-
-                    return fragment.Trim();
+                    var html = cfHtml.Substring(startHtml, endHtml - startHtml);
+                    return html.Trim();
                 }
             }
 
@@ -531,7 +537,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var lines = cfHtml.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
             var htmlStartIndex = -1;
 
-            for (int i = 0; i < lines.Length; i++)
+            for (var i = 0; i < lines.Length; i++)
             {
                 if (!lines[i].StartsWith('<'))
                     continue;
@@ -553,66 +559,24 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     }
 
     /// <summary>
-    /// Wraps HTML content with base styling for better readability in WebBrowser control.
-    /// Adds appropriate font sizing and styling.
+    /// Strips script tags and inline event handlers from HTML content for security.
     /// </summary>
-    private static string WrapHtmlWithStyling(string htmlContent)
+    private static string StripScripts(string htmlContent)
     {
         if (string.IsNullOrWhiteSpace(htmlContent))
             return string.Empty;
 
-        // Check if HTML already has <html> and <head> tags
-        var hasHtmlTag = htmlContent.Contains("<html", StringComparison.OrdinalIgnoreCase);
-        var hasHeadTag = htmlContent.Contains("<head", StringComparison.OrdinalIgnoreCase);
+        // Remove <script> tags and their content
+        htmlContent = ScriptTagRegEx().Replace(htmlContent, "");
 
-        if (!hasHtmlTag || !hasHeadTag)
-        {
-            return $$"""
-                     <!DOCTYPE html>
-                     <html>
-                     <head>
-                     <meta charset="utf-8">
-                     <style>
-                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
-                         * { font-size: inherit; }
-                     </style>
-                     </head>
-                     <body>
-                     {{htmlContent}}
-                     </body>
-                     </html>
-                     """;
-        }
+        // Remove inline event handlers (onclick, onload, onerror, etc.)
+        htmlContent = InlineEventHandlerQuotedRegex().Replace(htmlContent, "");
+        htmlContent = InlineEventHandlerUnquotedRegex().Replace(htmlContent, "");
 
-        // Try to inject style into existing <head>
-        var headEndIndex = htmlContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-        if (headEndIndex <= 0)
-        {
-            return $$"""
-                     <!DOCTYPE html>
-                     <html>
-                     <head>
-                     <meta charset="utf-8">
-                     <style>
-                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
-                         * { font-size: inherit; }
-                     </style>
-                     </head>
-                     <body>
-                     {{htmlContent}}
-                     </body>
-                     </html>
-                     """;
-        }
+        // Remove javascript: URLs
+        htmlContent = JavascriptUrlRegEx().Replace(htmlContent, "#");
 
-        const string style = """
-                             <style>
-                                 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; margin: 10px; }
-                                 * { font-size: inherit; }
-                             </style>
-                             """;
-
-        return htmlContent.Insert(headEndIndex, style);
+        return htmlContent;
     }
 
     /// <summary>
@@ -646,8 +610,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 url = "http://" + url;
 
-            HtmlPreview.Navigate(new Uri(url));
-            _logger.LogInformation("[ClipViewer] Navigated to URL: {Url}", url);
+            // Open URL in default browser (HtmlRenderer doesn't support navigation)
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
+
+            _logger.LogInformation("[ClipViewer] Opened URL in default browser: {Url}", url);
         }
         catch (Exception ex)
         {
@@ -655,6 +625,34 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             MessageBox.Show($"Invalid URL: {ex.Message}", "Navigation Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// Handler for HTML viewer option checkbox changes
+    /// </summary>
+    private void OnHtmlOptionChanged(object sender, ItemClickEventArgs e)
+    {
+        if (_isLoadingContent)
+            return; // Ignore changes during initial load
+
+        var config = _configurationService.Configuration;
+
+        // Update configuration from checkboxes
+        config.Preferences.HtmlUsePicturesFromCache = HtmlUsePicturesFromCacheCheckItem?.IsChecked ?? false;
+        config.Preferences.HtmlUseAllHtmlInClip = HtmlUseAllHtmlInClipCheckItem?.IsChecked ?? false;
+        config.Preferences.HtmlDeleteScripts = HtmlDeleteScriptsCheckItem?.IsChecked ?? true;
+
+        // Save configuration asynchronously
+        _ = _configurationService.SaveAsync();
+
+        _logger.LogInformation("[ClipViewer] HTML options changed - UsePicturesFromCache: {UsePictures}, UseAllHtml: {UseAllHtml}, DeleteScripts: {DeleteScripts}",
+            config.Preferences.HtmlUsePicturesFromCache,
+            config.Preferences.HtmlUseAllHtmlInClip,
+            config.Preferences.HtmlDeleteScripts);
+
+        // Reload current HTML content with new settings if we have clip data
+        if (_currentClipData.Count > 0)
+            _ = LoadHtmlFormatAsync();
     }
 
     // ReSharper disable once UnusedParameter.Local
@@ -1506,12 +1504,20 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         MessageBox.Show("ClipViewer help will be available in the user manual.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    [GeneratedRegex(@"StartFragment:(\d+)")]
-    private static partial Regex StartFragmentRegEx();
-    [GeneratedRegex(@"EndFragment:(\d+)")]
-    private static partial Regex EndFragmentRegEx();
     [GeneratedRegex(@"<!--SourceURL:\s*(.+?)-->")]
     private static partial Regex SourceUrlRegEx();
+
+    [GeneratedRegex(@"<script[^>]*>.*?</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline, "en-US")]
+    private static partial Regex ScriptTagRegEx();
+
+    [GeneratedRegex(@"javascript:\s*[^""'\s>]+", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex JavascriptUrlRegEx();
+
+    [GeneratedRegex(@"\s+on\w+\s*=\s*[""'].*?[""']", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex InlineEventHandlerQuotedRegex();
+
+    [GeneratedRegex(@"\s+on\w+\s*=\s*[^\s>]+", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex InlineEventHandlerUnquotedRegex();
 
     #endregion
 }

@@ -7,9 +7,9 @@
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
-             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:wpfHex="clr-namespace:WpfHexaEditor;assembly=WpfHexaEditor"
              xmlns:lmimgz="clr-namespace:LinkingMountains.ImageZoom;assembly=LinkingMountains.ImageZoom"
+             xmlns:htmlRenderer="clr-namespace:TheArtOfDev.HtmlRenderer.WPF;assembly=HtmlRenderer.WPF"
              xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
              xmlns:dxre="http://schemas.devexpress.com/winfx/2008/xaml/richedit"
              mc:Ignorable="d"
@@ -62,32 +62,40 @@
                 <!-- HTML Browser Toolbar -->
                 <dxb:ToolBarControl Grid.Row="0" AllowQuickCustomization="False" AllowCustomizationMenu="False">
                     <dxb:BarStaticItem Content="Source:" />
-                    
+
                     <dxb:BarEditItem x:Name="HtmlSourceUrlEdit" EditWidth="350">
                         <dxb:BarEditItem.EditSettings>
                             <dxe:TextEditSettings />
                         </dxb:BarEditItem.EditSettings>
                     </dxb:BarEditItem>
-                    
-                    <dxb:BarButtonItem Content="Go" 
+
+                    <dxb:BarButtonItem Content="Go"
                                        Glyph="{dx:DXImage 'Images/Actions/Execute_16x16.png'}"
                                        ItemClick="OnHtmlNavigateClick" />
-                    
-                    <dxb:BarButtonItem Content="Options" 
+
+                    <dxb:BarButtonItem Content="Options"
                                        Glyph="{dx:DXImage 'Images/Setup/Properties_16x16.png'}">
                         <dxb:BarManager.DXContextMenu>
                             <dxb:PopupMenu>
-                                <dxb:BarCheckItem Content="Use Pictures From Browser Cache" />
-                                <dxb:BarCheckItem Content="Use All HTML In Clip" />
-                                <dxb:BarCheckItem Content="Delete Scripts" />
+                                <dxb:BarCheckItem x:Name="HtmlUsePicturesFromCacheCheckItem"
+                                                  Content="Use Pictures From Browser Cache"
+                                                  CheckedChanged="OnHtmlOptionChanged" />
+                                <dxb:BarCheckItem x:Name="HtmlUseAllHtmlInClipCheckItem"
+                                                  Content="Use All HTML In Clip"
+                                                  CheckedChanged="OnHtmlOptionChanged" />
+                                <dxb:BarCheckItem x:Name="HtmlDeleteScriptsCheckItem"
+                                                  Content="Delete Scripts"
+                                                  CheckedChanged="OnHtmlOptionChanged" />
                             </dxb:PopupMenu>
                         </dxb:BarManager.DXContextMenu>
                     </dxb:BarButtonItem>
                 </dxb:ToolBarControl>
 
                 <Grid Grid.Row="1">
-                    <!-- HTML Preview using built-in WebBrowser (IE engine, but stable) -->
-                    <WebBrowser x:Name="HtmlPreview" />
+                    <!-- HTML Preview using HtmlRenderer.WPF (pure .NET, DPI-aware) -->
+                    <htmlRenderer:HtmlPanel x:Name="HtmlPreview"
+                                            Background="White"
+                                            IsSelectionEnabled="True" />
                 </Grid>
 
                 <TextBlock x:Name="NoHtmlMessage"

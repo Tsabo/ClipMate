@@ -72,13 +72,19 @@ public partial class MonacoEditorControl
             control.EditorWebView.CoreWebView2.OpenDevToolsWindow();
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (IsInitialized)
             return;
 
         try
         {
+            // Initialize WebView2 with shared user data folder for better performance
+            var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "WebView2");
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+            await EditorWebView.EnsureCoreWebView2Async(env);
+            _logger.LogDebug("Monaco WebView2 initialized with shared environment");
+
             // Load Monaco Editor HTML - this triggers NavigationCompleted
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var htmlPath = Path.Combine(baseDir, "Assets", "monaco", "index.html");
@@ -1029,7 +1035,7 @@ public partial class MonacoEditorControl
             }
 
             // Calculate line and column from character index
-            var lines = sql.Substring(0, tokenIndex).Split('\n');
+            var lines = sql[..tokenIndex].Split('\n');
             var lineNumber = lines.Length;
             var column = lines[^1].Length + 1;
             var endColumn = column + token.Length;

@@ -395,4 +395,19 @@ public class PreferencesConfiguration
         new()
             { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
     ];
+
+    /// <summary>
+    /// Gets or sets whether to use pictures from browser cache when displaying HTML.
+    /// </summary>
+    public bool HtmlUsePicturesFromCache { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to use all HTML content in clip (including headers).
+    /// </summary>
+    public bool HtmlUseAllHtmlInClip { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to delete/strip scripts from HTML content for security.
+    /// </summary>
+    public bool HtmlDeleteScripts { get; set; } = true;
 }

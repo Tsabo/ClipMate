@@ -7,6 +7,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>assets/icon.ico</ApplicationIcon>
+    <!-- Suppress warning for HtmlRenderer.WPF being .NET Framework package -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup Label="Resources">
@@ -42,6 +44,7 @@
     <PackageReference Include="DevExpress.Wpf" />
     <PackageReference Include="DevExpress.Mvvm" />
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
+    <PackageReference Include="HtmlRenderer.WPF" />
     <PackageReference Include="LinkingMountains.ImageZoom" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
