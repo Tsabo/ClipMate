@@ -31,6 +31,11 @@ public abstract partial class TreeNodeBase : ObservableObject
     public virtual string Icon => "📁";
 
     /// <summary>
+    /// Display text combining icon and name.
+    /// </summary>
+    public string DisplayText => $"{Icon} {Name}";
+
+    /// <summary>
     /// Icon image created from the emoji Icon property.
     /// Used by DevExpress TreeViewControl's ImageFieldName.
     /// </summary>

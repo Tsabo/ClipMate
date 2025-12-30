@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 

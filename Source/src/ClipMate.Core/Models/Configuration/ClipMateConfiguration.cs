@@ -57,4 +57,9 @@ public class ClipMateConfiguration
     /// Gets or sets the directories configuration.
     /// </summary>
     public DirectoriesConfiguration Directories { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the export/import configuration.
+    /// </summary>
+    public ExportConfiguration Export { get; set; } = new();
 }

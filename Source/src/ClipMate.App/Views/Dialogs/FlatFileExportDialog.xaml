@@ -1,0 +1,97 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.FlatFileExportDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:export="clr-namespace:ClipMate.Core.Models.Export;assembly=ClipMate.Core"
+                 Title="Export Clips to Files"
+                 Width="700"
+                 Height="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 SizeToContent="Height"
+                 ShowInTaskbar="False">
+
+    <dx:ThemedWindow.Resources>
+        <ObjectDataProvider x:Key="FileNamingStrategyValues"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type export:FileNamingStrategy}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="export:FileNamingStrategy" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </dx:ThemedWindow.Resources>
+
+    <!-- DevExpress Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Go"
+                                     Command="{Binding ExecuteFlatFileExportCommand}"
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Abort"
+                                     IsCancel="True"
+                                     Command="{Binding AbortCommand}" />
+        <dx:ThemedWindowDialogButton Content="Done"
+                                     Command="{Binding DoneCommand}" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+        <dxlc:LayoutGroup Header="Flat-File Export" Orientation="Vertical">
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="Export Directory" HorizontalAlignment="Stretch">
+                    <dxe:TextEdit Text="{Binding FlatFileExportDirectory, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem HorizontalAlignment="Right">
+                    <dx:SimpleButton Content="Browse..." Margin="8,0,0,0" Click="BrowseExportDirectory_Click" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+            <dxlc:LayoutItem Label="Naming Strategy">
+                <ComboBox ItemsSource="{Binding Source={StaticResource FileNamingStrategyValues}}"
+                          SelectedItem="{Binding SelectedNamingStrategy, Mode=TwoWay}" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutGroup Orientation="Vertical">
+                <dxlc:LayoutItem>
+                    <CheckBox Content="Reset sequence" IsChecked="{Binding ResetSequence, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <CheckBox Content="Erase Directory Contents Before Exporting New Data?"
+                              IsChecked="{Binding EraseDirectoryContents, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem>
+                    <CheckBox Content="Open Export Folder When Finished?"
+                              IsChecked="{Binding OpenFolderWhenFinished, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+            <dxlc:LayoutGroup Header="Image File Type" View="GroupBox" Orientation="Vertical">
+                <dxlc:LayoutGroup Orientation="Horizontal">
+                    <dxlc:LayoutItem>
+                        <RadioButton Content="JPG" IsChecked="{Binding IsJpgSelected, Mode=TwoWay}" />
+                    </dxlc:LayoutItem>
+                    <dxlc:LayoutItem>
+                        <RadioButton Content="PNG" IsChecked="{Binding IsPngSelected, Mode=TwoWay}" />
+                    </dxlc:LayoutItem>
+                    <dxlc:LayoutItem>
+                        <RadioButton Content="BMP" IsChecked="{Binding IsBmpSelected, Mode=TwoWay}" />
+                    </dxlc:LayoutItem>
+                </dxlc:LayoutGroup>
+                <dxlc:LayoutItem Label="JPEG Quality">
+                    <Slider Minimum="0" Maximum="100" Value="{Binding JpegQualitySlider, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+        </dxlc:LayoutGroup>
+
+        <dxlc:LayoutGroup Header="Processing" Orientation="Vertical">
+            <TextBox Height="180" Text="{Binding ProcessingLog}" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+        </dxlc:LayoutGroup>
+
+        <dxlc:LayoutGroup>
+            <dxlc:LayoutItem>
+                <dxe:ProgressBarEdit Value="{Binding ProgressValue}"
+                                     Maximum="{Binding ProgressMaximum}"
+                                     ContentDisplayMode="None" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

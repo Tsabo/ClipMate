@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -16,6 +17,7 @@ namespace ClipMate.App;
 /// </summary>
 public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
 {
+    private readonly IActiveWindowService _activeWindowService;
     private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
     private readonly bool _isHotkeyTriggered;
@@ -27,7 +29,7 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
     private readonly ClassicViewModel _viewModel;
 
     public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
-        IServiceProvider serviceProvider, IMessenger messenger, bool isHotkeyTriggered = false)
+        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, bool isHotkeyTriggered = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -38,6 +40,7 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
         _isHotkeyTriggered = isHotkeyTriggered;
         DataContext = _viewModel;
 
@@ -84,6 +87,10 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
 
     private void ClassicWindow_Activated(object? sender, EventArgs e)
     {
+        // Mark Classic as the active window for event routing and dialog ownership
+        _activeWindowService.ActiveWindow = ActiveWindowType.Classic;
+        _activeWindowService.DialogOwner = this;
+
         // When main window is activated, bring any owned modal dialogs to front
         // This fixes the issue where dialogs can get hidden when switching between apps
         foreach (Window item in OwnedWindows)

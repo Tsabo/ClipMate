@@ -362,10 +362,10 @@ public partial class App
 
         // Load configuration to check databases
         earlyLogger.Information("Loading configuration from {ConfigPath}", configPath);
-        using var configLoggerFactory = LoggerFactory.Create(builder =>
+        using var configLoggerFactory = LoggerFactory.Create(p =>
         {
-            builder.AddSerilog();
-            builder.SetMinimumLevel(LogLevel.Information);
+            p.AddSerilog();
+            p.SetMinimumLevel(LogLevel.Information);
         });
 
         var configLogger = configLoggerFactory.CreateLogger<ConfigurationService>();
@@ -415,10 +415,10 @@ public partial class App
             if (config?.Databases.Count == 0)
                 earlyLogger.Warning("Configuration exists but no databases configured - launching setup wizard");
 
-            using var loggerFactory = LoggerFactory.Create(builder =>
+            using var loggerFactory = LoggerFactory.Create(p =>
             {
-                builder.AddSerilog();
-                builder.SetMinimumLevel(LogLevel.Information);
+                p.AddSerilog();
+                p.SetMinimumLevel(LogLevel.Information);
             });
 
             var setupServiceLogger = loggerFactory.CreateLogger<SetupService>();
@@ -461,10 +461,10 @@ public partial class App
                 earlyLogger.Debug("Validating database schema...");
 
                 // Create temporary SetupService for validation
-                using var loggerFactory = LoggerFactory.Create(builder =>
+                using var loggerFactory = LoggerFactory.Create(p =>
                 {
-                    builder.AddSerilog();
-                    builder.SetMinimumLevel(LogLevel.Information);
+                    p.AddSerilog();
+                    p.SetMinimumLevel(LogLevel.Information);
                 });
 
                 var setupLogger = loggerFactory.CreateLogger<SetupService>();
@@ -537,6 +537,9 @@ public partial class App
                 // Register Dialog service (App-layer implementation for Platform layer)
                 services.AddSingleton<IDialogService, DialogService>();
 
+                // Register active window tracking service
+                services.AddSingleton<IActiveWindowService, ActiveWindowService>();
+
                 // Register Update Checker as hosted service
                 services.AddHostedService<UpdateCheckerService>();
 
@@ -604,6 +607,7 @@ public partial class App
                 // Register coordinators
                 services.AddSingleton<HotkeyCoordinator>();
                 services.AddSingleton<DatabaseMaintenanceCoordinator>();
+                services.AddSingleton<ClipOperationsCoordinator>();
                 services.AddTransient<HotkeyWindow>();
 
                 // Register initialization pipeline and steps
@@ -614,6 +618,7 @@ public partial class App
                 services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
                 services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
+                services.AddSingleton<IStartupInitializationStep, ClipOperationsInitializationStep>();
             });
     }
 

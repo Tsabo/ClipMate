@@ -1,0 +1,84 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.XmlImportDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
+                 Title="Import from XML"
+                 Width="700"
+                 Height="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 SizeToContent="Height"
+                 ShowInTaskbar="False">
+
+    <!-- DevExpress Dialog Buttons: Go/Abort/Done pattern -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Go"
+                                     Command="{Binding ExecuteXmlImportCommand}"
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Abort"
+                                     Command="{Binding AbortCommand}"
+                                     IsCancel="True" />
+        <dx:ThemedWindowDialogButton Content="Done"
+                                     Command="{Binding DoneCommand}" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+        <dxlc:LayoutGroup Header="XML Import" Orientation="Vertical">
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="File Path" HorizontalAlignment="Stretch">
+                    <dxe:TextEdit Text="{Binding XmlImportFilePath, Mode=TwoWay}" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem HorizontalAlignment="Right">
+                    <dx:SimpleButton Content="Browse..." Margin="8,0,0,0" Click="BrowseXmlImportFile_Click" />
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+            <dxlc:LayoutItem Label="Target Collection">
+                <dxg:LookUpEdit x:Name="CollectionLookUp"
+                                SelectedItem="{Binding SelectedCollection}"
+                                AutoPopulateColumns="False"
+                                IsTextEditable="False"
+                                IsPopupAutoWidth="False"
+                                PopupMinWidth="400"
+                                PopupMinHeight="250"
+                                ShowSizeGrip="True">
+                    <dxg:LookUpEdit.EditNonEditableTemplate>
+                        <ControlTemplate>
+                            <emoji:TextBlock Text="{Binding SelectedItem.DisplayText, Mode=OneWay}" />
+                        </ControlTemplate>
+                    </dxg:LookUpEdit.EditNonEditableTemplate>
+                    <dxg:LookUpEdit.PopupContentTemplate>
+                        <ControlTemplate>
+                            <dxg:TreeViewControl x:Name="PART_GridControl"
+                                                 ItemsSource="{Binding RootNodes}"
+                                                 TreeViewFieldName="Name"
+                                                 ImageFieldName="IconImage"
+                                                 ChildNodesPath="Children"
+                                                 ShowBorder="False"
+                                                 TreeLineStyle="Solid"
+                                                 ShowNodeImages="True"
+                                                 SelectedItemChanged="CollectionTreeView_SelectedItemChanged" />
+                        </ControlTemplate>
+                    </dxg:LookUpEdit.PopupContentTemplate>
+                </dxg:LookUpEdit>
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <dxlc:LayoutGroup Header="Processing" Orientation="Vertical">
+            <TextBox Height="180" Text="{Binding ProcessingLog}" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+        </dxlc:LayoutGroup>
+
+        <dxlc:LayoutGroup>
+            <dxlc:LayoutItem>
+                <dxe:ProgressBarEdit Value="{Binding ProgressValue}"
+                                     Maximum="{Binding ProgressMaximum}"
+                                     ContentDisplayMode="None" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

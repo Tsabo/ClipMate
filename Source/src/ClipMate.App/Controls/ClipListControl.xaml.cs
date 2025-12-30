@@ -11,6 +11,7 @@ using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Grid;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Application = System.Windows.Application;
 using Binding = System.Windows.Data.Binding;
@@ -303,7 +304,15 @@ public partial class ClipListControl
 
     private void ExportClips_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement export clips
+        var app = (App)Application.Current;
+        var vm = ActivatorUtilities.CreateInstance<FlatFileExportViewModel>(app.ServiceProvider);
+        vm.Initialize(SelectedItems);
+        var dialog = new FlatFileExportDialog(vm)
+        {
+            Owner = Application.Current.GetDialogOwner(),
+        };
+
+        dialog.ShowDialog();
     }
 
     private async void ChangeTitle_Click(object sender, RoutedEventArgs e) => await OpenRenameClipDialogAsync();
@@ -311,7 +320,7 @@ public partial class ClipListControl
     private void DeleteItems_Click(object sender, RoutedEventArgs e)
     {
         // Send delete event with IDs of currently selected clips
-        var clipIds = SelectedItems.OfType<Clip>().Select(p => p.Id).ToList();
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
         _messenger.Send(new DeleteClipsRequestedEvent(clipIds));
     }
 
@@ -444,7 +453,7 @@ public partial class ClipListControl
         {
             // Used inside ExplorerWindow - get from PrimaryClipList
             clipListViewModel = explorerVm.PrimaryClipList;
-            databaseKey = clipListViewModel?.CurrentDatabaseKey ?? string.Empty;
+            databaseKey = clipListViewModel.CurrentDatabaseKey ?? string.Empty;
             Debug.WriteLine($"[OpenRenameClipDialogAsync] Got database key from ExplorerWindowViewModel.PrimaryClipList: '{databaseKey}'");
         }
         else
@@ -513,7 +522,7 @@ public partial class ClipListControl
     private void OnClipUpdated(object recipient, ClipUpdatedMessage message)
     {
         // Find the clip in our collection
-        var clip = Items?.FirstOrDefault(p => p.Id == message.ClipId);
+        var clip = Items.FirstOrDefault(p => p.Id == message.ClipId);
         if (clip == null)
             return;
 

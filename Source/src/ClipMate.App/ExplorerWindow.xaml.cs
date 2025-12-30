@@ -28,6 +28,7 @@ public partial class ExplorerWindow : IWindow,
     IRecipient<ShowExplorerWindowEvent>,
     IRecipient<ShowTaskbarIconChangedEvent>
 {
+    private readonly IActiveWindowService _activeWindowService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ExplorerWindow>? _logger;
@@ -43,6 +44,7 @@ public partial class ExplorerWindow : IWindow,
         IConfigurationService configurationService,
         IDatabaseManager databaseManager,
         ITemplateService templateService,
+        IActiveWindowService activeWindowService,
         ILogger<ExplorerWindow>? logger = null)
     {
         InitializeComponent();
@@ -53,6 +55,7 @@ public partial class ExplorerWindow : IWindow,
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
+        _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
         _logger = logger;
 
         DataContext = _viewModel;
@@ -146,6 +149,10 @@ public partial class ExplorerWindow : IWindow,
 
     private void ExplorerWindow_Activated(object? sender, EventArgs e)
     {
+        // Mark Explorer as the active window for event routing and dialog ownership
+        _activeWindowService.ActiveWindow = ActiveWindowType.Explorer;
+        _activeWindowService.DialogOwner = this;
+
         // When main window is activated, bring any owned modal dialogs to front
         // This fixes the issue where dialogs can get hidden when switching between apps
         foreach (Window item in OwnedWindows)
@@ -234,7 +241,7 @@ public partial class ExplorerWindow : IWindow,
 
             // Create a dictionary mapping database keys to display names
             var databaseNames = _configurationService.Configuration.Databases
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Name, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(p => p.Key, p => p.Value.Name, StringComparer.OrdinalIgnoreCase);
 
             if (databaseContexts.Count == 0)
             {
@@ -315,7 +322,7 @@ public partial class ExplorerWindow : IWindow,
 
             // Create a dictionary mapping database keys to display names
             var databaseNames = _configurationService.Configuration.Databases
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Name, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(p => p.Key, p => p.Value.Name, StringComparer.OrdinalIgnoreCase);
 
             if (databaseContexts.Count == 0)
             {

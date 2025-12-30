@@ -22,7 +22,8 @@ public class ClassicViewModelTests
         _mockMessenger = new Mock<IMessenger>();
         var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger.Object,
-            new Mock<IUndoService>().Object);
+            new Mock<IUndoService>().Object,
+            new Mock<IServiceProvider>().Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
         var mockQuickPasteService = new Mock<IQuickPasteService>();
@@ -50,7 +51,10 @@ public class ClassicViewModelTests
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
-        _viewModel = new ClassicViewModel(mainMenuViewModel, quickPasteToolbar, clipListViewModel);
+        _viewModel = new ClassicViewModel(
+            mainMenuViewModel,
+            quickPasteToolbar,
+            clipListViewModel);
     }
 
     [Test]
@@ -59,7 +63,8 @@ public class ClassicViewModelTests
         // Arrange & Act
         var mainMenu = new MainMenuViewModel(
             _mockMessenger.Object,
-            new Mock<IUndoService>().Object);
+            new Mock<IUndoService>().Object,
+            new Mock<IServiceProvider>().Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();
         var mockConfigService = new Mock<IConfigurationService>();
@@ -84,7 +89,10 @@ public class ClassicViewModelTests
             _mockMessenger.Object,
             NullLogger<ClipListViewModel>.Instance);
 
-        var viewModel = new ClassicViewModel(mainMenu, quickPasteToolbar, clipListViewModel);
+        var viewModel = new ClassicViewModel(
+            mainMenu,
+            quickPasteToolbar,
+            clipListViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
@@ -92,6 +100,13 @@ public class ClassicViewModelTests
         await Assert.That(viewModel.IsTacked).IsFalse();
         await Assert.That(viewModel.ShouldCloseWindow).IsFalse();
         await Assert.That(viewModel.Collections).IsNotNull();
+    }
+
+    private static Mock<IConfigurationService> CreateConfigServiceMock()
+    {
+        var mock = new Mock<IConfigurationService>();
+        mock.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        return mock;
     }
 
     [Test]

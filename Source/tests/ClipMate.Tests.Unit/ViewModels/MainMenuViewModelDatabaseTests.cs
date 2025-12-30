@@ -1,4 +1,5 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
@@ -19,7 +20,8 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
         _viewModel = new MainMenuViewModel(
             _messengerMock.Object,
-            new Mock<IUndoService>().Object);
+            new Mock<IUndoService>().Object,
+            new Mock<IServiceProvider>().Object);
     }
 
     [Test]
@@ -92,5 +94,15 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         await Assert.That(_viewModel.SimpleRepairCommand.CanExecute(null)).IsTrue();
         await Assert.That(_viewModel.ComprehensiveRepairCommand.CanExecute(null)).IsTrue();
         await Assert.That(_viewModel.RunCleanupNowCommand.CanExecute(null)).IsTrue();
+    }
+}
+
+internal static class MainMenuViewModelDatabaseTestsHelpers
+{
+    public static Mock<IConfigurationService> CreateConfigServiceMock()
+    {
+        var mock = new Mock<IConfigurationService>();
+        mock.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        return mock;
     }
 }

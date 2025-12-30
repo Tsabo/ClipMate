@@ -77,7 +77,8 @@ public class ExplorerWindowViewModelTests
         var mockMenuMessenger = new Mock<IMessenger>();
         var mainMenuViewModel = new MainMenuViewModel(
             mockMenuMessenger.Object,
-            new Mock<IUndoService>().Object);
+            new Mock<IUndoService>().Object,
+            mockServiceProvider.Object);
 
         return new ExplorerWindowViewModel(
             collectionTreeVm,
@@ -86,15 +87,20 @@ public class ExplorerWindowViewModelTests
             searchVm,
             quickPasteToolbarVm,
             mainMenuViewModel,
-            mockServiceProvider.Object,
             mockQuickPasteService.Object,
             new Mock<IPowerPasteService>().Object,
             mockCollectionService.Object,
             mockFolderService.Object,
             new Mock<ITemplateService>().Object,
-            mockSearchService.Object,
             mockMessenger.Object, // Use the existing mockMessenger.Object from earlier
             mockMainLogger.Object);
+    }
+
+    private static Mock<IConfigurationService> CreateConfigServiceMock()
+    {
+        var mock = new Mock<IConfigurationService>();
+        mock.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        return mock;
     }
 
     [Test]

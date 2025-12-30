@@ -1,9 +1,12 @@
+using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -14,6 +17,7 @@ namespace ClipMate.App.ViewModels;
 public partial class MainMenuViewModel : ObservableObject
 {
     private readonly IMessenger _messenger;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
 
     [ObservableProperty]
@@ -22,10 +26,13 @@ public partial class MainMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoopMode;
 
-    public MainMenuViewModel(IMessenger messenger, IUndoService undoService)
+    public MainMenuViewModel(IMessenger messenger,
+        IUndoService undoService,
+        IServiceProvider serviceProvider)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
     // ==========================
@@ -54,13 +61,22 @@ public partial class MainMenuViewModel : ObservableObject
     private void MoveToCollection() => _messenger.Send(new MoveToCollectionRequestedEvent([]));
 
     [RelayCommand]
-    private void ExportClips() { }
+    private void ExportClips() => _messenger.Send(new ExportToFilesRequestedEvent());
 
     [RelayCommand]
-    private void ExportToXml() { }
+    private void ExportToXml() => _messenger.Send(new ExportToXmlRequestedEvent());
 
     [RelayCommand]
-    private void ImportFromXml() { }
+    private void ImportFromXml()
+    {
+        var vm = ActivatorUtilities.CreateInstance<XmlImportViewModel>(_serviceProvider);
+        var dialog = new XmlImportDialog(vm)
+        {
+            Owner = Application.Current.GetDialogOwner(),
+        };
+
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
     private void DecryptClips() { }

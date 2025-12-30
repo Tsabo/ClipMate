@@ -55,6 +55,9 @@ public static class ServiceCollectionExtensions
         // Register Win32IdleDetector for system idle detection
         services.AddSingleton<IWin32IdleDetector, Win32IdleDetector>();
 
+        // Register ExportImportService as transient - only used occasionally for export/import operations
+        services.AddTransient<IExportImportService, ExportImportService>();
+
         // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;

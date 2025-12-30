@@ -1,18 +1,12 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using DevExpress.Xpf.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-// For ClipApplicationService
-using Application = System.Windows.Application;
-using Shortcut = ClipMate.Core.Models.Shortcut;
 
 namespace ClipMate.App.ViewModels;
 
@@ -25,16 +19,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     IRecipient<ClipSelectedEvent>,
     IRecipient<ImageDimensionsLoadedEvent>,
     IRecipient<ClipboardCopiedEvent>,
-    IRecipient<DeleteClipsRequestedEvent>,
-    IRecipient<RenameClipRequestedEvent>,
-    IRecipient<CopyToCollectionRequestedEvent>,
-    IRecipient<MoveToCollectionRequestedEvent>,
-    IRecipient<CreateNewClipRequestedEvent>,
-    IRecipient<PowerPasteUpRequestedEvent>,
-    IRecipient<PowerPasteDownRequestedEvent>,
-    IRecipient<PowerPasteToggleRequestedEvent>,
-    IRecipient<ShowSearchWindowEvent>,
-    IRecipient<ShortcutModeStatusMessage>
+    IRecipient<ShortcutModeStatusMessage>,
+    IRecipient<StatusUpdateEvent>,
+    IRecipient<ReloadClipsRequestedEvent>
 {
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
@@ -42,8 +29,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
-    private readonly ISearchService _searchService;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ITemplateService _templateService;
 
     public ExplorerWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
@@ -52,13 +37,11 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         SearchViewModel searchViewModel,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         MainMenuViewModel mainMenuViewModel,
-        IServiceProvider serviceProvider,
         IQuickPasteService quickPasteService,
         IPowerPasteService powerPasteService,
         ICollectionService collectionService,
         IFolderService folderService,
         ITemplateService templateService,
-        ISearchService searchService,
         IMessenger messenger,
         ILogger<ExplorerWindowViewModel>? logger = null)
     {
@@ -68,13 +51,11 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         MainMenu = mainMenuViewModel ?? throw new ArgumentNullException(nameof(mainMenuViewModel));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
-        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger;
 
@@ -87,15 +68,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         _messenger.Register<ClipSelectedEvent>(this);
         _messenger.Register<ImageDimensionsLoadedEvent>(this);
         _messenger.Register<ClipboardCopiedEvent>(this);
-        _messenger.Register<DeleteClipsRequestedEvent>(this);
-        _messenger.Register<RenameClipRequestedEvent>(this);
-        _messenger.Register<CopyToCollectionRequestedEvent>(this);
-        _messenger.Register<MoveToCollectionRequestedEvent>(this);
-        _messenger.Register<CreateNewClipRequestedEvent>(this);
-        _messenger.Register<PowerPasteUpRequestedEvent>(this);
-        _messenger.Register<PowerPasteDownRequestedEvent>(this);
-        _messenger.Register<PowerPasteToggleRequestedEvent>(this);
-        _messenger.Register<ShowSearchWindowEvent>(this);
+        _messenger.Register<ShortcutModeStatusMessage>(this);
+        _messenger.Register<StatusUpdateEvent>(this);
+        _messenger.Register<ReloadClipsRequestedEvent>(this);
     }
 
     /// <summary>
@@ -303,10 +278,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             IsLoading = PrimaryClipList.IsLoading;
 
             // Show indeterminate progress (50%) when loading
-            if (IsLoading)
-                LoadingProgress = 50;
-            else
-                LoadingProgress = 0; // Clear progress when done
+            LoadingProgress = IsLoading
+                ? 50
+                : 0; // Clear progress when done
         }
     }
 
@@ -329,22 +303,22 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         long chars = 0;
         long words = 0;
 
-        if (selectedClip is { Type: ClipType.Text })
+        if (selectedClip != null && IsTextBasedClipType(selectedClip.Type))
         {
-            // Show statistics for the selected text clip
+            // Show statistics for the selected text-based clip (Text, RichText, Html)
             bytes = selectedClip.Size;
 
             // If TextContent is loaded, use it for accurate counts
-            if (!string.IsNullOrEmpty(selectedClip.TextContent))
-            {
-                chars = selectedClip.TextContent.Length;
-                words = CountWords(selectedClip.TextContent);
-            }
-            else
+            if (string.IsNullOrEmpty(selectedClip.TextContent))
             {
                 // Estimate from Size (Unicode text = 2 bytes per char)
                 chars = selectedClip.Size / 2;
                 words = EstimateWords(chars);
+            }
+            else
+            {
+                chars = selectedClip.TextContent.Length;
+                words = CountWords(selectedClip.TextContent);
             }
         }
         else if (selectedClip is not { Type: ClipType.Image })
@@ -356,21 +330,21 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             {
                 bytes += clip.Size;
 
-                if (clip.Type != ClipType.Text)
+                if (!IsTextBasedClipType(clip.Type))
                     continue;
 
                 // If TextContent is loaded, use it for accurate counts
-                if (!string.IsNullOrEmpty(clip.TextContent))
-                {
-                    chars += clip.TextContent.Length;
-                    words += CountWords(clip.TextContent);
-                }
-                else
+                if (string.IsNullOrEmpty(clip.TextContent))
                 {
                     // Estimate from Size (Unicode text = 2 bytes per char)
                     var estimatedChars = clip.Size / 2;
                     chars += estimatedChars;
                     words += EstimateWords(estimatedChars);
+                }
+                else
+                {
+                    chars += clip.TextContent.Length;
+                    words += CountWords(clip.TextContent);
                 }
             }
         }
@@ -381,6 +355,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
 
         UpdateStatusMessage(selectedClip);
     }
+
+    /// <summary>
+    /// Determines whether the clip type contains text content (Text, RichText, or Html).
+    /// </summary>
+    private static bool IsTextBasedClipType(ClipType type) =>
+        type is ClipType.Text or ClipType.RichText or ClipType.Html;
 
     /// <summary>
     /// Updates the status message based on the current collection/folder selection and selected clip.
@@ -755,436 +735,14 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Handles DeleteClipsRequestedEvent to delete selected clips with confirmation.
+    /// Handles StatusUpdateEvent from the ClipOperationsCoordinator to update the status bar.
     /// </summary>
-    public async void Receive(DeleteClipsRequestedEvent message)
-    {
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected");
-            return;
-        }
-
-        // Show confirmation dialog
-        var clipCount = selectedClips.Count;
-        var confirmMessage = clipCount == 1
-            ? $"Delete '{selectedClips[0].Title}'?"
-            : $"Delete {clipCount} clips?";
-
-        var result = DXMessageBox.Show(
-            confirmMessage,
-            "Confirm Delete",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (result != MessageBoxResult.Yes)
-            return;
-
-        try
-        {
-            // Get database key from current collection tree node
-            var databaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-            if (string.IsNullOrEmpty(databaseKey))
-            {
-                _logger?.LogError("Cannot delete clips: database key not found");
-                SetStatus("Error: database not found");
-                return;
-            }
-
-            var clipService = _serviceProvider.GetRequiredService<IClipService>();
-
-            foreach (var item in selectedClips)
-                await clipService.DeleteAsync(databaseKey, item.Id);
-
-            SetStatus($"Deleted {clipCount} clip(s)");
-
-            // Reload the current collection
-            await PrimaryClipList.LoadClipsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to delete clips");
-            SetStatus("Error deleting clips");
-        }
-    }
+    public void Receive(StatusUpdateEvent message) => SetStatus(message.Message);
 
     /// <summary>
-    /// Handles RenameClipRequestedEvent to rename a clip with a dialog.
+    /// Handles ReloadClipsRequestedEvent to refresh the clip list after operations.
     /// </summary>
-    public async void Receive(RenameClipRequestedEvent message)
-    {
-        var selectedClip = PrimaryClipList.SelectedClip;
-        if (selectedClip == null)
-        {
-            SetStatus("No clip selected");
-            return;
-        }
-
-        // Get database key from current collection tree node
-        var databaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-        if (string.IsNullOrEmpty(databaseKey))
-        {
-            _logger?.LogError("Cannot rename clip: database key not found");
-            SetStatus("Error: database not found");
-            return;
-        }
-
-        try
-        {
-            // Get the RenameClipDialogViewModel from DI
-            var viewModel = _serviceProvider.GetService<RenameClipDialogViewModel>();
-            if (viewModel == null)
-            {
-                _logger?.LogError("RenameClipDialogViewModel not found in DI container");
-                SetStatus("Error: dialog service not available");
-                return;
-            }
-
-            // Get existing shortcut if any
-            var shortcutService = _serviceProvider.GetService<IShortcutService>();
-            Shortcut? existingShortcut = null;
-            if (shortcutService != null)
-            {
-                try
-                {
-                    existingShortcut = await shortcutService.GetByClipIdAsync(databaseKey, selectedClip.Id);
-                }
-                catch (Exception ex) when (ex.Message.Contains("no such table"))
-                {
-                    // ShortCut table doesn't exist yet - this is OK
-                    // The table will be created automatically when first shortcut is saved
-                    _logger?.LogDebug("ShortCut table not found - will be created on first shortcut save");
-                }
-            }
-
-            // Initialize the dialog ViewModel
-            await viewModel.InitializeAsync(
-                selectedClip.Id,
-                databaseKey,
-                selectedClip.Title,
-                existingShortcut?.Nickname);
-
-            // Create and show the dialog
-            var dialog = new RenameClipDialog
-            {
-                DataContext = viewModel,
-                Owner = Application.Current.GetDialogOwner(),
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                // Update the clip in the collection
-                var clip = PrimaryClipList.Clips.FirstOrDefault(p => p.Id == selectedClip.Id);
-                clip?.Title = viewModel.Title;
-
-                var title = viewModel.Title ?? string.Empty;
-                SetStatus($"Updated clip: {title}");
-
-                // Message will be sent by the ViewModel, which will trigger grid refresh
-            }
-            else
-                SetStatus("Rename cancelled");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to show rename dialog");
-            SetStatus("Error showing rename dialog");
-        }
-    }
-
-    /// <summary>
-    /// Handles CopyToCollectionRequestedEvent to copy clips to another collection.
-    /// Supports both same-database and cross-database operations.
-    /// </summary>
-    public async void Receive(CopyToCollectionRequestedEvent message)
-    {
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected");
-            return;
-        }
-
-        // Get source database key
-        var sourceDatabaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-        if (string.IsNullOrEmpty(sourceDatabaseKey))
-        {
-            _logger?.LogError("Cannot copy clips: source database key not found");
-            SetStatus("Error: source database not found");
-            return;
-        }
-
-        // Create and show collection picker dialog
-        var dialog = new CollectionPickerDialog(_serviceProvider)
-        {
-            Message = $"Select a collection to copy {selectedClips.Count} clip(s) to:",
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        await dialog.LoadCollectionsAsync();
-
-        if (dialog.ShowDialog() != true || dialog.SelectedCollectionId is null || string.IsNullOrEmpty(dialog.SelectedDatabaseKey))
-        {
-            SetStatus("Copy cancelled");
-            return;
-        }
-
-        try
-        {
-            var clipService = _serviceProvider.GetRequiredService<IClipService>();
-            var targetDatabaseKey = dialog.SelectedDatabaseKey;
-            var isCrossDatabase = !sourceDatabaseKey.Equals(targetDatabaseKey, StringComparison.OrdinalIgnoreCase);
-
-            var copiedCount = 0;
-            foreach (var item in selectedClips)
-            {
-                if (isCrossDatabase)
-                {
-                    // Cross-database copy
-                    await clipService.CopyClipCrossDatabaseAsync(
-                        sourceDatabaseKey,
-                        item.Id,
-                        targetDatabaseKey,
-                        dialog.SelectedCollectionId.Value);
-                }
-                else
-                {
-                    // Same-database copy
-                    await clipService.CopyClipAsync(
-                        sourceDatabaseKey,
-                        item.Id,
-                        dialog.SelectedCollectionId.Value);
-                }
-
-                copiedCount++;
-            }
-
-            var databaseMessage = isCrossDatabase
-                ? " (cross-database)"
-                : string.Empty;
-
-            SetStatus($"Copied {copiedCount} clip(s){databaseMessage}");
-            await PrimaryClipList.LoadClipsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to copy clips");
-            SetStatus("Error copying clips");
-        }
-    }
-
-    /// <summary>
-    /// Handles MoveToCollectionRequestedEvent to move clips to another collection.
-    /// Supports both same-database and cross-database operations.
-    /// </summary>
-    public async void Receive(MoveToCollectionRequestedEvent message)
-    {
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected");
-            return;
-        }
-
-        // Get source database key
-        var sourceDatabaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-        if (string.IsNullOrEmpty(sourceDatabaseKey))
-        {
-            _logger?.LogError("Cannot move clips: source database key not found");
-            SetStatus("Error: source database not found");
-            return;
-        }
-
-        // Create and show collection picker dialog
-        var dialog = new CollectionPickerDialog(_serviceProvider)
-        {
-            Message = $"Select a collection to move {selectedClips.Count} clip(s) to:",
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        await dialog.LoadCollectionsAsync();
-
-        if (dialog.ShowDialog() != true || dialog.SelectedCollectionId is null || string.IsNullOrEmpty(dialog.SelectedDatabaseKey))
-        {
-            SetStatus("Move cancelled");
-            return;
-        }
-
-        try
-        {
-            var clipService = _serviceProvider.GetRequiredService<IClipService>();
-            var targetDatabaseKey = dialog.SelectedDatabaseKey;
-            var isCrossDatabase = !sourceDatabaseKey.Equals(targetDatabaseKey, StringComparison.OrdinalIgnoreCase);
-
-            var movedCount = 0;
-            foreach (var item in selectedClips)
-            {
-                if (isCrossDatabase)
-                {
-                    // Cross-database move (copy + delete)
-                    await clipService.MoveClipCrossDatabaseAsync(
-                        sourceDatabaseKey,
-                        item.Id,
-                        targetDatabaseKey,
-                        dialog.SelectedCollectionId.Value);
-                }
-                else
-                {
-                    // Same-database move (update CollectionId)
-                    await clipService.MoveClipAsync(
-                        sourceDatabaseKey,
-                        item.Id,
-                        dialog.SelectedCollectionId.Value);
-                }
-
-                movedCount++;
-            }
-
-            var databaseMessage = isCrossDatabase
-                ? " (cross-database)"
-                : string.Empty;
-
-            SetStatus($"Moved {movedCount} clip(s){databaseMessage}");
-            await PrimaryClipList.LoadClipsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to move clips");
-            SetStatus("Error moving clips");
-        }
-    }
-
-    /// <summary>
-    /// Handles CreateNewClipRequestedEvent to create a new empty clip in the current collection.
-    /// </summary>
-    public async void Receive(CreateNewClipRequestedEvent message)
-    {
-        var currentCollectionId = PrimaryClipList.CurrentCollectionId;
-        if (currentCollectionId == null)
-        {
-            SetStatus("No collection selected");
-            return;
-        }
-
-        // Get database key from current collection tree node
-        var databaseKey = GetDatabaseKeyForNode(CollectionTree.SelectedNode);
-        if (string.IsNullOrEmpty(databaseKey))
-        {
-            _logger?.LogError("Cannot create clip: database key not found");
-            SetStatus("Error: database not found");
-            return;
-        }
-
-        try
-        {
-            var clipService = _serviceProvider.GetRequiredService<IClipService>();
-
-            // Create new empty clip
-            var newClip = new Clip
-            {
-                Title = "New Clip",
-                TextContent = string.Empty,
-                CollectionId = currentCollectionId.Value,
-                CapturedAt = DateTimeOffset.UtcNow,
-                Type = ClipType.Text,
-            };
-
-            var createdClip = await clipService.CreateAsync(databaseKey, newClip);
-
-            SetStatus($"Created new clip: {createdClip.Title}");
-
-            // Reload to show the new clip
-            await PrimaryClipList.LoadClipsAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to create new clip");
-            SetStatus("Error creating new clip");
-        }
-    }
-
-    /// <summary>
-    /// Handles PowerPasteUpRequestedEvent to start PowerPaste in upward direction.
-    /// </summary>
-    public async void Receive(PowerPasteUpRequestedEvent message)
-    {
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected for PowerPaste");
-            return;
-        }
-
-        try
-        {
-            await _powerPasteService.StartAsync(selectedClips, Core.Services.PowerPasteDirection.Up);
-            SetStatus($"PowerPaste Up started with {selectedClips.Count} clip(s)");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to start PowerPaste Up");
-            SetStatus("Error starting PowerPaste");
-        }
-    }
-
-    /// <summary>
-    /// Handles PowerPasteDownRequestedEvent to start PowerPaste in downward direction.
-    /// </summary>
-    public async void Receive(PowerPasteDownRequestedEvent message)
-    {
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected for PowerPaste");
-            return;
-        }
-
-        try
-        {
-            await _powerPasteService.StartAsync(selectedClips, Core.Services.PowerPasteDirection.Down);
-            SetStatus($"PowerPaste Down started with {selectedClips.Count} clip(s)");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to start PowerPaste Down");
-            SetStatus("Error starting PowerPaste");
-        }
-    }
-
-    /// <summary>
-    /// Handles PowerPasteToggleRequestedEvent to toggle PowerPaste state.
-    /// </summary>
-    public async void Receive(PowerPasteToggleRequestedEvent message)
-    {
-        // If PowerPaste is active, stop it
-        if (_powerPasteService.State == PowerPasteState.Active)
-        {
-            _powerPasteService.Stop();
-            SetStatus("PowerPaste stopped");
-            return;
-        }
-
-        // Otherwise, start it in the default direction (Down)
-        var selectedClips = PrimaryClipList.SelectedClips;
-        if (selectedClips.Count == 0)
-        {
-            SetStatus("No clips selected for PowerPaste");
-            return;
-        }
-
-        try
-        {
-            await _powerPasteService.StartAsync(selectedClips, Core.Services.PowerPasteDirection.Down);
-            SetStatus($"PowerPaste started with {selectedClips.Count} clip(s)");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to toggle PowerPaste");
-            SetStatus("Error starting PowerPaste");
-        }
-    }
+    public async void Receive(ReloadClipsRequestedEvent message) => await PrimaryClipList.LoadClipsAsync();
 
     /// <summary>
     /// Selects a template for clip merging.
@@ -1220,30 +778,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     {
         _templateService.ResetSequenceCounter();
         SetStatus("Template sequence reset to 1");
-    }
-
-    /// <summary>
-    /// Handles ShowSearchWindowEvent to display the search dialog.
-    /// </summary>
-    public void Receive(ShowSearchWindowEvent message)
-    {
-        _logger?.LogInformation("Showing search window");
-
-        try
-        {
-            var logger = _serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
-            var dialog = new SearchDialog(Search, _searchService, _collectionService, logger)
-            {
-                Owner = Application.Current.GetDialogOwner(),
-            };
-
-            dialog.ShowDialog();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to show search window");
-            SetStatus("Error showing search window");
-        }
     }
 
     #endregion
