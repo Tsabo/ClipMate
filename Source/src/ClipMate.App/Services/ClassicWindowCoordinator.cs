@@ -102,6 +102,11 @@ public class ClassicWindowCoordinator : IHostedService, IRecipient<ShowClipBarRe
     }
 
     /// <summary>
+    /// Shows the Classic window programmatically (e.g., at startup).
+    /// </summary>
+    public void ShowClassicWindow() => ShowClipBar(isHotkeyTriggered: false);
+
+    /// <summary>
     /// Shows the Classic window, ensuring single instance.
     /// Window handles its own positioning via TOML configuration.
     /// </summary>

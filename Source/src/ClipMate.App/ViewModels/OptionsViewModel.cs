@@ -31,7 +31,8 @@ public partial class OptionsViewModel : ObservableObject
         ApplicationProfilesOptionsViewModel applicationProfilesOptionsViewModel,
         SoundsOptionsViewModel soundsOptionsViewModel,
         HotkeysOptionsViewModel hotkeysOptionsViewModel,
-        DatabaseOptionsViewModel databaseOptionsViewModel)
+        DatabaseOptionsViewModel databaseOptionsViewModel,
+        AdvancedOptionsViewModel advancedOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -46,6 +47,7 @@ public partial class OptionsViewModel : ObservableObject
         Sounds = soundsOptionsViewModel ?? throw new ArgumentNullException(nameof(soundsOptionsViewModel));
         Hotkeys = hotkeysOptionsViewModel ?? throw new ArgumentNullException(nameof(hotkeysOptionsViewModel));
         Database = databaseOptionsViewModel ?? throw new ArgumentNullException(nameof(databaseOptionsViewModel));
+        Advanced = advancedOptionsViewModel ?? throw new ArgumentNullException(nameof(advancedOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
@@ -60,6 +62,7 @@ public partial class OptionsViewModel : ObservableObject
     public SoundsOptionsViewModel Sounds { get; }
     public HotkeysOptionsViewModel Hotkeys { get; }
     public DatabaseOptionsViewModel Database { get; }
+    public AdvancedOptionsViewModel Advanced { get; }
 
     /// <summary>
     /// Selects a tab by name.
@@ -82,6 +85,7 @@ public partial class OptionsViewModel : ObservableObject
             "SOUNDS" => 7,
             "HOTKEYS" => 8,
             "DATABASE" => 9,
+            "ADVANCED" => 10,
             var _ => SelectedTabIndex,
         };
 
@@ -102,6 +106,7 @@ public partial class OptionsViewModel : ObservableObject
         Sounds.LoadAsync();
         await Hotkeys.LoadConfigurationAsync();
         await Database.LoadAsync();
+        Advanced.LoadAsync();
 
         _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
@@ -124,6 +129,7 @@ public partial class OptionsViewModel : ObservableObject
             Sounds.SaveAsync();
             await Hotkeys.SaveConfigurationAsync();
             await Database.SaveAsync();
+            Advanced.SaveAsync();
 
             // Save to disk
             await _configurationService.SaveAsync();

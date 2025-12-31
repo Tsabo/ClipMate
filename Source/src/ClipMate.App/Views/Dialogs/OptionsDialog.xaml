@@ -6,7 +6,6 @@
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
                  xmlns:options="clr-namespace:ClipMate.App.Views.Options"
-                 xmlns:views="clr-namespace:ClipMate.App.Views"
                  d:DataContext="{d:DesignInstance Type=vm:OptionsViewModel}"
                  mc:Ignorable="d"
                  Title="Options"
@@ -66,14 +65,6 @@
             <options:ApplicationProfilesOptionsControl DataContext="{Binding ApplicationProfiles}" />
         </dx:DXTabItem>
 
-        <!-- Appearance Tab (Stub) -->
-        <dx:DXTabItem Header="Appearance" IsEnabled="False">
-            <TextBlock Text="Appearance options will be added here"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       Foreground="Gray" />
-        </dx:DXTabItem>
-
         <!-- Sounds Tab -->
         <dx:DXTabItem Header="Sounds">
             <options:SoundsOptionsControl DataContext="{Binding Sounds}" />
@@ -87,6 +78,11 @@
         <!-- Database Tab -->
         <dx:DXTabItem Header="Database">
             <options:DatabaseOptionsControl DataContext="{Binding Database}" />
+        </dx:DXTabItem>
+
+        <!-- Advanced Tab -->
+        <dx:DXTabItem Header="Advanced">
+            <options:AdvancedOptionsControl DataContext="{Binding Advanced}" />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

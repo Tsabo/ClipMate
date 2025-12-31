@@ -1,0 +1,141 @@
+<UserControl x:Class="ClipMate.App.Views.Options.AdvancedOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:AdvancedOptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Timing/Delays Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Timing/Delays" Orientation="Vertical">
+
+            <!-- Startup Delay -->
+            <dxlc:LayoutItem Label="Startup Delay:" LabelPosition="Left">
+                <StackPanel Orientation="Horizontal">
+                    <dxe:SpinEdit Value="{Binding StartupDelaySeconds}"
+                                  MinValue="0"
+                                  MaxValue="60"
+                                  Increment="1"
+                                  IsFloatValue="False"
+                                  Width="80"
+                                  ToolTip="Causes ClipMate to pause for a set number of seconds before initializing. This can prevent conflicts with other applications during system startup." />
+                    <TextBlock Text="Seconds" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Capture Delay -->
+            <dxlc:LayoutItem Label="Capture Delay:" LabelPosition="Left">
+                <StackPanel Orientation="Horizontal">
+                    <dxe:SpinEdit Value="{Binding CaptureDelayMs}"
+                                  MinValue="0"
+                                  MaxValue="5000"
+                                  Increment="50"
+                                  IsFloatValue="False"
+                                  Width="80"
+                                  ToolTip="Causes ClipMate to pause after you copy data, to let the copying application finish. Usually 250ms is sufficient." />
+                    <TextBlock Text="Milliseconds (1/1000 seconds)" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Settle Time Between Captures -->
+            <dxlc:LayoutItem Label="Settle Time Between Captures:" LabelPosition="Left">
+                <StackPanel Orientation="Horizontal">
+                    <dxe:SpinEdit Value="{Binding SettleTimeBetweenCapturesMs}"
+                                  MinValue="0"
+                                  MaxValue="5000"
+                                  Increment="50"
+                                  IsFloatValue="False"
+                                  Width="80"
+                                  ToolTip="Minimum time to wait after capturing an item before accepting new items. Decrease if experiencing missed copies from rapid succession." />
+                    <TextBlock Text="Milliseconds (1/1000 seconds)" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- PowerPaste Delay -->
+            <dxlc:LayoutItem Label="PowerPaste Delay:" LabelPosition="Left">
+                <StackPanel Orientation="Horizontal">
+                    <dxe:SpinEdit Value="{Binding PowerPasteDelay}"
+                                  MinValue="0"
+                                  MaxValue="5000"
+                                  Increment="50"
+                                  IsFloatValue="False"
+                                  Width="80"
+                                  ToolTip="Delay between when you paste an item and the re-load of the next item. Increase if PowerPaste is having trouble." />
+                    <TextBlock Text="Milliseconds (1/1000 seconds)" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Behavior Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Behavior" Orientation="Vertical">
+
+            <!-- ALT Key required for Collection Tree DragDrop -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="ALT Key required for Collection Tree DragDrop?"
+                               IsChecked="{Binding AltKeyRequiredForDragDrop}"
+                               ToolTip="When enabled, you must press the ALT key to move collections via drag/drop, preventing unintended re-arrangement." />
+            </dxlc:LayoutItem>
+
+            <!-- Pay Attention To Clipboard Viewer Ignore flag -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Pay Attention To Clipboard Viewer Ignore flag?"
+                               IsChecked="{Binding PayAttentionToClipboardIgnoreFlag}"
+                               ToolTip="Have ClipMate ignore updates from programs that request to be ignored. Turn off to solve certain bugs with other programs." />
+            </dxlc:LayoutItem>
+
+            <!-- Enable Cached Database Writes -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Enable Cached Database Writes"
+                               IsChecked="{Binding EnableCachedDatabaseWrites}"
+                               ToolTip="For performance, ClipMate caches database updates. Turn off only if you experience frequent crashes leading to data loss." />
+            </dxlc:LayoutItem>
+
+            <!-- Use DDE To Get Source URL From Browser -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Use DDE To Get Source URL From Browser (Non-Microsoft Browsers)?"
+                               IsChecked="{Binding UseDdeForBrowserUrl}"
+                               ToolTip="Use DDE to retrieve the source URL from non-Microsoft browsers when capturing web content." />
+            </dxlc:LayoutItem>
+
+            <!-- Buttons for Move/Copy to collection should re-use the last selected target -->
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Buttons for Move/Copy to collection should re-use the last selected target?"
+                               IsChecked="{Binding ReuseLastSelectedMoveTarget}"
+                               ToolTip="When enabled, Move/Copy buttons will default to the last collection you selected." />
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Reset/Clear Settings Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Reset/Clear Settings" Orientation="Vertical">
+
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Layout/Font"
+                            Command="{Binding ResetLayoutFontCommand}"
+                            MinWidth="120"
+                            Margin="0,0,10,0"
+                            ToolTip="Reset layout and font settings to defaults. Requires restart." />
+                    <Button Content="Application Profile"
+                            Command="{Binding ResetApplicationProfileCommand}"
+                            MinWidth="120"
+                            Margin="0,0,10,0"
+                            ToolTip="Clear all Application Profile entries. Requires restart." />
+                    <Button Content="Everything"
+                            Command="{Binding ResetEverythingCommand}"
+                            MinWidth="120"
+                            ToolTip="Reset ALL settings to factory defaults. Requires restart and re-registration if licensed." />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

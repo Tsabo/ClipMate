@@ -617,6 +617,7 @@ public partial class App
                 services.AddTransient<SoundsOptionsViewModel>();
                 services.AddTransient<HotkeysOptionsViewModel>();
                 services.AddTransient<DatabaseOptionsViewModel>();
+                services.AddTransient<AdvancedOptionsViewModel>();
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
 

@@ -22,6 +22,17 @@ HintHidePause = 4500
 Language = "English"
 LogLevel = 3
 IsRegistered = false
+
+# Advanced Settings
+StartupDelaySeconds = 0
+CaptureDelayMs = 250
+SettleTimeBetweenCapturesMs = 100
+AltKeyRequiredForDragDrop = true
+PayAttentionToClipboardIgnoreFlag = true
+EnableCachedDatabaseWrites = true
+UseDdeForBrowserUrl = false
+ReuseLastSelectedMoveTarget = false
+
 PowerPasteDelay = 100
 PowerPasteShield = true
 PowerPasteDelimiter = ",.;:\\n\\t"

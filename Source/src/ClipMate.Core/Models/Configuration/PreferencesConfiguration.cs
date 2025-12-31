@@ -129,6 +129,54 @@ public class PreferencesConfiguration
     /// </summary>
     public bool IsRegistered { get; set; } = false;
 
+    // ==================== Advanced Tab Settings ====================
+
+    /// <summary>
+    /// Gets or sets the startup delay in seconds.
+    /// Causes ClipMate to pause before initializing to prevent conflicts with other applications.
+    /// </summary>
+    public int StartupDelaySeconds { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the capture delay in milliseconds.
+    /// Causes ClipMate to pause after copy operations to let the copying application finish.
+    /// </summary>
+    public int CaptureDelayMs { get; set; } = 250;
+
+    /// <summary>
+    /// Gets or sets the settle time between captures in milliseconds.
+    /// Minimum time to wait after capturing before accepting new items.
+    /// </summary>
+    public int SettleTimeBetweenCapturesMs { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets whether the ALT key is required for collection tree drag/drop.
+    /// Prevents unintended re-arrangement of collections.
+    /// </summary>
+    public bool AltKeyRequiredForDragDrop { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to pay attention to the clipboard viewer ignore flag.
+    /// When enabled, ClipMate ignores updates from programs that request to be ignored.
+    /// </summary>
+    public bool PayAttentionToClipboardIgnoreFlag { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether cached database writes are enabled.
+    /// For performance, database updates are cached. Disable only if experiencing data loss from crashes.
+    /// </summary>
+    public bool EnableCachedDatabaseWrites { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether to use DDE to get source URL from non-Microsoft browsers.
+    /// </summary>
+    public bool UseDdeForBrowserUrl { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether Move/Copy buttons should re-use the last selected target collection.
+    /// </summary>
+    public bool ReuseLastSelectedMoveTarget { get; set; } = false;
+
     /// <summary>
     /// Gets or sets the PowerPaste delay (in milliseconds).
     /// </summary>

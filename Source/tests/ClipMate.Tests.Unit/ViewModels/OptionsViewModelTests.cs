@@ -14,6 +14,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 [Category("ViewModel")]
 public class OptionsViewModelTests
 {
+    private AdvancedOptionsViewModel _advancedViewModel = null!;
     private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
     private CapturingOptionsViewModel _capturingViewModel = null!;
     private DatabaseOptionsViewModel _databaseViewModel = null!;
@@ -101,6 +102,11 @@ public class OptionsViewModelTests
         _databaseViewModel = new DatabaseOptionsViewModel(
             _mockConfigurationService.Object,
             new Mock<ILogger<DatabaseOptionsViewModel>>().Object);
+
+        _advancedViewModel = new AdvancedOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<IDialogService>().Object,
+            new Mock<ILogger<AdvancedOptionsViewModel>>().Object);
     }
 
     private OptionsViewModel CreateViewModel() =>
@@ -116,7 +122,8 @@ public class OptionsViewModelTests
             _applicationProfilesViewModel,
             _soundsViewModel,
             _hotkeysViewModel,
-            _databaseViewModel);
+            _databaseViewModel,
+            _advancedViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
@@ -138,7 +145,8 @@ public class OptionsViewModelTests
             applicationProfilesViewModel,
             _soundsViewModel,
             _hotkeysViewModel,
-            _databaseViewModel);
+            _databaseViewModel,
+            _advancedViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();
