@@ -17,9 +17,11 @@ ClipMate uses the following open-source and commercial libraries:
 - **Typography** - OpenType font parsing (MIT + various permissive licenses)
 - **UnicodeEmoji** - Unicode emoji data (Unicode Inc. terms)
 - **WpfHexaEditor v2.1.7** - Binary hex editing (Apache 2.0)
+- **Icons8** - Application icons (Icons8 license)
 
 **Key Dependencies**:
 - **DevExpress WPF 25.2.3** - UI controls and theming (**Commercial license required**)
+- **Monaco Editor 0.52.0** - Code/text editing via WebView2 (MIT)
 - **CommunityToolkit.Mvvm 8.4.0** - MVVM infrastructure (MIT)
 - **Entity Framework Core 9.0** - Data access (MIT)
 - **Serilog 4.3.0** - Structured logging (Apache 2.0)
@@ -27,6 +29,12 @@ ClipMate uses the following open-source and commercial libraries:
 - **Tomlyn.Signed 0.19.0** - TOML parsing (BSD-2-Clause)
 - **NAudio 2.2.1** - Sound playback (MIT)
 - **TUnit 1.5.80** - Testing framework (MIT)
+
+**Build Tools**:
+- **Cake Build 5.0.0** - Build automation (MIT)
+- **nanoemoji** - Color font generation (Apache 2.0)
+- **fonttools** - Font manipulation library (MIT)
+- **Ninja** - Build system (Apache 2.0)
 
 **Complete Attribution**: See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full license texts and attribution details.
 

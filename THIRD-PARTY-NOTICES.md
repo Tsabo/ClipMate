@@ -11,6 +11,7 @@ ClipMate includes or makes use of certain third-party software components. The f
   - [UI Frameworks](#ui-frameworks)
   - [Data & Configuration](#data--configuration)
   - [Logging](#logging)
+  - [Build Tools](#build-tools)
   - [Testing](#testing)
   - [Microsoft Libraries](#microsoft-libraries)
 
@@ -113,6 +114,21 @@ limitations under the License.
 
 ---
 
+### 5. Icons8
+
+**License**: Icons8 License  
+**Source**: https://icons8.com  
+**Copyright**: Icons8 LLC  
+**Used for**: Application icons (clipboard icon)
+
+**License Terms**: https://icons8.com/license
+
+**Attribution**: Clipboard icon by Icons8 - https://icons8.com/icon/11864/clipboard
+
+**Note**: Icons8 requires attribution for free usage. Commercial licenses are available for attribution-free usage.
+
+---
+
 ## NuGet Package Dependencies
 
 ### UI Frameworks
@@ -157,6 +173,40 @@ limitations under the License.
 **Used for**: HTML preview using Microsoft Edge WebView2
 
 **License**: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3650.58/License
+
+---
+
+#### Monaco Editor (v0.52.0)
+
+**License**: MIT  
+**Source**: https://github.com/microsoft/monaco-editor  
+**Copyright**: Microsoft Corporation  
+**Used for**: Code and text editing with syntax highlighting, IntelliSense, and SQL editing
+
+**License**:
+```
+MIT License
+
+Copyright (c) 2016 - present Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ---
 
@@ -242,6 +292,63 @@ THE POSSIBILITY OF SUCH DAMAGE.
 **Used for**: Sound playback for system notifications
 
 **License**: https://github.com/naudio/NAudio/blob/master/license.txt
+
+---
+
+### Build Tools
+
+#### Cake Build (v5.0.0)
+
+**License**: MIT  
+**Source**: https://github.com/cake-build/cake  
+**Copyright**: .NET Foundation and Contributors  
+**Used for**: Build automation, CI/CD pipeline orchestration
+
+**License**: https://github.com/cake-build/cake/blob/develop/LICENSE
+
+---
+
+#### Cake.MinVer (v4.0.0)
+
+**License**: MIT  
+**Source**: https://github.com/cake-contrib/Cake.MinVer  
+**Copyright**: Cake Contributors  
+**Used for**: Semantic versioning based on Git tags
+
+**License**: https://github.com/cake-contrib/Cake.MinVer/blob/main/LICENSE
+
+---
+
+#### nanoemoji
+
+**License**: Apache License 2.0  
+**Source**: https://github.com/googlefonts/nanoemoji  
+**Copyright**: Google LLC  
+**Used for**: Building color emoji fonts from SVG files
+
+**License**: https://github.com/googlefonts/nanoemoji/blob/main/LICENSE
+
+---
+
+#### fonttools
+
+**License**: MIT  
+**Source**: https://github.com/fonttools/fonttools  
+**Copyright**: Just van Rossum and contributors  
+**Used for**: Font file manipulation and metadata application
+
+**License**: https://github.com/fonttools/fonttools/blob/main/LICENSE
+
+---
+
+#### Ninja (Build System)
+
+**License**: Apache License 2.0  
+**Source**: https://github.com/ninja-build/ninja  
+**Copyright**: Google Inc.  
+**Used for**: Fast build system required by nanoemoji
+
+**License**: https://github.com/ninja-build/ninja/blob/master/COPYING
 
 ---
 
@@ -351,12 +458,18 @@ The use of DevExpress components is clearly separated in the codebase and can be
 | Typography | MIT + Various | ✅ Yes | ✅ Yes |
 | UnicodeEmoji | Unicode Terms | ✅ Yes | ✅ Yes |
 | WpfHexaEditor | Apache 2.0 | ✅ Yes | ✅ Yes |
+| Icons8 | Icons8 License | ✅ Yes | **License Available** |
 | CommunityToolkit.Mvvm | MIT | ✅ Yes | ✅ Yes |
 | DevExpress WPF | **Commercial** | ✅ Yes | **License Required** |
+| Monaco Editor | MIT | ✅ Yes | ✅ Yes |
 | Tomlyn.Signed | BSD-2-Clause | ✅ Yes | ✅ Yes |
 | Dapper | Apache 2.0 | ✅ Yes | ✅ Yes |
 | Serilog | Apache 2.0 | ✅ Yes | ✅ Yes |
 | NAudio | MIT | ✅ Yes | ✅ Yes |
+| Cake Build | MIT | ✅ Yes | ✅ Yes |
+| nanoemoji | Apache 2.0 | ✅ Yes | ✅ Yes |
+| fonttools | MIT | ✅ Yes | ✅ Yes |
+| Ninja | Apache 2.0 | ✅ Yes | ✅ Yes |
 | TUnit | MIT | ✅ Yes | ✅ Yes |
 | Moq | BSD-3-Clause | ✅ Yes | ✅ Yes |
 | Microsoft Libraries | MIT | ✅ Yes | ✅ Yes |
