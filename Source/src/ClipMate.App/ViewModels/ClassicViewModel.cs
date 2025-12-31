@@ -34,6 +34,9 @@ public partial class ClassicViewModel : ObservableObject
         MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         ClipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
+
+        // Ensure database list is up-to-date for dynamic menus
+        MainMenu.RefreshLoadedDatabases();
     }
 
     /// <summary>

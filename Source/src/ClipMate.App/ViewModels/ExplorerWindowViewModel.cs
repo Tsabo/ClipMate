@@ -83,6 +83,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         {
             SetBusy(true, "Loading collections...");
 
+            // Refresh loaded databases for menu visibility
+            MainMenu.RefreshLoadedDatabases();
+
             // Load collections and folders
             _logger?.LogInformation("Loading collections and folders");
             await CollectionTree.LoadAsync();

@@ -171,7 +171,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
         dbContext.Database.OpenConnection();
         dbContext.Database.EnsureCreated();
 
-        _mockDatabaseManager.Setup(p => p.GetDatabaseContext(_testDatabaseKey))
+        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
             .Returns(dbContext);
 
         _mockClipRepository.Setup(p => p.GetByIdAsync(sourceClipId, It.IsAny<CancellationToken>()))

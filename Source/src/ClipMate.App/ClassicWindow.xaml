@@ -56,10 +56,10 @@
                         <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
                         <dxb:BarButtonItem Content="Copy Item To Collection"
                                            Command="{Binding MainMenu.CopyToCollectionCommand}"
-                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}, Size=24}"/>
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}, Size=24}" />
                         <dxb:BarButtonItem Content="Move Item To Collection"
                                            Command="{Binding MainMenu.MoveToCollectionCommand}"
-                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}}"/>
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}}" />
                         <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
                                            Command="{Binding MainMenu.ExportClipsCommand}" />
                         <dxb:BarButtonItem Content="Export Clip(s) to XML"
@@ -171,7 +171,15 @@
                         <dxb:BarButtonItem Content="Re-Establish Clipboard Connection"
                                            Command="{Binding MainMenu.ReestablishClipboardCommand}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Show SQL Window" Command="{Binding MainMenu.ShowSqlWindowCommand}" />
+                        <!-- SQL Window: Simple button when single database -->
+                        <dxb:BarButtonItem Content="Show SQL Window"
+                                           Command="{Binding MainMenu.ShowSqlWindowCommand}"
+                                           IsVisible="{Binding MainMenu.HasMultipleDatabases, Converter={StaticResource InverseBoolConverter}}" />
+                        <!-- SQL Window: Submenu when multiple databases -->
+                        <dxb:BarSubItem x:Name="ShowSqlWindowMultiple"
+                                        Content="Show SQL Window"
+                                        IsVisible="{Binding MainMenu.HasMultipleDatabases}"
+                                        GetItemData="SqlWindowDropdown_GetItemData" />
                         <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}" />
                     </dxb:BarSubItem>
 

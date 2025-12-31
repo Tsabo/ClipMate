@@ -301,7 +301,7 @@ dotnet_diagnostic.IDE0008.severity = none
 
 # File Organization
 # IDE0073: One type per file (class/interface/record/enum)
-dotnet_diagnostic.IDE0073.severity = suggestion
+dotnet_diagnostic.IDE0073.severity = warning
 
 # Code documentation
 # Missing XML comment (can be warning for library projects)
@@ -420,3 +420,27 @@ spelling_exclusion_path = ./exclusion.dic
 # ✅ Preferred: foreach (var item in collection)
 # ✅ Nested loops: foreach (var outerItem in outer) { foreach (var innerItem in inner) }
 # ❌ Avoid: Generic names like 'i', 'x', 'obj' unless absolutely clear from context
+
+##########################################
+# Vendored Third-Party Code
+##########################################
+# WpfHexEditor - vendored from https://github.com/abbaye/WpfHexEditorControl
+# These suppressions apply only to the vendored code to avoid excessive warnings
+# from third-party code that we maintain for compatibility but don't fully modernize.
+
+[src/ClipMate.WpfHexEditor/**.cs]
+# Suppress catch-all exception warnings (142 instances in vendored code)
+dotnet_code_quality.CA1031.severity = none
+
+# Suppress nested if complexity warnings
+dotnet_diagnostic.CA1502.severity = none
+
+# Suppress XML documentation warnings
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+
+# Note: Fixed critical null reference issues in HexEditor.xaml.cs, HexBox.xaml.cs, and TrackExtention.cs
+# to prevent potential crashes from dereferencing null values
+
+# Note: We've fixed critical issues (loss-of-precision, reference-equality, LINQ performance)
+# but retain broad exception handling patterns from the original codebase for stability.

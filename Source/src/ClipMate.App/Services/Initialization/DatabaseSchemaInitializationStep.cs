@@ -34,13 +34,12 @@ public class DatabaseSchemaInitializationStep : IStartupInitializationStep
 
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-
-            var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+            // All services are singletons, no scope needed
+            var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
             var config = configService.Configuration;
 
-            var contextFactory = scope.ServiceProvider.GetRequiredService<IDatabaseContextFactory>();
-            var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
+            var contextFactory = _serviceProvider.GetRequiredService<IDatabaseContextFactory>();
+            var migrationService = _serviceProvider.GetRequiredService<DatabaseSchemaMigrationService>();
 
             // Get all auto-load databases from configuration
             var autoLoadDatabases = config.Databases
@@ -80,21 +79,17 @@ public class DatabaseSchemaInitializationStep : IStartupInitializationStep
                     var databaseExisted = File.Exists(databasePath);
                     _logger.LogInformation("Database '{Name}' file exists: {Exists}", databaseName, databaseExisted);
 
-                    // Get or create context for this database
-                    var dbContext = contextFactory.GetOrCreateContext(databasePath);
+                    // Create context for this database (contexts are not cached, fresh per operation)
+                    await using var dbContext = contextFactory.CreateContext(databasePath);
 
                     // Ensure database file exists
                     _logger.LogDebug("Ensuring database '{Name}' file is created...", databaseName);
                     await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-                    
+
                     if (!databaseExisted)
-                    {
                         _logger.LogInformation("Database '{Name}' was newly created", databaseName);
-                    }
                     else
-                    {
                         _logger.LogInformation("Database '{Name}' file already existed", databaseName);
-                    }
 
                     // Migrate schema to match EF Core model
                     _logger.LogInformation("Starting schema migration for database '{Name}'...", databaseName);
@@ -104,9 +99,10 @@ public class DatabaseSchemaInitializationStep : IStartupInitializationStep
                     if (!databaseExisted)
                     {
                         _logger.LogInformation("Database '{Name}' is new, seeding default collections...", databaseName);
-                        var seeder = new DefaultDataSeeder(dbContext, 
-                            scope.ServiceProvider.GetService<ILogger<DefaultDataSeeder>>());
-                        await seeder.SeedDefaultDataAsync(force: false);
+                        var seeder = new DefaultDataSeeder(dbContext,
+                            _serviceProvider.GetService<ILogger<DefaultDataSeeder>>());
+
+                        await seeder.SeedDefaultDataAsync(false);
                         _logger.LogInformation("Default data seeding completed for '{Name}'", databaseName);
                     }
 

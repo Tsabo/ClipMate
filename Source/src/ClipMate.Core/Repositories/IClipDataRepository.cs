@@ -45,4 +45,11 @@ public interface IClipDataRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Number of entries deleted.</returns>
     Task<int> DeleteByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets distinct format names from all ClipData entries.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of distinct format names, ordered alphabetically.</returns>
+    Task<IReadOnlyList<string>> GetDistinctFormatsAsync(CancellationToken cancellationToken = default);
 }

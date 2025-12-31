@@ -2,7 +2,9 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -20,10 +22,17 @@ public class ClassicViewModelTests
     public ClassicViewModelTests()
     {
         _mockMessenger = new Mock<IMessenger>();
+
+        // Create mock service provider that can resolve IDatabaseManager
+        var mockDatabaseManager = new Mock<IDatabaseManager>();
+        mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
+
         var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger.Object,
             new Mock<IUndoService>().Object,
-            new Mock<IServiceProvider>().Object);
+            mockServiceProvider.Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
         var mockQuickPasteService = new Mock<IQuickPasteService>();
@@ -61,10 +70,16 @@ public class ClassicViewModelTests
     public async Task Constructor_ShouldInitializeWithDefaultValues()
     {
         // Arrange & Act
+        // Create mock service provider that can resolve IDatabaseManager
+        var mockDatabaseManager = new Mock<IDatabaseManager>();
+        mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
+
         var mainMenu = new MainMenuViewModel(
             _mockMessenger.Object,
             new Mock<IUndoService>().Object,
-            new Mock<IServiceProvider>().Object);
+            mockServiceProvider.Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();
         var mockConfigService = new Mock<IConfigurationService>();
@@ -100,13 +115,6 @@ public class ClassicViewModelTests
         await Assert.That(viewModel.IsTacked).IsFalse();
         await Assert.That(viewModel.ShouldCloseWindow).IsFalse();
         await Assert.That(viewModel.Collections).IsNotNull();
-    }
-
-    private static Mock<IConfigurationService> CreateConfigServiceMock()
-    {
-        var mock = new Mock<IConfigurationService>();
-        mock.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
-        return mock;
     }
 
     [Test]

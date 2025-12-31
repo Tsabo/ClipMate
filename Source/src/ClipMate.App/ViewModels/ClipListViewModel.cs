@@ -142,8 +142,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.RemoveAt(Clips.Count - 1);
             }
 
-            // Optional: Auto-select the new clip
-            // SelectedClip = message.Clip;
+            // Auto-select the new clip
+            SelectedClip = message.Clip;
         });
     }
 
@@ -393,8 +393,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Don't auto-select a clip - let the user select one
-                SelectedClip = null;
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)
@@ -448,8 +448,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Don't auto-select a clip - let the user select one
-                SelectedClip = null;
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)
@@ -503,8 +503,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Don't auto-select a clip - let the user select one
-                SelectedClip = null;
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)
@@ -547,8 +547,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
-                // Don't auto-select a clip - let the user select one
-                SelectedClip = null;
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)
@@ -601,8 +601,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Don't auto-select a clip - let the user select one
-                SelectedClip = null;
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
             });
         }
         catch (Exception ex)

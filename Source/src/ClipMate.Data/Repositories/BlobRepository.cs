@@ -8,7 +8,7 @@ namespace ClipMate.Data.Repositories;
 /// Repository for managing BLOB storage across all BLOB tables.
 /// Provides unified access to BlobTxt, BlobJpg, BlobPng, and BlobBlob.
 /// </summary>
-public class BlobRepository : IBlobRepository
+internal class BlobRepository : IBlobRepository
 {
     private readonly ClipMateDbContext _context;
 

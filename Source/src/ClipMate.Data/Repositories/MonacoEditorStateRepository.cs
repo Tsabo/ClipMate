@@ -7,7 +7,7 @@ namespace ClipMate.Data.Repositories;
 /// <summary>
 /// Repository for managing Monaco Editor state persistence.
 /// </summary>
-public class MonacoEditorStateRepository : IMonacoEditorStateRepository
+internal class MonacoEditorStateRepository : IMonacoEditorStateRepository
 {
     private readonly ClipMateDbContext _context;
 

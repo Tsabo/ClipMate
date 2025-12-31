@@ -129,14 +129,55 @@ public static class Formats
     public static readonly ClipboardFormat HtmlAlt = new(49161, "HTML Format");
 
     /// <summary>
+    /// DIBV5 format (extended DIB with color management).
+    /// Code: 17, Name: "CF_DIBV5"
+    /// </summary>
+    public static readonly ClipboardFormat DibV5 = new(17, "CF_DIBV5");
+
+    /// <summary>
     /// All standard formats as a collection for enumeration.
     /// </summary>
     public static readonly IReadOnlyList<ClipboardFormat> All =
     [
         Text, Bitmap, Metafilepict, Sylk, Dif, Tiff, OemText, Dib,
         Palette, PenData, Riff, Wave, UnicodeText, EnhMetafile, HDrop, Locale,
-        RichText, Html, HtmlAlt
+        DibV5, RichText, Html, HtmlAlt,
     ];
+
+    /// <summary>
+    /// Dictionary mapping standard format codes to their names.
+    /// Use this for O(1) lookup of format names by code.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<uint, string> StandardFormatNames =
+        new Dictionary<uint, string>
+        {
+            [(uint)Text.Code] = "CF_TEXT",
+            [(uint)Bitmap.Code] = "CF_BITMAP",
+            [(uint)Metafilepict.Code] = "CF_METAFILEPICT",
+            [(uint)Sylk.Code] = "CF_SYLK",
+            [(uint)Dif.Code] = "CF_DIF",
+            [(uint)Tiff.Code] = "CF_TIFF",
+            [(uint)OemText.Code] = "CF_OEMTEXT",
+            [(uint)Dib.Code] = "CF_DIB",
+            [(uint)Palette.Code] = "CF_PALETTE",
+            [(uint)PenData.Code] = "CF_PENDATA",
+            [(uint)Riff.Code] = "CF_RIFF",
+            [(uint)Wave.Code] = "CF_WAVE",
+            [(uint)UnicodeText.Code] = "CF_UNICODETEXT",
+            [(uint)EnhMetafile.Code] = "CF_ENHMETAFILE",
+            [(uint)HDrop.Code] = "CF_HDROP",
+            [(uint)Locale.Code] = "CF_LOCALE",
+            [(uint)DibV5.Code] = "CF_DIBV5",
+        };
+
+    /// <summary>
+    /// Tries to get the standard format name for the given format code.
+    /// </summary>
+    /// <param name="formatCode">The clipboard format code.</param>
+    /// <param name="formatName">When this method returns, contains the format name if found.</param>
+    /// <returns><c>true</c> if the format code is a standard format; otherwise, <c>false</c>.</returns>
+    public static bool TryGetStandardFormatName(uint formatCode, out string? formatName) =>
+        StandardFormatNames.TryGetValue(formatCode, out formatName);
 }
 
 /// <summary>

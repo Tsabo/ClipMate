@@ -53,7 +53,7 @@ internal class DatabaseManager : IDatabaseManager
             {
                 _logger.LogInformation("Auto-loading database: {Name} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
-                var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
+                await using var context = _contextFactory.CreateContext(dbConfig.FilePath);
 
                 // Ensure database exists and is migrated
                 await context.Database.EnsureCreatedAsync(cancellationToken);
@@ -96,7 +96,7 @@ internal class DatabaseManager : IDatabaseManager
         {
             _logger.LogInformation("Loading database: {Name} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
-            var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
+            await using var context = _contextFactory.CreateContext(dbConfig.FilePath);
             await context.Database.EnsureCreatedAsync(cancellationToken);
 
             _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
@@ -145,11 +145,12 @@ internal class DatabaseManager : IDatabaseManager
     }
 
     /// <summary>
-    /// Gets the database context for a specific database key.
+    /// Creates a new database context for a specific database key.
+    /// The caller is responsible for disposing the returned context.
     /// </summary>
     /// <param name="databaseKey">Configuration key of the database.</param>
-    /// <returns>The database context, or null if not loaded.</returns>
-    public virtual ClipMateDbContext? GetDatabaseContext(string databaseKey)
+    /// <returns>A new database context, or null if the database is not loaded.</returns>
+    public virtual ClipMateDbContext? CreateDatabaseContext(string databaseKey)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -163,14 +164,15 @@ internal class DatabaseManager : IDatabaseManager
 
         return !loadedPaths.Contains(dbConfig.FilePath, StringComparer.OrdinalIgnoreCase)
             ? null
-            : _contextFactory.GetOrCreateContext(dbConfig.FilePath);
+            : _contextFactory.CreateContext(dbConfig.FilePath);
     }
 
     /// <summary>
-    /// Gets all database contexts currently loaded.
+    /// Creates database contexts for all currently loaded databases.
+    /// The caller is responsible for disposing each returned context.
     /// </summary>
-    /// <returns>Collection of all loaded contexts with their database keys.</returns>
-    public IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> GetAllDatabaseContexts()
+    /// <returns>Collection of new contexts with their database keys. Each context must be disposed by caller.</returns>
+    public IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> CreateAllDatabaseContexts()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -182,7 +184,7 @@ internal class DatabaseManager : IDatabaseManager
         foreach (var (databaseKey, dbConfig) in _configuration.Databases.Where(p =>
                      loadedPaths.Contains(p.Value.FilePath, StringComparer.OrdinalIgnoreCase)))
         {
-            var context = _contextFactory.GetOrCreateContext(dbConfig.FilePath);
+            var context = _contextFactory.CreateContext(dbConfig.FilePath);
 
             yield return (databaseKey, context);
         }

@@ -5,10 +5,9 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Data.Services;
 
 /// <summary>
-/// Service responsible for ensuring default collections and folders exist,
-/// and setting the active collection/folder to Inbox on startup.
+/// Service responsible for setting the active collection to Inbox on startup.
 /// This must run BEFORE clipboard monitoring starts.
-/// Uses DefaultDataSeeder to create the full ClipMate 7.5 collection structure.
+/// Supports multi-database architecture by finding Inbox in the default database.
 /// </summary>
 public class DefaultDataInitializationService
 {
@@ -23,63 +22,64 @@ public class DefaultDataInitializationService
     }
 
     /// <summary>
-    /// Ensures Inbox collection exists and sets it as the active collection.
+    /// Sets the Inbox collection from the default database as the active collection.
     /// Should be called during application startup, before clipboard monitoring begins.
-    /// Note: Default data seeding is now handled by DatabaseSchemaInitializationStep
-    /// to ensure it happens immediately after database creation.
+    /// Note: Default data seeding is handled by DatabaseSchemaInitializationStep.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Initializing default data and active collection");
+        _logger.LogInformation("Initializing active collection");
 
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-            var configurationService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
-            var contextFactory = scope.ServiceProvider.GetRequiredService<IDatabaseContextFactory>();
+            // All services are singletons, no scope needed
+            var collectionService = _serviceProvider.GetRequiredService<ICollectionService>();
+            var configurationService = _serviceProvider.GetRequiredService<IConfigurationService>();
 
             var configuration = configurationService.Configuration;
             var defaultDatabaseKey = configuration.DefaultDatabase;
 
             if (string.IsNullOrEmpty(defaultDatabaseKey))
             {
-                _logger.LogWarning("No default database configured, cannot initialize default data");
+                _logger.LogWarning("No default database configured, cannot set active collection");
                 return;
             }
 
-            // Get the database path for the default database
+            // Verify the default database exists in configuration
             if (!configuration.Databases.TryGetValue(defaultDatabaseKey, out var dbConfig))
             {
                 _logger.LogWarning("Default database '{Key}' not found in configuration", defaultDatabaseKey);
                 return;
             }
 
+            // Expand environment variables to get the actual database path (which is the database key)
             var databasePath = Environment.ExpandEnvironmentVariables(dbConfig.FilePath);
 
-            // Get all collections (seeding should have happened in DatabaseSchemaInitializationStep)
-            var collections = await collectionService.GetAllAsync(cancellationToken);
+            // Get collections from the default database specifically (not all databases)
+            var collections = await collectionService.GetAllByDatabaseKeyAsync(databasePath, cancellationToken);
 
-            // Find Inbox collection (default collection for new clips)
+            // Find Inbox collection in the default database
             var inboxCollection = collections.FirstOrDefault(p =>
                 p.Name.Equals("Inbox", StringComparison.OrdinalIgnoreCase));
 
             if (inboxCollection == null)
             {
-                _logger.LogError("Inbox collection not found - database may not have been seeded properly");
+                _logger.LogError("Inbox collection not found in default database '{Database}' - database may not have been seeded properly",
+                    dbConfig.Name);
+
                 return;
             }
 
-            // Set Inbox as the active collection for new clips
-            await collectionService.SetActiveAsync(inboxCollection.Id, defaultDatabaseKey, cancellationToken);
+            // Set Inbox from the default database as the active collection for new clips
+            await collectionService.SetActiveAsync(inboxCollection.Id, databasePath, cancellationToken);
 
-            _logger.LogInformation("Set Inbox collection (ID: \"{CollectionId}\") as active for new clips", inboxCollection.Id);
+            _logger.LogInformation("Set Inbox collection (ID: {CollectionId}) from database '{Database}' as active",
+                inboxCollection.Id, dbConfig.Name);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize default data and active collection");
-
+            _logger.LogError(ex, "Failed to initialize active collection");
             throw;
         }
     }

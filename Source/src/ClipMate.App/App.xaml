@@ -10,6 +10,7 @@
             <FontFamily x:Key="ClipMateEmojis">pack://application:,,,/Assets/#ClipMate Emojis</FontFamily>
             <!-- Global Converters -->
             <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <dxmvvm:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <dxmvvm:BooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter" Inverse="True" />
             <dxmvvm:NumericToVisibilityConverter x:Key="CountToVisibilityConverter" />

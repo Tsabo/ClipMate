@@ -193,6 +193,13 @@ public partial class MonacoEditorControl
 
             IsInitialized = true;
             _logger.LogInformation("[{ControlName}] Monaco editor initialization complete", Name ?? "Monaco");
+
+            // Load any text that was set before initialization
+            if (string.IsNullOrEmpty(Text))
+                return;
+
+            _logger.LogDebug("[{ControlName}] Loading pre-set text ({TextLength} chars)", Name ?? "Monaco", Text.Length);
+            await SetTextAsync(Text);
         }
         catch (Exception ex)
         {
@@ -482,8 +489,13 @@ public partial class MonacoEditorControl
         control._logger.LogInformation("[{ControlName}] OnEditorOptionsPropertyChanged - Setting EnableDebug from {OldValue} to {NewValue}",
             control.Name ?? "Monaco", oldDebug, options.EnableDebug);
 
-        control.ShowToolbar = options.ShowToolbar;
-        control.DisplayWordAndCharacterCounts = options.DisplayWordAndCharacterCounts;
+        // Only apply ShowToolbar from options if not explicitly set in XAML
+        if (control.ReadLocalValue(ShowToolbarProperty) == DependencyProperty.UnsetValue)
+            control.ShowToolbar = options.ShowToolbar;
+
+        if (control.ReadLocalValue(DisplayWordAndCharacterCountsProperty) == DependencyProperty.UnsetValue)
+            control.DisplayWordAndCharacterCounts = options.DisplayWordAndCharacterCounts;
+
         control.EnableDebug = options.EnableDebug;
 
         if (!control.IsInitialized)

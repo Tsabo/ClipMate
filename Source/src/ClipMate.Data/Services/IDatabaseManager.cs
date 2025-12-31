@@ -6,6 +6,7 @@ public interface IDatabaseManager : IDisposable
 {
     /// <summary>
     /// Loads all databases marked for auto-load from configuration.
+    /// Ensures the database files exist and schemas are created.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Number of databases successfully loaded.</returns>
@@ -13,6 +14,7 @@ public interface IDatabaseManager : IDisposable
 
     /// <summary>
     /// Loads a specific database by its configuration key.
+    /// Ensures the database file exists and schema is created.
     /// </summary>
     /// <param name="databaseKey">Configuration key of the database to load.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -33,15 +35,17 @@ public interface IDatabaseManager : IDisposable
     IEnumerable<DatabaseConfiguration> GetLoadedDatabases();
 
     /// <summary>
-    /// Gets the database context for a specific database key.
+    /// Creates a new database context for a specific database key.
+    /// The caller is responsible for disposing the returned context.
     /// </summary>
     /// <param name="databaseKey">Configuration key of the database.</param>
-    /// <returns>The database context, or null if not loaded.</returns>
-    ClipMateDbContext? GetDatabaseContext(string databaseKey);
+    /// <returns>A new database context, or null if the database is not loaded.</returns>
+    ClipMateDbContext? CreateDatabaseContext(string databaseKey);
 
     /// <summary>
-    /// Gets all database contexts currently loaded.
+    /// Creates database contexts for all currently loaded databases.
+    /// The caller is responsible for disposing each returned context.
     /// </summary>
-    /// <returns>Collection of all loaded contexts with their database keys.</returns>
-    IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> GetAllDatabaseContexts();
+    /// <returns>Collection of new contexts with their database keys. Each context must be disposed by caller.</returns>
+    IEnumerable<(string DatabaseKey, ClipMateDbContext Context)> CreateAllDatabaseContexts();
 }

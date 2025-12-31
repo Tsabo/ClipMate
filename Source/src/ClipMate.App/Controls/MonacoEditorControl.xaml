@@ -1,13 +1,18 @@
 <UserControl x:Class="ClipMate.App.Controls.MonacoEditorControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800"
+             mc:Ignorable="d"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
              Loaded="OnLoaded">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <dxmvvm:BooleanToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter" Inverse="True" />
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -15,33 +20,33 @@
         </Grid.RowDefinitions>
 
         <!-- Toolbar -->
-        <Border Grid.Row="0" 
+        <Border Grid.Row="0"
                 Visibility="{Binding ShowToolbar, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel Orientation="Horizontal">
-            
-            <TextBlock Text="Language:" 
-                       VerticalAlignment="Center" 
-                       Margin="5,0"
-                       Foreground="#CCCCCC"/>
-            
-            <ComboBox x:Name="LanguageComboBox"
-                      Width="150"
-                      Margin="0,0,10,0"
-                      VerticalAlignment="Center"
-                      SelectedValue="{Binding Language, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
-                      SelectionChanged="OnLanguageSelectionChanged"/>
-            
-            <TextBlock x:Name="WordCharCountTextBlock"
-                       VerticalAlignment="Center"
-                       Margin="10,0"
-                       Visibility="{Binding DisplayWordAndCharacterCounts, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <TextBlock Text="Language:"
+                           VerticalAlignment="Center"
+                           Margin="5,0"
+                           Foreground="#CCCCCC" />
+
+                <ComboBox x:Name="LanguageComboBox"
+                          Width="150"
+                          Margin="0,0,10,0"
+                          VerticalAlignment="Center"
+                          SelectedValue="{Binding Language, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"
+                          SelectionChanged="OnLanguageSelectionChanged" />
+
+                <TextBlock x:Name="WordCharCountTextBlock"
+                           VerticalAlignment="Center"
+                           Margin="10,0"
+                           Visibility="{Binding DisplayWordAndCharacterCounts, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
         </Border>
 
         <!-- WebView2 Editor -->
         <wv2:WebView2 x:Name="EditorWebView"
                       Grid.Row="1"
-                      DefaultBackgroundColor="Transparent"/>
+                      DefaultBackgroundColor="Transparent" />
 
         <!-- Loading Overlay -->
         <Border Grid.Row="1"
@@ -51,7 +56,7 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        Foreground="#CCCCCC"
-                       FontSize="14"/>
+                       FontSize="14" />
         </Border>
     </Grid>
 </UserControl>

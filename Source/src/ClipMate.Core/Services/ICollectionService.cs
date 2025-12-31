@@ -16,11 +16,19 @@ public interface ICollectionService
     Task<Collection?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all collections.
+    /// Gets all collections from the active database.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of all collections.</returns>
     Task<IReadOnlyList<Collection>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all collections from the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of all collections in the specified database.</returns>
+    Task<IReadOnlyList<Collection>> GetAllByDatabaseKeyAsync(string databaseKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the currently active collection.

@@ -7,7 +7,7 @@ namespace ClipMate.Data.Repositories;
 /// <summary>
 /// Repository for managing ClipData entities (clipboard format metadata).
 /// </summary>
-public class ClipDataRepository : IClipDataRepository
+internal class ClipDataRepository : IClipDataRepository
 {
     private readonly ClipMateDbContext _context;
 
@@ -53,5 +53,14 @@ public class ClipDataRepository : IClipDataRepository
         await _context.SaveChangesAsync(cancellationToken);
 
         return clipDataEntries.Count;
+    }
+
+    public async Task<IReadOnlyList<string>> GetDistinctFormatsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.ClipData
+            .Select(p => p.FormatName)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync(cancellationToken);
     }
 }

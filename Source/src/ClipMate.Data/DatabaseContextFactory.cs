@@ -11,11 +11,14 @@ namespace ClipMate.Data;
 /// Factory for creating ClipMateDbContext instances for multiple databases
 /// and database-specific repository instances.
 /// Supports the multi-database architecture from ClipMate 7.5.
+/// DbContext instances are NOT cached - each call creates a fresh, short-lived context
+/// (EF Core best practice for thread safety in concurrent applications).
 /// </summary>
 public class DatabaseContextFactory : IDatabaseContextFactory
 {
     private readonly IConfigurationService _configurationService;
-    private readonly Dictionary<string, ClipMateDbContext> _contexts;
+    private readonly HashSet<string> _loadedDatabases;
+    private readonly Lock _lock = new();
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly IServiceProvider _serviceProvider;
     private bool _disposed;
@@ -27,15 +30,17 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _contexts = new Dictionary<string, ClipMateDbContext>(StringComparer.OrdinalIgnoreCase);
+        _loadedDatabases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Gets or creates a database context for the specified database path.
+    /// Creates a new database context for the specified database path.
+    /// The context is NOT cached - caller is responsible for disposal.
+    /// Also registers the database path as "loaded" if not already registered.
     /// </summary>
     /// <param name="databasePath">Full path to the SQLite database file.</param>
-    /// <returns>A ClipMateDbContext instance for the database.</returns>
-    public ClipMateDbContext GetOrCreateContext(string databasePath)
+    /// <returns>A new ClipMateDbContext instance for the database.</returns>
+    public ClipMateDbContext CreateContext(string databasePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -44,62 +49,72 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         var normalizedPath = Path.GetFullPath(databasePath);
 
-        if (_contexts.TryGetValue(normalizedPath, out var existingContext))
+        lock (_lock)
         {
-            _logger.LogDebug("Returning existing context for database: {DatabasePath}", normalizedPath);
-
-            return existingContext;
+            _loadedDatabases.Add(normalizedPath);
         }
 
-        _logger.LogInformation("Creating new context for database: {DatabasePath}", normalizedPath);
+        _logger.LogDebug("Creating context for database: {DatabasePath}", normalizedPath);
 
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
         optionsBuilder.UseSqlite($"Data Source={normalizedPath}");
 
-        var context = new ClipMateDbContext(optionsBuilder.Options);
-        _contexts[normalizedPath] = context;
-
-        return context;
+        return new ClipMateDbContext(optionsBuilder.Options);
     }
 
     /// <summary>
-    /// Gets all active database contexts.
+    /// Registers a database path as "loaded" without creating a context.
+    /// Use this when you need to track that a database is available but don't need a context yet.
     /// </summary>
-    /// <returns>Collection of all active contexts.</returns>
-    public IReadOnlyCollection<ClipMateDbContext> GetAllContexts()
+    /// <param name="databasePath">Full path to the SQLite database file.</param>
+    public void RegisterDatabase(string databasePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return _contexts.Values.ToList();
+        if (string.IsNullOrWhiteSpace(databasePath))
+            throw new ArgumentException("Database path cannot be null or empty.", nameof(databasePath));
+
+        var normalizedPath = Path.GetFullPath(databasePath);
+
+        lock (_lock)
+        {
+            if (_loadedDatabases.Add(normalizedPath))
+                _logger.LogInformation("Registered database: {DatabasePath}", normalizedPath);
+        }
     }
 
     /// <summary>
-    /// Gets all database paths currently loaded.
+    /// Gets all database paths currently registered as loaded.
     /// </summary>
     /// <returns>Collection of database paths.</returns>
     public IReadOnlyCollection<string> GetLoadedDatabasePaths()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return _contexts.Keys.ToList();
+        lock (_lock)
+        {
+            return _loadedDatabases.ToList();
+        }
     }
 
     /// <summary>
-    /// Removes and disposes a database context.
+    /// Unregisters a database path, marking it as no longer loaded.
     /// </summary>
-    /// <param name="databasePath">Path to the database to close.</param>
-    /// <returns>True if the context was found and disposed.</returns>
+    /// <param name="databasePath">Path to the database to unregister.</param>
+    /// <returns>True if the database was registered and has been unregistered.</returns>
     public bool CloseDatabase(string databasePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var normalizedPath = Path.GetFullPath(databasePath);
 
-        if (!_contexts.Remove(normalizedPath, out var context))
-            return false;
+        lock (_lock)
+        {
+            if (!_loadedDatabases.Remove(normalizedPath))
+                return false;
+        }
 
-        _logger.LogInformation("Closing database: {DatabasePath}", normalizedPath);
-        context.Dispose();
+        _logger.LogInformation("Unregistered database: {DatabasePath}", normalizedPath);
 
         return true;
     }
@@ -112,7 +127,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<ClipRepository>(_serviceProvider, context) as IClipRepository
                ?? throw new InvalidOperationException("Failed to create ClipRepository instance.");
@@ -126,10 +141,9 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
-        return ActivatorUtilities.CreateInstance<ClipDataRepository>(_serviceProvider, context) as IClipDataRepository
-               ?? throw new InvalidOperationException("Failed to create ClipDataRepository instance.");
+        return new ClipDataRepository(context);
     }
 
     /// <summary>
@@ -140,10 +154,9 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
-        return ActivatorUtilities.CreateInstance<BlobRepository>(_serviceProvider, context) as IBlobRepository
-               ?? throw new InvalidOperationException("Failed to create BlobRepository instance.");
+        return new BlobRepository(context);
     }
 
     /// <summary>
@@ -154,7 +167,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<ShortcutRepository>(_serviceProvider, context) as IShortcutRepository
                ?? throw new InvalidOperationException("Failed to create ShortcutRepository instance.");
@@ -168,7 +181,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<UserRepository>(_serviceProvider, context) as IUserRepository
                ?? throw new InvalidOperationException("Failed to create UserRepository instance.");
@@ -182,7 +195,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<CollectionRepository>(_serviceProvider, context) as ICollectionRepository
                ?? throw new InvalidOperationException("Failed to create CollectionRepository instance.");
@@ -196,7 +209,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<FolderRepository>(_serviceProvider, context) as IFolderRepository
                ?? throw new InvalidOperationException("Failed to create FolderRepository instance.");
@@ -210,7 +223,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<ApplicationFilterRepository>(_serviceProvider, context) as IApplicationFilterRepository
                ?? throw new InvalidOperationException("Failed to create ApplicationFilterRepository instance.");
@@ -224,7 +237,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<TemplateRepository>(_serviceProvider, context) as ITemplateRepository
                ?? throw new InvalidOperationException("Failed to create TemplateRepository instance.");
@@ -238,7 +251,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
         return ActivatorUtilities.CreateInstance<SearchQueryRepository>(_serviceProvider, context) as ISearchQueryRepository
                ?? throw new InvalidOperationException("Failed to create SearchQueryRepository instance.");
@@ -252,35 +265,27 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = GetOrCreateContext(databasePath);
+        var context = CreateContext(databasePath);
 
-        return ActivatorUtilities.CreateInstance<MonacoEditorStateRepository>(_serviceProvider, context) as IMonacoEditorStateRepository
-               ?? throw new InvalidOperationException("Failed to create MonacoEditorStateRepository instance.");
+        return new MonacoEditorStateRepository(context);
     }
 
     /// <summary>
-    /// Disposes all database contexts.
+    /// Disposes the factory. Note: DbContext instances are not cached,
+    /// so callers are responsible for disposing their own contexts.
     /// </summary>
     public void Dispose()
     {
         if (_disposed)
             return;
 
-        _logger.LogInformation("Disposing all database contexts ({Count} contexts)", _contexts.Count);
+        _logger.LogInformation("Disposing DatabaseContextFactory ({Count} databases registered)", _loadedDatabases.Count);
 
-        foreach (var item in _contexts.Values)
+        lock (_lock)
         {
-            try
-            {
-                item.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error disposing database context");
-            }
+            _loadedDatabases.Clear();
         }
 
-        _contexts.Clear();
         _disposed = true;
     }
 

@@ -13,7 +13,7 @@ namespace ClipMate.Data.Services;
 public class SqlValidationService : ISqlValidationService
 {
     // SQL validation - prevent dangerous operations
-    private static readonly string[] DangerousKeywords =
+    private static readonly string[] _dangerousKeywords =
     [
         "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "EXEC", "EXECUTE", "PRAGMA",
     ];
@@ -37,14 +37,14 @@ public class SqlValidationService : ISqlValidationService
 
         // Check for dangerous keywords
         var upperQuery = sqlQuery.ToUpperInvariant();
-        foreach (var keyword in DangerousKeywords)
+        foreach (var item in _dangerousKeywords)
         {
-            if (upperQuery.Contains(keyword))
-                return (false, $"SQL query contains dangerous keyword: {keyword}");
+            if (upperQuery.Contains(item))
+                return (false, $"SQL query contains dangerous keyword: {item}");
         }
 
         // Get database context for validation
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             return (false, $"Database '{databaseKey}' is not loaded");
 
@@ -88,7 +88,7 @@ public class SqlValidationService : ISqlValidationService
         if (string.IsNullOrWhiteSpace(sqlQuery))
             return "No query provided";
 
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             return $"Database '{databaseKey}' is not loaded";
 

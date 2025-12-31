@@ -74,6 +74,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
         services.AddSingleton<IDatabaseManager, DatabaseManager>();
 
+        // Register SQL maintenance factory (creates per-session service instances)
+        services.AddSingleton<ISqlMaintenanceServiceFactory, SqlMaintenanceServiceFactory>();
+
         // Register ClipboardCoordinator as singleton first (so it can be injected)
         services.AddSingleton<ClipboardCoordinator>();
 

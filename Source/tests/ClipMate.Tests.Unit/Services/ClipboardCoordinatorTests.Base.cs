@@ -109,7 +109,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
             // Setup DatabaseManager to return a mock DbContext
             // For unit tests, we'll need to return null or a mock context
             // The actual implementation will handle the null case
-            databaseManager.Setup(p => p.GetDatabaseContext(It.IsAny<string>()))
+            databaseManager.Setup(p => p.CreateDatabaseContext(It.IsAny<string>()))
                 .Returns((ClipMateDbContext?)null);
         }
 

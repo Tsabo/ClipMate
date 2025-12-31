@@ -237,7 +237,7 @@ public partial class ExplorerWindow : IWindow,
         {
             subItem.ItemLinks.Clear();
 
-            var databaseContexts = _databaseManager.GetAllDatabaseContexts().ToList();
+            var databaseContexts = _databaseManager.CreateAllDatabaseContexts().ToList();
 
             // Create a dictionary mapping database keys to display names
             var databaseNames = _configurationService.Configuration.Databases
@@ -249,55 +249,64 @@ public partial class ExplorerWindow : IWindow,
                 return;
             }
 
-            foreach (var (databaseKey, context) in databaseContexts)
+            try
             {
-                // Get all collections from this database, then filter non-virtual in memory
-                var allCollections = context.Collections
-                    .OrderBy(p => p.SortKey)
-                    .ToList();
-
-                var collections = allCollections.Where(p => !p.IsVirtual).ToList();
-
-                if (collections.Count == 0)
-                    continue;
-
-                // Add database header (disabled) if we have multiple databases
-                if (databaseContexts.Count > 1)
+                foreach (var (databaseKey, context) in databaseContexts)
                 {
-                    // Look up the database name using the database key
-                    var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
-                        ? name
-                        : databaseKey;
+                    // Get all collections from this database, then filter non-virtual in memory
+                    var allCollections = context.Collections
+                        .OrderBy(p => p.SortKey)
+                        .ToList();
 
-                    var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
-                    subItem.ItemLinks.Add(dbHeader);
-                }
+                    var collections = allCollections.Where(p => !p.IsVirtual).ToList();
 
-                // Add collection items
-                foreach (var item in collections)
-                {
-                    var collectionId = item.Id; // Capture for closure
-                    var targetDatabaseKey = databaseKey; // Capture database key for closure
-                    var copyItem = new BarButtonItem
+                    if (collections.Count == 0)
+                        continue;
+
+                    // Add database header (disabled) if we have multiple databases
+                    if (databaseContexts.Count > 1)
                     {
-                        Content = item.Name,
-                        Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
-                    };
+                        // Look up the database name using the database key
+                        var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                            ? name
+                            : databaseKey;
 
-                    // Add emoji icon if available
-                    if (!string.IsNullOrEmpty(item.Icon))
-                    {
-                        var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
-                        copyItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                        var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                        subItem.ItemLinks.Add(dbHeader);
                     }
 
-                    copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId, targetDatabaseKey);
-                    subItem.ItemLinks.Add(copyItem);
-                }
+                    // Add collection items
+                    foreach (var item in collections)
+                    {
+                        var collectionId = item.Id; // Capture for closure
+                        var targetDatabaseKey = databaseKey; // Capture database key for closure
+                        var copyItem = new BarButtonItem
+                        {
+                            Content = item.Name,
+                            Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
+                        };
 
-                // Add separator between databases if we have multiple
-                if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
-                    subItem.ItemLinks.Add(new BarItemSeparator());
+                        // Add emoji icon if available
+                        if (!string.IsNullOrEmpty(item.Icon))
+                        {
+                            var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
+                            copyItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                        }
+
+                        copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId, targetDatabaseKey);
+                        subItem.ItemLinks.Add(copyItem);
+                    }
+
+                    // Add separator between databases if we have multiple
+                    if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                        subItem.ItemLinks.Add(new BarItemSeparator());
+                }
+            }
+            finally
+            {
+                // Dispose all contexts
+                foreach (var (_, context) in databaseContexts)
+                    context.Dispose();
             }
         }
         catch (Exception ex)
@@ -318,7 +327,7 @@ public partial class ExplorerWindow : IWindow,
         {
             subItem.ItemLinks.Clear();
 
-            var databaseContexts = _databaseManager.GetAllDatabaseContexts().ToList();
+            var databaseContexts = _databaseManager.CreateAllDatabaseContexts().ToList();
 
             // Create a dictionary mapping database keys to display names
             var databaseNames = _configurationService.Configuration.Databases
@@ -330,55 +339,64 @@ public partial class ExplorerWindow : IWindow,
                 return;
             }
 
-            foreach (var (databaseKey, context) in databaseContexts)
+            try
             {
-                // Get all collections from this database, then filter non-virtual in memory
-                var allCollections = context.Collections
-                    .OrderBy(p => p.SortKey)
-                    .ToList();
-
-                var collections = allCollections.Where(p => !p.IsVirtual).ToList();
-
-                if (collections.Count == 0)
-                    continue;
-
-                // Add database header (disabled) if we have multiple databases
-                if (databaseContexts.Count > 1)
+                foreach (var (databaseKey, context) in databaseContexts)
                 {
-                    // Look up the database name using the database key
-                    var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
-                        ? name
-                        : databaseKey;
+                    // Get all collections from this database, then filter non-virtual in memory
+                    var allCollections = context.Collections
+                        .OrderBy(p => p.SortKey)
+                        .ToList();
 
-                    var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
-                    subItem.ItemLinks.Add(dbHeader);
-                }
+                    var collections = allCollections.Where(p => !p.IsVirtual).ToList();
 
-                // Add collection items
-                foreach (var item in collections)
-                {
-                    var collectionId = item.Id; // Capture for closure
-                    var targetDatabaseKey = databaseKey; // Capture database key for closure
-                    var moveItem = new BarButtonItem
+                    if (collections.Count == 0)
+                        continue;
+
+                    // Add database header (disabled) if we have multiple databases
+                    if (databaseContexts.Count > 1)
                     {
-                        Content = item.Name,
-                        Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
-                    };
+                        // Look up the database name using the database key
+                        var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                            ? name
+                            : databaseKey;
 
-                    // Add emoji icon if available
-                    if (!string.IsNullOrEmpty(item.Icon))
-                    {
-                        var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
-                        moveItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                        var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                        subItem.ItemLinks.Add(dbHeader);
                     }
 
-                    moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId, targetDatabaseKey);
-                    subItem.ItemLinks.Add(moveItem);
-                }
+                    // Add collection items
+                    foreach (var item in collections)
+                    {
+                        var collectionId = item.Id; // Capture for closure
+                        var targetDatabaseKey = databaseKey; // Capture database key for closure
+                        var moveItem = new BarButtonItem
+                        {
+                            Content = item.Name,
+                            Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
+                        };
 
-                // Add separator between databases if we have multiple
-                if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
-                    subItem.ItemLinks.Add(new BarItemSeparator());
+                        // Add emoji icon if available
+                        if (!string.IsNullOrEmpty(item.Icon))
+                        {
+                            var iconExtension = new EmojiIconSourceExtension(item.Icon) { Size = 16 };
+                            moveItem.Glyph = iconExtension.ProvideValue(null!) as ImageSource;
+                        }
+
+                        moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId, targetDatabaseKey);
+                        subItem.ItemLinks.Add(moveItem);
+                    }
+
+                    // Add separator between databases if we have multiple
+                    if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                        subItem.ItemLinks.Add(new BarItemSeparator());
+                }
+            }
+            finally
+            {
+                // Dispose all contexts
+                foreach (var (_, context) in databaseContexts)
+                    context.Dispose();
             }
         }
         catch (Exception ex)
@@ -478,6 +496,38 @@ public partial class ExplorerWindow : IWindow,
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error populating Template dropdown");
+        }
+    }
+
+    /// <summary>
+    /// Dynamically populates SQL Window dropdown when multiple databases are loaded.
+    /// </summary>
+    private void SqlWindowDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            var databases = _databaseManager.GetLoadedDatabases().ToList();
+
+            foreach (var database in databases)
+            {
+                var databaseKey = database.FilePath;
+                var item = new BarButtonItem
+                {
+                    Content = database.Name,
+                };
+
+                item.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
+                subItem.ItemLinks.Add(item);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error populating SQL Window dropdown");
         }
     }
 

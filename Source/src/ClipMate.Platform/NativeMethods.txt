@@ -1,6 +1,7 @@
 AddClipboardFormatListener
 GetClipboardData
 GetClipboardFormatNameW
+GetClipboardOwner
 GetClipboardSequenceNumber
 IsClipboardFormatAvailable
 OpenClipboard

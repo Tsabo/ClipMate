@@ -4,7 +4,6 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
-using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
 using Moq;
 
@@ -15,8 +14,8 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class SearchViewModelTests
 {
+    private readonly Mock<IClipService> _mockClipService;
     private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<IMessenger> _mockMessenger;
     private readonly Mock<ISearchService> _mockSearchService;
     private readonly SearchResultsCache _searchResultsCache;
@@ -26,7 +25,7 @@ public class SearchViewModelTests
     {
         _mockSearchService = new Mock<ISearchService>();
         _mockCollectionService = new Mock<ICollectionService>();
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
+        _mockClipService = new Mock<IClipService>();
         _mockMessenger = new Mock<IMessenger>();
         _searchResultsCache = new SearchResultsCache();
 
@@ -36,7 +35,7 @@ public class SearchViewModelTests
         _viewModel = new SearchViewModel(
             _mockSearchService.Object,
             _mockCollectionService.Object,
-            _mockContextFactory.Object,
+            _mockClipService.Object,
             _mockMessenger.Object,
             _searchResultsCache);
     }
@@ -48,7 +47,7 @@ public class SearchViewModelTests
         await Assert.That(() => new SearchViewModel(
                 null!,
                 _mockCollectionService.Object,
-                _mockContextFactory.Object,
+                _mockClipService.Object,
                 _mockMessenger.Object,
                 _searchResultsCache))
             .Throws<ArgumentNullException>();

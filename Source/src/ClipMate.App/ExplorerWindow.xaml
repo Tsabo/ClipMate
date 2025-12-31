@@ -199,7 +199,15 @@
                         <dxb:BarButtonItem Content="Re-Establish Clipboard Connection"
                                            Command="{Binding MainMenu.ReestablishClipboardCommand}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Show SQL Window" Command="{Binding MainMenu.ShowSqlWindowCommand}" />
+                        <!-- SQL Window: Simple button when single database -->
+                        <dxb:BarButtonItem Content="Show SQL Window"
+                                           Command="{Binding MainMenu.ShowSqlWindowCommand}"
+                                           IsVisible="{Binding MainMenu.HasMultipleDatabases, Converter={StaticResource InverseBoolConverter}}" />
+                        <!-- SQL Window: Submenu when multiple databases -->
+                        <dxb:BarSubItem x:Name="ShowSqlWindowMultiple"
+                                        Content="Show SQL Window"
+                                        IsVisible="{Binding MainMenu.HasMultipleDatabases}"
+                                        GetItemData="SqlWindowDropdown_GetItemData" />
                         <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}" />
                     </dxb:BarSubItem>
 

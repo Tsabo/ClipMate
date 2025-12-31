@@ -54,13 +54,24 @@ public class CollectionService : ICollectionService
     {
         var allCollections = new List<Collection>();
 
-        foreach (var (dbKey, context) in _databaseManager.GetAllDatabaseContexts())
+        foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
         {
-            var collections = await context.Collections.ToListAsync(cancellationToken);
-            allCollections.AddRange(collections);
+            await using (context)
+            {
+                var collections = await context.Collections.ToListAsync(cancellationToken);
+                allCollections.AddRange(collections);
+            }
         }
 
         return allCollections;
+    }
+
+    public async Task<IReadOnlyList<Collection>> GetAllByDatabaseKeyAsync(string databaseKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
+
+        var repository = _contextFactory.GetCollectionRepository(databaseKey);
+        return await repository.GetAllAsync(cancellationToken);
     }
 
     public async Task<Collection> GetActiveAsync(CancellationToken cancellationToken = default)
@@ -71,12 +82,9 @@ public class CollectionService : ICollectionService
         if (_activeDatabaseKey == null)
             throw new InvalidOperationException("Active collection database key is not set.");
 
-        var dbContext = _databaseManager.GetDatabaseContext(_activeDatabaseKey);
-
-        if (dbContext == null)
-            throw new InvalidOperationException($"Database context for key '{_activeDatabaseKey}' not found.");
-
-        var collection = await dbContext.Collections.FirstOrDefaultAsync(p => p.Id == _activeCollectionId.Value, cancellationToken);
+        // Use contextFactory which handles both config keys and file paths
+        var repository = _contextFactory.GetCollectionRepository(_activeDatabaseKey);
+        var collection = await repository.GetByIdAsync(_activeCollectionId.Value, cancellationToken);
 
         return collection ?? throw new InvalidOperationException($"Active collection {_activeCollectionId} not found in database '{_activeDatabaseKey}'.");
     }
@@ -88,31 +96,26 @@ public class CollectionService : ICollectionService
         if (_activeDatabaseKey == null)
             return null;
 
-        var dbContext = _databaseManager.GetDatabaseContext(_activeDatabaseKey);
-
-        if (dbContext == null)
-            return null;
+        // Use contextFactory which handles both config keys and file paths
+        var repository = _contextFactory.GetCollectionRepository(_activeDatabaseKey);
+        var collections = await repository.GetAllAsync(cancellationToken);
 
         // Find first non-virtual collection that accepts new clips, ordered by SortKey
-        return await dbContext.Collections
+        return collections
             .Where(p =>
                 !(p.LmType == CollectionLmType.Virtual || p.ListType == CollectionListType.Smart || p.ListType == CollectionListType.SqlBased) // not virtual
                 && p.AcceptNewClips && !p.ReadOnly)
             .OrderBy(p => p.SortKey)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefault();
     }
 
     public async Task SetActiveAsync(Guid id, string databaseKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
 
-        // Verify collection exists in the specified database
-        var dbContext = _databaseManager.GetDatabaseContext(databaseKey);
-
-        if (dbContext == null)
-            throw new ArgumentException($"Database context for key '{databaseKey}' not found.", nameof(databaseKey));
-
-        var collection = await dbContext.Collections.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        // Use contextFactory which handles both config keys and file paths
+        var repository = _contextFactory.GetCollectionRepository(databaseKey);
+        var collection = await repository.GetByIdAsync(id, cancellationToken);
 
         if (collection == null)
             throw new ArgumentException($"Collection {id} not found in database '{databaseKey}'.", nameof(id));
@@ -159,8 +162,8 @@ public class CollectionService : ICollectionService
 
     public async Task<int> GetCollectionItemCountAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
-                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         return await dbContext.Clips
             .CountAsync(p => p.CollectionId == collectionId && !p.Del, cancellationToken);
@@ -168,8 +171,8 @@ public class CollectionService : ICollectionService
 
     public async Task<bool> MoveCollectionUpAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
-                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey
         var collections = await dbContext.Collections
@@ -192,8 +195,8 @@ public class CollectionService : ICollectionService
 
     public async Task<bool> MoveCollectionDownAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
     {
-        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
-                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey
         var collections = await dbContext.Collections
@@ -220,8 +223,8 @@ public class CollectionService : ICollectionService
         string databaseKey,
         CancellationToken cancellationToken = default)
     {
-        var dbContext = _databaseManager.GetDatabaseContext(databaseKey)
-                        ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
 
         // Get all non-virtual collections ordered by SortKey
         var allCollections = await dbContext.Collections

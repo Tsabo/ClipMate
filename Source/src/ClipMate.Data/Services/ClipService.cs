@@ -71,6 +71,13 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> GetDistinctFormatsAsync(string databaseKey, CancellationToken cancellationToken = default)
+    {
+        var repository = _databaseContextFactory.GetClipDataRepository(databaseKey);
+        return await repository.GetDistinctFormatsAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<Clip> CreateAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clip);

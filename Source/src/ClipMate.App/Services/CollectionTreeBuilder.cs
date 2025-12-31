@@ -1,27 +1,25 @@
 using System.IO;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
-using ClipMate.Data.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.Services;
 
 internal class CollectionTreeBuilder : ICollectionTreeBuilder
 {
+    private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
-    private readonly IDatabaseManager _databaseManager;
     private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeBuilder> _logger;
 
     public CollectionTreeBuilder(IConfigurationService configurationService,
         IFolderService folderService,
-        IDatabaseManager databaseManager,
+        ICollectionService collectionService,
         ILogger<CollectionTreeBuilder> logger)
     {
         _configurationService = configurationService;
         _folderService = folderService;
-        _databaseManager = databaseManager;
+        _collectionService = collectionService;
         _logger = logger;
     }
 
@@ -55,89 +53,81 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
             {
                 try
                 {
-                    // Get the database context for this specific database
-                    var dbContext = _databaseManager.GetDatabaseContext(databaseId);
+                    // Load collections using the service (proper abstraction)
+                    var allCollections = await _collectionService.GetAllByDatabaseKeyAsync(databaseId, cancellationToken);
 
-                    if (dbContext != null)
+                    // Separate regular collections from virtual ones
+                    var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
+                    var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
+
+                    _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
+                        regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
+
+                    // Determine sort order based on global preference
+                    var sortByAlpha = _configurationService.Configuration.Preferences.SortCollectionsAlphabetically;
+                    var orderedCollections = sortByAlpha
+                        ? regularCollections.OrderBy(p => p.Title)
+                        : regularCollections.OrderBy(p => p.SortKey);
+
+                    // Add regular collections to database node
+                    foreach (var item in orderedCollections)
                     {
-                        // Load collections directly from this database context
-                        var allCollections = await dbContext.Collections.ToListAsync(cancellationToken);
-
-                        // Separate regular collections from virtual ones
-                        var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
-                        var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
-
-                        _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
-                            regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
-
-                        // Determine sort order based on global preference
-                        var sortByAlpha = _configurationService.Configuration.Preferences.SortCollectionsAlphabetically;
-                        var orderedCollections = sortByAlpha
-                            ? regularCollections.OrderBy(p => p.Title)
-                            : regularCollections.OrderBy(p => p.SortKey);
-
-                        // Add regular collections to database node
-                        foreach (var item in orderedCollections)
+                        var collectionNode = new CollectionTreeNode(item)
                         {
-                            var collectionNode = new CollectionTreeNode(item)
-                            {
-                                Parent = databaseNode,
-                            };
+                            Parent = databaseNode,
+                        };
 
-                            await LoadFoldersAsync(collectionNode, cancellationToken);
+                        await LoadFoldersAsync(collectionNode, cancellationToken);
 
-                            databaseNode.Children.Add(collectionNode);
-                        }
-
-                        // Add virtual collections container if any virtual collections exist
-                        if (!excludeNodes.HasFlag(TreeNodeType.VirtualCollection) && virtualCollections.Count > 0)
-                        {
-                            var virtualContainer = new VirtualCollectionsContainerNode
-                            {
-                                Parent = databaseNode,
-                            };
-
-                            // Virtual collections also respect the SortByAlpha preference
-                            var orderedVirtualCollections = sortByAlpha
-                                ? virtualCollections.OrderBy(p => p.Title)
-                                : virtualCollections.OrderBy(p => p.SortKey);
-
-                            // Add other virtual collections
-                            foreach (var item in orderedVirtualCollections)
-                            {
-                                var virtualNode = new VirtualCollectionTreeNode(item)
-                                {
-                                    Parent = virtualContainer,
-                                };
-
-                                virtualContainer.Children.Add(virtualNode);
-                            }
-
-                            databaseNode.Children.Add(virtualContainer);
-                        }
-
-                        if (!excludeNodes.HasFlag(TreeNodeType.SpecialCollection))
-                        {
-                            // Add Trashcan at bottom of collections (after all regular collections)
-                            // Trashcan is read-only (rejects new clips), which makes it display in red
-                            var trashcanNode = new TrashcanVirtualCollectionNode(databaseConfig.FilePath)
-                            {
-                                Parent = databaseNode,
-                            };
-
-                            databaseNode.Children.Add(trashcanNode);
-
-                            // Add Search Results node after Trashcan
-                            var searchResultsNode = new SearchResultsVirtualCollectionNode(databaseConfig.FilePath)
-                            {
-                                Parent = databaseNode,
-                            };
-
-                            databaseNode.Children.Add(searchResultsNode);
-                        }
+                        databaseNode.Children.Add(collectionNode);
                     }
-                    else
-                        _logger.LogWarning("Database context not loaded for: {DatabaseName}", databaseConfig.Name);
+
+                    // Add virtual collections container if any virtual collections exist
+                    if (!excludeNodes.HasFlag(TreeNodeType.VirtualCollection) && virtualCollections.Count > 0)
+                    {
+                        var virtualContainer = new VirtualCollectionsContainerNode
+                        {
+                            Parent = databaseNode,
+                        };
+
+                        // Virtual collections also respect the SortByAlpha preference
+                        var orderedVirtualCollections = sortByAlpha
+                            ? virtualCollections.OrderBy(p => p.Title)
+                            : virtualCollections.OrderBy(p => p.SortKey);
+
+                        // Add other virtual collections
+                        foreach (var item in orderedVirtualCollections)
+                        {
+                            var virtualNode = new VirtualCollectionTreeNode(item)
+                            {
+                                Parent = virtualContainer,
+                            };
+
+                            virtualContainer.Children.Add(virtualNode);
+                        }
+
+                        databaseNode.Children.Add(virtualContainer);
+                    }
+
+                    if (!excludeNodes.HasFlag(TreeNodeType.SpecialCollection))
+                    {
+                        // Add Trashcan at bottom of collections (after all regular collections)
+                        // Trashcan is read-only (rejects new clips), which makes it display in red
+                        var trashcanNode = new TrashcanVirtualCollectionNode(databaseConfig.FilePath)
+                        {
+                            Parent = databaseNode,
+                        };
+
+                        databaseNode.Children.Add(trashcanNode);
+
+                        // Add Search Results node after Trashcan
+                        var searchResultsNode = new SearchResultsVirtualCollectionNode(databaseConfig.FilePath)
+                        {
+                            Parent = databaseNode,
+                        };
+
+                        databaseNode.Children.Add(searchResultsNode);
+                    }
                 }
                 catch (Exception ex)
                 {

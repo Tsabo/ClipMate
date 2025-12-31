@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
+using ClipMate.App.Logging;
 using ClipMate.App.Services;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
@@ -31,6 +32,13 @@ namespace ClipMate.App;
 public partial class App
 {
     private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
+
+    /// <summary>
+    /// Shared EventLogSink instance created early for Serilog integration.
+    /// Must be created before Serilog configuration and registered in DI.
+    /// </summary>
+    private static readonly EventLogSink _eventLogSink = new();
+
     private string? _databasePath;
     private IHost? _host;
 
@@ -301,7 +309,7 @@ public partial class App
 
         var logFilePath = Path.Join(logDirectory, "clipmate-.log");
 
-        // Create early logger for database setup
+        // Create early logger for database setup (also writes to EventLogSink)
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -310,6 +318,7 @@ public partial class App
             .Enrich.WithThreadId()
             .WriteTo.Debug()
             .WriteTo.Console()
+            .WriteTo.Sink(new EventLogSerilogSink(_eventLogSink)) // Capture for Event Log dialog
             .WriteTo.File(
                 logFilePath,
                 rollingInterval: RollingInterval.Day,
@@ -508,6 +517,7 @@ public partial class App
             .Enrich.WithThreadId()
             .WriteTo.Debug()
             .WriteTo.Console()
+            .WriteTo.Sink(new EventLogSerilogSink(_eventLogSink)) // Capture for Event Log dialog
             .WriteTo.File(
                 logFilePath,
                 rollingInterval: RollingInterval.Day,
@@ -545,6 +555,9 @@ public partial class App
 
                 // Register MVVM Toolkit Messenger as singleton
                 services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+
+                // Register the shared EventLogSink instance (already receiving logs via Serilog sink)
+                services.AddSingleton<IEventLogSink>(_eventLogSink);
 
                 // Register ClipBar (quick paste picker) as hosted service
                 services.AddSingleton<ClassicWindowCoordinator>();
@@ -584,6 +597,12 @@ public partial class App
                 // Register Text Tools components
                 services.AddTransient<TextToolsViewModel>();
                 services.AddTransient<TextToolsDialog>();
+
+                // Register Diagnostic ViewModels
+                services.AddTransient<ClipboardDiagnosticsViewModel>();
+                services.AddTransient<EventLogViewModel>();
+                services.AddTransient<PasteTraceViewModel>();
+                services.AddTransient<SqlMaintenanceViewModel>();
 
                 // Register Text Cleanup dialog (no ViewModel - uses code-behind)
                 services.AddTransient<TextCleanupDialog>();

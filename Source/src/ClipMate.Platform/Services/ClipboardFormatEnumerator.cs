@@ -1,4 +1,5 @@
 using Windows.Win32;
+using Windows.Win32.Foundation;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.Services;
@@ -7,31 +8,14 @@ namespace ClipMate.Platform.Services;
 /// Enumerates clipboard formats using Win32 APIs.
 /// Provides access to all formats currently available on the clipboard.
 /// </summary>
-public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
+public sealed class ClipboardFormatEnumerator : IClipboardFormatEnumerator
 {
-    // Standard clipboard format names mapping
-    private static readonly Dictionary<uint, string> _standardFormatNames = new()
-    {
-        [(uint)Formats.Text.Code] = Formats.Text.Name,
-        [(uint)Formats.Bitmap.Code] = Formats.Bitmap.Name,
-        [(uint)Formats.Metafilepict.Code] = Formats.Metafilepict.Name,
-        [(uint)Formats.Sylk.Code] = Formats.Sylk.Name,
-        [(uint)Formats.Dif.Code] = Formats.Dif.Name,
-        [(uint)Formats.Tiff.Code] = Formats.Tiff.Name,
-        [(uint)Formats.OemText.Code] = Formats.OemText.Name,
-        [(uint)Formats.Dib.Code] = Formats.Dib.Name,
-        [(uint)Formats.Palette.Code] = Formats.Palette.Name,
-        [(uint)Formats.PenData.Code] = Formats.PenData.Name,
-        [(uint)Formats.Riff.Code] = Formats.Riff.Name,
-        [(uint)Formats.Wave.Code] = Formats.Wave.Name,
-        [(uint)Formats.UnicodeText.Code] = Formats.UnicodeText.Name,
-        [(uint)Formats.EnhMetafile.Code] = Formats.EnhMetafile.Name,
-        [(uint)Formats.HDrop.Code] = Formats.HDrop.Name,
-        [(uint)Formats.Locale.Code] = Formats.Locale.Name,
-    };
-
     private readonly ILogger<ClipboardFormatEnumerator> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ClipboardFormatEnumerator" /> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
     public ClipboardFormatEnumerator(ILogger<ClipboardFormatEnumerator> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -57,10 +41,9 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
 
             for (var i = 0; i < maxRetries; i++)
             {
-                if (PInvoke.OpenClipboard(default))
+                if (PInvoke.OpenClipboard(HWND.Null))
                 {
                     clipboardOpened = true;
-
                     break;
                 }
 
@@ -115,8 +98,8 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
     /// <returns>The format name, or null if not found.</returns>
     private string? GetFormatName(uint format)
     {
-        // Check if it's a standard format
-        if (_standardFormatNames.TryGetValue(format, out var standardName))
+        // Check if it's a standard format (O(1) lookup)
+        if (Formats.TryGetStandardFormatName(format, out var standardName) && standardName != null)
             return standardName;
 
         // It's a custom registered format - get the name from Windows
@@ -125,9 +108,7 @@ public class ClipboardFormatEnumerator : IClipboardFormatEnumerator
             const int maxNameLength = 256;
             unsafe
             {
-                // Allocate buffer for format name
                 var buffer = stackalloc char[maxNameLength];
-
                 var length = PInvoke.GetClipboardFormatName(format, buffer, maxNameLength);
 
                 if (length > 0)

@@ -34,7 +34,7 @@ public class CollectionServiceTests
 
         // Mock IDatabaseManager - interfaces don't need constructor arguments
         _mockDatabaseManager = new Mock<IDatabaseManager>();
-        _mockDatabaseManager.Setup(p => p.GetDatabaseContext(_testDatabaseKey))
+        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
             .Returns(_dbContext);
     }
 
@@ -51,8 +51,8 @@ public class CollectionServiceTests
         mockContextFactory.Setup(p => p.GetCollectionRepository(It.IsAny<string>()))
             .Returns(_mockRepository.Object);
 
-        // Set up GetAllDatabaseContexts to return our test database context
-        _mockDatabaseManager.Setup(p => p.GetAllDatabaseContexts())
+        // Set up CreateAllDatabaseContexts to return our test database context
+        _mockDatabaseManager.Setup(p => p.CreateAllDatabaseContexts())
             .Returns([(_testDatabaseKey, _dbContext)]);
 
         return new CollectionService(_mockDatabaseManager.Object, mockContextFactory.Object);

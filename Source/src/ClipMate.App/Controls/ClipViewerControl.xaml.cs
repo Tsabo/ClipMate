@@ -290,7 +290,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             if (string.IsNullOrEmpty(_currentDatabaseKey))
                 throw new InvalidOperationException("No database configured");
 
-            // Create repositories using factory (resolves database key to path)
+            // Get repositories - each creates its own fresh context internally
             var clipDataRepository = _databaseContextFactory.GetClipDataRepository(_currentDatabaseKey);
             var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
             var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);

@@ -39,7 +39,7 @@ public class ShortcutServiceTests
         _testContext.Database.EnsureCreated();
 
         // Setup database manager to return our test context
-        _mockDatabaseManager.Setup(p => p.GetDatabaseContext(_testDatabaseKey))
+        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
             .Returns(_testContext);
     }
 

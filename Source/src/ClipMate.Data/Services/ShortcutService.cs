@@ -8,6 +8,7 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Service for managing clip shortcuts (nicknames for PowerPaste).
 /// Registered as singleton to support multi-database operations.
+/// Creates fresh DbContext instances for each operation (thread-safe).
 /// </summary>
 public class ShortcutService : IShortcutService
 {
@@ -23,7 +24,7 @@ public class ShortcutService : IShortcutService
     /// <inheritdoc />
     public async Task<IReadOnlyList<Shortcut>> GetAllAsync(string databaseKey, CancellationToken cancellationToken = default)
     {
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 
@@ -38,20 +39,23 @@ public class ShortcutService : IShortcutService
         var allShortcuts = new List<(string DatabaseKey, Shortcut Shortcut)>();
 
         // Query each loaded database
-        foreach (var (databaseKey, context) in _databaseManager.GetAllDatabaseContexts())
+        foreach (var (databaseKey, context) in _databaseManager.CreateAllDatabaseContexts())
         {
-            try
+            await using (context)
             {
-                var shortcuts = await context.Shortcuts
-                    .ToListAsync(cancellationToken);
+                try
+                {
+                    var shortcuts = await context.Shortcuts
+                        .ToListAsync(cancellationToken);
 
-                // Add each shortcut with its database key
-                allShortcuts.AddRange(shortcuts.Select(item => (databaseKey, item)));
-            }
-            catch (Exception ex) when (ex.Message.Contains("no such table"))
-            {
-                // ShortCut table doesn't exist in this database - skip it
-                _logger.LogDebug("ShortCut table not found in database {DatabaseKey}, skipping", databaseKey);
+                    // Add each shortcut with its database key
+                    allShortcuts.AddRange(shortcuts.Select(item => (databaseKey, item)));
+                }
+                catch (Exception ex) when (ex.Message.Contains("no such table"))
+                {
+                    // ShortCut table doesn't exist in this database - skip it
+                    _logger.LogDebug("ShortCut table not found in database {DatabaseKey}, skipping", databaseKey);
+                }
             }
         }
 
@@ -64,7 +68,7 @@ public class ShortcutService : IShortcutService
         if (string.IsNullOrEmpty(nicknamePrefix))
             return Array.Empty<Shortcut>();
 
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 
@@ -87,21 +91,24 @@ public class ShortcutService : IShortcutService
         var prefixLower = nicknamePrefix.ToLowerInvariant();
 
         // Query each loaded database
-        foreach (var (databaseKey, context) in _databaseManager.GetAllDatabaseContexts())
+        foreach (var (databaseKey, context) in _databaseManager.CreateAllDatabaseContexts())
         {
-            try
+            await using (context)
             {
-                var shortcuts = await context.Shortcuts
-                    .Where(p => p.Nickname.ToLower().StartsWith(prefixLower))
-                    .ToListAsync(cancellationToken);
+                try
+                {
+                    var shortcuts = await context.Shortcuts
+                        .Where(p => p.Nickname.ToLower().StartsWith(prefixLower))
+                        .ToListAsync(cancellationToken);
 
-                // Add each shortcut with its database key
-                allShortcuts.AddRange(shortcuts.Select(shortcut => (databaseKey, shortcut)));
-            }
-            catch (Exception ex) when (ex.Message.Contains("no such table"))
-            {
-                // ShortCut table doesn't exist in this database - skip it
-                _logger.LogDebug("ShortCut table not found in database {DatabaseKey}, skipping", databaseKey);
+                    // Add each shortcut with its database key
+                    allShortcuts.AddRange(shortcuts.Select(shortcut => (databaseKey, shortcut)));
+                }
+                catch (Exception ex) when (ex.Message.Contains("no such table"))
+                {
+                    // ShortCut table doesn't exist in this database - skip it
+                    _logger.LogDebug("ShortCut table not found in database {DatabaseKey}, skipping", databaseKey);
+                }
             }
         }
 
@@ -111,7 +118,7 @@ public class ShortcutService : IShortcutService
     /// <inheritdoc />
     public async Task<Shortcut?> GetByClipIdAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
     {
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 
@@ -124,7 +131,7 @@ public class ShortcutService : IShortcutService
     {
         _logger.LogInformation("UpdateClipShortcutAsync called: DatabaseKey='{DatabaseKey}', ClipId={ClipId}, Nickname='{Nickname}', Title='{Title}'", databaseKey, clipId, nickname, title);
 
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 
@@ -217,7 +224,7 @@ public class ShortcutService : IShortcutService
     /// <inheritdoc />
     public async Task DeleteAsync(string databaseKey, Guid shortcutId, CancellationToken cancellationToken = default)
     {
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 
@@ -233,7 +240,7 @@ public class ShortcutService : IShortcutService
     /// <inheritdoc />
     public async Task DeleteByClipIdAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
     {
-        var context = _databaseManager.GetDatabaseContext(databaseKey);
+        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
         if (context == null)
             throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
 

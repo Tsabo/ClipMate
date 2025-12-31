@@ -58,6 +58,10 @@ public static class ServiceCollectionExtensions
         // Register ExportImportService as transient - only used occasionally for export/import operations
         services.AddTransient<IExportImportService, ExportImportService>();
 
+        // Register diagnostic services
+        services.AddSingleton<IClipboardDiagnosticsService, ClipboardDiagnosticsService>();
+        services.AddSingleton<IPasteTraceService, PasteTraceService>();
+
         // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;

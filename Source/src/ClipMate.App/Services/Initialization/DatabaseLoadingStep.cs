@@ -31,8 +31,8 @@ public class DatabaseLoadingStep : IStartupInitializationStep
 
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var databaseManager = scope.ServiceProvider.GetRequiredService<IDatabaseManager>();
+            // IDatabaseManager is a singleton, no scope needed
+            var databaseManager = _serviceProvider.GetRequiredService<IDatabaseManager>();
 
             // Load all databases configured with AutoLoad=true
             var loadedCount = await databaseManager.LoadAutoLoadDatabasesAsync(cancellationToken);

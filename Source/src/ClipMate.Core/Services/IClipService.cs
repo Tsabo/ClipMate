@@ -58,6 +58,14 @@ public interface IClipService
     Task<IReadOnlyList<Clip>> GetFavoritesAsync(string databaseKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets distinct format names from all clip data in the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of distinct format names, ordered alphabetically.</returns>
+    Task<IReadOnlyList<string>> GetDistinctFormatsAsync(string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new clip in the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

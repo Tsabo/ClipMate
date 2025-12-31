@@ -5,7 +5,9 @@ using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Xpf.Bars;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +22,7 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
     private readonly IActiveWindowService _activeWindowService;
     private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseManager _databaseManager;
     private readonly bool _isHotkeyTriggered;
     private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
@@ -29,7 +32,7 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
     private readonly ClassicViewModel _viewModel;
 
     public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
-        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, bool isHotkeyTriggered = false)
+        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, bool isHotkeyTriggered = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -41,6 +44,7 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _isHotkeyTriggered = isHotkeyTriggered;
         DataContext = _viewModel;
 
@@ -169,5 +173,37 @@ public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
         config.ClassicIsTacked = _viewModel.IsTacked;
 
         _ = _configurationService.SaveAsync();
+    }
+
+    /// <summary>
+    /// Dynamically populates SQL Window dropdown when multiple databases are loaded.
+    /// </summary>
+    private void SqlWindowDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            var databases = _databaseManager.GetLoadedDatabases().ToList();
+
+            foreach (var database in databases)
+            {
+                var databaseKey = database.FilePath;
+                var item = new BarButtonItem
+                {
+                    Content = database.Name,
+                };
+
+                item.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
+                subItem.ItemLinks.Add(item);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error populating SQL Window dropdown: {ex.Message}");
+        }
     }
 }

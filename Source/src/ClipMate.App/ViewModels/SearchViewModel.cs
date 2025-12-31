@@ -7,13 +7,11 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
-using ClipMate.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Application = System.Windows.Application;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
@@ -27,8 +25,8 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class SearchViewModel : ObservableObject
 {
+    private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
-    private readonly IDatabaseContextFactory _contextFactory;
     private readonly IMessenger _messenger;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
@@ -133,13 +131,13 @@ public partial class SearchViewModel : ObservableObject
 
     public SearchViewModel(ISearchService searchService,
         ICollectionService collectionService,
-        IDatabaseContextFactory contextFactory,
+        IClipService clipService,
         IMessenger messenger,
         SearchResultsCache searchResultsCache)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
-        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
 
@@ -401,8 +399,8 @@ public partial class SearchViewModel : ObservableObject
             var queries = await _searchService.GetSavedQueriesAsync();
 
             SavedQueries.Clear();
-            foreach (var query in queries)
-                SavedQueries.Add(query);
+            foreach (var item in queries)
+                SavedQueries.Add(item);
         }
         catch (Exception)
         {
@@ -424,17 +422,7 @@ public partial class SearchViewModel : ObservableObject
             if (string.IsNullOrEmpty(activeDatabaseKey))
                 return;
 
-            var dbContext = _contextFactory.GetOrCreateContext(activeDatabaseKey);
-
-            // Check if database exists and has the ClipData table
-            if (!await dbContext.Database.CanConnectAsync())
-                return;
-
-            var formats = await dbContext.ClipData
-                .Select(p => p.FormatName)
-                .Distinct()
-                .OrderBy(p => p)
-                .ToListAsync();
+            var formats = await _clipService.GetDistinctFormatsAsync(activeDatabaseKey);
 
             AvailableFormats.Clear();
             foreach (var item in formats)

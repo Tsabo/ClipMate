@@ -53,7 +53,7 @@ public class ExplorerWindowViewModelTests
         var searchVm = new SearchViewModel(
             mockSearchService.Object,
             mockCollectionService.Object,
-            mockContextFactory.Object,
+            mockClipService.Object,
             mockMessenger.Object,
             new SearchResultsCache());
 

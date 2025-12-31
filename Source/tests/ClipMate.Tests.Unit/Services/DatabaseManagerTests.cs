@@ -201,9 +201,9 @@ public class DatabaseManagerTests
             .Throws<ObjectDisposedException>();
     }
 
-    // GetAllDatabaseContexts Tests
+    // CreateAllDatabaseContexts Tests
     [Test]
-    public async Task GetAllDatabaseContexts_WithoutLoadedConfiguration_ReturnsEmpty()
+    public async Task CreateAllDatabaseContexts_WithoutLoadedConfiguration_ReturnsEmpty()
     {
         // Arrange
         var configService = new Mock<IConfigurationService>();
@@ -213,7 +213,7 @@ public class DatabaseManagerTests
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
 
         // Act
-        var contexts = manager.GetAllDatabaseContexts().ToList();
+        var contexts = manager.CreateAllDatabaseContexts().ToList();
 
         // Assert
         await Assert.That(contexts).IsEmpty();
@@ -221,7 +221,7 @@ public class DatabaseManagerTests
 
     [Test]
     [Skip("Requires real DbContext - Mock<ClipMateDbContext> has no parameterless constructor")]
-    public async Task GetAllDatabaseContexts_WithLoadedDatabases_ReturnsDatabaseKeys()
+    public async Task CreateAllDatabaseContexts_WithLoadedDatabases_ReturnsDatabaseKeys()
     {
         // Arrange
         var configService = new Mock<IConfigurationService>();
@@ -246,17 +246,17 @@ public class DatabaseManagerTests
         contextFactory.Setup(p => p.GetLoadedDatabasePaths())
             .Returns(["primary.db", "secondary.db"]);
 
-        contextFactory.Setup(p => p.GetOrCreateContext("primary.db"))
+        contextFactory.Setup(p => p.CreateContext("primary.db"))
             .Returns(mockContext1.Object);
 
-        contextFactory.Setup(p => p.GetOrCreateContext("secondary.db"))
+        contextFactory.Setup(p => p.CreateContext("secondary.db"))
             .Returns(mockContext2.Object);
 
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
         await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
 
         // Act
-        var contexts = manager.GetAllDatabaseContexts().ToList();
+        var contexts = manager.CreateAllDatabaseContexts().ToList();
 
         // Assert
         await Assert.That(contexts).Count().IsEqualTo(2);
@@ -268,7 +268,7 @@ public class DatabaseManagerTests
 
     [Test]
     [Skip("Requires real DbContext - Mock<ClipMateDbContext> has no parameterless constructor")]
-    public async Task GetAllDatabaseContexts_ReturnsDatabaseKeysNotDisplayNames()
+    public async Task CreateAllDatabaseContexts_ReturnsDatabaseKeysNotDisplayNames()
     {
         // Arrange
         var configService = new Mock<IConfigurationService>();
@@ -292,14 +292,14 @@ public class DatabaseManagerTests
         contextFactory.Setup(p => p.GetLoadedDatabasePaths())
             .Returns(["test.db"]);
 
-        contextFactory.Setup(p => p.GetOrCreateContext("test.db"))
+        contextFactory.Setup(p => p.CreateContext("test.db"))
             .Returns(mockContext.Object);
 
         var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
         await manager.LoadAutoLoadDatabasesAsync();
 
         // Act
-        var contexts = manager.GetAllDatabaseContexts().ToList();
+        var contexts = manager.CreateAllDatabaseContexts().ToList();
 
         // Assert - Should return the dictionary key, not the display name
         await Assert.That(contexts).Count().IsEqualTo(1);
@@ -308,7 +308,7 @@ public class DatabaseManagerTests
     }
 
     [Test]
-    public async Task GetAllDatabaseContexts_AfterDispose_ThrowsObjectDisposedException()
+    public async Task CreateAllDatabaseContexts_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
         var configService = new Mock<IConfigurationService>();
@@ -319,7 +319,7 @@ public class DatabaseManagerTests
         manager.Dispose();
 
         // Act & Assert
-        await Assert.That(() => manager.GetAllDatabaseContexts().ToList())
+        await Assert.That(() => manager.CreateAllDatabaseContexts().ToList())
             .Throws<ObjectDisposedException>();
     }
 }

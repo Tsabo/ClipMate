@@ -1,10 +1,15 @@
+using System.Collections.ObjectModel;
+using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 using Application = System.Windows.Application;
 
@@ -20,6 +25,12 @@ public partial class MainMenuViewModel : ObservableObject
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
 
+    /// <summary>
+    /// Gets whether there are multiple databases loaded (determines whether to show submenu).
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasMultipleDatabases;
+
     [ObservableProperty]
     private bool _isExplodeMode;
 
@@ -34,6 +45,33 @@ public partial class MainMenuViewModel : ObservableObject
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
+
+    /// <summary>
+    /// Gets the collection of loaded databases for dynamic menu generation.
+    /// </summary>
+    public ObservableCollection<DatabaseMenuItemViewModel> LoadedDatabases { get; } = [];
+
+    /// <summary>
+    /// Refreshes the loaded databases collection.
+    /// Call this when databases are loaded/unloaded.
+    /// </summary>
+    public void RefreshLoadedDatabases()
+    {
+        var databaseManager = _serviceProvider.GetRequiredService<IDatabaseManager>();
+        var databases = databaseManager.GetLoadedDatabases().ToList();
+
+        LoadedDatabases.Clear();
+        foreach (var item in databases)
+            LoadedDatabases.Add(new DatabaseMenuItemViewModel(item.Name, GetDatabaseKey(item)));
+
+        HasMultipleDatabases = databases.Count > 1;
+    }
+
+    /// <summary>
+    /// Gets the database key from a DatabaseConfiguration.
+    /// The key is the normalized file path (used for lookup).
+    /// </summary>
+    private static string GetDatabaseKey(DatabaseConfiguration config) => config.FilePath;
 
     // ==========================
     // File Menu Commands
@@ -221,19 +259,87 @@ public partial class MainMenuViewModel : ObservableObject
     private void ConnectToClipBar() { }
 
     [RelayCommand]
-    private void ClipboardDiagnostics() { }
+    private void ClipboardDiagnostics()
+    {
+        var viewModel = _serviceProvider.GetRequiredService<ClipboardDiagnosticsViewModel>();
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+        var dialog = new ClipboardDiagnosticsDialog(viewModel)
+        {
+            Owner = activeWindowService.DialogOwner,
+        };
+
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
-    private void TracePaste() { }
+    private void TracePaste()
+    {
+        var viewModel = _serviceProvider.GetRequiredService<PasteTraceViewModel>();
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+        var dialog = new PasteTraceDialog(viewModel)
+        {
+            Owner = activeWindowService.DialogOwner,
+        };
+
+        dialog.Show(); // Modeless
+    }
 
     [RelayCommand]
     private void ReestablishClipboard() { }
 
+    /// <summary>
+    /// Shows the SQL Maintenance window for the active database.
+    /// Used when there's only one database loaded.
+    /// </summary>
     [RelayCommand]
-    private void ShowSqlWindow() { }
+    private void ShowSqlWindow()
+    {
+        var collectionService = _serviceProvider.GetRequiredService<ICollectionService>();
+        var databaseKey = collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            return;
+
+        ShowSqlWindowForDatabase(databaseKey);
+    }
+
+    /// <summary>
+    /// Shows the SQL Maintenance window for a specific database.
+    /// Used from the dynamic submenu when multiple databases are loaded.
+    /// </summary>
+    /// <param name="databaseKey">The database key (file path) to open.</param>
+    [RelayCommand]
+    private void ShowSqlWindowForDatabase(string? databaseKey)
+    {
+        if (string.IsNullOrEmpty(databaseKey))
+            return;
+
+        var viewModel = _serviceProvider.GetRequiredService<SqlMaintenanceViewModel>();
+        var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        var sqlMaintenanceFactory = _serviceProvider.GetRequiredService<ISqlMaintenanceServiceFactory>();
+        var logger = _serviceProvider.GetRequiredService<ILogger<SqlMaintenanceDialog>>();
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+
+        var sqlMaintenanceService = sqlMaintenanceFactory.Create(databaseKey);
+        var dialog = new SqlMaintenanceDialog(viewModel, sqlMaintenanceService, configService, logger)
+        {
+            Owner = activeWindowService.DialogOwner,
+        };
+
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
-    private void ShowEventLog() { }
+    private void ShowEventLog()
+    {
+        var viewModel = _serviceProvider.GetRequiredService<EventLogViewModel>();
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+        var dialog = new EventLogDialog(viewModel)
+        {
+            Owner = activeWindowService.DialogOwner,
+        };
+
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
     private void ManageTemplates() => _messenger.Send(new OpenTemplateEditorDialogEvent());

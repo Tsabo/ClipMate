@@ -5,31 +5,36 @@ namespace ClipMate.Data;
 /// <summary>
 /// Interface for factory that creates ClipMateDbContext instances for multiple databases
 /// and provides database-specific repository instances.
+/// DbContext instances are NOT cached - each call creates a fresh, short-lived context
+/// that should be disposed after use (EF Core best practice for thread safety).
 /// </summary>
 public interface IDatabaseContextFactory : IDisposable
 {
     /// <summary>
-    /// Gets or creates a database context for the specified database path.
+    /// Creates a new database context for the specified database path.
+    /// The context is NOT cached - caller is responsible for disposal.
+    /// Also registers the database path as "loaded" if not already registered.
     /// </summary>
     /// <param name="databasePath">Full path to the SQLite database file.</param>
-    /// <returns>A ClipMateDbContext instance for the database.</returns>
-    ClipMateDbContext GetOrCreateContext(string databasePath);
+    /// <returns>A new ClipMateDbContext instance for the database.</returns>
+    ClipMateDbContext CreateContext(string databasePath);
 
     /// <summary>
-    /// Closes and removes a database context.
+    /// Registers a database path as "loaded" without creating a context.
+    /// Use this when you need to track that a database is available but don't need a context yet.
     /// </summary>
-    /// <param name="databasePath">Path to the database to close.</param>
-    /// <returns>True if the context was found and disposed.</returns>
+    /// <param name="databasePath">Full path to the SQLite database file.</param>
+    void RegisterDatabase(string databasePath);
+
+    /// <summary>
+    /// Unregisters a database path, marking it as no longer loaded.
+    /// </summary>
+    /// <param name="databasePath">Path to the database to unregister.</param>
+    /// <returns>True if the database was registered and has been unregistered.</returns>
     bool CloseDatabase(string databasePath);
 
     /// <summary>
-    /// Gets all currently open database contexts.
-    /// </summary>
-    /// <returns>Collection of all open database contexts.</returns>
-    IReadOnlyCollection<ClipMateDbContext> GetAllContexts();
-
-    /// <summary>
-    /// Gets all database paths currently loaded.
+    /// Gets all database paths currently registered as loaded.
     /// </summary>
     /// <returns>Collection of database paths.</returns>
     IReadOnlyCollection<string> GetLoadedDatabasePaths();
