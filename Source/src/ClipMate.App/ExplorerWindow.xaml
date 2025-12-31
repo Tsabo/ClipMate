@@ -77,14 +77,19 @@
                     <!-- File Menu -->
                     <dxb:BarSubItem Content="_File">
                         <dxb:BarButtonItem Content="Create New, Empty Clip" KeyGesture="Ctrl+N"
-                                           Command="{Binding MainMenu.CreateNewClipCommand}" />
+                                           Command="{Binding MainMenu.CreateNewClipCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📄'}" />
                         <dxb:BarButtonItem Content="Clip Properties" KeyGesture="Alt+Enter"
-                                           Command="{Binding MainMenu.ClipPropertiesCommand}" />
+                                           Command="{Binding MainMenu.ClipPropertiesCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📋'}" />
                         <dxb:BarButtonItem Content="Rename Clip" KeyGesture="Ctrl+R"
-                                           Command="{Binding MainMenu.RenameClipCommand}" />
+                                           Command="{Binding MainMenu.RenameClipCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='✏️'}" />
                         <dxb:BarButtonItem Content="Delete Selected Items"
-                                           Command="{Binding MainMenu.DeleteSelectedCommand}" />
-                        <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}" />
+                                           Command="{Binding MainMenu.DeleteSelectedCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🗑️'}" />
+                        <dxb:BarButtonItem Content="Un Delete" Command="{Binding MainMenu.UnDeleteCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='♻️'}" />
                         <dxb:BarButtonItem Content="Copy Item To Collection"
                                            Command="{Binding MainMenu.CopyToCollectionCommand}"
                                            Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}}" />
@@ -92,175 +97,251 @@
                                            Command="{Binding MainMenu.MoveToCollectionCommand}"
                                            Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}}" />
                         <dxb:BarButtonItem Content="Export Clips (Save To Individual Files)"
-                                           Command="{Binding MainMenu.ExportClipsCommand}" />
+                                           Command="{Binding MainMenu.ExportClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='💾'}" />
                         <dxb:BarButtonItem Content="Export Clip(s) to XML"
-                                           Command="{Binding MainMenu.ExportToXmlCommand}" />
+                                           Command="{Binding MainMenu.ExportToXmlCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📤'}" />
                         <dxb:BarButtonItem Content="Import Clip(s) from XML"
-                                           Command="{Binding MainMenu.ImportFromXmlCommand}" />
+                                           Command="{Binding MainMenu.ImportFromXmlCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📥'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Decrypt and remove encryption on selected clips"
-                                           Command="{Binding MainMenu.DecryptClipsCommand}" />
+                                           Command="{Binding MainMenu.DecryptClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔓'}" />
                         <dxb:BarButtonItem Content="Encrypt selected clips"
-                                           Command="{Binding MainMenu.EncryptClipsCommand}" />
+                                           Command="{Binding MainMenu.EncryptClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔒'}" />
                         <dxb:BarButtonItem Content="Forget Encryption Key"
-                                           Command="{Binding MainMenu.ForgetEncryptionKeyCommand}" />
+                                           Command="{Binding MainMenu.ForgetEncryptionKeyCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔑'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Properties" Command="{Binding MainMenu.ShowPropertiesCommand}" />
+                        <dxb:BarButtonItem Content="Properties" Command="{Binding MainMenu.ShowPropertiesCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />
                         <dxb:BarButtonItem Content="Add New Collection"
-                                           Command="{Binding MainMenu.AddCollectionCommand}" />
+                                           Command="{Binding MainMenu.AddCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📁'}" />
                         <dxb:BarButtonItem Content="Delete Collection"
-                                           Command="{Binding MainMenu.DeleteCollectionCommand}" />
+                                           Command="{Binding MainMenu.DeleteCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🗑️'}" />
                         <dxb:BarButtonItem Content="Reload Collection" KeyGesture="Alt+R"
-                                           Command="{Binding MainMenu.ReloadCollectionCommand}" />
+                                           Command="{Binding MainMenu.ReloadCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔄'}" />
                         <dxb:BarButtonItem Content="Resequence Sort Keys"
-                                           Command="{Binding MainMenu.ResequenceSortKeysCommand}" />
+                                           Command="{Binding MainMenu.ResequenceSortKeysCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔢'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarSubItem Content="Database Maintenance">
+                        <dxb:BarSubItem Content="Database Maintenance"
+                                        Glyph="{helpers:EmojiIconSource Emoji='🗄️'}">
                             <dxb:BarButtonItem Content="Backup Database..."
-                                               Command="{Binding MainMenu.BackupDatabaseCommand}" />
+                                               Command="{Binding MainMenu.BackupDatabaseCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='💾'}" />
                             <dxb:BarButtonItem Content="Restore Database..."
-                                               Command="{Binding MainMenu.RestoreDatabaseCommand}" />
+                                               Command="{Binding MainMenu.RestoreDatabaseCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='📥'}" />
                             <dxb:BarItemSeparator />
-                            <dxb:BarButtonItem Content="Empty Trash..." Command="{Binding MainMenu.EmptyTrashCommand}" />
+                            <dxb:BarButtonItem Content="Empty Trash..." Command="{Binding MainMenu.EmptyTrashCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='🗑️'}" />
                             <dxb:BarItemSeparator />
                             <dxb:BarButtonItem Content="Simple Repair (VACUUM)..."
-                                               Command="{Binding MainMenu.SimpleRepairCommand}" />
+                                               Command="{Binding MainMenu.SimpleRepairCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='🛠️'}" />
                             <dxb:BarButtonItem Content="Comprehensive Repair..."
-                                               Command="{Binding MainMenu.ComprehensiveRepairCommand}" />
+                                               Command="{Binding MainMenu.ComprehensiveRepairCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='🔧'}" />
                             <dxb:BarItemSeparator />
                             <dxb:BarButtonItem Content="Run Cleanup Now..."
-                                               Command="{Binding MainMenu.RunCleanupNowCommand}" />
+                                               Command="{Binding MainMenu.RunCleanupNowCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='🧹'}" />
                         </dxb:BarSubItem>
                         <dxb:BarButtonItem Content="Activate Database"
-                                           Command="{Binding MainMenu.ActivateDatabaseCommand}" />
+                                           Command="{Binding MainMenu.ActivateDatabaseCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='✅'}" />
                         <dxb:BarButtonItem Content="De-Activate Database"
-                                           Command="{Binding MainMenu.DeactivateDatabaseCommand}" />
+                                           Command="{Binding MainMenu.DeactivateDatabaseCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⛔'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P"
-                                           Command="{Binding MainMenu.PrintCommand}" />
+                                           Command="{Binding MainMenu.PrintCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🖨️'}" />
                         <dxb:BarButtonItem Content="Enable Quick Print"
-                                           Command="{Binding MainMenu.EnableQuickPrintCommand}" />
-                        <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}" />
+                                           Command="{Binding MainMenu.EnableQuickPrintCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⚡'}" />
+                        <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Exit Program (Shut Down)" Command="{Binding MainMenu.ExitCommand}" />
+                        <dxb:BarButtonItem Content="Exit Program (Shut Down)" Command="{Binding MainMenu.ExitCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🚪'}" />
                     </dxb:BarSubItem>
 
                     <!-- Edit Menu -->
                     <dxb:BarSubItem Content="_Edit">
-                        <dxb:BarButtonItem Content="Undo" Command="{Binding MainMenu.UndoCommand}" />
-                        <dxb:BarButtonItem Content="Select All Clips" Command="{Binding MainMenu.SelectAllCommand}" />
+                        <dxb:BarButtonItem Content="Undo" Command="{Binding MainMenu.UndoCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='↩️'}" />
+                        <dxb:BarButtonItem Content="Select All Clips" Command="{Binding MainMenu.SelectAllCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='☑️'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Capture Special..."
-                                           Command="{Binding MainMenu.CaptureSpecialCommand}" />
+                                           Command="{Binding MainMenu.CaptureSpecialCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🎯'}" />
                         <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
-                                           Command="{Binding MainMenu.AppendClipsCommand}" />
-                        <dxb:BarSubItem Content="Screen Capture" />
-                        <dxb:BarSubItem Content="QuickPaste" />
+                                           Command="{Binding MainMenu.AppendClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🧂'}" />
+                        <dxb:BarSubItem Content="Screen Capture"
+                                        Glyph="{helpers:EmojiIconSource Emoji='📷'}" />
+                        <dxb:BarSubItem Content="QuickPaste"
+                                        Glyph="{helpers:EmojiIconSource Emoji='⚡'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarSubItem Content="Case Conversion" />
-                        <dxb:BarButtonItem Content="Clean-Up Text..." Command="{Binding MainMenu.CleanUpTextCommand}" />
-                        <dxb:BarButtonItem Content="Shift Left" Command="{Binding MainMenu.ShiftLeftCommand}" />
-                        <dxb:BarButtonItem Content="Shift Right" Command="{Binding MainMenu.ShiftRightCommand}" />
+                        <dxb:BarSubItem Content="Case Conversion"
+                                        Glyph="{helpers:EmojiIconSource Emoji='🔤'}" />
+                        <dxb:BarButtonItem Content="Clean-Up Text..." Command="{Binding MainMenu.CleanUpTextCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🧹'}" />
+                        <dxb:BarButtonItem Content="Shift Left" Command="{Binding MainMenu.ShiftLeftCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⬅️'}" />
+                        <dxb:BarButtonItem Content="Shift Right" Command="{Binding MainMenu.ShiftRightCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='➡️'}" />
                         <dxb:BarButtonItem Content="Remove Linebreaks" KeyGesture="Ctrl+Alt+B"
-                                           Command="{Binding MainMenu.RemoveLineBreaksCommand}" />
+                                           Command="{Binding MainMenu.RemoveLineBreaksCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
                         <dxb:BarButtonItem Content="Check Spelling" KeyGesture="F7"
-                                           Command="{Binding MainMenu.CheckSpellingCommand}" />
+                                           Command="{Binding MainMenu.CheckSpellingCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📝'}" />
                         <dxb:BarButtonItem Content="Change Title and Shortcut" KeyGesture="Ctrl+R"
-                                           Command="{Binding MainMenu.ChangeTitleCommand}" />
+                                           Command="{Binding MainMenu.ChangeTitleCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🏷️'}" />
                         <dxb:BarButtonItem Content="Strip Out Non-TEXT Data Formats" KeyGesture="Ctrl+Alt+T"
-                                           Command="{Binding MainMenu.StripNonTextCommand}" />
+                                           Command="{Binding MainMenu.StripNonTextCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='✂️'}" />
                         <dxb:BarButtonItem Content="Convert File Pointer To Text"
-                                           Command="{Binding MainMenu.ConvertFilePointerCommand}" />
-                        <dxb:BarButtonItem Content="Unicode To Ansi" Command="{Binding MainMenu.UnicodeToAnsiCommand}" />
+                                           Command="{Binding MainMenu.ConvertFilePointerCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📄'}" />
+                        <dxb:BarButtonItem Content="Unicode To Ansi" Command="{Binding MainMenu.UnicodeToAnsiCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🌐'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="PowerPaste Up" KeyGesture="Ctrl+U"
-                                           Command="{Binding MainMenu.PowerPasteUpCommand}" />
+                                           Command="{Binding MainMenu.PowerPasteUpCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⬆️'}" />
                         <dxb:BarButtonItem Content="PowerPaste Down" KeyGesture="Ctrl+D"
-                                           Command="{Binding MainMenu.PowerPasteDownCommand}" />
-                        <dxb:BarCheckItem Content="PowerPaste Option - Loop" IsChecked="{Binding MainMenu.IsLoopMode}" />
+                                           Command="{Binding MainMenu.PowerPasteDownCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⬇️'}" />
+                        <dxb:BarCheckItem Content="PowerPaste Option - Loop" IsChecked="{Binding MainMenu.IsLoopMode}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='🔁'}" />
                         <dxb:BarCheckItem Content="PowerPaste Option - Explode Into Fragments"
-                                          IsChecked="{Binding MainMenu.IsExplodeMode}" />
+                                          IsChecked="{Binding MainMenu.IsExplodeMode}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='💥'}" />
                     </dxb:BarSubItem>
 
                     <!-- Tools Menu -->
                     <dxb:BarSubItem Content="_Tools">
                         <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
-                                           Command="{Binding MainMenu.AutoCaptureCommand}" />
+                                           Command="{Binding MainMenu.AutoCaptureCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📹'}" />
                         <dxb:BarButtonItem Content="Filter Outbound Clips"
-                                           Command="{Binding MainMenu.FilterOutboundCommand}" />
+                                           Command="{Binding MainMenu.FilterOutboundCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📊'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}" />
+                        <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />
                         <dxb:BarButtonItem Content="Application Profile..."
-                                           Command="{Binding MainMenu.AppProfileCommand}" />
-                        <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}" />
+                                           Command="{Binding MainMenu.AppProfileCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='💻'}" />
+                        <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🌐'}" />
                         <dxb:BarButtonItem Content="Connect to ClipBar"
-                                           Command="{Binding MainMenu.ConnectToClipBarCommand}" />
+                                           Command="{Binding MainMenu.ConnectToClipBarCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Clipboard Diagnostics..."
-                                           Command="{Binding MainMenu.ClipboardDiagnosticsCommand}" />
-                        <dxb:BarButtonItem Content="Trace Paste" Command="{Binding MainMenu.TracePasteCommand}" />
+                                           Command="{Binding MainMenu.ClipboardDiagnosticsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🩺'}" />
+                        <dxb:BarButtonItem Content="Trace Paste" Command="{Binding MainMenu.TracePasteCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='👣'}" />
                         <dxb:BarButtonItem Content="Re-Establish Clipboard Connection"
-                                           Command="{Binding MainMenu.ReestablishClipboardCommand}" />
+                                           Command="{Binding MainMenu.ReestablishClipboardCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔄'}" />
                         <dxb:BarItemSeparator />
                         <!-- SQL Window: Simple button when single database -->
                         <dxb:BarButtonItem Content="Show SQL Window"
                                            Command="{Binding MainMenu.ShowSqlWindowCommand}"
-                                           IsVisible="{Binding MainMenu.HasMultipleDatabases, Converter={StaticResource InverseBoolConverter}}" />
+                                           IsVisible="{Binding MainMenu.HasMultipleDatabases, Converter={StaticResource InverseBoolConverter}}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🖳️'}" />
                         <!-- SQL Window: Submenu when multiple databases -->
                         <dxb:BarSubItem x:Name="ShowSqlWindowMultiple"
                                         Content="Show SQL Window"
                                         IsVisible="{Binding MainMenu.HasMultipleDatabases}"
-                                        GetItemData="SqlWindowDropdown_GetItemData" />
-                        <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}" />
+                                        GetItemData="SqlWindowDropdown_GetItemData"
+                                        Glyph="{helpers:EmojiIconSource Emoji='🖳️'}" />
+                        <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📜'}" />
                     </dxb:BarSubItem>
 
                     <!-- View Menu -->
                     <dxb:BarSubItem Content="_View">
                         <dxb:BarButtonItem Content="Find (Search)..." KeyGesture="Ctrl+F"
-                                           Command="{Binding MainMenu.SearchCommand}" />
+                                           Command="{Binding MainMenu.SearchCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔍'}" />
                         <dxb:BarButtonItem Content="Select Previous Item (Up)" KeyGesture="Ctrl+Alt+P"
-                                           Command="{Binding MainMenu.SelectPreviousCommand}" />
+                                           Command="{Binding MainMenu.SelectPreviousCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⬆️'}" />
                         <dxb:BarButtonItem Content="Select Next Item (Down)" KeyGesture="Ctrl+Alt+N"
-                                           Command="{Binding MainMenu.SelectNextCommand}" />
+                                           Command="{Binding MainMenu.SelectNextCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⬇️'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Switch To Last Collection" KeyGesture="F5"
-                                           Command="{Binding MainMenu.SwitchToLastCollectionCommand}" />
+                                           Command="{Binding MainMenu.SwitchToLastCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔙'}" />
                         <dxb:BarButtonItem Content="Switch to Favorite Collection" KeyGesture="F6"
-                                           Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}" />
+                                           Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='⭐'}" />
                         <dxb:BarButtonItem Content="Select Collection" KeyGesture="F8"
-                                           Command="{Binding MainMenu.SelectCollectionCommand}" />
+                                           Command="{Binding MainMenu.SelectCollectionCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📂'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Open Source URL In Browser" KeyGesture="Ctrl+O"
-                                           Command="{Binding MainMenu.OpenSourceUrlCommand}" />
-                        <dxb:BarButtonItem Content="CharMap (Launch)" Command="{Binding MainMenu.LaunchCharMapCommand}" />
+                                           Command="{Binding MainMenu.OpenSourceUrlCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🌐'}" />
+                        <dxb:BarButtonItem Content="CharMap (Launch)" Command="{Binding MainMenu.LaunchCharMapCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔤'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="View Clip" KeyGesture="F2"
-                                           Command="{Binding MainMenu.ViewClipCommand}" />
+                                           Command="{Binding MainMenu.ViewClipCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='👁️'}" />
                         <dxb:BarButtonItem Content="Switch Between Classic / Explorer" KeyGesture="Ctrl+E"
-                                           Command="{Binding MainMenu.SwitchViewCommand}" />
+                                           Command="{Binding MainMenu.SwitchViewCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔀'}" />
                         <dxb:BarButtonItem Content="Open ClipMate Explorer"
-                                           Command="{Binding MainMenu.OpenExplorerCommand}" />
+                                           Command="{Binding MainMenu.OpenExplorerCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📂'}" />
                         <dxb:BarButtonItem Content="Open ClipMate Classic"
-                                           Command="{Binding MainMenu.OpenClassicCommand}" />
+                                           Command="{Binding MainMenu.OpenClassicCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📃'}" />
                         <dxb:BarButtonItem Content="Close And Free All Windows"
-                                           Command="{Binding MainMenu.CloseAllWindowsCommand}" />
+                                           Command="{Binding MainMenu.CloseAllWindowsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='❌'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarCheckItem Content="_Dual ClipList Mode"
                                           IsChecked="{Binding IsDualClipListMode}"
-                                          KeyGesture="Ctrl+D" />
+                                          KeyGesture="Ctrl+D"
+                                          Glyph="{helpers:EmojiIconSource Emoji='📊'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarSubItem Content="Visibility" />
-                        <dxb:BarSubItem Content="Classic Options" />
-                        <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}" />
+                        <dxb:BarSubItem Content="Visibility"
+                                        Glyph="{helpers:EmojiIconSource Emoji='👁️'}" />
+                        <dxb:BarSubItem Content="Classic Options"
+                                        Glyph="{helpers:EmojiIconSource Emoji='📝'}" />
+                        <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='💫'}" />
                     </dxb:BarSubItem>
 
                     <!-- Help Menu -->
                     <dxb:BarSubItem Content="_Help">
-                        <dxb:BarButtonItem Content="About ClipMate" Command="{Binding MainMenu.AboutCommand}" />
+                        <dxb:BarButtonItem Content="About ClipMate" Command="{Binding MainMenu.AboutCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='ℹ️'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Documentation (GitHub Wiki)"
-                                           Command="{Binding MainMenu.DocumentationCommand}" />
-                        <dxb:BarButtonItem Content="View on GitHub" Command="{Binding MainMenu.ViewOnGitHubCommand}" />
+                                           Command="{Binding MainMenu.DocumentationCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='📖'}" />
+                        <dxb:BarButtonItem Content="View on GitHub" Command="{Binding MainMenu.ViewOnGitHubCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🐙'}" />
                     </dxb:BarSubItem>
                 </dxb:Bar>
             </dxb:BarManager.Bars>

@@ -4,6 +4,7 @@
         xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
         xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+        xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
         Title="TrayIconWindow"
         Width="0"
         Height="0"
@@ -20,9 +21,11 @@
             LeftClickCommand="{Binding ShowExplorerWindowCommand}">
             <dx:NotifyIconService.ContextMenu>
                 <dxb:PopupMenu>
-                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowExplorerWindowCommand}" />
+                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowExplorerWindowCommand}"
+                                       Glyph="{helpers:EmojiIconSource Emoji='📋'}" />
                     <dxb:BarItemSeparator />
-                    <dxb:BarButtonItem Content="Exit" Command="{Binding ExitApplicationCommand}" />
+                    <dxb:BarButtonItem Content="Exit" Command="{Binding ExitApplicationCommand}"
+                                       Glyph="{helpers:EmojiIconSource Emoji='🚪'}" />
                 </dxb:PopupMenu>
             </dx:NotifyIconService.ContextMenu>
         </dx:NotifyIconService>

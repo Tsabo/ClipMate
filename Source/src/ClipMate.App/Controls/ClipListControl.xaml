@@ -54,8 +54,16 @@
                                         <emoji:TextBlock Text="➤" FontSize="14" Foreground="Green" />
                                     </MenuItem.Icon>
                                 </MenuItem>
-                                <MenuItem Header="TAB" InputGestureText="F9" />
-                                <MenuItem Header="ENTER" InputGestureText="Shift+F9" />
+                                <MenuItem Header="TAB" InputGestureText="F9">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="⇥" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="ENTER" InputGestureText="Shift+F9">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="↵" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                                 <Separator />
                                 <MenuItem Header="Lock QuickPaste Target">
                                     <MenuItem.Icon>
@@ -68,8 +76,16 @@
                                     </MenuItem.Icon>
                                 </MenuItem>
                                 <Separator />
-                                <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray" />
-                                <MenuItem Header="Reset Sequence" />
+                                <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="📝" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Reset Sequence">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="🔄" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                             </MenuItem>
                             <Separator />
                             <MenuItem Header="Create New, Empty Clip" InputGestureText="Ctrl+N"
@@ -100,7 +116,11 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray" />
+                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="♻️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
                             <MenuItem Header="Encrypt selected clips">
                                 <MenuItem.Icon>
@@ -124,7 +144,11 @@
                                     <emoji:TextBlock Text="🔗" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Convert File Pointer To Text" />
+                            <MenuItem Header="Convert File Pointer To Text">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📄" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
                             <MenuItem Header="Open Source URL In Browser" InputGestureText="Ctrl+O"
                                       Click="OpenSourceUrl_Click">
@@ -138,15 +162,39 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Move To Top Of Sort Order" />
-                            <MenuItem Header="Move To Bottom Of Sort Order" />
+                            <MenuItem Header="Move To Top Of Sort Order">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="⬆️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Move To Bottom Of Sort Order">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="⬇️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection" />
-                            <MenuItem Header="Select Another Collection" />
+                            <MenuItem Header="Tack (lock) this window onto this collection">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📌" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Select Another Collection">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📂" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True" />
+                            <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📊" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Cancel" />
+                            <MenuItem Header="Cancel">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="❌" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                         </ContextMenu>
                     </dxg:GridControl.ContextMenu>
 
@@ -234,8 +282,16 @@
                                         <emoji:TextBlock Text="➤" FontSize="14" Foreground="Green" />
                                     </MenuItem.Icon>
                                 </MenuItem>
-                                <MenuItem Header="TAB" InputGestureText="F9" />
-                                <MenuItem Header="ENTER" InputGestureText="Shift+F9" />
+                                <MenuItem Header="TAB" InputGestureText="F9">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="⇥" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="ENTER" InputGestureText="Shift+F9">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="↵" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                                 <Separator />
                                 <MenuItem Header="Lock QuickPaste Target">
                                     <MenuItem.Icon>
@@ -248,8 +304,16 @@
                                     </MenuItem.Icon>
                                 </MenuItem>
                                 <Separator />
-                                <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray" />
-                                <MenuItem Header="Reset Sequence" />
+                                <MenuItem Header="Select Formatting String" IsEnabled="False" Foreground="Gray">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="📝" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Reset Sequence">
+                                    <MenuItem.Icon>
+                                        <emoji:TextBlock Text="🔄" FontSize="14" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                             </MenuItem>
                             <Separator />
                             <MenuItem Header="Create New, Empty Clip" InputGestureText="Ctrl+N"
@@ -280,7 +344,11 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray" />
+                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="♻️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
                             <MenuItem Header="Encrypt selected clips">
                                 <MenuItem.Icon>
@@ -304,7 +372,11 @@
                                     <emoji:TextBlock Text="🔗" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Convert File Pointer To Text" />
+                            <MenuItem Header="Convert File Pointer To Text">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📄" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
                             <MenuItem Header="Open Source URL In Browser" InputGestureText="Ctrl+O"
                                       Click="OpenSourceUrl_Click">
@@ -318,15 +390,39 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Move To Top Of Sort Order" />
-                            <MenuItem Header="Move To Bottom Of Sort Order" />
+                            <MenuItem Header="Move To Top Of Sort Order">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="⬆️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Move To Bottom Of Sort Order">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="⬇️" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection" />
-                            <MenuItem Header="Select Another Collection" />
+                            <MenuItem Header="Tack (lock) this window onto this collection">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📌" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Select Another Collection">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📂" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True" />
+                            <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📊" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Cancel" />
+                            <MenuItem Header="Cancel">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="❌" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                         </ContextMenu>
                     </dxg:GridControl.ContextMenu>
 

@@ -80,18 +80,46 @@
                 </MenuItem>
 
                 <!-- Delete Collection -->
-                <MenuItem Header="Delete Collection" />
+                <MenuItem Header="Delete Collection">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="🗑️" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
                 <!-- Database Operations -->
-                <MenuItem Header="Activate Database" />
-                <MenuItem Header="De-Activate Database" />
+                <MenuItem Header="Activate Database">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="✅" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="De-Activate Database">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="⛔" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
                 <!-- Tree Operations -->
-                <MenuItem Header="Expand All" />
-                <MenuItem Header="Collapse All" />
-                <MenuItem Header="Show All Clips In All Children" />
+                <MenuItem Header="Expand All">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="➕" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Collapse All">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="➖" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Show All Clips In All Children">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="📂" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
-                <MenuItem Header="Cancel" />
+                <MenuItem Header="Cancel">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="❌" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
 
                 <Separator />
 
@@ -99,7 +127,7 @@
                 <MenuItem Header="Properties"
                           Command="{Binding ShowPropertiesCommand}">
                     <MenuItem.Icon>
-                        <emoji:TextBlock Text="📁" FontSize="14" />
+                        <emoji:TextBlock Text="⚙️" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
             </ContextMenu>
