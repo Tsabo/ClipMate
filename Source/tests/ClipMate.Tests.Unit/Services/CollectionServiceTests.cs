@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
@@ -12,7 +13,8 @@ public class CollectionServiceTests
 {
     private const string _testDatabaseKey = "test-db";
     private readonly Mock<ICollectionRepository> _mockRepository;
-    private ClipMateDbContext _dbContext = null!;
+    private SqliteConnection _connection = null!;
+    private DbContextOptions<ClipMateDbContext> _contextOptions = null!;
     private Mock<IDatabaseManager> _mockDatabaseManager = null!;
 
     public CollectionServiceTests()
@@ -20,40 +22,67 @@ public class CollectionServiceTests
         _mockRepository = new Mock<ICollectionRepository>();
     }
 
+    /// <summary>
+    /// Creates a new DbContext using the shared connection.
+    /// Each context can be disposed independently while sharing the same database.
+    /// </summary>
+    private ClipMateDbContext CreateContext() => new(_contextOptions);
+
     [Before(Test)]
     public void Setup()
     {
-        // Use SQLite in-memory database for testing (supports relational features)
-        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
-            .UseSqlite("DataSource=:memory:")
+        // Create in-memory database for testing
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
+
+        _contextOptions = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite(_connection)
             .Options;
 
-        _dbContext = new ClipMateDbContext(options);
-        _dbContext.Database.OpenConnection();
-        _dbContext.Database.EnsureCreated();
+        // Initialize database schema
+        using (var context = CreateContext())
+        {
+            context.Database.EnsureCreated();
+        }
 
         // Mock IDatabaseManager - interfaces don't need constructor arguments
         _mockDatabaseManager = new Mock<IDatabaseManager>();
         _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(_dbContext);
+            .Returns(() => CreateContext());
     }
 
     [After(Test)]
     public void Cleanup()
     {
-        _dbContext.Database.CloseConnection();
-        _dbContext.Dispose();
+        _connection?.Close();
+        _connection?.Dispose();
     }
 
     private ICollectionService CreateCollectionService()
     {
+        // Set up mock repository to query from the actual DbContext for GetByIdAsync
+        _mockRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid id, CancellationToken _) =>
+            {
+                using var ctx = CreateContext();
+                return ctx.Collections.FirstOrDefault(c => c.Id == id);
+            });
+
+        // Set up GetAllAsync to return collections from DbContext
+        _mockRepository.Setup(p => p.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                using var ctx = CreateContext();
+                return ctx.Collections.ToList();
+            });
+
         var mockContextFactory = new Mock<IDatabaseContextFactory>();
         mockContextFactory.Setup(p => p.GetCollectionRepository(It.IsAny<string>()))
             .Returns(_mockRepository.Object);
 
-        // Set up CreateAllDatabaseContexts to return our test database context
+        // Set up CreateAllDatabaseContexts to return a new context each time
         _mockDatabaseManager.Setup(p => p.CreateAllDatabaseContexts())
-            .Returns([(_testDatabaseKey, _dbContext)]);
+            .Returns(() => [(_testDatabaseKey, CreateContext())]);
 
         return new CollectionService(_mockDatabaseManager.Object, mockContextFactory.Object);
     }
@@ -79,8 +108,11 @@ public class CollectionServiceTests
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
-        _dbContext.Collections.Add(dummyCollection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(dummyCollection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
@@ -123,15 +155,21 @@ public class CollectionServiceTests
         // Arrange
         var collectionId = Guid.NewGuid();
         var expectedCollection = CreateTestCollection(collectionId);
-        _mockRepository.Setup(p => p.GetByIdAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedCollection);
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
-        _dbContext.Collections.Add(dummyCollection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(dummyCollection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
+
+        // Setup mock AFTER CreateCollectionService to override the general setup
+        _mockRepository.Setup(p => p.GetByIdAsync(collectionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedCollection);
+
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
 
         // Act
@@ -152,8 +190,11 @@ public class CollectionServiceTests
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
-        _dbContext.Collections.Add(dummyCollection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(dummyCollection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
@@ -177,8 +218,11 @@ public class CollectionServiceTests
         };
 
         // Add collections to the DbContext since GetAllAsync queries the context directly
-        _dbContext.Collections.AddRange(collections);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.AddRange(collections);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
 
@@ -206,8 +250,11 @@ public class CollectionServiceTests
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
-        _dbContext.Collections.Add(dummyCollection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(dummyCollection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
@@ -255,8 +302,11 @@ public class CollectionServiceTests
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
-        _dbContext.Collections.Add(dummyCollection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(dummyCollection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
@@ -300,8 +350,11 @@ public class CollectionServiceTests
         var collection = CreateTestCollection(collectionId);
 
         // Add collection to in-memory database
-        _dbContext.Collections.Add(collection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(collection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(collectionId, _testDatabaseKey);
@@ -322,8 +375,11 @@ public class CollectionServiceTests
         var collection = CreateTestCollection(collectionId);
 
         // Add collection to in-memory database
-        _dbContext.Collections.Add(collection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(collection);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateCollectionService();
 
@@ -354,8 +410,11 @@ public class CollectionServiceTests
         var collection = CreateTestCollection(collectionId);
 
         // Add collection to in-memory database
-        _dbContext.Collections.Add(collection);
-        await _dbContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            setupContext.Collections.Add(collection);
+            await setupContext.SaveChangesAsync();
+        }
 
         _mockRepository.Setup(p => p.DeleteAsync(collectionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);

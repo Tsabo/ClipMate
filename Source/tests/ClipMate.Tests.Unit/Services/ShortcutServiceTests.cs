@@ -16,7 +16,8 @@ public class ShortcutServiceTests
     private const string _testDatabaseKey = "test_db.db";
     private readonly Mock<IDatabaseManager> _mockDatabaseManager;
     private readonly Mock<ILogger<ShortcutService>> _mockLogger;
-    private ClipMateDbContext _testContext = null!;
+    private SqliteConnection _connection = null!;
+    private DbContextOptions<ClipMateDbContext> _contextOptions = null!;
 
     public ShortcutServiceTests()
     {
@@ -24,30 +25,40 @@ public class ShortcutServiceTests
         _mockLogger = new Mock<ILogger<ShortcutService>>();
     }
 
+    /// <summary>
+    /// Creates a new DbContext using the shared connection.
+    /// Each context can be disposed independently while sharing the same database.
+    /// </summary>
+    private ClipMateDbContext CreateContext() => new(_contextOptions);
+
     [Before(Test)]
     public void Setup()
     {
         // Create in-memory database for testing
-        var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
+        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection.Open();
 
-        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
-            .UseSqlite(connection)
+        _contextOptions = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite(_connection)
             .Options;
 
-        _testContext = new ClipMateDbContext(options);
-        _testContext.Database.EnsureCreated();
+        // Initialize database schema
+        using (var context = CreateContext())
+        {
+            context.Database.EnsureCreated();
+        }
 
-        // Setup database manager to return our test context
+        // Setup database manager to return a new context each time
+        // This allows ShortcutService to dispose contexts without affecting other operations
         _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(_testContext);
+            .Returns(() => CreateContext());
     }
 
     [After(Test)]
-    public async Task Cleanup()
+    public void Cleanup()
     {
-        await _testContext.Database.EnsureDeletedAsync();
-        await _testContext.DisposeAsync();
+        _connection?.Close();
+        _connection?.Dispose();
     }
 
     [Test]
@@ -71,18 +82,21 @@ public class ShortcutServiceTests
         var clip1 = CreateTestClip();
         var clip2 = CreateTestClip();
         var clip3 = CreateTestClip();
-        await _testContext.Clips.AddRangeAsync(clip1, clip2, clip3);
-        await _testContext.SaveChangesAsync();
-
-        var shortcuts = new[]
+        await using (var setupContext = CreateContext())
         {
-            CreateTestShortcut(clip1.Id, ".z.last"),
-            CreateTestShortcut(clip2.Id, ".a.first"),
-            CreateTestShortcut(clip3.Id, ".m.middle"),
-        };
+            await setupContext.Clips.AddRangeAsync(clip1, clip2, clip3);
+            await setupContext.SaveChangesAsync();
 
-        await _testContext.Shortcuts.AddRangeAsync(shortcuts);
-        await _testContext.SaveChangesAsync();
+            var shortcuts = new[]
+            {
+                CreateTestShortcut(clip1.Id, ".z.last"),
+                CreateTestShortcut(clip2.Id, ".a.first"),
+                CreateTestShortcut(clip3.Id, ".m.middle"),
+            };
+
+            await setupContext.Shortcuts.AddRangeAsync(shortcuts);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -116,18 +130,21 @@ public class ShortcutServiceTests
         var clip1 = CreateTestClip();
         var clip2 = CreateTestClip();
         var clip3 = CreateTestClip();
-        await _testContext.Clips.AddRangeAsync(clip1, clip2, clip3);
-        await _testContext.SaveChangesAsync();
-
-        var shortcuts = new[]
+        await using (var setupContext = CreateContext())
         {
-            CreateTestShortcut(clip1.Id, ".cc.v.number"),
-            CreateTestShortcut(clip2.Id, ".cc.m.date"),
-            CreateTestShortcut(clip3.Id, ".sig.work"),
-        };
+            await setupContext.Clips.AddRangeAsync(clip1, clip2, clip3);
+            await setupContext.SaveChangesAsync();
 
-        await _testContext.Shortcuts.AddRangeAsync(shortcuts);
-        await _testContext.SaveChangesAsync();
+            var shortcuts = new[]
+            {
+                CreateTestShortcut(clip1.Id, ".cc.v.number"),
+                CreateTestShortcut(clip2.Id, ".cc.m.date"),
+                CreateTestShortcut(clip3.Id, ".sig.work"),
+            };
+
+            await setupContext.Shortcuts.AddRangeAsync(shortcuts);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -145,12 +162,15 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".CC.Visa");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            var shortcut = CreateTestShortcut(clip.Id, ".CC.Visa");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -167,12 +187,15 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".test");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            var shortcut = CreateTestShortcut(clip.Id, ".test");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -190,8 +213,11 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -207,8 +233,11 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -216,11 +245,14 @@ public class ShortcutServiceTests
         await service.UpdateClipShortcutAsync(_testDatabaseKey, clip.Id, ".test");
 
         // Assert
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(1);
-        await Assert.That(shortcuts[0].ClipId).IsEqualTo(clip.Id);
-        await Assert.That(shortcuts[0].Nickname).IsEqualTo(".test");
-        await Assert.That(shortcuts[0].ClipGuid).IsEqualTo(clip.Id);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(1);
+            await Assert.That(shortcuts[0].ClipId).IsEqualTo(clip.Id);
+            await Assert.That(shortcuts[0].Nickname).IsEqualTo(".test");
+            await Assert.That(shortcuts[0].ClipGuid).IsEqualTo(clip.Id);
+        }
     }
 
     [Test]
@@ -228,12 +260,15 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".old");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            var shortcut = CreateTestShortcut(clip.Id, ".old");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -241,9 +276,12 @@ public class ShortcutServiceTests
         await service.UpdateClipShortcutAsync(_testDatabaseKey, clip.Id, ".new");
 
         // Assert
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(1);
-        await Assert.That(shortcuts[0].Nickname).IsEqualTo(".new");
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(1);
+            await Assert.That(shortcuts[0].Nickname).IsEqualTo(".new");
+        }
     }
 
     [Test]
@@ -251,12 +289,15 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".test");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            var shortcut = CreateTestShortcut(clip.Id, ".test");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -264,8 +305,11 @@ public class ShortcutServiceTests
         await service.UpdateClipShortcutAsync(_testDatabaseKey, clip.Id, null);
 
         // Assert
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(0);
+        }
     }
 
     [Test]
@@ -273,12 +317,15 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".test");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            var shortcut = CreateTestShortcut(clip.Id, ".test");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -286,8 +333,11 @@ public class ShortcutServiceTests
         await service.UpdateClipShortcutAsync(_testDatabaseKey, clip.Id, "   ");
 
         // Assert
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(0);
+        }
     }
 
     [Test]
@@ -295,8 +345,11 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
         var longNickname = new string('a', 65); // 65 characters
@@ -311,12 +364,16 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        Shortcut shortcut;
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        var shortcut = CreateTestShortcut(clip.Id, ".test");
-        await _testContext.Shortcuts.AddAsync(shortcut);
-        await _testContext.SaveChangesAsync();
+            shortcut = CreateTestShortcut(clip.Id, ".test");
+            await setupContext.Shortcuts.AddAsync(shortcut);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -324,8 +381,11 @@ public class ShortcutServiceTests
         await service.DeleteAsync(_testDatabaseKey, shortcut.Id);
 
         // Assert
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(0);
+        }
     }
 
     [Test]
@@ -338,8 +398,11 @@ public class ShortcutServiceTests
         // Act & Assert (should not throw)
         await service.DeleteAsync(_testDatabaseKey, nonExistentId);
 
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(0);
+        }
     }
 
     [Test]
@@ -347,17 +410,20 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
-
-        var shortcuts = new[]
+        await using (var setupContext = CreateContext())
         {
-            CreateTestShortcut(clip.Id, ".test1"),
-            CreateTestShortcut(clip.Id, ".test2"),
-        };
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
 
-        await _testContext.Shortcuts.AddRangeAsync(shortcuts);
-        await _testContext.SaveChangesAsync();
+            var shortcuts = new[]
+            {
+                CreateTestShortcut(clip.Id, ".test1"),
+                CreateTestShortcut(clip.Id, ".test2"),
+            };
+
+            await setupContext.Shortcuts.AddRangeAsync(shortcuts);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
@@ -365,8 +431,11 @@ public class ShortcutServiceTests
         await service.DeleteByClipIdAsync(_testDatabaseKey, clip.Id);
 
         // Assert
-        var remainingShortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(remainingShortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var remainingShortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(remainingShortcuts.Count).IsEqualTo(0);
+        }
     }
 
     [Test]
@@ -374,16 +443,22 @@ public class ShortcutServiceTests
     {
         // Arrange
         var clip = CreateTestClip();
-        await _testContext.Clips.AddAsync(clip);
-        await _testContext.SaveChangesAsync();
+        await using (var setupContext = CreateContext())
+        {
+            await setupContext.Clips.AddAsync(clip);
+            await setupContext.SaveChangesAsync();
+        }
 
         var service = CreateService();
 
         // Act & Assert (should not throw)
         await service.DeleteByClipIdAsync(_testDatabaseKey, clip.Id);
 
-        var shortcuts = await _testContext.Shortcuts.ToListAsync();
-        await Assert.That(shortcuts.Count).IsEqualTo(0);
+        await using (var verifyContext = CreateContext())
+        {
+            var shortcuts = await verifyContext.Shortcuts.ToListAsync();
+            await Assert.That(shortcuts.Count).IsEqualTo(0);
+        }
     }
 
     private ShortcutService CreateService() => new(_mockDatabaseManager.Object, _mockLogger.Object);
