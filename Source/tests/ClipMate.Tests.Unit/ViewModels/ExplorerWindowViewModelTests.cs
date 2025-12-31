@@ -75,9 +75,11 @@ public class ExplorerWindowViewModelTests
         mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
 
         var mockMenuMessenger = new Mock<IMessenger>();
+        var mockClipViewerWindowManager = new Mock<IClipViewerWindowManager>();
         var mainMenuViewModel = new MainMenuViewModel(
             mockMenuMessenger.Object,
             new Mock<IUndoService>().Object,
+            mockClipViewerWindowManager.Object,
             mockServiceProvider.Object);
 
         return new ExplorerWindowViewModel(

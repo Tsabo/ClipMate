@@ -47,6 +47,54 @@ public partial class MonacoEditorControl
         // Set up WebView2
         EditorWebView.DefaultBackgroundColor = Color.Transparent;
         EditorWebView.NavigationCompleted += OnNavigationCompleted;
+
+        // Start WebView2 initialization immediately (don't wait for Loaded event)
+        // This allows Monaco to initialize in parallel with window layout
+        _ = InitializeWebView2Async();
+    }
+
+    /// <summary>
+    /// Initializes WebView2 asynchronously. Called from constructor to start early.
+    /// </summary>
+    private async Task InitializeWebView2Async()
+    {
+        try
+        {
+            // Initialize WebView2 with shared user data folder for better performance
+            var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "WebView2");
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+
+            try
+            {
+                await EditorWebView.EnsureCoreWebView2Async(env);
+            }
+            catch (ArgumentException ex) when (ex.Message.Contains("already initialized"))
+            {
+                // WebView2 was initialized by another path - this is fine
+                _logger.LogDebug("Monaco WebView2 was already initialized via another path, proceeding");
+            }
+
+            _logger.LogDebug("Monaco WebView2 initialized with shared environment");
+
+            // Load Monaco Editor HTML - this triggers NavigationCompleted
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var htmlPath = Path.Combine(baseDir, "Assets", "monaco", "index.html");
+
+            _logger.LogDebug("Loading Monaco Editor from: {HtmlPath}", htmlPath);
+
+            if (!File.Exists(htmlPath))
+            {
+                _logger.LogError("Monaco Editor index.html not found at: {HtmlPath}", htmlPath);
+                return;
+            }
+
+            EditorWebView.Source = new Uri(htmlPath);
+            _logger.LogDebug("Monaco source set, waiting for NavigationCompleted");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Monaco Editor WebView2");
+        }
     }
 
     public bool EnableDebug
@@ -72,37 +120,17 @@ public partial class MonacoEditorControl
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (IsInitialized)
+        // Initialization is now done in constructor via InitializeWebView2Async()
+        // OnLoaded is kept for backward compatibility but does nothing if already initialized
+        if (IsInitialized || EditorWebView.CoreWebView2 != null)
+        {
+            _logger.LogDebug("Monaco already initialized or initializing, skipping OnLoaded initialization");
             return;
-
-        try
-        {
-            // Initialize WebView2 with shared user data folder for better performance
-            var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "WebView2");
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
-            await EditorWebView.EnsureCoreWebView2Async(env);
-            _logger.LogDebug("Monaco WebView2 initialized with shared environment");
-
-            // Load Monaco Editor HTML - this triggers NavigationCompleted
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var htmlPath = Path.Combine(baseDir, "Assets", "monaco", "index.html");
-
-            _logger.LogDebug("Loading Monaco Editor from: {HtmlPath}", htmlPath);
-
-            if (!File.Exists(htmlPath))
-            {
-                _logger.LogError("Monaco Editor index.html not found at: {HtmlPath}", htmlPath);
-                throw new FileNotFoundException($"Monaco Editor index.html not found at: {htmlPath}");
-            }
-
-            EditorWebView.Source = new Uri(htmlPath);
-            _logger.LogDebug("Monaco source set, waiting for NavigationCompleted");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load Monaco Editor");
-            MessageBox.Show($"Failed to load Monaco Editor: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+
+        // Fallback: if constructor initialization failed for some reason, try again
+        _logger.LogDebug("Monaco not initialized, attempting fallback initialization in OnLoaded");
+        await InitializeWebView2Async();
     }
 
     private async void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)

@@ -1,3 +1,4 @@
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -21,6 +22,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         _viewModel = new MainMenuViewModel(
             _messengerMock.Object,
             new Mock<IUndoService>().Object,
+            new Mock<IClipViewerWindowManager>().Object,
             new Mock<IServiceProvider>().Object);
     }
 

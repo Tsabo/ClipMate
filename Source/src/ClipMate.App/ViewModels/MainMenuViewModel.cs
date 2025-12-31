@@ -21,6 +21,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject
 {
+    private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
@@ -39,10 +40,12 @@ public partial class MainMenuViewModel : ObservableObject
 
     public MainMenuViewModel(IMessenger messenger,
         IUndoService undoService,
+        IClipViewerWindowManager clipViewerWindowManager,
         IServiceProvider serviceProvider)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
+        _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
@@ -376,7 +379,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void LaunchCharMap() { }
 
     [RelayCommand]
-    private void ViewClip() { }
+    private void ViewClip() => _clipViewerWindowManager.ToggleVisibility();
 
     [RelayCommand]
     private void SwitchView() => _messenger.Send(new ShowExplorerWindowEvent());

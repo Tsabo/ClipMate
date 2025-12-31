@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -13,9 +13,10 @@ public partial class ClipViewerViewModel : ObservableObject
 {
     #region Constructor
 
-    public ClipViewerViewModel(IClipRepository clipRepository, ILogger<ClipViewerViewModel> logger)
+    public ClipViewerViewModel(IDatabaseManager databaseManager,
+        ILogger<ClipViewerViewModel> logger)
     {
-        _clipRepository = clipRepository ?? throw new ArgumentNullException(nameof(clipRepository));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -23,8 +24,9 @@ public partial class ClipViewerViewModel : ObservableObject
 
     #region Fields
 
-    private readonly IClipRepository _clipRepository;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipViewerViewModel> _logger;
+    private string? _currentDatabaseKey;
 
     #endregion
 
@@ -59,17 +61,46 @@ public partial class ClipViewerViewModel : ObservableObject
     #region Commands
 
     /// <summary>
-    /// Loads a clip by ID.
+    /// Loads a clip by ID from the specified database.
     /// </summary>
+    /// <param name="args">Tuple of (clipId, databaseKey).</param>
     [RelayCommand]
-    private async Task LoadClipAsync(Guid clipId)
+    private async Task LoadClipAsync((Guid ClipId, string? DatabaseKey) args)
     {
-        ClipId = clipId;
+        ClipId = args.ClipId;
+        _currentDatabaseKey = args.DatabaseKey;
         IsLoading = true;
 
         try
         {
-            CurrentClip = await _clipRepository.GetByIdAsync(clipId);
+            Clip? clip = null;
+
+            // Try to load from specified database first
+            if (!string.IsNullOrEmpty(_currentDatabaseKey))
+            {
+                await using var context = _databaseManager.CreateDatabaseContext(_currentDatabaseKey);
+                if (context != null)
+                    clip = await context.Clips.FindAsync(args.ClipId);
+            }
+
+            // If no database key provided, try all loaded databases
+            if (clip == null)
+            {
+                foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
+                {
+                    await using (context)
+                    {
+                        clip = await context.Clips.FindAsync(args.ClipId);
+                        if (clip != null)
+                        {
+                            _currentDatabaseKey = dbKey;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            CurrentClip = clip;
 
             if (CurrentClip != null)
             {
@@ -84,7 +115,7 @@ public partial class ClipViewerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading clip {ClipId}", clipId);
+            _logger.LogError(ex, "Error loading clip {ClipId} from database {DatabaseKey}", args.ClipId, _currentDatabaseKey);
             WindowTitle = "Clip Viewer - Error";
         }
         finally
@@ -100,7 +131,7 @@ public partial class ClipViewerViewModel : ObservableObject
     private async Task RefreshAsync()
     {
         if (ClipId.HasValue)
-            await LoadClipAsync(ClipId.Value);
+            await LoadClipAsync((ClipId.Value, _currentDatabaseKey));
     }
 
     #endregion

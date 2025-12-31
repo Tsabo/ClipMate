@@ -1,9 +1,11 @@
 <dx:ThemedWindow x:Class="ClipMate.App.Views.ClipViewerWindow"
+                 x:Name="ClipViewerWindowRoot"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  xmlns:viewmodels="clr-namespace:ClipMate.App.ViewModels"
                  d:DataContext="{d:DesignInstance Type=viewmodels:ClipViewerViewModel}"
@@ -11,15 +13,38 @@
                  Title="{Binding WindowTitle}"
                  Width="900"
                  Height="700"
-                 WindowStartupLocation="Manual"
+                 WindowStartupLocation="CenterScreen"
                  ShowInTaskbar="True">
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <!--
+        <dxb:ToolBarControl Grid.Row="0">
+            <dxb:BarCheckItem x:Name="PinButton"
+                              Content="Pin"
+                              Glyph="{dx:DXImage 'SvgImages/Icon Builder/Actions_Pin.svg'}"
+                              ToolTip="Pin this clip (prevents auto-follow when selecting other clips)"
+                              IsChecked="{Binding IsPinned, ElementName=ClipViewerWindowRoot, Mode=TwoWay}" />
+            <dxb:BarItemSeparator />
+            <dxb:BarButtonItem Content="Refresh"
+                               Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Reload.svg'}"
+                               Command="{Binding RefreshCommand}"
+                               ToolTip="Refresh clip data (F5)" />
+        </dxb:ToolBarControl>
+        -->
+        <!-- Clip Viewer -->
         <controls:ClipViewerControl x:Name="ClipViewer"
+                                    Grid.Row="1"
                                     ClipId="{Binding ClipId}" />
 
         <!-- Loading Overlay -->
-        <Border Background="#CC000000"
+        <Border Grid.Row="1"
+                Background="#CC000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center">

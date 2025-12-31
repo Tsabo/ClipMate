@@ -1,10 +1,10 @@
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -32,6 +32,7 @@ public class ClassicViewModelTests
         var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger.Object,
             new Mock<IUndoService>().Object,
+            new Mock<IClipViewerWindowManager>().Object,
             mockServiceProvider.Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
@@ -79,6 +80,7 @@ public class ClassicViewModelTests
         var mainMenu = new MainMenuViewModel(
             _mockMessenger.Object,
             new Mock<IUndoService>().Object,
+            new Mock<IClipViewerWindowManager>().Object,
             mockServiceProvider.Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();

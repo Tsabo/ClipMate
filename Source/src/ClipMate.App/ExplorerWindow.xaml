@@ -19,6 +19,9 @@
                  MinHeight="545"
                  MinWidth="1000"
                  StateChanged="Window_StateChanged">
+    <dx:ThemedWindow.InputBindings>
+        <KeyBinding Key="F2" Command="{Binding MainMenu.ViewClipCommand}" />
+    </dx:ThemedWindow.InputBindings>
     <dx:ThemedWindow.Resources>
         <converters:StatusBarStatisticsConverter x:Key="StatusBarStatisticsConverter" />
     </dx:ThemedWindow.Resources>
