@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
              xmlns:local="clr-namespace:ClipMate.App"
@@ -87,7 +88,7 @@
         <!-- Transform Group -->
         <dxb:BarSubItem Content="Transform"
                         Glyph="{dx:DXImage 'Images/Actions/EditName_16x16.png'}">
-            
+
             <!-- Remove Line Breaks submenu -->
             <dxb:BarSubItem Content="Remove Line Breaks"
                             Glyph="{dx:DXImage 'Images/Format/RemoveSpace_16x16.png'}">
@@ -163,6 +164,21 @@
                            Glyph="{helpers:EmojiIconSource Emoji='❓'}"
                            Command="{Binding ShowHelpCommand}"
                            ToolTip="Show ClipViewer help" />
+
+        <dxb:BarItemSeparator />
+
+        <!-- Language Selector -->
+        <dxb:BarStaticItem Content="Language:" />
+        <dxb:BarEditItem EditWidth="120"
+                         ToolTip="Select syntax highlighting language">
+            <dxb:BarEditItem.EditSettings>
+                <dxe:ComboBoxEditSettings ItemsSource="{Binding AvailableLanguages}"
+                                          IsTextEditable="False" />
+            </dxb:BarEditItem.EditSettings>
+            <dxb:BarEditItem.EditValue>
+                <Binding Path="SelectedLanguage" Mode="TwoWay" />
+            </dxb:BarEditItem.EditValue>
+        </dxb:BarEditItem>
 
     </dxb:ToolBarControl>
 </UserControl>

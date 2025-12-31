@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Windows.Controls;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,7 +43,6 @@ public partial class MonacoEditorControl
         _logger = ((App)Application.Current).ServiceProvider.GetRequiredService<ILogger<MonacoEditorControl>>();
 
         AvailableLanguages = [];
-        LanguageComboBox.ItemsSource = AvailableLanguages;
 
         // Set up WebView2
         EditorWebView.DefaultBackgroundColor = Color.Transparent;
@@ -283,28 +281,11 @@ public partial class MonacoEditorControl
                 return;
 
             Text = text;
-
-            // Update word/char count
-            if (!DisplayWordAndCharacterCounts)
-                return;
-
-            var words = text.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length;
-            var chars = text.Length;
-            await Dispatcher.InvokeAsync(() =>
-            {
-                WordCharCountTextBlock.Text = $"{words:N0} words, {chars:N0} characters";
-            });
         }
         finally
         {
             _suppressTextChanged = false;
         }
-    }
-
-    private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_suppressTextChanged && IsInitialized && LanguageComboBox.SelectedItem is string language)
-            _ = SetLanguageAsync(language);
     }
 
     #region Helper Classes

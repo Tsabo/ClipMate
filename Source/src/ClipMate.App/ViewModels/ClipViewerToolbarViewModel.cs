@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -18,12 +19,27 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
     private bool _isWordWrapEnabled;
 
     [ObservableProperty]
+    private string _selectedLanguage = "plaintext";
+
+    [ObservableProperty]
     private bool _showNonPrintingCharacters;
 
     public ClipViewerToolbarViewModel(ILogger<ClipViewerToolbarViewModel> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Initialize available languages
+        AvailableLanguages =
+        [
+            "plaintext", "csharp", "cpp", "css", "html", "java", "javascript",
+            "json", "markdown", "php", "python", "sql", "typescript", "xml", "yaml",
+        ];
     }
+
+    /// <summary>
+    /// Gets the available programming languages for syntax highlighting.
+    /// </summary>
+    public ObservableCollection<string> AvailableLanguages { get; }
 
     #region Help Command
 
@@ -35,6 +51,12 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
     }
 
     #endregion
+
+    partial void OnSelectedLanguageChanged(string value)
+    {
+        _logger.LogDebug("Language changed to: {Language}", value);
+        OnLanguageChanged?.Invoke(value);
+    }
 
     #region Action Handlers (set by ClipViewerControl)
 
@@ -59,6 +81,8 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
     public Action? OnFindRequested { get; set; }
 
     public Action? OnShowHelpRequested { get; set; }
+
+    public Action<string>? OnLanguageChanged { get; set; }
 
     #endregion
 

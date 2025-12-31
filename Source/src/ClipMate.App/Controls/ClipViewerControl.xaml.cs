@@ -855,6 +855,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private void OnTextEditorLanguageChanged(object? sender, EventArgs e)
     {
+        // Keep toolbar ViewModel in sync with editor language
+        if (_toolbarViewModel.SelectedLanguage != TextEditor.Language)
+            _toolbarViewModel.SelectedLanguage = TextEditor.Language;
+
         // Don't save if we're loading content - only save actual user changes
         if (_isLoadingContent)
             return;
@@ -1277,6 +1281,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _toolbarViewModel.OnUndoRequested = () => Dispatcher.Invoke(async () => await HandleUndoAsync());
         _toolbarViewModel.OnFindRequested = () => Dispatcher.Invoke(async () => await HandleFindAsync());
         _toolbarViewModel.OnShowHelpRequested = () => Dispatcher.Invoke(HandleShowHelp);
+        _toolbarViewModel.OnLanguageChanged = language => Dispatcher.Invoke(() => TextEditor.Language = language);
     }
 
     private void HandleNewClip()
