@@ -106,25 +106,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void CreateNewClip() => _messenger.Send(new CreateNewClipRequestedEvent(Guid.Empty));
 
     [RelayCommand]
-    private async Task ClipProperties()
-    {
-        // Get the currently selected clip from the ClipListViewModel
-        var clipListVm = _serviceProvider.GetRequiredService<ClipListViewModel>();
-        var selectedClip = clipListVm.SelectedClip;
-
-        if (selectedClip == null)
-            return;
-
-        var dialog = new ClipPropertiesDialog();
-        var viewModel = _serviceProvider.GetRequiredService<ClipPropertiesViewModel>();
-
-        await viewModel.LoadClipAsync(selectedClip);
-        dialog.DataContext = viewModel;
-
-        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
-        dialog.Owner = activeWindowService.DialogOwner;
-        dialog.ShowDialog();
-    }
+    private void ClipProperties() => _messenger.Send(new ShowClipPropertiesRequestedEvent());
 
     [RelayCommand]
     private void RenameClip() => _messenger.Send(new RenameClipRequestedEvent(Guid.Empty, string.Empty));

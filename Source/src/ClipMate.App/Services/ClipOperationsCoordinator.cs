@@ -33,7 +33,8 @@ public class ClipOperationsCoordinator :
     IRecipient<CleanUpTextRequestedEvent>,
     IRecipient<RemoveLineBreaksRequestedEvent>,
     IRecipient<StripNonTextRequestedEvent>,
-    IRecipient<CaseConversionRequestedEvent>
+    IRecipient<CaseConversionRequestedEvent>,
+    IRecipient<ShowClipPropertiesRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
@@ -85,8 +86,39 @@ public class ClipOperationsCoordinator :
         _messenger.Register<RemoveLineBreaksRequestedEvent>(this);
         _messenger.Register<StripNonTextRequestedEvent>(this);
         _messenger.Register<CaseConversionRequestedEvent>(this);
+        _messenger.Register<ShowClipPropertiesRequestedEvent>(this);
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
+    }
+
+    /// <summary>
+    /// Handles ShowClipPropertiesRequestedEvent to show the clip properties dialog.
+    /// </summary>
+    public async void Receive(ShowClipPropertiesRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            _logger.LogDebug("ShowClipProperties: No clip selected");
+            return;
+        }
+
+        try
+        {
+            var dialog = new ClipPropertiesDialog();
+            var viewModel = _serviceProvider.GetRequiredService<ClipPropertiesViewModel>();
+
+            await viewModel.LoadClipAsync(selectedClip);
+            dialog.DataContext = viewModel;
+            dialog.Owner = _activeWindowService.DialogOwner;
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to show clip properties for clip {ClipId}", selectedClip.Id);
+            SendStatus($"Failed to show clip properties: {ex.Message}", true);
+        }
     }
 
     /// <summary>
