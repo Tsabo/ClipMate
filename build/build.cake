@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 ///
 var target = Argument("target", "Build");
 var configuration = Argument("configuration", "Release");
-var versionOverride = Argument("version", "");
+var versionOverride = Argument("release-version", "");
 
 //////////////////////////////////////////////////////////////////////
 // PREPARATION
@@ -513,11 +513,11 @@ Task("Sanitize-Logs")
         .Concat(GetFiles($"{logsDir}/**/*.log"))
         .Concat(GetFiles($"{logsDir}/**/*.trx"));
     
-    foreach (var logFile in logFiles)
+    foreach (var item in logFiles)
     {
         try
         {
-            var content = System.IO.File.ReadAllText(logFile.FullPath);
+            var content = System.IO.File.ReadAllText(item.FullPath);
             
             // Sanitize paths
             content = content.Replace(repoRoot.FullPath, "<REPO_ROOT>");
@@ -527,11 +527,11 @@ Task("Sanitize-Logs")
             // Sanitize username
             content = content.Replace(username, "<USER>");
             
-            System.IO.File.WriteAllText(logFile.FullPath, content);
+            System.IO.File.WriteAllText(item.FullPath, content);
         }
         catch (Exception ex)
         {
-            Warning($"Failed to sanitize {logFile.GetFilename()}: {ex.Message}");
+            Warning($"Failed to sanitize {item.GetFilename()}: {ex.Message}");
         }
     }
     
@@ -546,19 +546,37 @@ Task("Package")
     .Does(() =>
 {
     var startTime = DateTime.Now;
+    
+    // Create portable ZIP
+    Information("Creating portable ZIP...");
+    var zipName = $"ClipMate-Portable-{version}.zip";
+    var zipPath = installerOutputDir.CombineWithFilePath(zipName);
+    
+    // Delete existing ZIP if present
+    if (FileExists(zipPath))
+        DeleteFile(zipPath);
+    
+    Zip(publishDir, zipPath);
+    
+    var zipSize = new System.IO.FileInfo(zipPath.FullPath).Length;
+    Information($"Portable ZIP created: {zipPath}");
+    Information($"Size: {zipSize / 1024 / 1024:F2} MB");
+    
+    // Generate checksums for all artifacts
     Information("Generating checksums...");
     
-    var installers = GetFiles($"{installerOutputDir}/*.exe");
+    var artifacts = GetFiles($"{installerOutputDir}/*.exe")
+        .Concat(GetFiles($"{installerOutputDir}/*.zip"));
     
-    foreach (var installer in installers)
+    foreach (var item in artifacts)
     {
-        var checksumFile = File($"{installer.ToString()}.sha256");
-        var hash = CalculateFileHash(installer, HashAlgorithm.SHA256);
+        var checksumFile = File($"{item.ToString()}.sha256");
+        var hash = CalculateFileHash(item, HashAlgorithm.SHA256);
         
         System.IO.File.WriteAllText(checksumFile.ToString(), 
-            $"{hash.ToHex()}  {installer.GetFilename()}");
+            $"{hash.ToHex()}  {item.GetFilename()}");
         
-        Information($"Checksum: {installer.GetFilename()}.sha256");
+        Information($"Checksum: {item.GetFilename()}.sha256");
     }
     
     var elapsed = DateTime.Now - startTime;

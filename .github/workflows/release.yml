@@ -67,7 +67,7 @@ jobs:
       run: choco install ninja -y
 
     - name: Run release build
-      run: dotnet cake build/build.cake --target=Release --version=${{ steps.get_version.outputs.VERSION }}
+      run: dotnet cake build/build.cake --target=Release --release-version=${{ steps.get_version.outputs.VERSION }}
       env:
         DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
         DevExpress_License: ${{ secrets.DEVEXPRESS_LICENSE }}
@@ -76,17 +76,21 @@ jobs:
         SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
         SIGNPATH_SIGNING_POLICY: ${{ secrets.SIGNPATH_SIGNING_POLICY }}
     
-    - name: Calculate installer size
+    - name: Calculate artifact sizes
       id: sizes
       shell: pwsh
       run: |
         $setup = Get-Item "build/installer/output/ClipMate-Setup-*.exe"
+        $portable = Get-Item "build/installer/output/ClipMate-Portable-*.zip"
         
         $setupSize = [math]::Round($setup.Length / 1MB, 2)
+        $portableSize = [math]::Round($portable.Length / 1MB, 2)
         
         echo "SETUP_SIZE=$setupSize" >> $env:GITHUB_OUTPUT
+        echo "PORTABLE_SIZE=$portableSize" >> $env:GITHUB_OUTPUT
         
         echo "Setup installer: $setupSize MB"
+        echo "Portable ZIP: $portableSize MB"
     
     - name: Create release notes
       id: release_notes
@@ -94,6 +98,7 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
         $setupSize = "${{ steps.sizes.outputs.SETUP_SIZE }}"
+        $portableSize = "${{ steps.sizes.outputs.PORTABLE_SIZE }}"
         $isPreRelease = "${{ steps.get_version.outputs.PRERELEASE }}" -eq "true"
         
         $signedStatus = if ("${{ secrets.SIGNPATH_API_TOKEN }}" -ne "") {
@@ -105,19 +110,24 @@ jobs:
         $notes = @"
         ## ClipMate $version
         
-        ### Download
+        ### Downloads
         
-        **[ClipMate-Setup-$version.exe](ClipMate-Setup-$version.exe)** (~$setupSize MB)
+        | Package | Size | Description |
+        |---------|------|-------------|
+        | **[ClipMate-Setup-$version.exe](ClipMate-Setup-$version.exe)** | ~$setupSize MB | Recommended - auto-installs dependencies |
+        | **[ClipMate-Portable-$version.zip](ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 9 & WebView2 pre-installed |
         
         ### Installation
         
+        **Installer (Recommended):**
         - **Target OS:** Windows 11 or Windows 10 version 1809+
-        - **Requirements:** Internet connection during install (only if dependencies missing)
-        - **Auto-installs if needed:**
-          - .NET 9 Desktop Runtime
-          - WebView2 Evergreen Runtime (usually pre-installed on Windows 11)
+        - **Auto-installs if needed:** .NET 9 Desktop Runtime, WebView2 Runtime
+        - Simply download and run - dependencies handled automatically
         
-        Simply download and run the installer - it will handle all dependencies automatically.
+        **Portable:**
+        - Extract ZIP and run `ClipMate.exe`
+        - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0) pre-installed
+        - Requires [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 11)
         
         ### Security
         
@@ -125,9 +135,13 @@ jobs:
         
         ### Verification
         
-        **SHA-256 Checksum:**
+        **SHA-256 Checksums:**
         ``````pwsh
+        # Verify installer
         (Get-FileHash ClipMate-Setup-$version.exe).Hash -eq (Get-Content ClipMate-Setup-$version.exe.sha256).Split()[0]
+        
+        # Verify portable
+        (Get-FileHash ClipMate-Portable-$version.zip).Hash -eq (Get-Content ClipMate-Portable-$version.zip.sha256).Split()[0]
         ``````
         
         ---
@@ -145,6 +159,8 @@ jobs:
         files: |
           build/installer/output/ClipMate-Setup-*.exe
           build/installer/output/ClipMate-Setup-*.exe.sha256
+          build/installer/output/ClipMate-Portable-*.zip
+          build/installer/output/ClipMate-Portable-*.zip.sha256
         body_path: release_notes.md
         draft: false
         prerelease: ${{ steps.get_version.outputs.PRERELEASE == 'true' }}
