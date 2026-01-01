@@ -2,6 +2,9 @@
 
 A modern recreation of the classic ClipMate clipboard manager built with .NET 9 and WPF.
 
+> This project is a modern, open‑source tribute to the original ClipMate® by
+> Thornsoft Development, which I have used and appreciated since 2004.
+
 > ⚠️ **Alpha Software** - This is an early alpha release under active development. Many features are incomplete and bugs are expected. Please report issues and help with testing!
 
 ## Status
@@ -75,6 +78,14 @@ ClipMate uses the following open-source and commercial libraries:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 **Third-Party Components**: This project uses third-party libraries with various open-source licenses (MIT, Apache 2.0, BSD, WTFPL) and one commercial component (DevExpress). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for complete license information and attribution.
+
+---
+## Acknowledgment
+
+ClipMate (this project) is an independent, open‑source recreation inspired by the original **ClipMate® Clipboard Extender**, created by **Thornsoft Development, Inc.** and developed by Chris Thornton.
+
+I have been a licensed ClipMate user since 2004, and this project was created as a tribute to the original application and the impact it had on my daily workflow. This project is not affiliated with, endorsed by, or connected to Thornsoft
+Development in any way. All trademarks and copyrights for the original ClipMate® belong to their respective owners.
 
 ---
 
