@@ -37,7 +37,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
     
     - name: Install Inno Setup
       run: choco install innosetup -y
@@ -52,14 +52,25 @@ jobs:
         key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
+
+    - name: AddDevExpressLicense
+      shell: cmd
+      run: |
+        set "DEST=%APPDATA%\DevExpress"
+        if not exist "%DEST%" mkdir "%DEST%"
+        echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
     
     - name: Restore .NET tools
       run: dotnet tool restore
     
+    - name: Setup Ninja (for font building)
+      run: choco install ninja -y
+
     - name: Run release build
       run: dotnet cake build/build.cake --target=Release --version=${{ steps.get_version.outputs.VERSION }}
       env:
         DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+        DevExpress_License: ${{ secrets.DEVEXPRESS_LICENSE }}
         SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
         SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
         SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
