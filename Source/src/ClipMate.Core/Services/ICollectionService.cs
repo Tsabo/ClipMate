@@ -122,4 +122,40 @@ public interface ICollectionService
         bool insertAfter,
         string databaseKey,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resequences sort keys for all collections in the specified database.
+    /// Normalizes SortKey values to 10, 20, 30, etc. for cleaner ordering.
+    /// </summary>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of collections updated.</returns>
+    Task<int> ResequenceSortKeysAsync(string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the first collection marked as favorite in the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The favorite collection, or null if none is marked as favorite.</returns>
+    Task<Collection?> GetFavoriteCollectionAsync(string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new collection with optional parent.
+    /// </summary>
+    /// <param name="name">Collection name.</param>
+    /// <param name="parentId">Optional parent collection/folder ID.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The created collection.</returns>
+    Task<Collection> CreateAsync(string name, Guid? parentId, string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a collection by name from the specified database.
+    /// </summary>
+    /// <param name="name">The collection name to find.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The collection if found; otherwise, null.</returns>
+    Task<Collection?> GetByNameAsync(string name, string databaseKey, CancellationToken cancellationToken = default);
 }

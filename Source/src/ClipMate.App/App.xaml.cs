@@ -628,6 +628,7 @@ public partial class App
                 services.AddSingleton<HotkeyCoordinator>();
                 services.AddSingleton<DatabaseMaintenanceCoordinator>();
                 services.AddSingleton<ClipOperationsCoordinator>();
+                services.AddSingleton<CollectionOperationsCoordinator>();
                 services.AddTransient<HotkeyWindow>();
 
                 // Register initialization pipeline and steps

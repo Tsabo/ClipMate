@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 using Application = System.Windows.Application;
+using Window = System.Windows.Window;
 
 namespace ClipMate.App.ViewModels;
 
@@ -27,6 +29,13 @@ public partial class MainMenuViewModel : ObservableObject
     private readonly IUndoService _undoService;
 
     /// <summary>
+    /// Gets or sets whether GoBack is enabled for QuickPaste.
+    /// When enabled, focus returns to ClipMate after pasting.
+    /// </summary>
+    [ObservableProperty]
+    private bool _goBackEnabled;
+
+    /// <summary>
     /// Gets whether there are multiple databases loaded (determines whether to show submenu).
     /// </summary>
     [ObservableProperty]
@@ -37,6 +46,19 @@ public partial class MainMenuViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isLoopMode;
+
+    /// <summary>
+    /// Gets or sets whether outbound clip filtering is enabled.
+    /// When enabled, clipboard contents are replaced with plain-text version after capture.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isOutboundFilterEnabled;
+
+    /// <summary>
+    /// Gets or sets whether target is locked for QuickPaste.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isTargetLocked;
 
     public MainMenuViewModel(IMessenger messenger,
         IUndoService undoService,
@@ -84,7 +106,25 @@ public partial class MainMenuViewModel : ObservableObject
     private void CreateNewClip() => _messenger.Send(new CreateNewClipRequestedEvent(Guid.Empty));
 
     [RelayCommand]
-    private void ClipProperties() { }
+    private async Task ClipProperties()
+    {
+        // Get the currently selected clip from the ClipListViewModel
+        var clipListVm = _serviceProvider.GetRequiredService<ClipListViewModel>();
+        var selectedClip = clipListVm.SelectedClip;
+
+        if (selectedClip == null)
+            return;
+
+        var dialog = new ClipPropertiesDialog();
+        var viewModel = _serviceProvider.GetRequiredService<ClipPropertiesViewModel>();
+
+        await viewModel.LoadClipAsync(selectedClip);
+        dialog.DataContext = viewModel;
+
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+        dialog.Owner = activeWindowService.DialogOwner;
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
     private void RenameClip() => _messenger.Send(new RenameClipRequestedEvent(Guid.Empty, string.Empty));
@@ -93,7 +133,7 @@ public partial class MainMenuViewModel : ObservableObject
     private void DeleteSelected() => _messenger.Send(new DeleteClipsRequestedEvent([]));
 
     [RelayCommand]
-    private void UnDelete() { }
+    private void UnDelete() => _messenger.Send(new RestoreClipsRequestedEvent());
 
     [RelayCommand]
     private void CopyToCollection() => _messenger.Send(new CopyToCollectionRequestedEvent([]));
@@ -129,25 +169,63 @@ public partial class MainMenuViewModel : ObservableObject
     private void ForgetEncryptionKey() { }
 
     [RelayCommand]
-    private void ShowProperties() { }
+    private void ShowProperties() => _messenger.Send(new ShowCollectionPropertiesRequestedEvent());
 
     [RelayCommand]
-    private void AddCollection() { }
+    private void AddCollection() => _messenger.Send(new AddCollectionRequestedEvent());
 
     [RelayCommand]
-    private void DeleteCollection() { }
+    private void DeleteCollection() => _messenger.Send(new DeleteCollectionRequestedEvent());
 
     [RelayCommand]
-    private void ReloadCollection() { }
+    private void ReloadCollection() => _messenger.Send(new ReloadCollectionRequestedEvent());
 
     [RelayCommand]
-    private void ResequenceSortKeys() { }
+    private void ResequenceSortKeys() => _messenger.Send(new ResequenceSortKeysRequestedEvent());
 
     [RelayCommand]
-    private void ActivateDatabase() { }
+    private void ActivateDatabase()
+    {
+        // Get the configuration service and database manager to find unloaded databases
+        var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        var databaseManager = _serviceProvider.GetRequiredService<IDatabaseManager>();
+        var loadedKeys = databaseManager.GetLoadedDatabases().Select(db => db.FilePath).ToHashSet();
+
+        // Find databases that are configured but not loaded
+        var inactiveDatabases = configService.Configuration.Databases.Values
+            .Where(db => !loadedKeys.Contains(db.FilePath))
+            .ToList();
+
+        if (inactiveDatabases.Count == 0)
+        {
+            _messenger.Send(new StatusUpdateEvent("All databases are already active"));
+            return;
+        }
+
+        // For now, activate the first inactive database
+        // TODO: Could show a picker dialog if multiple inactive databases exist
+        var database = inactiveDatabases.First();
+        _messenger.Send(new ActivateDatabaseRequestedEvent(database.FilePath));
+    }
 
     [RelayCommand]
-    private void DeactivateDatabase() { }
+    private void DeactivateDatabase()
+    {
+        // Get the database manager and show active databases
+        var databaseManager = _serviceProvider.GetRequiredService<IDatabaseManager>();
+        var databases = databaseManager.GetLoadedDatabases().ToList();
+
+        if (databases.Count <= 1)
+        {
+            _messenger.Send(new StatusUpdateEvent("Cannot deactivate the only active database"));
+            return;
+        }
+
+        // For now, deactivate the last loaded database (not the first/primary one)
+        // TODO: Could show a picker dialog if multiple databases are loaded
+        var database = databases.Last();
+        _messenger.Send(new DeactivateDatabaseRequestedEvent(database.FilePath));
+    }
 
     // Database Maintenance submenu
     [RelayCommand]
@@ -195,34 +273,50 @@ public partial class MainMenuViewModel : ObservableObject
     private bool CanUndo() => _undoService.CanUndo;
 
     [RelayCommand]
-    private void SelectAll() { }
+    private void SelectAll() => _messenger.Send(new SelectAllClipsRequestedEvent());
 
     [RelayCommand]
     private void CaptureSpecial() => _messenger.Send(new ManualCaptureClipboardEvent());
 
     [RelayCommand]
-    private void AppendClips() { }
+    private void AppendClips() => _messenger.Send(new AppendClipsRequestedEvent());
 
     [RelayCommand]
-    private void CleanUpText() { }
+    private void CleanUpText() => _messenger.Send(new CleanUpTextRequestedEvent());
 
     [RelayCommand]
-    private void ShiftLeft() { }
+    private void ShiftLeft() { } // Deferred to Step 6
 
     [RelayCommand]
-    private void ShiftRight() { }
+    private void ShiftRight() { } // Deferred to Step 6
 
     [RelayCommand]
-    private void RemoveLineBreaks() { }
+    private void RemoveLineBreaks() => _messenger.Send(new RemoveLineBreaksRequestedEvent());
 
     [RelayCommand]
-    private void CheckSpelling() { }
+    private void CheckSpelling() { } // Deferred to Step 6
 
     [RelayCommand]
     private void ChangeTitle() => _messenger.Send(new RenameClipRequestedEvent(Guid.Empty, string.Empty));
 
     [RelayCommand]
-    private void StripNonText() { }
+    private void StripNonText() => _messenger.Send(new StripNonTextRequestedEvent());
+
+    // Case conversion commands
+    [RelayCommand]
+    private void ToUpperCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Upper));
+
+    [RelayCommand]
+    private void ToLowerCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Lower));
+
+    [RelayCommand]
+    private void ToTitleCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Title));
+
+    [RelayCommand]
+    private void ToSentenceCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Sentence));
+
+    [RelayCommand]
+    private void ToggleCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Toggle));
 
     [RelayCommand]
     private void ConvertFilePointer() { }
@@ -246,20 +340,16 @@ public partial class MainMenuViewModel : ObservableObject
     [RelayCommand]
     private void AutoCapture() => _messenger.Send(new ToggleAutoCaptureEvent());
 
-    [RelayCommand]
-    private void FilterOutbound() { }
+    partial void OnIsOutboundFilterEnabledChanged(bool value) => _messenger.Send(new OutboundFilterToggleEvent(value));
 
     [RelayCommand]
     private void Options() => _messenger.Send(new OpenOptionsDialogEvent());
 
     [RelayCommand]
-    private void AppProfile() { }
+    private void AppProfile() => _messenger.Send(new OpenOptionsDialogEvent("AppProfiles"));
 
     [RelayCommand]
-    private void Language() { }
-
-    [RelayCommand]
-    private void ConnectToClipBar() { }
+    private void Language() => _messenger.Send(new OpenOptionsDialogEvent("FontLanguage"));
 
     [RelayCommand]
     private void ClipboardDiagnostics()
@@ -364,19 +454,33 @@ public partial class MainMenuViewModel : ObservableObject
     private void SelectNext() => _messenger.Send(new SelectNextClipEvent());
 
     [RelayCommand]
-    private void SwitchToLastCollection() { }
+    private void SwitchToLastCollection() => _messenger.Send(new SwitchToLastCollectionRequestedEvent());
 
     [RelayCommand]
-    private void SwitchToFavoriteCollection() { }
+    private void SwitchToFavoriteCollection() => _messenger.Send(new SwitchToFavoriteCollectionRequestedEvent());
 
     [RelayCommand]
     private void SelectCollection() { }
 
     [RelayCommand]
-    private void OpenSourceUrl() { }
+    private void OpenSourceUrl() => _messenger.Send(new OpenSourceUrlRequestedEvent());
 
     [RelayCommand]
-    private void LaunchCharMap() { }
+    private void LaunchCharMap()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "charmap.exe",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            // Silently fail if charmap is not available
+        }
+    }
 
     [RelayCommand]
     private void ViewClip() => _clipViewerWindowManager.ToggleVisibility();
@@ -391,7 +495,17 @@ public partial class MainMenuViewModel : ObservableObject
     private void OpenClassic() => _messenger.Send(new ShowClipBarRequestedEvent());
 
     [RelayCommand]
-    private void CloseAllWindows() { }
+    private void CloseAllWindows()
+    {
+        // Close all windows except the main hidden window that hosts the tray icon
+        var windowsToClose = Application.Current.Windows
+            .Cast<Window>()
+            .Where(w => w.IsVisible && w != Application.Current.MainWindow)
+            .ToList();
+
+        foreach (var window in windowsToClose)
+            window.Close();
+    }
 
     [RelayCommand]
     private void Transparency() { }
@@ -404,42 +518,69 @@ public partial class MainMenuViewModel : ObservableObject
     private void About() { }
 
     [RelayCommand]
-    private void Documentation() { }
+    private void Documentation()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://github.com/Jelosus2/ClipMate/wiki",
+            UseShellExecute = true,
+        });
+    }
 
     [RelayCommand]
-    private void ViewOnGitHub() { }
+    private void ViewOnGitHub()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://github.com/Jelosus2/ClipMate",
+            UseShellExecute = true,
+        });
+    }
 
     // ==========================
     // Toolbar Commands
     // ==========================
 
     [RelayCommand]
-    private void MoveToInbox() { }
+    private void MoveToInbox() => _messenger.Send(new MoveToNamedCollectionRequestedEvent("Inbox"));
 
     [RelayCommand]
-    private void MoveToSafe() { }
+    private void MoveToSafe() => _messenger.Send(new MoveToNamedCollectionRequestedEvent("Safe"));
 
     [RelayCommand]
-    private void MoveToOverflow() { }
+    private void MoveToOverflow() => _messenger.Send(new MoveToNamedCollectionRequestedEvent("Overflow"));
 
     [RelayCommand]
-    private void MoveToSamples() { }
+    private void MoveToSamples() => _messenger.Send(new MoveToNamedCollectionRequestedEvent("Samples"));
 
     [RelayCommand]
-    private void MoveToTrash() { }
+    private void MoveToTrash() => _messenger.Send(new MoveToNamedCollectionRequestedEvent("Trash"));
 
     [RelayCommand]
-    private void SelectInbox() { }
+    private void SelectInbox() => _messenger.Send(new SelectNamedCollectionRequestedEvent("Inbox"));
 
     [RelayCommand]
-    private void SelectSafe() { }
+    private void SelectSafe() => _messenger.Send(new SelectNamedCollectionRequestedEvent("Safe"));
 
     [RelayCommand]
-    private void SelectOverflow() { }
+    private void SelectOverflow() => _messenger.Send(new SelectNamedCollectionRequestedEvent("Overflow"));
 
     [RelayCommand]
-    private void SelectSamples() { }
+    private void SelectSamples() => _messenger.Send(new SelectNamedCollectionRequestedEvent("Samples"));
 
     [RelayCommand]
-    private void SelectTrash() { }
+    private void SelectTrash() => _messenger.Send(new SelectNamedCollectionRequestedEvent("Trash"));
+
+    // ==========================
+    // QuickPaste Menu Commands
+    // ==========================
+
+    [RelayCommand]
+    private void SendTab() => _messenger.Send(new QuickPasteSendTabEvent());
+
+    [RelayCommand]
+    private void SendEnter() => _messenger.Send(new QuickPasteSendEnterEvent());
+
+    [RelayCommand]
+    private void QuickPasteSettings() => _messenger.Send(new OpenOptionsDialogEvent("QuickPaste"));
 }

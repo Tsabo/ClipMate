@@ -54,7 +54,7 @@ public class CollectionService : ICollectionService
     {
         var allCollections = new List<Collection>();
 
-        foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
+        foreach (var (_, context) in _databaseManager.CreateAllDatabaseContexts())
         {
             await using (context)
             {
@@ -104,7 +104,7 @@ public class CollectionService : ICollectionService
         return collections
             .Where(p =>
                 !(p.LmType == CollectionLmType.Virtual || p.ListType == CollectionListType.Smart || p.ListType == CollectionListType.SqlBased) // not virtual
-                && p.AcceptNewClips && !p.ReadOnly)
+                && p is { AcceptNewClips: true, ReadOnly: false })
             .OrderBy(p => p.SortKey)
             .FirstOrDefault();
     }
@@ -254,5 +254,78 @@ public class CollectionService : ICollectionService
             allCollections[i].SortKey = i;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> ResequenceSortKeysAsync(string databaseKey, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // Get all non-virtual collections ordered by current SortKey
+        var collections = await dbContext.Collections
+            .Where(p => !p.IsVirtual)
+            .OrderBy(p => p.SortKey)
+            .ToListAsync(cancellationToken);
+
+        // Reassign SortKey values as 10, 20, 30, etc.
+        for (var i = 0; i < collections.Count; i++)
+            collections[i].SortKey = (i + 1) * 10;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return collections.Count;
+    }
+
+    public async Task<Collection?> GetFavoriteCollectionAsync(string databaseKey, CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        return await dbContext.Collections
+            .Where(p => p.Favorite && !p.IsVirtual)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Collection> CreateAsync(string name, Guid? parentId, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // Get the max SortKey to place new collection at the end
+        var maxSortKey = await dbContext.Collections
+            .Where(p => p.ParentId == parentId && !p.IsVirtual)
+            .MaxAsync(p => (int?)p.SortKey, cancellationToken) ?? 0;
+
+        var collection = new Collection
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            ParentId = parentId,
+            ParentGuid = parentId,
+            SortKey = maxSortKey + 10,
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            AcceptNewClips = true,
+            AcceptDuplicates = true,
+            LmType = CollectionLmType.Normal,
+            ListType = CollectionListType.Normal,
+        };
+
+        dbContext.Collections.Add(collection);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return collection;
+    }
+
+    public async Task<Collection?> GetByNameAsync(string name, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        return await dbContext.Collections
+            .Where(p => p.Name == name && !p.IsVirtual)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

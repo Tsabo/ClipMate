@@ -205,9 +205,9 @@
                         <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
                                            Command="{Binding MainMenu.AutoCaptureCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='📹'}" />
-                        <dxb:BarButtonItem Content="Filter Outbound Clips"
-                                           Command="{Binding MainMenu.FilterOutboundCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='📊'}" />
+                        <dxb:BarCheckItem Content="Filter Outbound Clips"
+                                          IsChecked="{Binding MainMenu.IsOutboundFilterEnabled}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='📊'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />
@@ -216,9 +216,6 @@
                                            Glyph="{helpers:EmojiIconSource Emoji='💻'}" />
                         <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🌐'}" />
-                        <dxb:BarButtonItem Content="Connect to ClipBar"
-                                           Command="{Binding MainMenu.ConnectToClipBarCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Clipboard Diagnostics..."
                                            Command="{Binding MainMenu.ClipboardDiagnosticsCommand}"

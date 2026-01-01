@@ -1073,7 +1073,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private void ResetAllTabs()
     {
         // Hide all tabs first to ensure clean state
-        HideAllTabs();
+        //HideAllTabs();
 
         // Reset editor - if not initialized, SetTextAsync will return early
         TextEditor.Text = string.Empty;

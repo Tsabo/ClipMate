@@ -81,7 +81,7 @@ public partial class OptionsViewModel : ObservableObject
             "EDITOR" => 3,
             "CAPTURING" => 4,
             "APPPROFILES" => 5,
-            "APPEARANCE" => 6,
+            "FONTLANGUAGE" => 6,
             "SOUNDS" => 7,
             "HOTKEYS" => 8,
             "DATABASE" => 9,

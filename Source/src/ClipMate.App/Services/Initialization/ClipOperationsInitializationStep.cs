@@ -3,20 +3,25 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.App.Services.Initialization;
 
 /// <summary>
-/// Initialization step that ensures the ClipOperationsCoordinator is instantiated at startup.
-/// The coordinator registers for messenger events in its constructor, so it must be created
-/// before any clip operation events are sent.
+/// Initialization step that ensures the ClipOperationsCoordinator and CollectionOperationsCoordinator
+/// are instantiated at startup. The coordinators register for messenger events in their constructors,
+/// so they must be created before any operation events are sent.
 /// </summary>
 public class ClipOperationsInitializationStep : IStartupInitializationStep
 {
-    private readonly ClipOperationsCoordinator _coordinator;
+    // ReSharper disable once NotAccessedField.Local
+    private readonly ClipOperationsCoordinator _clipCoordinator;
+    // ReSharper disable once NotAccessedField.Local
+    private readonly CollectionOperationsCoordinator _collectionCoordinator;
     private readonly ILogger<ClipOperationsInitializationStep> _logger;
 
-    public ClipOperationsInitializationStep(ClipOperationsCoordinator coordinator,
+    public ClipOperationsInitializationStep(ClipOperationsCoordinator clipCoordinator,
+        CollectionOperationsCoordinator collectionCoordinator,
         ILogger<ClipOperationsInitializationStep> logger)
     {
-        // Simply injecting the coordinator triggers its construction and event registration
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+        // Simply injecting the coordinators triggers their construction and event registration
+        _clipCoordinator = clipCoordinator ?? throw new ArgumentNullException(nameof(clipCoordinator));
+        _collectionCoordinator = collectionCoordinator ?? throw new ArgumentNullException(nameof(collectionCoordinator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -29,9 +34,9 @@ public class ClipOperationsInitializationStep : IStartupInitializationStep
     /// <inheritdoc />
     public Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        // The coordinator is already initialized via constructor injection
+        // The coordinators are already initialized via constructor injection
         // This step just ensures it happens during the startup pipeline
-        _logger.LogDebug("ClipOperationsCoordinator initialized and ready for events");
+        _logger.LogDebug("ClipOperationsCoordinator and CollectionOperationsCoordinator initialized and ready for events");
         return Task.CompletedTask;
     }
 }

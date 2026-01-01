@@ -62,6 +62,10 @@ public class QuickPasteService : IQuickPasteService
         // Subscribe to configuration changes for immediate reload
         _messenger.Register<QuickPasteConfigurationChangedEvent>(this, (_, _) => OnConfigurationChanged());
 
+        // Subscribe to QuickPaste action events from menu commands
+        _messenger.Register<QuickPasteSendTabEvent>(this, (_, _) => SendTabKeystroke());
+        _messenger.Register<QuickPasteSendEnterEvent>(this, (_, _) => SendEnterKeystroke());
+
         // Select default formatting string (one with TitleTrigger = "*")
         SelectDefaultFormattingString();
     }

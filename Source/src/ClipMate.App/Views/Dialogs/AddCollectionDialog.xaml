@@ -1,0 +1,57 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.AddCollectionDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 mc:Ignorable="d"
+                 Title="Create New Collection"
+                 Width="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False"
+                 SizeToContent="Height">
+
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Click="OkButton_Click"
+                                     IsDefault="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     IsCancel="True"
+                                     DialogResult="Cancel"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="12">
+        <!-- Collection Name -->
+        <dxlc:LayoutItem Label="Collection Name:" LabelPosition="Top">
+            <dxe:TextEdit x:Name="CollectionNameTextBox"
+                          Height="32"
+                          FontSize="13" />
+        </dxlc:LayoutItem>
+
+        <!-- Position Options -->
+        <dxlc:LayoutGroup View="GroupBox"
+                          Header="Position New Collection:"
+                          Orientation="Vertical"
+                          Margin="0,8,0,0">
+            <dxlc:LayoutItem>
+                <RadioButton x:Name="BelowSelectedRadio"
+                             IsChecked="True"
+                             GroupName="Position">
+                    <TextBlock x:Name="BelowSelectedText"
+                               Text="Below the currently selected collection: [None]" />
+                </RadioButton>
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <RadioButton x:Name="TopLevelRadio"
+                             Content="At the top level of the hierarchy"
+                             GroupName="Position" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

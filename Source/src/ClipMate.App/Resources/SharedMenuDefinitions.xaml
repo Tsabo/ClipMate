@@ -85,9 +85,23 @@
             <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
                                Command="{Binding MainMenu.AppendClipsCommand}" />
             <dxb:BarSubItem Content="Screen Capture" />
-            <dxb:BarSubItem Content="QuickPaste" />
+            <dxb:BarSubItem Content="QuickPaste">
+                <dxb:BarButtonItem Content="Send Tab (F9)" Command="{Binding MainMenu.SendTabCommand}" />
+                <dxb:BarButtonItem Content="Send Enter (Shift+F9)" Command="{Binding MainMenu.SendEnterCommand}" />
+                <dxb:BarItemSeparator />
+                <dxb:BarCheckItem Content="Go Back After Paste" IsChecked="{Binding MainMenu.GoBackEnabled}" />
+                <dxb:BarCheckItem Content="Lock Target" IsChecked="{Binding MainMenu.IsTargetLocked}" />
+                <dxb:BarItemSeparator />
+                <dxb:BarButtonItem Content="QuickPaste Settings..." Command="{Binding MainMenu.QuickPasteSettingsCommand}" />
+            </dxb:BarSubItem>
             <dxb:BarItemSeparator />
-            <dxb:BarSubItem Content="Case Conversion" />
+            <dxb:BarSubItem Content="Case Conversion">
+                <dxb:BarButtonItem Content="UPPERCASE" Command="{Binding MainMenu.ToUpperCaseCommand}" />
+                <dxb:BarButtonItem Content="lowercase" Command="{Binding MainMenu.ToLowerCaseCommand}" />
+                <dxb:BarButtonItem Content="Title Case" Command="{Binding MainMenu.ToTitleCaseCommand}" />
+                <dxb:BarButtonItem Content="Sentence case" Command="{Binding MainMenu.ToSentenceCaseCommand}" />
+                <dxb:BarButtonItem Content="iNVERT cASE" Command="{Binding MainMenu.ToggleCaseCommand}" />
+            </dxb:BarSubItem>
             <dxb:BarButtonItem Content="Clean-Up Text..." Command="{Binding MainMenu.CleanUpTextCommand}" />
             <dxb:BarButtonItem Content="Shift Left" Command="{Binding MainMenu.ShiftLeftCommand}" />
             <dxb:BarButtonItem Content="Shift Right" Command="{Binding MainMenu.ShiftRightCommand}" />
@@ -115,12 +129,11 @@
         <dxb:BarSubItem Content="_Tools">
             <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
                                Command="{Binding MainMenu.AutoCaptureCommand}" />
-            <dxb:BarButtonItem Content="Filter Outbound Clips" Command="{Binding MainMenu.FilterOutboundCommand}" />
+            <dxb:BarCheckItem Content="Filter Outbound Clips" IsChecked="{Binding MainMenu.IsOutboundFilterEnabled}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}" />
             <dxb:BarButtonItem Content="Application Profile..." Command="{Binding MainMenu.AppProfileCommand}" />
             <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}" />
-            <dxb:BarButtonItem Content="Connect to ClipBar" Command="{Binding MainMenu.ConnectToClipBarCommand}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Clipboard Diagnostics..."
                                Command="{Binding MainMenu.ClipboardDiagnosticsCommand}" />

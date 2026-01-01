@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -27,7 +28,12 @@ public class ClipOperationsCoordinator :
     IRecipient<ShowSearchWindowEvent>,
     IRecipient<PowerPasteUpRequestedEvent>,
     IRecipient<PowerPasteDownRequestedEvent>,
-    IRecipient<PowerPasteToggleRequestedEvent>
+    IRecipient<PowerPasteToggleRequestedEvent>,
+    IRecipient<OpenSourceUrlRequestedEvent>,
+    IRecipient<CleanUpTextRequestedEvent>,
+    IRecipient<RemoveLineBreaksRequestedEvent>,
+    IRecipient<StripNonTextRequestedEvent>,
+    IRecipient<CaseConversionRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
@@ -74,8 +80,49 @@ public class ClipOperationsCoordinator :
         _messenger.Register<PowerPasteUpRequestedEvent>(this);
         _messenger.Register<PowerPasteDownRequestedEvent>(this);
         _messenger.Register<PowerPasteToggleRequestedEvent>(this);
+        _messenger.Register<OpenSourceUrlRequestedEvent>(this);
+        _messenger.Register<CleanUpTextRequestedEvent>(this);
+        _messenger.Register<RemoveLineBreaksRequestedEvent>(this);
+        _messenger.Register<StripNonTextRequestedEvent>(this);
+        _messenger.Register<CaseConversionRequestedEvent>(this);
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
+    }
+
+    /// <summary>
+    /// Handles CaseConversionRequestedEvent to convert text case in selected clip.
+    /// </summary>
+    public void Receive(CaseConversionRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        // TODO: Implement case conversion (requires ClipData modification)
+        var typeName = message.ConversionType.ToString();
+        SendStatus($"Case Conversion ({typeName}): Feature coming in a future update");
+    }
+
+    /// <summary>
+    /// Handles CleanUpTextRequestedEvent to clean up whitespace in selected clip.
+    /// </summary>
+    public void Receive(CleanUpTextRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        // TODO: Implement text cleanup (requires ClipData modification)
+        // This would normalize line endings, trim trailing whitespace, collapse multiple blank lines
+        SendStatus("Clean-Up Text: Feature coming in a future update");
     }
 
     /// <summary>
@@ -426,6 +473,42 @@ public class ClipOperationsCoordinator :
     }
 
     /// <summary>
+    /// Handles OpenSourceUrlRequestedEvent to open the source URL in the default browser.
+    /// </summary>
+    public void Receive(OpenSourceUrlRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(selectedClip.SourceUrl))
+        {
+            SendStatus("Selected clip has no source URL");
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = selectedClip.SourceUrl,
+                UseShellExecute = true,
+            });
+
+            _logger.LogInformation("Opened source URL: {Url}", selectedClip.SourceUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open source URL: {Url}", selectedClip.SourceUrl);
+            SendStatus($"Failed to open URL: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>
     /// Handles PowerPasteDownRequestedEvent to start PowerPaste in downward direction.
     /// </summary>
     public async void Receive(PowerPasteDownRequestedEvent message)
@@ -507,6 +590,23 @@ public class ClipOperationsCoordinator :
             _logger.LogError(ex, "Failed to start PowerPaste Up");
             SendStatus("Error starting PowerPaste", true);
         }
+    }
+
+    /// <summary>
+    /// Handles RemoveLineBreaksRequestedEvent to remove line breaks from selected clip.
+    /// </summary>
+    public void Receive(RemoveLineBreaksRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        // TODO: Implement line break removal (requires ClipData modification)
+        SendStatus("Remove Linebreaks: Feature coming in a future update");
     }
 
     /// <summary>
@@ -620,6 +720,23 @@ public class ClipOperationsCoordinator :
             _logger.LogError(ex, "Failed to show search window");
             SendStatus("Error showing search window", true);
         }
+    }
+
+    /// <summary>
+    /// Handles StripNonTextRequestedEvent to remove non-text formats from selected clip.
+    /// </summary>
+    public void Receive(StripNonTextRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        // TODO: Implement non-text stripping (requires deleting ClipData entries and blobs)
+        SendStatus("Strip Non-Text: Feature coming in a future update");
     }
 
     /// <summary>
