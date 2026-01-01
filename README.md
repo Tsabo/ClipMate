@@ -2,6 +2,36 @@
 
 A modern recreation of the classic ClipMate clipboard manager built with .NET 9 and WPF.
 
+> ⚠️ **Alpha Software** - This is an early alpha release under active development. Many features are incomplete and bugs are expected. Please report issues and help with testing!
+
+## Status
+
+**Current Progress: ~85% Feature Complete**
+
+### ✅ Implemented
+- Clipboard capture and monitoring (text, images, RTF, HTML, files)
+- Multi-database support with collections and folders
+- Search with saved queries and SQL support
+- QuickPaste with auto-targeting and formatting strings
+- PowerPaste automation with macro execution
+- Templates with tag replacement
+- Shortcuts (nicknames) for quick clip access
+- Import/Export (XML format)
+- Application profiles for capture filtering
+- Diagnostic tools (SQL console, event log, clipboard diagnostics)
+
+### 🚧 Remaining Work
+- **Encryption** - AES-256 encryption with legacy ARC4 decrypt support
+- **Printing** - DevExpress print system integration
+- **Help & About** - Documentation links, about dialog, update checker
+- **UI Polish** - Remaining menu commands, transparency controls
+
+### 🧪 Needs Testing
+- Cross-database operations (copy/move clips between databases)
+- Large database performance
+- Edge cases in clipboard format handling
+- QuickPaste with various target applications
+
 ## Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
@@ -51,4 +81,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Built with .NET 9, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: Active Development | Last Updated: December 25, 2025
+Status: **Alpha** | Last Updated: January 1, 2026
