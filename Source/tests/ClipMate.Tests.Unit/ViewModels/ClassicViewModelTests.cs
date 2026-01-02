@@ -23,11 +23,15 @@ public class ClassicViewModelTests
     {
         _mockMessenger = new Mock<IMessenger>();
 
-        // Create mock service provider that can resolve IDatabaseManager
+        // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
         var mockDatabaseManager = new Mock<IDatabaseManager>();
         mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
+        var mockAboutDialogViewModel = new Mock<AboutDialogViewModel>();
+        var mockActiveWindowService = new Mock<IActiveWindowService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(mockAboutDialogViewModel.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
 
         var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger.Object,
@@ -72,11 +76,15 @@ public class ClassicViewModelTests
     public async Task Constructor_ShouldInitializeWithDefaultValues()
     {
         // Arrange & Act
-        // Create mock service provider that can resolve IDatabaseManager
+        // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
         var mockDatabaseManager = new Mock<IDatabaseManager>();
         mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
+        var mockAboutDialogViewModel = new Mock<AboutDialogViewModel>();
+        var mockActiveWindowService = new Mock<IActiveWindowService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(mockAboutDialogViewModel.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
 
         var mainMenu = new MainMenuViewModel(
             _mockMessenger.Object,
@@ -187,6 +195,7 @@ public class ClassicViewModelTests
     public void MainMenu_CommandStubs_ShouldNotThrow()
     {
         // Assert that all menu command stubs can be executed without throwing
+        // Note: AboutCommand is excluded as it's a real implementation that creates UI dialogs
         _viewModel.MainMenu.CreateNewClipCommand.Execute(null);
         _viewModel.MainMenu.ClipPropertiesCommand.Execute(null);
         _viewModel.MainMenu.RenameClipCommand.Execute(null);
@@ -196,7 +205,6 @@ public class ClassicViewModelTests
         _viewModel.MainMenu.SelectAllCommand.Execute(null);
         _viewModel.MainMenu.OptionsCommand.Execute(null);
         _viewModel.MainMenu.SearchCommand.Execute(null);
-        _viewModel.MainMenu.AboutCommand.Execute(null);
         _viewModel.MainMenu.PowerPasteToggleCommand.Execute(null);
 
         // If we get here without an exception, the test passes

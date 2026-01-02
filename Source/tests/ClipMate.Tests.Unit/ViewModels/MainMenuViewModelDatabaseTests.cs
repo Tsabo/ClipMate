@@ -19,12 +19,18 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
     public void Setup()
     {
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
+        
+        // Create mock service provider with AboutDialogViewModel and IActiveWindowService
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(new Mock<AboutDialogViewModel>().Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(new Mock<IActiveWindowService>().Object);
+        
         _viewModel = new MainMenuViewModel(
             _messengerMock.Object,
             new Mock<IUndoService>().Object,
             new Mock<IClipViewerWindowManager>().Object,
             new Mock<IClipboardService>().Object,
-            new Mock<IServiceProvider>().Object);
+            mockServiceProvider.Object);
     }
 
     [Test]
