@@ -114,9 +114,9 @@ jobs:
         
         | Package | Size | Description |
         |---------|------|-------------|
-        | **[ClipMate-Setup-$version.exe](ClipMate-Setup-$version.exe)** | ~$setupSize MB | Recommended - auto-installs dependencies |
-        | **[ClipMate-Portable-$version.zip](ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 9 & WebView2 pre-installed |
-        
+        | **[ClipMate-Setup-$version.exe](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Setup-$version.exe)** | ~$setupSize MB | Recommended - auto-installs dependencies |
+        | **[ClipMate-Portable-$version.zip](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 9 & WebView2 pre-installed |
+
         ### Installation
         
         **Installer (Recommended):**

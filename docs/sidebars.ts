@@ -1,0 +1,111 @@
+import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+
+const sidebars: SidebarsConfig = {
+  docsSidebar: [
+    'intro',
+    {
+      type: 'category',
+      label: 'The User Interface',
+      items: [
+        'user-interface/index',
+        'user-interface/clipmate-classic',
+        'user-interface/clipmate-explorer',
+        'user-interface/clipbar',
+        {
+          type: 'category',
+          label: 'Main Toolbar',
+          items: [
+            'user-interface/main-toolbar/index',
+            'user-interface/main-toolbar/show-clipmate',
+            'user-interface/main-toolbar/powerpaste',
+            'user-interface/main-toolbar/delete-clips',
+            'user-interface/main-toolbar/print',
+            'user-interface/main-toolbar/append',
+            'user-interface/main-toolbar/move-clips-to-collection',
+            'user-interface/main-toolbar/copy-clips-to-collection',
+            'user-interface/main-toolbar/select-collection',
+            'user-interface/main-toolbar/search',
+            'user-interface/main-toolbar/switch-classic-explorer',
+            'user-interface/main-toolbar/view-clip',
+            'user-interface/main-toolbar/view-mode',
+            'user-interface/main-toolbar/outbound-clip-filtering',
+            'user-interface/main-toolbar/templates',
+            'user-interface/main-toolbar/event-log',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'ClipList',
+          items: [
+            'user-interface/cliplist/index',
+            'user-interface/cliplist/sorting-clips',
+            'user-interface/cliplist/source-url',
+            'user-interface/cliplist/detail-view',
+            'user-interface/cliplist/item-type-icons',
+            'user-interface/cliplist/thumbnail-view',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Preview/Edit Window',
+          items: [
+            'user-interface/preview-edit/index',
+            'user-interface/preview-edit/text-tab',
+            'user-interface/preview-edit/rich-text-tab',
+            'user-interface/preview-edit/bitmap-tab',
+            'user-interface/preview-edit/picture-tab',
+            'user-interface/preview-edit/html-tab',
+            'user-interface/preview-edit/binary-tab',
+          ],
+        },
+        'user-interface/visibility',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Options and Configuration',
+      items: [
+        'options/index',
+        'options/general',
+        'options/visual',
+        'options/editor',
+        'options/capturing',
+        'options/application-profile',
+        'options/pasting',
+        'options/quickpaste',
+        'options/hotkeys',
+        'options/sounds',
+        'options/databases',
+        'options/advanced-options',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Advanced',
+      items: [
+        'advanced/index',
+        'advanced/templates',
+        'advanced/macro-pasting',
+        'advanced/screen-capture',
+        'advanced/data-management',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Tutorial',
+      items: [
+        'tutorial/index',
+        'tutorial/lesson-one-basic-operation',
+        'tutorial/lesson-two-powerpaste',
+        'tutorial/lesson-three-append',
+        'tutorial/lesson-four-quickpaste',
+        'tutorial/lesson-five-editing',
+        'tutorial/lesson-six-quickpick',
+        'tutorial/lesson-seven-shortcuts',
+      ],
+    },
+    'glossary',
+  ],
+};
+
+export default sidebars;
