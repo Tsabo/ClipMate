@@ -80,6 +80,7 @@ public class ExplorerWindowViewModelTests
             mockMenuMessenger.Object,
             new Mock<IUndoService>().Object,
             mockClipViewerWindowManager.Object,
+            new Mock<IClipboardService>().Object,
             mockServiceProvider.Object);
 
         return new ExplorerWindowViewModel(

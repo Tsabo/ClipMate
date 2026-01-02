@@ -23,6 +23,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
             _messengerMock.Object,
             new Mock<IUndoService>().Object,
             new Mock<IClipViewerWindowManager>().Object,
+            new Mock<IClipboardService>().Object,
             new Mock<IServiceProvider>().Object);
     }
 
