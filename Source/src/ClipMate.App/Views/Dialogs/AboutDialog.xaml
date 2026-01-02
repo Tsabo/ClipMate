@@ -1,0 +1,305 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.AboutDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance Type=vm:AboutDialogViewModel}"
+                 Title="About ClipMate"
+                 Width="500"
+                 Height="480"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False">
+
+    <dx:ThemedWindow.Resources>
+        <Style x:Key="LinkStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HotTrackBrushKey}}" />
+            <Setter Property="TextDecorations" Value="Underline" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </dx:ThemedWindow.Resources>
+
+    <!-- Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Check For Updates"
+                                     Command="{Binding CheckForUpdatesCommand}"
+                                     DialogResult="None"
+                                     MinWidth="120" />
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     IsDefault="True"
+                                     IsCancel="True"
+                                     DialogResult="OK"
+                                     MinWidth="80" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dx:DXTabControl>
+
+        <!-- Copyright Tab -->
+        <dx:DXTabItem Header="Copyright">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Logo and Title -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,20">
+                    <Image Source="/ClipMate.App;component/Assets/icon.ico"
+                           Width="64" Height="64"
+                           VerticalAlignment="Center"
+                           Margin="0,0,15,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="ClipMate"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   Foreground="#1E5AA8" />
+                        <TextBlock Text="{Binding Version}"
+                                   FontSize="14"
+                                   Foreground="Gray" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Copyright Notice -->
+                <StackPanel Grid.Row="1" Margin="0,0,0,15">
+                    <TextBlock Text="{Binding Copyright}"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Licensed under the MIT License"
+                               FontSize="12"
+                               Foreground="Gray"
+                               Margin="0,5,0,0" />
+                </StackPanel>
+
+                <!-- Original ClipMate Attribution -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
+                        CornerRadius="4"
+                        Padding="12"
+                        Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Original ClipMate Attribution"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <TextBlock TextWrapping="Wrap"
+                                   FontSize="11">
+                            <Run Text="ClipMate is a modern reimagining of the original ClipMate clipboard manager, created by " />
+                            <Run Text="Chris Thornton" FontWeight="SemiBold" />
+                            <Run Text=" at " />
+                            <Run Text="Thornsoft Development, Inc." FontWeight="SemiBold" />
+                            <Run Text=" (1991-2013)." />
+                        </TextBlock>
+                        <TextBlock Text="We honor and thank Chris for creating such an innovative and beloved application."
+                                   FontSize="11"
+                                   FontStyle="Italic"
+                                   Margin="0,5,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Additional Info -->
+                <TextBlock Grid.Row="3"
+                           Text="ClipMate is free and open source software. Contributions are welcome!"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Bottom" />
+            </Grid>
+        </dx:DXTabItem>
+
+        <!-- Contacts Tab -->
+        <dx:DXTabItem Header="Contacts">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Project Links -->
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="Project Links"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               Margin="0,0,0,20" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="GitHub:"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,15,10" />
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Style="{StaticResource LinkStyle}"
+                                   Text="github.com/clipmate/ClipMate"
+                                   Margin="0,0,0,10">
+                            <TextBlock.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding ViewOnGitHubCommand}" />
+                            </TextBlock.InputBindings>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="Issues:"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,15,10" />
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Style="{StaticResource LinkStyle}"
+                                   Text="Report bugs or request features"
+                                   Margin="0,0,0,10">
+                            <TextBlock.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding ReportIssueCommand}" />
+                            </TextBlock.InputBindings>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="Documentation:"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,15,10" />
+                        <TextBlock Grid.Row="2" Grid.Column="1"
+                                   Style="{StaticResource LinkStyle}"
+                                   Text="Wiki and User Guide"
+                                   Margin="0,0,0,10">
+                            <TextBlock.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding ViewDocumentationCommand}" />
+                            </TextBlock.InputBindings>
+                        </TextBlock>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Community Info -->
+                <Border Grid.Row="1"
+                        Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
+                        CornerRadius="4"
+                        Padding="12"
+                        VerticalAlignment="Bottom">
+                    <TextBlock TextWrapping="Wrap" FontSize="11">
+                        <Run Text="ClipMate is developed and maintained by the community. " />
+                        <Run Text="If you find this project useful, please consider starring it on GitHub or contributing!" />
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </dx:DXTabItem>
+
+        <!-- Credits Tab -->
+        <dx:DXTabItem Header="Credits">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="ClipMate is built with the following great components and libraries:"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,15" />
+
+                <dxe:ListBoxEdit Grid.Row="1"
+                                 ItemsSource="{Binding Credits}"
+                                 ShowBorder="True"
+                                 IsReadOnly="True"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <dxe:ListBoxEdit.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:CreditItem}">
+                            <Grid Margin="5,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           Style="{StaticResource LinkStyle}">
+                                    <TextBlock.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.OpenCreditUrlCommand, RelativeSource={RelativeSource AncestorType=dxe:ListBoxEdit}}"
+                                                      CommandParameter="{Binding Url}" />
+                                    </TextBlock.InputBindings>
+                                </TextBlock>
+
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding License}"
+                                           Foreground="Gray"
+                                           FontSize="11"
+                                           VerticalAlignment="Center" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                           Text="{Binding Description}"
+                                           FontSize="11"
+                                           Foreground="Gray"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </dxe:ListBoxEdit.ItemTemplate>
+                </dxe:ListBoxEdit>
+            </Grid>
+        </dx:DXTabItem>
+
+        <!-- Translation Tab -->
+        <dx:DXTabItem Header="Translation">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="We are looking for translators!"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,20" />
+
+                <StackPanel Grid.Row="1">
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,15">
+                        We are actively seeking contributors to help translate ClipMate into other languages.
+                    </TextBlock>
+
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,15">
+                        If you are both a ClipMate user and an experienced translator or linguist,
+                        we would love your help making ClipMate available in your language.
+                    </TextBlock>
+
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,15">
+                        In exchange for your contribution, you will be credited in this About dialog
+                        and in the project's contributors list.
+                    </TextBlock>
+
+                    <TextBlock TextWrapping="Wrap" FontStyle="Italic">
+                        Visit our contribution guide to learn how to get started with localization.
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Style="{StaticResource LinkStyle}"
+                               Text="View Localization Guide"
+                               FontSize="13">
+                        <TextBlock.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding ViewLocalizationInfoCommand}" />
+                        </TextBlock.InputBindings>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </dx:DXTabItem>
+
+    </dx:DXTabControl>
+
+</dx:ThemedWindow>

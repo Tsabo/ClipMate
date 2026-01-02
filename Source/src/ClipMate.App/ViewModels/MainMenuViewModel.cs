@@ -23,6 +23,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject
 {
+    private readonly IClipboardService _clipboardService;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
@@ -60,14 +61,22 @@ public partial class MainMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTargetLocked;
 
+    /// <summary>
+    /// Gets whether auto capture (clipboard monitoring) is currently active.
+    /// This property is read directly from the clipboard service for live state.
+    /// </summary>
+    public bool IsAutoCapturing => _clipboardService.IsMonitoring;
+
     public MainMenuViewModel(IMessenger messenger,
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
+        IClipboardService clipboardService,
         IServiceProvider serviceProvider)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
@@ -320,7 +329,12 @@ public partial class MainMenuViewModel : ObservableObject
     // ==========================
 
     [RelayCommand]
-    private void AutoCapture() => _messenger.Send(new ToggleAutoCaptureEvent());
+    private void AutoCapture()
+    {
+        _messenger.Send(new ToggleAutoCaptureEvent());
+        // Notify UI that IsAutoCapturing may have changed
+        OnPropertyChanged(nameof(IsAutoCapturing));
+    }
 
     partial void OnIsOutboundFilterEnabledChanged(bool value) => _messenger.Send(new OutboundFilterToggleEvent(value));
 
@@ -497,7 +511,17 @@ public partial class MainMenuViewModel : ObservableObject
     // ==========================
 
     [RelayCommand]
-    private void About() { }
+    private void About()
+    {
+        var viewModel = _serviceProvider.GetRequiredService<AboutDialogViewModel>();
+        var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+        var dialog = new AboutDialog(viewModel)
+        {
+            Owner = activeWindowService.DialogOwner,
+        };
+
+        dialog.ShowDialog();
+    }
 
     [RelayCommand]
     private void Documentation()

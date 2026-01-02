@@ -603,6 +603,7 @@ public partial class App
                 services.AddTransient<EventLogViewModel>();
                 services.AddTransient<PasteTraceViewModel>();
                 services.AddTransient<SqlMaintenanceViewModel>();
+                services.AddTransient<AboutDialogViewModel>();
 
                 // Register Text Cleanup dialog (no ViewModel - uses code-behind)
                 services.AddTransient<TextCleanupDialog>();

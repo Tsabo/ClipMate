@@ -4,7 +4,6 @@
         xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
         xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
-        xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
         Title="TrayIconWindow"
         Width="0"
         Height="0"
@@ -21,11 +20,116 @@
             LeftClickCommand="{Binding ShowExplorerWindowCommand}">
             <dx:NotifyIconService.ContextMenu>
                 <dxb:PopupMenu>
-                    <dxb:BarButtonItem Content="Show ClipMate" Command="{Binding ShowExplorerWindowCommand}"
-                                       Glyph="{helpers:EmojiIconSource Emoji='📋'}" />
+                    <!-- Window Management -->
+                    <dxb:BarButtonItem Content="Open ClipMate Explorer"
+                                       Command="{Binding MainMenu.OpenExplorerCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Folder.svg'}" />
+                    <dxb:BarButtonItem Content="Open ClipMate Classic"
+                                       Command="{Binding MainMenu.OpenClassicCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/ListByDate.svg'}" />
+                    <dxb:BarButtonItem Content="Switch Between Classic / Explorer"
+                                       Command="{Binding MainMenu.SwitchViewCommand}"
+                                       KeyGesture="Ctrl+E"
+                                       Glyph="{dx:DXImage 'SvgImages/Arrange/SwitchRowColumn.svg'}" />
+                    <dxb:BarButtonItem Content="View Clip"
+                                       Command="{Binding MainMenu.ViewClipCommand}"
+                                       KeyGesture="F2"
+                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Preview.svg'}" />
+                    <dxb:BarButtonItem Content="Close And Free All Windows"
+                                       Command="{Binding MainMenu.CloseAllWindowsCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/XAF/Action_Clear.svg'}" />
+
                     <dxb:BarItemSeparator />
-                    <dxb:BarButtonItem Content="Exit" Command="{Binding ExitApplicationCommand}"
-                                       Glyph="{helpers:EmojiIconSource Emoji='🚪'}" />
+
+                    <!-- Capture & Options -->
+                    <dxb:BarCheckItem Content="Auto Capture"
+                                      IsChecked="{Binding MainMenu.IsAutoCapturing, Mode=OneWay}"
+                                      Command="{Binding MainMenu.AutoCaptureCommand}"
+                                      KeyGesture="F12"
+                                      Glyph="{dx:DXImage 'SvgImages/Actions/Camera.svg'}" />
+                    <dxb:BarButtonItem Content="Options ..."
+                                       Command="{Binding MainMenu.OptionsCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/Setup/Properties.svg'}" />
+
+                    <dxb:BarItemSeparator />
+
+                    <!-- Clipboard Operations -->
+                    <dxb:BarCheckItem Content="Filter Outbound Clips"
+                                      IsChecked="{Binding MainMenu.IsOutboundFilterEnabled, Mode=TwoWay}"
+                                      Glyph="{dx:DXImage 'SvgImages/XAF/Action_Filter.svg'}" />
+                    <dxb:BarButtonItem Content="PowerPaste Up"
+                                       Command="{Binding MainMenu.PowerPasteUpCommand}"
+                                       KeyGesture="Ctrl+U"
+                                       Glyph="{dx:DXImage 'SvgImages/XAF/Action_Paste.svg'}" />
+                    <dxb:BarButtonItem Content="PowerPaste Down"
+                                       Command="{Binding MainMenu.PowerPasteDownCommand}"
+                                       KeyGesture="Ctrl+D"
+                                       Glyph="{dx:DXImage 'SvgImages/XAF/Action_Paste.svg'}" />
+                    <dxb:BarButtonItem Content="Select Previous Item (Up)"
+                                       Command="{Binding MainMenu.SelectPreviousCommand}"
+                                       KeyGesture="Ctrl+Alt+P"
+                                       Glyph="{dx:DXImage 'SvgImages/Arrows/Up.svg'}" />
+                    <dxb:BarButtonItem Content="Select Next Item (Down)"
+                                       Command="{Binding MainMenu.SelectNextCommand}"
+                                       KeyGesture="Ctrl+Alt+N"
+                                       Glyph="{dx:DXImage 'SvgImages/Arrows/Down.svg'}" />
+                    <dxb:BarButtonItem Content="Append Clips Together (Glue)"
+                                       Command="{Binding MainMenu.AppendClipsCommand}"
+                                       KeyGesture="Ctrl+Alt+A"
+                                       Glyph="{dx:DXImage 'SvgImages/Icon Builder/Actions_Add.svg'}" />
+
+                    <!-- Editing Submenu -->
+                    <dxb:BarSubItem Content="Editing"
+                                    Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/EditContact.svg'}">
+                        <dxb:BarButtonItem Content="UPPER CASE"
+                                           Command="{Binding MainMenu.ToUpperCaseCommand}" />
+                        <dxb:BarButtonItem Content="lower case"
+                                           Command="{Binding MainMenu.ToLowerCaseCommand}" />
+                        <dxb:BarButtonItem Content="Title Case"
+                                           Command="{Binding MainMenu.ToTitleCaseCommand}" />
+                        <dxb:BarButtonItem Content="Sentence case"
+                                           Command="{Binding MainMenu.ToSentenceCaseCommand}" />
+                        <dxb:BarButtonItem Content="tOGGLE cASE"
+                                           Command="{Binding MainMenu.ToggleCaseCommand}" />
+                        <dxb:BarItemSeparator />
+                        <dxb:BarButtonItem Content="Strip Non-Text"
+                                           Command="{Binding MainMenu.StripNonTextCommand}" />
+                        <dxb:BarButtonItem Content="Remove Line Breaks"
+                                           Command="{Binding MainMenu.RemoveLineBreaksCommand}" />
+                        <dxb:BarButtonItem Content="Clean Up Text"
+                                           Command="{Binding MainMenu.CleanUpTextCommand}" />
+                    </dxb:BarSubItem>
+
+                    <dxb:BarItemSeparator />
+
+                    <!-- Screen Capture & Print (Not yet implemented) -->
+                    <dxb:BarButtonItem Content="Screen Capture - Area"
+                                       KeyGesture="Ctrl+Alt+F12"
+                                       IsEnabled="False"
+                                       ToolTip="Screen capture is not yet implemented"
+                                       Glyph="{dx:DXImage 'SvgImages/RichEdit/SnippingTool.svg'}" />
+                    <dxb:BarButtonItem Content="Print..."
+                                       KeyGesture="Ctrl+P"
+                                       IsEnabled="False"
+                                       ToolTip="Printing is not yet implemented"
+                                       Glyph="{dx:DXImage 'SvgImages/Actions/Print.svg'}" />
+
+                    <dxb:BarItemSeparator />
+
+                    <!-- Help & Diagnostics -->
+                    <dxb:BarButtonItem Content="Show Event Log"
+                                       Command="{Binding MainMenu.ShowEventLogCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/RichEdit/SelectAll.svg'}" />
+                    <dxb:BarButtonItem Content="About"
+                                       Command="{Binding MainMenu.AboutCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/Icon Builder/Actions_Info.svg'}" />
+
+                    <dxb:BarItemSeparator />
+
+                    <!-- Exit -->
+                    <dxb:BarButtonItem Content="Exit Program (Shut Down)"
+                                       Command="{Binding ExitApplicationCommand}"
+                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Close.svg'}" />
                 </dxb:PopupMenu>
             </dx:NotifyIconService.ContextMenu>
         </dx:NotifyIconService>

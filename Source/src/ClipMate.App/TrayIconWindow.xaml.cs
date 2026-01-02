@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -15,12 +16,16 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
     private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
 
-    public TrayIconWindow(IConfigurationService configurationService, IMessenger messenger)
+    public TrayIconWindow(
+        IConfigurationService configurationService,
+        IMessenger messenger,
+        MainMenuViewModel mainMenu)
     {
         InitializeComponent();
 
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
 
         ShowExplorerWindowCommand = new RelayCommand(ShowExplorerWindowExecute);
         ExitApplicationCommand = new RelayCommand(ExitApplicationExecute);
@@ -31,6 +36,11 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
         _messenger.Register<ShowTrayIconChangedEvent>(this);
         _messenger.Register<IconClickBehaviorChangedEvent>(this);
     }
+
+    /// <summary>
+    /// Gets the shared main menu view model for binding menu commands.
+    /// </summary>
+    public MainMenuViewModel MainMenu { get; }
 
     public ICommand ShowExplorerWindowCommand { get; }
     public ICommand ExitApplicationCommand { get; }
