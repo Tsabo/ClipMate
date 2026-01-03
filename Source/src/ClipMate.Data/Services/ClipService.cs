@@ -3,7 +3,6 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -15,18 +14,21 @@ namespace ClipMate.Data.Services;
 public class ClipService : IClipService
 {
     private readonly IClipboardService _clipboardService;
+    private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipService> _logger;
     private readonly ISoundService _soundService;
     private readonly ITemplateService _templateService;
 
     public ClipService(IDatabaseContextFactory databaseContextFactory,
+        IConfigurationService configurationService,
         ISoundService soundService,
         IClipboardService clipboardService,
         ITemplateService templateService,
         ILogger<ClipService> logger)
     {
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
@@ -401,6 +403,34 @@ public class ClipService : IClipService
         }
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sqlQuery))
+            throw new ArgumentException("SQL query cannot be null or empty.", nameof(sqlQuery));
+
+        // Replace placeholders with actual values
+        var processedQuery = ReplaceSqlPlaceholders(sqlQuery, retentionLimit);
+
+        _logger.LogDebug("Executing virtual collection SQL query: {Query}", processedQuery);
+
+        try
+        {
+            // Use repository's ExecuteSqlQueryAsync which handles Dapper mapping and LoadFormatFlagsAsync
+            var repository = GetRepository(databaseKey);
+            var clips = await repository.ExecuteSqlQueryAsync(processedQuery, cancellationToken);
+
+            _logger.LogInformation("Virtual collection SQL query returned {Count} clips", clips.Count);
+
+            return clips;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute virtual collection SQL query: {Query}", processedQuery);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Gets a repository instance for the specified database.
     /// </summary>
@@ -639,39 +669,6 @@ public class ClipService : IClipService
         _logger.LogDebug("Copied {Count} binary BLOBs", sourceBlobs.Count);
     }
 
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(sqlQuery))
-            throw new ArgumentException("SQL query cannot be null or empty.", nameof(sqlQuery));
-
-        // Get database context
-        using var context = _databaseContextFactory.CreateContext(databaseKey);
-
-        // Replace placeholders with actual values
-        var processedQuery = ReplaceSqlPlaceholders(sqlQuery, retentionLimit);
-
-        _logger.LogDebug("Executing virtual collection SQL query: {Query}", processedQuery);
-
-        try
-        {
-            // Execute raw SQL query and return results
-            // Note: EF Core will automatically map columns to Clip entity properties
-            var clips = await context.Clips
-                .FromSqlRaw(processedQuery)
-                .ToListAsync(cancellationToken);
-
-            _logger.LogInformation("Virtual collection SQL query returned {Count} clips", clips.Count);
-
-            return clips;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to execute virtual collection SQL query: {Query}", processedQuery);
-            throw;
-        }
-    }
-
     /// <summary>
     /// Replaces SQL query placeholders with actual values.
     /// Supported placeholders:
@@ -702,5 +699,25 @@ public class ClipService : IClipService
             .Replace("#DATELASTEXPORT#", lastExportStr, StringComparison.OrdinalIgnoreCase);
 
         return result;
+    }
+
+    /// <summary>
+    /// Resolves a database key to its file path using configuration.
+    /// If the input is already a file path (contains path separators), returns it as-is.
+    /// </summary>
+    private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
+    {
+        // If it looks like a file path (contains directory separators), return as-is
+        if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) ||
+            databaseKeyOrPath.Contains(Path.AltDirectorySeparatorChar))
+            return databaseKeyOrPath;
+
+        // Otherwise, try to resolve it as a database key from configuration
+        if (_configurationService.Configuration.Databases.TryGetValue(databaseKeyOrPath, out var dbConfig))
+            return dbConfig.FilePath;
+
+        // If not found in configuration, assume it's a path anyway
+        _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
+        return databaseKeyOrPath;
     }
 }

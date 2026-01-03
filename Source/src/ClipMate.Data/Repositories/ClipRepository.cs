@@ -736,27 +736,33 @@ public class ClipRepository : IClipRepository
                 _logger.LogDebug("Clip {ClipId}: No ClipData found, using Type={ClipType} fallback", item.Id, item.Type);
 
                 // Fallback for clips created before ClipData implementation
-                var fallbackIcon = "❓";
                 switch (item.Type)
                 {
                     case ClipType.Text:
                         item.HasText = true;
-                        fallbackIcon = "📄";
+                        item.IconGlyph = item.Macro
+                            ? "⌨📄"
+                            : "📄";
+
                         break;
                     case ClipType.Image:
                         item.HasBitmap = true;
-                        fallbackIcon = "🖼";
+                        item.IconGlyph = item.Macro
+                            ? "⌨🖼"
+                            : "🖼";
+
                         break;
                     case ClipType.Files:
                         item.HasFiles = true;
-                        fallbackIcon = "📁";
+                        item.IconGlyph = item.Macro
+                            ? "⌨📁"
+                            : "📁";
+
+                        break;
+                    default:
+                        item.IconGlyph = "❓";
                         break;
                 }
-
-                // Prepend macro icon if clip is a macro
-                item.IconGlyph = item.Macro
-                    ? "⌨" + fallbackIcon
-                    : fallbackIcon;
             }
         }
     }

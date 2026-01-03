@@ -244,7 +244,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Clips.TimeStamp >= '#DATE#' and Del = false
+                          where Clips.CapturedAt >= '#DATE#' and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -279,9 +279,9 @@ public class DefaultDataSeeder
                     LastUpdateTime = null,
                     LastKnownCount = 0,
                     Sql = """
-                          select Clips.*, ShortCut.Nickname
-                          from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Clips.TimeStamp >= '#DATEMINUSLIMIT#' and Del = false
+                          select Clips.*
+                          from Clips
+                          where Clips.CapturedAt >= '#DATEMINUSLIMIT#' and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -318,7 +318,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Clips.TimeStamp >= '#DATEMINUSLIMIT#' and Del = false
+                          where Clips.CapturedAt >= '#DATEMINUSLIMIT#' and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -355,6 +355,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
+                          where Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -391,7 +392,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Clips.LastModified >= '#DATELASTIMPORT#' and Del = false
+                          where Clips.CapturedAt >= '#DATELASTIMPORT#' and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -428,7 +429,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Clips.LastModified >= '#DATELASTEXPORT#' and Del = false
+                          where Clips.CapturedAt >= '#DATELASTEXPORT#' and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -464,8 +465,9 @@ public class DefaultDataSeeder
                     LastKnownCount = 0,
                     Sql = """
                           select Clips.*, ShortCut.Nickname
-                          from Clips left outer join ShortCut on ShortCut.ClipID = Clips.ID
-                          where Del = false and Clips.ID in (select ClipID from ClipData where ClipData.Format = 2 or ClipData.StorageType == 2 or ClipData.StorageType == 3)
+                          from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
+                          where Type = 2 and Del = false
+                          order by ID;
                           """,
                     CreatedAt = now,
                     Role = CollectionRole.None,
@@ -500,8 +502,9 @@ public class DefaultDataSeeder
                     LastKnownCount = 0,
                     Sql = """
                           select Clips.*, ShortCut.Nickname
-                          from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID 
-                          where Clips.Macro = true
+                          from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
+                          where Macro = 1 and Del = false
+                          order by ID;
                           """,
                     CreatedAt = now,
                     Role = CollectionRole.None,

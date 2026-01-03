@@ -442,8 +442,8 @@ public partial class ClipListViewModel : ObservableObject,
             {
                 // Get the collection to check if it's a virtual collection with SQL query
                 var collection = await _collectionService.GetByIdAsync(collectionId, cancellationToken);
-                
-                if (collection != null && collection.IsVirtual && !string.IsNullOrWhiteSpace(collection.Sql))
+
+                if (collection is { IsVirtual: true } && !string.IsNullOrWhiteSpace(collection.Sql))
                 {
                     // Virtual collection - execute SQL query
                     _logger.LogInformation("Executing SQL query for virtual collection: {CollectionName}", collection.Title);
