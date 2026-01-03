@@ -485,10 +485,22 @@ public partial class MainMenuViewModel : ObservableObject
     private void SwitchView() => _messenger.Send(new ShowExplorerWindowEvent());
 
     [RelayCommand]
-    private void OpenExplorer() => _messenger.Send(new ShowExplorerWindowEvent());
+    private void OpenExplorer()
+    {
+        if (!Application.Current.Windows.OfType<ExplorerWindow>().Any())
+            _ = _serviceProvider.GetRequiredService<ExplorerWindow>();
+
+        _messenger.Send(new ShowExplorerWindowEvent());
+    }
 
     [RelayCommand]
-    private void OpenClassic() => _messenger.Send(new ShowClipBarRequestedEvent());
+    private void OpenClassic()
+    {
+        if (!Application.Current.Windows.OfType<ClassicWindow>().Any())
+            _ = _serviceProvider.GetRequiredService<ClassicWindow>();
+
+        _messenger.Send(new ShowClipBarRequestedEvent());
+    }
 
     [RelayCommand]
     private void CloseAllWindows()

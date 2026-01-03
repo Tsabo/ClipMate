@@ -17,7 +17,7 @@ namespace ClipMate.App;
 /// ClipMate Classic window with complete menu, toolbar, and clip list.
 /// Features stay-on-top and TOML configuration persistence for window state.
 /// </summary>
-public partial class ClassicWindow : IRecipient<ShowSearchWindowEvent>
+public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ICollectionService _collectionService;

@@ -50,7 +50,7 @@ public partial class SqlMaintenanceDialog
         Closing += OnClosing;
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -59,8 +59,8 @@ public partial class SqlMaintenanceDialog
             var configService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
             SqlEditor.EditorOptions = configService.Configuration.MonacoEditor;
 
-            // Begin transaction
-            await _sqlMaintenanceService.BeginTransactionAsync();
+            // Don't start transaction here - it will block the database and prevent clipboard monitoring
+            // Transaction will be started automatically when executing write operations
         }
         catch (Exception ex)
         {
@@ -136,6 +136,13 @@ public partial class SqlMaintenanceDialog
         var isSelect = sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) ||
                        sql.TrimStart().StartsWith("PRAGMA", StringComparison.OrdinalIgnoreCase) ||
                        sql.TrimStart().StartsWith("EXPLAIN", StringComparison.OrdinalIgnoreCase);
+
+        // Start transaction for write operations (if not already started)
+        if (!isSelect && !_sqlMaintenanceService.HasActiveTransaction)
+        {
+            await _sqlMaintenanceService.BeginTransactionAsync();
+            _logger.LogInformation("Transaction started for write operation");
+        }
 
         if (isSelect)
         {

@@ -26,4 +26,11 @@ public enum CollectionRole
     /// Acts as final destination in retention cascade: Collection → Overflow → Trashcan.
     /// </summary>
     Trashcan = 2,
+
+    /// <summary>
+    /// Inbox collection.
+    /// Default destination for new clipboard captures.
+    /// Primary collection where clips are initially stored.
+    /// </summary>
+    Inbox = 3,
 }

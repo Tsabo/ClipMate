@@ -11,7 +11,7 @@ public enum IconLeftClickAction
     ShowExplorerWindow,
 
     /// <summary>
-    /// Show the ClipBar popup.
+    /// Show the Classic window popup.
     /// </summary>
-    ShowClipBar,
+    ShowClassWindow,
 }

@@ -209,4 +209,15 @@ public interface IClipService
     /// <param name="clipId">The clip ID to load and set to clipboard.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task LoadAndSetClipboardAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a raw SQL query for virtual/smart collections.
+    /// Replaces placeholders (#DATE#, #DATEMINUSLIMIT#, etc.) with actual values before execution.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="sqlQuery">The SQL query with placeholders.</param>
+    /// <param name="retentionLimit">The retention limit for #DATEMINUSLIMIT# calculations (in days).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clips matching the query.</returns>
+    Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default);
 }

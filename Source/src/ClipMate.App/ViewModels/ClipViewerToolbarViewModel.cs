@@ -28,16 +28,13 @@ public partial class ClipViewerToolbarViewModel : ObservableObject
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Initialize available languages
-        AvailableLanguages =
-        [
-            "plaintext", "csharp", "cpp", "css", "html", "java", "javascript",
-            "json", "markdown", "php", "python", "sql", "typescript", "xml", "yaml",
-        ];
+        // Available languages will be populated from Monaco Editor after initialization
+        AvailableLanguages = [];
     }
 
     /// <summary>
     /// Gets the available programming languages for syntax highlighting.
+    /// Populated dynamically from Monaco Editor's registered languages.
     /// </summary>
     public ObservableCollection<string> AvailableLanguages { get; }
 

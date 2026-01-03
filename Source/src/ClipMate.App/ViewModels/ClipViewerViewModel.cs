@@ -91,11 +91,11 @@ public partial class ClipViewerViewModel : ObservableObject
                     await using (context)
                     {
                         clip = await context.Clips.FindAsync(args.ClipId);
-                        if (clip != null)
-                        {
-                            _currentDatabaseKey = dbKey;
-                            break;
-                        }
+                        if (clip == null)
+                            continue;
+
+                        _currentDatabaseKey = dbKey;
+                        break;
                     }
                 }
             }

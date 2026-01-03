@@ -1,9 +1,11 @@
-using System.Windows.Input;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
 namespace ClipMate.App;
@@ -13,16 +15,22 @@ namespace ClipMate.App;
 /// </summary>
 public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRecipient<IconClickBehaviorChangedEvent>
 {
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<TrayIconWindow> _logger;
     private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
 
     public TrayIconWindow(
+        IServiceProvider serviceProvider,
+        ILogger<TrayIconWindow> logger,
         IConfigurationService configurationService,
         IMessenger messenger,
         MainMenuViewModel mainMenu)
     {
         InitializeComponent();
 
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
@@ -42,8 +50,8 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
     /// </summary>
     public MainMenuViewModel MainMenu { get; }
 
-    public ICommand ShowExplorerWindowCommand { get; }
-    public ICommand ExitApplicationCommand { get; }
+    public RelayCommand ShowExplorerWindowCommand { get; }
+    public RelayCommand ExitApplicationCommand { get; }
 
     public void Receive(IconClickBehaviorChangedEvent message)
     {
@@ -58,43 +66,34 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
         // This method is here for future extensibility if runtime show/hide is needed
     }
 
-    private void ShowExplorerWindowExecute(object? parameter)
+    private void ShowExplorerWindowExecute()
     {
         // Check configuration for left-click action
         var action = _configurationService.Configuration.Preferences.TrayIconLeftClickAction;
 
-        if (action == IconLeftClickAction.ShowClipBar)
+        if (action == IconLeftClickAction.ShowClassWindow)
         {
+            if (!Application.Current.Windows.OfType<ClassicWindow>().Any())
+            {
+                _ = _serviceProvider.GetRequiredService<ClassicWindow>();
+                _logger.LogDebug("Created Classic window");
+            }
+
             // Send event to show ClipBar popup
             _messenger.Send(new ShowClipBarRequestedEvent());
         }
         else
         {
+            if (!Application.Current.Windows.OfType<ExplorerWindow>().Any())
+            {
+                _ = _serviceProvider.GetRequiredService<ExplorerWindow>();
+                _logger.LogDebug("Created Explorer window");
+            }
+
             // Send event to show main window (default behavior)
             _messenger.Send(new ShowExplorerWindowEvent());
         }
     }
 
-    private void ExitApplicationExecute(object? parameter) => Application.Current.Shutdown();
-
-    /// <summary>
-    /// Simple relay command implementation.
-    /// </summary>
-    private class RelayCommand : ICommand
-    {
-        private readonly Action<object?> _execute;
-
-        public RelayCommand(Action<object?> execute)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        }
-
-#pragma warning disable CS0067 // Event is required by ICommand interface but never raised in this simple implementation
-        public event EventHandler? CanExecuteChanged;
-#pragma warning restore CS0067
-
-        public bool CanExecute(object? parameter) => true;
-
-        public void Execute(object? parameter) => _execute(parameter);
-    }
+    private void ExitApplicationExecute() => Application.Current.Shutdown();
 }

@@ -40,6 +40,9 @@ public class CollectionRepository : ICollectionRepository
     {
         ArgumentNullException.ThrowIfNull(collection);
 
+        // Validate unique role constraint for special roles
+        await ValidateUniqueRoleAsync(collection.Role, null, cancellationToken);
+
         _context.Collections.Add(collection);
         await _context.SaveChangesAsync(cancellationToken);
         return collection;
@@ -48,6 +51,9 @@ public class CollectionRepository : ICollectionRepository
     public async Task<bool> UpdateAsync(Collection collection, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(collection);
+
+        // Validate unique role constraint for special roles (exclude current collection)
+        await ValidateUniqueRoleAsync(collection.Role, collection.Id, cancellationToken);
 
         _context.Collections.Update(collection);
         await _context.SaveChangesAsync(cancellationToken);
@@ -105,5 +111,33 @@ public class CollectionRepository : ICollectionRepository
             .FirstOrDefaultAsync(p => p.Role == CollectionRole.Trashcan);
 
         return trashcan ?? throw new InvalidOperationException("Trashcan collection not found in database.");
+    }
+
+    /// <summary>
+    /// Validates that special roles (Inbox, Overflow, Trashcan) are unique within the database.
+    /// Role.None is allowed to be non-unique as it represents regular collections.
+    /// </summary>
+    /// <param name="role">The role to validate.</param>
+    /// <param name="excludeCollectionId">Collection ID to exclude from the check (for updates).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">Thrown when a duplicate special role is detected.</exception>
+    private async Task ValidateUniqueRoleAsync(CollectionRole role, Guid? excludeCollectionId, CancellationToken cancellationToken)
+    {
+        // Role.None is not unique - skip validation
+        if (role == CollectionRole.None)
+            return;
+
+        // Check if another collection already has this special role
+        var existingCollection = await _context.Collections
+            .Where(c => c.Role == role)
+            .Where(c => excludeCollectionId == null || c.Id != excludeCollectionId.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingCollection != null)
+        {
+            throw new InvalidOperationException(
+                $"A collection with role '{role}' already exists (ID: {existingCollection.Id}, Title: '{existingCollection.Title}'). "
+                + "Special roles (Inbox, Overflow, Trashcan) must be unique within a database.");
+        }
     }
 }

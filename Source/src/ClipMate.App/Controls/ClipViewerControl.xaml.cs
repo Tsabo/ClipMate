@@ -13,6 +13,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Bars;
 using DevExpress.XtraRichEdit;
@@ -81,6 +82,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Monitor Language property changes on text editor
             var textLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
             textLangDescriptor?.AddValueChanged(TextEditor, OnTextEditorLanguageChanged);
+
+            // Monitor Monaco initialization to sync available languages
+            var isInitDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.IsInitializedProperty, typeof(MonacoEditorControl));
+            isInitDescriptor?.AddValueChanged(TextEditor, OnMonacoInitialized);
         };
 
         Unloaded += (_, _) =>
@@ -99,6 +104,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             var textLangDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.LanguageProperty, typeof(MonacoEditorControl));
             textLangDescriptor?.RemoveValueChanged(TextEditor, OnTextEditorLanguageChanged);
+
+            var isInitDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.IsInitializedProperty, typeof(MonacoEditorControl));
+            isInitDescriptor?.RemoveValueChanged(TextEditor, OnMonacoInitialized);
         };
     }
 
@@ -872,6 +880,28 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger.LogInformation("[ClipViewer] Text editor language changed by user to: {TextEditorLanguage}", TextEditor.Language);
     }
 
+    private async void OnMonacoInitialized(object? sender, EventArgs e)
+    {
+        // Sync available languages from Monaco to toolbar ViewModel
+        if (!TextEditor.IsInitialized)
+            return;
+
+        try
+        {
+            _toolbarViewModel.AvailableLanguages.Clear();
+            
+            // Copy languages from Monaco control to toolbar
+            foreach (var language in TextEditor.AvailableLanguages)
+                _toolbarViewModel.AvailableLanguages.Add(language);
+
+            _logger.LogDebug("[ClipViewer] Synced {Count} languages from Monaco to toolbar", TextEditor.AvailableLanguages.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ClipViewer] Failed to sync languages from Monaco");
+        }
+    }
+
     #endregion
 
     #region Save Methods
@@ -915,27 +945,43 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 await blobRepository.UpdateTextAsync(blob);
                 _logger.LogDebug("[ClipViewer] Saved text content ({TextLength} chars)", newText.Length);
 
-                // Update clip title if AutoChangeClipTitles is enabled AND CustomTitle is false
-                // If CustomTitle=true, the user manually renamed the clip and title should never auto-update
-                if (_configurationService.Configuration.Preferences.AutoChangeClipTitles)
+                // Update clip's ContentHash since the text content has changed
+                // This prevents duplicate detection from treating the edited clip as a new clip
+                var clipData = _currentClipData.FirstOrDefault(p => p.Id == _textFormatClipDataId.Value);
+                if (clipData != null)
                 {
-                    var clipData = _currentClipData.FirstOrDefault(p => p.Id == _textFormatClipDataId.Value);
-                    if (clipData != null)
+                    var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
+                    if (clip != null)
                     {
-                        var clip = await clipRepository.GetByIdAsync(clipData.ClipId);
-                        if (clip is { CustomTitle: false })
+                        // Recalculate the content hash with the new text
+                        var newHash = ContentHasher.HashText(newText);
+                        if (clip.ContentHash != newHash)
+                        {
+                            clip.ContentHash = newHash;
+                            
+                            // Also update Checksum for ClipMate 7.5 compatibility
+                            clip.Checksum = newHash.GetHashCode();
+                            
+                            _logger.LogDebug("[ClipViewer] Updated ContentHash after text edit");
+                        }
+
+                        // Update clip title if AutoChangeClipTitles is enabled AND CustomTitle is false
+                        // If CustomTitle=true, the user manually renamed the clip and title should never auto-update
+                        if (_configurationService.Configuration.Preferences.AutoChangeClipTitles && !clip.CustomTitle)
                         {
                             var newTitle = GenerateClipTitle(newText);
                             if (clip.Title != newTitle)
                             {
                                 clip.Title = newTitle;
-                                await clipRepository.UpdateAsync(clip);
                                 _logger.LogInformation("[ClipViewer] Updated clip title to: {Title}", newTitle);
                                 _messenger.Send(new ClipUpdatedMessage(clip.Id, newTitle));
                             }
                         }
-                        else if (clip?.CustomTitle == true)
+                        else if (clip.CustomTitle)
                             _logger.LogDebug("[ClipViewer] Skipped title update - CustomTitle flag is set");
+
+                        // Save all clip changes (hash, checksum, and possibly title)
+                        await clipRepository.UpdateAsync(clip);
                     }
                 }
             }
@@ -1366,7 +1412,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             };
 
             var result = _textTransformService.RemoveLineBreaks(text, lineBreakMode);
-            await TextEditor.SetTextAsync(result);
+            await TextEditor.ReplaceAllTextAsync(result);
             _logger.LogDebug("Removed line breaks with mode: {Mode}", mode);
         }
         catch (Exception ex)
@@ -1400,7 +1446,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var result = _textTransformService.ConvertCase(text, conversion);
 
             if (string.IsNullOrEmpty(selectedText))
-                await TextEditor.SetTextAsync(result);
+                await TextEditor.ReplaceAllTextAsync(result);
             else
                 await TextEditor.ReplaceSelectionAsync(result);
 
@@ -1421,7 +1467,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 return;
 
             var result = _textTransformService.TrimText(text);
-            await TextEditor.SetTextAsync(result);
+            await TextEditor.ReplaceAllTextAsync(result);
             _logger.LogDebug("Trimmed text");
         }
         catch (Exception ex)

@@ -5,6 +5,8 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 9 
 > This project is a modern, open‑source tribute to the original ClipMate® by
 > Thornsoft Development, which I have used and appreciated since 2004.
 
+![ClipMate Explorer Window](Resources/Images/explorer-window.png)
+
 > ⚠️ **Alpha Software** - This is an early alpha release under active development. Many features are incomplete and bugs are expected. Please report issues and help with testing!
 
 ## Status

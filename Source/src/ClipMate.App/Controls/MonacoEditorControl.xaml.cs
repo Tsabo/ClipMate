@@ -206,16 +206,28 @@ public partial class MonacoEditorControl
             if (!await initTask)
                 throw new InvalidOperationException("Monaco editor initialization returned false");
 
-            // Populate common languages
+            // Populate available languages from Monaco (includes all registered languages)
             AvailableLanguages.Clear();
-            var commonLanguages = new[]
+            var languages = await GetAvailableLanguagesAsync();
+            if (languages.Length > 0)
             {
-                "plaintext", "csharp", "cpp", "css", "html", "java", "javascript",
-                "json", "markdown", "php", "python", "sql", "typescript", "xml", "yaml",
-            };
-
-            foreach (var item in commonLanguages)
-                AvailableLanguages.Add(item);
+                foreach (var item in languages)
+                    AvailableLanguages.Add(item);
+                
+                _logger.LogDebug("[{ControlName}] Loaded {Count} languages from Monaco", Name ?? "Monaco", languages.Length);
+            }
+            else
+            {
+                // Fallback to common languages if Monaco query fails
+                _logger.LogWarning("[{ControlName}] Failed to get languages from Monaco, using fallback list", Name ?? "Monaco");
+                var fallbackLanguages = new[]
+                {
+                    "plaintext", "csharp", "cpp", "css", "html", "java", "javascript",
+                    "json", "markdown", "php", "python", "sql", "typescript", "xml", "yaml",
+                };
+                foreach (var item in fallbackLanguages)
+                    AvailableLanguages.Add(item);
+            }
 
             IsInitialized = true;
             _logger.LogInformation("[{ControlName}] Monaco editor initialization complete", Name ?? "Monaco");
@@ -627,6 +639,23 @@ public partial class MonacoEditorControl
         return JsonSerializer.Deserialize<string>(result) ?? "plaintext";
     }
 
+    /// <summary>
+    /// Gets all available languages registered with Monaco Editor.
+    /// </summary>
+    public async Task<string[]> GetAvailableLanguagesAsync()
+    {
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync("getAvailableLanguages()");
+            return JsonSerializer.Deserialize<string[]>(result) ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get available languages from Monaco");
+            return [];
+        }
+    }
+
     public async Task SetLanguageAsync(string languageId)
     {
         var controlName = Name ?? "Monaco";
@@ -790,6 +819,28 @@ public partial class MonacoEditorControl
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to replace selection");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Replaces all text in the editor while preserving undo history.
+    /// Use this instead of SetTextAsync when you want undo to work.
+    /// </summary>
+    public async Task<bool> ReplaceAllTextAsync(string text)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var escapedText = text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+            var result = await EditorWebView.ExecuteScriptAsync($"replaceAllText(\"{escapedText}\")");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to replace all text");
             return false;
         }
     }

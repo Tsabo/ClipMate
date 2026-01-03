@@ -65,10 +65,14 @@
                 // Notify content changes (store listener for disposal)
                 changeListener = monacoEditor.onDidChangeModelContent(() => {
                     if (suppressChangeEvents) {
-                        if (debugMode) console.log('[Monaco] Content changed (suppressed)');
+                        if (debugMode) {
+                            console.log('[Monaco] Content changed (suppressed)');
+                        }
                         return;
                     }
-                    if (debugMode) console.log('[Monaco] Content changed');
+                    if (debugMode) {
+                        console.log('[Monaco] Content changed');
+                    }
                     window.chrome.webview.postMessage({ type: 'textChanged' });
                     
                     // Trigger SQL validation if IntelliSense is enabled
@@ -124,13 +128,17 @@
                         try {
                             const viewState = JSON.parse(viewStateJson);
                             monacoEditor.restoreViewState(viewState);
-                            if (debugMode) console.log('[Monaco] View state restored');
+                            if (debugMode) {
+                                console.log('[Monaco] View state restored');
+                            }
                         } catch (e) {
                             console.warn('[Monaco] Failed to restore view state:', e);
                         }
                     }
 
-                    if (debugMode) console.log('[Monaco] Content loaded successfully');
+                    if (debugMode) {
+                        console.log('[Monaco] Content loaded successfully');
+                    }
                     return true;
                 } finally {
                     // Always re-enable change events
@@ -149,7 +157,9 @@
                 return false;
             }
             try {
-                if (debugMode) console.log('[Monaco] Setting language to:', languageId);
+                if (debugMode) {
+                    console.log('[Monaco] Setting language to:', languageId);
+                }
                 monaco.editor.setModelLanguage(monacoEditor.getModel(), languageId);
                 return true;
             } catch (error) {
@@ -164,6 +174,18 @@
                 return 'plaintext';
             }
             return monacoEditor.getModel().getLanguageId();
+        }
+
+        // Get all available languages from Monaco
+        function getAvailableLanguages() {
+            try {
+                const languages = monaco.languages.getLanguages();
+                // Return just the language IDs sorted alphabetically
+                return languages.map(lang => lang.id).sort();
+            } catch (error) {
+                console.error('[Monaco] Get available languages error:', error);
+                return [];
+            }
         }
 
         // Save view state
@@ -187,7 +209,9 @@
             }
             try {
                 monacoEditor.updateOptions(options);
-                if (debugMode) console.log('[Monaco] Options updated');
+                if (debugMode) {
+                    console.log('[Monaco] Options updated');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Update options error:', error);
@@ -237,10 +261,43 @@
                     forceMoveMarkers: true
                 }]);
                 
-                if (debugMode) console.log('[Monaco] Selection replaced');
+                if (debugMode) {
+                    console.log('[Monaco] Selection replaced');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Replace selection error:', error);
+                return false;
+            }
+        }
+
+        // Replace all text in the editor (preserves undo history)
+        function replaceAllText(text) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                const model = monacoEditor.getModel();
+                if (!model) {
+                    return false;
+                }
+                
+                // Get the full range of the document
+                const fullRange = model.getFullModelRange();
+                
+                // Use executeEdits to replace all content while preserving undo
+                monacoEditor.executeEdits('toolbar', [{
+                    range: fullRange,
+                    text: text,
+                    forceMoveMarkers: true
+                }]);
+                
+                if (debugMode) {
+                    console.log('[Monaco] All text replaced (undo preserved)');
+                }
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Replace all text error:', error);
                 return false;
             }
         }
@@ -268,7 +325,9 @@
                     forceMoveMarkers: true
                 }]);
                 
-                if (debugMode) console.log('[Monaco] Text inserted at cursor');
+                if (debugMode) {
+                    console.log('[Monaco] Text inserted at cursor');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Insert at cursor error:', error);
@@ -297,7 +356,9 @@
             }
             try {
                 monacoEditor.trigger('toolbar', 'undo');
-                if (debugMode) console.log('[Monaco] Undo triggered');
+                if (debugMode) {
+                    console.log('[Monaco] Undo triggered');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Trigger undo error:', error);
@@ -312,7 +373,9 @@
             }
             try {
                 monacoEditor.trigger('toolbar', 'actions.find');
-                if (debugMode) console.log('[Monaco] Find dialog triggered');
+                if (debugMode) {
+                    console.log('[Monaco] Find dialog triggered');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Trigger find error:', error);
@@ -329,7 +392,9 @@
                 monacoEditor.updateOptions({ 
                     wordWrap: enabled ? 'on' : 'off' 
                 });
-                if (debugMode) console.log('[Monaco] Word wrap:', enabled ? 'enabled' : 'disabled');
+                if (debugMode) {
+                    console.log('[Monaco] Word wrap:', enabled ? 'enabled' : 'disabled');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Set word wrap error:', error);
@@ -346,7 +411,9 @@
                 monacoEditor.updateOptions({ 
                     renderWhitespace: mode 
                 });
-                if (debugMode) console.log('[Monaco] Render whitespace:', mode);
+                if (debugMode) {
+                    console.log('[Monaco] Render whitespace:', mode);
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Set render whitespace error:', error);
@@ -519,7 +586,9 @@
                     scheduleValidation();
                 }
                 
-                if (debugMode) console.log('[Monaco] SQL IntelliSense registered successfully');
+                if (debugMode) {
+                    console.log('[Monaco] SQL IntelliSense registered successfully');
+                }
                 return true;
             } catch (error) {
                 console.error('[Monaco] Register SQL IntelliSense error:', error);
@@ -542,17 +611,23 @@
                 if (!sql) {
                     // Clear any existing markers
                     monaco.editor.setModelMarkers(model, 'sql-validator', []);
-                    if (debugMode) console.log('[Monaco] SQL empty, clearing markers');
+                    if (debugMode) {
+                        console.log('[Monaco] SQL empty, clearing markers');
+                    }
                     return;
                 }
                 
                 // Skip validation for very short/incomplete SQL (less than 6 chars)
                 if (sql.length < 6) {
-                    if (debugMode) console.log('[Monaco] SQL too short, skipping validation');
+                    if (debugMode) {
+                        console.log('[Monaco] SQL too short, skipping validation');
+                    }
                     return;
                 }
                 
-                if (debugMode) console.log('[Monaco] Requesting SQL validation for:', sql.substring(0, 50));
+                if (debugMode) {
+                    console.log('[Monaco] Requesting SQL validation for:', sql.substring(0, 50));
+                }
                 window.chrome.webview.postMessage({ 
                     type: 'validateSql', 
                     sql: sql 

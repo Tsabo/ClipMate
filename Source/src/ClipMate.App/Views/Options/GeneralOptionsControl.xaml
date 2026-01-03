@@ -128,7 +128,7 @@
                                  IsChecked="{Binding TrayIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowExplorerWindow}}"
                                  GroupName="TrayIconClick" Margin="0,0,5,0" />
                     <RadioButton Content="Show ClipBar"
-                                 IsChecked="{Binding TrayIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClipBar}}"
+                                 IsChecked="{Binding TrayIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClassWindow}}"
                                  GroupName="TrayIconClick" />
                 </StackPanel>
             </dxlc:LayoutItem>
@@ -140,7 +140,7 @@
                                  IsChecked="{Binding TaskbarIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowExplorerWindow}}"
                                  GroupName="TaskbarIconClick" Margin="0,0,5,0" />
                     <RadioButton Content="Show ClipBar"
-                                 IsChecked="{Binding TaskbarIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClipBar}}"
+                                 IsChecked="{Binding TaskbarIconLeftClickAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:IconLeftClickAction.ShowClassWindow}}"
                                  GroupName="TaskbarIconClick" />
                 </StackPanel>
             </dxlc:LayoutItem>

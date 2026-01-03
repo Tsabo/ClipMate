@@ -362,6 +362,27 @@ public class ClipboardCoordinator : IHostedService,
                 return;
             }
 
+            // Check if collection is virtual - virtual collections cannot accept new clips
+            if (activeCollection.IsVirtual)
+            {
+                _logger.LogDebug("Active collection is virtual, bouncing: {CollectionName}", activeCollection.Title);
+
+                var bounceCollection = await collectionService.GetFirstAcceptingCollectionAsync(cancellationToken);
+                if (bounceCollection != null)
+                {
+                    _logger.LogInformation("Clip bounced from virtual collection '{FromCollection}' to '{ToCollection}'",
+                        activeCollection.Title, bounceCollection.Title);
+
+                    activeCollection = bounceCollection;
+                }
+                else
+                {
+                    _logger.LogWarning("No accepting collection found for bounce from virtual collection, clip will be ignored");
+                    await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+                    return;
+                }
+            }
+
             // Bounce tracking: if active collection doesn't accept new clips, find first collection that does
             if (!activeCollection.AcceptNewClips)
             {
@@ -387,14 +408,10 @@ public class ClipboardCoordinator : IHostedService,
 
             // Get the active folder (or default to Inbox folder)
             var activeFolder = await folderService.GetActiveAsync(cancellationToken);
-            if (activeFolder != null)
+            if (activeFolder is { FolderType: FolderType.SearchResults }) // Check if folder accepts clipboard captures
             {
-                // Check if folder accepts clipboard captures
-                if (activeFolder.FolderType == FolderType.SearchResults)
-                {
-                    _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
-                    activeFolder = null; // Fall through to Inbox
-                }
+                _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
+                activeFolder = null; // Fall through to Inbox
             }
 
             if (activeFolder != null)
@@ -485,6 +502,7 @@ public class ClipboardCoordinator : IHostedService,
         var clipAddedEvent = new ClipAddedEvent(
             savedClip,
             wasDuplicate,
+            activeDatabaseKey,
             savedClip.CollectionId,
             savedClip.FolderId);
 

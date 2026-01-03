@@ -103,7 +103,18 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var dataTable = new DataTable();
-        dataTable.Load(reader);
+        
+        // Disable constraint checking to handle LEFT OUTER JOIN results with NULL values
+        // The DataTable will have nullable columns, but Load() can fail if it tries to infer constraints
+        dataTable.BeginLoadData();
+        try
+        {
+            dataTable.Load(reader);
+        }
+        finally
+        {
+            dataTable.EndLoadData();
+        }
 
         _logger.LogInformation("SQL query executed: {RowCount} rows returned", dataTable.Rows.Count);
 

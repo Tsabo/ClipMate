@@ -115,6 +115,13 @@ public partial class ClipListViewModel : ObservableObject,
         // Ensure we're on the UI thread
         Application.Current.Dispatcher.InvokeAsync(() =>
         {
+            // Set the database key if not already set (handles clips arriving before collection selection)
+            if (string.IsNullOrEmpty(CurrentDatabaseKey))
+            {
+                CurrentDatabaseKey = message.DatabaseKey;
+                _logger.LogInformation("[ClipListViewModel] CurrentDatabaseKey set from ClipAddedEvent: {DatabaseKey}", message.DatabaseKey);
+            }
+
             // Check if this clip should be displayed in the current view
             var shouldDisplay = ShouldDisplayClip(message.Clip, message.CollectionId, message.FolderId);
 
@@ -420,7 +427,6 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             CurrentCollectionId = collectionId;
             CurrentFolderId = null;
-            AcceptsNewClips = true; // Normal collection view accepts new clips
 
             _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
             IReadOnlyCollection<Clip> clips;
@@ -430,13 +436,29 @@ public partial class ClipListViewModel : ObservableObject,
             {
                 _logger.LogError("No active database key found, cannot load clips");
                 clips = [];
+                AcceptsNewClips = true; // Default to accepting new clips
             }
             else
             {
-                // Create repository using the factory
-                var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
-                clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
-                _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
+                // Get the collection to check if it's a virtual collection with SQL query
+                var collection = await _collectionService.GetByIdAsync(collectionId, cancellationToken);
+                
+                if (collection != null && collection.IsVirtual && !string.IsNullOrWhiteSpace(collection.Sql))
+                {
+                    // Virtual collection - execute SQL query
+                    _logger.LogInformation("Executing SQL query for virtual collection: {CollectionName}", collection.Title);
+                    AcceptsNewClips = false; // Virtual collections don't accept new clips
+                    clips = await _clipService.ExecuteSqlQueryAsync(activeDatabaseKey, collection.Sql, collection.RetentionLimit, cancellationToken);
+                    _logger.LogInformation("Retrieved {Count} clips from SQL query for virtual collection '{CollectionName}'", clips.Count, collection.Title);
+                }
+                else
+                {
+                    // Normal collection - load by collection ID
+                    AcceptsNewClips = true; // Normal collection view accepts new clips
+                    var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
+                    clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
+                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
+                }
             }
 
             // Update collection on UI thread
