@@ -101,10 +101,10 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "TEXT");
+        var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "CF_TEXT");
 
         // Assert
-        await Assert.That(result).IsTrue(); // TEXT is in smart defaults
+        await Assert.That(result).IsTrue(); // CF_TEXT is in smart defaults
         MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(p => p.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
     }
 

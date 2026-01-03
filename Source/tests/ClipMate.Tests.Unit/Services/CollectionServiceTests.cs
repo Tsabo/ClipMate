@@ -296,11 +296,6 @@ public class CollectionServiceTests
     public async Task DeleteAsync_WithValidId_ShouldDeleteCollection()
     {
         // Arrange
-        var collectionId = Guid.NewGuid();
-        _mockRepository.Setup(p => p.DeleteAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
         await using (var setupContext = CreateContext())
         {
@@ -308,14 +303,17 @@ public class CollectionServiceTests
             await setupContext.SaveChangesAsync();
         }
 
+        _mockRepository.Setup(p => p.DeleteAsync(dummyCollection.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
 
         // Act
-        await service.DeleteAsync(collectionId);
+        await service.DeleteAsync(dummyCollection.Id);
 
         // Assert
-        _mockRepository.Verify(p => p.DeleteAsync(collectionId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockRepository.Verify(p => p.DeleteAsync(dummyCollection.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

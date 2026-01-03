@@ -47,14 +47,14 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
         await Assert.That(result.Enabled).IsTrue();
 
         // Verify smart defaults
-        await Assert.That(result.Formats["TEXT"]).IsTrue();
+        await Assert.That(result.Formats["CF_TEXT"]).IsTrue();
         await Assert.That(result.Formats["CF_UNICODETEXT"]).IsTrue();
-        await Assert.That(result.Formats["BITMAP"]).IsTrue();
-        await Assert.That(result.Formats["HDROP"]).IsTrue();
+        await Assert.That(result.Formats["CF_BITMAP"]).IsTrue();
+        await Assert.That(result.Formats["CF_HDROP"]).IsTrue();
         await Assert.That(result.Formats["HTML Format"]).IsTrue();
         await Assert.That(result.Formats["Rich Text Format"]).IsFalse();
         await Assert.That(result.Formats["DataObject"]).IsFalse();
-        await Assert.That(result.Formats["LOCALE"]).IsFalse();
+        await Assert.That(result.Formats["CF_LOCALE"]).IsFalse();
         await Assert.That(result.Formats["OlePrivateData"]).IsFalse();
 
         MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(s => s.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
