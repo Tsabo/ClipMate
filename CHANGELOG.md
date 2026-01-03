@@ -8,38 +8,124 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- QuickPaste functionality with auto-targeting
-- Three-pane Explorer interface
-- Clipboard monitoring and capture
-- Search and filtering capabilities
-- Multiple formatting string support
-- Good/Bad target lists for QuickPaste
-- Monaco code editor integration
-- Sound effects for actions
-- DevExpress modern UI controls
+- **Virtual Collection Deletion** - Users can now delete virtual collections through context menu
 
-### Infrastructure
-- Cake build system
-- Dual installer strategy (standard + portable)
-- GitHub Actions CI/CD pipeline
-- MinVer automatic versioning
-- WebView2 Fixed Version bundling (portable)
-- SignPath integration (pending approval)
+### Changed
+- **Application Profile Format Handling** - Updated smart defaults to use "CF_" prefixed format names matching clipboard enumeration
+- **Bitmap Format Detection** - All bitmap variants (CF_BITMAP, CF_DIB, CF_DIBV5) treated as equivalent when checking application profiles
+- **Sample Data** - Updated Welcome clip to remove version number and signature, modernized text
 
-## [0.1.0] - TBD
+### Fixed
+- **Context Menu Commands** - Fixed XAML bindings for Add/Delete Collection and Activate/Deactivate Database commands using TreeView.Tag approach
+- **Command Execution** - Implemented proper CanExecute logic for collection commands based on selected node type
+- **Virtual Collection Organization** - Removed duplicate "Virtual" parent collection from seeder; virtual collections now top-level entities organized by UI
+- **Cascade Delete** - Collection deletion now properly removes orphaned clips and child collections to prevent foreign key constraint errors
+- **Application Profile Format Matching** - Fixed format name mismatches between clipboard enumeration (CF_BITMAP) and profile storage (BITMAP)
+- **Bitmap Format Filtering** - Resolved issue where enabled bitmap formats were still filtered out due to name prefix differences
+- **Clipboard Suppression** - Fixed ContentHash not being populated when loading clips from database, preventing re-capture of viewed clips
+- **ClipViewer Display** - Fixed StorageType values in sample clips (changed from 0 to StorageType.Text) so ClipViewer can properly load content
+
+## [0.1.0-alpha.2] - 2026-01-02
 
 ### Added
-- Initial pre-alpha release
-- Core clipboard management features
-- Basic QuickPaste implementation
-- Database schema with SQLite
-- Settings and configuration system
+- **About Dialog** - Version information, credits, and third-party attribution
+- **Docusaurus Documentation** - Initial documentation site setup with essential files
 
-### Known Issues
-- Installers are unsigned (awaiting SignPath approval)
-- QuickPaste monitoring thread not yet implemented
-- Window stack targeting uses simple foreground window detection
-- GoBack functionality not yet implemented
+### Changed
+- **QuickPaste Formatting** - Improved formatting string selection logic for better paste behavior
+- **README Updates** - Added project acknowledgment and tribute to original ClipMate
+
+### Fixed
+- **About Dialog XAML** - Cleaned up formatting for better maintainability
+- **Collection Roles** - Added CollectionRole.Inbox enum for semantic identification
+- **Duplicate Role Validation** - Repository-level validation prevents duplicate special role assignments
+- **Initialization Errors** - Fixed "No database is currently selected" when starting minimized
+- **DatabaseKey Propagation** - ClipAddedEvent now includes DatabaseKey for proper context tracking
+
+### Tests
+- Enhanced service provider mocks in view model tests
+- Added IClipboardService mock coverage
+
+---
+
+## [0.1.0-alpha.1] - 2026-01-01
+
+### Added
+
+#### Core Features
+- **Clipboard Monitoring** - Real-time capture of text, images, RTF, HTML, and file paths
+- **Multi-Database Support** - Switch between multiple SQLite databases with independent collections
+- **Collections & Folders** - Hierarchical organization with Collections, Folders, and Virtual (SQL-based) collections
+- **Search System** - Full-text search with saved queries and SQL support for advanced filtering
+- **QuickPaste** - Auto-targeting paste functionality with formatting strings and Good/Bad target lists
+- **PowerPaste** - Automation engine with macro execution and keystroke simulation
+- **Templates** - Reusable content with tag replacement (#DATE#, #TIME#, etc.)
+- **Shortcuts** - Nickname system for quick clip access (e.g., `.s.welcome`)
+- **Import/Export** - XML format with flat file fallback for large content
+- **Application Profiles** - Per-application capture filtering and settings
+- **Retention Management** - Automatic overflow handling with clip cascade (Collection → Overflow → Trashcan)
+- **Duplicate Detection** - Content hashing with configurable per-collection duplicate handling
+- **ClipData Architecture** - Multi-format storage supporting simultaneous Text, RTF, HTML, and Bitmap formats
+
+#### UI Components
+- **Three-Pane Explorer** - Collections tree, clip list, and content viewer with resizable splitters
+- **Monaco Editor** - Code/text editing with syntax highlighting and 40+ themes
+- **Hex Editor** - Binary content viewing and editing for non-text formats (WpfHexEditor)
+- **Clip Viewer Window** - Standalone viewer with auto-follow and pinning features
+- **DevExpress Controls** - Modern themed UI with Office 2019 styles
+- **Emoji Icons** - Twemoji font integration in context menus, toolbars, and status displays
+- **Sound Effects** - Audio feedback for clipboard operations (capture, paste, ignore)
+- **Clip Properties Dialog** - Detailed metadata editing and shortcut management
+
+#### Diagnostic Tools
+- **SQL Console** - Direct database querying with IntelliSense and result grid
+- **Event Log Viewer** - Real-time application event monitoring
+- **Clipboard Diagnostics** - Format inspection and raw clipboard data viewing
+- **Database Schema Viewer** - Interactive table and relationship explorer
+- **SQL Maintenance Services** - Database optimization and diagnostics
+
+#### Data Management
+- **Setup Wizard** - First-run configuration and database initialization
+- **Default Data Seeder** - Pre-configured collections matching ClipMate 7.5 structure
+- **Database Migration** - Automatic schema upgrades with backup creation
+- **Maintenance Scheduler** - Background optimization and cleanup tasks
+- **Undo Service** - Transaction-based undo for clip operations
+- **Centralized Clip Operations** - Unified service layer for all clip manipulations
+
+### Changed
+- **Architecture** - Layered design with strict separation: UI → Services → Repositories → DbContext
+- **Database Access** - Entity Framework Core 9.0 with Dapper for performance-critical queries
+- **MVVM Pattern** - CommunityToolkit.Mvvm for relay commands and observable properties
+- **Logging** - Structured logging with Serilog (file and debug output)
+- **Configuration** - TOML format for user settings with type-safe models
+- **Unit Tests** - Migrated to in-memory SQLite connections and IDatabaseContextFactory pattern
+- **RTF Viewer** - Replaced with DevExpress RichEditControl for enhanced functionality
+- **HTML Viewer** - Integrated HtmlRenderer.WPF for improved rendering
+
+### Fixed
+- **AcceptDuplicates Enforcement** - Collections properly reject duplicates based on configuration
+- **TUnit Compatibility** - Updated to version 1.7.7 for improved testing
+- **Property References** - Corrected ColumnBase to BaseColumn in DataGrid methods
+- **Font Icons** - Updated SVG resources and font mappings
+- **Test Assertions** - Improved backup progress and search functionality tests
+
+### Infrastructure
+- **Build System** - Cake build automation with version stamping and artifact management
+- **CI/CD Pipeline** - GitHub Actions for automated builds and installer generation
+- **Versioning** - MinVer for semantic versioning from Git tags
+- **Installers** - Inno Setup with dual strategy (standard installer + portable ZIP)
+- **WebView2** - Fixed Version runtime bundled for offline portable installations
+- **Code Signing** - SignPath integration configured (pending certificate approval)
+- **Testing** - TUnit framework with 100+ unit and integration tests
+- **Font Pipeline** - nanoemoji and fonttools for color emoji font generation
+- **LibMan Integration** - Automated client-side library management
+- **.NET 10 Upgrade** - Migrated from .NET 9 to .NET 10 preview
+
+### Known Limitations
+- Encryption not yet implemented (planned for future release)
+- Printing functionality pending
+- Help documentation in progress
+- Installers unsigned (awaiting SignPath certificate approval)
 
 ---
 
