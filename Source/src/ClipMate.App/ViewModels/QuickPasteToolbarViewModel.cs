@@ -95,7 +95,21 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         foreach (var item in config.QuickPasteFormattingStrings)
             FormattingStrings.Add(item);
 
-        SelectedFormattingString = _quickPasteService.GetSelectedFormattingString();
+        // Get the selected formatting string from the service
+        var serviceSelected = _quickPasteService.GetSelectedFormattingString();
+
+        // Find the matching item in the FormattingStrings collection
+        // DevExpress ComboBox requires the selected item to be from the ItemsSource collection
+        if (serviceSelected != null)
+        {
+            SelectedFormattingString = FormattingStrings
+                .FirstOrDefault(p => p.Title == serviceSelected.Title) ?? FormattingStrings.FirstOrDefault();
+        }
+        else if (FormattingStrings.Count > 0)
+        {
+            // Fallback to first item if service has no selection
+            SelectedFormattingString = FormattingStrings[0];
+        }
     }
 
     /// <summary>

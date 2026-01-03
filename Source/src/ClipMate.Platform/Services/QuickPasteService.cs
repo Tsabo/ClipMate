@@ -293,8 +293,14 @@ public class QuickPasteService : IQuickPasteService
     private void SelectDefaultFormattingString()
     {
         var config = _configurationService.Configuration.Preferences;
+
+        // First try to find the default formatting string (with TitleTrigger = "*")
         _selectedFormattingString = config.QuickPasteFormattingStrings
             .FirstOrDefault(p => p.TitleTrigger == "*");
+
+        // If no default found, use the first formatting string
+        if (_selectedFormattingString == null && config.QuickPasteFormattingStrings.Count > 0)
+            _selectedFormattingString = config.QuickPasteFormattingStrings[0];
 
         _logger.LogDebug("Default formatting string selected: {Title}",
             _selectedFormattingString?.Title ?? "None");
