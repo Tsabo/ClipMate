@@ -88,16 +88,18 @@
                                    Margin="0,0,0,5" />
                         <TextBlock TextWrapping="Wrap"
                                    FontSize="11">
-                            <Run Text="ClipMate is a modern reimagining of the original ClipMate clipboard manager, created by " />
+                            <Run
+                                Text="ClipMate is a modern reimagining of the original ClipMate clipboard manager, created by " />
                             <Run Text="Chris Thornton" FontWeight="SemiBold" />
                             <Run Text=" at " />
                             <Run Text="Thornsoft Development, Inc." FontWeight="SemiBold" />
                             <Run Text=" (1991-2013)." />
                         </TextBlock>
-                        <TextBlock Text="We honor and thank Chris for creating such an innovative and beloved application."
-                                   FontSize="11"
-                                   FontStyle="Italic"
-                                   Margin="0,5,0,0" />
+                        <TextBlock
+                            Text="We honor and thank Chris for creating such an innovative and beloved application."
+                            FontSize="11"
+                            FontStyle="Italic"
+                            Margin="0,5,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -185,7 +187,8 @@
                         VerticalAlignment="Bottom">
                     <TextBlock TextWrapping="Wrap" FontSize="11">
                         <Run Text="ClipMate is developed and maintained by the community. " />
-                        <Run Text="If you find this project useful, please consider starring it on GitHub or contributing!" />
+                        <Run
+                            Text="If you find this project useful, please consider starring it on GitHub or contributing!" />
                     </TextBlock>
                 </Border>
             </Grid>
