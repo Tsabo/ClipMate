@@ -585,4 +585,57 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// Finds the SearchResultsVirtualCollectionNode within a database node's children.
     /// </summary>
     private SearchResultsVirtualCollectionNode? FindSearchResultsNode(DatabaseTreeNode databaseNode) => databaseNode.Children.OfType<SearchResultsVirtualCollectionNode>().FirstOrDefault();
+
+    /// <summary>
+    /// Expands all nodes in the tree.
+    /// </summary>
+    [RelayCommand]
+    private void ExpandAll()
+    {
+        _logger.LogInformation("Expanding all nodes in collection tree");
+        _messenger.Send(new ExpandAllNodesRequestedEvent());
+    }
+
+    /// <summary>
+    /// Collapses all nodes in the tree.
+    /// </summary>
+    [RelayCommand]
+    private void CollapseAll()
+    {
+        _logger.LogInformation("Collapsing all nodes in collection tree");
+        _messenger.Send(new CollapseAllNodesRequestedEvent());
+    }
+
+    /// <summary>
+    /// Shows all clips in the selected collection and all child folders recursively.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanShowAllClipsInChildren))]
+    private void ShowAllClipsInChildren()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return;
+
+        var databaseKey = GetDatabaseKeyForNode(collectionNode);
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogWarning("Cannot show all clips: database key not found");
+            return;
+        }
+
+        _logger.LogInformation("Showing all clips in collection {CollectionId} and children", collectionNode.Collection.Id);
+        _messenger.Send(new ShowAllClipsInChildrenRequestedEvent(collectionNode.Collection.Id, databaseKey));
+    }
+
+    /// <summary>
+    /// Determines if "Show All Clips In All Children" can be executed.
+    /// Only enabled for non-virtual collections.
+    /// </summary>
+    private bool CanShowAllClipsInChildren()
+    {
+        if (SelectedNode is not CollectionTreeNode collectionNode)
+            return false;
+
+        // Cannot use this on virtual collections or trashcan
+        return !collectionNode.Collection.IsVirtual;
+    }
 }

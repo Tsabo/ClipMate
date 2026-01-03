@@ -405,8 +405,28 @@ public class ClipboardService : IClipboardService, IDisposable
     /// <summary>
     /// Checks if a clipboard format is allowed based on application profile filtering.
     /// If no filtering is active (allowedFormats is null), all formats are allowed.
+    /// Handles both "CF_" prefixed format names (from enumeration) and non-prefixed names (from constants).
     /// </summary>
-    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats) => allowedFormats == null || allowedFormats.Contains(formatName);
+    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats)
+    {
+        if (allowedFormats == null)
+            return true;
+
+        // Check exact match first
+        if (allowedFormats.Contains(formatName))
+            return true;
+
+        // Check with CF_ prefix added (for backward compatibility with old profiles)
+        if (allowedFormats.Contains($"CF_{formatName}"))
+            return true;
+
+        // Check with CF_ prefix removed (for checking constants against enumerated names)
+        if (formatName.StartsWith("CF_", StringComparison.Ordinal) && allowedFormats.Contains(formatName[3..]))
+            return true;
+
+        return false;
+    }
+
 
     /// <summary>
     /// Extracts text-based clipboard content (Plain Text, RTF, HTML) based on allowed formats.

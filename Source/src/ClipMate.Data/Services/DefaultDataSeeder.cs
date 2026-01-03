@@ -174,38 +174,6 @@ public class DefaultDataSeeder
                     MaxBytes = 0,
                     MaxClips = 200,
                 },
-
-                // Virtual - Parent folder for virtual/smart collections
-                new()
-                {
-                    Id = Guid.Parse("A82DA2A6-86AA-4FC6-A660-2543E7FE900D"),
-                    ParentId = null,
-                    ParentGuid = emptyGuid,
-                    Title = "Virtual",
-                    Icon = "✨",
-                    LmType = CollectionLmType.Folder,
-                    ListType = CollectionListType.Smart,
-                    SortKey = 400,
-                    IlIndex = 50,
-                    RetentionLimit = 250,
-                    NewClipsGo = 1,
-                    AcceptNewClips = false,
-                    ReadOnly = false,
-                    AcceptDuplicates = true,
-                    SortColumn = 1,
-                    SortAscending = false,
-                    Encrypted = false,
-                    Favorite = false,
-                    LastUserId = 1,
-                    LastUpdateTime = null,
-                    LastKnownCount = 0,
-                    Sql = "xxx", // Placeholder
-                    CreatedAt = now,
-                    Role = CollectionRole.None,
-                    MaxAgeDays = 0,
-                    MaxBytes = 0,
-                    MaxClips = 200,
-                },
             };
 
             await _context.Collections.AddRangeAsync(collections);
@@ -213,16 +181,15 @@ public class DefaultDataSeeder
 
             _logger?.LogInformation("Created {Count} root collections", collections.Count);
 
-            // Create virtual collections (children of "Virtual" folder)
-            var virtualParentId = Guid.Parse("A82DA2A6-86AA-4FC6-A660-2543E7FE900D");
+            // Create virtual collections (no parent - they're organized by VirtualCollectionsContainerNode in the UI)
             var virtualCollections = new List<Collection>
             {
                 // Today - Clips captured today
                 new()
                 {
                     Id = Guid.Parse("27EBB8C8-FE43-4199-BD92-C953717C4066"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Today",
                     Icon = "📅",
                     LmType = CollectionLmType.Virtual,
@@ -258,8 +225,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("962983D5-9C1D-43FA-9B70-D258F5AE54E6"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "This Week",
                     Icon = "🗓️",
                     LmType = CollectionLmType.Virtual,
@@ -295,8 +262,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("360D9460-6A7F-48C7-9554-D8E8D36FBFE9"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "This Month",
                     Icon = "📆",
                     LmType = CollectionLmType.Virtual,
@@ -332,8 +299,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("36418363-48C2-4B71-8157-2000553ACABC"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Everything",
                     Icon = "🌐",
                     LmType = CollectionLmType.Virtual,
@@ -369,8 +336,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("09FB405E-6AC9-4500-9384-F7A801AB231C"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Since Last Import",
                     Icon = "📥",
                     LmType = CollectionLmType.Virtual,
@@ -406,8 +373,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("BCB43DAE-6ACC-4FED-B4E3-49E70F192BF7"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Since Last Export",
                     Icon = "📤",
                     LmType = CollectionLmType.Virtual,
@@ -443,8 +410,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("A0FBA33A-D501-411D-BCE4-AB1522F6A141"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Images",
                     Icon = "🖼️",
                     LmType = CollectionLmType.Virtual,
@@ -466,7 +433,7 @@ public class DefaultDataSeeder
                     Sql = """
                           select Clips.*, ShortCut.Nickname
                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
-                          where Type = 2 and Del = false
+                          where Type = 3 and Del = false
                           order by ID;
                           """,
                     CreatedAt = now,
@@ -480,8 +447,8 @@ public class DefaultDataSeeder
                 new()
                 {
                     Id = Guid.Parse("1B9F6564-2A21-4500-B46D-7B3A4A40C554"),
-                    ParentId = virtualParentId,
-                    ParentGuid = virtualParentId,
+                    ParentId = null,
+                    ParentGuid = emptyGuid,
                     Title = "Keystroke Macros",
                     Icon = "⌨️",
                     LmType = CollectionLmType.Virtual,
@@ -530,7 +497,7 @@ public class DefaultDataSeeder
                 {
                     Id = Guid.Parse("56DF8FED-5E03-4533-B769-6CA26C22A6CC"),
                     CollectionId = inboxId,
-                    Title = "Welcome to ClipMate 7! (Sample Clip)",
+                    Title = "Welcome to ClipMate! (Sample Clip)",
                     Creator = "ClipMate - Manually Created",
                     CapturedAt = now,
                     SortKey = 100,
@@ -540,7 +507,7 @@ public class DefaultDataSeeder
                     WrapCheck = false,
                     Encrypted = false,
                     Del = false,
-                    Size = 561,
+                    Size = 460,
                     DelDate = null,
                     UserId = 0,
                     Checksum = 0,
@@ -549,7 +516,7 @@ public class DefaultDataSeeder
                     LastModified = now,
                     Type = ClipType.Text,
                     TextContent =
-                        "Welcome to ClipMate 7!\r\n\r\nThis is a test clip, which you can paste anywhere, \r\nuse it for editing practice, spelling praktice (intentionally \r\nmisspelled - right-click to correct), or discard. \r\n\r\nYou can paste this clip into any application that can paste TEXT from the clipboard.  \r\nOf course, ClipMate can also work with Bitmaps, HTML, Rich Text, and other formats.  \r\nCopy some data from anywhere, and you'll see it show up here.\r\n\r\nI hope you enjoy ClipMate 7!\r\n\r\nSincerely,\r\n\r\nChris Thornton, President\r\nThornsoft Development, Inc.\r\nhttp://www.thornsoft.com\r\n",
+                        "Welcome to ClipMate!\r\n\r\nThis is a sample clip, which you can paste anywhere, \r\nuse it for editing practice, spelling praktice (intentionally \r\nmisspelled - right-click to correct), or discard. \r\n\r\nYou can paste this clip into any application that can paste TEXT from the clipboard.  \r\nOf course, ClipMate can also work with Bitmaps, HTML, Rich Text, and other formats.  \r\nCopy some data from anywhere, and you'll see it show up here.\r\n\r\nI hope you enjoy ClipMate!\r\n",
                     ContentHash = "",
                 },
 
@@ -687,8 +654,8 @@ public class DefaultDataSeeder
                     ClipId = Guid.Parse("56DF8FED-5E03-4533-B769-6CA26C22A6CC"),
                     FormatName = "TEXT",
                     Format = 1,
-                    Size = 561,
-                    StorageType = 0,
+                    Size = 460,
+                    StorageType = StorageType.Text,
                 },
 
                 // Demo showing @ symbol - TEXT format
@@ -699,7 +666,7 @@ public class DefaultDataSeeder
                     FormatName = "TEXT",
                     Format = 1,
                     Size = 428,
-                    StorageType = 0,
+                    StorageType = StorageType.Text,
                 },
 
                 // HTML Clip - HTML Format
@@ -710,7 +677,7 @@ public class DefaultDataSeeder
                     FormatName = "HTML Format",
                     Format = -3,
                     Size = 936,
-                    StorageType = 0,
+                    StorageType = StorageType.Text,
                 },
 
                 // HTML Clip - TEXT format
@@ -721,7 +688,7 @@ public class DefaultDataSeeder
                     FormatName = "TEXT",
                     Format = 1,
                     Size = 240,
-                    StorageType = 0,
+                    StorageType = StorageType.Text,
                 },
 
                 // Password Demo - TEXT format
@@ -732,7 +699,7 @@ public class DefaultDataSeeder
                     FormatName = "TEXT",
                     Format = 1,
                     Size = 30,
-                    StorageType = 0,
+                    StorageType = StorageType.Text,
                 },
 
                 // Macro clip - TEXT format
@@ -743,7 +710,7 @@ public class DefaultDataSeeder
                     FormatName = "TEXT",
                     Format = 1,
                     Size = 739,
-                    StorageType = 0,
+                    StorageType = StorageType.Text,
                 },
             };
 
@@ -779,7 +746,7 @@ public class DefaultDataSeeder
                     ClipDataId = clipData1,
                     ClipId = Guid.Parse("56DF8FED-5E03-4533-B769-6CA26C22A6CC"),
                     Data =
-                        "Welcome to ClipMate 7!\r\n\r\nThis is a test clip, which you can paste anywhere, \r\nuse it for editing practice, spelling praktice (intentionally \r\nmisspelled - right-click to correct), or discard. \r\n\r\nYou can paste this clip into any application that can paste TEXT from the clipboard.  \r\nOf course, ClipMate can also work with Bitmaps, HTML, Rich Text, and other formats.  \r\nCopy some data from anywhere, and you'll see it show up here.\r\n\r\nI hope you enjoy ClipMate 7!\r\n\r\nSincerely,\r\n\r\nChris Thornton, President\r\nThornsoft Development, Inc.\r\nhttp://www.thornsoft.com\r\n",
+                        "Welcome to ClipMate!\r\n\r\nThis is a sample clip, which you can paste anywhere, \r\nuse it for editing practice, spelling praktice (intentionally \r\nmisspelled - right-click to correct), or discard. \r\n\r\nYou can paste this clip into any application that can paste TEXT from the clipboard.  \r\nOf course, ClipMate can also work with Bitmaps, HTML, Rich Text, and other formats.  \r\nCopy some data from anywhere, and you'll see it show up here.\r\n\r\nI hope you enjoy ClipMate!\r\n",
                 },
 
                 // Demo showing @ symbol
@@ -851,3 +818,4 @@ public class DefaultDataSeeder
         }
     }
 }
+

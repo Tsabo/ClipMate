@@ -28,6 +28,7 @@ public partial class MainMenuViewModel : ObservableObject
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
+    private readonly CollectionTreeViewModel? _collectionTreeViewModel;
 
     /// <summary>
     /// Gets or sets whether GoBack is enabled for QuickPaste.
@@ -71,13 +72,28 @@ public partial class MainMenuViewModel : ObservableObject
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        CollectionTreeViewModel? collectionTreeViewModel = null)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _collectionTreeViewModel = collectionTreeViewModel;
+
+        // Subscribe to selection changes to update CanExecute for collection commands
+        if (_collectionTreeViewModel != null)
+        {
+            _collectionTreeViewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(CollectionTreeViewModel.SelectedNode))
+                {
+                    AddCollectionCommand.NotifyCanExecuteChanged();
+                    DeleteCollectionCommand.NotifyCanExecuteChanged();
+                }
+            };
+        }
     }
 
     /// <summary>
@@ -162,11 +178,17 @@ public partial class MainMenuViewModel : ObservableObject
     [RelayCommand]
     private void ShowProperties() => _messenger.Send(new ShowCollectionPropertiesRequestedEvent());
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanAddCollection))]
     private void AddCollection() => _messenger.Send(new AddCollectionRequestedEvent());
 
-    [RelayCommand]
+    private bool CanAddCollection() =>
+        _collectionTreeViewModel?.SelectedNode is CollectionTreeNode or DatabaseTreeNode;
+
+    [RelayCommand(CanExecute = nameof(CanDeleteCollection))]
     private void DeleteCollection() => _messenger.Send(new DeleteCollectionRequestedEvent());
+
+    private bool CanDeleteCollection() =>
+        _collectionTreeViewModel?.SelectedNode is CollectionTreeNode { Collection.IsSpecial: false } or VirtualCollectionTreeNode;
 
     [RelayCommand]
     private void ReloadCollection() => _messenger.Send(new ReloadCollectionRequestedEvent());

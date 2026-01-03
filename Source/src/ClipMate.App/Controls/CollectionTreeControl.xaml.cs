@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using DragDropEffects = System.Windows.DragDropEffects;
 
@@ -11,12 +13,26 @@ namespace ClipMate.App.Controls;
 /// Displays hierarchical collection tree using DevExpress TreeListControl.
 /// Structure: Database -> Collections/Virtual Collections -> Folders
 /// </summary>
-public partial class CollectionTreeControl
+public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedEvent>, IRecipient<CollapseAllNodesRequestedEvent>
 {
     public CollectionTreeControl()
     {
         InitializeComponent();
+
+        // Register for expand/collapse events
+        WeakReferenceMessenger.Default.Register<ExpandAllNodesRequestedEvent>(this);
+        WeakReferenceMessenger.Default.Register<CollapseAllNodesRequestedEvent>(this);
     }
+
+    /// <summary>
+    /// Handles CollapseAllNodesRequestedEvent to collapse all nodes in the tree.
+    /// </summary>
+    public void Receive(CollapseAllNodesRequestedEvent message) => TreeView.CollapseAllNodes();
+
+    /// <summary>
+    /// Handles ExpandAllNodesRequestedEvent to expand all nodes in the tree.
+    /// </summary>
+    public void Receive(ExpandAllNodesRequestedEvent message) => TreeView.ExpandAllNodes();
 
     /// <summary>
     /// Handles drag-over events to control where collections and clips can be dropped.

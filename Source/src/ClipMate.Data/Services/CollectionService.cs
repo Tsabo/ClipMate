@@ -153,6 +153,35 @@ public class CollectionService : ICollectionService
             _activeDatabaseKey = null;
         }
 
+        await using var dbContext = _databaseManager.CreateDatabaseContext(databaseKey)
+                                    ?? throw new InvalidOperationException($"Database context for '{databaseKey}' not found");
+
+        // First check if this is a virtual collection
+        var collection = await dbContext.Collections.FindAsync([id], cancellationToken);
+        if (collection == null)
+            throw new InvalidOperationException($"Collection {id} not found.");
+
+        // Always check for and remove any clips or child collections referencing this collection
+        // Even virtual collections might have orphaned clips due to bugs
+        var clips = await dbContext.Clips
+            .Where(p => p.CollectionId == id)
+            .ToListAsync(cancellationToken);
+
+        if (clips.Count > 0)
+            dbContext.Clips.RemoveRange(clips);
+
+        // Delete all child collections/folders (folders are stored as Collections with ParentId)
+        var childCollections = await dbContext.Collections
+            .Where(p => p.ParentId == id)
+            .ToListAsync(cancellationToken);
+
+        if (childCollections.Count > 0)
+            dbContext.Collections.RemoveRange(childCollections);
+
+        if (clips.Count > 0 || childCollections.Count > 0)
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Now delete the collection itself
         var repository = _contextFactory.GetCollectionRepository(databaseKey);
         var deleted = await repository.DeleteAsync(id, cancellationToken);
 

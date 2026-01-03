@@ -9,17 +9,21 @@ namespace ClipMate.Core.Services;
 public class ApplicationProfileService : IApplicationProfileService
 {
     // Smart defaults: formats that should be captured by default
+    // IMPORTANT: These must match the format names returned by ClipboardFormatEnumerator
+    // which uses StandardFormatNames with "CF_" prefix for standard formats
     private static readonly Dictionary<string, bool> _smartDefaults = new()
     {
-        [Formats.Text.Name] = true,
-        [Formats.UnicodeText.Name] = true,
-        [Formats.Bitmap.Name] = true,
-        [Formats.HDrop.Name] = true,
-        [Formats.Html.Name] = true,
-        [Formats.RichText.Name] = false,
+        ["CF_TEXT"] = true, // Formats.Text but with CF_ prefix from StandardFormatNames
+        ["CF_UNICODETEXT"] = true, // Formats.UnicodeText with CF_ prefix
+        ["CF_BITMAP"] = true, // Formats.Bitmap with CF_ prefix
+        ["CF_DIB"] = true, // Formats.Dib with CF_ prefix (also bitmap)
+        ["CF_DIBV5"] = true, // Formats.DibV5 with CF_ prefix (also bitmap)
+        ["CF_HDROP"] = true, // Formats.HDrop with CF_ prefix
+        ["HTML Format"] = true, // HTML Format (custom format name, not CF_ prefixed)
+        ["Rich Text Format"] = false, // Rich Text Format (custom format name)
         ["DataObject"] = false,
-        [Formats.Locale.Name] = false,
-        ["OlePrivateData"] = false
+        ["CF_LOCALE"] = false, // Formats.Locale with CF_ prefix
+        ["OlePrivateData"] = false,
     };
 
     private readonly ILogger<ApplicationProfileService> _logger;
@@ -59,8 +63,33 @@ public class ApplicationProfileService : IApplicationProfileService
         if (!profile.Enabled)
             return false;
 
-        // Check if format is in profile and enabled, if not in profile, don't capture
-        return profile.Formats.GetValueOrDefault(formatName, false);
+        // Check if format is in profile and enabled
+        if (profile.Formats.TryGetValue(formatName, out var enabled))
+            return enabled;
+
+        // Backward compatibility: if format name starts with "CF_", also try without prefix
+        // This handles old profiles that stored "BITMAP" vs new enumeration returning "CF_BITMAP"
+        if (formatName.StartsWith("CF_", StringComparison.Ordinal))
+        {
+            var withoutPrefix = formatName[3..]; // Remove "CF_"
+            if (profile.Formats.TryGetValue(withoutPrefix, out enabled))
+                return enabled;
+        }
+
+        // Special case: All bitmap formats should be treated as equivalent
+        // If any bitmap format is enabled, allow all bitmap formats (CF_BITMAP, CF_DIB, CF_DIBV5)
+        if (formatName is "CF_BITMAP" or "CF_DIB" or "CF_DIBV5")
+        {
+            // Check if any bitmap variant is enabled in the profile
+            return profile.Formats.TryGetValue("CF_BITMAP", out enabled) && enabled
+                   || profile.Formats.TryGetValue("CF_DIB", out enabled) && enabled
+                   || profile.Formats.TryGetValue("CF_DIBV5", out enabled) && enabled
+                   || profile.Formats.TryGetValue("BITMAP", out enabled) && enabled // Old format without prefix
+                   || profile.Formats.TryGetValue("DIB", out enabled) && enabled; // Old format without prefix
+        }
+
+        // Format not in profile, default to false (don't capture)
+        return false;
     }
 
     /// <inheritdoc />
@@ -77,7 +106,7 @@ public class ApplicationProfileService : IApplicationProfileService
         {
             ApplicationName = normalizedAppName,
             Enabled = true,
-            Formats = new Dictionary<string, bool>(_smartDefaults)
+            Formats = new Dictionary<string, bool>(_smartDefaults),
         };
 
         await _store.AddOrUpdateProfileAsync(profile, cancellationToken);

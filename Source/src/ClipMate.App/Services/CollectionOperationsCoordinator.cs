@@ -256,17 +256,28 @@ public class CollectionOperationsCoordinator :
     }
 
     /// <summary>
-    /// Handles DeleteCollectionRequestedEvent to delete the selected collection.
+    /// Handles DeleteCollectionRequestedEvent to delete the selected collection or virtual collection.
     /// </summary>
     public async void Receive(DeleteCollectionRequestedEvent message)
     {
-        if (_collectionTreeViewModel.SelectedNode is not CollectionTreeNode collectionNode)
+        Collection collection;
+        string nodeType;
+
+        if (_collectionTreeViewModel.SelectedNode is CollectionTreeNode collectionNode)
+        {
+            collection = collectionNode.Collection;
+            nodeType = "collection";
+        }
+        else if (_collectionTreeViewModel.SelectedNode is VirtualCollectionTreeNode virtualNode)
+        {
+            collection = virtualNode.VirtualCollection;
+            nodeType = "virtual collection";
+        }
+        else
         {
             SendStatus("No collection selected");
             return;
         }
-
-        var collection = collectionNode.Collection;
 
         // Don't allow deleting special collections
         if (collection.IsSpecial)
@@ -282,9 +293,13 @@ public class CollectionOperationsCoordinator :
         }
 
         // Confirm deletion
+        var dialogMessage = nodeType == "virtual collection"
+            ? $"Are you sure you want to delete the virtual collection '{collection.Name}'?\n\nThe saved query will be deleted, but the actual clips will remain in their original collections."
+            : $"Are you sure you want to delete the collection '{collection.Name}'?\n\nAll clips in this collection will be permanently deleted.";
+
         var result = DXMessageBox.Show(
             _activeWindowService.DialogOwner,
-            $"Are you sure you want to delete the collection '{collection.Name}'?\n\nAll clips in this collection will be permanently deleted.",
+            dialogMessage,
             "Delete Collection",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
@@ -296,8 +311,8 @@ public class CollectionOperationsCoordinator :
         {
             await _collectionService.DeleteAsync(collection.Id);
 
-            _logger.LogInformation("Deleted collection: {Name} (ID: {Id})", collection.Name, collection.Id);
-            SendStatus($"Deleted collection: {collection.Name}");
+            _logger.LogInformation("Deleted {NodeType}: {Name} (ID: {Id})", nodeType, collection.Name, collection.Id);
+            SendStatus($"Deleted {nodeType}: {collection.Name}");
 
             // Refresh the collection tree
             _messenger.Send(new RefreshCollectionTreeRequestedEvent());

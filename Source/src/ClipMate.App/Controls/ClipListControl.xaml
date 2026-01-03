@@ -189,12 +189,6 @@
                                     <emoji:TextBlock Text="📊" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <Separator />
-                            <MenuItem Header="Cancel">
-                                <MenuItem.Icon>
-                                    <emoji:TextBlock Text="❌" FontSize="14" />
-                                </MenuItem.Icon>
-                            </MenuItem>
                         </ContextMenu>
                     </dxg:GridControl.ContextMenu>
 
@@ -415,12 +409,6 @@
                             <MenuItem Header="Show Column Headers" IsCheckable="True" IsChecked="True">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📊" FontSize="14" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <Separator />
-                            <MenuItem Header="Cancel">
-                                <MenuItem.Icon>
-                                    <emoji:TextBlock Text="❌" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
                         </ContextMenu>

@@ -34,6 +34,7 @@ public class CreateNewClipTests : TestFixtureBase
 
     private ClipService CreateService() => new(
         _mockContextFactory.Object,
+        Mock.Of<IConfigurationService>(),
         _mockSoundService.Object,
         Mock.Of<IClipboardService>(),
         Mock.Of<ITemplateService>(),

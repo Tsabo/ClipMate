@@ -23,7 +23,8 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<SearchResultsSelectedEvent>,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
-    IRecipient<SelectPreviousClipEvent>
+    IRecipient<SelectPreviousClipEvent>,
+    IRecipient<ShowAllClipsInChildrenRequestedEvent>
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -104,6 +105,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
         _messenger.Register<SearchResultsSelectedEvent>(this);
+        _messenger.Register<ShowAllClipsInChildrenRequestedEvent>(this);
     }
 
     /// <summary>
@@ -280,6 +282,27 @@ public partial class ClipListViewModel : ObservableObject,
 
             SelectedClip = Clips[previousIndex];
         });
+    }
+
+    /// <summary>
+    /// Receives ShowAllClipsInChildrenRequestedEvent when user requests to see all clips in a collection and its child
+    /// folders.
+    /// Loads clips recursively from the collection and all subfolders.
+    /// </summary>
+    public async void Receive(ShowAllClipsInChildrenRequestedEvent message)
+    {
+        _logger.LogInformation("ShowAllClipsInChildrenRequestedEvent received: CollectionId={CollectionId}, DatabaseKey={DatabaseKey}",
+            message.CollectionId, message.DatabaseKey);
+
+        // Store the current database key and collection ID
+        CurrentDatabaseKey = message.DatabaseKey;
+        CurrentCollectionId = message.CollectionId;
+
+        // These views accept new clips
+        AcceptsNewClips = true;
+
+        // Load clips recursively
+        await LoadClipsByCollectionRecursiveAsync(message.CollectionId, message.DatabaseKey);
     }
 
     partial void OnSelectedClipChanged(Clip? value)
@@ -477,6 +500,50 @@ public partial class ClipListViewModel : ObservableObject,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clips for collection: {CollectionId}", collectionId);
+            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads clips for a collection and all its child folders recursively.
+    /// </summary>
+    /// <param name="collectionId">The collection ID.</param>
+    /// <param name="databaseKey">The database key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task LoadClipsByCollectionRecursiveAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            CurrentCollectionId = collectionId;
+            CurrentFolderId = null;
+            AcceptsNewClips = true; // This is a normal collection view
+
+            _logger.LogInformation("Loading clips recursively for collection: {CollectionId}", collectionId);
+
+            // Use the new recursive service method
+            var clips = await _clipService.GetByCollectionRecursiveAsync(databaseKey, collectionId, false, cancellationToken);
+            _logger.LogInformation("Retrieved {Count} clips recursively from collection {CollectionId}", clips.Count, collectionId);
+
+            // Update collection on UI thread
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Clips.Clear();
+                foreach (var clip in clips)
+                    Clips.Add(clip);
+
+                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
+                // Auto-select the first (most recent) clip
+                SelectedClip = Clips.FirstOrDefault();
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading clips recursively for collection: {CollectionId}", collectionId);
             await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
         }
         finally

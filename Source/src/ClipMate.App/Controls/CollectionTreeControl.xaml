@@ -18,6 +18,7 @@
     <!-- DevExpress TreeViewControl for hierarchical collection tree -->
     <dxg:TreeViewControl x:Name="TreeView"
                          ItemsSource="{Binding RootNodes}"
+                         Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"
                          TreeViewFieldName="Name"
                          ImageFieldName="IconImage"
                          ChildNodesPath="Children"
@@ -59,65 +60,66 @@
                 <!-- Move Up/Down -->
                 <MenuItem Header="Move Up In Sort Order"
                           InputGestureText="(+)"
-                          Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                          Command="{Binding MoveUpCommand}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="⬆️" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Move Down In Sort Order"
                           InputGestureText="(-)"
-                          Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                          Command="{Binding MoveDownCommand}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="⬇️" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <!-- Add New Collection -->
-                <MenuItem Header="Add New Collection">
+                <MenuItem Header="Add New Collection"
+                          Command="{Binding Path=PlacementTarget.Tag.MainMenu.AddCollectionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="📁" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <!-- Delete Collection -->
-                <MenuItem Header="Delete Collection">
+                <MenuItem Header="Delete Collection"
+                          Command="{Binding Path=PlacementTarget.Tag.MainMenu.DeleteCollectionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="🗑️" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <!-- Database Operations -->
-                <MenuItem Header="Activate Database">
+                <MenuItem Header="Activate Database"
+                          Command="{Binding Path=PlacementTarget.Tag.MainMenu.ActivateDatabaseCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="✅" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="De-Activate Database">
+                <MenuItem Header="De-Activate Database"
+                          Command="{Binding Path=PlacementTarget.Tag.MainMenu.DeactivateDatabaseCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="⛔" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
 
                 <!-- Tree Operations -->
-                <MenuItem Header="Expand All">
+                <MenuItem Header="Expand All"
+                          Command="{Binding ExpandAllCommand}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="➕" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Collapse All">
+                <MenuItem Header="Collapse All"
+                          Command="{Binding CollapseAllCommand}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="➖" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Show All Clips In All Children">
+                <MenuItem Header="Show All Clips In All Children"
+                          Command="{Binding ShowAllClipsInChildrenCommand}">
                     <MenuItem.Icon>
                         <emoji:TextBlock Text="📂" FontSize="14" />
-                    </MenuItem.Icon>
-                </MenuItem>
-
-                <MenuItem Header="Cancel">
-                    <MenuItem.Icon>
-                        <emoji:TextBlock Text="❌" FontSize="14" />
                     </MenuItem.Icon>
                 </MenuItem>
 

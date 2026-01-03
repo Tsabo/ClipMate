@@ -79,6 +79,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         _clipService = new ClipService(
             contextFactory.Object,
+            Mock.Of<IConfigurationService>(),
             soundService.Object,
             _clipboardService,
             Mock.Of<ITemplateService>(),
@@ -105,7 +106,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var folderRepository = new FolderRepository(DbContext);
         var mockFolderContextFactory = new Mock<IDatabaseContextFactory>();
-        mockFolderContextFactory.Setup(f => f.GetFolderRepository(It.IsAny<string>())).Returns(folderRepository);
+        mockFolderContextFactory.Setup(p => p.GetFolderRepository(It.IsAny<string>())).Returns(folderRepository);
         var mockFolderCollectionService = new Mock<ICollectionService>();
         mockFolderCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
         var folderService = new FolderService(mockFolderContextFactory.Object, mockFolderCollectionService.Object);

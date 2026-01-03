@@ -256,6 +256,7 @@ public class ClipServiceTests
         // Create ClipService with factory
         new ClipService(
             _mockContextFactory.Object,
+            Mock.Of<IConfigurationService>(),
             _mockSoundService.Object,
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),

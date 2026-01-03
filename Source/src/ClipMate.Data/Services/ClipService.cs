@@ -3,6 +3,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -392,6 +393,16 @@ public class ClipService : IClipService
             if (transformedClip != null)
                 clip = transformedClip;
 
+            // Generate ContentHash for suppression (prevent re-capturing this clip)
+            // IMPORTANT: Must compute hash AFTER loading content from database
+            clip.ContentHash = clip.Type switch
+            {
+                ClipType.Text or ClipType.RichText or ClipType.Html => ContentHasher.HashText(clip.TextContent ?? string.Empty),
+                ClipType.Image => ContentHasher.HashBytes(clip.ImageData ?? []),
+                ClipType.Files => ContentHasher.HashText(clip.FilePathsJson ?? string.Empty),
+                _ => string.Empty
+            };
+
             // Update the Windows clipboard
             await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
             _logger.LogInformation("Set clipboard content for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
@@ -429,6 +440,43 @@ public class ClipService : IClipService
             _logger.LogError(ex, "Failed to execute virtual collection SQL query: {Query}", processedQuery);
             throw;
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Getting clips recursively for collection {CollectionId} in database {DatabaseKey}", collectionId, databaseKey);
+
+        var repository = GetRepository(databaseKey);
+        var folderRepository = _databaseContextFactory.GetFolderRepository(databaseKey);
+
+        // Get clips directly in the collection
+        var collectionClips = await repository.GetByCollectionAsync(collectionId, cancellationToken);
+
+        // Get all folders in this collection recursively
+        var allFolders = await folderRepository.GetByCollectionAsync(collectionId, cancellationToken);
+
+        // Get clips from each folder
+        var folderClips = new List<Clip>();
+        foreach (var item in allFolders)
+        {
+            var clips = await repository.GetByFolderAsync(item.Id, cancellationToken);
+            folderClips.AddRange(clips);
+        }
+
+        // Combine and deduplicate (a clip shouldn't be in multiple places, but just in case)
+        var allClips = collectionClips.Concat(folderClips)
+            .GroupBy(c => c.Id)
+            .Select(g => g.First())
+            .ToList();
+
+        // Filter by deleted status if needed
+        if (!includeDeleted)
+            allClips = allClips.Where(c => !c.Del).ToList();
+
+        _logger.LogInformation("Found {Count} clips recursively in collection {CollectionId}", allClips.Count, collectionId);
+
+        return allClips.AsReadOnly();
     }
 
     /// <summary>
