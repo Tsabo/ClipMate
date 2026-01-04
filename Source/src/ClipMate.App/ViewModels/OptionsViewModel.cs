@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -163,7 +164,12 @@ public partial class OptionsViewModel : ObservableObject
     [RelayCommand]
     private void Help()
     {
-        // TODO: Implement help system
-        _logger.LogInformation("Help requested for Options dialog");
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://jeremy.browns.info/ClipMate/options/",
+            UseShellExecute = true,
+        });
+
+        _logger.LogInformation("Opening Options documentation");
     }
 }

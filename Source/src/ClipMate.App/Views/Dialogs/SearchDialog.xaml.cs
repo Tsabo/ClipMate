@@ -116,14 +116,11 @@ public partial class SearchDialog
 
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Show help documentation
-        DXMessageBox.Show(
-            "Enter search criteria and click Go! to find clips.\n\n" +
-            "Use filters to narrow your search by format, date range, or collection.\n" +
-            "SQL tab allows advanced queries for power users.",
-            "Search Help",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://jeremy.browns.info/ClipMate/user-interface/main-toolbar/search/",
+            UseShellExecute = true,
+        });
     }
 
     private async Task InitializeSqlIntelliSenseAsync()

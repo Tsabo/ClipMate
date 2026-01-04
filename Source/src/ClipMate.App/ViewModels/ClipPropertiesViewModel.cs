@@ -208,10 +208,9 @@ public partial class ClipPropertiesViewModel : ObservableObject
     [RelayCommand]
     private void Help()
     {
-        // TODO: Open help documentation
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://clipmate.com/help/clip-properties",
+            FileName = "https://jeremy.browns.info/ClipMate/user-interface/cliplist/",
             UseShellExecute = true,
         });
     }

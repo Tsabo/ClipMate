@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -273,20 +274,11 @@ public partial class CollectionPropertiesViewModel : ObservableObject
     [RelayCommand]
     private void Help()
     {
-        // TODO: Show context-sensitive help for Collection Properties
-        MessageBox.Show(
-            "Collection Properties Help:\n\n" +
-            "• Normal: Standard collection for storing clips\n" +
-            "• Folder: Organizational container for other collections\n" +
-            "• Trashcan: Special collection for deleted items\n" +
-            "• Virtual: Dynamic collection based on SQL query\n\n" +
-            "Purging Rules control automatic clip deletion:\n" +
-            "• By number: Keeps only the last N clips\n" +
-            "• By age: Deletes clips older than N days\n" +
-            "• Never: Safe collection with no auto-deletion",
-            "Collection Properties Help",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://jeremy.browns.info/ClipMate/advanced/data-management/",
+            UseShellExecute = true,
+        });
     }
 }
 

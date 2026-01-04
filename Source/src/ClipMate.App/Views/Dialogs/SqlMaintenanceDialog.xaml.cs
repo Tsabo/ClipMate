@@ -226,17 +226,11 @@ public partial class SqlMaintenanceDialog
 
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Open help documentation for SQL Maintenance
-        DXMessageBox.Show(this,
-            "SQL Maintenance allows you to execute raw SQL queries against the database.\n\n" +
-            "• Execute SQL: Runs the query within the current transaction\n" +
-            "• OK: Commits all changes permanently\n" +
-            "• Cancel: Rolls back all changes made during this session\n" +
-            "• Save Result To File: Exports query results to a text file\n\n" +
-            "WARNING: Use extreme caution! Incorrect SQL can corrupt your database.",
-            "SQL Maintenance Help",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "https://jeremy.browns.info/ClipMate/options/databases/",
+            UseShellExecute = true
+        });
     }
 
     private void SaveResultButton_Click(object sender, RoutedEventArgs e)

@@ -12,14 +12,16 @@ namespace ClipMate.App.ViewModels;
 public partial class AboutDialogViewModel : ObservableObject
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="AboutDialogViewModel"/> class.
+    /// Initializes a new instance of the <see cref="AboutDialogViewModel" /> class.
     /// </summary>
     public AboutDialogViewModel()
     {
         // Get version from assembly
         var assembly = Assembly.GetExecutingAssembly();
         var version = assembly.GetName().Version;
-        Version = version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.0.0";
+        Version = version != null
+            ? $"v{version.Major}.{version.Minor}.{version.Build}"
+            : "v0.0.0";
 
         // Get copyright year
         var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
@@ -48,46 +50,31 @@ public partial class AboutDialogViewModel : ObservableObject
     /// Opens the GitHub repository in the default browser.
     /// </summary>
     [RelayCommand]
-    private void ViewOnGitHub()
-    {
-        OpenUrl("https://github.com/clipmate/ClipMate");
-    }
+    private void ViewOnGitHub() => OpenUrl("https://github.com/Tsabo/ClipMate");
 
     /// <summary>
     /// Opens the GitHub issues page in the default browser.
     /// </summary>
     [RelayCommand]
-    private void ReportIssue()
-    {
-        OpenUrl("https://github.com/clipmate/ClipMate/issues");
-    }
+    private void ReportIssue() => OpenUrl("https://github.com/Tsabo/ClipMate/issues");
 
     /// <summary>
     /// Opens the documentation site in the default browser.
     /// </summary>
     [RelayCommand]
-    private void ViewDocumentation()
-    {
-        OpenUrl("https://github.com/clipmate/ClipMate/wiki");
-    }
+    private void ViewDocumentation() => OpenUrl("https://jeremy.browns.info/ClipMate/");
 
     /// <summary>
     /// Opens the GitHub releases page to check for updates.
     /// </summary>
     [RelayCommand]
-    private void CheckForUpdates()
-    {
-        OpenUrl("https://github.com/clipmate/ClipMate/releases");
-    }
+    private void CheckForUpdates() => OpenUrl("https://github.com/Tsabo/ClipMate/releases");
 
     /// <summary>
     /// Opens the localization contribution guide.
     /// </summary>
     [RelayCommand]
-    private void ViewLocalizationInfo()
-    {
-        OpenUrl("https://github.com/clipmate/ClipMate/blob/main/CONTRIBUTING.md#localization");
-    }
+    private void ViewLocalizationInfo() => OpenUrl("https://github.com/Tsabo/ClipMate/blob/main/CONTRIBUTING.md#localization");
 
     /// <summary>
     /// Opens a URL in a credit item.
@@ -96,9 +83,7 @@ public partial class AboutDialogViewModel : ObservableObject
     private void OpenCreditUrl(string? url)
     {
         if (!string.IsNullOrEmpty(url))
-        {
             OpenUrl(url);
-        }
     }
 
     private static void OpenUrl(string url)
@@ -287,30 +272,30 @@ public partial class AboutDialogViewModel : ObservableObject
             Url = "https://github.com/dotnet/efcore",
         });
     }
-}
-
-/// <summary>
-/// Represents a third-party library credit entry.
-/// </summary>
-public class CreditItem
-{
-    /// <summary>
-    /// Gets or sets the name of the library or component.
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets a description of what the library is used for.
+    /// Represents a third-party library credit entry.
     /// </summary>
-    public string Description { get; set; } = string.Empty;
+    public class CreditItem
+    {
+        /// <summary>
+        /// Gets or sets the name of the library or component.
+        /// </summary>
+        public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the license type.
-    /// </summary>
-    public string License { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets a description of what the library is used for.
+        /// </summary>
+        public string Description { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the URL to the library's repository or homepage.
-    /// </summary>
-    public string Url { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets the license type.
+        /// </summary>
+        public string License { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the URL to the library's repository or homepage.
+        /// </summary>
+        public string Url { get; set; } = string.Empty;
+    }
 }

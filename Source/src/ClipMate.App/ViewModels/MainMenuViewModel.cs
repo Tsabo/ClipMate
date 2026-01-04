@@ -25,10 +25,10 @@ public partial class MainMenuViewModel : ObservableObject
 {
     private readonly IClipboardService _clipboardService;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
+    private readonly CollectionTreeViewModel? _collectionTreeViewModel;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
-    private readonly CollectionTreeViewModel? _collectionTreeViewModel;
 
     /// <summary>
     /// Gets or sets whether GoBack is enabled for QuickPaste.
@@ -62,12 +62,6 @@ public partial class MainMenuViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTargetLocked;
 
-    /// <summary>
-    /// Gets whether auto capture (clipboard monitoring) is currently active.
-    /// This property is read directly from the clipboard service for live state.
-    /// </summary>
-    public bool IsAutoCapturing => _clipboardService.IsMonitoring;
-
     public MainMenuViewModel(IMessenger messenger,
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
@@ -87,14 +81,20 @@ public partial class MainMenuViewModel : ObservableObject
         {
             _collectionTreeViewModel.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(CollectionTreeViewModel.SelectedNode))
-                {
-                    AddCollectionCommand.NotifyCanExecuteChanged();
-                    DeleteCollectionCommand.NotifyCanExecuteChanged();
-                }
+                if (e.PropertyName != nameof(CollectionTreeViewModel.SelectedNode))
+                    return;
+
+                AddCollectionCommand.NotifyCanExecuteChanged();
+                DeleteCollectionCommand.NotifyCanExecuteChanged();
             };
         }
     }
+
+    /// <summary>
+    /// Gets whether auto capture (clipboard monitoring) is currently active.
+    /// This property is read directly from the clipboard service for live state.
+    /// </summary>
+    public bool IsAutoCapturing => _clipboardService.IsMonitoring;
 
     /// <summary>
     /// Gets the collection of loaded databases for dynamic menu generation.
@@ -562,7 +562,7 @@ public partial class MainMenuViewModel : ObservableObject
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://github.com/Jelosus2/ClipMate/wiki",
+            FileName = "https://jeremy.browns.info/ClipMate/",
             UseShellExecute = true,
         });
     }
@@ -572,7 +572,7 @@ public partial class MainMenuViewModel : ObservableObject
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://github.com/Jelosus2/ClipMate",
+            FileName = "https://github.com/clipmate/ClipMate",
             UseShellExecute = true,
         });
     }
