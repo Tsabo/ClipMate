@@ -459,13 +459,13 @@ public class ClipService : IClipService
 
         // Combine and deduplicate (a clip shouldn't be in multiple places, but just in case)
         var allClips = collectionClips.Concat(folderClips)
-            .GroupBy(c => c.Id)
-            .Select(g => g.First())
+            .GroupBy(p => p.Id)
+            .Select(p => p.First())
             .ToList();
 
         // Filter by deleted status if needed
         if (!includeDeleted)
-            allClips = allClips.Where(c => !c.Del).ToList();
+            allClips = allClips.Where(p => !p.Del).ToList();
 
         _logger.LogInformation("Found {Count} clips recursively in collection {CollectionId}", allClips.Count, collectionId);
 
@@ -746,7 +746,9 @@ public class ClipService : IClipService
     /// Resolves a database key to its file path using configuration.
     /// If the input is already a file path (contains path separators), returns it as-is.
     /// </summary>
+#pragma warning disable IDE0051 // Remove unused private members - may be used in future
     private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
+#pragma warning restore IDE0051
     {
         // If it looks like a file path (contains directory separators), return as-is
         if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) ||

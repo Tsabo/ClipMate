@@ -192,11 +192,11 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
 
             // Copy restored files to database directory
             progress?.Report("Restoring database files...");
-            foreach (var file in Directory.GetFiles(tempDir))
+            foreach (var item in Directory.GetFiles(tempDir))
             {
-                var fileName = Path.GetFileName(file);
+                var fileName = Path.GetFileName(item);
                 var destFile = Path.Join(dbDirectory, fileName);
-                File.Copy(file, destFile, true);
+                File.Copy(item, destFile, true);
                 progress?.Report($"Restored: {fileName}");
             }
 
@@ -227,7 +227,7 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
 
         // Count deleted clips
         var deletedCount = await context.Clips
-            .Where(c => c.Del)
+            .Where(p => p.Del)
             .CountAsync(cancellationToken);
 
         if (deletedCount == 0)
@@ -417,6 +417,109 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
         }
 
         return await Task.FromResult(databasesDue);
+    }
+
+    /// <inheritdoc />
+    public Task<int> CleanupOldBackupsAsync(string backupDirectory,
+        int retentionDays = 14,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        progress?.Report($"Cleaning up backup files older than {retentionDays} days...");
+
+        var expandedBackupPath = Environment.ExpandEnvironmentVariables(backupDirectory);
+
+        // Validate backup directory exists
+        if (!Directory.Exists(expandedBackupPath))
+        {
+            progress?.Report("Backup directory does not exist. Skipping cleanup.");
+            return Task.FromResult(0);
+        }
+
+        // Calculate cutoff date based on retention policy
+        var cutoffDate = DateTime.Now.AddDays(-retentionDays);
+        var backupFiles = Directory.GetFiles(expandedBackupPath, "ClipMate_DB_*.zip");
+        var deletedCount = 0;
+
+        // Delete backup files older than retention period
+        foreach (var backupFile in backupFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileInfo = new FileInfo(backupFile);
+            if (fileInfo.LastWriteTime >= cutoffDate)
+                continue;
+
+            try
+            {
+                File.Delete(backupFile);
+                deletedCount++;
+                progress?.Report($"Deleted old backup: {fileInfo.Name}");
+                _logger.LogInformation("Deleted old backup file: {BackupFile} (Age: {Age} days)",
+                    backupFile, (DateTime.Now - fileInfo.LastWriteTime).TotalDays);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete old backup file: {BackupFile}", backupFile);
+                progress?.Report($"Warning: Could not delete {fileInfo.Name}");
+            }
+        }
+
+        progress?.Report($"Cleanup complete. Deleted {deletedCount} old backup file(s).");
+        return Task.FromResult(deletedCount);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> CheckDatabaseIntegrityAsync(DatabaseConfiguration databaseConfig,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        progress?.Report($"Checking integrity of database '{databaseConfig.Name}'...");
+
+        var expandedDbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+
+        // Validate database file exists
+        if (!File.Exists(expandedDbFile))
+        {
+            progress?.Report($"Database file not found: {expandedDbFile}");
+            _logger.LogWarning("Database file not found during integrity check: {DbFile}", expandedDbFile);
+            return false;
+        }
+
+        try
+        {
+            // Open direct connection to run PRAGMA integrity_check
+            // This is a lightweight check that verifies database structure without full scan
+            var connectionString = $"Data Source={expandedDbFile}";
+            await using var connection = new SqliteConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA integrity_check;";
+
+            var result = await command.ExecuteScalarAsync(cancellationToken);
+            var resultString = result?.ToString() ?? string.Empty;
+
+            // SQLite returns "ok" if database is healthy, or error messages if corrupted
+            if (resultString.Equals("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                progress?.Report("Database integrity check passed.");
+                _logger.LogInformation("Database integrity check passed for: {DbFile}", expandedDbFile);
+                return true;
+            }
+
+            progress?.Report($"Database integrity check FAILED: {resultString}");
+            _logger.LogError("Database integrity check failed for: {DbFile}. Result: {Result}",
+                expandedDbFile, resultString);
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            progress?.Report($"Error during integrity check: {ex.Message}");
+            _logger.LogError(ex, "Exception during database integrity check for: {DbFile}", expandedDbFile);
+            return false;
+        }
     }
 
     private async Task ExportAndRebuildDatabaseAsync(DatabaseConfiguration databaseConfig,

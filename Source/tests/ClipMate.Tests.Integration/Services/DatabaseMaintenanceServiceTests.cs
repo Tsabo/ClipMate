@@ -90,10 +90,10 @@ public class DatabaseMaintenanceServiceTests
         // Assert
         await Assert.That(File.Exists(backupPath)).IsTrue();
         await Assert.That(backupPath).Contains(".zip");
-        
+
         // Note: Progress callbacks may not fire in test environments due to SynchronizationContext behavior
         // The critical assertion is that the backup file is created correctly
-        
+
         // Verify ZIP contents
         using var archive = ZipFile.OpenRead(backupPath);
         await Assert.That(archive.Entries.Any(p => p.Name.EndsWith(".db"))).IsTrue();
@@ -319,6 +319,106 @@ public class DatabaseMaintenanceServiceTests
 
         // Assert
         await Assert.That(dueBackups.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task CleanupOldBackupsAsync_ShouldDeleteOldBackups()
+    {
+        // Arrange - Create backup files with different ages
+        var oldBackupPath = Path.Combine(_backupDirectory, "ClipMate_DB_test_2025-12-01_120000.zip");
+        var recentBackupPath = Path.Combine(_backupDirectory, "ClipMate_DB_test_2026-01-03_120000.zip");
+
+        // Create dummy backup files
+        await File.WriteAllTextAsync(oldBackupPath, "old backup");
+        await File.WriteAllTextAsync(recentBackupPath, "recent backup");
+
+        // Set file timestamps (old = 20 days ago, recent = 2 days ago)
+        File.SetLastWriteTime(oldBackupPath, DateTime.Now.AddDays(-20));
+        File.SetLastWriteTime(recentBackupPath, DateTime.Now.AddDays(-2));
+
+        // Act - 14-day retention policy
+        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, 14);
+
+        // Assert
+        await Assert.That(deletedCount).IsEqualTo(1);
+        await Assert.That(File.Exists(oldBackupPath)).IsFalse();
+        await Assert.That(File.Exists(recentBackupPath)).IsTrue();
+    }
+
+    [Test]
+    public async Task CleanupOldBackupsAsync_ShouldHandleNonExistentDirectory()
+    {
+        // Arrange
+        var nonExistentDir = Path.Combine(_testDirectory, "DoesNotExist");
+
+        // Act
+        var deletedCount = await _service.CleanupOldBackupsAsync(nonExistentDir);
+
+        // Assert
+        await Assert.That(deletedCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task CleanupOldBackupsAsync_ShouldOnlyDeleteClipMateBackups()
+    {
+        // Arrange - Create backup files with different naming patterns
+        var clipMateBackup = Path.Combine(_backupDirectory, "ClipMate_DB_test_2025-12-01_120000.zip");
+        var otherFile = Path.Combine(_backupDirectory, "SomeOtherFile.zip");
+
+        await File.WriteAllTextAsync(clipMateBackup, "clipmate backup");
+        await File.WriteAllTextAsync(otherFile, "other file");
+
+        // Both are old
+        File.SetLastWriteTime(clipMateBackup, DateTime.Now.AddDays(-20));
+        File.SetLastWriteTime(otherFile, DateTime.Now.AddDays(-20));
+
+        // Act
+        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, 14);
+
+        // Assert - Only ClipMate backup should be deleted
+        await Assert.That(deletedCount).IsEqualTo(1);
+        await Assert.That(File.Exists(clipMateBackup)).IsFalse();
+        await Assert.That(File.Exists(otherFile)).IsTrue();
+    }
+
+    [Test]
+    public async Task CheckDatabaseIntegrityAsync_ShouldReturnTrue_WhenDatabaseHealthy()
+    {
+        // Arrange
+        var config = new DatabaseConfiguration
+        {
+            Name = "test",
+            FilePath = Path.Combine(_testDirectory, "test.db"),
+        };
+
+        // Ensure database is healthy
+        await using (var context = await _contextFactory.CreateDbContextAsync())
+        {
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        var isHealthy = await _service.CheckDatabaseIntegrityAsync(config);
+
+        // Assert
+        await Assert.That(isHealthy).IsTrue();
+    }
+
+    [Test]
+    public async Task CheckDatabaseIntegrityAsync_ShouldReturnFalse_WhenDatabaseNotFound()
+    {
+        // Arrange
+        var config = new DatabaseConfiguration
+        {
+            Name = "missing",
+            FilePath = Path.Combine(_testDirectory, "missing.db"),
+        };
+
+        // Act
+        var isHealthy = await _service.CheckDatabaseIntegrityAsync(config);
+
+        // Assert
+        await Assert.That(isHealthy).IsFalse();
     }
 
     private class TestDbContextFactory : IDbContextFactory<ClipMateDbContext>

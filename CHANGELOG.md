@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Clipboard Erase Detection** - Implemented detection for when external applications clear the clipboard with audio feedback
+- **Database Maintenance Features**:
+  - Automatic integrity checks on startup (PRAGMA integrity_check)
+  - Automatic repair prompt and process for corrupted databases
+  - Old backup file cleanup (14-day retention)
+  - CleanupMethod configuration enforcement:
+    - AtStartup: Runs cleanup during application startup
+    - AtShutdown: Runs cleanup during application shutdown
+    - AfterHourIdle: Runs cleanup during hourly idle maintenance
+    - Never: Disables automatic cleanup
+    - Manual: Cleanup only via user action
+- **MaintenanceSchedulerService Enhancements**:
+  - Now respects per-database CleanupMethod configuration
+  - Automatic old backup cleanup during idle maintenance
+  - Processes all configured databases independently
 
 ### Fixed
 - **Search Results Auto-Selection** - Search results node is now automatically selected after executing a search, with database node expanded for visibility
@@ -17,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **ClipService Dependencies** - Removed ISoundService dependency as clip deletion no longer triggers sound effects
+- **App Startup** - Added comprehensive maintenance tasks including integrity checks, backup cleanup, and CleanupMethod.AtStartup processing
+- **App Shutdown** - Added CleanupMethod.AtShutdown processing
+- **DatabaseMaintenanceService** - Added CleanupOldBackupsAsync and CheckDatabaseIntegrityAsync methods
 
 ## [0.1.0-alpha.4] - 2026-1-3
 

@@ -112,6 +112,9 @@ public partial class App
             // Check if any databases need backup
             await CheckAndPromptForBackupsAsync();
 
+            // Run startup cleanup tasks (if configured)
+            await RunStartupMaintenanceTasksAsync();
+
             // Apply icon configuration
             var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
             var config = configService.Configuration.Preferences;
@@ -244,6 +247,104 @@ public partial class App
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error checking for backup-due databases");
+        }
+    }
+
+    /// <summary>
+    /// Runs startup maintenance tasks: integrity checks, backup cleanup, and CleanupMethod.AtStartup triggers.
+    /// This ensures database health and enforces maintenance policies configured per database.
+    /// </summary>
+    private async Task RunStartupMaintenanceTasksAsync()
+    {
+        try
+        {
+            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
+            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
+            var config = configService.Configuration;
+
+            _logger?.LogDebug("Running startup maintenance tasks...");
+
+            // ===== TASK 1: Database Integrity Checks =====
+            // Perform quick PRAGMA integrity_check on all databases to detect corruption early.
+            // If corruption is found, prompt user for automatic repair using ComprehensiveRepairDatabaseAsync.
+            _logger?.LogDebug("Performing integrity checks on all databases...");
+            foreach (var item in config.Databases.Values)
+            {
+                var isHealthy = await maintenanceService.CheckDatabaseIntegrityAsync(item);
+                if (isHealthy)
+                    continue;
+
+                _logger?.LogWarning("Database '{Name}' failed integrity check at startup", item.Name);
+
+                // Prompt user for repair
+                var result = MessageBox.Show(
+                    $"Database '{item.Name}' has integrity issues.\n\n" +
+                    "Would you like to attempt automatic repair?\n\n" +
+                    "This will close the application, repair the database, and restart.",
+                    "Database Corruption Detected",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                    continue;
+
+                _logger?.LogInformation("User requested repair for database: {Name}", item.Name);
+
+                // Show progress dialog and run comprehensive repair (backup + empty trash + cleanup + rebuild + vacuum)
+                var progress = new Progress<string>(p => _logger?.LogInformation("Repair: {Message}", p));
+                await maintenanceService.ComprehensiveRepairDatabaseAsync(item, progress);
+
+                MessageBox.Show(
+                    $"Database '{item.Name}' has been repaired.\n\nThe application will now restart.",
+                    "Repair Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                // Restart application to load repaired database
+                Process.Start(Environment.ProcessPath!);
+                Shutdown(0);
+                return;
+            }
+
+            // ===== TASK 2: Old Backup File Cleanup =====
+            // Clean up backup files older than 14 days to prevent disk space issues.
+            // Processes all unique backup directories configured across databases.
+            var backupDirs = config.Databases.Values
+                .Select(p => Environment.ExpandEnvironmentVariables(p.BackupDirectory))
+                .Distinct()
+                .Where(dir => !string.IsNullOrWhiteSpace(dir));
+
+            foreach (var item in backupDirs)
+            {
+                _logger?.LogDebug("Cleaning up old backups in: {Dir}", item);
+                var deletedCount = await maintenanceService.CleanupOldBackupsAsync(item, 14);
+                if (deletedCount > 0)
+                    _logger?.LogInformation("Deleted {Count} old backup files from {Dir}", deletedCount, item);
+            }
+
+            // ===== TASK 3: CleanupMethod.AtStartup Processing =====
+            // Run cleanup (permanently delete clips based on PurgeDays) for databases configured with AtStartup.
+            // This respects per-database CleanupMethod configuration.
+            var startupCleanupDbs = config.Databases.Values
+                .Where(db => db.CleanupMethod == CleanupMethod.AtStartup)
+                .ToList();
+
+            if (startupCleanupDbs.Count > 0)
+            {
+                _logger?.LogInformation("Running startup cleanup for {Count} database(s)", startupCleanupDbs.Count);
+                foreach (var dbConfig in startupCleanupDbs)
+                {
+                    _logger?.LogDebug("Running cleanup for database: {Name}", dbConfig.Name);
+                    var progress = new Progress<string>(message => _logger?.LogDebug("Cleanup: {Message}", message));
+                    await maintenanceService.RunCleanupAsync(dbConfig, progress);
+                }
+            }
+
+            _logger?.LogDebug("Startup maintenance tasks completed");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error during startup maintenance tasks");
         }
     }
 
@@ -529,7 +630,7 @@ public partial class App
 
         return Host.CreateDefaultBuilder()
             .UseSerilog() // Use Serilog for logging
-            .ConfigureAppConfiguration(config => config.SetBasePath(AppContext.BaseDirectory))
+            .ConfigureAppConfiguration(p => p.SetBasePath(AppContext.BaseDirectory))
             .ConfigureServices(services =>
             {
                 // App Host
@@ -650,6 +751,9 @@ public partial class App
 
         try
         {
+            // Run shutdown maintenance tasks (if configured)
+            await RunShutdownMaintenanceTasksAsync();
+
             if (_host != null)
             {
                 // Stop all hosted services gracefully
@@ -672,6 +776,45 @@ public partial class App
         _singleInstanceMutex?.Dispose();
 
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Runs shutdown maintenance tasks: CleanupMethod.AtShutdown triggers.
+    /// Executes cleanup for databases configured with AtShutdown before application terminates.
+    /// </summary>
+    private async Task RunShutdownMaintenanceTasksAsync()
+    {
+        try
+        {
+            var configService = ServiceProvider.GetService<IConfigurationService>();
+            var maintenanceService = ServiceProvider.GetService<IDatabaseMaintenanceService>();
+
+            if (configService == null || maintenanceService == null)
+                return;
+
+            var config = configService.Configuration;
+
+            // Run CleanupMethod.AtShutdown for databases configured with it.
+            // This permanently deletes clips from Trashcan based on PurgeDays setting.
+            var shutdownCleanupDbs = config.Databases.Values
+                .Where(p => p.CleanupMethod == CleanupMethod.AtShutdown)
+                .ToList();
+
+            if (shutdownCleanupDbs.Count > 0)
+            {
+                _logger?.LogInformation("Running shutdown cleanup for {Count} database(s)", shutdownCleanupDbs.Count);
+                foreach (var dbConfig in shutdownCleanupDbs)
+                {
+                    _logger?.LogDebug("Running cleanup for database: {Name}", dbConfig.Name);
+                    var progress = new Progress<string>(message => _logger?.LogDebug("Cleanup: {Message}", message));
+                    await maintenanceService.RunCleanupAsync(dbConfig, progress);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error during shutdown maintenance tasks");
+        }
     }
 
     /// <summary>

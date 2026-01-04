@@ -72,12 +72,21 @@ If a collection has "garbage avoidance" enabled, unwanted captures "bounce" to t
 
 ## Maintenance Scheduling
 
-Overflow and Empty Trash processes can run:
-- At startup
-- At shutdown
-- After an hour of inactivity
+ClipMate runs two types of automatic maintenance:
 
-Configure in [Database Properties](../options/databases.md).
+### Retention Enforcement (Always Active)
+Automatically moves clips through the cascade (InBox → Overflow → Trashcan) during idle time. This runs every hour when your system has been idle for at least 5 minutes.
+
+### Cleanup (Configurable)
+Permanently deletes clips from the Trashcan after the retention period (default: 7 days). You can configure when this runs per database:
+
+- **Never** - Manual cleanup only
+- **At Startup** - Runs when ClipMate starts
+- **At Shutdown** - Runs when ClipMate closes
+- **After Every Hour Of Idle Time** - Runs during idle maintenance
+- **Manual** - Only when you choose "Empty Trash"
+
+Configure cleanup timing in [Database Properties](../options/databases.md).
 
 ## See Also
 
