@@ -59,10 +59,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(_clipRepository);
 
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
         // Setup ClipboardService first (needed by ClipService)
         var win32Mock = new Mock<IWin32ClipboardInterop>();
         var profileServiceMock = new Mock<IApplicationProfileService>();
@@ -80,7 +76,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         _clipService = new ClipService(
             contextFactory.Object,
             Mock.Of<IConfigurationService>(),
-            soundService.Object,
             _clipboardService,
             Mock.Of<ITemplateService>(),
             clipServiceLogger);

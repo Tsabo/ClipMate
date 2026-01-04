@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Clipboard Erase Detection** - Implemented detection for when external applications clear the clipboard with audio feedback
+
+### Fixed
+- **Search Results Auto-Selection** - Search results node is now automatically selected after executing a search, with database node expanded for visibility
+- **Search Results Refresh** - Fixed issue where search results wouldn't refresh when the search results node was already selected
+- **Clipboard Erase Sound** - Removed incorrect sound playback when deleting clips from ClipMate database (sound now only plays when external apps clear clipboard)
+
+### Changed
+- **ClipService Dependencies** - Removed ISoundService dependency as clip deletion no longer triggers sound effects
+
+## [0.1.0-alpha.4] - 2026-1-3
+
+### Added
+- **StateRefreshRequestedEvent Pattern** - Implemented centralized state synchronization for ViewModels with service-derived properties
+- **Window Initialization State Refresh** - Explorer and Classic windows now send state refresh events after loading to ensure correct initial UI state
+- **Update Check Service** - Implemented automatic update checking against GitHub releases with user notifications in About dialog
+- **ApplicationVersion Value Object** - Added semantic versioning support with structured version representation
+
+### Fixed
+- **Menu State Indicators** - Auto Capture menu items now show checked/unchecked state across Explorer, Classic, and Tray windows
+- **ClipViewer Toolbar State** - Toggle buttons (Tack, Word Wrap, Show Non-Printing) now display proper checked state using BarCheckItem bindings
+- **Service State Synchronization** - ViewModels now receive notifications when underlying service state changes (clipboard monitoring, target lock, go-back state, database count)
+- **Help Links** - Updated all help links to point to new documentation site (https://jeremy.browns.info/ClipMate)
+- **DatabaseMaintenanceCoordinator** - Refactored to support multiple databases and show appropriate backup dialogs based on database count
+
+### Changed
+- **QuickPasteService** - Added IMessenger dependency to send state change notifications
+- **DatabaseManager** - Added IMessenger dependency to notify when databases are loaded/unloaded
+- **ClipboardCoordinator** - Sends StateRefreshRequestedEvent instead of AutoCaptureStateChangedEvent for broader state coverage
+- **MainMenuViewModel** - Now refreshes IsAutoCapturing and HasMultipleDatabases properties on state change events
+- **QuickPasteToolbarViewModel** - Now refreshes IsTargetLocked and GoBackEnabled properties on state change events
+- **Clipboard Services** - Changed to transient lifetime for better resource management
+- **Installer Copyright** - Updated to 2026
+
 ## [0.1.0-alpha.3] - 2026-1-3
 
 ### Added
@@ -47,8 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Tests
 - Enhanced service provider mocks in view model tests
 - Added IClipboardService mock coverage
-
----
 
 ## [0.1.0-alpha.1] - 2026-01-01
 

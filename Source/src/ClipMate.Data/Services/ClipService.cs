@@ -2,7 +2,6 @@ using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
-using ClipMate.Platform;
 using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 
@@ -18,19 +17,16 @@ public class ClipService : IClipService
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipService> _logger;
-    private readonly ISoundService _soundService;
     private readonly ITemplateService _templateService;
 
     public ClipService(IDatabaseContextFactory databaseContextFactory,
         IConfigurationService configurationService,
-        ISoundService soundService,
         IClipboardService clipboardService,
         ITemplateService templateService,
         ILogger<ClipService> logger)
     {
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -118,9 +114,6 @@ public class ClipService : IClipService
     {
         var repository = GetRepository(databaseKey);
         await repository.DeleteAsync(id, cancellationToken);
-
-        // Play erase sound after deletion
-        await _soundService.PlaySoundAsync(SoundEvent.Erase, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -400,7 +393,7 @@ public class ClipService : IClipService
                 ClipType.Text or ClipType.RichText or ClipType.Html => ContentHasher.HashText(clip.TextContent ?? string.Empty),
                 ClipType.Image => ContentHasher.HashBytes(clip.ImageData ?? []),
                 ClipType.Files => ContentHasher.HashText(clip.FilePathsJson ?? string.Empty),
-                _ => string.Empty
+                var _ => string.Empty,
             };
 
             // Update the Windows clipboard

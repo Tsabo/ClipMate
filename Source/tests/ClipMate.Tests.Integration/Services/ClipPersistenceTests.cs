@@ -197,16 +197,11 @@ public class ClipPersistenceTests : IntegrationTestBase
         contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
         return new ClipService(
             contextFactory.Object,
             Mock.Of<IConfigurationService>(),
-            soundService.Object,
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),
             serviceLogger);
@@ -225,16 +220,11 @@ public class ClipPersistenceTests : IntegrationTestBase
         contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
         var serviceLogger = Mock.Of<ILogger<ClipService>>();
 
         return new ClipService(
             contextFactory.Object,
             Mock.Of<IConfigurationService>(),
-            soundService.Object,
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),
             serviceLogger);

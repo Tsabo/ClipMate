@@ -95,12 +95,26 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 _logger.LogInformation("Updating existing search results node");
                 existingNode.SearchResult = searchResult;
 
-                // If this node is currently selected, trigger a reload by re-selecting it
-                if (SelectedNode != existingNode)
-                    return;
+                // Ensure the database node is expanded so the SearchResults node is visible
+                if (!databaseNode.IsExpanded)
+                {
+                    _logger.LogInformation("Expanding database node to show search results");
+                    databaseNode.IsExpanded = true;
+                }
 
-                _logger.LogInformation("Search results node is selected, triggering clip reload");
-                OnSelectedNodeChanged(existingNode);
+                // If the node is already selected, manually trigger the selection changed logic
+                // to refresh the ClipList. Otherwise, just set SelectedNode.
+                if (SelectedNode == existingNode)
+                {
+                    _logger.LogInformation("Search results node already selected, manually triggering refresh");
+                    _messenger.Send(new SearchResultsSelectedEvent(message.DatabaseKey, searchResult.Query, searchResult.ClipIds));
+                }
+                else
+                {
+                    // Automatically select the SearchResults node to display results
+                    _logger.LogInformation("Selecting search results node to display results");
+                    SelectedNode = existingNode;
+                }
             }
             else
                 _logger.LogWarning("SearchResultsVirtualCollectionNode not found for database: {DatabaseKey}", message.DatabaseKey);

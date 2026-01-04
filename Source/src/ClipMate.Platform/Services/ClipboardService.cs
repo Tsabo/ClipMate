@@ -42,6 +42,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IWin32ClipboardInterop _win32;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
+    private bool _lastClipboardWasEmpty;
     private string _lastContentHash = string.Empty;
     private string? _suppressCaptureForHash;
     private DateTime _suppressCaptureUntil = DateTime.MinValue;
@@ -227,11 +228,12 @@ public class ClipboardService : IClipboardService, IDisposable
                 // Use the clip's existing ContentHash - it's already computed for all clip types
                 _suppressCaptureForHash = clip.ContentHash;
                 _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
-                
-                var hashPreview = _suppressCaptureForHash.Length >= 8 
-                    ? _suppressCaptureForHash.Substring(0, 8) 
+
+                var hashPreview = _suppressCaptureForHash.Length >= 8
+                    ? _suppressCaptureForHash.Substring(0, 8)
                     : _suppressCaptureForHash;
-                _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}", 
+
+                _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}",
                     hashPreview, clip.Type);
             });
         }
@@ -274,8 +276,36 @@ public class ClipboardService : IClipboardService, IDisposable
 
             var clip = await GetCurrentClipboardContentAsync();
 
-            if (clip == null)
+            // Check if clipboard is empty (no formats we support)
+            var isClipboardEmpty = clip == null && IsClipboardTrulyEmpty();
+
+            if (isClipboardEmpty)
+            {
+                // Clipboard was cleared - check if we should play the erase sound
+                // Only play if: 1) We didn't just clear it, and 2) It previously had content
+                var shouldPlayEraseSound = !_lastClipboardWasEmpty &&
+                                           DateTime.UtcNow >= _suppressCaptureUntil;
+
+                if (shouldPlayEraseSound)
+                {
+                    _logger.LogDebug("Clipboard was cleared by external application");
+                    await _soundService.PlaySoundAsync(SoundEvent.Erase);
+                }
+
+                _lastClipboardWasEmpty = true;
+                _lastContentHash = string.Empty;
                 return;
+            }
+
+            if (clip == null)
+            {
+                // Clipboard has content but not in a format we support
+                _lastClipboardWasEmpty = false;
+                return;
+            }
+
+            // Clipboard has content we captured
+            _lastClipboardWasEmpty = false;
 
             // Update timestamp AFTER getting clipboard content to prevent duplicate processing
             // if multiple WM_CLIPBOARDUPDATE events fire simultaneously
@@ -283,20 +313,21 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Check if we should suppress this capture (we set the clipboard programmatically)
             // Use time-based suppression window to handle multiple clipboard events
-            if (_suppressCaptureForHash != null && 
-                clip.ContentHash == _suppressCaptureForHash && 
+            if (_suppressCaptureForHash != null &&
+                clip.ContentHash == _suppressCaptureForHash &&
                 DateTime.UtcNow < _suppressCaptureUntil)
             {
-                var hashPreview = clip.ContentHash.Length >= 8 ? clip.ContentHash.Substring(0, 8) : clip.ContentHash;
+                var hashPreview = clip.ContentHash.Length >= 8
+                    ? clip.ContentHash.Substring(0, 8)
+                    : clip.ContentHash;
+
                 _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", hashPreview);
                 return;
             }
 
             // Clear suppression if time window has expired
             if (DateTime.UtcNow >= _suppressCaptureUntil)
-            {
                 _suppressCaptureForHash = null;
-            }
 
             // Duplicate detection: ignore if same content hash
             if (clip.ContentHash == _lastContentHash)
@@ -987,7 +1018,6 @@ public class ClipboardService : IClipboardService, IDisposable
             _logger.LogDebug("Extracted source URL: {Url}", url);
 
             return url;
-
         }
         catch (Exception ex)
         {
@@ -1021,6 +1051,47 @@ public class ClipboardService : IClipboardService, IDisposable
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Checks if the clipboard is truly empty (no formats available).
+    /// Returns true if clipboard has no data at all, false if it has any formats.
+    /// </summary>
+    private bool IsClipboardTrulyEmpty()
+    {
+        try
+        {
+            return Application.Current.Dispatcher.Invoke(() =>
+            {
+                // Check all common formats
+                if (WpfClipboard.ContainsText())
+                    return false;
+
+                if (WpfClipboard.ContainsImage())
+                    return false;
+
+                if (WpfClipboard.ContainsFileDropList())
+                    return false;
+
+                if (WpfClipboard.ContainsData(DataFormats.Rtf))
+                    return false;
+
+                if (WpfClipboard.ContainsData(DataFormats.Html))
+                    return false;
+
+                if (WpfClipboard.ContainsAudio())
+                    return false;
+
+                // Check if any formats exist at all using format enumerator
+                var formats = _clipboardFormatEnumerator.GetAllAvailableFormats();
+                return formats.Count == 0;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error checking if clipboard is empty");
+            return false; // Assume not empty if we can't check
+        }
     }
 
     private unsafe string? GetWindowTitle(HWND hwnd)

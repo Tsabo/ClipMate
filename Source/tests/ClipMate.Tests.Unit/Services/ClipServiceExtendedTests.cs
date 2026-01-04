@@ -3,7 +3,6 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
-using ClipMate.Platform;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,7 +22,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
     private readonly Mock<IClipRepository> _mockClipRepository;
     private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
     private readonly Mock<IDatabaseManager> _mockDatabaseManager;
-    private readonly Mock<ISoundService> _mockSoundService;
 
     public ClipServiceExtendedTests()
     {
@@ -33,7 +31,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
         var mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
         _mockDatabaseContextFactory = new Mock<IDatabaseContextFactory>(MockBehavior.Loose);
         _mockDatabaseManager = new Mock<IDatabaseManager>(MockBehavior.Loose);
-        _mockSoundService = new Mock<ISoundService>(MockBehavior.Loose);
         _logger = CreateLogger<ClipService>();
 
         // Setup scoped service provider for ClipData and Blob repositories
@@ -70,7 +67,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
     private ClipService CreateService() => new(
         _mockDatabaseContextFactory.Object,
         Mock.Of<IConfigurationService>(),
-        _mockSoundService.Object,
         Mock.Of<IClipboardService>(),
         Mock.Of<ITemplateService>(),
         _logger);
