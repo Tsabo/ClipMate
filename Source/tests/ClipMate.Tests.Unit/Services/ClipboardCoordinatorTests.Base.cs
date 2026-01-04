@@ -114,13 +114,13 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         }
 
         var services = new ServiceCollection();
-        services.AddScoped(_ => clipService.Object);
-        services.AddScoped(_ => collectionService.Object);
-        services.AddScoped(_ => folderService.Object);
-        services.AddScoped(_ => filterService.Object);
-        services.AddScoped(_ => databaseManager.Object);
-        services.AddScoped(_ => contextFactory.Object);
-        services.AddScoped(_ => new Mock<ISoundService>().Object);
+        services.AddTransient(_ => clipService.Object);
+        services.AddTransient(_ => collectionService.Object);
+        services.AddTransient(_ => folderService.Object);
+        services.AddTransient(_ => filterService.Object);
+        services.AddTransient(_ => databaseManager.Object);
+        services.AddTransient(_ => contextFactory.Object);
+        services.AddTransient(_ => new Mock<ISoundService>().Object);
         services.AddLogging();
 
         return services.BuildServiceProvider();

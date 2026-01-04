@@ -622,9 +622,6 @@ public partial class App
                 services.AddTransient<OptionsViewModel>();
                 services.AddTransient<OptionsDialog>();
 
-                // Register database dialogs
-                services.AddTransient<DatabaseRestoreWizard>();
-
                 // Register coordinators
                 services.AddSingleton<HotkeyCoordinator>();
                 services.AddSingleton<DatabaseMaintenanceCoordinator>();

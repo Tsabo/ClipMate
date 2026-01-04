@@ -113,11 +113,11 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Setup DI container for ClipboardCoordinator (needs IServiceProvider for scoped services)
         var services = new ServiceCollection();
-        services.AddScoped<IClipService>(_ => _clipService);
-        services.AddScoped<ICollectionRepository>(_ => collectionRepository);
+        services.AddTransient<IClipService>(_ => _clipService);
+        services.AddTransient<ICollectionRepository>(_ => collectionRepository);
         services.AddSingleton<ICollectionService, CollectionService>();
-        services.AddScoped<IFolderService>(_ => folderService);
-        services.AddScoped<IApplicationFilterService>(_ => _filterService);
+        services.AddTransient<IFolderService>(_ => folderService);
+        services.AddTransient<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         services.AddSingleton(contextFactory.Object);
 

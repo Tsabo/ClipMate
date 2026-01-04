@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Reflection;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DevExpress.Xpf.Core;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
 
@@ -11,17 +14,27 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class AboutDialogViewModel : ObservableObject
 {
+    private readonly ILogger<AboutDialogViewModel> _logger;
+    private readonly IUpdateCheckService _updateCheckService;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AboutDialogViewModel" /> class.
     /// </summary>
-    public AboutDialogViewModel()
+    public AboutDialogViewModel(IUpdateCheckService updateCheckService, ILogger<AboutDialogViewModel> logger)
     {
-        // Get version from assembly
+        _updateCheckService = updateCheckService ?? throw new ArgumentNullException(nameof(updateCheckService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Get version from assembly (InformationalVersion includes semantic versioning like "1.0.0-alpha.3")
         var assembly = Assembly.GetExecutingAssembly();
-        var version = assembly.GetName().Version;
-        Version = version != null
-            ? $"v{version.Major}.{version.Minor}.{version.Build}"
-            : "v0.0.0";
+        var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+        var semVer = infoVersion?.InformationalVersion ?? "0.0.0";
+
+        // Display version with 'v' prefix
+        Version = $"v{semVer}";
+
+        // Store semantic version for update checks (without 'v' prefix)
+        VersionNumber = semVer;
 
         // Get copyright year
         var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
@@ -32,9 +45,14 @@ public partial class AboutDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Gets the application version string.
+    /// Gets the application version string for display.
     /// </summary>
     public string Version { get; }
+
+    /// <summary>
+    /// Gets the version number for update checks (without 'v' prefix).
+    /// </summary>
+    public string VersionNumber { get; }
 
     /// <summary>
     /// Gets the copyright notice.
@@ -65,10 +83,56 @@ public partial class AboutDialogViewModel : ObservableObject
     private void ViewDocumentation() => OpenUrl("https://jeremy.browns.info/ClipMate/");
 
     /// <summary>
-    /// Opens the GitHub releases page to check for updates.
+    /// Checks for updates from GitHub releases.
     /// </summary>
     [RelayCommand]
-    private void CheckForUpdates() => OpenUrl("https://github.com/Tsabo/ClipMate/releases");
+    private async Task CheckForUpdates()
+    {
+        try
+        {
+            _logger.LogInformation("Checking for updates manually from About dialog");
+
+            var update = await _updateCheckService.CheckForUpdatesAsync(
+                VersionNumber,
+                false);
+
+            if (update != null)
+            {
+                var result = DXMessageBox.Show(
+                    $"A new version of ClipMate is available!\n\n" +
+                    $"Current Version: {Version}\n" +
+                    $"New Version: v{update.Version}\n" +
+                    $"Released: {update.PublishedAt:MMMM d, yyyy}\n\n" +
+                    $"Would you like to view the release notes and download?",
+                    "Update Available",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                    OpenUrl(update.ReleaseUrl);
+            }
+            else
+            {
+                DXMessageBox.Show(
+                    $"You are running the latest version of ClipMate ({Version}).",
+                    "No Updates Available",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking for updates");
+
+            DXMessageBox.Show(
+                "Unable to check for updates. Please check your internet connection and try again.\n\n" +
+                "You can also manually check for updates at:\n" +
+                "https://github.com/clipmate/ClipMate/releases",
+                "Update Check Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
 
     /// <summary>
     /// Opens the localization contribution guide.
@@ -272,30 +336,30 @@ public partial class AboutDialogViewModel : ObservableObject
             Url = "https://github.com/dotnet/efcore",
         });
     }
+}
+
+/// <summary>
+/// Represents a third-party library credit entry.
+/// </summary>
+public class CreditItem
+{
+    /// <summary>
+    /// Gets or sets the name of the library or component.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Represents a third-party library credit entry.
+    /// Gets or sets a description of what the library is used for.
     /// </summary>
-    public class CreditItem
-    {
-        /// <summary>
-        /// Gets or sets the name of the library or component.
-        /// </summary>
-        public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets a description of what the library is used for.
-        /// </summary>
-        public string Description { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the license type.
+    /// </summary>
+    public string License { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the license type.
-        /// </summary>
-        public string License { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the URL to the library's repository or homepage.
-        /// </summary>
-        public string Url { get; set; } = string.Empty;
-    }
+    /// <summary>
+    /// Gets or sets the URL to the library's repository or homepage.
+    /// </summary>
+    public string Url { get; set; } = string.Empty;
 }

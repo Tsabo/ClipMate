@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
@@ -226,10 +227,10 @@ public partial class SqlMaintenanceDialog
 
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        Process.Start(new ProcessStartInfo
         {
             FileName = "https://jeremy.browns.info/ClipMate/options/databases/",
-            UseShellExecute = true
+            UseShellExecute = true,
         });
     }
 

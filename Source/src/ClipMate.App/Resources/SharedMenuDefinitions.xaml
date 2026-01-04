@@ -127,8 +127,9 @@
         </dxb:BarSubItem>
 
         <dxb:BarSubItem Content="_Tools">
-            <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
-                               Command="{Binding MainMenu.AutoCaptureCommand}" />
+            <dxb:BarCheckItem Content="Auto Capture" KeyGesture="F12"
+                              IsChecked="{Binding MainMenu.IsAutoCapturing, Mode=OneWay}"
+                              Command="{Binding MainMenu.AutoCaptureCommand}" />
             <dxb:BarCheckItem Content="Filter Outbound Clips" IsChecked="{Binding MainMenu.IsOutboundFilterEnabled}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Options..." Command="{Binding MainMenu.OptionsCommand}" />

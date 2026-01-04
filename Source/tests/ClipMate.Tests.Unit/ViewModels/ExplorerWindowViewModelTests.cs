@@ -73,7 +73,10 @@ public class ExplorerWindowViewModelTests
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(mockCollectionService.Object);
         mockServiceProvider.Setup(p => p.GetService(typeof(IFolderService))).Returns(mockFolderService.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(new Mock<AboutDialogViewModel>().Object);
+        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
+        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(new Mock<IActiveWindowService>().Object);
 
         var mockMenuMessenger = new Mock<IMessenger>();

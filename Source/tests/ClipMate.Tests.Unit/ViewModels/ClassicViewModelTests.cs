@@ -5,6 +5,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -26,11 +27,13 @@ public class ClassicViewModelTests
         // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
         var mockDatabaseManager = new Mock<IDatabaseManager>();
         mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
-        var mockAboutDialogViewModel = new Mock<AboutDialogViewModel>();
+        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
+        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
         var mockActiveWindowService = new Mock<IActiveWindowService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(mockAboutDialogViewModel.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
 
         var mainMenuViewModel = new MainMenuViewModel(
@@ -79,11 +82,13 @@ public class ClassicViewModelTests
         // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
         var mockDatabaseManager = new Mock<IDatabaseManager>();
         mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
-        var mockAboutDialogViewModel = new Mock<AboutDialogViewModel>();
+        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
+        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
         var mockActiveWindowService = new Mock<IActiveWindowService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(mockAboutDialogViewModel.Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
 
         var mainMenu = new MainMenuViewModel(

@@ -1,9 +1,13 @@
-using System.Threading;
+using System.Diagnostics;
+using System.Reflection;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Xpf.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
+using Timer = System.Threading.Timer;
 
 namespace ClipMate.App.Services;
 
@@ -13,19 +17,41 @@ namespace ClipMate.App.Services;
 public class UpdateCheckerService : IHostedService, IRecipient<PreferencesChangedEvent>, IDisposable
 {
     private readonly IConfigurationService _configurationService;
-    private readonly IMessenger _messenger;
+    private readonly string _currentVersion;
     private readonly ILogger<UpdateCheckerService> _logger;
-    private System.Threading.Timer? _timer;
+    private readonly IMessenger _messenger;
+    private readonly IUpdateCheckService _updateCheckService;
     private bool _disposed;
+    private Timer? _timer;
 
-    public UpdateCheckerService(
+    public UpdateCheckerService(IUpdateCheckService updateCheckService,
         IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<UpdateCheckerService> logger)
     {
+        _updateCheckService = updateCheckService ?? throw new ArgumentNullException(nameof(updateCheckService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        // Get current version from assembly (InformationalVersion includes semantic versioning like "1.0.0-alpha.3")
+        var assembly = Assembly.GetExecutingAssembly();
+        var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+        _currentVersion = infoVersion?.InformationalVersion ?? "0.0.0";
+    }
+
+    /// <summary>
+    /// Disposes the service and its resources.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _timer?.Dispose();
+        _disposed = true;
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -34,7 +60,7 @@ public class UpdateCheckerService : IHostedService, IRecipient<PreferencesChange
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("UpdateCheckerService starting");
-        
+
         // Register to receive preference change events
         _messenger.Register(this);
 
@@ -50,7 +76,7 @@ public class UpdateCheckerService : IHostedService, IRecipient<PreferencesChange
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("UpdateCheckerService stopping");
-        
+
         // Unregister from messenger
         _messenger.Unregister<PreferencesChangedEvent>(this);
 
@@ -103,12 +129,12 @@ public class UpdateCheckerService : IHostedService, IRecipient<PreferencesChange
         {
             // Otherwise, wait until the next check is due
             dueTime = nextCheck - now;
-            _logger.LogInformation("Next update check scheduled in {Days} days", dueTime.TotalDays);
+            _logger.LogInformation("Next update check scheduled in {Days:F1} days", dueTime.TotalDays);
         }
 
         // Create timer with the calculated due time and the interval from preferences
         var period = TimeSpan.FromDays(intervalDays);
-        _timer = new System.Threading.Timer(CheckForUpdates, null, dueTime, period);
+        _timer = new Timer(CheckForUpdates, null, dueTime, period);
     }
 
     /// <summary>
@@ -118,38 +144,66 @@ public class UpdateCheckerService : IHostedService, IRecipient<PreferencesChange
     {
         try
         {
-            _logger.LogInformation("Checking for updates");
+            _logger.LogInformation("Checking for updates (current version: {CurrentVersion})", _currentVersion);
 
             var config = _configurationService.Configuration;
-            
+
             // Update last check date
             config.Preferences.LastUpdateCheckDate = DateTime.UtcNow;
             await _configurationService.SaveAsync();
 
-            // TODO: Implement actual GitHub API call to check for updates
-            // URL: https://api.github.com/repos/Tsabo/ClipMate/releases/latest
-            // Compare version numbers and notify user if update is available
-            // Use DevExpress ToastNotificationManager to show notification to user
+            // Check for updates from GitHub releases
+            var update = await _updateCheckService.CheckForUpdatesAsync(_currentVersion);
 
-            _logger.LogDebug("Update check completed (stub implementation)");
+            if (update != null)
+            {
+                _logger.LogInformation(
+                    "Update available: v{NewVersion} (published: {PublishedAt})",
+                    update.Version,
+                    update.PublishedAt);
+
+                // Show notification on UI thread
+                _ = Application.Current.Dispatcher.BeginInvoke(() =>
+                {
+                    try
+                    {
+                        var result = DXMessageBox.Show(
+                            $"A new version of ClipMate is available!\n\n" +
+                            $"New Version: v{update.Version}\n" +
+                            $"Released: {update.PublishedAt:MMMM d, yyyy}\n\n" +
+                            $"Would you like to view the release notes and download?",
+                            "Update Available",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Information);
+
+                        if (result != MessageBoxResult.Yes)
+                            return;
+
+                        try
+                        {
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = update.ReleaseUrl,
+                                UseShellExecute = true,
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error opening release URL");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error showing notification");
+                    }
+                });
+            }
+            else
+                _logger.LogDebug("No updates available");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking for updates");
         }
-    }
-
-    /// <summary>
-    /// Disposes the service and its resources.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _timer?.Dispose();
-        _disposed = true;
-        
-        GC.SuppressFinalize(this);
     }
 }

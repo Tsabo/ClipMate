@@ -21,7 +21,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-AppCopyright=Copyright © 2025 {#MyAppPublisher}
+AppCopyright=Copyright © 2026 {#MyAppPublisher}
 
 ; Installation paths
 DefaultDirName={autopf}\{#MyAppName}

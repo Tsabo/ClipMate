@@ -21,7 +21,8 @@ namespace ClipMate.App.ViewModels;
 /// Shared ViewModel for the main menu across both Explorer and Classic windows.
 /// Contains all menu commands that are common to both window types.
 /// </summary>
-public partial class MainMenuViewModel : ObservableObject
+public partial class MainMenuViewModel : ObservableObject,
+    IRecipient<AutoCaptureStateChangedEvent>
 {
     private readonly IClipboardService _clipboardService;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
@@ -75,6 +76,9 @@ public partial class MainMenuViewModel : ObservableObject
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _collectionTreeViewModel = collectionTreeViewModel;
+
+        // Register for auto capture state changes
+        _messenger.Register<AutoCaptureStateChangedEvent>(this);
 
         // Subscribe to selection changes to update CanExecute for collection commands
         if (_collectionTreeViewModel != null)
@@ -202,11 +206,11 @@ public partial class MainMenuViewModel : ObservableObject
         // Get the configuration service and database manager to find unloaded databases
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
         var databaseManager = _serviceProvider.GetRequiredService<IDatabaseManager>();
-        var loadedKeys = databaseManager.GetLoadedDatabases().Select(db => db.FilePath).ToHashSet();
+        var loadedKeys = databaseManager.GetLoadedDatabases().Select(p => p.FilePath).ToHashSet();
 
         // Find databases that are configured but not loaded
         var inactiveDatabases = configService.Configuration.Databases.Values
-            .Where(db => !loadedKeys.Contains(db.FilePath))
+            .Where(p => !loadedKeys.Contains(p.FilePath))
             .ToList();
 
         if (inactiveDatabases.Count == 0)
@@ -354,7 +358,14 @@ public partial class MainMenuViewModel : ObservableObject
     private void AutoCapture()
     {
         _messenger.Send(new ToggleAutoCaptureEvent());
-        // Notify UI that IsAutoCapturing may have changed
+        // Note: IsAutoCapturing will be updated via AutoCaptureStateChangedEvent
+    }
+
+    /// <summary>
+    /// Handles AutoCaptureStateChangedEvent to update the UI when monitoring state changes.
+    /// </summary>
+    public void Receive(AutoCaptureStateChangedEvent message)
+    {
         OnPropertyChanged(nameof(IsAutoCapturing));
     }
 
@@ -530,7 +541,7 @@ public partial class MainMenuViewModel : ObservableObject
         // Close all windows except the main hidden window that hosts the tray icon
         var windowsToClose = Application.Current.Windows
             .Cast<Window>()
-            .Where(w => w.IsVisible && w != Application.Current.MainWindow)
+            .Where(p => p.IsVisible && p != Application.Current.MainWindow)
             .ToList();
 
         foreach (var window in windowsToClose)
@@ -572,7 +583,7 @@ public partial class MainMenuViewModel : ObservableObject
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://github.com/clipmate/ClipMate",
+            FileName = "https://github.com/tsabo/clipmate",
             UseShellExecute = true,
         });
     }

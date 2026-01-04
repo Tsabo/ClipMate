@@ -202,9 +202,10 @@
 
                     <!-- Tools Menu -->
                     <dxb:BarSubItem Content="_Tools">
-                        <dxb:BarButtonItem Content="Auto Capture" KeyGesture="F12"
-                                           Command="{Binding MainMenu.AutoCaptureCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='📹'}" />
+                        <dxb:BarCheckItem Content="Auto Capture" KeyGesture="F12"
+                                          IsChecked="{Binding MainMenu.IsAutoCapturing, Mode=OneWay}"
+                                          Command="{Binding MainMenu.AutoCaptureCommand}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='📹'}" />
                         <dxb:BarCheckItem Content="Filter Outbound Clips"
                                           IsChecked="{Binding MainMenu.IsOutboundFilterEnabled}"
                                           Glyph="{helpers:EmojiIconSource Emoji='📊'}" />

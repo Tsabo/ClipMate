@@ -41,7 +41,7 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 9 
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
 - Windows 10 (1809+) or Windows 11
-- Visual Studio 2025+ or VS Code with C# Dev Kit (for development)
+- Visual Studio 2026+ or VS Code with C# Dev Kit (for development)
 
 ## Third-Party Software
 

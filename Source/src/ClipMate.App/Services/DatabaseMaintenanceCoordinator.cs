@@ -1,7 +1,8 @@
-using System.Windows;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,7 @@ public class DatabaseMaintenanceCoordinator :
     IRecipient<ComprehensiveRepairRequestedEvent>
 {
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<DatabaseMaintenanceCoordinator> _logger;
     private readonly IDatabaseMaintenanceService _maintenanceService;
     private readonly IMessenger _messenger;
@@ -29,12 +31,14 @@ public class DatabaseMaintenanceCoordinator :
 
     public DatabaseMaintenanceCoordinator(IServiceProvider serviceProvider,
         IDatabaseMaintenanceService maintenanceService,
+        IDatabaseManager databaseManager,
         IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<DatabaseMaintenanceCoordinator> logger)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _maintenanceService = maintenanceService ?? throw new ArgumentNullException(nameof(maintenanceService));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -58,9 +62,9 @@ public class DatabaseMaintenanceCoordinator :
         {
             try
             {
-                var currentDb = _configurationService.Configuration.Databases.Values.FirstOrDefault(db => db.Name == "My Clips");
+                var loadedDatabases = _databaseManager.GetLoadedDatabases().ToList();
 
-                if (currentDb == null)
+                if (loadedDatabases.Count == 0)
                 {
                     ThemedMessageBox.Show("No database is currently loaded.", "Backup Database", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
@@ -69,29 +73,73 @@ public class DatabaseMaintenanceCoordinator :
                 var globalBackupInterval = _configurationService.Configuration.Preferences.BackupIntervalDays;
                 var globalAutoConfirm = _configurationService.Configuration.Preferences.AutoConfirmBackupSeconds;
 
-                var dialog = new DatabaseBackupDialog(currentDb, globalBackupInterval, globalAutoConfirm)
+                if (loadedDatabases.Count == 1)
                 {
-                    Owner = Application.Current.GetDialogOwner(),
-                };
+                    // Single database - show simple backup dialog
+                    var currentDb = loadedDatabases[0];
+                    var dialog = new DatabaseBackupDialog(currentDb, globalBackupInterval, globalAutoConfirm)
+                    {
+                        Owner = Application.Current.GetDialogOwner(),
+                    };
 
-                _logger.LogInformation("Showing backup dialog for database: {Name}", currentDb.Name);
+                    _logger.LogInformation("Showing backup dialog for database: {Name}", currentDb.Name);
 
-                if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
+                    if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
+                    {
+                        // Perform the backup
+                        var backupPath = await _maintenanceService.BackupDatabaseAsync(
+                            currentDb,
+                            dialog.UpdatedConfiguration.BackupDirectory);
+
+                        // Update configuration
+                        currentDb.LastBackupDate = DateTime.Now;
+                        currentDb.BackupDirectory = dialog.UpdatedConfiguration.BackupDirectory;
+
+                        await _configurationService.SaveAsync();
+
+                        _logger.LogInformation("Backup completed: {Path}", backupPath);
+                        ThemedMessageBox.Show($"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
+                            "Backup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                else
                 {
-                    // Perform the backup
-                    var backupPath = await _maintenanceService.BackupDatabaseAsync(
-                        currentDb,
-                        dialog.UpdatedConfiguration.BackupDirectory);
+                    // Multiple databases - show batch backup dialog
+                    var dialog = new MultipleDatabaseBackupDialog(
+                        loadedDatabases,
+                        globalBackupInterval,
+                        globalAutoConfirm)
+                    {
+                        Owner = Application.Current.GetDialogOwner(),
+                    };
 
-                    // Update configuration
-                    currentDb.LastBackupDate = DateTime.Now;
-                    currentDb.BackupDirectory = dialog.UpdatedConfiguration.BackupDirectory;
+                    _logger.LogInformation("Showing multiple database backup dialog for {Count} databases", loadedDatabases.Count);
 
-                    await _configurationService.SaveAsync();
+                    if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
+                    {
+                        foreach (var item in dialog.SelectedDatabases)
+                        {
+                            try
+                            {
+                                var backupPath = await _maintenanceService.BackupDatabaseAsync(
+                                    item,
+                                    item.BackupDirectory);
 
-                    _logger.LogInformation("Backup completed: {Path}", backupPath);
-                    ThemedMessageBox.Show($"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
-                        "Backup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                                item.LastBackupDate = DateTime.Now;
+                                _logger.LogInformation("Backup completed: {Path}", backupPath);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error backing up database {Name}", item.Name);
+                                ThemedMessageBox.Show($"Error backing up database '{item.Name}':\n{ex.Message}",
+                                    "Backup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            }
+                        }
+
+                        await _configurationService.SaveAsync();
+                        ThemedMessageBox.Show($"Backed up {dialog.SelectedDatabases.Count} database(s) successfully.",
+                            "Backup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
             }
             catch (Exception ex)
@@ -120,13 +168,15 @@ public class DatabaseMaintenanceCoordinator :
                 if (result != MessageBoxResult.Yes)
                     return;
 
-                var currentDb = _configurationService.Configuration.Databases.Values.FirstOrDefault(db => db.Name == "My Clips");
-
-                if (currentDb == null)
+                var loadedDatabases = _databaseManager.GetLoadedDatabases().ToList();
+                if (loadedDatabases.Count == 0)
                 {
                     ThemedMessageBox.Show("No database is currently loaded.", "Comprehensive Repair", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+
+                // For now, operate on the first loaded database. In the future, could add database selection.
+                var currentDb = loadedDatabases[0];
 
                 var progress = new Progress<string>(p => _logger.LogInformation("Comprehensive Repair: {Message}", p));
                 await _maintenanceService.ComprehensiveRepairDatabaseAsync(currentDb, progress);
@@ -160,13 +210,15 @@ public class DatabaseMaintenanceCoordinator :
                 if (result != MessageBoxResult.Yes)
                     return;
 
-                var currentDb = _configurationService.Configuration.Databases.Values.FirstOrDefault(db => db.Name == "My Clips");
-
-                if (currentDb == null)
+                var loadedDatabases = _databaseManager.GetLoadedDatabases().ToList();
+                if (loadedDatabases.Count == 0)
                 {
                     ThemedMessageBox.Show("No database is currently loaded.", "Empty Trash", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+
+                // For now, operate on the first loaded database. In the future, could add database selection.
+                var currentDb = loadedDatabases[0];
 
                 var progress = new Progress<string>(p => _logger.LogInformation("Empty Trash: {Message}", p));
                 var count = await _maintenanceService.EmptyTrashAsync(currentDb, progress);
@@ -191,8 +243,23 @@ public class DatabaseMaintenanceCoordinator :
         {
             try
             {
-                var wizard = _serviceProvider.GetRequiredService<DatabaseRestoreWizard>();
-                wizard.Owner = Application.Current.GetDialogOwner();
+                // Create a new database configuration for the restore operation
+                // The wizard will populate the configuration during the restore process
+                var databaseConfig = new DatabaseConfiguration
+                {
+                    Name = "Restored Database",
+                    FilePath = string.Empty,
+                    AutoLoad = false,
+                };
+
+                var maintenanceService = _serviceProvider.GetRequiredService<IDatabaseMaintenanceService>();
+                var logger = _serviceProvider.GetRequiredService<ILogger<DatabaseRestoreWizard>>();
+
+                var wizard = new DatabaseRestoreWizard(databaseConfig, maintenanceService, logger)
+                {
+                    Owner = Application.Current.GetDialogOwner(),
+                };
+
                 wizard.ShowDialog();
             }
             catch (Exception ex)
@@ -221,13 +288,15 @@ public class DatabaseMaintenanceCoordinator :
                 if (result != MessageBoxResult.Yes)
                     return;
 
-                var currentDb = _configurationService.Configuration.Databases.Values.FirstOrDefault(db => db.Name == "My Clips");
-
-                if (currentDb == null)
+                var loadedDatabases = _databaseManager.GetLoadedDatabases().ToList();
+                if (loadedDatabases.Count == 0)
                 {
                     ThemedMessageBox.Show("No database is currently loaded.", "Simple Repair", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+
+                // For now, operate on the first loaded database. In the future, could add database selection.
+                var currentDb = loadedDatabases[0];
 
                 var progress = new Progress<string>(p => _logger.LogInformation("Repair: {Message}", p));
                 await _maintenanceService.RepairDatabaseAsync(currentDb, progress);

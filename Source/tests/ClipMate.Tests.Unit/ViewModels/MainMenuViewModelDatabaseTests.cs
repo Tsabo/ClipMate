@@ -3,6 +3,7 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace ClipMate.Tests.Unit.ViewModels;
@@ -21,8 +22,11 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
         
         // Create mock service provider with AboutDialogViewModel and IActiveWindowService
+        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
+        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(new Mock<AboutDialogViewModel>().Object);
+        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(new Mock<IActiveWindowService>().Object);
         
         _viewModel = new MainMenuViewModel(

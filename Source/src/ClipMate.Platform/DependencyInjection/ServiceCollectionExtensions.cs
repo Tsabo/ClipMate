@@ -1,7 +1,9 @@
+using System.Net.Http;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.DependencyInjection;
 
@@ -61,6 +63,14 @@ public static class ServiceCollectionExtensions
         // Register diagnostic services
         services.AddSingleton<IClipboardDiagnosticsService, ClipboardDiagnosticsService>();
         services.AddSingleton<IPasteTraceService, PasteTraceService>();
+
+        // Register UpdateCheckService with HttpClient
+        services.AddTransient<IUpdateCheckService>(p =>
+        {
+            var logger = p.GetRequiredService<ILogger<UpdateCheckService>>();
+            var httpClient = new HttpClient();
+            return new UpdateCheckService(httpClient, logger);
+        });
 
         // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 

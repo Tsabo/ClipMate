@@ -28,7 +28,8 @@
         <dx:ThemedWindowDialogButton Content="Check For Updates"
                                      Command="{Binding CheckForUpdatesCommand}"
                                      DialogResult="None"
-                                     MinWidth="120" />
+                                     MinWidth="120"
+                                     AllowCloseWindow="False"/>
         <dx:ThemedWindowDialogButton Content="OK"
                                      IsDefault="True"
                                      IsCancel="True"
@@ -144,7 +145,7 @@
                                    Margin="0,0,15,10" />
                         <TextBlock Grid.Row="0" Grid.Column="1"
                                    Style="{StaticResource LinkStyle}"
-                                   Text="github.com/clipmate/ClipMate"
+                                   Text="github.com/Tsabo/ClipMate"
                                    Margin="0,0,0,10">
                             <TextBlock.InputBindings>
                                 <MouseBinding MouseAction="LeftClick" Command="{Binding ViewOnGitHubCommand}" />
