@@ -57,9 +57,16 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         // Subscribe to window deactivation for QuickPaste target updates
         Deactivated += ClassicWindow_Deactivated;
         Activated += ClassicWindow_Activated;
+        Loaded += ClassicWindow_Loaded;
 
         // Load configuration values
         Topmost = _configurationService.Configuration.Preferences.ClassicStayOnTop;
+    }
+
+    private void ClassicWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Notify ViewModels to refresh their service-derived state now that window is loaded
+        _messenger.Send(new StateRefreshRequestedEvent());
     }
 
     /// <summary>

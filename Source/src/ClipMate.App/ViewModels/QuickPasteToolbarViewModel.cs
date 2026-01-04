@@ -12,7 +12,7 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// ViewModel for the QuickPaste toolbar.
 /// </summary>
-public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<ShortcutModeStatusMessage>
+public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<StateRefreshRequestedEvent>, IRecipient<ShortcutModeStatusMessage>
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
@@ -64,7 +64,7 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
 
         // Subscribe to target change events
         _messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => UpdateTargetDisplay());
-        _messenger.Register(this);
+        _messenger.Register<StateRefreshRequestedEvent>(this);
 
         LoadFormattingStrings();
         UpdateTargetDisplay();
@@ -80,6 +80,17 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         ShortcutFilterText = message.IsActive
             ? message.Filter
             : string.Empty;
+    }
+
+    /// <summary>
+    /// Receives a notification when service state changes and refreshes derived properties.
+    /// </summary>
+    /// <param name="message">The state refresh request event.</param>
+    public void Receive(StateRefreshRequestedEvent message)
+    {
+        // Refresh state from services
+        IsTargetLocked = _quickPasteService.IsTargetLocked();
+        GoBackEnabled = _quickPasteService.GetGoBackState();
     }
 
     /// <summary>

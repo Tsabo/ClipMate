@@ -1,5 +1,7 @@
+using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -13,16 +15,19 @@ internal class DatabaseManager : IDatabaseManager
     private readonly IConfigurationService _configService;
     private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<DatabaseManager> _logger;
+    private readonly IMessenger _messenger;
     private ClipMateConfiguration? _configuration;
     private bool _disposed;
 
     public DatabaseManager(IConfigurationService configService,
         IDatabaseContextFactory contextFactory,
-        ILogger<DatabaseManager> logger)
+        ILogger<DatabaseManager> logger,
+        IMessenger messenger)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
     }
 
     public void Dispose()
@@ -101,6 +106,7 @@ internal class DatabaseManager : IDatabaseManager
 
             _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
 
+            _messenger.Send(new StateRefreshRequestedEvent());
             return true;
         }
         catch (Exception ex)
@@ -123,7 +129,11 @@ internal class DatabaseManager : IDatabaseManager
         if (_configuration == null)
             return false;
 
-        return _configuration.Databases.TryGetValue(databaseKey, out var dbConfig) && _contextFactory.CloseDatabase(dbConfig.FilePath);
+        var result = _configuration.Databases.TryGetValue(databaseKey, out var dbConfig) && _contextFactory.CloseDatabase(dbConfig.FilePath);
+        if (result)
+            _messenger.Send(new StateRefreshRequestedEvent());
+
+        return result;
     }
 
     /// <summary>

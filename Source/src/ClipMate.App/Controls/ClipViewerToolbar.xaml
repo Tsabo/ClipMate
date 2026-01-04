@@ -17,17 +17,20 @@
                         AllowCollapse="False">
 
         <!-- View Group -->
-        <dxb:BarButtonItem Command="{Binding ToggleTackCommand}"
-                           Glyph="{helpers:EmojiIconSource Emoji='📌'}"
-                           ToolTip="Tack Viewer: Keep viewer open and allow drag-drop from clip list" />
+        <dxb:BarCheckItem Command="{Binding ToggleTackCommand}"
+                          IsChecked="{Binding IsTacked, Mode=OneWay}"
+                          Glyph="{helpers:EmojiIconSource Emoji='📌'}"
+                          ToolTip="Tack Viewer: Keep viewer open and allow drag-drop from clip list" />
 
-        <dxb:BarButtonItem Command="{Binding ToggleWordWrapCommand}"
-                           Glyph="{helpers:EmojiIconSource Emoji='↔️'}"
-                           ToolTip="Toggle Word Wrap" />
+        <dxb:BarCheckItem Command="{Binding ToggleWordWrapCommand}"
+                          IsChecked="{Binding IsWordWrapEnabled, Mode=OneWay}"
+                          Glyph="{helpers:EmojiIconSource Emoji='↔️'}"
+                          ToolTip="Toggle Word Wrap" />
 
-        <dxb:BarButtonItem Command="{Binding ToggleShowNonPrintingCommand}"
-                           Glyph="{helpers:EmojiIconSource Emoji='¶'}"
-                           ToolTip="Show Non-Printing Characters" />
+        <dxb:BarCheckItem Command="{Binding ToggleShowNonPrintingCommand}"
+                          IsChecked="{Binding ShowNonPrintingCharacters, Mode=OneWay}"
+                          Glyph="{helpers:EmojiIconSource Emoji='¶'}"
+                          ToolTip="Show Non-Printing Characters" />
 
         <dxb:BarItemSeparator />
 

@@ -78,6 +78,7 @@ public class QuickPasteService : IQuickPasteService
     {
         _targetLocked = locked;
         _logger.LogDebug("Target lock set to {Locked}", locked);
+        _messenger.Send(new StateRefreshRequestedEvent());
     }
 
     /// <inheritdoc />
@@ -91,6 +92,7 @@ public class QuickPasteService : IQuickPasteService
     {
         _goBackEnabled = goBack;
         _logger.LogDebug("GoBack state set to {GoBack}", goBack);
+        _messenger.Send(new StateRefreshRequestedEvent());
     }
 
     /// <inheritdoc />

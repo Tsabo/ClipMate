@@ -891,8 +891,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             _toolbarViewModel.AvailableLanguages.Clear();
             
             // Copy languages from Monaco control to toolbar
-            foreach (var language in TextEditor.AvailableLanguages)
-                _toolbarViewModel.AvailableLanguages.Add(language);
+            foreach (var item in TextEditor.AvailableLanguages)
+                _toolbarViewModel.AvailableLanguages.Add(item);
 
             _logger.LogDebug("[ClipViewer] Synced {Count} languages from Monaco to toolbar", TextEditor.AvailableLanguages.Count);
         }
@@ -1551,8 +1551,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     private void HandleShowHelp()
     {
-        _logger.LogDebug("Help not yet implemented");
-        MessageBox.Show("ClipViewer help will be available in the user manual.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://jeremy.browns.info/ClipMate/user-interface/preview-edit/",
+            UseShellExecute = true,
+        });
     }
 
     [GeneratedRegex(@"<!--SourceURL:\s*(.+?)-->")]

@@ -218,6 +218,9 @@ public partial class ExplorerWindow : IWindow,
         {
             // Initialize ExplorerWindowViewModel (loads all child VMs, data, etc.)
             await _viewModel.InitializeAsync();
+
+            // Notify ViewModels to refresh their service-derived state now that everything is loaded
+            _messenger.Send(new StateRefreshRequestedEvent());
         }
         catch (Exception ex)
         {

@@ -22,7 +22,7 @@ namespace ClipMate.App.ViewModels;
 /// Contains all menu commands that are common to both window types.
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject,
-    IRecipient<AutoCaptureStateChangedEvent>
+    IRecipient<StateRefreshRequestedEvent>
 {
     private readonly IClipboardService _clipboardService;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
@@ -77,8 +77,8 @@ public partial class MainMenuViewModel : ObservableObject,
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _collectionTreeViewModel = collectionTreeViewModel;
 
-        // Register for auto capture state changes
-        _messenger.Register<AutoCaptureStateChangedEvent>(this);
+        // Register for state refresh notifications
+        _messenger.Register(this);
 
         // Subscribe to selection changes to update CanExecute for collection commands
         if (_collectionTreeViewModel != null)
@@ -104,6 +104,16 @@ public partial class MainMenuViewModel : ObservableObject,
     /// Gets the collection of loaded databases for dynamic menu generation.
     /// </summary>
     public ObservableCollection<DatabaseMenuItemViewModel> LoadedDatabases { get; } = [];
+
+    /// <summary>
+    /// Receives a notification when service state changes and refreshes all derived properties.
+    /// </summary>
+    public void Receive(StateRefreshRequestedEvent message)
+    {
+        // Refresh all service-derived state properties
+        OnPropertyChanged(nameof(IsAutoCapturing));
+        OnPropertyChanged(nameof(HasMultipleDatabases));
+    }
 
     /// <summary>
     /// Refreshes the loaded databases collection.
@@ -358,15 +368,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private void AutoCapture()
     {
         _messenger.Send(new ToggleAutoCaptureEvent());
-        // Note: IsAutoCapturing will be updated via AutoCaptureStateChangedEvent
-    }
-
-    /// <summary>
-    /// Handles AutoCaptureStateChangedEvent to update the UI when monitoring state changes.
-    /// </summary>
-    public void Receive(AutoCaptureStateChangedEvent message)
-    {
-        OnPropertyChanged(nameof(IsAutoCapturing));
+        // Note: IsAutoCapturing will be updated via StateRefreshRequestedEvent
     }
 
     partial void OnIsOutboundFilterEnabledChanged(bool value) => _messenger.Send(new OutboundFilterToggleEvent(value));

@@ -2,6 +2,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -29,7 +30,8 @@ public class DatabaseManagerTests
         configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         var count = await manager.LoadAutoLoadDatabasesAsync();
@@ -66,7 +68,8 @@ public class DatabaseManagerTests
         configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         var result = await manager.LoadDatabaseAsync("NonExistent");
@@ -95,7 +98,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         var result = manager.UnloadDatabase("Test DB");
@@ -120,7 +124,8 @@ public class DatabaseManagerTests
         configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(config);
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
         await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
 
         // Act
@@ -139,7 +144,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         var databases = manager.GetLoadedDatabases();
@@ -157,7 +163,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         manager.Dispose();
@@ -174,7 +181,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         manager.Dispose();
@@ -193,7 +201,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
         manager.Dispose();
 
         // Act & Assert
@@ -210,7 +219,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
 
         // Act
         var contexts = manager.CreateAllDatabaseContexts().ToList();
@@ -252,7 +262,8 @@ public class DatabaseManagerTests
         contextFactory.Setup(p => p.CreateContext("secondary.db"))
             .Returns(mockContext2.Object);
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
         await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
 
         // Act
@@ -295,7 +306,8 @@ public class DatabaseManagerTests
         contextFactory.Setup(p => p.CreateContext("test.db"))
             .Returns(mockContext.Object);
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
         await manager.LoadAutoLoadDatabasesAsync();
 
         // Act
@@ -315,7 +327,8 @@ public class DatabaseManagerTests
         var contextFactory = new Mock<IDatabaseContextFactory>();
         var logger = new Mock<ILogger<DatabaseManager>>();
 
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object);
+        var messenger = new Mock<IMessenger>();
+        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
         manager.Dispose();
 
         // Act & Assert

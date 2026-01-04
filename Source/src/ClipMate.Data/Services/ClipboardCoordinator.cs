@@ -238,7 +238,7 @@ public class ClipboardCoordinator : IHostedService,
                 _logger.LogInformation("Stopping clipboard monitoring (toggle off)");
                 await _clipboardService.StopMonitoringAsync();
                 _isMonitoring = false;
-                _messenger.Send(new AutoCaptureStateChangedEvent(false));
+                _messenger.Send(new StateRefreshRequestedEvent());
 
                 // Cancel background processing
                 _cts?.Cancel();
@@ -261,14 +261,14 @@ public class ClipboardCoordinator : IHostedService,
                     {
                         await _clipboardService.StartMonitoringAsync(_cts.Token);
                         _isMonitoring = true;
-                        _messenger.Send(new AutoCaptureStateChangedEvent(true));
+                        _messenger.Send(new StateRefreshRequestedEvent());
                     });
                 }
                 else
                 {
                     await _clipboardService.StartMonitoringAsync(_cts.Token);
                     _isMonitoring = true;
-                    _messenger.Send(new AutoCaptureStateChangedEvent(true));
+                    _messenger.Send(new StateRefreshRequestedEvent());
                 }
             }
         }

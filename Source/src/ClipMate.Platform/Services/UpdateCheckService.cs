@@ -12,7 +12,7 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class UpdateCheckService : IUpdateCheckService
 {
-    private const string GitHubReleasesUrl = "https://api.github.com/repos/clipmate/ClipMate/releases";
+    private const string _gitHubReleasesUrl = "https://api.github.com/repos/clipmate/ClipMate/releases";
     private readonly HttpClient _httpClient;
     private readonly ILogger<UpdateCheckService> _logger;
 
@@ -35,7 +35,7 @@ public class UpdateCheckService : IUpdateCheckService
             _logger.LogInformation("Checking for updates. Current version: {CurrentVersion}", currentVersion);
 
             var releases = await _httpClient.GetFromJsonAsync<GitHubRelease[]>(
-                GitHubReleasesUrl,
+                _gitHubReleasesUrl,
                 cancellationToken);
 
             if (releases == null || releases.Length == 0)
@@ -56,15 +56,15 @@ public class UpdateCheckService : IUpdateCheckService
             }
 
             // Find the first release that is newer than the current version
-            foreach (var release in eligibleReleases)
+            foreach (var item in eligibleReleases)
             {
-                var version = ApplicationVersion.ParseVersionFromTag(release.TagName);
+                var version = ApplicationVersion.ParseVersionFromTag(item.TagName);
                 var appVersion = new ApplicationVersion(
-                    release.TagName,
+                    item.TagName,
                     version,
-                    release.HtmlUrl,
-                    release.PublishedAt,
-                    release.Prerelease);
+                    item.HtmlUrl,
+                    item.PublishedAt,
+                    item.Prerelease);
 
                 if (!appVersion.IsNewerThan(currentVersion))
                     continue;
