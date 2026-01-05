@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Now respects per-database CleanupMethod configuration
   - Automatic old backup cleanup during idle maintenance
   - Processes all configured databases independently
+- **HotkeyBindDialog Redesign** - Complete UX overhaul with toggle modifier buttons (Shift, Ctrl, Win, Alt), special key dropdown menu with 18 media/browser/volume keys, and improved key capture workflow matching ClipboardFusion interface
 
 ### Fixed
 - **Search Results Auto-Selection** - Search results node is now automatically selected after executing a search, with database node expanded for visibility
@@ -34,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **App Startup** - Added comprehensive maintenance tasks including integrity checks, backup cleanup, and CleanupMethod.AtStartup processing
 - **App Shutdown** - Added CleanupMethod.AtShutdown processing
 - **DatabaseMaintenanceService** - Added CleanupOldBackupsAsync and CheckDatabaseIntegrityAsync methods
+- **Dialog Buttons** - Migrated HotkeyBindDialog and TextToolsDialog to use DevExpress ThemedWindow.DialogButtons for consistent themed appearance
+- **Special Key Selection** - Replaced ComboBoxEdit with DropDownButton + PopupMenu in HotkeyBindDialog for more native DevExpress implementation
 
 ## [0.1.0-alpha.4] - 2026-1-3
 
