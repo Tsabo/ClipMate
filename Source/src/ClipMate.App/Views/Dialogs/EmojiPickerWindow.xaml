@@ -14,12 +14,10 @@
     <dx:ThemedWindow.DialogButtons>
         <dx:ThemedWindowDialogButton Content="OK"
                                      IsDefault="True"
-                                     Click="OkButton_Click"
-                                     MinWidth="80" />
+                                     Click="OkButton_Click" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
     </dx:ThemedWindow.DialogButtons>
 
     <Grid Margin="0">

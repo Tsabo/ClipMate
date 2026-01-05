@@ -317,7 +317,7 @@ public partial class App
             foreach (var item in backupDirs)
             {
                 _logger?.LogDebug("Cleaning up old backups in: {Dir}", item);
-                var deletedCount = await maintenanceService.CleanupOldBackupsAsync(item, 14);
+                var deletedCount = await maintenanceService.CleanupOldBackupsAsync(item);
                 if (deletedCount > 0)
                     _logger?.LogInformation("Deleted {Count} old backup files from {Dir}", deletedCount, item);
             }

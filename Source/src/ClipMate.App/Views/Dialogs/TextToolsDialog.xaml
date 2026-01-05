@@ -15,6 +15,33 @@
                  WindowStartupLocation="CenterOwner"
                  ShowInTaskbar="False">
     
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Apply Transform" 
+                                     Command="{Binding ApplyTransformCommand}"
+                                     Placement="Left"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Preview" 
+                                     Command="{Binding PreviewTransformCommand}"
+                                     Placement="Left"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Copy Output" 
+                                     Command="{Binding CopyToClipboardCommand}"
+                                     Placement="Left"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Swap ⇄" 
+                                     Command="{Binding SwapInputOutputCommand}"
+                                     ToolTip="Swap input and output"
+                                     Placement="Left"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Clear" 
+                                     Command="{Binding ClearCommand}"
+                                     Placement="Left"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Close"
+                                     IsCancel="True"
+                                     Click="CloseButton_Click" />
+    </dx:ThemedWindow.DialogButtons>
+    
     <Window.Resources>
         <!-- Converters -->
         <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
@@ -25,7 +52,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Tool Selection -->
@@ -190,36 +216,5 @@
                         VerticalScrollBarVisibility="Auto"/>
             </Grid>
         </Grid>
-
-        <!-- Action Buttons -->
-        <StackPanel Grid.Row="3" 
-                   Orientation="Horizontal" 
-                   HorizontalAlignment="Right"
-                   Margin="0,12,0,0">
-            <Button Content="Apply Transform" 
-                   Command="{Binding ApplyTransformCommand}"
-                   Width="120"/>
-            
-            <Button Content="Preview" 
-                   Command="{Binding PreviewTransformCommand}"
-                   Width="80"/>
-            
-            <Button Content="Copy Output" 
-                   Command="{Binding CopyToClipboardCommand}"
-                   Width="100"/>
-            
-            <Button Content="Swap ⇄" 
-                   Command="{Binding SwapInputOutputCommand}"
-                   Width="80"
-                   ToolTip="Swap input and output"/>
-            
-            <Button Content="Clear" 
-                   Command="{Binding ClearCommand}"
-                   Width="70"/>
-            
-            <Button Content="Close" 
-                   Click="CloseButton_Click"
-                   Width="70"/>
-        </StackPanel>
     </Grid>
 </dx:ThemedWindow>

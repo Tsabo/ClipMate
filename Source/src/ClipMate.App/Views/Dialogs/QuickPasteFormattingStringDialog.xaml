@@ -16,16 +16,13 @@
         <dx:ThemedWindowDialogButton Content="OK"
                                      Click="OkButton_Click"
                                      IsDefault="True"
-                                     DialogResult="OK"
-                                     MinWidth="80" />
+                                     DialogResult="OK" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
         <dx:ThemedWindowDialogButton Content="Help"
                                      Click="HelpButton_Click"
-                                     DialogResult="None"
-                                     MinWidth="80" />
+                                     DialogResult="None" />
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="2">

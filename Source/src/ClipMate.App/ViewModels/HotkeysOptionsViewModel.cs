@@ -201,10 +201,31 @@ public partial class HotkeysOptionsViewModel : ObservableObject
         if (string.IsNullOrEmpty(propertyName))
             return;
 
+        // Get current hotkey value
+        var currentHotkey = propertyName switch
+        {
+            nameof(ShowWindow) => ShowWindow,
+            nameof(ScrollNext) => ScrollNext,
+            nameof(ScrollPrevious) => ScrollPrevious,
+            nameof(ActivateQuickPaste) => ActivateQuickPaste,
+            nameof(RegionScreenCapture) => RegionScreenCapture,
+            nameof(ObjectScreenCapture) => ObjectScreenCapture,
+            nameof(ViewClipInFloatingWindow) => ViewClipInFloatingWindow,
+            nameof(PopupClipBar) => PopupClipBar,
+            nameof(ToggleAutoCapture) => ToggleAutoCapture,
+            nameof(ManualCapture) => ManualCapture,
+            nameof(ManualFilter) => ManualFilter,
+            var _ => null,
+        };
+
         var dialog = new HotkeyBindDialog
         {
             Owner = Application.Current.GetDialogOwner(),
         };
+
+        // Set initial hotkey if one exists
+        if (!string.IsNullOrWhiteSpace(currentHotkey))
+            dialog.SetInitialHotkey(currentHotkey);
 
         if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.CapturedHotkey))
         {

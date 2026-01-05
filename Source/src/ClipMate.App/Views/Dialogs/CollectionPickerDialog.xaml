@@ -20,13 +20,10 @@
                                      Click="OkButton_Click"
                                      IsDefault="True"
                                      DialogResult="OK"
-                                     MinWidth="80"
-                                     x:Name="OkButton"
                                      IsEnabled="{Binding HasSelection}" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="10">

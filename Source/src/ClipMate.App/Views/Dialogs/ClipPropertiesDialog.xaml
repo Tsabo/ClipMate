@@ -19,16 +19,13 @@
         <dx:ThemedWindowDialogButton Content="OK"
                                      Command="{Binding OkCommand}"
                                      IsDefault="True"
-                                     DialogResult="OK"
-                                     MinWidth="80" />
+                                     DialogResult="OK" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
         <dx:ThemedWindowDialogButton Content="Help"
                                      Command="{Binding HelpCommand}"
-                                     DialogResult="None"
-                                     MinWidth="80" />
+                                     DialogResult="None" />
     </dx:ThemedWindow.DialogButtons>
 
     <Grid Margin="15">

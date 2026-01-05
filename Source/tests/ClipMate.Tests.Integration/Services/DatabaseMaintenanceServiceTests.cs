@@ -337,7 +337,8 @@ public class DatabaseMaintenanceServiceTests
         File.SetLastWriteTime(recentBackupPath, DateTime.Now.AddDays(-2));
 
         // Act - 14-day retention policy
-        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, 14);
+        const int retentionDays = 14;
+        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, retentionDays);
 
         // Assert
         await Assert.That(deletedCount).IsEqualTo(1);
@@ -373,7 +374,8 @@ public class DatabaseMaintenanceServiceTests
         File.SetLastWriteTime(otherFile, DateTime.Now.AddDays(-20));
 
         // Act
-        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, 14);
+        const int retentionDays = 7; // Use 7 days to test different retention period
+        var deletedCount = await _service.CleanupOldBackupsAsync(_backupDirectory, retentionDays);
 
         // Assert - Only ClipMate backup should be deleted
         await Assert.That(deletedCount).IsEqualTo(1);

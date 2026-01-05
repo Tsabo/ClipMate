@@ -28,13 +28,11 @@
         <dx:ThemedWindowDialogButton Content="Check For Updates"
                                      Command="{Binding CheckForUpdatesCommand}"
                                      DialogResult="None"
-                                     MinWidth="120"
                                      AllowCloseWindow="False"/>
         <dx:ThemedWindowDialogButton Content="OK"
                                      IsDefault="True"
                                      IsCancel="True"
-                                     DialogResult="OK"
-                                     MinWidth="80" />
+                                     DialogResult="OK" />
     </dx:ThemedWindow.DialogButtons>
 
     <dx:DXTabControl>

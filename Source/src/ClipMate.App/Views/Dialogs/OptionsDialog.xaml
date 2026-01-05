@@ -20,17 +20,14 @@
         <dx:ThemedWindowDialogButton Content="OK"
                                      Command="{Binding OkCommand}"
                                      IsDefault="True"
-                                     DialogResult="OK"
-                                     MinWidth="80" />
+                                     DialogResult="OK" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      Command="{Binding CancelCommand}"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
         <dx:ThemedWindowDialogButton Content="Help"
                                      Command="{Binding HelpCommand}"
-                                     DialogResult="None"
-                                     MinWidth="80" />
+                                     DialogResult="None" />
     </dx:ThemedWindow.DialogButtons>
 
     <dx:DXTabControl SelectedIndex="{Binding SelectedTabIndex}">

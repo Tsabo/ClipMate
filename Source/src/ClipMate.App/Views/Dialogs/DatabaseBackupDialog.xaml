@@ -17,13 +17,11 @@
         <dx:ThemedWindowDialogButton Content="OK"
                                      Click="OkButton_Click"
                                      IsDefault="True"
-                                     DialogResult="OK"
-                                     MinWidth="80" />
+                                     DialogResult="OK" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      Click="CancelButton_Click"
                                      IsCancel="True"
-                                     DialogResult="Cancel"
-                                     MinWidth="80" />
+                                     DialogResult="Cancel" />
     </dx:ThemedWindow.DialogButtons>
 
     <Grid>
