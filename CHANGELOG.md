@@ -7,15 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6] - 2026-1-5
+
 ### Added
 - **Blob Data Export Support** - XML export now includes all clip content (TextContent, HtmlContent, ImageData as base64, FilePathsJson)
 - **LoadBlobDataAsync Method** - New IClipService method to load blob data from database tables (BlobTxt, BlobPng, BlobJpg, BlobBlob) into clip transient properties
 - **Export/Import Integration Tests** - Comprehensive test suite verifying clips loaded from database can be exported with all blob data intact and successfully re-imported
+- **Pre-Release Update Check** - About dialog now includes dropdown option to check for pre-release versions from GitHub
 
 ### Fixed
 - **XML Export Missing Content** - Fixed issue where XML export only included clip metadata without actual content (text, images, HTML, file paths), making re-import impossible
 - **ClipExportDto Serialization** - Added ImageDataBase64 and FilePathsJson properties with proper base64 encoding for binary image data
 - **Export Workflow** - XmlExportViewModel now calls LoadBlobDataAsync to populate blob data before export
+- **Update Check Service GitHub URL** - Corrected repository URL from `clipmate/ClipMate` to `Tsabo/ClipMate` to fix 404 errors when checking for updates
+- **About Dialog Button Bindings** - Fixed DataContext binding issues for DropDownButton in ThemedWindow.DialogButtons using RelativeSource
+- **Update Check CommandParameter** - Fixed type mismatch by using proper sys:Boolean type instead of string "True" for CommandParameter
+- **Version Comparison with Build Metadata** - Fixed ApplicationVersion.ParseSemanticVersion to properly strip build metadata (git hash after `+`) when comparing versions, allowing correct detection of newer releases
 
 ### Changed
 - **Test Infrastructure** - Added InternalsVisibleTo for ClipMate.Tests.Integration to access internal repository classes for proper integration testing

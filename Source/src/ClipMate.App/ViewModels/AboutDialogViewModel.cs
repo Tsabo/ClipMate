@@ -86,7 +86,7 @@ public partial class AboutDialogViewModel : ObservableObject
     /// Checks for updates from GitHub releases.
     /// </summary>
     [RelayCommand]
-    private async Task CheckForUpdates()
+    private async Task CheckForUpdates(bool includePrerelease = false)
     {
         try
         {
@@ -94,7 +94,7 @@ public partial class AboutDialogViewModel : ObservableObject
 
             var update = await _updateCheckService.CheckForUpdatesAsync(
                 VersionNumber,
-                false);
+                includePrerelease);
 
             if (update != null)
             {
@@ -127,7 +127,7 @@ public partial class AboutDialogViewModel : ObservableObject
             DXMessageBox.Show(
                 "Unable to check for updates. Please check your internet connection and try again.\n\n" +
                 "You can also manually check for updates at:\n" +
-                "https://github.com/clipmate/ClipMate/releases",
+                "https://github.com/Tsabo/ClipMate/releases",
                 "Update Check Failed",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);

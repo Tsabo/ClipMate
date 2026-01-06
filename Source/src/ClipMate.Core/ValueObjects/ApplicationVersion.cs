@@ -54,15 +54,19 @@ public record ApplicationVersion(
     /// <summary>
     /// Parses a semantic version string into core version and pre-release suffix.
     /// </summary>
-    /// <param name="version">Version string like "1.0.0" or "1.0.0-alpha.3"</param>
+    /// <param name="version">Version string like "1.0.0" or "1.0.0-alpha.3" or "1.0.0+build123"</param>
     /// <returns>Tuple of (core System.Version, prerelease string)</returns>
     private static (Version? Core, string? Prerelease) ParseSemanticVersion(string version)
     {
         if (string.IsNullOrEmpty(version))
             return (null, null);
 
+        // Per semver spec: version format is MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]
+        // First, strip build metadata (everything after '+')
+        var versionWithoutBuild = version.Split('+', 2)[0];
+
         // Split on '-' to separate core version from pre-release suffix
-        var parts = version.Split('-', 2);
+        var parts = versionWithoutBuild.Split('-', 2);
         var coreVersion = parts[0];
         var prerelease = parts.Length > 1
             ? parts[1]

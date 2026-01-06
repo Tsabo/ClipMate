@@ -12,7 +12,7 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class UpdateCheckService : IUpdateCheckService
 {
-    private const string _gitHubReleasesUrl = "https://api.github.com/repos/clipmate/ClipMate/releases";
+    private const string _gitHubReleasesUrl = "https://api.github.com/repos/Tsabo/ClipMate/releases";
     private readonly HttpClient _httpClient;
     private readonly ILogger<UpdateCheckService> _logger;
 

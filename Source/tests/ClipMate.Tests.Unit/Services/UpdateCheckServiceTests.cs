@@ -38,7 +38,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v2.0.0",
             "2.0.0",
-            "https://github.com/clipmate/ClipMate/releases/tag/v2.0.0",
+            "https://github.com/Tsabo/ClipMate/releases/tag/v2.0.0",
             DateTimeOffset.UtcNow,
             false);
 
@@ -53,7 +53,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v1.0.0",
             "1.0.0",
-            "https://github.com/clipmate/ClipMate/releases/tag/v1.0.0",
+            "https://github.com/Tasbo/ClipMate/releases/tag/v1.0.0",
             DateTimeOffset.UtcNow,
             false);
 
@@ -68,7 +68,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v1.0.0",
             "1.0.0",
-            "https://github.com/clipmate/ClipMate/releases/tag/v1.0.0",
+            "https://github.com/Tsabo/ClipMate/releases/tag/v1.0.0",
             DateTimeOffset.UtcNow,
             false);
 
@@ -83,7 +83,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v1.1.0",
             "1.1.0",
-            "https://github.com/clipmate/ClipMate/releases/tag/v1.1.0",
+            "https://github.com/Tsabo/ClipMate/releases/tag/v1.1.0",
             DateTimeOffset.UtcNow,
             false);
 
@@ -98,7 +98,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v1.0.1",
             "1.0.1",
-            "https://github.com/clipmate/ClipMate/releases/tag/v1.0.1",
+            "https://github.com/Tsabo/ClipMate/releases/tag/v1.0.1",
             DateTimeOffset.UtcNow,
             false);
 
@@ -113,7 +113,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "v1.0.0",
             "1.0.0",
-            "https://github.com/clipmate/ClipMate/releases/tag/v1.0.0",
+            "https://github.com/Tsabo/ClipMate/releases/tag/v1.0.0",
             DateTimeOffset.UtcNow,
             false);
 
@@ -128,7 +128,7 @@ public class UpdateCheckServiceTests
         var version = new ApplicationVersion(
             "vinvalid",
             "invalid",
-            "https://github.com/clipmate/ClipMate/releases/tag/vinvalid",
+            "https://github.com/Tsabo/ClipMate/releases/tag/vinvalid",
             DateTimeOffset.UtcNow,
             false);
 
@@ -261,7 +261,7 @@ file class MockHttpMessageHandler : HttpMessageHandler
                              [
                                {
                                  "tag_name": "v{{version}}",
-                                 "html_url": "https://github.com/clipmate/ClipMate/releases/tag/v{{version}}",
+                                 "html_url": "https://github.com/Tsabo/ClipMate/releases/tag/v{{version}}",
                                  "published_at": "2026-01-03T00:00:00Z",
                                  "prerelease": false
                                }
@@ -275,7 +275,7 @@ file class MockHttpMessageHandler : HttpMessageHandler
                              [
                                {
                                  "tag_name": "v{{version}}",
-                                 "html_url": "https://github.com/clipmate/ClipMate/releases/tag/v{{version}}",
+                                 "html_url": "https://github.com/Tsabo/ClipMate/releases/tag/v{{version}}",
                                  "published_at": "2026-01-03T00:00:00Z",
                                  "prerelease": true
                                }
@@ -288,7 +288,7 @@ file class MockHttpMessageHandler : HttpMessageHandler
         var releases = versions.Select((v, i) => $$"""
                                                      {
                                                        "tag_name": "v{{v}}",
-                                                       "html_url": "https://github.com/clipmate/ClipMate/releases/tag/v{{v}}",
+                                                       "html_url": "https://github.com/Tsabo/ClipMate/releases/tag/v{{v}}",
                                                        "published_at": "2026-01-0{{3 - i}}T00:00:00Z",
                                                        "prerelease": false
                                                      }
