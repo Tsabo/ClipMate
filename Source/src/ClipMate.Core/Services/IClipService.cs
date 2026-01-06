@@ -230,4 +230,14 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of clips in the collection and all child folders.</returns>
     Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads blob data (TextContent, ImageData, etc.) for a clip from the specified database.
+    /// This populates the transient content properties that are not stored in the Clips table.
+    /// Use this before exporting or when full content is needed without setting the clipboard.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clip">The clip to load content for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task LoadBlobDataAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default);
 }

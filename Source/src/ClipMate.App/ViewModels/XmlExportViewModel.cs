@@ -194,6 +194,15 @@ public partial class XmlExportViewModel : ObservableObject
                     collections.Add(collection);
             }
 
+            // Load blob data for all clips before exporting
+            var databaseKey = _collectionService.GetActiveDatabaseKey();
+            if (!string.IsNullOrEmpty(databaseKey))
+            {
+                ProcessingLog += "Loading clip content...\n";
+                foreach (var clip in _selectedClips)
+                    await _clipService.LoadBlobDataAsync(databaseKey, clip);
+            }
+
             void ProgressCallback(ExportProgressMessage msg)
             {
                 ProcessingLog += $"{msg.Message}\n";

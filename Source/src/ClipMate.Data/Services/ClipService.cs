@@ -408,6 +408,75 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
+    public async Task LoadBlobDataAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Create repositories to load full clip content
+            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(databaseKey);
+            var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
+
+            // Load ClipData for this clip
+            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id, cancellationToken);
+            if (clipDataList.Count == 0)
+            {
+                _logger.LogDebug("No ClipData found for clip: {ClipId}", clip.Id);
+                return;
+            }
+
+            // Load text blobs and populate content properties
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+            var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
+
+            foreach (var item in clipDataList)
+            {
+                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
+                    continue;
+
+                // Determine content type based on format
+                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
+                    clip.TextContent = textBlob.Data;
+                else if (item.Format == Formats.RichText.Code)
+                    clip.RtfContent = textBlob.Data;
+                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
+                    clip.HtmlContent = textBlob.Data;
+            }
+
+            // For images, load image data
+            if (clip.Type == ClipType.Image)
+            {
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
+                if (pngBlobs.Count > 0)
+                    clip.ImageData = pngBlobs[0].Data;
+                else
+                {
+                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
+                    if (jpgBlobs.Count > 0)
+                        clip.ImageData = jpgBlobs[0].Data;
+                }
+            }
+
+            // For files, load file paths from binary blobs
+            if (clip.Type == ClipType.Files)
+            {
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
+                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
+
+                if (filePathBlob != null)
+                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+            }
+
+            _logger.LogDebug("Loaded blob data for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load blob data for clip {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sqlQuery))

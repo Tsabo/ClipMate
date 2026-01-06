@@ -33,6 +33,8 @@ public class ClipExportDto
     public string? TextContent { get; set; }
     public string? RtfContent { get; set; }
     public string? HtmlContent { get; set; }
+    public string? ImageDataBase64 { get; set; }
+    public string? FilePathsJson { get; set; }
 
     public static ClipExportDto FromClip(Clip clip)
     {
@@ -65,6 +67,10 @@ public class ClipExportDto
             TextContent = clip.TextContent,
             RtfContent = clip.RtfContent,
             HtmlContent = clip.HtmlContent,
+            ImageDataBase64 = clip.ImageData != null && clip.ImageData.Length > 0
+                ? Convert.ToBase64String(clip.ImageData)
+                : null,
+            FilePathsJson = clip.FilePathsJson,
         };
     }
 
@@ -99,6 +105,10 @@ public class ClipExportDto
             TextContent = TextContent,
             RtfContent = RtfContent,
             HtmlContent = HtmlContent,
+            ImageData = !string.IsNullOrEmpty(ImageDataBase64)
+                ? Convert.FromBase64String(ImageDataBase64)
+                : null,
+            FilePathsJson = FilePathsJson,
         };
     }
 }
