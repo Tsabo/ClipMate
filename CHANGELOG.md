@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Blob Data Export Support** - XML export now includes all clip content (TextContent, HtmlContent, ImageData as base64, FilePathsJson)
+- **LoadBlobDataAsync Method** - New IClipService method to load blob data from database tables (BlobTxt, BlobPng, BlobJpg, BlobBlob) into clip transient properties
+- **Export/Import Integration Tests** - Comprehensive test suite verifying clips loaded from database can be exported with all blob data intact and successfully re-imported
+
+### Fixed
+- **XML Export Missing Content** - Fixed issue where XML export only included clip metadata without actual content (text, images, HTML, file paths), making re-import impossible
+- **ClipExportDto Serialization** - Added ImageDataBase64 and FilePathsJson properties with proper base64 encoding for binary image data
+- **Export Workflow** - XmlExportViewModel now calls LoadBlobDataAsync to populate blob data before export
+
+### Changed
+- **Test Infrastructure** - Added InternalsVisibleTo for ClipMate.Tests.Integration to access internal repository classes for proper integration testing
+
 ## [0.1.0-alpha.5] - 2026-1-4
 
 ### Added
