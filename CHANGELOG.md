@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.7] - 2026-1-6
+
 ### Added
 - **Main Toolbar Buttons** - Completed toolbar implementation for ClassicWindow and ExplorerWindow with all 16 documented buttons (PowerPaste, Delete, Print, Append, Remove Breaks, Move to Collection, Copy to Collection, Search, Switch View, View Clip, Outbound Filtering, Templates, Text Clean-up, Loop PowerPaste, Explode PowerPaste, Event Log)
 - **CustomFontIconSource Integration** - Toolbar buttons now use custom font glyphs for Delete, Append, CopyToCollection, and MoveToCollection for consistent iconography
