@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Main Toolbar Buttons** - Completed toolbar implementation for ClassicWindow and ExplorerWindow with all 16 documented buttons (PowerPaste, Delete, Print, Append, Remove Breaks, Move to Collection, Copy to Collection, Search, Switch View, View Clip, Outbound Filtering, Templates, Text Clean-up, Loop PowerPaste, Explode PowerPaste, Event Log)
+- **CustomFontIconSource Integration** - Toolbar buttons now use custom font glyphs for Delete, Append, CopyToCollection, and MoveToCollection for consistent iconography
+- **Dynamic Dropdown Menus** - Implemented GetItemData handlers for Collections and Templates dropdowns with cross-database support
+- **Keyboard Shortcuts** - Added comprehensive InputBindings to both Explorer and Classic windows for menu shortcuts (Ctrl+F, Ctrl+E, Ctrl+N, Ctrl+R, Ctrl+P, Ctrl+O, Ctrl+U, Ctrl+D, Alt+Enter, Alt+R, Ctrl+Alt+A, Ctrl+Alt+B, Ctrl+Alt+T, Ctrl+Alt+P, Ctrl+Alt+N, F5-F8, F12)
+
+### Fixed
+- **SwitchView Command** - Fixed window switching to properly toggle between Classic and Explorer by closing current window and opening the other
+- **Clipboard Lock Errors** - Implemented retry logic with exponential backoff (50ms, 100ms, 200ms) for CLIPBRD_E_CANT_OPEN errors using ThrottleDebounce.Retrier.Attempt
+- **TrayIcon Menu State Updates** - Fixed Auto Capture and Filter Outbound Clips checkboxes in tray icon context menu not updating by adding PopupMenu.Opening event handler to refresh bindings
+- **Cross-Database Clipboard Operations** - ClassicWindow now properly supports copying and moving clips between databases with ClipData and blob migration
+
+### Changed
+- **ClipboardService Dependencies** - Added ThrottleDebounce package reference for retry logic implementation
+- **ClassicWindow Collections Integration** - Added ITemplateService dependency and collection dropdown handlers for full feature parity with ExplorerWindow
+- **Toolbar Button Order** - Standardized button order across both windows to match main-toolbar-buttons.md specification
+
 ## [0.1.0-alpha.6] - 2026-1-5
 
 ### Added
