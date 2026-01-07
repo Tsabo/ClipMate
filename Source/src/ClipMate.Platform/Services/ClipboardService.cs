@@ -17,6 +17,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
+using ThrottleDebounce;
 using Application = System.Windows.Application;
 using DataFormats = System.Windows.DataFormats;
 // Aliases to resolve WPF vs WinForms ambiguity
@@ -197,45 +198,67 @@ public class ClipboardService : IClipboardService, IDisposable
 
         try
         {
-            // Must run on STA thread (UI thread) for WPF Clipboard API
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                switch (clip.Type)
+            await Retrier.Attempt(
+                async attempt =>
                 {
-                    case ClipType.Text:
-                    case ClipType.Html:
-                    case ClipType.RichText:
-                        SetTextToClipboard(clip);
+                    // Must run on STA thread (UI thread) for WPF Clipboard API
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
+                        switch (clip.Type)
+                        {
+                            case ClipType.Text:
+                            case ClipType.Html:
+                            case ClipType.RichText:
+                                SetTextToClipboard(clip);
 
-                        break;
-                    case ClipType.Image:
-                        SetImageToClipboard(clip);
+                                break;
+                            case ClipType.Image:
+                                SetImageToClipboard(clip);
 
-                        break;
-                    case ClipType.Files:
-                        SetFilesToClipboard(clip);
+                                break;
+                            case ClipType.Files:
+                                SetFilesToClipboard(clip);
 
-                        break;
-                    default:
-                        _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
+                                break;
+                            default:
+                                _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
 
-                        break;
-                }
+                                break;
+                        }
 
-                // Suppress capture of this specific content by storing its hash
-                // IMPORTANT: Set this AFTER successfully modifying the clipboard, not before
-                // Use the clip's existing ContentHash - it's already computed for all clip types
-                _suppressCaptureForHash = clip.ContentHash;
-                _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
+                        // Suppress capture of this specific content by storing its hash
+                        // IMPORTANT: Set this AFTER successfully modifying the clipboard, not before
+                        // Use the clip's existing ContentHash - it's already computed for all clip types
+                        _suppressCaptureForHash = clip.ContentHash;
+                        _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
 
-                var hashPreview = _suppressCaptureForHash.Length >= 8
-                    ? _suppressCaptureForHash.Substring(0, 8)
-                    : _suppressCaptureForHash;
+                        var hashPreview = _suppressCaptureForHash.Length >= 8
+                            ? _suppressCaptureForHash[..8]
+                            : _suppressCaptureForHash;
 
-                _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}",
-                    hashPreview, clip.Type);
-            });
+                        _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}",
+                            hashPreview, clip.Type);
+                    });
+
+                    if (attempt > 0)
+                        _logger.LogInformation("Clipboard operation succeeded after {Attempt} retries", attempt);
+                },
+                4, // 1 initial attempt + 3 retries
+                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
+                async () =>
+                {
+                    _logger.LogWarning("Clipboard locked, retrying...");
+                    await Task.CompletedTask;
+                },
+                cancellationToken);
+        }
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
+        {
+            _logger.LogError("Failed to set clipboard content after retries - clipboard remains locked by another application");
+
+            throw new ClipboardException("Failed to set clipboard content - clipboard is locked by another application", ex);
         }
         catch (Exception ex)
         {
@@ -251,11 +274,11 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         const int wmClipboardUpdate = 0x031D;
 
-        if (msg == wmClipboardUpdate)
-        {
-            handled = true;
-            _ = Task.Run(async () => await HandleClipboardChangeAsync());
-        }
+        if (msg != wmClipboardUpdate)
+            return IntPtr.Zero;
+
+        handled = true;
+        _ = Task.Run(async () => await HandleClipboardChangeAsync());
 
         return IntPtr.Zero;
     }
@@ -318,7 +341,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 DateTime.UtcNow < _suppressCaptureUntil)
             {
                 var hashPreview = clip.ContentHash.Length >= 8
-                    ? clip.ContentHash.Substring(0, 8)
+                    ? clip.ContentHash[..8]
                     : clip.ContentHash;
 
                 _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", hashPreview);
@@ -452,10 +475,7 @@ public class ClipboardService : IClipboardService, IDisposable
             return true;
 
         // Check with CF_ prefix removed (for checking constants against enumerated names)
-        if (formatName.StartsWith("CF_", StringComparison.Ordinal) && allowedFormats.Contains(formatName[3..]))
-            return true;
-
-        return false;
+        return formatName.StartsWith("CF_", StringComparison.Ordinal) && allowedFormats.Contains(formatName[3..]);
     }
 
 

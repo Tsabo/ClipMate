@@ -25,11 +25,27 @@
 
     <dx:ThemedWindow.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CloseWindowCommand}" />
-        <KeyBinding Key="F12" Command="{Binding MainMenu.AutoCaptureCommand}" />
         <KeyBinding Key="F2" Command="{Binding MainMenu.ViewClipCommand}" />
         <KeyBinding Key="F5" Command="{Binding MainMenu.SwitchToLastCollectionCommand}" />
         <KeyBinding Key="F6" Command="{Binding MainMenu.SwitchToFavoriteCollectionCommand}" />
+        <KeyBinding Key="F7" Command="{Binding MainMenu.CheckSpellingCommand}" />
         <KeyBinding Key="F8" Command="{Binding MainMenu.SelectCollectionCommand}" />
+        <KeyBinding Key="F12" Command="{Binding MainMenu.AutoCaptureCommand}" />
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding MainMenu.CreateNewClipCommand}" />
+        <KeyBinding Key="R" Modifiers="Ctrl" Command="{Binding MainMenu.RenameClipCommand}" />
+        <KeyBinding Key="P" Modifiers="Ctrl" Command="{Binding MainMenu.PrintCommand}" />
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding MainMenu.OpenSourceUrlCommand}" />
+        <KeyBinding Key="F" Modifiers="Ctrl" Command="{Binding MainMenu.SearchCommand}" />
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding MainMenu.SwitchViewCommand}" />
+        <KeyBinding Key="U" Modifiers="Ctrl" Command="{Binding MainMenu.PowerPasteUpCommand}" />
+        <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding MainMenu.PowerPasteDownCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Alt" Command="{Binding MainMenu.ClipPropertiesCommand}" />
+        <KeyBinding Key="R" Modifiers="Alt" Command="{Binding MainMenu.ReloadCollectionCommand}" />
+        <KeyBinding Key="A" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.AppendClipsCommand}" />
+        <KeyBinding Key="B" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.RemoveLineBreaksCommand}" />
+        <KeyBinding Key="T" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.StripNonTextCommand}" />
+        <KeyBinding Key="P" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectPreviousCommand}" />
+        <KeyBinding Key="N" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectNextCommand}" />
     </dx:ThemedWindow.InputBindings>
 
     <Grid>
@@ -316,7 +332,7 @@
                     <dxb:BarButtonItem Content="Delete"
                                        Command="{Binding MainMenu.DeleteSelectedCommand}"
                                        ToolTip="Delete selected clip(s)"
-                                       Glyph="{dx:DXImage 'SvgImages/Edit/Delete.svg'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Delete}, Size=24}" />
                     <dxb:BarButtonItem Content="Print"
                                        Command="{Binding MainMenu.PrintCommand}"
                                        ToolTip="Print selected clip(s)"
@@ -324,31 +340,66 @@
                     <dxb:BarButtonItem Content="Append"
                                        Command="{Binding MainMenu.AppendClipsCommand}"
                                        ToolTip="Append selected clips together"
-                                       Glyph="{dx:DXImage 'SvgImages/Actions/Merge.svg'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}, Size=24}" />
                     <dxb:BarButtonItem Content="Remove Breaks"
                                        Command="{Binding MainMenu.RemoveLineBreaksCommand}"
                                        ToolTip="Remove line breaks"
-                                       Glyph="{dx:DXImage 'SvgImages/Edit/RemoveLineBreaks.svg'}" />
-                    <dxb:BarSubItem Content="Move To"
-                                    Glyph="{dx:DXImage 'SvgImages/Actions/MoveTo.svg'}">
-                        <dxb:BarButtonItem Content="Inbox" Command="{Binding MainMenu.MoveToInboxCommand}" />
-                        <dxb:BarButtonItem Content="Safe" Command="{Binding MainMenu.MoveToSafeCommand}" />
-                        <dxb:BarButtonItem Content="Overflow" Command="{Binding MainMenu.MoveToOverflowCommand}" />
-                        <dxb:BarButtonItem Content="Samples" Command="{Binding MainMenu.MoveToSamplesCommand}" />
-                        <dxb:BarButtonItem Content="Trash Can" Command="{Binding MainMenu.MoveToTrashCommand}" />
-                    </dxb:BarSubItem>
+                                       Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
+                    <dxb:BarSubItem x:Name="MoveToCollectionDropdown"
+                                    Content="Move to Collection"
+                                    ToolTip="Move selected clip(s) to a collection"
+                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.MoveToCollection}, Size=24}"
+                                    GetItemData="MoveToCollectionDropdown_GetItemData" />
+                    <dxb:BarSubItem x:Name="CopyToCollectionDropdown"
+                                    Content="Copy to Collection"
+                                    ToolTip="Copy selected clip(s) to a collection"
+                                    Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.CopyToCollection}, Size=24}"
+                                    GetItemData="CopyToCollectionDropdown_GetItemData" />
+
+                    <!-- Search Button -->
                     <dxb:BarButtonItem Content="Search"
                                        Command="{Binding MainMenu.SearchCommand}"
-                                       ToolTip="Search clips"
-                                       Glyph="{dx:DXImage 'SvgImages/Actions/Search.svg'}" />
-                    <dxb:BarSubItem Content="Collection"
-                                    Glyph="{dx:DXImage 'SvgImages/Business Objects/Folder.svg'}">
-                        <dxb:BarButtonItem Content="Inbox" Command="{Binding MainMenu.SelectInboxCommand}" />
-                        <dxb:BarButtonItem Content="Safe" Command="{Binding MainMenu.SelectSafeCommand}" />
-                        <dxb:BarButtonItem Content="Overflow" Command="{Binding MainMenu.SelectOverflowCommand}" />
-                        <dxb:BarButtonItem Content="Samples" Command="{Binding MainMenu.SelectSamplesCommand}" />
-                        <dxb:BarButtonItem Content="Trash Can" Command="{Binding MainMenu.SelectTrashCommand}" />
-                    </dxb:BarSubItem>
+                                       ToolTip="Search clips (Ctrl+F)"
+                                       Glyph="{helpers:EmojiIconSource Emoji='🔍'}" />
+
+                    <!-- Switch View Button -->
+                    <dxb:BarButtonItem Content="Switch View"
+                                       Command="{Binding MainMenu.SwitchViewCommand}"
+                                       ToolTip="Switch between Classic and Explorer"
+                                       Glyph="{helpers:EmojiIconSource Emoji='🔀'}" />
+
+                    <!-- View Clip Button -->
+                    <dxb:BarButtonItem Content="View Clip"
+                                       Command="{Binding MainMenu.ViewClipCommand}"
+                                       ToolTip="View selected clip in floating window (F2)"
+                                       Glyph="{helpers:EmojiIconSource Emoji='👁️'}" />
+
+                    <!-- Outbound Filtering Toggle -->
+                    <dxb:BarCheckItem Content="Outbound Filtering"
+                                      IsChecked="{Binding MainMenu.IsOutboundFilterEnabled}"
+                                      ToolTip="Enable/disable outbound clip filtering"
+                                      Glyph="{helpers:EmojiIconSource Emoji='📊'}" />
+                    <dxb:BarSubItem x:Name="TemplateDropdown"
+                                    Content="Templates"
+                                    ToolTip="Select a template for clip merging"
+                                    Glyph="{helpers:EmojiIconSource Emoji='📄'}"
+                                    GetItemData="TemplateDropdown_GetItemData" />
+                    <dxb:BarButtonItem Content="Text Clean-up"
+                                       Command="{Binding MainMenu.CleanUpTextCommand}"
+                                       ToolTip="Clean up text formatting"
+                                       Glyph="{helpers:EmojiIconSource Emoji='🧹'}" />
+                    <dxb:BarCheckItem Content="Loop PowerPaste"
+                                      IsChecked="{Binding MainMenu.IsLoopMode}"
+                                      ToolTip="Enable PowerPaste looping mode"
+                                      Glyph="{helpers:EmojiIconSource Emoji='🔁'}" />
+                    <dxb:BarCheckItem Content="Explode PowerPaste"
+                                      IsChecked="{Binding MainMenu.IsExplodeMode}"
+                                      ToolTip="Enable PowerPaste explode mode"
+                                      Glyph="{helpers:EmojiIconSource Emoji='💥'}" />
+                    <dxb:BarButtonItem Content="Event Log"
+                                       Command="{Binding MainMenu.ShowEventLogCommand}"
+                                       ToolTip="Show event log window"
+                                       Glyph="{helpers:EmojiIconSource Emoji='📜'}" />
                 </dxb:Bar>
             </dxb:BarManager.Bars>
         </dxb:BarManager>

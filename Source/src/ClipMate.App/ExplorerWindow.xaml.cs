@@ -516,16 +516,16 @@ public partial class ExplorerWindow : IWindow,
 
             var databases = _databaseManager.GetLoadedDatabases().ToList();
 
-            foreach (var database in databases)
+            foreach (var item in databases)
             {
-                var databaseKey = database.FilePath;
-                var item = new BarButtonItem
+                var databaseKey = item.FilePath;
+                var button = new BarButtonItem
                 {
-                    Content = database.Name,
+                    Content = item.Name,
                 };
 
-                item.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
-                subItem.ItemLinks.Add(item);
+                button.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
+                subItem.ItemLinks.Add(button);
             }
         }
         catch (Exception ex)

@@ -19,7 +19,7 @@
             Tooltip="ClipMate - Clipboard Manager"
             LeftClickCommand="{Binding ShowExplorerWindowCommand}">
             <dx:NotifyIconService.ContextMenu>
-                <dxb:PopupMenu>
+                <dxb:PopupMenu x:Name="TrayContextMenu" Opening="TrayContextMenu_Opening">
                     <!-- Window Management -->
                     <dxb:BarButtonItem Content="Open ClipMate Explorer"
                                        Command="{Binding MainMenu.OpenExplorerCommand}"

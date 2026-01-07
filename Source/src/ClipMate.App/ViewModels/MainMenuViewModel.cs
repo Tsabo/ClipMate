@@ -517,7 +517,39 @@ public partial class MainMenuViewModel : ObservableObject,
     private void ViewClip() => _clipViewerWindowManager.ToggleVisibility();
 
     [RelayCommand]
-    private void SwitchView() => _messenger.Send(new ShowExplorerWindowEvent());
+    private void SwitchView()
+    {
+        // Determine which window type is currently active
+        var explorerWindow = Application.Current.Windows.OfType<ExplorerWindow>().FirstOrDefault();
+        var classicWindow = Application.Current.Windows.OfType<ClassicWindow>().FirstOrDefault();
+
+        // If Explorer is visible, switch to Classic
+        if (explorerWindow?.IsVisible == true)
+        {
+            explorerWindow.Close();
+            if (classicWindow == null)
+                _ = _serviceProvider.GetRequiredService<ClassicWindow>();
+
+            _messenger.Send(new ShowClipBarRequestedEvent());
+        }
+        // If Classic is visible, switch to Explorer
+        else if (classicWindow?.IsVisible == true)
+        {
+            classicWindow.Close();
+            if (explorerWindow == null)
+                _ = _serviceProvider.GetRequiredService<ExplorerWindow>();
+
+            _messenger.Send(new ShowExplorerWindowEvent());
+        }
+        // If neither is visible, default to showing Explorer
+        else
+        {
+            if (explorerWindow == null)
+                _ = _serviceProvider.GetRequiredService<ExplorerWindow>();
+
+            _messenger.Send(new ShowExplorerWindowEvent());
+        }
+    }
 
     [RelayCommand]
     private void OpenExplorer()

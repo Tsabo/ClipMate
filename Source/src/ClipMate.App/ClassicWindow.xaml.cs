@@ -29,10 +29,11 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
     private readonly ISearchService _searchService;
     private readonly SearchViewModel _searchViewModel;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ITemplateService _templateService;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
-        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, bool isHotkeyTriggered = false)
+        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, ITemplateService templateService, bool isHotkeyTriggered = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -45,6 +46,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _isHotkeyTriggered = isHotkeyTriggered;
         DataContext = _viewModel;
 
@@ -196,21 +198,334 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
 
             var databases = _databaseManager.GetLoadedDatabases().ToList();
 
-            foreach (var database in databases)
+            foreach (var item in databases)
             {
-                var databaseKey = database.FilePath;
-                var item = new BarButtonItem
+                var databaseKey = item.FilePath;
+                var button = new BarButtonItem
                 {
-                    Content = database.Name,
+                    Content = item.Name,
                 };
 
-                item.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
-                subItem.ItemLinks.Add(item);
+                button.ItemClick += (_, _) => _viewModel.MainMenu.ShowSqlWindowForDatabaseCommand.Execute(databaseKey);
+                subItem.ItemLinks.Add(button);
             }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error populating SQL Window dropdown: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Dynamically populates Copy to Collection dropdown when opened.
+    /// </summary>
+    private void CopyToCollectionDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            var databaseContexts = _databaseManager.CreateAllDatabaseContexts().ToList();
+
+            // Create a dictionary mapping database keys to display names
+            var databaseNames = _configurationService.Configuration.Databases
+                .ToDictionary(p => p.Key, p => p.Value.Name, StringComparer.OrdinalIgnoreCase);
+
+            if (databaseContexts.Count == 0)
+                return;
+
+            try
+            {
+                foreach (var (databaseKey, context) in databaseContexts)
+                {
+                    // Get all collections from this database, then filter non-virtual in memory
+                    var allCollections = context.Collections
+                        .OrderBy(p => p.SortKey)
+                        .ToList();
+
+                    var collections = allCollections.Where(p => !p.IsVirtual).ToList();
+
+                    if (collections.Count == 0)
+                        continue;
+
+                    // Add database header (disabled) if we have multiple databases
+                    if (databaseContexts.Count > 1)
+                    {
+                        // Look up the database name using the database key
+                        var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                            ? name
+                            : databaseKey;
+
+                        var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                        subItem.ItemLinks.Add(dbHeader);
+                    }
+
+                    // Add collection items
+                    foreach (var item in collections)
+                    {
+                        var collectionId = item.Id; // Capture for closure
+                        var targetDatabaseKey = databaseKey; // Capture database key for closure
+                        var copyItem = new BarButtonItem
+                        {
+                            Content = item.Name,
+                            Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
+                        };
+
+                        copyItem.ItemClick += async (_, _) => await CopyToCollectionAsync(collectionId, targetDatabaseKey);
+                        subItem.ItemLinks.Add(copyItem);
+                    }
+
+                    // Add separator between databases if we have multiple
+                    if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                        subItem.ItemLinks.Add(new BarItemSeparator());
+                }
+            }
+            finally
+            {
+                // Dispose all contexts
+                foreach (var (_, context) in databaseContexts)
+                    context.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error populating Copy to Collection dropdown: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Dynamically populates Move to Collection dropdown when opened.
+    /// </summary>
+    private void MoveToCollectionDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            var databaseContexts = _databaseManager.CreateAllDatabaseContexts().ToList();
+
+            // Create a dictionary mapping database keys to display names
+            var databaseNames = _configurationService.Configuration.Databases
+                .ToDictionary(p => p.Key, p => p.Value.Name, StringComparer.OrdinalIgnoreCase);
+
+            if (databaseContexts.Count == 0)
+                return;
+
+            try
+            {
+                foreach (var (databaseKey, context) in databaseContexts)
+                {
+                    // Get all collections from this database, then filter non-virtual in memory
+                    var allCollections = context.Collections
+                        .OrderBy(p => p.SortKey)
+                        .ToList();
+
+                    var collections = allCollections.Where(p => !p.IsVirtual).ToList();
+
+                    if (collections.Count == 0)
+                        continue;
+
+                    // Add database header (disabled) if we have multiple databases
+                    if (databaseContexts.Count > 1)
+                    {
+                        // Look up the database name using the database key
+                        var databaseName = databaseNames.TryGetValue(databaseKey, out var name)
+                            ? name
+                            : databaseKey;
+
+                        var dbHeader = new BarButtonItem { Content = databaseName, IsEnabled = false };
+                        subItem.ItemLinks.Add(dbHeader);
+                    }
+
+                    // Add collection items
+                    foreach (var item in collections)
+                    {
+                        var collectionId = item.Id; // Capture for closure
+                        var targetDatabaseKey = databaseKey; // Capture database key for closure
+                        var moveItem = new BarButtonItem
+                        {
+                            Content = item.Name,
+                            Tag = (collectionId, targetDatabaseKey), // Store both collection ID and database key
+                        };
+
+                        moveItem.ItemClick += async (_, _) => await MoveToCollectionAsync(collectionId, targetDatabaseKey);
+                        subItem.ItemLinks.Add(moveItem);
+                    }
+
+                    // Add separator between databases if we have multiple
+                    if (databaseContexts.Count > 1 && databaseContexts.Last().DatabaseKey != databaseKey)
+                        subItem.ItemLinks.Add(new BarItemSeparator());
+                }
+            }
+            finally
+            {
+                // Dispose all contexts
+                foreach (var (_, context) in databaseContexts)
+                    context.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error populating Move to Collection dropdown: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Dynamically populates Template dropdown when opened.
+    /// </summary>
+    private async void TemplateDropdown_GetItemData(object sender, EventArgs e)
+    {
+        if (sender is not BarSubItem subItem)
+            return;
+
+        try
+        {
+            subItem.ItemLinks.Clear();
+
+            // "No Template" option (checked when active)
+            var noTemplateItem = new BarCheckItem
+            {
+                Content = "No Template",
+                IsChecked = _templateService.ActiveTemplate == null,
+            };
+
+            noTemplateItem.ItemClick += (_, _) => _viewModel.MainMenu.ManageTemplatesCommand.Execute(null);
+            subItem.ItemLinks.Add(noTemplateItem);
+
+            // Load and display template files
+            var templates = await _templateService.GetAllTemplatesAsync();
+            foreach (var item in templates)
+            {
+                var templateName = item.Name; // Capture for closure
+                var templateItem = new BarCheckItem
+                {
+                    Content = item.Name,
+                    IsChecked = _templateService.ActiveTemplate?.Name == item.Name,
+                };
+
+                templateItem.ItemClick += (_, _) => SelectTemplate(templateName);
+                subItem.ItemLinks.Add(templateItem);
+            }
+
+            // Separator before commands
+            subItem.ItemLinks.Add(new BarItemSeparator());
+
+            // Refresh Template List
+            var refreshItem = new BarButtonItem { Content = "Refresh Template List" };
+            refreshItem.ItemClick += async (_, _) => await _templateService.RefreshTemplatesAsync();
+            subItem.ItemLinks.Add(refreshItem);
+
+            // Reset Sequence
+            var resetSequenceItem = new BarButtonItem { Content = "Reset Sequence" };
+            resetSequenceItem.ItemClick += (_, _) => _templateService.ResetSequenceCounter();
+            subItem.ItemLinks.Add(resetSequenceItem);
+
+            // Manage Templates
+            var manageItem = new BarButtonItem { Content = "Manage Templates..." };
+            manageItem.ItemClick += (_, _) => _viewModel.MainMenu.ManageTemplatesCommand.Execute(null);
+            subItem.ItemLinks.Add(manageItem);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error populating Template dropdown: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Copies selected clips to the specified collection.
+    /// Supports both same-database and cross-database operations.
+    /// </summary>
+    private async Task CopyToCollectionAsync(Guid collectionId, string targetDatabaseKey)
+    {
+        try
+        {
+            var selectedClips = _viewModel.ClipListViewModel.SelectedClips;
+            if (selectedClips.Count == 0)
+                return;
+
+            // Get current database key from ClipListViewModel
+            var sourceDatabaseKey = _viewModel.ClipListViewModel.CurrentDatabaseKey;
+            if (string.IsNullOrEmpty(sourceDatabaseKey))
+                return;
+
+            var clipService = _serviceProvider.GetRequiredService<IClipService>();
+
+            foreach (var item in selectedClips)
+            {
+                // Check if cross-database operation
+                if (sourceDatabaseKey == targetDatabaseKey)
+                {
+                    // Same database - use simple copy
+                    await clipService.CopyClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                }
+                else
+                {
+                    // Cross-database - copy with ClipData and blobs
+                    await clipService.CopyClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, collectionId);
+                }
+            }
+
+            await _viewModel.ClipListViewModel.LoadClipsAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error copying clips: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Moves selected clips to the specified collection.
+    /// Supports both same-database and cross-database operations.
+    /// </summary>
+    private async Task MoveToCollectionAsync(Guid collectionId, string targetDatabaseKey)
+    {
+        try
+        {
+            var selectedClips = _viewModel.ClipListViewModel.SelectedClips;
+            if (selectedClips.Count == 0)
+                return;
+
+            // Get current database key from ClipListViewModel
+            var sourceDatabaseKey = _viewModel.ClipListViewModel.CurrentDatabaseKey;
+            if (string.IsNullOrEmpty(sourceDatabaseKey))
+                return;
+
+            var clipService = _serviceProvider.GetRequiredService<IClipService>();
+
+            foreach (var item in selectedClips)
+            {
+                // Check if cross-database operation
+                if (sourceDatabaseKey == targetDatabaseKey)
+                {
+                    // Same database - use simple move
+                    await clipService.MoveClipAsync(sourceDatabaseKey, item.Id, collectionId);
+                }
+                else
+                {
+                    // Cross-database - move with ClipData and blobs
+                    await clipService.MoveClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, collectionId);
+                }
+            }
+
+            await _viewModel.ClipListViewModel.LoadClipsAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error moving clips: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Selects a template for clip merging.
+    /// </summary>
+    private async void SelectTemplate(string? templateName)
+    {
+        await _templateService.SetActiveTemplateAsync(templateName);
     }
 }
