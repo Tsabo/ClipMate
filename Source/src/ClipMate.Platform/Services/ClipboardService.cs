@@ -549,113 +549,129 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            if (!WpfClipboard.ContainsImage())
-                return null;
-
-            // Check if PNG format is available directly in the clipboard
-            // If PNG exists, use it directly to preserve transparency
-            var hasPngFormat = WpfClipboard.ContainsData("PNG");
-            byte[]? pngData = null;
-
-            if (hasPngFormat)
-            {
-                try
+            return Retrier.Attempt(
+                attempt =>
                 {
-                    if (WpfClipboard.GetData("PNG") is MemoryStream pngStream)
+                    if (!WpfClipboard.ContainsImage())
+                        return null;
+
+                    // Check if PNG format is available directly in the clipboard
+                    // If PNG exists, use it directly to preserve transparency
+                    var hasPngFormat = WpfClipboard.ContainsData("PNG");
+                    byte[]? pngData = null;
+
+                    if (hasPngFormat)
                     {
-                        pngData = pngStream.ToArray();
-                        _logger.LogDebug("Found PNG format in clipboard: {Size} bytes", pngData.Length);
+                        try
+                        {
+                            if (WpfClipboard.GetData("PNG") is MemoryStream pngStream)
+                            {
+                                pngData = pngStream.ToArray();
+                                _logger.LogDebug("Found PNG format in clipboard: {Size} bytes", pngData.Length);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to retrieve PNG data from clipboard, falling back to BitmapSource");
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to retrieve PNG data from clipboard, falling back to BitmapSource");
-                }
-            }
 
-            // If we have valid PNG data, use it directly
-            if (pngData is { Length: > 0 } && DetectImageFormatFromBytes(pngData) == "PNG")
-            {
-                _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
+                    // If we have valid PNG data, use it directly
+                    if (pngData is { Length: > 0 } && DetectImageFormatFromBytes(pngData) == "PNG")
+                    {
+                        _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
 
-                // Decode PNG to get dimensions for the title
-                using var pngStream = new MemoryStream(pngData);
-                var decoder = BitmapDecoder.Create(
-                    pngStream,
-                    BitmapCreateOptions.DelayCreation,
-                    BitmapCacheOption.None);
+                        // Decode PNG to get dimensions for the title
+                        using var pngStream = new MemoryStream(pngData);
+                        var decoder = BitmapDecoder.Create(
+                            pngStream,
+                            BitmapCreateOptions.DelayCreation,
+                            BitmapCacheOption.None);
 
-                var frame = decoder.Frames[0];
+                        var frame = decoder.Frames[0];
 
-                var pngClip = new Clip
-                {
-                    Id = Guid.NewGuid(),
-                    Type = ClipType.Image,
-                    ImageData = pngData,
-                    CapturedAt = DateTimeOffset.Now,
-                    ContentHash = ContentHasher.HashBytes(pngData),
-                    Size = pngData.Length,
-                    Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
-                };
+                        var pngClip = new Clip
+                        {
+                            Id = Guid.NewGuid(),
+                            Type = ClipType.Image,
+                            ImageData = pngData,
+                            CapturedAt = DateTimeOffset.Now,
+                            ContentHash = ContentHasher.HashBytes(pngData),
+                            Size = pngData.Length,
+                            Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
+                        };
 
-                _logger.LogDebug("Captured PNG image from clipboard PNG format: {Width}x{Height}, {Size} bytes",
-                    frame.PixelWidth, frame.PixelHeight, pngData.Length);
+                        _logger.LogDebug("Captured PNG image from clipboard PNG format: {Width}x{Height}, {Size} bytes",
+                            frame.PixelWidth, frame.PixelHeight, pngData.Length);
 
-                return pngClip;
-            }
+                        return pngClip;
+                    }
 
-            // No PNG format or failed to retrieve it - use standard BitmapSource approach
-            // This will be InteropBitmap for screenshots (needs alpha fix)
-            var image = WpfClipboard.GetImage();
+                    // No PNG format or failed to retrieve it - use standard BitmapSource approach
+                    // This will be InteropBitmap for screenshots (needs alpha fix)
+                    var image = WpfClipboard.GetImage();
 
-            if (image == null)
-                return null;
+                    if (image == null)
+                        return null;
 
-            // InteropBitmap is specifically used for DIB/DIBv5 clipboard formats (screenshots, screen captures)
-            // These have the known alpha=0 bug.
-            var isInteropBitmap = image is InteropBitmap;
+                    // InteropBitmap is specifically used for DIB/DIBv5 clipboard formats (screenshots, screen captures)
+                    // These have the known alpha=0 bug.
+                    var isInteropBitmap = image is InteropBitmap;
 
-            _logger.LogDebug("Extracting image from clipboard: {Width}x{Height}, Format: {Format}, DpiX: {DpiX}, DpiY: {DpiY}, Type: {BitmapType}, IsInteropBitmap: {IsInterop}",
-                image.PixelWidth, image.PixelHeight, image.Format, image.DpiX, image.DpiY, image.GetType().Name, isInteropBitmap);
+                    _logger.LogDebug("Extracting image from clipboard: {Width}x{Height}, Format: {Format}, DpiX: {DpiX}, DpiY: {DpiY}, Type: {BitmapType}, IsInteropBitmap: {IsInterop}",
+                        image.PixelWidth, image.PixelHeight, image.Format, image.DpiX, image.DpiY, image.GetType().Name, isInteropBitmap);
 
-            // Convert BitmapSource to byte array
-            // Pass whether this is an InteropBitmap (which needs alpha channel fixing)
-            var imageData = ConvertBitmapSourceToBytes(image, isInteropBitmap);
-            if (imageData == null || imageData.Length == 0)
-            {
-                _logger.LogError("Failed to convert bitmap to bytes");
+                    // Convert BitmapSource to byte array
+                    // Pass whether this is an InteropBitmap (which needs alpha channel fixing)
+                    var imageData = ConvertBitmapSourceToBytes(image, isInteropBitmap);
+                    if (imageData == null || imageData.Length == 0)
+                    {
+                        _logger.LogError("Failed to convert bitmap to bytes");
 
-                return null;
-            }
+                        return null;
+                    }
 
-            // Verify the generated image is valid by checking magic bytes
-            var detectedFormat = DetectImageFormatFromBytes(imageData);
-            _logger.LogDebug("Generated image format: {Format}, Size: {Size} bytes", detectedFormat, imageData.Length);
+                    // Verify the generated image is valid by checking magic bytes
+                    var detectedFormat = DetectImageFormatFromBytes(imageData);
+                    _logger.LogDebug("Generated image format: {Format}, Size: {Size} bytes", detectedFormat, imageData.Length);
 
-            if (detectedFormat == "Unknown")
-            {
-                _logger.LogError("Generated image data is not a valid PNG. First 16 bytes: {Bytes}",
-                    BitConverter.ToString(imageData.Take(16).ToArray()));
+                    if (detectedFormat == "Unknown")
+                    {
+                        _logger.LogError("Generated image data is not a valid PNG. First 16 bytes: {Bytes}",
+                            BitConverter.ToString(imageData.Take(16).ToArray()));
 
-                return null;
-            }
+                        return null;
+                    }
 
-            var clip = new Clip
-            {
-                Id = Guid.NewGuid(),
-                Type = ClipType.Image,
-                ImageData = imageData,
-                CapturedAt = DateTimeOffset.Now,
-                // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
-                ContentHash = ContentHasher.HashBytes(imageData),
-                Size = imageData.Length,
-                Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
-            };
+                    var clip = new Clip
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ClipType.Image,
+                        ImageData = imageData,
+                        CapturedAt = DateTimeOffset.Now,
+                        // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
+                        ContentHash = ContentHasher.HashBytes(imageData),
+                        Size = imageData.Length,
+                        Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
+                    };
 
-            _logger.LogDebug("Captured PNG image: {Width}x{Height}, {Size} bytes",
-                image.PixelWidth, image.PixelHeight, imageData.Length);
+                    _logger.LogDebug("Captured PNG image: {Width}x{Height}, {Size} bytes",
+                        image.PixelWidth, image.PixelHeight, imageData.Length);
 
-            return clip;
+                    if (attempt > 0)
+                        _logger.LogInformation("Image extraction succeeded after {Attempt} retries", attempt);
+
+                    return clip;
+                },
+                4, // 1 initial attempt + 3 retries
+                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
+                () => _logger.LogWarning("Clipboard locked during image extraction, retrying..."));
+        }
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
+        {
+            _logger.LogError(ex, "Failed to extract image from clipboard after retries - clipboard remains locked");
+            return null;
         }
         catch (Exception ex)
         {
@@ -692,47 +708,63 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            if (!WpfClipboard.ContainsFileDropList())
-                return null;
+            return Retrier.Attempt(
+                attempt =>
+                {
+                    if (!WpfClipboard.ContainsFileDropList())
+                        return null;
 
-            var fileDropList = WpfClipboard.GetFileDropList();
+                    var fileDropList = WpfClipboard.GetFileDropList();
 
-            if (fileDropList.Count == 0)
-                return null;
+                    if (fileDropList.Count == 0)
+                        return null;
 
-            // Convert to string array and serialize to JSON
-            var filePaths = new List<string>();
-            foreach (var path in fileDropList)
-            {
-                if (!string.IsNullOrEmpty(path))
-                    filePaths.Add(path);
-            }
+                    // Convert to string array and serialize to JSON
+                    var filePaths = new List<string>();
+                    foreach (var item in fileDropList)
+                    {
+                        if (!string.IsNullOrEmpty(item))
+                            filePaths.Add(item);
+                    }
 
-            if (filePaths.Count == 0)
-                return null;
+                    if (filePaths.Count == 0)
+                        return null;
 
-            var filePathsJson = JsonSerializer.Serialize(filePaths);
+                    var filePathsJson = JsonSerializer.Serialize(filePaths);
 
-            var clip = new Clip
-            {
-                Id = Guid.NewGuid(),
-                Type = ClipType.Files,
-                FilePathsJson = filePathsJson,
-                TextContent = string.Join(Environment.NewLine, filePaths), // For search
-                CapturedAt = DateTimeOffset.Now,
-                // Generate content hash from file paths
-                ContentHash = ContentHasher.HashText(filePathsJson),
-                // Size is just the JSON length (actual file sizes not counted)
-                Size = filePathsJson.Length * 2, // Unicode = 2 bytes per char
-                // Title shows file count
-                Title = filePaths.Count == 1
-                    ? Path.GetFileName(filePaths[0])
-                    : $"{filePaths.Count} files",
-            };
+                    var clip = new Clip
+                    {
+                        Id = Guid.NewGuid(),
+                        Type = ClipType.Files,
+                        FilePathsJson = filePathsJson,
+                        TextContent = string.Join(Environment.NewLine, filePaths), // For search
+                        CapturedAt = DateTimeOffset.Now,
+                        // Generate content hash from file paths
+                        ContentHash = ContentHasher.HashText(filePathsJson),
+                        // Size is just the JSON length (actual file sizes not counted)
+                        Size = filePathsJson.Length * 2, // Unicode = 2 bytes per char
+                        // Title shows file count
+                        Title = filePaths.Count == 1
+                            ? Path.GetFileName(filePaths[0])
+                            : $"{filePaths.Count} files",
+                    };
 
-            _logger.LogDebug("Captured {Count} files", filePaths.Count);
+                    _logger.LogDebug("Captured {Count} files", filePaths.Count);
 
-            return clip;
+                    if (attempt > 0)
+                        _logger.LogInformation("File extraction succeeded after {Attempt} retries", attempt);
+
+                    return clip;
+                },
+                4, // 1 initial attempt + 3 retries
+                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
+                () => _logger.LogWarning("Clipboard locked during file extraction, retrying..."));
+        }
+        catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
+        {
+            _logger.LogError(ex, "Failed to extract files from clipboard after retries - clipboard remains locked");
+            return null;
         }
         catch (Exception ex)
         {
