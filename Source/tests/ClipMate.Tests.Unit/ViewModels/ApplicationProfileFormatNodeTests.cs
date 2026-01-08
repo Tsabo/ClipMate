@@ -1,3 +1,4 @@
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 
 namespace ClipMate.Tests.Unit.ViewModels;

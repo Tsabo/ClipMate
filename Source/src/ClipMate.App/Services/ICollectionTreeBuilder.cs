@@ -1,4 +1,4 @@
-using ClipMate.App.ViewModels;
+using ClipMate.App.Models.TreeNodes;
 
 namespace ClipMate.App.Services;
 

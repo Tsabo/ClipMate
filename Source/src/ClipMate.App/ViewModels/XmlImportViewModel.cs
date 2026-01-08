@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;

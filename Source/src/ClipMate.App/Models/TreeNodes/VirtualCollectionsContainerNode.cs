@@ -1,4 +1,4 @@
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Container node for all virtual collections.

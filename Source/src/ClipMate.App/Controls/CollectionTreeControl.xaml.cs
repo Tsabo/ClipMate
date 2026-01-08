@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;

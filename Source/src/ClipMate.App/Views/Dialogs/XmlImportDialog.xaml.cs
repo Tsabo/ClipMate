@@ -1,3 +1,4 @@
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 using DevExpress.Xpf.Dialogs;
 using DevExpress.Xpf.Editors;

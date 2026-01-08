@@ -1,4 +1,4 @@
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Represents a database root node in the tree (e.g., "My Clips").

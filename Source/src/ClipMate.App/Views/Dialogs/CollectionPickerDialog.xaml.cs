@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using DevExpress.Xpf.Grid;

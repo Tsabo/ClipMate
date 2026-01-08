@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Virtual collection that shows all clips where Del=true (soft-deleted clips) across all collections/databases.

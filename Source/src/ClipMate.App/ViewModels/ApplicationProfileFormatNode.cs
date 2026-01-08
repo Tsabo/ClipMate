@@ -1,3 +1,4 @@
+using ClipMate.App.Models.TreeNodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ClipMate.App.ViewModels;

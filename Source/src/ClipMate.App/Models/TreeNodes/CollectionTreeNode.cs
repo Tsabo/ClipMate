@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Represents a collection node in the tree view.
@@ -47,10 +47,9 @@ public class CollectionTreeNode : TreeNodeBase
         }
     }
 
-    public override TreeNodeType NodeType =>
-        Collection.IsSpecial
-            ? TreeNodeType.SpecialCollection
-            : TreeNodeType.Collection;
+    public override TreeNodeType NodeType => Collection.IsSpecial
+        ? TreeNodeType.SpecialCollection
+        : TreeNodeType.Collection;
 
     /// <summary>
     /// Indicates if this collection rejects new clips (shown in red).

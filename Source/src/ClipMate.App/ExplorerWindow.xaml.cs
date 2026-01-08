@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows.Media;
 using ClipMate.App.Helpers;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;

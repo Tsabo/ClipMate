@@ -3,7 +3,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Image = Emoji.Wpf.Image;
 
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Base class for all tree nodes in the collection tree hierarchy.

@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Represents a folder node in the tree view.

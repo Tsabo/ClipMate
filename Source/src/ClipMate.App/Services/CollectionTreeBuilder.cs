@@ -1,5 +1,5 @@
 using System.IO;
-using ClipMate.App.ViewModels;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 

@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.ValueObjects;
 
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Virtual collection that shows search results for a specific query.

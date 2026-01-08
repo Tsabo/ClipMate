@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;

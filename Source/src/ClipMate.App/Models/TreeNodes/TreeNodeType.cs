@@ -1,4 +1,4 @@
-namespace ClipMate.App.ViewModels;
+namespace ClipMate.App.Models.TreeNodes;
 
 /// <summary>
 /// Type of tree node in the collection hierarchy.
