@@ -35,24 +35,30 @@ public class ClipOperationsCoordinator :
     IRecipient<RemoveLineBreaksRequestedEvent>,
     IRecipient<StripNonTextRequestedEvent>,
     IRecipient<CaseConversionRequestedEvent>,
-    IRecipient<ShowClipPropertiesRequestedEvent>
+    IRecipient<ShowClipPropertiesRequestedEvent>,
+    IRecipient<ClipSelectedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipOperationsCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly ISearchService _searchService;
     private readonly IServiceProvider _serviceProvider;
 
+    // Track which clips PowerPaste was started with
+    private HashSet<Guid> _powerPasteClipIds = [];
+
     public ClipOperationsCoordinator(IActiveWindowService activeWindowService,
         ClipListViewModel clipListViewModel,
         CollectionTreeViewModel collectionTreeViewModel,
         IClipService clipService,
         ICollectionService collectionService,
+        IConfigurationService configurationService,
         IPowerPasteService powerPasteService,
         ISearchService searchService,
         IMessenger messenger,
@@ -64,6 +70,7 @@ public class ClipOperationsCoordinator :
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -88,38 +95,9 @@ public class ClipOperationsCoordinator :
         _messenger.Register<StripNonTextRequestedEvent>(this);
         _messenger.Register<CaseConversionRequestedEvent>(this);
         _messenger.Register<ShowClipPropertiesRequestedEvent>(this);
+        _messenger.Register<ClipSelectedEvent>(this);
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
-    }
-
-    /// <summary>
-    /// Handles ShowClipPropertiesRequestedEvent to show the clip properties dialog.
-    /// </summary>
-    public async void Receive(ShowClipPropertiesRequestedEvent message)
-    {
-        var selectedClip = _clipListViewModel.SelectedClip;
-
-        if (selectedClip == null)
-        {
-            _logger.LogDebug("ShowClipProperties: No clip selected");
-            return;
-        }
-
-        try
-        {
-            var dialog = new ClipPropertiesDialog();
-            var viewModel = _serviceProvider.GetRequiredService<ClipPropertiesViewModel>();
-
-            await viewModel.LoadClipAsync(selectedClip);
-            dialog.DataContext = viewModel;
-            dialog.Owner = _activeWindowService.DialogOwner;
-            dialog.ShowDialog();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to show clip properties for clip {ClipId}", selectedClip.Id);
-            SendStatus($"Failed to show clip properties: {ex.Message}", true);
-        }
     }
 
     /// <summary>
@@ -156,6 +134,25 @@ public class ClipOperationsCoordinator :
         // TODO: Implement text cleanup (requires ClipData modification)
         // This would normalize line endings, trim trailing whitespace, collapse multiple blank lines
         SendStatus("Clean-Up Text: Feature coming in a future update");
+    }
+
+    /// <summary>
+    /// Handles ClipSelectedEvent to stop PowerPaste when user selects a different clip.
+    /// </summary>
+    public void Receive(ClipSelectedEvent message)
+    {
+        // Stop PowerPaste when user selects a clip that's not part of the current PowerPaste sequence
+        if (_powerPasteService.State == PowerPasteState.Active
+            && message.SelectedClip != null
+            && !_powerPasteClipIds.Contains(message.SelectedClip.Id))
+        {
+            _logger.LogInformation("Stopping PowerPaste - user selected clip outside PowerPaste sequence (ClipId={ClipId})",
+                message.SelectedClip.Id);
+
+            _powerPasteService.Stop();
+            _powerPasteClipIds.Clear();
+            SendStatus("PowerPaste stopped - different clip selected");
+        }
     }
 
     /// <summary>
@@ -557,6 +554,8 @@ public class ClipOperationsCoordinator :
         try
         {
             await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Down);
+            _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Down";
+            _powerPasteClipIds = selectedClips.Select(c => c.Id).ToHashSet();
             SendStatus($"PowerPaste Down started with {selectedClips.Count} clip(s)");
         }
         catch (Exception ex)
@@ -568,21 +567,57 @@ public class ClipOperationsCoordinator :
 
     /// <summary>
     /// Handles PowerPasteToggleRequestedEvent to toggle PowerPaste state.
+    /// Cycles through: Off → Down → Up → Off
     /// </summary>
     public async void Receive(PowerPasteToggleRequestedEvent message)
     {
-        // If PowerPaste is active, stop it
+        var config = _configurationService.Configuration.Preferences;
+
+        // If PowerPaste is active, cycle to next state
         if (_powerPasteService.State == PowerPasteState.Active)
         {
-            _powerPasteService.Stop();
-            SendStatus("PowerPaste stopped");
+            if (_powerPasteService.Direction == PowerPasteDirection.Down)
+            {
+                // Down → Up: Change direction to Up
+                _logger.LogInformation("PowerPaste direction changed from Down to Up");
+
+                // Stop current PowerPaste
+                _powerPasteService.Stop();
+
+                // Start with Up direction
+                var selectedClips = _clipListViewModel.SelectedClips;
+                if (selectedClips.Count <= 0)
+                    return;
+
+                try
+                {
+                    await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
+                    config.PowerPasteLastDirection = "Up";
+                    _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
+                    SendStatus("PowerPaste direction changed to Up");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to restart PowerPaste with Up direction");
+                    SendStatus("Error changing PowerPaste direction", true);
+                }
+            }
+            else
+            {
+                // Up → Off: Stop PowerPaste
+                _logger.LogInformation("PowerPaste stopped via toggle");
+                _powerPasteService.Stop();
+                _powerPasteClipIds.Clear();
+                SendStatus("PowerPaste stopped");
+            }
+
             return;
         }
 
-        // Otherwise, start it in the default direction (Down)
-        var selectedClips = _clipListViewModel.SelectedClips;
+        // Off → Down: Start PowerPaste in Down direction
+        var selectedClipsToStart = _clipListViewModel.SelectedClips;
 
-        if (selectedClips.Count == 0)
+        if (selectedClipsToStart.Count == 0)
         {
             SendStatus("No clips selected for PowerPaste");
             return;
@@ -590,12 +625,14 @@ public class ClipOperationsCoordinator :
 
         try
         {
-            await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Down);
-            SendStatus($"PowerPaste started with {selectedClips.Count} clip(s)");
+            await _powerPasteService.StartAsync(selectedClipsToStart, PowerPasteDirection.Down);
+            config.PowerPasteLastDirection = "Down";
+            _powerPasteClipIds = selectedClipsToStart.Select(p => p.Id).ToHashSet();
+            SendStatus($"PowerPaste started (Down) with {selectedClipsToStart.Count} clip(s)");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to toggle PowerPaste");
+            _logger.LogError(ex, "Failed to start PowerPaste");
             SendStatus("Error starting PowerPaste", true);
         }
     }
@@ -616,6 +653,8 @@ public class ClipOperationsCoordinator :
         try
         {
             await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
+            _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Up";
+            _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
             SendStatus($"PowerPaste Up started with {selectedClips.Count} clip(s)");
         }
         catch (Exception ex)
@@ -727,6 +766,36 @@ public class ClipOperationsCoordinator :
         {
             _logger.LogError(ex, "Failed to show rename dialog");
             SendStatus("Error showing rename dialog", true);
+        }
+    }
+
+    /// <summary>
+    /// Handles ShowClipPropertiesRequestedEvent to show the clip properties dialog.
+    /// </summary>
+    public async void Receive(ShowClipPropertiesRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            _logger.LogDebug("ShowClipProperties: No clip selected");
+            return;
+        }
+
+        try
+        {
+            var dialog = new ClipPropertiesDialog();
+            var viewModel = _serviceProvider.GetRequiredService<ClipPropertiesViewModel>();
+
+            await viewModel.LoadClipAsync(selectedClip);
+            dialog.DataContext = viewModel;
+            dialog.Owner = _activeWindowService.DialogOwner;
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to show clip properties for clip {ClipId}", selectedClip.Id);
+            SendStatus($"Failed to show clip properties: {ex.Message}", true);
         }
     }
 

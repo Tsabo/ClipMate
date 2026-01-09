@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
 using ClipMate.App.ViewModels;

@@ -4,7 +4,7 @@
     "version": "1.0",
     "description": "Supplemental color emoji for ClipMate.",
     "keywords": ["emoji", "symbols", "wpf", "icons", "ui"],
-    "copyright": "Copyright © 2025 Jeremy Brown and ClipMate Contributors",
+    "copyright": "Copyright © 2026 Jeremy Brown and ClipMate Contributors",
     "designer": "Jeremy Brown",
     "designerUrl": "https://github.com/tsabo/clipmate",
     "vendor": "ClipMate",
@@ -26,6 +26,11 @@
     { "file": "icons8-delete-file.svg", "codepoint": "0xE004", "name": "clipboard-delete" },
     { "file": "icons8-paste.svg", "codepoint": "0xE005", "name": "clipboard-paste" },
     { "file": "copy-clip-to-collection.svg", "codepoint": "0xE006", "name": "copy-to-collection" },
-    { "file": "move-clip-to-collection.svg", "codepoint": "0xE007", "name": "move-to-collection" }
+    { "file": "move-clip-to-collection.svg", "codepoint": "0xE007", "name": "move-to-collection" },
+    { "file": "icons8-lightning-bolt.svg", "codepoint": "0xE008", "name": "power-paste" },
+    { "file": "icons8-lightning-bolt-down-arrow.svg", "codepoint": "0xE009", "name": "power-paste-down" },
+    { "file": "icons8-lightning-bolt-up-arrow.svg", "codepoint": "0xE00A", "name": "power-paste-up" },
+    { "file": "icons8-sql.svg", "codepoint": "0xE00B", "name": "sql" },
+    { "file": "remove-line-breaks.svg", "codepoint": "0xE00C", "name": "remove-line-breaks" }
   ]
 }

@@ -4,6 +4,8 @@
         xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
         xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
         xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
+        xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
+        xmlns:local="clr-namespace:ClipMate.App"
         Title="TrayIconWindow"
         Width="0"
         Height="0"
@@ -60,11 +62,11 @@
                     <dxb:BarButtonItem Content="PowerPaste Up"
                                        Command="{Binding MainMenu.PowerPasteUpCommand}"
                                        KeyGesture="Ctrl+U"
-                                       Glyph="{dx:DXImage 'SvgImages/XAF/Action_Paste.svg'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.PowerPasteUp}}" />
                     <dxb:BarButtonItem Content="PowerPaste Down"
                                        Command="{Binding MainMenu.PowerPasteDownCommand}"
                                        KeyGesture="Ctrl+D"
-                                       Glyph="{dx:DXImage 'SvgImages/XAF/Action_Paste.svg'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.PowerPasteDown}}" />
                     <dxb:BarButtonItem Content="Select Previous Item (Up)"
                                        Command="{Binding MainMenu.SelectPreviousCommand}"
                                        KeyGesture="Ctrl+Alt+P"
@@ -76,7 +78,7 @@
                     <dxb:BarButtonItem Content="Append Clips Together (Glue)"
                                        Command="{Binding MainMenu.AppendClipsCommand}"
                                        KeyGesture="Ctrl+Alt+A"
-                                       Glyph="{dx:DXImage 'SvgImages/Icon Builder/Actions_Add.svg'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}}" />
 
                     <!-- Editing Submenu -->
                     <dxb:BarSubItem Content="Editing"
@@ -119,7 +121,7 @@
                     <!-- Help & Diagnostics -->
                     <dxb:BarButtonItem Content="Show Event Log"
                                        Command="{Binding MainMenu.ShowEventLogCommand}"
-                                       Glyph="{dx:DXImage 'SvgImages/RichEdit/SelectAll.svg'}" />
+                                       Glyph="{helpers:EmojiIconSource Emoji='📜'}" />
                     <dxb:BarButtonItem Content="About"
                                        Command="{Binding MainMenu.AboutCommand}"
                                        Glyph="{dx:DXImage 'SvgImages/Icon Builder/Actions_Info.svg'}" />
@@ -129,7 +131,7 @@
                     <!-- Exit -->
                     <dxb:BarButtonItem Content="Exit Program (Shut Down)"
                                        Command="{Binding ExitApplicationCommand}"
-                                       Glyph="{dx:DXImage 'SvgImages/Outlook Inspired/Close.svg'}" />
+                                       Glyph="{helpers:EmojiIconSource Emoji='🚪'}" />
                 </dxb:PopupMenu>
             </dx:NotifyIconService.ContextMenu>
         </dx:NotifyIconService>

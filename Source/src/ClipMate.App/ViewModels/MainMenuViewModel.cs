@@ -29,6 +29,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
     private readonly IMessenger _messenger;
+    private readonly IPowerPasteService _powerPasteService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
 
@@ -64,10 +65,18 @@ public partial class MainMenuViewModel : ObservableObject,
     [ObservableProperty]
     private bool _isTargetLocked;
 
+    /// <summary>
+    /// Gets the current PowerPaste icon glyph based on state and direction.
+    /// Shows PowerPaste (idle), PowerPasteUp, or PowerPasteDown.
+    /// </summary>
+    [ObservableProperty]
+    private string _powerPasteIcon = Icons.PowerPaste;
+
     public MainMenuViewModel(IMessenger messenger,
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
+        IPowerPasteService powerPasteService,
         IServiceProvider serviceProvider,
         CollectionTreeViewModel? collectionTreeViewModel = null)
     {
@@ -75,8 +84,12 @@ public partial class MainMenuViewModel : ObservableObject,
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _collectionTreeViewModel = collectionTreeViewModel;
+
+        // Subscribe to PowerPaste state changes to update icon
+        _powerPasteService.StateChanged += OnPowerPasteStateChanged;
 
         // Register for state refresh notifications
         _messenger.Register(this);
@@ -669,4 +682,21 @@ public partial class MainMenuViewModel : ObservableObject,
 
     [RelayCommand]
     private void QuickPasteSettings() => _messenger.Send(new OpenOptionsDialogEvent("QuickPaste"));
+
+    // ==========================
+    // Event Handlers
+    // ==========================
+
+    /// <summary>
+    /// Handles PowerPaste state changes to update the icon.
+    /// </summary>
+    private void OnPowerPasteStateChanged(object? sender, PowerPasteStateChangedEventArgs e)
+    {
+        // Update icon based on state and direction
+        PowerPasteIcon = e.NewState == PowerPasteState.Active
+            ? e.Direction == PowerPasteDirection.Up
+                ? Icons.PowerPasteUp
+                : Icons.PowerPasteDown
+            : Icons.PowerPaste; // Inactive state shows default icon
+    }
 }

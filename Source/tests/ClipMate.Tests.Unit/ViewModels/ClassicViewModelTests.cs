@@ -41,6 +41,7 @@ public class ClassicViewModelTests
             new Mock<IUndoService>().Object,
             new Mock<IClipViewerWindowManager>().Object,
             new Mock<IClipboardService>().Object,
+            new Mock<IPowerPasteService>().Object,
             mockServiceProvider.Object);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
@@ -96,6 +97,7 @@ public class ClassicViewModelTests
             new Mock<IUndoService>().Object,
             new Mock<IClipViewerWindowManager>().Object,
             new Mock<IClipboardService>().Object,
+            new Mock<IPowerPasteService>().Object,
             mockServiceProvider.Object);
 
         var mockQuickPasteService = new Mock<IQuickPasteService>();

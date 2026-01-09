@@ -10,6 +10,7 @@
     xmlns:local="clr-namespace:ClipMate.App"
     xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
     xmlns:controls="clr-namespace:ClipMate.App.Controls"
+    xmlns:converters="clr-namespace:ClipMate.App.Converters"
     d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
     mc:Ignorable="d"
     Title="ClipMate"
@@ -47,6 +48,10 @@
         <KeyBinding Key="P" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectPreviousCommand}" />
         <KeyBinding Key="N" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectNextCommand}" />
     </dx:ThemedWindow.InputBindings>
+
+    <dx:ThemedWindow.Resources>
+        <converters:IconGlyphToImageSourceConverter x:Key="IconGlyphToImageSourceConverter" Size="24" />
+    </dx:ThemedWindow.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -187,7 +192,7 @@
                                            Glyph="{helpers:EmojiIconSource Emoji='➡️'}" />
                         <dxb:BarButtonItem Content="Remove Linebreaks" KeyGesture="Ctrl+Alt+B"
                                            Command="{Binding MainMenu.RemoveLineBreaksCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.RemoveLineBreaks}}" />
                         <dxb:BarButtonItem Content="Check Spelling" KeyGesture="F7"
                                            Command="{Binding MainMenu.CheckSpellingCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='📝'}" />
@@ -205,10 +210,10 @@
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="PowerPaste Up" KeyGesture="Ctrl+U"
                                            Command="{Binding MainMenu.PowerPasteUpCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='⬆️'}" />
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.PowerPasteUp}}" />
                         <dxb:BarButtonItem Content="PowerPaste Down" KeyGesture="Ctrl+D"
                                            Command="{Binding MainMenu.PowerPasteDownCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='⬇️'}" />
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.PowerPasteDown}}" />
                         <dxb:BarCheckItem Content="PowerPaste Option - Loop" IsChecked="{Binding MainMenu.IsLoopMode}"
                                           Glyph="{helpers:EmojiIconSource Emoji='🔁'}" />
                         <dxb:BarCheckItem Content="PowerPaste Option - Explode Into Fragments"
@@ -247,13 +252,13 @@
                         <dxb:BarButtonItem Content="Show SQL Window"
                                            Command="{Binding MainMenu.ShowSqlWindowCommand}"
                                            IsVisible="{Binding MainMenu.HasMultipleDatabases, Converter={StaticResource InverseBoolConverter}}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🖳️'}" />
+                                           Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Sql}}" />
                         <!-- SQL Window: Submenu when multiple databases -->
                         <dxb:BarSubItem x:Name="ShowSqlWindowMultiple"
                                         Content="Show SQL Window"
                                         IsVisible="{Binding MainMenu.HasMultipleDatabases}"
                                         GetItemData="SqlWindowDropdown_GetItemData"
-                                        Glyph="{helpers:EmojiIconSource Emoji='🖳️'}" />
+                                        Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Sql}}" />
                         <dxb:BarButtonItem Content="Show Event Log" Command="{Binding MainMenu.ShowEventLogCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='📜'}" />
                     </dxb:BarSubItem>
@@ -328,7 +333,7 @@
                     <dxb:BarButtonItem Content="PowerPaste"
                                        Command="{Binding MainMenu.PowerPasteToggleCommand}"
                                        ToolTip="Toggle PowerPaste"
-                                       Glyph="{dx:DXImage 'SvgImages/Actions/Forward.svg'}" />
+                                       Glyph="{Binding MainMenu.PowerPasteIcon, Converter={StaticResource IconGlyphToImageSourceConverter}}" />
                     <dxb:BarButtonItem Content="Delete"
                                        Command="{Binding MainMenu.DeleteSelectedCommand}"
                                        ToolTip="Delete selected clip(s)"
@@ -344,7 +349,7 @@
                     <dxb:BarButtonItem Content="Remove Breaks"
                                        Command="{Binding MainMenu.RemoveLineBreaksCommand}"
                                        ToolTip="Remove line breaks"
-                                       Glyph="{helpers:EmojiIconSource Emoji='🔗'}" />
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.RemoveLineBreaks}, Size=24}" />
                     <dxb:BarSubItem x:Name="MoveToCollectionDropdown"
                                     Content="Move to Collection"
                                     ToolTip="Move selected clip(s) to a collection"
