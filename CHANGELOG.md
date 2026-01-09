@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.8] - 2026-1-8
+
+### Added
+- **PowerPaste Dynamic Icons** - PowerPaste toolbar button now displays state-specific icons (Off/Down/Up) with real-time visual feedback
+- **IconGlyphToImageSourceConverter** - New WPF converter for binding custom font glyphs to DevExpress BarButtonItem controls
+- **PowerPaste State Cycling** - Toggle button cycles through Off → Down → Up states with simplified logic (no longer remembers last direction)
+- **PowerPaste Auto-Stop** - PowerPaste automatically stops when user selects clips outside the active sequence
+- **Clipboard Retry Logic** - Enhanced clipboard operations with exponential backoff retry (50ms/100ms/200ms) for improved reliability with file and image extraction
+- **Comprehensive Logging** - Added structured logging across clipboard services, coordinators, and ViewModels for better debugging and error tracking
+- **Custom Font Icons** - New SVG-based icons added to ClipMate.ttf font (PowerPaste, PowerPasteUp, PowerPasteDown, lightning bolts)
+
+### Changed
+- **MainMenuViewModel** - Added PowerPasteIcon observable property with IPowerPasteService state subscription
+- **ClipOperationsCoordinator** - Rewrote PowerPaste toggle logic for Off→Down→Up cycling, added clip selection monitoring with HashSet<Guid> tracking
+- **TreeNode ViewModels Organization** - Moved tree node ViewModels to Models/TreeNodes folder for better project structure
+- **Copyright Year** - Updated to 2026 across installer and documentation
+- **Clipboard Image Extraction** - Improved retry logic for GetImage operations to handle timing issues with file system clipboard operations
+
+### Fixed
+- **PowerPaste Direction Toggling** - Fixed issue where PowerPaste direction wasn't changing when toolbar button pressed
+- **Clip Selection Interference** - PowerPaste now properly stops when clips selected outside the PowerPaste sequence
+
 ## [0.1.0-alpha.7] - 2026-1-6
 
 ### Added
