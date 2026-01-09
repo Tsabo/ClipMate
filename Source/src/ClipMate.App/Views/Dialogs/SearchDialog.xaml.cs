@@ -142,7 +142,6 @@ public partial class SearchDialog
             if (!SqlEditor.IsInitialized)
             {
                 _logger.LogWarning("Monaco editor not initialized after {Timeout}s, skipping SQL IntelliSense", maxWaitTime.TotalSeconds);
-                Debug.WriteLine($"Monaco editor not initialized after {maxWaitTime.TotalSeconds}s");
                 return;
             }
 
@@ -169,18 +168,15 @@ public partial class SearchDialog
             if (!success)
             {
                 _logger.LogWarning("Failed to register SQL IntelliSense");
-                Debug.WriteLine("Failed to register SQL IntelliSense");
             }
             else
             {
                 _logger.LogInformation("SQL IntelliSense registered successfully");
-                Debug.WriteLine("SQL IntelliSense registered successfully");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error initializing SQL IntelliSense");
-            Debug.WriteLine($"Error initializing SQL IntelliSense: {ex.Message}\n{ex.StackTrace}");
         }
     }
 }

@@ -1,9 +1,9 @@
-using System.Diagnostics;
 using ClipMate.Core.Events;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.ViewModels;
 
@@ -13,6 +13,7 @@ namespace ClipMate.App.ViewModels;
 public partial class RenameClipDialogViewModel : ObservableObject
 {
     private static string? _lastPrefix; // Static to persist between dialog invocations
+    private readonly ILogger<RenameClipDialogViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IShortcutService _shortcutService;
 
@@ -29,10 +30,11 @@ public partial class RenameClipDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _title;
 
-    public RenameClipDialogViewModel(IShortcutService shortcutService, IMessenger messenger)
+    public RenameClipDialogViewModel(IShortcutService shortcutService, IMessenger messenger, ILogger<RenameClipDialogViewModel> logger)
     {
         _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public bool CanSave => ShortCut is not { Length: > 64 };
@@ -51,7 +53,8 @@ public partial class RenameClipDialogViewModel : ObservableObject
         Title = currentTitle;
         ShortCut = currentShortcut;
 
-        Debug.WriteLine($"[RenameClipDialogViewModel.InitializeAsync] Initialized with ClipId={clipId}, DatabaseKey='{databaseKey}', Title='{currentTitle}', Shortcut='{currentShortcut}'");
+        _logger.LogDebug("Initialized with ClipId={ClipId}, DatabaseKey='{DatabaseKey}', Title='{Title}', Shortcut='{Shortcut}'", 
+            clipId, databaseKey, currentTitle, currentShortcut);
 
         // Apply "Carry Over Last Prefix" logic if enabled and there's a last prefix
         if (CarryOverLastPrefix && !string.IsNullOrEmpty(_lastPrefix) && string.IsNullOrEmpty(currentShortcut))
@@ -76,7 +79,8 @@ public partial class RenameClipDialogViewModel : ObservableObject
         }
 
         // Update or delete the shortcut (service handles missing table internally)
-        Debug.WriteLine($"[RenameClipDialogViewModel.OkAsync] Calling UpdateClipShortcutAsync with ClipId={_clipId}, DatabaseKey='{_databaseKey}', Shortcut='{ShortCut}', Title='{Title}'");
+        _logger.LogDebug("Calling UpdateClipShortcutAsync with ClipId={ClipId}, DatabaseKey='{DatabaseKey}', Shortcut='{Shortcut}', Title='{Title}'", 
+            _clipId, _databaseKey, ShortCut, Title);
         await _shortcutService.UpdateClipShortcutAsync(_databaseKey, _clipId, ShortCut, Title);
 
         // Send message to notify all listeners that the clip was updated
@@ -92,7 +96,7 @@ public partial class RenameClipDialogViewModel : ObservableObject
     [RelayCommand]
     private void Help()
     {
-        Process.Start(new ProcessStartInfo
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = "https://jeremy.browns.info/ClipMate/user-interface/cliplist/",
             UseShellExecute = true,

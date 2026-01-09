@@ -5,6 +5,9 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 using DragDropEffects = System.Windows.DragDropEffects;
 
 namespace ClipMate.App.Controls;
@@ -16,9 +19,15 @@ namespace ClipMate.App.Controls;
 /// </summary>
 public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedEvent>, IRecipient<CollapseAllNodesRequestedEvent>
 {
+    private readonly ILogger<CollectionTreeControl> _logger;
+
     public CollectionTreeControl()
     {
         InitializeComponent();
+
+        // Get logger from DI container
+        var app = (App)Application.Current;
+        _logger = app.ServiceProvider.GetRequiredService<ILogger<CollectionTreeControl>>();
 
         // Register for expand/collapse events
         WeakReferenceMessenger.Default.Register<ExpandAllNodesRequestedEvent>(this);
@@ -151,7 +160,7 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Move clips failed: {ex.Message}");
+                _logger.LogError(ex, "Move clips failed");
             }
 
             e.Handled = true;
@@ -190,7 +199,7 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Drop failed: {ex.Message}");
+            _logger.LogError(ex, "Drop failed");
         }
 
         e.Handled = true;

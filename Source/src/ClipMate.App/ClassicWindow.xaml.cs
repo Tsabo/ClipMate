@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
@@ -24,6 +23,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseManager _databaseManager;
     private readonly bool _isHotkeyTriggered;
+    private readonly ILogger<ClassicWindow>? _logger;
     private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
     private readonly ISearchService _searchService;
@@ -33,7 +33,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
     private readonly ClassicViewModel _viewModel;
 
     public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
-        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, ITemplateService templateService, bool isHotkeyTriggered = false)
+        IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, ITemplateService templateService, bool isHotkeyTriggered = false, ILogger<ClassicWindow>? logger = null)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -48,6 +48,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _isHotkeyTriggered = isHotkeyTriggered;
+        _logger = logger;
         DataContext = _viewModel;
 
         // Register for events
@@ -88,7 +89,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to show search window: {ex.Message}");
+            _logger?.LogError(ex, "Failed to show search window");
         }
     }
 
@@ -129,7 +130,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         catch (Exception ex)
         {
             // Log error silently - QuickPaste target update failures should not crash the window
-            Debug.WriteLine($"Error updating QuickPaste target on window deactivation: {ex.Message}");
+            _logger?.LogError(ex, "Error updating QuickPaste target on window deactivation");
         }
     }
 
@@ -212,7 +213,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error populating SQL Window dropdown: {ex.Message}");
+            _logger?.LogError(ex, "Error populating SQL Window dropdown");
         }
     }
 
@@ -292,7 +293,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error populating Copy to Collection dropdown: {ex.Message}");
+            _logger?.LogError(ex, "Failed to populate Copy to Collection dropdown");
         }
     }
 
@@ -372,7 +373,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error populating Move to Collection dropdown: {ex.Message}");
+            _logger?.LogError(ex, "Failed to populate Move to Collection dropdown");
         }
     }
 
@@ -433,7 +434,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error populating Template dropdown: {ex.Message}");
+            _logger?.LogError(ex, "Error populating Template dropdown");
         }
     }
 
@@ -475,7 +476,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error copying clips: {ex.Message}");
+            _logger?.LogError(ex, "Error copying clips");
         }
     }
 
@@ -517,7 +518,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error moving clips: {ex.Message}");
+            _logger?.LogError(ex, "Error moving clips");
         }
     }
 

@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
 using ClipMate.App.ViewModels;
@@ -12,6 +11,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Grid;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Application = System.Windows.Application;
 using Binding = System.Windows.Data.Binding;
@@ -99,7 +99,7 @@ public partial class ClipListControl
             typeof(ClipListControl));
 
     private readonly IClipService? _clipService;
-
+    private readonly ILogger<ClipListControl> _logger;
     private readonly IMessenger _messenger;
     private readonly PreferencesConfiguration _preferences;
     private readonly IQuickPasteService? _quickPasteService;
@@ -119,11 +119,12 @@ public partial class ClipListControl
 
         // Get services from DI container
         var app = (App)Application.Current;
-        _messenger = (IMessenger)app.ServiceProvider.GetService(typeof(IMessenger))!;
-        _shortcutService = (IShortcutService?)app.ServiceProvider.GetService(typeof(IShortcutService));
-        _quickPasteService = (IQuickPasteService?)app.ServiceProvider.GetService(typeof(IQuickPasteService));
-        _clipService = (IClipService?)app.ServiceProvider.GetService(typeof(IClipService));
-        var options = (IOptions<ClipMateConfiguration>?)app.ServiceProvider.GetService(typeof(IOptions<ClipMateConfiguration>));
+        _messenger = app.ServiceProvider.GetService<IMessenger>()!;
+        _shortcutService = app.ServiceProvider.GetService<IShortcutService>();
+        _quickPasteService = app.ServiceProvider.GetService<IQuickPasteService>();
+        _clipService = app.ServiceProvider.GetService<IClipService>();
+        _logger = app.ServiceProvider.GetService<ILogger<ClipListControl>>()!;
+        var options = app.ServiceProvider.GetService<IOptions<ClipMateConfiguration>>();
         _preferences = options?.Value.Preferences ?? new PreferencesConfiguration();
 
         // Register for clip updated messages
@@ -195,8 +196,11 @@ public partial class ClipListControl
 
     private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
+        if (d is not ClipListControl control)
+            return;
+
         var newCollection = e.NewValue as ObservableCollection<Clip>;
-        Debug.WriteLine($"ClipListView.Items changed: Count={newCollection?.Count ?? 0}");
+        control._logger.LogDebug("ClipListView.Items changed: Count={Count}", newCollection?.Count ?? 0);
     }
 
     /// <summary>
@@ -226,7 +230,8 @@ public partial class ClipListControl
             var _ => null,
         };
 
-        Debug.WriteLine($"[ClipListView] CurrentItemChanged - Grid: {(isShortcutGrid ? "Shortcuts" : "Clips")}, ClipId: {newClip?.Id}, Title: {newClip?.DisplayTitle}");
+        _logger.LogDebug("CurrentItemChanged - Grid: {Grid}, ClipId: {ClipId}, Title: {Title}", 
+            isShortcutGrid ? "Shortcuts" : "Clips", newClip?.Id, newClip?.DisplayTitle);
         SelectedItem = newClip;
 
         // Clear selection in the other grid
@@ -236,7 +241,7 @@ public partial class ClipListControl
             if (ClipDataGrid?.CurrentItem != null)
             {
                 ClipDataGrid.CurrentItem = null;
-                Debug.WriteLine("[ClipListView] Cleared ClipDataGrid selection");
+                _logger.LogDebug("Cleared ClipDataGrid selection");
             }
         }
         else
@@ -245,7 +250,7 @@ public partial class ClipListControl
             if (ShortcutsDataGrid?.CurrentItem != null)
             {
                 ShortcutsDataGrid.CurrentItem = null;
-                Debug.WriteLine("[ClipListView] Cleared ShortcutsDataGrid selection");
+                _logger.LogDebug("Cleared ShortcutsDataGrid selection");
             }
         }
 
@@ -261,7 +266,7 @@ public partial class ClipListControl
         if (clipService == null)
             return;
 
-        Debug.WriteLine($"[ClipListView] Pushing shortcut selection to clipboard: {newClip.Id}");
+        _logger.LogDebug("Pushing shortcut selection to clipboard: {ClipId}", newClip.Id);
         await clipService.LoadAndSetClipboardAsync(shortcutVm.DatabaseKey, newClip.Id);
     }
 
@@ -447,35 +452,38 @@ public partial class ClipListControl
             // Standalone usage - DataContext is ClipListViewModel
             clipListViewModel = vm;
             databaseKey = vm.CurrentDatabaseKey ?? string.Empty;
-            Debug.WriteLine($"[OpenRenameClipDialogAsync] Got database key from ClipListViewModel: '{databaseKey}'");
+            _logger.LogDebug("Got database key from ClipListViewModel: '{DatabaseKey}'", databaseKey);
         }
         else if (DataContext is ExplorerWindowViewModel explorerVm)
         {
             // Used inside ExplorerWindow - get from PrimaryClipList
             clipListViewModel = explorerVm.PrimaryClipList;
             databaseKey = clipListViewModel.CurrentDatabaseKey ?? string.Empty;
-            Debug.WriteLine($"[OpenRenameClipDialogAsync] Got database key from ExplorerWindowViewModel.PrimaryClipList: '{databaseKey}'");
+            _logger.LogDebug("Got database key from ExplorerWindowViewModel.PrimaryClipList: '{DatabaseKey}'", databaseKey);
         }
         else
-            Debug.WriteLine($"[OpenRenameClipDialogAsync] DataContext is neither ClipListViewModel nor ExplorerWindowViewModel, it's {DataContext?.GetType().Name ?? "null"}");
+            _logger.LogDebug("DataContext is neither ClipListViewModel nor ExplorerWindowViewModel, it's {DataContextType}", 
+                DataContext?.GetType().Name ?? "null");
 
         // Fallback to _currentDatabaseKey if ViewModel doesn't have it
         if (string.IsNullOrEmpty(databaseKey))
         {
             databaseKey = _currentDatabaseKey ?? string.Empty;
-            Debug.WriteLine($"[OpenRenameClipDialogAsync] Fell back to _currentDatabaseKey: '{databaseKey}'");
+            _logger.LogDebug("Fell back to _currentDatabaseKey: '{DatabaseKey}'", databaseKey);
         }
 
         if (string.IsNullOrEmpty(databaseKey))
         {
-            Debug.WriteLine($"[OpenRenameClipDialogAsync] ERROR: No database key available. _currentDatabaseKey='{_currentDatabaseKey}', ClipListViewModel.CurrentDatabaseKey='{clipListViewModel?.CurrentDatabaseKey}'");
+            _logger.LogError("No database key available. _currentDatabaseKey='{CurrentDatabaseKey}', ClipListViewModel.CurrentDatabaseKey='{ViewModelDatabaseKey}'", 
+                _currentDatabaseKey, clipListViewModel?.CurrentDatabaseKey);
             MessageBox.Show("Database key not available. Please select a collection first.",
                 "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             return;
         }
 
-        Debug.WriteLine($"[OpenRenameClipDialogAsync] Using database key: '{databaseKey}', Clip ID: {SelectedItem.Id}, Clip CollectionId: {SelectedItem.CollectionId}, Clip Title: '{SelectedItem.Title}'");
+        _logger.LogDebug("Using database key: '{DatabaseKey}', Clip ID: {ClipId}, Clip CollectionId: {CollectionId}, Clip Title: '{Title}'", 
+            databaseKey, SelectedItem.Id, SelectedItem.CollectionId, SelectedItem.Title);
 
         var app = (App)Application.Current;
         var renameViewModel = (RenameClipDialogViewModel?)app.ServiceProvider.GetService(typeof(RenameClipDialogViewModel));
@@ -619,7 +627,7 @@ public partial class ClipListControl
         if (shortcutViewModels.Count == 1)
         {
             var vm = shortcutViewModels[0];
-            Debug.WriteLine($"[ClipListView] Single shortcut - automatically pushing to clipboard: {vm.Clip.Id}");
+            _logger.LogDebug("Single shortcut - automatically pushing to clipboard: {ClipId}", vm.Clip.Id);
             await clipService.LoadAndSetClipboardAsync(vm.DatabaseKey, vm.Clip.Id);
         }
     }
@@ -740,14 +748,14 @@ public partial class ClipListControl
     {
         if (_quickPasteService == null || _clipService == null)
         {
-            Debug.WriteLine("[QuickPaste] Services not available");
+            _logger.LogDebug("QuickPaste services not available");
             return;
         }
 
         var selectedClip = SelectedItem;
         if (selectedClip == null)
         {
-            Debug.WriteLine("[QuickPaste] No clip selected");
+            _logger.LogDebug("QuickPaste: No clip selected");
             return;
         }
 
@@ -764,7 +772,7 @@ public partial class ClipListControl
 
         if (string.IsNullOrEmpty(databaseKey))
         {
-            Debug.WriteLine("[QuickPaste] No database key available");
+            _logger.LogDebug("QuickPaste: No database key available");
             return;
         }
 
@@ -774,22 +782,23 @@ public partial class ClipListControl
             var fullClip = await _clipService.GetByIdAsync(databaseKey, selectedClip.Id);
             if (fullClip == null)
             {
-                Debug.WriteLine($"[QuickPaste] Could not load clip {selectedClip.Id}");
+                _logger.LogDebug("QuickPaste: Could not load clip {ClipId}", selectedClip.Id);
                 return;
             }
 
-            Debug.WriteLine($"[QuickPaste] Pasting clip (ID: {fullClip.Id}, Title: {fullClip.Title}) to target application");
+            _logger.LogDebug("QuickPaste: Pasting clip (ID: {ClipId}, Title: {Title}) to target application", 
+                fullClip.Id, fullClip.Title);
 
             // Execute QuickPaste
             var success = await _quickPasteService.PasteClipAsync(fullClip);
             if (success)
-                Debug.WriteLine("[QuickPaste] Paste successful");
+                _logger.LogDebug("QuickPaste: Paste successful");
             else
-                Debug.WriteLine("[QuickPaste] Paste failed - no target or operation failed");
+                _logger.LogDebug("QuickPaste: Paste failed - no target or operation failed");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[QuickPaste] Error: {ex.Message}");
+            _logger.LogError(ex, "QuickPaste error");
         }
     }
 }
