@@ -80,8 +80,8 @@ public class AppFixture : IAsyncDisposable
         // Go up from tests/ClipMate.UITests/bin/{configuration}/net10.0-windows
         var sourceDir = Path.GetFullPath(Path.Combine(testBinDir, "..", "..", "..", "..", ".."));
         
-        // App targets net9.0-windows, not net10.0-windows
-        var appBinDir = Path.Combine(sourceDir, "src", "ClipMate.App", "bin", configuration, "net9.0-windows");
+        // App targets net10.0-windows
+        var appBinDir = Path.Combine(sourceDir, "src", "ClipMate.App", "bin", configuration, "net10.0-windows");
         var appPath = Path.Combine(appBinDir, "ClipMate.App.exe");
 
         if (!File.Exists(appPath))

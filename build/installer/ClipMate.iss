@@ -1,5 +1,8 @@
 ; ClipMate Framework-Dependent Installer Script
-; Requires .NET 9 Desktop Runtime and WebView2 (downloaded automatically)
+; Requires .NET 10 Desktop Runtime and WebView2 (downloaded automatically via InnoDependencyInstaller)
+
+; Include InnoDependencyInstaller for automatic dependency management
+#include "CodeDependencies.iss"
 
 #define MyAppName "ClipMate"
 #define MyAppPublisher "ClipMate Contributors"
@@ -54,66 +57,20 @@ LicenseFile=..\..\LICENSE
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nInstaller size: ~50MB%n%nThis installer requires an internet connection to download:%n• .NET 9 Desktop Runtime%n• Microsoft Edge WebView2 Runtime%n%nIt is recommended that you close all other applications before continuing.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nInstaller size: ~50MB%n%nThis installer will automatically download and install required dependencies:%n• .NET 10 Desktop Runtime (if not installed)%n• Microsoft Edge WebView2 Runtime (if not installed)%n%nAn internet connection is required for dependency installation.%n%nIt is recommended that you close all other applications before continuing.
 
 [Code]
-function IsDotNet9Installed: Boolean;
-var
-  KeyExists: Boolean;
-begin
-  // Check for .NET 9 Desktop Runtime
-  KeyExists := RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost') or
-               RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost');
-  
-  Result := KeyExists;
-  
-  if Result then
-    Log('.NET 9 Desktop Runtime detected')
-  else
-    Log('.NET 9 Desktop Runtime NOT detected');
-end;
-
-function IsWebView2Installed: Boolean;
-var
-  Version: String;
-begin
-  // Check for WebView2 Runtime
-  Result := RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) or
-            RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version);
-  
-  if Result then
-    Log('WebView2 Runtime detected: ' + Version)
-  else
-    Log('WebView2 Runtime NOT detected');
-end;
-
 function InitializeSetup(): Boolean;
 begin
+  // Add .NET 10 Desktop Runtime dependency
+  Dependency_AddDotNet100Desktop;
+  
+  // Add WebView2 Runtime dependency
+  Dependency_AddWebView2;
+  
   Result := True;
-  
-  // Check for .NET 9
-  if not IsDotNet9Installed then
-  begin
-    MsgBox('.NET 9 Desktop Runtime is required but not installed.' + #13#10 + #13#10 +
-           'The installer will download and install it automatically.' + #13#10 +
-           'This requires an active internet connection.' + #13#10 + #13#10 +
-           'Download size: ~60-80 MB', 
-           mbInformation, MB_OK);
-  end;
-  
-  // Check for WebView2
-  if not IsWebView2Installed then
-  begin
-    Log('WebView2 will be downloaded and installed');
-  end;
 end;
 
 [Run]
-; Install .NET 9 Desktop Runtime if not present
-Filename: "https://aka.ms/dotnet/9.0/windowsdesktop-runtime-win-x64.exe"; Parameters: "/install /quiet /norestart"; Description: "Installing .NET 9 Desktop Runtime"; Flags: shellexec runasoriginaluser waituntilterminated; Check: not IsDotNet9Installed
-
-; Install WebView2 Runtime if not present  
-Filename: "https://go.microsoft.com/fwlink/p/?LinkId=2124703"; Parameters: "/silent /install"; Description: "Installing Microsoft Edge WebView2 Runtime"; Flags: shellexec runasoriginaluser waituntilterminated; Check: not IsWebView2Installed
-
-; Include common sections
+; Include common sections (Files, Icons, Registry, Tasks, Run)
 #include "common.iss"
