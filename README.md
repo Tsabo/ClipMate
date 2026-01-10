@@ -92,6 +92,7 @@ ClipMate uses the following open-source and commercial libraries:
 - **Dapper 2.1.66** - Micro-ORM (Apache 2.0)
 - **Tomlyn.Signed 0.19.0** - TOML parsing (BSD-2-Clause)
 - **NAudio 2.2.1** - Sound playback (MIT)
+- **ThrottleDebounce 2.0.1** - Debouncing for auto-save operations (Apache 2.0)
 - **TUnit 1.5.80** - Testing framework (MIT)
 
 **Build Tools**:

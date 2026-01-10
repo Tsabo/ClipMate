@@ -212,10 +212,12 @@ SOFTWARE.
 
 #### ThrottleDebounce (v2.0.1)
 
-**License**: MIT  
-**Source**: https://github.com/ljfdev/ThrottleDebounce  
-**Copyright**: Lee Falcon  
+**License**: Apache License 2.0  
+**Source**: https://github.com/Aldaviva/ThrottleDebounce  
+**Copyright**: Ben Hutchison  
 **Used for**: Debouncing auto-save operations in text editors
+
+**License**: https://github.com/Aldaviva/ThrottleDebounce/blob/master/LICENSE
 
 ---
 
@@ -462,6 +464,7 @@ The use of DevExpress components is clearly separated in the codebase and can be
 | CommunityToolkit.Mvvm | MIT | ✅ Yes | ✅ Yes |
 | DevExpress WPF | **Commercial** | ✅ Yes | **License Required** |
 | Monaco Editor | MIT | ✅ Yes | ✅ Yes |
+| ThrottleDebounce | Apache 2.0 | ✅ Yes | ✅ Yes |
 | Tomlyn.Signed | BSD-2-Clause | ✅ Yes | ✅ Yes |
 | Dapper | Apache 2.0 | ✅ Yes | ✅ Yes |
 | Serilog | Apache 2.0 | ✅ Yes | ✅ Yes |
@@ -476,6 +479,6 @@ The use of DevExpress components is clearly separated in the codebase and can be
 
 ---
 
-**Last Updated**: December 26, 2025
+**Last Updated**: January 10, 2026
 
 For the most up-to-date license information, please refer to the individual package repositories and official license files.
