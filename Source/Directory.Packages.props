@@ -24,23 +24,23 @@
   </ItemGroup>
   <ItemGroup Label="Data Access">
     <PackageVersion Include="Dapper" Version="2.1.66" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="[10.0.0,11.0.0)" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="[10.0.0,11.0.0)" />
   </ItemGroup>
   <ItemGroup Label="Media">
     <PackageVersion Include="NAudio" Version="2.2.1" />
   </ItemGroup>
   <ItemGroup Label="Dependency Injection">
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="[10.0.0,11.0.0)" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="[10.0.0,11.0.0)" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />
   </ItemGroup>
   <ItemGroup Label="Logging">
     <PackageVersion Include="Serilog" Version="4.3.0" />
@@ -55,7 +55,7 @@
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.264" />
   </ItemGroup>
   <ItemGroup Label="Testing">
-    <PackageVersion Include="TUnit" Version="1.9.2" />
+    <PackageVersion Include="TUnit" Version="1.9.45" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="WpfPilot" Version="2.1.1" />
     <!-- Exclude to avoid IAsyncEnumerable conflict with .NET 9 System.Runtime -->
