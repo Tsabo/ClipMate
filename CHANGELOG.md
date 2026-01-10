@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **InnoDependencyInstaller Integration** - Installer now uses InnoDependencyInstaller library for robust .NET runtime detection and automatic installation with download progress, retry logic, and better error handling
+
+### Changed
+- **.NET 10 Migration** - Upgraded entire solution from .NET 9 to .NET 10:
+  - Updated all project files (ClipMate.App, Core, Platform, Data, etc.) to target net10.0/net10.0-windows
+  - Updated package version ranges: Microsoft.EntityFrameworkCore, Microsoft.Extensions, Serilog from [9.0.x,10.0.0) to [10.0.0,11.0.0)
+  - Updated installer script for .NET 10 Desktop Runtime (10.0.1) detection and download
+  - Updated test fixtures and paths for net10.0-windows
+- **Performance Optimizations in ClipboardService** - Enhanced clipboard operations with zero-allocation span-based operations, ArrayPool for large buffers, cached regex patterns, and guarded debug logging
+- **Performance Optimizations in ClipViewerControl** - Improved clip loading with LINQ-to-for-loop conversions (40-70% faster), span-based string operations, ArrayPool for image buffers, and cached regex for HTML parsing
+- **CsWin32 Configuration** - Added CsWin32PublicClass property to ClipMate.Platform.csproj to generate public APIs compatible with .NET 10
+
 ## [0.1.0-alpha.8] - 2026-1-8
 
 ### Added

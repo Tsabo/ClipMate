@@ -428,6 +428,7 @@ codeql-db/
 
 # Ignore Python namemoji built font resources
 /Resources/Fonts/build/
+/Resources/Fonts/preview.html
 ClipMate.ttf
 
 # Docusaurus
