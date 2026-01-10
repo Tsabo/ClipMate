@@ -1,9 +1,9 @@
 # ClipMate
 
-A modern recreation of the classic ClipMate clipboard manager built with .NET 9 and WPF.
+A modern recreation of the classic ClipMate clipboard manager built with .NET 10 and WPF.
 
-> This project is a modern, open‑source tribute to the original ClipMate® by
-> Thornsoft Development, which I have used and appreciated since 2004.
+> This project is a modern, open‑source tribute to the original [ClipMate](http://www.clipmate.com/clipmate7.htm)® by
+> [Thornsoft Development](http://www.thornsoft.com/), which I have used and appreciated since 2004.
 
 ![ClipMate Explorer Window](Resources/Images/explorer-window.png)
 
@@ -68,7 +68,7 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 9 
 
 ## Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - Windows 10 (1809+) or Windows 11
 - Visual Studio 2026+ or VS Code with C# Dev Kit (for development)
 
@@ -87,7 +87,7 @@ ClipMate uses the following open-source and commercial libraries:
 - **DevExpress WPF 25.2.3** - UI controls and theming (**Commercial license required**)
 - **Monaco Editor 0.52.0** - Code/text editing via WebView2 (MIT)
 - **CommunityToolkit.Mvvm 8.4.0** - MVVM infrastructure (MIT)
-- **Entity Framework Core 9.0** - Data access (MIT)
+- **Entity Framework Core 10.0** - Data access (MIT)
 - **Serilog 4.3.0** - Structured logging (Apache 2.0)
 - **Dapper 2.1.66** - Micro-ORM (Apache 2.0)
 - **Tomlyn.Signed 0.19.0** - TOML parsing (BSD-2-Clause)
@@ -121,7 +121,7 @@ Development in any way. All trademarks and copyrights for the original ClipMate�
 
 ---
 
-**Built with .NET 9, WPF, and DevExpress**  
+**Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Alpha** | Version: 0.1.0 | Last Updated: January 9, 2026
+Status: **Alpha** | Version: 0.1.0 | Last Updated: January 10, 2026

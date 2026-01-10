@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.9] - 2026-1-10
+
 ### Added
 - **InnoDependencyInstaller Integration** - Installer now uses InnoDependencyInstaller library for robust .NET runtime detection and automatic installation with download progress, retry logic, and better error handling
 
