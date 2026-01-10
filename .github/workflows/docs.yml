@@ -8,6 +8,7 @@ on:
       - 'docs/**'
       - 'Resources/Fonts/**'
       - 'build/build.cake'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -44,7 +45,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: docs/package-lock.json
 
-      - name: Install Ninja
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Setup Ninja (for font building)
         run: choco install ninja -y
 
       - name: Build documentation

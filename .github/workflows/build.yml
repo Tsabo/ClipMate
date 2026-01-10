@@ -3,6 +3,11 @@ name: Build and Test
 on:
   push:
     branches: [ master, develop, 'feature/**' ]
+    paths:
+      - 'Source/**'
+      - 'Resources/Fonts/**'
+      - 'build/**'
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [ master, develop ]
 
