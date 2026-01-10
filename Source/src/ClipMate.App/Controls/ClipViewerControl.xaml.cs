@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -386,10 +387,16 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         }
 
         // Look for text formats (CF_TEXT or CF_UNICODETEXT)
-        var textFormat = _currentClipData
-            .FirstOrDefault(p =>
-                p is { StorageType: StorageType.Text } &&
-                (p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code));
+        ClipData? textFormat = null;
+        foreach (var item in _currentClipData)
+        {
+            if (item.StorageType != StorageType.Text ||
+                (item.Format != Formats.Text.Code && item.Format != Formats.UnicodeText.Code))
+                continue;
+
+            textFormat = item;
+            break;
+        }
 
         _logger.LogDebug("[ClipViewer] Text format search result: {Result}, Looking for formats {Text}/{Unicode}",
             textFormat != null
@@ -507,6 +514,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
+    // Cached regex patterns for ParseCfHtmlFormat
+    private static readonly Regex _startHtmlRegex = new(@"StartHTML:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex _endHtmlRegex = new(@"EndHTML:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     /// <summary>
     /// Parses CF_HTML clipboard format to extract actual HTML content.
     /// CF_HTML format includes metadata headers like "Version:0.9 StartHTML:..." that need to be stripped.
@@ -525,37 +536,42 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             // Parse the StartHTML and EndHTML offsets to get the full HTML document
             // (This preserves <html> and <body> tags with their styles, like ClipMate 7.5)
-            var startHtmlMatch = Regex.Match(cfHtml, @"StartHTML:(\d+)", RegexOptions.IgnoreCase);
-            var endHtmlMatch = Regex.Match(cfHtml, @"EndHTML:(\d+)", RegexOptions.IgnoreCase);
+            var startHtmlMatch = _startHtmlRegex.Match(cfHtml);
+            var endHtmlMatch = _endHtmlRegex.Match(cfHtml);
 
             if (startHtmlMatch.Success && endHtmlMatch.Success)
             {
-                var startHtml = int.Parse(startHtmlMatch.Groups[1].Value);
-                var endHtml = int.Parse(endHtmlMatch.Groups[1].Value);
+                var startHtml = int.Parse(startHtmlMatch.Groups[1].ValueSpan, null);
+                var endHtml = int.Parse(endHtmlMatch.Groups[1].ValueSpan, null);
 
                 // Extract the full HTML document between StartHTML and EndHTML
                 if (startHtml >= 0 && endHtml > startHtml && endHtml <= cfHtml.Length)
-                {
-                    var html = cfHtml.Substring(startHtml, endHtml - startHtml);
-                    return html.Trim();
-                }
+                    return cfHtml.AsSpan(startHtml, endHtml - startHtml).Trim().ToString();
             }
 
-            // Fallback: try to extract everything after the last header line
-            var lines = cfHtml.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
-            var htmlStartIndex = -1;
+            // Fallback: Find first line starting with '<' using span
+            var htmlSpan = cfHtml.AsSpan();
+            var lineStart = 0;
 
-            for (var i = 0; i < lines.Length; i++)
+            while (lineStart < htmlSpan.Length)
             {
-                if (!lines[i].StartsWith('<'))
-                    continue;
+                // Find end of current line
+                var lineEnd = htmlSpan[lineStart..].IndexOfAny('\r', '\n');
+                if (lineEnd == -1)
+                    lineEnd = htmlSpan.Length - lineStart;
 
-                htmlStartIndex = i;
-                break;
+                var line = htmlSpan.Slice(lineStart, lineEnd).TrimStart();
+                if (line.Length > 0 && line[0] == '<')
+                {
+                    // Found HTML start - return from here to end
+                    return htmlSpan[lineStart..].Trim().ToString();
+                }
+
+                // Move to next line
+                lineStart += lineEnd;
+                while (lineStart < htmlSpan.Length && (htmlSpan[lineStart] == '\r' || htmlSpan[lineStart] == '\n'))
+                    lineStart++;
             }
-
-            if (htmlStartIndex >= 0)
-                return string.Join(Environment.NewLine, lines.Skip(htmlStartIndex));
 
             return cfHtml; // Return as-is if parsing fails
         }
@@ -666,9 +682,16 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     // ReSharper disable once UnusedParameter.Local
     private Task LoadRtfFormatAsync(CancellationToken cancellationToken = default)
     {
-        var rtfFormat = _currentClipData
-            .FirstOrDefault(p => p.FormatName.Contains("RTF", StringComparison.OrdinalIgnoreCase) &&
-                                 p.StorageType == StorageType.Text);
+        ClipData? rtfFormat = null;
+        foreach (var item in _currentClipData)
+        {
+            if (!item.FormatName.Contains("RTF", StringComparison.OrdinalIgnoreCase) ||
+                item.StorageType != StorageType.Text)
+                continue;
+
+            rtfFormat = item;
+            break;
+        }
 
         if (rtfFormat != null && _textBlobs.TryGetValue(rtfFormat.Id, out var blobData))
         {
@@ -700,9 +723,16 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private Task LoadBitmapFormatsAsync(CancellationToken cancellationToken = default)
     {
         // Look for CF_BITMAP or CF_DIB formats (stored in BLOBBLOB)
-        var bitmapFormat = _currentClipData
-            .FirstOrDefault(p =>
-                (p.Format == Formats.Bitmap.Code || p.Format == Formats.Dib.Code) && p.StorageType == StorageType.Binary);
+        ClipData? bitmapFormat = null;
+        foreach (var item in _currentClipData)
+        {
+            if ((item.Format != Formats.Bitmap.Code && item.Format != Formats.Dib.Code) ||
+                item.StorageType != StorageType.Binary)
+                continue;
+
+            bitmapFormat = item;
+            break;
+        }
 
         if (bitmapFormat != null && _binaryBlobs.TryGetValue(bitmapFormat.Id, out var blobData))
         {
@@ -734,8 +764,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger.LogDebug("[LoadPicture] Looking for PNG or JPG formats in {Count} ClipData entries", _currentClipData.Count);
 
         // Look for PNG or JPG formats
-        var pngFormat = _currentClipData.FirstOrDefault(p => p.StorageType == StorageType.Png);
-        var jpgFormat = _currentClipData.FirstOrDefault(p => p.StorageType == StorageType.Jpeg);
+        ClipData? pngFormat = null;
+        ClipData? jpgFormat = null;
+        foreach (var item in _currentClipData)
+        {
+            if (pngFormat == null && item.StorageType == StorageType.Png)
+                pngFormat = item;
+            else if (jpgFormat == null && item.StorageType == StorageType.Jpeg)
+                jpgFormat = item;
+
+            if (pngFormat != null && jpgFormat != null)
+                break;
+        }
 
         _logger.LogDebug("[LoadPicture] PNG format found: {Found}, JPG format found: {Found2}",
             pngFormat != null, jpgFormat != null);
@@ -889,7 +929,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         try
         {
             _toolbarViewModel.AvailableLanguages.Clear();
-            
+
             // Copy languages from Monaco control to toolbar
             foreach (var item in TextEditor.AvailableLanguages)
                 _toolbarViewModel.AvailableLanguages.Add(item);
@@ -958,10 +998,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                         if (clip.ContentHash != newHash)
                         {
                             clip.ContentHash = newHash;
-                            
+
                             // Also update Checksum for ClipMate 7.5 compatibility
                             clip.Checksum = newHash.GetHashCode();
-                            
+
                             _logger.LogDebug("[ClipViewer] Updated ContentHash after text edit");
                         }
 
@@ -1253,37 +1293,65 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         if (string.IsNullOrWhiteSpace(text))
             return "Empty Clip";
 
-        // Get first line
-        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        var firstLine = lines.Length > 0
-            ? lines[0].Trim()
-            : text.Trim();
+        // Get first line using span to avoid allocations
+        var textSpan = text.AsSpan();
+        var lineEndIndex = textSpan.IndexOfAny('\r', '\n');
+
+        var firstLine = lineEndIndex >= 0
+            ? textSpan[..lineEndIndex].Trim()
+            : textSpan.Trim();
+
+        if (firstLine.IsEmpty)
+            return "Empty Clip";
 
         // Limit to 100 characters
-        if (firstLine.Length > 100)
-            firstLine = string.Concat(firstLine.AsSpan(0, 100), "...");
-
-        return firstLine;
+        return firstLine.Length > 100
+            ? string.Concat(firstLine[..100], "...")
+            : firstLine.ToString();
     }
 
     private BitmapImage BytesToBitmapImage(byte[] data)
     {
+        byte[]? rentedBuffer = null;
         try
         {
-            using var stream = new MemoryStream(data);
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.StreamSource = stream;
-            bitmap.EndInit();
-            bitmap.Freeze();
-            return bitmap;
+            // For large images, use pooled buffer; for small ones, use data directly
+            var usePool = data.Length > 85000; // LOH threshold
+
+            if (usePool)
+            {
+                rentedBuffer = ArrayPool<byte>.Shared.Rent(data.Length);
+                data.CopyTo(rentedBuffer.AsSpan());
+                using var stream = new MemoryStream(rentedBuffer, 0, data.Length, false);
+                return CreateBitmapFromStream(stream);
+            }
+            else
+            {
+                using var stream = new MemoryStream(data, false);
+                return CreateBitmapFromStream(stream);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating BitmapImage from {Size} bytes", data.Length);
             throw;
         }
+        finally
+        {
+            if (rentedBuffer != null)
+                ArrayPool<byte>.Shared.Return(rentedBuffer);
+        }
+    }
+
+    private static BitmapImage CreateBitmapFromStream(Stream stream)
+    {
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit();
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.StreamSource = stream;
+        bitmap.EndInit();
+        bitmap.Freeze();
+        return bitmap;
     }
 
     private static string FormatBytes(int bytes)

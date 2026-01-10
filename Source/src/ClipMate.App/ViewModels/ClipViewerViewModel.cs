@@ -106,9 +106,10 @@ public partial class ClipViewerViewModel : ObservableObject
             {
                 // Update window title with clip info
                 var timestamp = CurrentClip.CapturedAt.ToString("g"); // General short date/time
-                WindowTitle = string.IsNullOrWhiteSpace(CurrentClip.Title)
-                    ? $"Clip Viewer - {timestamp}"
-                    : $"Clip Viewer - {CurrentClip.Title} ({timestamp})";
+                var hasTitle = !string.IsNullOrWhiteSpace(CurrentClip.Title);
+                WindowTitle = hasTitle
+                    ? "Clip Viewer - " + CurrentClip.Title + " (" + timestamp + ")"
+                    : "Clip Viewer - " + timestamp;
             }
             else
                 WindowTitle = "Clip Viewer - Not Found";

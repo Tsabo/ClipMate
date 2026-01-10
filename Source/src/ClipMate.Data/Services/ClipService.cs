@@ -126,8 +126,8 @@ public class ClipService : IClipService
         var clipsToDelete = oldClips.Where(p => p.CapturedAt < olderThan).ToList();
 
         // Delete each clip
-        foreach (var clip in clipsToDelete)
-            await repository.DeleteAsync(clip.Id, cancellationToken);
+        foreach (var item in clipsToDelete)
+            await repository.DeleteAsync(item.Id, cancellationToken);
 
         return clipsToDelete.Count;
     }

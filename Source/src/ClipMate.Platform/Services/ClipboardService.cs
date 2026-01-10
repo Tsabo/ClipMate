@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Globalization;
@@ -233,6 +234,9 @@ public class ClipboardService : IClipboardService, IDisposable
                         _suppressCaptureForHash = clip.ContentHash;
                         _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
 
+                        if (!_logger.IsEnabled(LogLevel.Debug))
+                            return;
+
                         var hashPreview = _suppressCaptureForHash.Length >= 8
                             ? _suppressCaptureForHash[..8]
                             : _suppressCaptureForHash;
@@ -340,11 +344,15 @@ public class ClipboardService : IClipboardService, IDisposable
                 clip.ContentHash == _suppressCaptureForHash &&
                 DateTime.UtcNow < _suppressCaptureUntil)
             {
+                if (!_logger.IsEnabled(LogLevel.Debug))
+                    return;
+
                 var hashPreview = clip.ContentHash.Length >= 8
                     ? clip.ContentHash[..8]
                     : clip.ContentHash;
 
                 _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", hashPreview);
+
                 return;
             }
 
@@ -410,18 +418,18 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Filter formats based on application profile
             allowedFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var format in availableFormats)
+            foreach (var item in availableFormats)
             {
                 var shouldCapture = await _applicationProfileService.ShouldCaptureFormatAsync(
-                    applicationName, format.FormatName, cancellationToken);
+                    applicationName, item.FormatName, cancellationToken);
 
                 if (shouldCapture)
                 {
-                    allowedFormats.Add(format.FormatName);
-                    _logger.LogDebug("Format {FormatName} allowed for {AppName}", format.FormatName, applicationName);
+                    allowedFormats.Add(item.FormatName);
+                    _logger.LogDebug("Format {FormatName} allowed for {AppName}", item.FormatName, applicationName);
                 }
                 else
-                    _logger.LogDebug("Format {FormatName} filtered out for {AppName}", format.FormatName, applicationName);
+                    _logger.LogDebug("Format {FormatName} filtered out for {AppName}", item.FormatName, applicationName);
             }
 
             if (allowedFormats.Count == 0)
@@ -470,12 +478,16 @@ public class ClipboardService : IClipboardService, IDisposable
         if (allowedFormats.Contains(formatName))
             return true;
 
-        // Check with CF_ prefix added (for backward compatibility with old profiles)
-        if (allowedFormats.Contains($"CF_{formatName}"))
-            return true;
+        // Handle CF_ prefix efficiently
+        const string prefix = "CF_";
+        if (formatName.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            // Format has CF_ prefix, check without it
+            return allowedFormats.Contains(formatName.AsSpan(prefix.Length).ToString());
+        }
 
-        // Check with CF_ prefix removed (for checking constants against enumerated names)
-        return formatName.StartsWith("CF_", StringComparison.Ordinal) && allowedFormats.Contains(formatName[3..]);
+        // Format doesn't have CF_ prefix, check with it
+        return allowedFormats.Contains(string.Concat(prefix, formatName));
     }
 
 
@@ -684,18 +696,20 @@ public class ClipboardService : IClipboardService, IDisposable
     /// <summary>
     /// Detects image format from byte array.
     /// </summary>
-    private string DetectImageFormatFromBytes(byte[] imageData)
+    private static string DetectImageFormatFromBytes(byte[] imageData)
     {
         if (imageData.Length < 8)
             return "Unknown";
 
+        ReadOnlySpan<byte> data = imageData;
+
         // Check PNG signature: 89 50 4E 47 0D 0A 1A 0A
-        if (imageData[0] == 0x89 && imageData[1] == 0x50 && imageData[2] == 0x4E && imageData[3] == 0x47 &&
-            imageData[4] == 0x0D && imageData[5] == 0x0A && imageData[6] == 0x1A && imageData[7] == 0x0A)
+        ReadOnlySpan<byte> pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        if (data[..8].SequenceEqual(pngSignature))
             return "PNG";
 
         // Check JPEG signature: FF D8 FF
-        if (imageData[0] == 0xFF && imageData[1] == 0xD8 && imageData[2] == 0xFF)
+        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
             return "JPEG";
 
         return "Unknown";
@@ -835,18 +849,24 @@ public class ClipboardService : IClipboardService, IDisposable
         if (string.IsNullOrWhiteSpace(text))
             return "(Empty)";
 
-        // Get first line
-        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        var firstLine = lines.Length > 0
-            ? lines[0].Trim()
-            : text.Trim();
+        // Get first line using span to avoid allocations
+        var textSpan = text.AsSpan();
+        var lineEndIndex = textSpan.IndexOfAny('\r', '\n');
+
+        var firstLine = lineEndIndex >= 0
+            ? textSpan[..lineEndIndex].Trim()
+            : textSpan.Trim();
+
+        // Skip empty lines
+        if (firstLine.IsEmpty)
+            return "(Empty)";
 
         // Truncate to 60 chars (database field limit)
         const int maxLength = 60;
 
         return firstLine.Length > maxLength
-            ? string.Concat(firstLine.AsSpan(0, maxLength - 3), "...")
-            : firstLine;
+            ? string.Concat(firstLine[..(maxLength - 3)], "...")
+            : firstLine.ToString();
     }
 
     /// <summary>
@@ -859,14 +879,19 @@ public class ClipboardService : IClipboardService, IDisposable
     /// </param>
     private byte[]? ConvertBitmapSourceToBytes(BitmapSource image, bool isInteropBitmap)
     {
+        byte[]? rentedArray = null;
         try
         {
             // Calculate the stride (bytes per row)
             var stride = (image.PixelWidth * image.Format.BitsPerPixel + 7) / 8;
-            var pixelData = new byte[stride * image.PixelHeight];
+            var pixelDataLength = stride * image.PixelHeight;
+
+            // Rent from pool to reduce allocations
+            rentedArray = ArrayPool<byte>.Shared.Rent(pixelDataLength);
+            var pixelData = rentedArray.AsSpan(0, pixelDataLength);
 
             // Copy pixel data from the source image
-            image.CopyPixels(pixelData, stride, 0);
+            image.CopyPixels(pixelData.ToArray(), stride, 0);
 
             // Fix alpha channel transparency bug ONLY for InteropBitmap sources
             // InteropBitmap is used for DIB/DIBv5 (Device Independent Bitmap) from Windows screenshots
@@ -894,7 +919,8 @@ public class ClipboardService : IClipboardService, IDisposable
                 {
                     // Check if RGB channels have data (not a truly blank image)
                     var hasColorData = false;
-                    for (var i = 0; i < Math.Min(1000 * 4, pixelData.Length) && !hasColorData; i++)
+                    var checkLength = Math.Min(1000 * 4, pixelData.Length);
+                    for (var i = 0; i < checkLength && !hasColorData; i++)
                     {
                         if (i % 4 != 3 && pixelData[i] != 0) // Skip alpha channel, check B, G, R
                             hasColorData = true;
@@ -924,7 +950,7 @@ public class ClipboardService : IClipboardService, IDisposable
             // Write the pixel data to the writable bitmap
             writableBitmap.WritePixels(
                 new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
-                pixelData,
+                pixelData.ToArray(),
                 stride,
                 0);
 
@@ -944,6 +970,12 @@ public class ClipboardService : IClipboardService, IDisposable
             _logger.LogError(ex, "Error converting image to bytes");
 
             return null;
+        }
+        finally
+        {
+            // Return rented array to pool
+            if (rentedArray != null)
+                ArrayPool<byte>.Shared.Return(rentedArray);
         }
     }
 
