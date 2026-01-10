@@ -5,6 +5,8 @@ title: Pasting Options
 
 # Pasting Options
 
+{/* ![Pasting Options Tab](img/options-pasting.png) */}
+
 These settings control how ClipMate pastes data to applications.
 
 ## Exploding PowerPaste

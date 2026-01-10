@@ -5,6 +5,8 @@ title: Application Profile
 
 # Application Profile
 
+{/* ![Application Profile Editor](img/options-app-profile.png) */}
+
 Application Profiles prevent ClipMate from being overwhelmed by unwanted data. Many applications present the same data in multiple formats—Microsoft Excel, for example, can provide data in 21 different formats. Capturing everything is wasteful of time and space.
 
 ## How It Works

@@ -3,7 +3,9 @@ sidebar_position: 9
 title: Search
 ---
 
-# Search
+# 🔍 Search
+
+{/* ![Search Button](img/toolbar-search.png) */}
 
 Invokes ClipMate's powerful search facility to find clips based on text content, metadata, date ranges, and more.
 

@@ -5,6 +5,8 @@ title: Database Options
 
 # Database Options
 
+{/* ![Database Options Tab](img/options-database.png) */}
+
 ClipMate uses a robust database system to store your clips. By default, every installation creates a database called "My Clips" stored locally in single-user mode.
 
 ## Database Definitions

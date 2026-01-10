@@ -5,6 +5,8 @@ title: Advanced Options
 
 # Advanced Options
 
+{/* ![Advanced Options Tab](img/options-advanced.png) */}
+
 These are power-user settings that control timing, behavior, and troubleshooting options.
 
 ## Timing Settings

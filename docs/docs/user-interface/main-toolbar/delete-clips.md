@@ -3,7 +3,9 @@ sidebar_position: 3
 title: Delete Clips
 ---
 
-# Delete Clips
+# <span class="clipmate-emoji">&#xE004;</span> Delete Clips
+
+{/* ![Delete Button](img/toolbar-delete.png) */}
 
 Deletes the currently selected clip(s) from the current collection and sends them to the Trashcan. Depending on database settings, the Trashcan retains deleted clips for a configurable period (default: 7 days) before permanently deleting them.
 

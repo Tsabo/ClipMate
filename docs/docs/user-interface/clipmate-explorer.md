@@ -7,7 +7,7 @@ title: ClipMate Explorer
 
 ClipMate Explorer is designed for data management and editing, featuring a three-pane interface modeled after Windows Explorer. It provides the full power of ClipMate for heavy-duty clip organization and editing tasks.
 
-{/* TODO: Screenshot - ClipMate Explorer with Collection Tree, ClipList, and Preview/Edit pane visible (img/explorer-window.png) */}
+![ClipMate Explorer Overview](img/clipmate-explorer-overview.png)
 
 ## Interface Layout
 

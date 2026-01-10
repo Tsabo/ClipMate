@@ -3,7 +3,9 @@ sidebar_position: 4
 title: Print
 ---
 
-# Print
+# 🖨️ Print
+
+{/* ![Print Button](img/toolbar-print.png) */}
 
 Prints the currently selected clip(s). ClipMate can print text clips and bitmap images, with various formatting options.
 

@@ -5,6 +5,8 @@ title: Hotkeys
 
 # Hotkeys
 
+{/* ![Hotkeys Options Tab](img/options-hotkeys.png) */}
+
 Global hotkeys activate ClipMate functions even when working in another application. Since only one application can use a particular hotkey sequence, conflicts may arise. For this reason, hotkeys are customizable.
 
 ## Configuring Hotkeys

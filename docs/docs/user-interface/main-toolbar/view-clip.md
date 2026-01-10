@@ -3,7 +3,9 @@ sidebar_position: 11
 title: View Clip
 ---
 
-# View Clip
+# 👁️ View Clip
+
+{/* ![View Clip Button](img/toolbar-view-clip.png) */}
 
 Opens a floating Preview/Edit window for the selected clip. This allows you to view or edit a clip in a separate, resizable window.
 

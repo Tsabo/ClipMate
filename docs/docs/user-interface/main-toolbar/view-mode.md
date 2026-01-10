@@ -3,7 +3,7 @@ sidebar_position: 12
 title: View Mode
 ---
 
-# View Mode
+# 🖼️ View Mode
 
 This Explorer-only button toggles the ClipList between Detail View and Thumbnail View.
 

@@ -5,6 +5,8 @@ title: QuickPaste Options
 
 # QuickPaste
 
+{/* ![QuickPaste Options Tab](img/options-quickpaste.png) */}
+
 QuickPaste lets you easily paste clips into applications by double-clicking on a clip or selecting it and pressing **ENTER**.
 
 ## Universal QuickPaste

@@ -5,6 +5,8 @@ title: Sounds Options
 
 # Sounds
 
+{/* ![Sounds Options Tab](img/options-sounds.png) */}
+
 ClipMate can play sounds for various events to provide audio feedback. You can enable/disable sounds and choose custom .WAV files.
 
 ## Configuring Sounds

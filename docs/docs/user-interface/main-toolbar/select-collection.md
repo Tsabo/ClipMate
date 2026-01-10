@@ -3,7 +3,7 @@ sidebar_position: 8
 title: Select Collection
 ---
 
-# Select Collection
+# 📁 Select Collection
 
 Switches to a different collection, loading its clips into the ClipList. This is another split button like Move/Copy.
 

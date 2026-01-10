@@ -5,6 +5,8 @@ title: Editor Options
 
 # Editor Options
 
+{/* ![Editor Options Tab](img/options-editor.png) */}
+
 These options apply to the Preview/Edit window. You can also show/hide the toolbar by right-clicking in the editor and selecting "Show Toolbar."
 
 ## Display Options

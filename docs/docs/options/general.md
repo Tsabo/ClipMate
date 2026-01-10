@@ -5,6 +5,8 @@ title: General Options
 
 # General Options
 
+{/* ![General Options Tab](img/options-general.png) */}
+
 The General tab in the Options dialog controls startup behavior and other general settings.
 
 ## Startup Options

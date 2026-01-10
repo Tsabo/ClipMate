@@ -5,7 +5,7 @@ title: The User Interface
 
 # The User Interface
 
-ClipMate has two main windows—ClipMate Classic and ClipMate Explorer—plus the ClipBar which integrates into the Windows taskbar. Each interface is designed for different usage scenarios, and you can easily switch between them.
+ClipMate has two main windows—ClipMate Classic and ClipMate Explorer. Each interface is designed for different usage scenarios, and you can easily switch between them.
 
 ## ClipMate Classic
 
@@ -13,17 +13,15 @@ ClipMate Classic is essentially a toolbar with a drop-down list of clips and a p
 
 [Learn more about ClipMate Classic →](clipmate-classic.md)
 
+![ClipMate Classic Overview](img/clipmate-classic-overview.png)
+
 ## ClipMate Explorer
 
 ClipMate Explorer features a three-pane interface similar to Windows Explorer, with a Collection Tree on the left, ClipList on the right, and Preview/Edit pane below. It's intended for heavy-duty editing and organization of your clips.
 
 [Learn more about ClipMate Explorer →](clipmate-explorer.md)
 
-## ClipBar
-
-The ClipBar integrates directly into the Windows taskbar, showing the current clip and providing toolbar buttons for common operations. It gives you quick access to ClipMate functionality without taking up desktop space.
-
-[Learn more about ClipBar →](clipbar.md)
+![ClipMate Explorer Overview](img/clipmate-explorer-overview.png)
 
 ## Switching Between Views
 

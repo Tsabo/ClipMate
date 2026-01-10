@@ -5,6 +5,8 @@ title: Capturing Options
 
 # Capturing Options
 
+{/* ![Capturing Options Tab](img/options-capturing.png) */}
+
 These settings control how ClipMate captures clipboard data.
 
 ## Startup Capture

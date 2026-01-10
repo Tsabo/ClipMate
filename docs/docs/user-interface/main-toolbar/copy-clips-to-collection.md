@@ -3,7 +3,9 @@ sidebar_position: 7
 title: Copy Clips to Collection
 ---
 
-# Copy Clips to Collection
+# <span class="clipmate-emoji">&#xE006;</span> Copy Clips to Collection
+
+{/* ![Copy to Collection Dropdown](img/toolbar-copy-collection.png) */}
 
 Copies selected clip(s) to another collection while keeping the original in place. Use this when you want a clip to exist in multiple collections.
 

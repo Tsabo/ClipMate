@@ -3,7 +3,9 @@ sidebar_position: 14
 title: Templates
 ---
 
-# Templates Button
+# 📄 Templates Button
+
+{/* ![Templates Dropdown](img/toolbar-templates.png) */}
 
 The Templates button activates ClipMate's template feature, which allows you to paste clips along with metadata like date/time, source URL, and more.
 

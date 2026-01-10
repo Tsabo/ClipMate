@@ -3,8 +3,8 @@ sidebar_position: 10
 title: Switch Classic/Explorer
 ---
 
-# Switch Classic / Explorer
-
+# 🔀 Switch Classic / Explorer
+{/* ![Switch View Button](img/toolbar-switch-view.png) */}
 This button toggles between ClipMate Classic and ClipMate Explorer views.
 
 ## Usage

@@ -3,7 +3,9 @@ sidebar_position: 5
 title: Append
 ---
 
-# Append
+# <span class="clipmate-emoji">&#xE001;</span> Append
+
+{/* ![Append Button](img/toolbar-append.png) */}
 
 Append combines multiple text clips into one larger clip. This is useful for assembling data from multiple sources into a single unit.
 

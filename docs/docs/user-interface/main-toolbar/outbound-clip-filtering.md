@@ -5,6 +5,8 @@ title: Outbound Clip Filtering
 
 # Outbound Clip Filtering
 
+{/* ![Outbound Filtering Toggle](img/toolbar-outbound-filtering.png) */}
+
 When enabled, this feature prevents non-text formats like RTF and HTML from reaching the clipboard, causing data to be pasted as pure text. Think of it as the Application Profile in reverse—where Application Profiles filter data coming INTO ClipMate, this feature filters data going OUT to the system clipboard.
 
 ## Why Use Outbound Filtering?

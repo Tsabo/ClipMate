@@ -10,13 +10,11 @@ const sidebars: SidebarsConfig = {
         'user-interface/index',
         'user-interface/clipmate-classic',
         'user-interface/clipmate-explorer',
-        'user-interface/clipbar',
         {
           type: 'category',
           label: 'Main Toolbar',
           items: [
             'user-interface/main-toolbar/index',
-            'user-interface/main-toolbar/show-clipmate',
             'user-interface/main-toolbar/powerpaste',
             'user-interface/main-toolbar/delete-clips',
             'user-interface/main-toolbar/print',

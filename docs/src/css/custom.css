@@ -1,3 +1,12 @@
+/* Custom font faces */
+@font-face {
+  font-family: 'ClipMate';
+  src: url('/fonts/ClipMate.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ifm-color-primary: #2e8555;
   --ifm-color-primary-dark: #29784c;
@@ -8,6 +17,10 @@
   --ifm-color-primary-lightest: #3cad6e;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  
+  /* Font stacks */
+  --ifm-font-family-base: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --ifm-font-family-monospace: 'Consolas', 'Courier New', monospace;
 }
 
 [data-theme='dark'] {
@@ -19,4 +32,12 @@
   --ifm-color-primary-lighter: #32d8b4;
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* ClipMate emoji support - apply custom font for emoji display */
+.clipmate-emoji {
+  font-family: 'ClipMate', var(--ifm-font-family-base);
+  font-size: 1.2em;
+  line-height: 1;
+  vertical-align: middle;
 }

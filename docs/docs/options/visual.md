@@ -5,6 +5,8 @@ title: Visual Options
 
 # Visual Options
 
+{/* ![Visual Options Tab](img/options-visual.png) */}
+
 The Visual tab controls the appearance and display behavior of ClipMate.
 
 ## Display Options

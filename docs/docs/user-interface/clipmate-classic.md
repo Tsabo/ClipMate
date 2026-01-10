@@ -7,7 +7,7 @@ title: ClipMate Classic
 
 ClipMate Classic closely resembles previous versions of ClipMate and takes up much less screen space than ClipMate Explorer. It features a menu, a toolbar, and a drop-down list of clips (the ClipList).
 
-{/* TODO: Screenshot - ClipMate Classic in both rolled-up and dropped-down states (img/classic-window.png) */}
+![ClipMate Classic Overview](img/clipmate-classic-overview.png)
 
 ## Window States
 
@@ -55,12 +55,7 @@ QuickPaste functionality is now available in any ClipList, including Explorer. C
 
 For convenience, the old QuickPaste Hotkey (**Ctrl+Shift+Q**) still brings up Classic in dropped-down mode.
 
-## Classic and the ClipBar
-
-When you click the drop-down arrow in the ClipBar, the list of clips that appears is actually ClipMate Classic, repositioned to appear integrated with the ClipBar. Classic maintains separate size/position settings for regular use versus ClipBar use, so it's normal to see it adjust position when used in different ways.
-
 ## See Also
 
 - [ClipMate Explorer](clipmate-explorer.md)
-- [ClipBar](clipbar.md)
 - [QuickPaste Options](../options/quickpaste.md)
