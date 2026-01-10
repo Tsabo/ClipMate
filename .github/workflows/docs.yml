@@ -3,9 +3,11 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'docs/**'
+      - 'Resources/Fonts/**'
+      - 'build/build.cake'
   workflow_dispatch:
 
 permissions:
@@ -19,13 +21,21 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for MinVer
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,11 +44,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: docs/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Ninja
+        run: choco install ninja -y
 
       - name: Build documentation
-        run: npm run build
+        run: dotnet cake build/build.cake --target=Build-Docs --verbosity=Normal
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

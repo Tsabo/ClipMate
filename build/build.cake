@@ -500,6 +500,74 @@ Task("Sign-Installer")
     Warning($"Error: {exception.Message}");
 });
 
+Task("Build-Docs")
+    .IsDependentOn("Build-Font")
+    .Does(() =>
+{
+    var startTime = DateTime.Now;
+    Information("Building Docusaurus documentation...");
+    
+    var docsDir = repoRoot.Combine("docs");
+    var docsStaticFonts = docsDir.Combine("static/fonts");
+    var docsBuildDir = docsDir.Combine("build");
+    
+    // Ensure font is built and copied to static directory
+    Information("Copying font to docs static directory...");
+    EnsureDirectoryExists(docsStaticFonts);
+    
+    if (FileExists(fontOutput))
+    {
+        CopyFile(fontOutput, docsStaticFonts.CombineWithFilePath("ClipMate.ttf"));
+        Information($"Font copied: {fontOutput} -> docs/static/fonts/");
+    }
+    else
+    {
+        Warning("Font not found - documentation may be missing custom font");
+    }
+    
+    // Install npm dependencies
+    Information("Installing npm dependencies...");
+    var npmInstall = StartProcess("cmd", new ProcessSettings
+    {
+        Arguments = "/c npm ci",
+        WorkingDirectory = docsDir
+    });
+    
+    if (npmInstall != 0)
+    {
+        throw new Exception("npm install failed");
+    }
+    
+    // Build Docusaurus site
+    Information("Building Docusaurus site...");
+    var npmBuild = StartProcess("cmd", new ProcessSettings
+    {
+        Arguments = "/c npm run build",
+        WorkingDirectory = docsDir
+    });
+    
+    if (npmBuild != 0)
+    {
+        throw new Exception("Docusaurus build failed");
+    }
+    
+    // Report build output
+    if (DirectoryExists(docsBuildDir))
+    {
+        var files = GetFiles($"{docsBuildDir}/**/*");
+        long totalSize = files.Sum(f => new System.IO.FileInfo(f.FullPath).Length);
+        Information($"Documentation built: {files.Count} files ({totalSize / 1024 / 1024:F2} MB)");
+    }
+    
+    var elapsed = DateTime.Now - startTime;
+    Information($"Documentation build completed in {elapsed.TotalSeconds:F2}s");
+})
+.OnError(exception =>
+{
+    Warning($"Documentation build failed: {exception.Message}");
+    Warning("Continuing without documentation build...");
+});
+
 Task("Sanitize-Logs")
     .Does(() =>
 {
