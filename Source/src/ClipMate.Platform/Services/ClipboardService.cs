@@ -39,7 +39,6 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
     private readonly IConfigurationService _configurationService;
-
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
@@ -294,26 +293,21 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            var preferences = _configurationService.Configuration.Preferences;
-
-            // SettleTimeBetweenCapturesMs: Check if too soon after last capture
+            // Debouncing: ignore if too soon after last change
+            // Use configurable settle time to filter out rapid-fire WM_CLIPBOARDUPDATE events from apps
+            // that write clipboard formats sequentially (like SnagitEditor)
             var now = DateTime.UtcNow;
-            var timeSinceLastCapture = (now - _lastClipboardChange).TotalMilliseconds;
+            var settleTime = _configurationService.Configuration.Preferences.SettleTimeBetweenCapturesMs;
 
-            if (timeSinceLastCapture < preferences.SettleTimeBetweenCapturesMs)
-            {
-                _logger.LogDebug("Ignoring clipboard change - too soon after last capture ({Elapsed}ms < {Required}ms)",
-                    timeSinceLastCapture, preferences.SettleTimeBetweenCapturesMs);
-
+            if ((now - _lastClipboardChange).TotalMilliseconds < settleTime)
                 return;
-            }
 
-            // Update last change time
+            // Apply capture delay if configured
+            var captureDelay = _configurationService.Configuration.Preferences.CaptureDelayMs;
+            if (captureDelay > 0)
+                await Task.Delay(captureDelay);
+
             _lastClipboardChange = now;
-
-            // CaptureDelayMs: Give source application time to finish clipboard operation
-            if (preferences.CaptureDelayMs > 0)
-                await Task.Delay(preferences.CaptureDelayMs);
 
             var clip = await GetCurrentClipboardContentAsync();
 

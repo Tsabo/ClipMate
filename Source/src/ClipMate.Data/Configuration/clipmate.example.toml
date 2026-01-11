@@ -20,7 +20,7 @@ BeepOnIgnore = true
 ShowHint = true
 HintHidePause = 4500
 Language = "English"
-LogLevel = 3
+LogLevel = "Information"
 IsRegistered = false
 
 # Advanced Settings

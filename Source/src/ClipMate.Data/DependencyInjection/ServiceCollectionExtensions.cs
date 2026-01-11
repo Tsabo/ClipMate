@@ -1,6 +1,5 @@
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -68,13 +67,8 @@ public static class ServiceCollectionExtensions
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClipMate");
 
-        var configurationService = new ConfigurationService(configDirectory,
-            services.BuildServiceProvider().GetRequiredService<ILogger<ConfigurationService>>());
-
-        services.AddSingleton<IConfigurationService>(configurationService);
-
-        // Apply SQLite pragmas based on configuration
-        ApplySqlitePragmas(databasePath, configurationService);
+        services.AddSingleton<IConfigurationService>(sp =>
+            new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
 
         // Register multi-database management
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
@@ -94,58 +88,5 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(p => p.GetRequiredService<MaintenanceSchedulerService>());
 
         return services;
-    }
-
-    /// <summary>
-    /// Applies SQLite pragmas based on configuration settings.
-    /// </summary>
-    private static void ApplySqlitePragmas(string databasePath, IConfigurationService configurationService)
-    {
-        try
-        {
-            using var connection = new SqliteConnection($"Data Source={databasePath}");
-            connection.Open();
-
-            var enableCachedWrites = configurationService.Configuration.Preferences.EnableCachedDatabaseWrites;
-
-            if (enableCachedWrites)
-            {
-                // Performance mode: WAL journal + NORMAL synchronous
-                // WAL provides concurrency and faster writes
-                // NORMAL synchronous balances performance vs safety
-                using (var cmd = connection.CreateCommand())
-                {
-                    cmd.CommandText = "PRAGMA journal_mode = WAL;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                using (var cmd = connection.CreateCommand())
-                {
-                    cmd.CommandText = "PRAGMA synchronous = NORMAL;";
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            else
-            {
-                // Safety mode: DELETE journal + FULL synchronous
-                // Every write is immediately flushed to disk
-                using (var cmd = connection.CreateCommand())
-                {
-                    cmd.CommandText = "PRAGMA journal_mode = DELETE;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                using (var cmd = connection.CreateCommand())
-                {
-                    cmd.CommandText = "PRAGMA synchronous = FULL;";
-                    cmd.ExecuteNonQuery();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            // Log warning but don't fail startup
-            Console.WriteLine($"Warning: Failed to apply SQLite pragmas: {ex.Message}");
-        }
     }
 }

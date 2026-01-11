@@ -60,7 +60,11 @@ public class ConfigurationService : IConfigurationService
 
             try
             {
-                Configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent);
+                Configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent, options: new TomlModelOptions
+                {
+                    IgnoreMissingProperties = true,
+                });
+
                 _logger.LogInformation("Configuration parsed successfully");
                 _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", Configuration.MonacoEditor.EnableDebug);
                 _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", Configuration.MonacoEditor.Theme);
@@ -254,10 +258,10 @@ public class ConfigurationService : IConfigurationService
         else
         {
             // Validate each database configuration
-            foreach (var dbEntry in config.Databases)
+            foreach (var item in config.Databases)
             {
-                var dbKey = dbEntry.Key;
-                var db = dbEntry.Value;
+                var dbKey = item.Key;
+                var db = item.Value;
 
                 if (string.IsNullOrWhiteSpace(db.Name))
                     errors.Add($"Database '{dbKey}': Name is required");
@@ -275,11 +279,11 @@ public class ConfigurationService : IConfigurationService
             // Validate default database exists
             if (!string.IsNullOrWhiteSpace(config.DefaultDatabase))
             {
-                if (!config.Databases.ContainsKey(config.DefaultDatabase))
-                {
-                    var availableKeys = string.Join(", ", config.Databases.Keys);
-                    errors.Add($"Default database '{config.DefaultDatabase}' not found. Available: {availableKeys}");
-                }
+                if (config.Databases.ContainsKey(config.DefaultDatabase))
+                    return errors;
+
+                var availableKeys = string.Join(", ", config.Databases.Keys);
+                errors.Add($"Default database '{config.DefaultDatabase}' not found. Available: {availableKeys}");
             }
             else if (config.Databases.Count > 0)
             {

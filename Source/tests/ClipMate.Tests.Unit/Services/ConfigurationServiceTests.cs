@@ -25,7 +25,7 @@ public class ConfigurationServiceTests
         // Instead of manually creating TOML, use the service's default config
         // and add a database programmatically, then save it
         Directory.CreateDirectory(_testConfigDirectory);
-        
+
         // Create default config
         var config = new ClipMateConfiguration
         {
@@ -36,26 +36,26 @@ public class ConfigurationServiceTests
             MonacoEditor = new MonacoEditorConfiguration(),
             Databases = new Dictionary<string, DatabaseConfiguration>
             {
-                ["MyClips"] = new DatabaseConfiguration
+                ["MyClips"] = new()
                 {
                     Name = "My Clips",
                     FilePath = "clipmate.db",
-                    AutoLoad = true
-                }
-            }
+                    AutoLoad = true,
+                },
+            },
         };
-        
+
         // Set the configuration and save it
         typeof(ConfigurationService)
             .GetProperty("Configuration")!
             .SetValue(service, config);
-            
+
         await service.SaveAsync();
-        
+
         // Now load it back to ensure it's properly persisted
         var service2 = new ConfigurationService(_testConfigDirectory, _logger);
         await service2.LoadAsync();
-        
+
         return service2;
     }
 
@@ -93,7 +93,7 @@ public class ConfigurationServiceTests
 
         // Verify database was loaded correctly before saving
         await Assert.That(service.Configuration.Databases.Count).IsGreaterThan(0);
-        
+
         if (!service.Configuration.Databases.ContainsKey("MyClips"))
         {
             // If MyClips isn't loaded, manually add it to test the save functionality
@@ -101,7 +101,7 @@ public class ConfigurationServiceTests
             {
                 Name = "My Clips",
                 FilePath = "clipmate.db",
-                AutoLoad = true
+                AutoLoad = true,
             };
         }
 
@@ -183,7 +183,7 @@ public class ConfigurationServiceTests
     {
         // Arrange - First, create and save a configuration
         var service = await CreateServiceWithValidConfigurationAsync();
-        
+
         // Ensure we have a database to work with
         if (!service.Configuration.Databases.ContainsKey("MyClips"))
         {
@@ -191,12 +191,12 @@ public class ConfigurationServiceTests
             {
                 Name = "My Clips",
                 FilePath = "clipmate.db",
-                AutoLoad = true
+                AutoLoad = true,
             };
         }
 
         // Modify configuration
-        service.Configuration.Preferences.LogLevel = 5;
+        service.Configuration.Preferences.LogLevel = LogLevel.Critical;
         service.Configuration.Hotkeys.QuickPaste = "Ctrl+Shift+Q";
         await service.SaveAsync();
 
@@ -207,7 +207,7 @@ public class ConfigurationServiceTests
         var loadedConfig = await service2.LoadAsync();
 
         // Assert
-        await Assert.That(loadedConfig.Preferences.LogLevel).IsEqualTo(5);
+        await Assert.That((int)loadedConfig.Preferences.LogLevel).IsEqualTo((int)LogLevel.Critical);
         await Assert.That(loadedConfig.Hotkeys.QuickPaste).IsEqualTo("Ctrl+Shift+Q");
         await Assert.That(loadedConfig.Databases.Count).IsGreaterThan(0);
     }
@@ -219,13 +219,13 @@ public class ConfigurationServiceTests
         var service = await CreateServiceWithValidConfigurationAsync();
 
         // Modify configuration
-        service.Configuration.Preferences.LogLevel = 5;
+        service.Configuration.Preferences.LogLevel = LogLevel.Critical;
         await service.SaveAsync();
 
         // Act
         await service.ResetToDefaultsAsync();
 
         // Assert
-        await Assert.That(service.Configuration.Preferences.LogLevel).IsEqualTo(3); // Default value
+        await Assert.That((int)service.Configuration.Preferences.LogLevel).IsEqualTo((int)LogLevel.Information); // Default value
     }
 }

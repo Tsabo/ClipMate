@@ -1,6 +1,7 @@
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -59,7 +60,12 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
         optionsBuilder.UseSqlite($"Data Source={normalizedPath}");
 
-        return new ClipMateDbContext(optionsBuilder.Options);
+        var context = new ClipMateDbContext(optionsBuilder.Options);
+
+        // Apply SQLite pragmas based on configuration
+        ApplySqlitePragmas(context, normalizedPath);
+
+        return context;
     }
 
     /// <summary>
@@ -307,5 +313,44 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         // If not found in configuration, assume it's a path anyway
         _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
         return databaseKeyOrPath;
+    }
+
+    /// <summary>
+    /// Applies SQLite pragmas to optimize database performance based on configuration.
+    /// </summary>
+    private void ApplySqlitePragmas(ClipMateDbContext context, string databasePath)
+    {
+        try
+        {
+            var preferences = _configurationService.Configuration.Preferences;
+            var connection = context.Database.GetDbConnection();
+
+            if (connection is not SqliteConnection sqliteConnection)
+                return;
+
+            sqliteConnection.Open();
+
+            using var command = sqliteConnection.CreateCommand();
+
+            // Set journal_mode and synchronous based on EnableCachedDatabaseWrites
+            if (preferences.EnableCachedDatabaseWrites)
+            {
+                // WAL mode + NORMAL synchronous = Better performance, small risk of corruption on system crash
+                command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
+                _logger.LogDebug("Applying cached write pragmas (WAL/NORMAL) to database: {DatabasePath}", databasePath);
+            }
+            else
+            {
+                // DELETE mode + FULL synchronous = Maximum safety, slower performance
+                command.CommandText = "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;";
+                _logger.LogDebug("Applying safe write pragmas (DELETE/FULL) to database: {DatabasePath}", databasePath);
+            }
+
+            command.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to apply SQLite pragmas to database: {DatabasePath}", databasePath);
+        }
     }
 }

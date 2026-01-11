@@ -69,7 +69,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object);
+        // Create configuration mock with default timing values
+        var configServiceMock = new Mock<IConfigurationService>();
+        var clipboardConfig = new ClipMateConfiguration();
+        configServiceMock.Setup(p => p.Configuration).Returns(clipboardConfig);
+
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object);
 
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
@@ -281,7 +286,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var testSoundService = new Mock<ISoundService>();
         testSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object);
+        // Create configuration mock with default timing values
+        var testConfigServiceMock = new Mock<IConfigurationService>();
+        var testConfig = new ClipMateConfiguration();
+        testConfigServiceMock.Setup(p => p.Configuration).Returns(testConfig);
+
+        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, testConfigServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object);
 
         // Act & Assert - Service should not filter formats when disabled
         profileServiceMock.Verify(p => p.ShouldCaptureFormatAsync(

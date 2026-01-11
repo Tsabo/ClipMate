@@ -94,12 +94,27 @@ public partial class App
             }
 
             // Build the host (now with confirmed database path)
-            _host = CreateHostBuilder(_databasePath!).Build();
+            try
+            {
+                _host = CreateHostBuilder(_databasePath!).Build();
+            }
+            catch (Exception hostEx)
+            {
+                Log.Fatal(hostEx, "Failed to build application host");
+                MessageBox.Show(
+                    $"Failed to build application host:\n\n{hostEx.Message}",
+                    "Startup Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                Shutdown(1);
+                return;
+            }
 
             // Get logger
             _logger = ServiceProvider.GetRequiredService<ILogger<App>>();
 
             // Run initialization pipeline (database schema, configuration, default data)
+            // NOTE: This will load configuration again, but properly through DI
             var pipeline = ServiceProvider.GetRequiredService<StartupInitializationPipeline>();
             await pipeline.RunAsync();
 
@@ -610,32 +625,9 @@ public partial class App
 
         var logFilePath = Path.Join(logDirectory, "clipmate-.log");
 
-        // Load log level from configuration (fall back to Information if not available)
+        // Use default Information log level
+        // Configuration will be loaded properly through DI after host is built
         var logLevel = LogEventLevel.Information;
-        var configPath = Path.Join(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "clipmate.toml");
-
-        if (File.Exists(configPath))
-        {
-            try
-            {
-                // Quick parse of config to get log level setting
-                using var configLoggerFactory = LoggerFactory.Create(p => p.SetMinimumLevel(LogLevel.Warning));
-                var configLogger = configLoggerFactory.CreateLogger<ConfigurationService>();
-                var configService = new ConfigurationService(
-                    Path.GetDirectoryName(configPath)!,
-                    configLogger);
-                var config = configService.LoadAsync().GetAwaiter().GetResult();
-                logLevel = ConvertToSerilogLevel(config.Preferences.LogLevel);
-            }
-            catch
-            {
-                // If config loading fails, use default Information level
-                logLevel = LogEventLevel.Information;
-            }
-        }
 
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Is(logLevel)
@@ -888,26 +880,6 @@ public partial class App
 
         // Mark as observed to prevent application crash
         e.SetObserved();
-    }
-
-    /// <summary>
-    /// Converts Microsoft.Extensions.Logging.LogLevel to Serilog LogEventLevel.
-    /// </summary>
-    /// <param name="level">Microsoft.Extensions.Logging.LogLevel from configuration.</param>
-    /// <returns>Corresponding Serilog LogEventLevel.</returns>
-    private static LogEventLevel ConvertToSerilogLevel(LogLevel level)
-    {
-        return level switch
-        {
-            LogLevel.Trace => LogEventLevel.Verbose,
-            LogLevel.Debug => LogEventLevel.Debug,
-            LogLevel.Information => LogEventLevel.Information,
-            LogLevel.Warning => LogEventLevel.Warning,
-            LogLevel.Error => LogEventLevel.Error,
-            LogLevel.Critical => LogEventLevel.Fatal,
-            LogLevel.None => LogEventLevel.Fatal,
-            _ => LogEventLevel.Information
-        };
     }
 
     /// <summary>

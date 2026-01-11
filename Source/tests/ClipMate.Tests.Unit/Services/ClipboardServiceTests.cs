@@ -171,6 +171,11 @@ public class ClipboardServiceTests : TestFixtureBase
         var soundService = new Mock<ISoundService>();
         soundService.Setup(s => s.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        return new ClipboardService(logger, win32Mock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
+        // Create configuration mock with default timing values
+        var configServiceMock = new Mock<IConfigurationService>();
+        var config = new ClipMateConfiguration();
+        configServiceMock.Setup(c => c.Configuration).Returns(config);
+
+        return new ClipboardService(logger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
     }
 }

@@ -39,7 +39,10 @@ public class ApplicationProfileStore : IApplicationProfileStore
             }
 
             var tomlContent = await File.ReadAllTextAsync(_filePath, cancellationToken);
-            var tomlModel = Toml.ToModel(tomlContent);
+            var tomlModel = Toml.ToModel(tomlContent, options: new TomlModelOptions
+            {
+                IgnoreMissingProperties = true,
+            });
 
             var profiles = new Dictionary<string, ApplicationProfile>();
 
@@ -94,7 +97,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
             {
                 var profileTable = new TomlTable
                 {
-                    ["enabled"] = profile.Enabled
+                    ["enabled"] = profile.Enabled,
                 };
 
                 // Add formats in alphabetical order
@@ -182,7 +185,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
         var profile = new ApplicationProfile
         {
             ApplicationName = appName,
-            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true
+            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true,
         };
 
         // Parse format settings (all entries except "enabled")
