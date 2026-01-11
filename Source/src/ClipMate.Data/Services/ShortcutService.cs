@@ -181,9 +181,10 @@ public class ShortcutService : IShortcutService
         {
             // Log all clips in this database to help diagnose
             var clipCount = await context.Clips.CountAsync(cancellationToken);
-            _logger.LogError("Clip {ClipId} not found in database {DatabaseKey}. Database contains {ClipCount} clips. " +
-                             "This usually means: 1) Clip was loaded from search results spanning multiple databases, " +
-                             "2) Clip belongs to a different collection/database, or 3) Clip was deleted.",
+            _logger.LogError(
+                "Clip {ClipId} not found in database {DatabaseKey}. Database contains {ClipCount} clips. " +
+                "This usually means: 1) Clip was loaded from search results spanning multiple databases, " +
+                "2) Clip belongs to a different collection/database, or 3) Clip was deleted.",
                 clipId, databaseKey, clipCount);
 
             throw new InvalidOperationException($"Clip {clipId} not found in database {databaseKey}. Please ensure the clip exists and you're using the correct database.");

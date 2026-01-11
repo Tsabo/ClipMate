@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace ClipMate.Core.Models.Configuration;
 
 /// <summary>
@@ -120,9 +122,11 @@ public class PreferencesConfiguration
     public string Language { get; set; } = "English";
 
     /// <summary>
-    /// Gets or sets the logging level (0=None, 1=Error, 2=Warning, 3=Info, 4=Debug, 5=Verbose).
+    /// Gets or sets the logging level.
+    /// Valid values: Trace, Debug, Information, Warning, Error, Critical, None.
+    /// Default is Information.
     /// </summary>
-    public int LogLevel { get; set; } = 3;
+    public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
     /// <summary>
     /// Gets or sets whether the application has been registered (licensed).

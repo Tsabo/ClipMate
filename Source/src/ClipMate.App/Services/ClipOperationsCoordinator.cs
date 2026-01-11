@@ -559,7 +559,7 @@ public class ClipOperationsCoordinator :
         {
             await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Down);
             _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Down";
-            _powerPasteClipIds = selectedClips.Select(c => c.Id).ToHashSet();
+            _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
             SendStatus($"PowerPaste Down started with {selectedClips.Count} clip(s)");
         }
         catch (Exception ex)
