@@ -95,7 +95,7 @@ public class DatabaseMaintenanceServiceTests
         // The critical assertion is that the backup file is created correctly
 
         // Verify ZIP contents
-        using var archive = ZipFile.OpenRead(backupPath);
+        await using var archive = await ZipFile.OpenReadAsync(backupPath);
         await Assert.That(archive.Entries.Any(p => p.Name.EndsWith(".db"))).IsTrue();
     }
 
@@ -147,11 +147,9 @@ public class DatabaseMaintenanceServiceTests
         await Assert.That(File.Exists(dbFile)).IsTrue();
         
         // Verify database was restored correctly by checking it can be opened
-        await using (var context = await _contextFactory.CreateDbContextAsync())
-        {
-            var canConnect = await context.Database.CanConnectAsync();
-            await Assert.That(canConnect).IsTrue();
-        }
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var canConnect = await context.Database.CanConnectAsync();
+        await Assert.That(canConnect).IsTrue();
     }
 
     [Test]
@@ -217,7 +215,6 @@ public class DatabaseMaintenanceServiceTests
     }
 
     [Test]
-    [Skip("Purge count assertion failing - need to investigate DateTimeOffset ticks comparison in SQLite queries")]
     public async Task RunCleanupAsync_ShouldPurgeOldClips()
     {
         // Arrange
@@ -255,6 +252,31 @@ public class DatabaseMaintenanceServiceTests
             await context.SaveChangesAsync();
         }
 
+        // Debug: Check what clips exist before cleanup
+        await using (var context = await _contextFactory.CreateDbContextAsync())
+        {
+            var allClips = await context.Clips.ToListAsync();
+            Console.WriteLine($"Before cleanup: Total clips = {allClips.Count}");
+            foreach (var item in allClips)
+            {
+                Console.WriteLine($"  Clip: {item.Title}, Del={item.Del}, DelDate={item.DelDate}, DelDateTicks={item.DelDate?.Ticks}, DelDateUtcTicks={item.DelDate?.UtcTicks}");
+            }
+            var cutoffDate = DateTimeOffset.UtcNow.AddDays(-7);
+            Console.WriteLine($"Cutoff date: {cutoffDate}, CutoffTicks={cutoffDate.Ticks}, CutoffUtcTicks={cutoffDate.UtcTicks}");
+            
+            // Query the raw SQL to see what's stored
+            var connection = context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Title, Del, DelDate FROM Clips WHERE Del = 1";
+            await using var reader = await command.ExecuteReaderAsync();
+            Console.WriteLine("Raw SQL query results:");
+            while (await reader.ReadAsync())
+            {
+                Console.WriteLine($"  Title={reader.GetString(0)}, Del={reader.GetInt32(1)}, DelDate={reader.GetInt64(2)}");
+            }
+        }
+
         // Act
         var purgedCount = await _service.RunCleanupAsync(config);
 
@@ -267,7 +289,7 @@ public class DatabaseMaintenanceServiceTests
         await using (var context = await _contextFactory.CreateDbContextAsync())
         {
             // Should have 1 remaining deleted clip (within 7 days)
-            var remainingClips = await context.Clips.Where(c => c.Del).ToListAsync();
+            var remainingClips = await context.Clips.Where(p => p.Del).ToListAsync();
             await Assert.That(remainingClips.Count).IsEqualTo(1);
             await Assert.That(remainingClips[0].Title).IsEqualTo("Recent Deleted");
         }

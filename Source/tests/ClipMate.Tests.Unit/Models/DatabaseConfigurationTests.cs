@@ -19,7 +19,7 @@ public class DatabaseConfigurationTests
         await Assert.That(config.AutoLoad).IsTrue();
         await Assert.That(config.AllowBackup).IsTrue();
         await Assert.That(config.ReadOnly).IsFalse();
-        await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AtStartup);
+        await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AfterHourIdle);
         await Assert.That(config.PurgeDays).IsEqualTo(7);
         await Assert.That(config.UserName).IsEqualTo(Environment.UserName);
         await Assert.That(config.IsRemote).IsFalse();

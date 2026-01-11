@@ -60,12 +60,12 @@ public class DatabaseConfigurationEnumTests
     }
 
     [Test]
-    public async Task CleanupMethod_DefaultShouldBeAtStartup()
+    public async Task CleanupMethod_DefaultShouldBeAfterHourIdle()
     {
         // Arrange
         var config = new DatabaseConfiguration();
 
         // Assert
-        await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AtStartup);
+        await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AfterHourIdle);
     }
 }

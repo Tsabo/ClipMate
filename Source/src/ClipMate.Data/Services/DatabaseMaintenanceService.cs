@@ -74,11 +74,11 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
 
         // Create backup ZIP
         progress?.Report("Compressing database files...");
-        using (var archive = ZipFile.Open(backupZipPath, ZipArchiveMode.Create))
+        await using (var archive = await ZipFile.OpenAsync(backupZipPath, ZipArchiveMode.Create, cancellationToken))
         {
             // Add main database file (using FileShare.ReadWrite to allow SQLite concurrent access)
             var entry = archive.CreateEntry(Path.GetFileName(dbFile), CompressionLevel.Optimal);
-            await using (var entryStream = entry.Open())
+            await using (var entryStream = await entry.OpenAsync(cancellationToken))
             await using (var fileStream = new FileStream(dbFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 await fileStream.CopyToAsync(entryStream, cancellationToken);
@@ -90,7 +90,7 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
             if (File.Exists(dbShmFile))
             {
                 var shmEntry = archive.CreateEntry(Path.GetFileName(dbShmFile), CompressionLevel.Optimal);
-                await using (var entryStream = shmEntry.Open())
+                await using (var entryStream = await shmEntry.OpenAsync(cancellationToken))
                 await using (var fileStream = new FileStream(dbShmFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     await fileStream.CopyToAsync(entryStream, cancellationToken);
@@ -102,7 +102,7 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
             if (File.Exists(dbWalFile))
             {
                 var walEntry = archive.CreateEntry(Path.GetFileName(dbWalFile), CompressionLevel.Optimal);
-                await using (var entryStream = walEntry.Open())
+                await using (var entryStream = await walEntry.OpenAsync(cancellationToken))
                 await using (var fileStream = new FileStream(dbWalFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     await fileStream.CopyToAsync(entryStream, cancellationToken);
@@ -442,25 +442,25 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
         var deletedCount = 0;
 
         // Delete backup files older than retention period
-        foreach (var backupFile in backupFiles)
+        foreach (var item in backupFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var fileInfo = new FileInfo(backupFile);
+            var fileInfo = new FileInfo(item);
             if (fileInfo.LastWriteTime >= cutoffDate)
                 continue;
 
             try
             {
-                File.Delete(backupFile);
+                File.Delete(item);
                 deletedCount++;
                 progress?.Report($"Deleted old backup: {fileInfo.Name}");
                 _logger.LogInformation("Deleted old backup file: {BackupFile} (Age: {Age} days)",
-                    backupFile, (DateTime.Now - fileInfo.LastWriteTime).TotalDays);
+                    item, (DateTime.Now - fileInfo.LastWriteTime).TotalDays);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete old backup file: {BackupFile}", backupFile);
+                _logger.LogWarning(ex, "Failed to delete old backup file: {BackupFile}", item);
                 progress?.Report($"Warning: Could not delete {fileInfo.Name}");
             }
         }

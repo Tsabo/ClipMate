@@ -168,6 +168,12 @@ public class ClipMateDbContext : DbContext
             entity.Property(p => p.Type).IsRequired();
             entity.Property(p => p.ContentHash).IsRequired().HasMaxLength(64);
 
+            // Configure DelDate to store as ticks (INT64) instead of TEXT
+            entity.Property(p => p.DelDate)
+                .HasConversion(
+                    p => p.HasValue ? p.Value.UtcTicks : (long?)null,
+                    p => p.HasValue ? new DateTimeOffset(p.Value, TimeSpan.Zero) : null);
+
             // Transient properties - NOT stored in Clips table (loaded from BLOB tables)
             entity.Ignore(p => p.TextContent);
             entity.Ignore(p => p.RtfContent);

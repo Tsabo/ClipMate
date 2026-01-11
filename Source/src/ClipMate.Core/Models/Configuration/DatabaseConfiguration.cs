@@ -33,7 +33,7 @@ public class DatabaseConfiguration
     /// <summary>
     /// Gets or sets the cleanup method for aging and purging.
     /// </summary>
-    public CleanupMethod CleanupMethod { get; set; } = CleanupMethod.AtStartup;
+    public CleanupMethod CleanupMethod { get; set; } = CleanupMethod.AfterHourIdle;
 
     /// <summary>
     /// Gets or sets the number of days to keep clips before purging.

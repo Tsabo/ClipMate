@@ -290,7 +290,7 @@ public class ClipRepository : IClipRepository
 
         // Soft delete (ClipMate style)
         clip.Del = true;
-        clip.DelDate = DateTime.UtcNow;
+        clip.DelDate = DateTimeOffset.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
         // Hard delete BLOB data to save space
