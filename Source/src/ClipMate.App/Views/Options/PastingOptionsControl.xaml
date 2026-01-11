@@ -15,16 +15,6 @@
         <!-- PowerPaste Section -->
         <dxlc:LayoutGroup View="GroupBox" Header="PowerPaste" Orientation="Vertical">
 
-            <!-- PowerPaste Delay -->
-            <dxlc:LayoutItem Label="Delay (milliseconds):" LabelPosition="Left">
-                <dxe:SpinEdit Value="{Binding PowerPasteDelay}"
-                              MinValue="0"
-                              MaxValue="5000"
-                              Increment="50"
-                              IsFloatValue="False"
-                              ToolTip="Delay between PowerPaste operations (0-5000 ms)" />
-            </dxlc:LayoutItem>
-
             <dxlc:LayoutGroup Orientation="Horizontal">
 
                 <!-- Loop -->
@@ -126,7 +116,7 @@
         <!-- Reset Button -->
         <dxlc:LayoutItem>
             <dx:SimpleButton Content="Reset to Defaults"
-                             Command="{Binding ResetPowerPasteToDefaultsCommand}"
+                             Command="{Binding ResetToDefaultsCommand}"
                              HorizontalAlignment="Left"
                              Padding="12,6" />
         </dxlc:LayoutItem>

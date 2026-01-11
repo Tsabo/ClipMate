@@ -30,7 +30,6 @@ SettleTimeBetweenCapturesMs = 100
 AltKeyRequiredForDragDrop = true
 PayAttentionToClipboardIgnoreFlag = true
 EnableCachedDatabaseWrites = true
-UseDdeForBrowserUrl = false
 ReuseLastSelectedMoveTarget = false
 
 PowerPasteDelay = 100

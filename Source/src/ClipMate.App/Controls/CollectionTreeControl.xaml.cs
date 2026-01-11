@@ -1,14 +1,16 @@
-using System.Diagnostics;
+using System.Windows.Input;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using DragDropEffects = System.Windows.DragDropEffects;
+using ModifierKeys = System.Windows.Input.ModifierKeys;
 
 namespace ClipMate.App.Controls;
 
@@ -19,14 +21,16 @@ namespace ClipMate.App.Controls;
 /// </summary>
 public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedEvent>, IRecipient<CollapseAllNodesRequestedEvent>
 {
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<CollectionTreeControl> _logger;
 
     public CollectionTreeControl()
     {
         InitializeComponent();
 
-        // Get logger from DI container
+        // Get services from DI container
         var app = (App)Application.Current;
+        _configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
         _logger = app.ServiceProvider.GetRequiredService<ILogger<CollectionTreeControl>>();
 
         // Register for expand/collapse events
@@ -94,6 +98,19 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
             e.Effects = DragDropEffects.None;
             e.Handled = true;
             return;
+        }
+
+        // Check if Alt key is required for drag/drop
+        var preferences = _configurationService.Configuration.Preferences;
+        if (preferences.AltKeyRequiredForDragDrop)
+        {
+            var isAltPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
+            if (!isAltPressed)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
         }
 
         // Prevent dropping into VirtualCollectionsContainerNode or FolderTreeNode

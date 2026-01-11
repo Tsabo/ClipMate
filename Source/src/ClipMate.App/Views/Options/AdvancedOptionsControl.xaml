@@ -96,13 +96,6 @@
                                ToolTip="For performance, ClipMate caches database updates. Turn off only if you experience frequent crashes leading to data loss." />
             </dxlc:LayoutItem>
 
-            <!-- Use DDE To Get Source URL From Browser -->
-            <dxlc:LayoutItem>
-                <dxe:CheckEdit Content="Use DDE To Get Source URL From Browser (Non-Microsoft Browsers)?"
-                               IsChecked="{Binding UseDdeForBrowserUrl}"
-                               ToolTip="Use DDE to retrieve the source URL from non-Microsoft browsers when capturing web content." />
-            </dxlc:LayoutItem>
-
             <!-- Buttons for Move/Copy to collection should re-use the last selected target -->
             <dxlc:LayoutItem>
                 <dxe:CheckEdit Content="Buttons for Move/Copy to collection should re-use the last selected target?"

@@ -57,6 +57,14 @@ public class ClipboardCoordinator : IHostedService,
         {
             // Check if auto-capture is enabled in preferences
             var preferences = _configurationService.Configuration.Preferences;
+
+            // Apply startup delay if configured to prevent conflicts during system startup
+            if (preferences.StartupDelaySeconds > 0)
+            {
+                _logger.LogInformation("Applying startup delay of {DelaySeconds} seconds", preferences.StartupDelaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(preferences.StartupDelaySeconds), cancellationToken);
+            }
+
             if (!preferences.EnableAutoCaptureAtStartup)
             {
                 _logger.LogInformation("Auto-capture at startup is disabled in preferences, skipping clipboard monitoring");

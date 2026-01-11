@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
-using ClipMate.App.ViewModels;
+using ClipMate.Core.Services;
 using DevExpress.Xpf.Grid;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,7 +14,14 @@ namespace ClipMate.App.Views.Dialogs;
 /// </summary>
 public partial class CollectionPickerDialog : INotifyPropertyChanged
 {
+    // Static fields to track last selected target across dialog invocations (in-memory only)
+    private static Guid? _sLastSelectedCollectionId;
+    private static string? _sLastSelectedDatabaseKey;
+    private static DateTime? _sLastSelectionTimestamp;
+    private static readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5);
+
     private readonly ICollectionTreeBuilder _collectionTreeBuilder;
+    private readonly IConfigurationService _configurationService;
 
     public CollectionPickerDialog(IServiceProvider serviceProvider)
     {
@@ -23,12 +30,13 @@ public partial class CollectionPickerDialog : INotifyPropertyChanged
         RootNodes = [];
 
         _collectionTreeBuilder = serviceProvider.GetRequiredService<ICollectionTreeBuilder>();
+        _configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
     }
 
     /// <summary>
     /// Database nodes with their collections.
     /// </summary>
-    public ObservableCollection<TreeNodeBase> RootNodes => field;
+    public ObservableCollection<TreeNodeBase> RootNodes { get; }
 
     /// <summary>
     /// Message to display to the user.
@@ -107,9 +115,78 @@ public partial class CollectionPickerDialog : INotifyPropertyChanged
     {
         RootNodes.Clear();
         var treeNodes = await _collectionTreeBuilder.BuildTreeAsync(
-            TreeNodeType.VirtualCollection | TreeNodeType.SpecialCollection,cancellationToken);
+            TreeNodeType.VirtualCollection | TreeNodeType.SpecialCollection, cancellationToken);
+
         foreach (var item in treeNodes)
             RootNodes.Add(item);
+
+        // If ReuseLastSelectedMoveTarget is enabled, try to pre-select the last used collection
+        var preferences = _configurationService.Configuration.Preferences;
+        if (preferences.ReuseLastSelectedMoveTarget &&
+            _sLastSelectedCollectionId.HasValue &&
+            !string.IsNullOrEmpty(_sLastSelectedDatabaseKey) &&
+            _sLastSelectionTimestamp.HasValue &&
+            DateTime.UtcNow - _sLastSelectionTimestamp.Value < _cacheExpiration)
+            TrySelectLastUsedCollection(_sLastSelectedDatabaseKey, _sLastSelectedCollectionId.Value);
+    }
+
+    /// <summary>
+    /// Attempts to find and select the last used collection in the tree.
+    /// </summary>
+    private void TrySelectLastUsedCollection(string databaseKey, Guid collectionId)
+    {
+        foreach (var rootNode in RootNodes)
+        {
+            if (rootNode is not DatabaseTreeNode dbNode || dbNode.DatabasePath != databaseKey)
+                continue;
+
+            var collectionNode = FindCollectionNodeById(dbNode, collectionId);
+            if (collectionNode == null)
+                continue;
+
+            SelectedCollection = collectionNode;
+            // Expand the path to the selected node
+            ExpandPathToNode(collectionNode);
+            break;
+        }
+    }
+
+    /// <summary>
+    /// Recursively finds a collection node by ID.
+    /// </summary>
+    private CollectionTreeNode? FindCollectionNodeById(TreeNodeBase node, Guid collectionId)
+    {
+        if (node is CollectionTreeNode collectionNode && collectionNode.Collection.Id == collectionId)
+            return collectionNode;
+
+        foreach (var item in node.Children)
+        {
+            var found = FindCollectionNodeById(item, collectionId);
+            if (found != null)
+                return found;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Expands all parent nodes to make the target node visible.
+    /// </summary>
+    private void ExpandPathToNode(TreeNodeBase node)
+    {
+        var pathNodes = new List<TreeNodeBase>();
+        var current = node.Parent;
+
+        while (current != null)
+        {
+            pathNodes.Add(current);
+            current = current.Parent;
+        }
+
+        // Expand from root to target
+        pathNodes.Reverse();
+        foreach (var pathNode in pathNodes)
+            pathNode.IsExpanded = true;
     }
 
     private void CollectionsTreeView_SelectedItemChanged(object sender, SelectedItemChangedEventArgs e)
@@ -124,6 +201,15 @@ public partial class CollectionPickerDialog : INotifyPropertyChanged
         {
             DialogResult = false;
             return;
+        }
+
+        // Save last selected collection if ReuseLastSelectedMoveTarget is enabled
+        var preferences = _configurationService.Configuration.Preferences;
+        if (preferences.ReuseLastSelectedMoveTarget)
+        {
+            _sLastSelectedCollectionId = SelectedCollection.Collection.Id;
+            _sLastSelectedDatabaseKey = SelectedDatabaseKey;
+            _sLastSelectionTimestamp = DateTime.UtcNow;
         }
 
         DialogResult = true;

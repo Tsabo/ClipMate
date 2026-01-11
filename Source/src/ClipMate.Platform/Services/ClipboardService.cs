@@ -38,6 +38,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IApplicationProfileService _applicationProfileService;
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
+    private readonly IConfigurationService _configurationService;
 
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
@@ -51,12 +52,14 @@ public class ClipboardService : IClipboardService, IDisposable
 
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
+        IConfigurationService configurationService,
         IApplicationProfileService applicationProfileService,
         IClipboardFormatEnumerator clipboardFormatEnumerator,
         ISoundService soundService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
@@ -291,15 +294,26 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            // Debouncing: ignore if too soon after last change
-            // Use 150ms to filter out rapid-fire WM_CLIPBOARDUPDATE events from apps
-            // that write clipboard formats sequentially (like SnagitEditor)
+            var preferences = _configurationService.Configuration.Preferences;
+
+            // SettleTimeBetweenCapturesMs: Check if too soon after last capture
             var now = DateTime.UtcNow;
+            var timeSinceLastCapture = (now - _lastClipboardChange).TotalMilliseconds;
 
-            if ((now - _lastClipboardChange).TotalMilliseconds < 150)
+            if (timeSinceLastCapture < preferences.SettleTimeBetweenCapturesMs)
+            {
+                _logger.LogDebug("Ignoring clipboard change - too soon after last capture ({Elapsed}ms < {Required}ms)",
+                    timeSinceLastCapture, preferences.SettleTimeBetweenCapturesMs);
+
                 return;
+            }
 
+            // Update last change time
             _lastClipboardChange = now;
+
+            // CaptureDelayMs: Give source application time to finish clipboard operation
+            if (preferences.CaptureDelayMs > 0)
+                await Task.Delay(preferences.CaptureDelayMs);
 
             var clip = await GetCurrentClipboardContentAsync();
 
@@ -333,10 +347,6 @@ public class ClipboardService : IClipboardService, IDisposable
 
             // Clipboard has content we captured
             _lastClipboardWasEmpty = false;
-
-            // Update timestamp AFTER getting clipboard content to prevent duplicate processing
-            // if multiple WM_CLIPBOARDUPDATE events fire simultaneously
-            _lastClipboardChange = DateTime.UtcNow;
 
             // Check if we should suppress this capture (we set the clipboard programmatically)
             // Use time-based suppression window to handle multiple clipboard events

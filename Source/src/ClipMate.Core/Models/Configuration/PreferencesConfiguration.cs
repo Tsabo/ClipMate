@@ -172,11 +172,6 @@ public class PreferencesConfiguration
     public bool EnableCachedDatabaseWrites { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to use DDE to get source URL from non-Microsoft browsers.
-    /// </summary>
-    public bool UseDdeForBrowserUrl { get; set; } = false;
-
-    /// <summary>
     /// Gets or sets whether Move/Copy buttons should re-use the last selected target collection.
     /// </summary>
     public bool ReuseLastSelectedMoveTarget { get; set; } = false;

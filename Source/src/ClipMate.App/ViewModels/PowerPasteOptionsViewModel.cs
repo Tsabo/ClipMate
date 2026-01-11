@@ -14,9 +14,6 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     private readonly ILogger<PowerPasteOptionsViewModel> _logger;
 
     [ObservableProperty]
-    private int _powerPasteDelay;
-
-    [ObservableProperty]
     private string _powerPasteDelimiter = string.Empty;
 
     [ObservableProperty]
@@ -34,8 +31,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _powerPasteTrim;
 
-    public PowerPasteOptionsViewModel(
-        IConfigurationService configurationService,
+    public PowerPasteOptionsViewModel(IConfigurationService configurationService,
         ILogger<PowerPasteOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -49,7 +45,6 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     {
         var config = _configurationService.Configuration.Preferences;
 
-        PowerPasteDelay = config.PowerPasteDelay;
         PowerPasteShield = config.PowerPasteShield;
         PowerPasteDelimiter = config.PowerPasteDelimiter;
         PowerPasteTrim = config.PowerPasteTrim;
@@ -67,7 +62,6 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     {
         var config = _configurationService.Configuration.Preferences;
 
-        config.PowerPasteDelay = PowerPasteDelay;
         config.PowerPasteShield = PowerPasteShield;
         config.PowerPasteDelimiter = PowerPasteDelimiter;
         config.PowerPasteTrim = PowerPasteTrim;
@@ -84,7 +78,6 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     [RelayCommand]
     private void ResetToDefaults()
     {
-        PowerPasteDelay = 100;
         PowerPasteShield = true;
         PowerPasteDelimiter = ",.;:\\n\\t";
         PowerPasteTrim = true;

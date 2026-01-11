@@ -40,9 +40,6 @@ public partial class AdvancedOptionsViewModel : ObservableObject
     [ObservableProperty]
     private int _startupDelaySeconds;
 
-    [ObservableProperty]
-    private bool _useDdeForBrowserUrl;
-
     public AdvancedOptionsViewModel(IConfigurationService configurationService,
         IDialogService dialogService,
         ILogger<AdvancedOptionsViewModel> logger)
@@ -66,7 +63,6 @@ public partial class AdvancedOptionsViewModel : ObservableObject
         AltKeyRequiredForDragDrop = config.AltKeyRequiredForDragDrop;
         PayAttentionToClipboardIgnoreFlag = config.PayAttentionToClipboardIgnoreFlag;
         EnableCachedDatabaseWrites = config.EnableCachedDatabaseWrites;
-        UseDdeForBrowserUrl = config.UseDdeForBrowserUrl;
         ReuseLastSelectedMoveTarget = config.ReuseLastSelectedMoveTarget;
 
         _logger.LogDebug("Advanced configuration loaded");
@@ -86,7 +82,6 @@ public partial class AdvancedOptionsViewModel : ObservableObject
         config.AltKeyRequiredForDragDrop = AltKeyRequiredForDragDrop;
         config.PayAttentionToClipboardIgnoreFlag = PayAttentionToClipboardIgnoreFlag;
         config.EnableCachedDatabaseWrites = EnableCachedDatabaseWrites;
-        config.UseDdeForBrowserUrl = UseDdeForBrowserUrl;
         config.ReuseLastSelectedMoveTarget = ReuseLastSelectedMoveTarget;
 
         _logger.LogDebug("Advanced configuration saved");
