@@ -47,6 +47,7 @@
         <KeyBinding Key="T" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.StripNonTextCommand}" />
         <KeyBinding Key="P" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectPreviousCommand}" />
         <KeyBinding Key="N" Modifiers="Ctrl+Alt" Command="{Binding MainMenu.SelectNextCommand}" />
+        <KeyBinding Key="Delete" Command="{Binding MainMenu.DeleteSelectedCommand}" />
     </dx:ThemedWindow.InputBindings>
 
     <dx:ThemedWindow.Resources>
