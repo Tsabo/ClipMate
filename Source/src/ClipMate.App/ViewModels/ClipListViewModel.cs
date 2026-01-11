@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using ClipMate.App.Models.TreeNodes;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -25,7 +24,8 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>,
-    IRecipient<ShowAllClipsInChildrenRequestedEvent>
+    IRecipient<ShowAllClipsInChildrenRequestedEvent>,
+    IRecipient<ClipsDeletedEvent>
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -107,6 +107,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<SelectPreviousClipEvent>(this);
         _messenger.Register<SearchResultsSelectedEvent>(this);
         _messenger.Register<ShowAllClipsInChildrenRequestedEvent>(this);
+        _messenger.Register<ClipsDeletedEvent>(this);
     }
 
     /// <summary>
@@ -154,6 +155,31 @@ public partial class ClipListViewModel : ObservableObject,
 
             // Auto-select the new clip
             SelectedClip = message.Clip;
+        });
+    }
+
+    /// <summary>
+    /// Receives ClipsDeletedEvent when clips have been deleted.
+    /// Removes the deleted clips from the collection without reloading.
+    /// </summary>
+    public void Receive(ClipsDeletedEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            foreach (var deletedId in message.DeletedClipIds)
+            {
+                var clipToRemove = Clips.FirstOrDefault(c => c.Id == deletedId);
+                if (clipToRemove != null)
+                {
+                    Clips.Remove(clipToRemove);
+
+                    // If the deleted clip was selected, clear selection
+                    if (SelectedClip?.Id == deletedId)
+                        SelectedClip = Clips.FirstOrDefault();
+                }
+            }
+
+            _logger.LogInformation("Removed {Count} clip(s) from UI collection", message.DeletedClipIds.Count);
         });
     }
 

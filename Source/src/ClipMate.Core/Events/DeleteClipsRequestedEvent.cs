@@ -1,5 +1,3 @@
-using ClipMate.Core.Models;
-
 namespace ClipMate.Core.Events;
 
 /// <summary>

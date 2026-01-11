@@ -325,13 +325,17 @@ public class ClipOperationsCoordinator :
                 return;
             }
 
+            var deletedIds = new List<Guid>();
             foreach (var item in selectedClips)
+            {
                 await _clipService.DeleteAsync(databaseKey, item.Id);
+                deletedIds.Add(item.Id);
+            }
 
             SendStatus($"Deleted {clipCount} clip(s)");
 
-            // Request clip list reload
-            _messenger.Send(new ReloadClipsRequestedEvent());
+            // Notify UI to remove deleted clips from collection
+            _messenger.Send(new ClipsDeletedEvent(deletedIds));
 
             _logger.LogInformation("Deleted {Count} clip(s)", clipCount);
         }
