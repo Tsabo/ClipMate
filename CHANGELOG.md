@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Premature Clip Purging** - Fixed issue where deleted clips were being permanently purged immediately on application restart instead of being retained in trashcan for the configured retention period (default 7 days)
+- **Clip Deletion UI Updates** - Clip list now updates efficiently when clips are deleted without requiring a full reload, preserving user's current view context and selection state
+
 ## [0.1.0-alpha.9] - 2026-1-10
 
 ### Added
