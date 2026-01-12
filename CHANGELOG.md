@@ -7,9 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.10] - 2026-1-11
+
+### Added
+- **Default Templates** - Installer now includes url.txt and url_date.txt templates deployed to %APPDATA%\ClipMate\Templates
+- **Delete Key Binding** - Added Delete key shortcut in Classic and Explorer windows for removing selected items
+- **Configuration Options**:
+  - Alt Key Required for Drag/Drop - Configurable requirement for Alt key during drag/drop operations
+  - Clipboard Capture Settle Time - Configurable delay between clipboard captures to prevent duplicates (default 50ms)
+  - Startup Delay - Configurable delay before clipboard monitoring starts to avoid system startup conflicts (default 2000ms)
+- **Last Collection Memory** - CollectionPickerDialog now persists and reuses the last selected collection for improved usability
+
+### Changed
+- **LogLevel Configuration** - User preferences now load log level from configuration file with string values (Debug, Information, Warning, Error)
+
 ### Fixed
+- **Database Loading at Startup** - Fixed issue where ClipList and Collection Tree were blank at startup
 - **Premature Clip Purging** - Fixed issue where deleted clips were being permanently purged immediately on application restart instead of being retained in trashcan for the configured retention period (default 7 days)
 - **Clip Deletion UI Updates** - Clip list now updates efficiently when clips are deleted without requiring a full reload, preserving user's current view context and selection state
+- **Duplicate Sound Notifications** - Fixed double sound playback when capturing new clips
+
+### Removed
+- **Use DDE for Browser URL Option** - Removed obsolete configuration option for browser URL handling
 
 ## [0.1.0-alpha.9] - 2026-1-10
 
