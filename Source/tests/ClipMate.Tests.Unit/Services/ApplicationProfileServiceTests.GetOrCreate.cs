@@ -52,7 +52,7 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
         await Assert.That(result.Formats["CF_BITMAP"]).IsTrue();
         await Assert.That(result.Formats["CF_HDROP"]).IsTrue();
         await Assert.That(result.Formats["HTML Format"]).IsTrue();
-        await Assert.That(result.Formats["Rich Text Format"]).IsFalse();
+        await Assert.That(result.Formats["Rich Text Format"]).IsTrue();
         await Assert.That(result.Formats["DataObject"]).IsFalse();
         await Assert.That(result.Formats["CF_LOCALE"]).IsFalse();
         await Assert.That(result.Formats["OlePrivateData"]).IsFalse();

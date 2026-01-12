@@ -1,25 +1,19 @@
-using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
+using ClipMate.App.DependencyInjection;
 using ClipMate.App.Logging;
 using ClipMate.App.Services;
-using ClipMate.App.Services.Initialization;
-using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
-using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.DependencyInjection;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
-using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Events;
 using Tomlyn;
 using ILogger = Serilog.ILogger;
 using MessageBox = System.Windows.MessageBox;
@@ -31,8 +25,6 @@ namespace ClipMate.App;
 /// </summary>
 public partial class App
 {
-    private const string _mutexName = "Global\\ClipMate_SingleInstance_Mutex";
-
     /// <summary>
     /// Shared EventLogSink instance created early for Serilog integration.
     /// Must be created before Serilog configuration and registered in DI.
@@ -41,12 +33,8 @@ public partial class App
 
     private string? _databasePath;
     private IHost? _host;
-
-#pragma warning disable CS0649 // Field is assigned via dependency injection
     private ILogger<App>? _logger;
-#pragma warning restore CS0649
-    private Mutex? _singleInstanceMutex;
-    private TrayIconWindow? _trayIconWindow;
+    private SingleInstanceManager? _singleInstanceManager;
 
     /// <summary>
     /// Gets the service provider for dependency injection.
@@ -61,19 +49,14 @@ public partial class App
         base.OnStartup(e);
 
         // Enforce single instance - check if another instance is already running
-        _singleInstanceMutex = new Mutex(true, _mutexName, out var createdNew);
+        using var singleInstanceLoggerFactory = LoggerFactory.Create(builder => builder.AddDebug());
+        _singleInstanceManager = new SingleInstanceManager(
+            singleInstanceLoggerFactory.CreateLogger<SingleInstanceManager>());
 
-        if (!createdNew)
+        if (!_singleInstanceManager.TryAcquire())
         {
-            // Another instance is already running
-            MessageBox.Show(
-                "ClipMate is already running. Please check the system tray.",
-                "ClipMate",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
+            SingleInstanceManager.ShowAlreadyRunningMessage();
             Shutdown(0);
-
             return;
         }
 
@@ -93,19 +76,34 @@ public partial class App
                 return;
             }
 
+            Log.Information("Database check completed, building host...");
+
             // Build the host (now with confirmed database path)
             try
             {
-                _host = CreateHostBuilder(_databasePath!).Build();
+                Log.Information("About to call CreateHostBuilder...");
+                var builder = CreateHostBuilder(_databasePath!);
+                Log.Information("CreateHostBuilder returned, about to call Build()...");
+                _host = builder.Build();
+                Log.Information("Host built successfully");
             }
             catch (Exception hostEx)
             {
-                Log.Fatal(hostEx, "Failed to build application host");
-                MessageBox.Show(
-                    $"Failed to build application host:\n\n{hostEx.Message}",
-                    "Startup Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                var errorMsg = $"Failed to build host: {hostEx.Message}\n\nType: {hostEx.GetType().FullName}\n\nStack:\n{hostEx.StackTrace}";
+                Log.Fatal(hostEx, "Failed to build host");
+
+                // Write to debug file for diagnosis
+                try
+                {
+                    var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "startup-error.txt");
+                    await File.WriteAllTextAsync(debugPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n{errorMsg}\n\nInner Exception:\n{hostEx.InnerException?.ToString() ?? "None"}");
+                }
+                catch
+                {
+                    /* ignore */
+                }
+
+                MessageBox.Show(errorMsg, "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
                 return;
             }
@@ -113,46 +111,13 @@ public partial class App
             // Get logger
             _logger = ServiceProvider.GetRequiredService<ILogger<App>>();
 
-            // Run initialization pipeline (database schema, configuration, default data)
-            // NOTE: This will load configuration again, but properly through DI
-            var pipeline = ServiceProvider.GetRequiredService<StartupInitializationPipeline>();
-            await pipeline.RunAsync();
-
-            // Initialize coordinators (registers for events)
-            _ = ServiceProvider.GetRequiredService<DatabaseMaintenanceCoordinator>();
+            // Run startup orchestration (initialization, maintenance, window creation)
+            // This MUST happen before starting hosted services so active collection is set
+            var startupService = ServiceProvider.GetRequiredService<StartupOrchestrationService>();
+            await startupService.RunAsync();
 
             // Start all hosted services (clipboard monitoring, PowerPaste, etc)
             await _host.StartAsync();
-
-            // Check if any databases need backup
-            await CheckAndPromptForBackupsAsync();
-
-            // Run startup cleanup tasks (if configured)
-            await RunStartupMaintenanceTasksAsync();
-
-            // Apply icon configuration
-            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
-            var config = configService.Configuration.Preferences;
-
-            // Validate icon visibility - at least one must be visible
-            if (config is { ShowTrayIcon: false, ShowTaskbarIcon: false })
-            {
-                _logger?.LogCritical("Both tray icon and taskbar icon are disabled! Forcing tray icon to be visible for user access.");
-                config.ShowTrayIcon = true;
-                await configService.SaveAsync();
-            }
-
-            // Create and show the tray icon window if enabled
-            if (config.ShowTrayIcon)
-            {
-                _trayIconWindow = ServiceProvider.GetRequiredService<TrayIconWindow>();
-                _trayIconWindow.Show();
-                _logger?.LogDebug("Tray icon window created");
-            }
-            else
-                _logger?.LogDebug("Tray icon disabled in configuration");
-
-            // ExplorerWindow ShowInTaskbar is set in ExplorerWindow constructor from config
         }
         catch (Exception ex)
         {
@@ -168,281 +133,13 @@ public partial class App
     }
 
     /// <summary>
-    /// Checks if any databases are due for backup and prompts the user.
-    /// </summary>
-    private async Task CheckAndPromptForBackupsAsync()
-    {
-        try
-        {
-            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
-            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
-
-            var config = configService.Configuration;
-
-            // Check if backup interval is disabled globally
-            if (config.Preferences.BackupIntervalDays is 0 or >= 9999)
-            {
-                _logger?.LogDebug("Automatic backups disabled (interval: {Days} days)", config.Preferences.BackupIntervalDays);
-                return;
-            }
-
-            // Get list of databases that need backup
-            var databasesDue = await maintenanceService.CheckBackupDueAsync(config.Databases.Values);
-
-            if (databasesDue.Count == 0)
-            {
-                _logger?.LogDebug("No databases due for backup");
-                return;
-            }
-
-            _logger?.LogInformation("Found {Count} database(s) due for backup", databasesDue.Count);
-
-            // Filter out databases that were recently prompted (within 3 days)
-            const int promptSnoozesDays = 3;
-            var now = DateTime.UtcNow;
-            var databasesToPrompt = databasesDue
-                .Where(p => p.LastBackupPromptDate == null ||
-                            (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays)
-                .ToList();
-
-            if (databasesToPrompt.Count == 0)
-            {
-                _logger?.LogDebug("All databases due for backup were recently prompted (within {Days} days)", promptSnoozesDays);
-                return;
-            }
-
-            // Show backup dialog(s) based on count
-            if (databasesToPrompt.Count == 1)
-            {
-                // Single database - show simple backup dialog
-                var dbConfig = databasesToPrompt[0];
-                var dialog = new DatabaseBackupDialog(
-                    dbConfig,
-                    config.Preferences.BackupIntervalDays,
-                    config.Preferences.AutoConfirmBackupSeconds)
-                {
-                    Owner = Current.GetDialogOwner(),
-                };
-
-                // Record that we prompted the user
-                dbConfig.LastBackupPromptDate = DateTime.UtcNow;
-
-                if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
-                    await PerformBackupAsync(dbConfig, dialog.UpdatedConfiguration);
-                else
-                    await configService.SaveAsync(); // Save the prompt date even if cancelled
-            }
-            else
-            {
-                // Multiple databases - show batch backup dialog
-                var dialog = new MultipleDatabaseBackupDialog(
-                    databasesToPrompt,
-                    config.Preferences.BackupIntervalDays,
-                    config.Preferences.AutoConfirmBackupSeconds)
-                {
-                    Owner = Current.GetDialogOwner(),
-                };
-
-                // Record that we prompted the user for all databases
-                foreach (var item in databasesToPrompt)
-                    item.LastBackupPromptDate = DateTime.UtcNow;
-
-                if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
-                {
-                    foreach (var item in dialog.SelectedDatabases)
-                        await PerformBackupAsync(item, item);
-                }
-                else
-                    await configService.SaveAsync(); // Save the prompt dates even if cancelled
-            }
-
-            // Save configuration with updated backup dates
-            await configService.SaveAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error checking for backup-due databases");
-        }
-    }
-
-    /// <summary>
-    /// Runs startup maintenance tasks: integrity checks, backup cleanup, and CleanupMethod.AtStartup triggers.
-    /// This ensures database health and enforces maintenance policies configured per database.
-    /// </summary>
-    private async Task RunStartupMaintenanceTasksAsync()
-    {
-        try
-        {
-            var configService = ServiceProvider.GetRequiredService<IConfigurationService>();
-            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
-            var config = configService.Configuration;
-
-            _logger?.LogDebug("Running startup maintenance tasks...");
-
-            // ===== TASK 1: Database Integrity Checks =====
-            // Perform quick PRAGMA integrity_check on all databases to detect corruption early.
-            // If corruption is found, prompt user for automatic repair using ComprehensiveRepairDatabaseAsync.
-            _logger?.LogDebug("Performing integrity checks on all databases...");
-            foreach (var item in config.Databases.Values)
-            {
-                var isHealthy = await maintenanceService.CheckDatabaseIntegrityAsync(item);
-                if (isHealthy)
-                    continue;
-
-                _logger?.LogWarning("Database '{Name}' failed integrity check at startup", item.Name);
-
-                // Prompt user for repair
-                var result = MessageBox.Show(
-                    $"Database '{item.Name}' has integrity issues.\n\n" +
-                    "Would you like to attempt automatic repair?\n\n" +
-                    "This will close the application, repair the database, and restart.",
-                    "Database Corruption Detected",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result != MessageBoxResult.Yes)
-                    continue;
-
-                _logger?.LogInformation("User requested repair for database: {Name}", item.Name);
-
-                // Show progress dialog and run comprehensive repair (backup + empty trash + cleanup + rebuild + vacuum)
-                var progress = new Progress<string>(p => _logger?.LogInformation("Repair: {Message}", p));
-                await maintenanceService.ComprehensiveRepairDatabaseAsync(item, progress);
-
-                MessageBox.Show(
-                    $"Database '{item.Name}' has been repaired.\n\nThe application will now restart.",
-                    "Repair Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                // Restart application to load repaired database
-                Process.Start(Environment.ProcessPath!);
-                Shutdown(0);
-                return;
-            }
-
-            // ===== TASK 2: Old Backup File Cleanup =====
-            // Clean up backup files older than 14 days to prevent disk space issues.
-            // Processes all unique backup directories configured across databases.
-            var backupDirs = config.Databases.Values
-                .Select(p => Environment.ExpandEnvironmentVariables(p.BackupDirectory))
-                .Distinct()
-                .Where(dir => !string.IsNullOrWhiteSpace(dir));
-
-            foreach (var item in backupDirs)
-            {
-                _logger?.LogDebug("Cleaning up old backups in: {Dir}", item);
-                var deletedCount = await maintenanceService.CleanupOldBackupsAsync(item);
-                if (deletedCount > 0)
-                    _logger?.LogInformation("Deleted {Count} old backup files from {Dir}", deletedCount, item);
-            }
-
-            // ===== TASK 3: CleanupMethod.AtStartup Processing =====
-            // Run cleanup (permanently delete clips based on PurgeDays) for databases configured with AtStartup.
-            // This respects per-database CleanupMethod configuration.
-            var startupCleanupDbs = config.Databases.Values
-                .Where(db => db.CleanupMethod == CleanupMethod.AtStartup)
-                .ToList();
-
-            if (startupCleanupDbs.Count > 0)
-            {
-                _logger?.LogInformation("Running startup cleanup for {Count} database(s)", startupCleanupDbs.Count);
-                foreach (var dbConfig in startupCleanupDbs)
-                {
-                    _logger?.LogDebug("Running cleanup for database: {Name}", dbConfig.Name);
-                    var progress = new Progress<string>(message => _logger?.LogDebug("Cleanup: {Message}", message));
-                    await maintenanceService.RunCleanupAsync(dbConfig, progress);
-                }
-            }
-
-            _logger?.LogDebug("Startup maintenance tasks completed");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error during startup maintenance tasks");
-        }
-    }
-
-    /// <summary>
-    /// Performs a database backup operation.
-    /// </summary>
-    private async Task PerformBackupAsync(DatabaseConfiguration dbConfig, DatabaseConfiguration updatedConfig)
-    {
-        try
-        {
-            var maintenanceService = ServiceProvider.GetRequiredService<IDatabaseMaintenanceService>();
-
-            var backupPath = await maintenanceService.BackupDatabaseAsync(
-                dbConfig,
-                updatedConfig.BackupDirectory);
-
-            // Update last backup date
-            dbConfig.LastBackupDate = DateTime.Now;
-            dbConfig.BackupDirectory = updatedConfig.BackupDirectory;
-
-            _logger?.LogInformation("Backup completed: {Path}", backupPath);
-
-            // Show success notification (optional - could use toast notification)
-            MessageBox.Show(
-                $"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
-                "Backup Complete",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Backup failed for database: {Database}", dbConfig.Name);
-
-            MessageBox.Show(
-                $"Database backup failed:\n\n{ex.Message}",
-                "Backup Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    /// <summary>
     /// Checks if database exists and is valid. If not, runs the setup wizard.
     /// </summary>
     /// <returns>True if database is ready, false if user cancelled setup.</returns>
     private async Task<bool> CheckDatabaseAndRunSetupIfNeededAsync()
     {
         // Configure Serilog before any database checks so we can log setup issues
-        var logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "Logs");
-
-        try
-        {
-            Directory.CreateDirectory(logDirectory);
-        }
-        catch (Exception ex)
-        {
-            // Can't create log directory - log to Debug output only
-            Debug.WriteLine($"Failed to create log directory: {ex.Message}");
-        }
-
-        var logFilePath = Path.Join(logDirectory, "clipmate-.log");
-
-        // Create early logger for database setup (also writes to EventLogSink)
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-            .Enrich.FromLogContext()
-            .Enrich.WithThreadId()
-            .WriteTo.Debug()
-            .WriteTo.Console()
-            .WriteTo.Sink(new EventLogSerilogSink(_eventLogSink)) // Capture for Event Log dialog
-            .WriteTo.File(
-                logFilePath,
-                rollingInterval: RollingInterval.Day,
-                rollOnFileSizeLimit: true,
-                fileSizeLimitBytes: 10_485_760, // 10 MB
-                retainedFileCountLimit: 30,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{ThreadId}] {SourceContext} - {Message:lj}{NewLine}{Exception}")
-            .CreateLogger();
+        Log.Logger = SerilogConfigurationFactory.CreateEarlyLogger(_eventLogSink);
 
         var earlyLogger = Log.ForContext<App>();
         earlyLogger.Information("Checking database setup...");
@@ -615,45 +312,17 @@ public partial class App
     /// </summary>
     private static IHostBuilder CreateHostBuilder(string databasePath)
     {
-        // Configure Serilog early
-        var logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "Logs");
+        var configuration = LoadConfiguration();
 
-        Directory.CreateDirectory(logDirectory);
-
-        var logFilePath = Path.Join(logDirectory, "clipmate-.log");
-
-        // Use default Information log level
-        // Configuration will be loaded properly through DI after host is built
-        var logLevel = LogEventLevel.Information;
-
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Is(logLevel)
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-            .Enrich.FromLogContext()
-            .Enrich.WithThreadId()
-            .WriteTo.Debug()
-            .WriteTo.Console()
-            .WriteTo.Sink(new EventLogSerilogSink(_eventLogSink)) // Capture for Event Log dialog
-            .WriteTo.File(
-                logFilePath,
-                rollingInterval: RollingInterval.Day,
-                rollOnFileSizeLimit: true,
-                fileSizeLimitBytes: 10_485_760, // 10 MB
-                retainedFileCountLimit: 30,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{ThreadId}] {SourceContext} - {Message:lj}{NewLine}{Exception}")
-            .CreateLogger();
+        Log.Logger = SerilogConfigurationFactory.CreateConfiguredLogger(_eventLogSink, configuration);
 
         return Host.CreateDefaultBuilder()
             .UseSerilog() // Use Serilog for logging
             .ConfigureAppConfiguration(p => p.SetBasePath(AppContext.BaseDirectory))
             .ConfigureServices(services =>
             {
-                // App Host
-                services.AddHostedService<ApplicationHostService>();
+                // Register the shared EventLogSink instance before any service registration
+                services.AddSingleton(_eventLogSink);
 
                 // Register Core services
                 services.AddClipMateCore();
@@ -664,101 +333,29 @@ public partial class App
                 // Register Platform services
                 services.AddClipMatePlatform();
 
-                // Register Dialog service (App-layer implementation for Platform layer)
-                services.AddSingleton<IDialogService, DialogService>();
-
-                // Register active window tracking service
-                services.AddSingleton<IActiveWindowService, ActiveWindowService>();
-
-                // Register Update Checker as hosted service
-                services.AddHostedService<UpdateCheckerService>();
-
-                // Register MVVM Toolkit Messenger as singleton
-                services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
-
-                // Register the shared EventLogSink instance (already receiving logs via Serilog sink)
-                services.AddSingleton<IEventLogSink>(_eventLogSink);
-
-                // Register ClipBar (quick paste picker) as hosted service
-                services.AddSingleton<ClassicWindowCoordinator>();
-                services.AddHostedService(p => p.GetRequiredService<ClassicWindowCoordinator>());
-
-                // Register ExplorerWindow as singleton (always exists, just hidden/shown)
-                services.AddSingleton<ExplorerWindow>();
-                services.AddSingleton<IWindow, ExplorerWindow>(p => p.GetRequiredService<ExplorerWindow>());
-
-                // Register TrayIconWindow (system tray icon)
-                services.AddTransient<TrayIconWindow>();
-
-                // Register ClipBar (quick paste picker) components
-                services.AddTransient<ClassicViewModel>();
-                services.AddTransient<ClassicWindow>();
-
-                // Register Collection Tree Builder
-                services.AddTransient<ICollectionTreeBuilder, CollectionTreeBuilder>();
-
-                // Register ViewModels
-                services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel
-                services.AddSingleton<ExplorerWindowViewModel>();
-                services.AddSingleton<CollectionTreeViewModel>();
-                services.AddSingleton<ClipListViewModel>();
-                services.AddSingleton<PreviewPaneViewModel>();
-                services.AddSingleton<SearchViewModel>();
-                services.AddSingleton<QuickPasteToolbarViewModel>();
-                services.AddTransient<ClipViewerToolbarViewModel>();
-                services.AddTransient<ClipPropertiesViewModel>();
-                services.AddTransient<RenameClipDialogViewModel>();
-                services.AddTransient<ClipViewerViewModel>();
-
-                // Register Clip Viewer factory and manager
-                services.AddSingleton<Func<ClipViewerViewModel>>(p => p.GetRequiredService<ClipViewerViewModel>);
-                services.AddSingleton<IClipViewerWindowManager, ClipViewerWindowManager>();
-
-                // Register Text Tools components
-                services.AddTransient<TextToolsViewModel>();
-                services.AddTransient<TextToolsDialog>();
-
-                // Register Diagnostic ViewModels
-                services.AddTransient<ClipboardDiagnosticsViewModel>();
-                services.AddTransient<EventLogViewModel>();
-                services.AddTransient<PasteTraceViewModel>();
-                services.AddTransient<SqlMaintenanceViewModel>();
-                services.AddTransient<AboutDialogViewModel>();
-
-                // Register Text Cleanup dialog (no ViewModel - uses code-behind)
-                services.AddTransient<TextCleanupDialog>();
-
-                // Register Options dialog components
-                services.AddTransient<GeneralOptionsViewModel>();
-                services.AddTransient<PowerPasteOptionsViewModel>();
-                services.AddTransient<QuickPasteOptionsViewModel>();
-                services.AddTransient<EditorOptionsViewModel>();
-                services.AddTransient<CapturingOptionsViewModel>();
-                services.AddTransient<ApplicationProfilesOptionsViewModel>();
-                services.AddTransient<SoundsOptionsViewModel>();
-                services.AddTransient<HotkeysOptionsViewModel>();
-                services.AddTransient<DatabaseOptionsViewModel>();
-                services.AddTransient<AdvancedOptionsViewModel>();
-                services.AddTransient<OptionsViewModel>();
-                services.AddTransient<OptionsDialog>();
-
-                // Register coordinators
-                services.AddSingleton<HotkeyCoordinator>();
-                services.AddSingleton<DatabaseMaintenanceCoordinator>();
-                services.AddSingleton<ClipOperationsCoordinator>();
-                services.AddSingleton<CollectionOperationsCoordinator>();
-                services.AddTransient<HotkeyWindow>();
-
-                // Register initialization pipeline and steps
-                services.AddSingleton<StartupInitializationPipeline>();
-                services.AddSingleton<IStartupInitializationStep, ConfigurationLoadingStep>();
-                services.AddSingleton<IStartupInitializationStep, DatabaseSchemaInitializationStep>();
-                services.AddSingleton<IStartupInitializationStep, DatabaseLoadingStep>();
-                services.AddSingleton<IStartupInitializationStep, DefaultDataInitializationStep>();
-                services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
-                services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
-                services.AddSingleton<IStartupInitializationStep, ClipOperationsInitializationStep>();
+                // Register App services
+                services.AddClipMateApp();
             });
+    }
+
+    /// <summary>
+    /// Loads the ClipMate configuration from disk.
+    /// </summary>
+    private static ClipMateConfiguration LoadConfiguration()
+    {
+        // Default paths
+        var appDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClipMate");
+
+        var configPath = Path.Join(appDataPath, "clipmate.toml");
+        var tomlContent = File.ReadAllText(configPath);
+        var configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent, options: new TomlModelOptions
+        {
+            IgnoreMissingProperties = true,
+        });
+
+        return configuration;
     }
 
     /// <summary>
@@ -771,7 +368,9 @@ public partial class App
         try
         {
             // Run shutdown maintenance tasks (if configured)
-            await RunShutdownMaintenanceTasksAsync();
+            var backupService = ServiceProvider.GetService<BackupOrchestrationService>();
+            if (backupService != null)
+                await backupService.RunShutdownMaintenanceTasksAsync();
 
             if (_host != null)
             {
@@ -791,49 +390,9 @@ public partial class App
         }
 
         // Release single instance mutex
-        _singleInstanceMutex?.ReleaseMutex();
-        _singleInstanceMutex?.Dispose();
+        _singleInstanceManager?.Dispose();
 
         base.OnExit(e);
-    }
-
-    /// <summary>
-    /// Runs shutdown maintenance tasks: CleanupMethod.AtShutdown triggers.
-    /// Executes cleanup for databases configured with AtShutdown before application terminates.
-    /// </summary>
-    private async Task RunShutdownMaintenanceTasksAsync()
-    {
-        try
-        {
-            var configService = ServiceProvider.GetService<IConfigurationService>();
-            var maintenanceService = ServiceProvider.GetService<IDatabaseMaintenanceService>();
-
-            if (configService == null || maintenanceService == null)
-                return;
-
-            var config = configService.Configuration;
-
-            // Run CleanupMethod.AtShutdown for databases configured with it.
-            // This permanently deletes clips from Trashcan based on PurgeDays setting.
-            var shutdownCleanupDbs = config.Databases.Values
-                .Where(p => p.CleanupMethod == CleanupMethod.AtShutdown)
-                .ToList();
-
-            if (shutdownCleanupDbs.Count > 0)
-            {
-                _logger?.LogInformation("Running shutdown cleanup for {Count} database(s)", shutdownCleanupDbs.Count);
-                foreach (var dbConfig in shutdownCleanupDbs)
-                {
-                    _logger?.LogDebug("Running cleanup for database: {Name}", dbConfig.Name);
-                    var progress = new Progress<string>(message => _logger?.LogDebug("Cleanup: {Message}", message));
-                    await maintenanceService.RunCleanupAsync(dbConfig, progress);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error during shutdown maintenance tasks");
-        }
     }
 
     /// <summary>

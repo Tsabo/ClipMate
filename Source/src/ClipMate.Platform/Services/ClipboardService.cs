@@ -371,8 +371,11 @@ public class ClipboardService : IClipboardService, IDisposable
 
                 // Only play sound if this is a user-initiated duplicate (not rapid-fire events from slow clipboard owners)
                 // If duplicate arrives >200ms after last change, it's likely intentional (user copied same thing twice)
+                // BUT: Don't play sound if we're still within a suppression window (clipboard was set programmatically)
                 var timeSinceLastChange = (DateTime.UtcNow - _lastClipboardChange).TotalMilliseconds;
-                if (timeSinceLastChange > 200)
+                var isWithinSuppressionWindow = DateTime.UtcNow < _suppressCaptureUntil;
+                
+                if (timeSinceLastChange > 200 && !isWithinSuppressionWindow)
                     await _soundService.PlaySoundAsync(SoundEvent.Ignore);
 
                 return;

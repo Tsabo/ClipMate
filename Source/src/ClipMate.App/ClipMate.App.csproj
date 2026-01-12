@@ -63,11 +63,4 @@
     <PackageReference Include="ThrottleDebounce" />
   </ItemGroup>
 
-  <!-- Exclude unified import/export dialog files -->
-  <ItemGroup>
-    <Page Remove="Views\Dialogs\ExportImportDialog.xaml" />
-    <Compile Remove="Views\Dialogs\ExportImportDialog.xaml.cs" />
-    <Compile Remove="ViewModels\ExportImportDialogViewModel.cs" />
-  </ItemGroup>
-
 </Project>

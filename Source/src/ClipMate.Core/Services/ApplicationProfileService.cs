@@ -20,7 +20,7 @@ public class ApplicationProfileService : IApplicationProfileService
         ["CF_DIBV5"] = true, // Formats.DibV5 with CF_ prefix (also bitmap)
         ["CF_HDROP"] = true, // Formats.HDrop with CF_ prefix
         ["HTML Format"] = true, // HTML Format (custom format name, not CF_ prefixed)
-        ["Rich Text Format"] = false, // Rich Text Format (custom format name)
+        ["Rich Text Format"] = true, // Rich Text Format (custom format name) - captures formatted text from VS, Office, etc.
         ["DataObject"] = false,
         ["CF_LOCALE"] = false, // Formats.Locale with CF_ prefix
         ["OlePrivateData"] = false,

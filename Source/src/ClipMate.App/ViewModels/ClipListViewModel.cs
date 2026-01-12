@@ -78,6 +78,12 @@ public partial class ClipListViewModel : ObservableObject,
     [ObservableProperty]
     private ObservableCollection<Clip> _shortcutClips = [];
 
+    /// <summary>
+    /// Suppresses clipboard operations during auto-selection from ClipAddedEvent.
+    /// Prevents redundant clipboard operations for newly captured clips (content is already on clipboard).
+    /// </summary>
+    private bool _suppressClipboardOperation;
+
     public ClipListViewModel(ICollectionService collectionService,
         IFolderService folderService,
         IClipService clipService,
@@ -154,7 +160,16 @@ public partial class ClipListViewModel : ObservableObject,
             }
 
             // Auto-select the new clip
-            SelectedClip = message.Clip;
+            // Suppress clipboard operation since content is already on system clipboard
+            _suppressClipboardOperation = true;
+            try
+            {
+                SelectedClip = message.Clip;
+            }
+            finally
+            {
+                _suppressClipboardOperation = false;
+            }
         });
     }
 
@@ -168,15 +183,15 @@ public partial class ClipListViewModel : ObservableObject,
         {
             foreach (var deletedId in message.DeletedClipIds)
             {
-                var clipToRemove = Clips.FirstOrDefault(c => c.Id == deletedId);
-                if (clipToRemove != null)
-                {
-                    Clips.Remove(clipToRemove);
+                var clipToRemove = Clips.FirstOrDefault(p => p.Id == deletedId);
+                if (clipToRemove == null)
+                    continue;
 
-                    // If the deleted clip was selected, clear selection
-                    if (SelectedClip?.Id == deletedId)
-                        SelectedClip = Clips.FirstOrDefault();
-                }
+                Clips.Remove(clipToRemove);
+
+                // If the deleted clip was selected, clear selection
+                if (SelectedClip?.Id == deletedId)
+                    SelectedClip = Clips.FirstOrDefault();
             }
 
             _logger.LogInformation("Removed {Count} clip(s) from UI collection", message.DeletedClipIds.Count);
@@ -344,7 +359,7 @@ public partial class ClipListViewModel : ObservableObject,
 
     /// <summary>
     /// Processes the debounced clip selection.
-    /// Called only after selection has stabilized (150ms with no further changes).
+    /// Called only after selection has stabilized (400ms with no further changes).
     /// Executed on a background thread by the debouncer, so marshals back to UI thread.
     /// </summary>
     private void ProcessClipSelection()
@@ -363,6 +378,11 @@ public partial class ClipListViewModel : ObservableObject,
 
             // Send messenger event when selection changes
             _messenger.Send(new ClipSelectedEvent(clip, CurrentDatabaseKey));
+
+            // Skip clipboard operation if this is an auto-selection from ClipAddedEvent
+            // (content is already on system clipboard from the capture)
+            if (_suppressClipboardOperation)
+                return;
 
             // Automatically load the selected clip onto the system clipboard
             // This is ClipMate's standard "Pick, Flip, and Paste" behavior

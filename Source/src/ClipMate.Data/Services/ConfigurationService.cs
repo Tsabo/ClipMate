@@ -56,7 +56,6 @@ public class ConfigurationService : IConfigurationService
 
             _logger.LogInformation("Loading configuration from {Path}", ConfigurationFilePath);
             var tomlContent = await File.ReadAllTextAsync(ConfigurationFilePath, cancellationToken);
-            _logger.LogDebug("TOML file length: {Length} chars", tomlContent.Length);
 
             try
             {
