@@ -5,6 +5,9 @@
 ; Main application files
 Source: "{#SourcePath}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Default templates (only install if they don't already exist)
+Source: "assets\Templates\*.txt"; DestDir: "{userappdata}\ClipMate\Templates"; Flags: onlyifdoesntexist uninsneveruninstall
+
 [Icons]
 ; Start menu shortcut
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\ClipMate.App.exe"; Comment: "Launch {#MyAppName}"

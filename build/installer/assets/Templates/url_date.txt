@@ -1,0 +1,7 @@
+Item captured on #DATE# #TIME# from URL: #URL#
+Using program: #CREATOR# 
+-----------------------------------------------------------------------
+#CLIP#
+
+-----------------------------------------------------------------------
+Item pasted at #CURRENTDATE# #CURRENTTIME#
