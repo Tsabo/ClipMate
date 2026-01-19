@@ -45,6 +45,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IWin32ClipboardInterop _win32;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
+    private CancellationTokenSource? _pendingCaptureCts;
     private bool _lastClipboardWasEmpty;
     private string _lastContentHash = string.Empty;
     private string? _suppressCaptureForHash;
@@ -207,6 +208,25 @@ public class ClipboardService : IClipboardService, IDisposable
             await Retrier.Attempt(
                 async attempt =>
                 {
+                    // Suppress capture of this specific content by storing its hash BEFORE modifying clipboard
+                    // With settle delay, notifications arrive later, so set suppression window long enough
+                    // Use the clip's existing ContentHash - it's already computed for all clip types
+                    _suppressCaptureForHash = clip.ContentHash;
+                    _suppressCaptureUntil = DateTime.UtcNow.AddSeconds(2); // Longer window to account for settle delay
+                    
+                    // Clear last content hash to prevent false duplicate detection
+                    // When we restore a clip, the subsequent capture should use suppression hash, not duplicate detection
+                    _lastContentHash = string.Empty;
+                    
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        var hashPreview = _suppressCaptureForHash.Length >= 8
+                            ? _suppressCaptureForHash[..8]
+                            : _suppressCaptureForHash;
+                        _logger.LogDebug("Set clipboard suppression hash BEFORE clipboard modification: {Hash} for clip type {Type}",
+                            hashPreview, clip.Type);
+                    }
+
                     // Must run on STA thread (UI thread) for WPF Clipboard API
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -232,22 +252,6 @@ public class ClipboardService : IClipboardService, IDisposable
 
                                 break;
                         }
-
-                        // Suppress capture of this specific content by storing its hash
-                        // IMPORTANT: Set this AFTER successfully modifying the clipboard, not before
-                        // Use the clip's existing ContentHash - it's already computed for all clip types
-                        _suppressCaptureForHash = clip.ContentHash;
-                        _suppressCaptureUntil = DateTime.UtcNow.AddMilliseconds(500);
-
-                        if (!_logger.IsEnabled(LogLevel.Debug))
-                            return;
-
-                        var hashPreview = _suppressCaptureForHash.Length >= 8
-                            ? _suppressCaptureForHash[..8]
-                            : _suppressCaptureForHash;
-
-                        _logger.LogDebug("Set clipboard suppression hash: {Hash} for clip type {Type}",
-                            hashPreview, clip.Type);
                     });
 
                     if (attempt > 0)
@@ -296,21 +300,45 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            // Debouncing: ignore if too soon after last change
-            // Use configurable settle time to filter out rapid-fire WM_CLIPBOARDUPDATE events from apps
-            // that write clipboard formats sequentially (like SnagitEditor)
+            // Cancel any pending capture task - new clipboard content arrived
+            _pendingCaptureCts?.Cancel();
+            _pendingCaptureCts = new CancellationTokenSource();
+            var captureCts = _pendingCaptureCts;
+            
+            // Wait for clipboard to settle before capturing
+            // Apps like SnagIt add formats sequentially, firing multiple WM_CLIPBOARDUPDATE events
             var now = DateTime.UtcNow;
             var settleTime = _configurationService.Configuration.Preferences.SettleTimeBetweenCapturesMs;
-
-            if ((now - _lastClipboardChange).TotalMilliseconds < settleTime)
+            
+            // Update the last change timestamp
+            _lastClipboardChange = now;
+            
+            // Wait for the settle period
+            try
+            {
+                await Task.Delay(settleTime, captureCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Another notification arrived, this capture is cancelled
+                _logger.LogDebug("Clipboard capture cancelled - new notification arrived during settle period");
                 return;
+            }
 
-            // Apply capture delay if configured
+            // Apply additional capture delay if configured
             var captureDelay = _configurationService.Configuration.Preferences.CaptureDelayMs;
             if (captureDelay > 0)
-                await Task.Delay(captureDelay);
-
-            _lastClipboardChange = now;
+            {
+                try
+                {
+                    await Task.Delay(captureDelay, captureCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("Clipboard capture cancelled during capture delay");
+                    return;
+                }
+            }
 
             var clip = await GetCurrentClipboardContentAsync();
 
@@ -900,8 +928,8 @@ public class ClipboardService : IClipboardService, IDisposable
             rentedArray = ArrayPool<byte>.Shared.Rent(pixelDataLength);
             var pixelData = rentedArray.AsSpan(0, pixelDataLength);
 
-            // Copy pixel data from the source image
-            image.CopyPixels(pixelData.ToArray(), stride, 0);
+            // Copy pixel data from the source image directly into our buffer
+            image.CopyPixels(rentedArray, stride, 0);
 
             // Fix alpha channel transparency bug ONLY for InteropBitmap sources
             // InteropBitmap is used for DIB/DIBv5 (Device Independent Bitmap) from Windows screenshots
@@ -927,24 +955,14 @@ public class ClipboardService : IClipboardService, IDisposable
                 // Fix by setting all alpha to 255 (fully opaque)
                 if (!hasNonZeroAlpha)
                 {
-                    // Check if RGB channels have data (not a truly blank image)
-                    var hasColorData = false;
-                    var checkLength = Math.Min(1000 * 4, pixelData.Length);
-                    for (var i = 0; i < checkLength && !hasColorData; i++)
-                    {
-                        if (i % 4 != 3 && pixelData[i] != 0) // Skip alpha channel, check B, G, R
-                            hasColorData = true;
-                    }
+                    // For InteropBitmap (DIB/DIBV5 from clipboard), if all alpha is 0, this is ALWAYS the bug
+                    // Don't check for color data - even white images (RGB all 255) should have alpha=255, not 0
+                    // The check is already at function scope: isInteropBitmap must be true to reach here
+                    _logger.LogInformation("Detected InteropBitmap with all alpha=0 - fixing transparency bug by setting alpha=255 (opaque)");
 
-                    if (hasColorData)
-                    {
-                        // This is the InteropBitmap transparency bug - image has color but all alpha=0
-                        // Fix by setting all alpha to 255 (opaque)
-                        for (var i = 3; i < pixelData.Length; i += 4)
-                            pixelData[i] = 255;
-
-                        _logger.LogInformation("Fixed InteropBitmap transparency bug: all alpha was 0, set to 255 (opaque)");
-                    }
+                    // Fix by setting all alpha to 255 (opaque)
+                    for (var i = 3; i < pixelData.Length; i += 4)
+                        pixelData[i] = 255;
                 }
             }
 
@@ -960,7 +978,7 @@ public class ClipboardService : IClipboardService, IDisposable
             // Write the pixel data to the writable bitmap
             writableBitmap.WritePixels(
                 new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
-                pixelData.ToArray(),
+                rentedArray,
                 stride,
                 0);
 
@@ -1099,7 +1117,11 @@ public class ClipboardService : IClipboardService, IDisposable
             if (imageData == null || imageData.Length == 0)
                 throw new InvalidOperationException("Image data is empty");
 
-            // Convert byte array back to BitmapSource
+            // Detect image format to determine how to set it on clipboard
+            var format = DetectImageFormatFromBytes(imageData);
+            _logger.LogDebug("Setting image to clipboard: Format={Format}, Size={Size} bytes", format, imageData.Length);
+
+            // Convert byte array back to BitmapSource for DIB format compatibility
             using var memoryStream = new MemoryStream(imageData);
             var decoder = BitmapDecoder.Create(memoryStream,
                 BitmapCreateOptions.PreservePixelFormat,
@@ -1109,11 +1131,35 @@ public class ClipboardService : IClipboardService, IDisposable
                 return;
 
             // Create a writable copy to ensure pixel data is fully accessible
-            // This prevents issues when pasting into some applications
             var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
-            writableBitmap.Freeze(); // Make immutable for clipboard
+            writableBitmap.Freeze();
 
-            WpfClipboard.SetImage(writableBitmap);
+            // CRITICAL: Use DataObject to preserve original image format on clipboard
+            // Instead of only calling SetImage (which loses PNG/JPG format),
+            // set both the bitmap AND the original format data
+            var dataObject = new DataObject();
+            
+            // Set the bitmap for compatibility with apps that only read CF_BITMAP/DIB
+            dataObject.SetImage(writableBitmap);
+            
+            // Preserve the original PNG or JPEG format on clipboard
+            // This prevents quality loss when the clip is recaptured
+            // IMPORTANT: Don't dispose the MemoryStream - DataObject needs it to remain alive
+            if (format == "PNG")
+            {
+                var pngStream = new MemoryStream(imageData);
+                dataObject.SetData("PNG", pngStream);
+                _logger.LogDebug("Preserved PNG format ({Size} bytes) on clipboard", imageData.Length);
+            }
+            else if (format == "JPEG")
+            {
+                var jpgStream = new MemoryStream(imageData);
+                dataObject.SetData("JFIF", jpgStream);
+                _logger.LogDebug("Preserved JPEG format ({Size} bytes) on clipboard", imageData.Length);
+            }
+            
+            // Set the final DataObject to clipboard
+            WpfClipboard.SetDataObject(dataObject, true);
         }
         catch (Exception ex)
         {
