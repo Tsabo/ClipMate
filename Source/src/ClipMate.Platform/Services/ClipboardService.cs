@@ -340,7 +340,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 }
             }
 
-            var clip = await GetCurrentClipboardContentAsync();
+            var clip = await GetCurrentClipboardContentAsync(captureCts.Token);
 
             // Check if clipboard is empty (no formats we support)
             var isClipboardEmpty = clip == null && IsClipboardTrulyEmpty();
@@ -355,7 +355,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 if (shouldPlayEraseSound)
                 {
                     _logger.LogDebug("Clipboard was cleared by external application");
-                    await _soundService.PlaySoundAsync(SoundEvent.Erase);
+                    await _soundService.PlaySoundAsync(SoundEvent.Erase, captureCts.Token);
                 }
 
                 _lastClipboardWasEmpty = true;
@@ -407,7 +407,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 var isWithinSuppressionWindow = DateTime.UtcNow < _suppressCaptureUntil;
                 
                 if (timeSinceLastChange > 200 && !isWithinSuppressionWindow)
-                    await _soundService.PlaySoundAsync(SoundEvent.Ignore);
+                    await _soundService.PlaySoundAsync(SoundEvent.Ignore, captureCts.Token);
 
                 return;
             }
@@ -422,7 +422,7 @@ public class ClipboardService : IClipboardService, IDisposable
             }
 
             // Write to channel (non-blocking, drops oldest if full)
-            await _clipsChannel.Writer.WriteAsync(clip);
+            await _clipsChannel.Writer.WriteAsync(clip, captureCts.Token);
 
             _logger.LogDebug("Published clip to channel: {ClipType}, Size: {Size} bytes, Hash: {Hash}",
                 clip.Type, clip.Size, clip.ContentHash);
@@ -1022,7 +1022,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 {
                     // Load decrypted content from cache
                     var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clip.Id);
-                    if (cachedBlobs != null && cachedBlobs.TextBlobs.Count > 0)
+                    if (cachedBlobs is { TextBlobs.Count: > 0 })
                     {
                         // Use first text BLOB as plain text (decrypted)
                         textContent = cachedBlobs.TextBlobs[0].Data;
