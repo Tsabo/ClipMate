@@ -18,8 +18,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddClipMateCore(this IServiceCollection services)
     {
         // Register MVVM Community Toolkit messenger as singleton
-        // Using WeakReferenceMessenger for automatic memory management
-        services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly
+        // Subscribers must properly unregister in Dispose to prevent memory leaks
+        services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
 
         // Register text transform service as singleton
         services.AddSingleton<ITextTransformService, TextTransformService>();

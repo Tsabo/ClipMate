@@ -20,6 +20,8 @@ public class OptionsViewModelTests
     private DatabaseOptionsViewModel _databaseViewModel = null!;
     private EditorOptionsViewModel _editorViewModel = null!;
 
+    private EncryptionOptionsViewModel _encryptionViewModel = null!;
+
     // Child ViewModels
     private GeneralOptionsViewModel _generalViewModel = null!;
     private HotkeysOptionsViewModel _hotkeysViewModel = null!;
@@ -43,7 +45,7 @@ public class OptionsViewModelTests
         _mockLogger = new Mock<ILogger<OptionsViewModel>>();
         _mockProfileService = new Mock<IApplicationProfileService>();
         _mockSoundService = new Mock<ISoundService>();
-        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), default)).Returns(Task.CompletedTask);
+        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), CancellationToken.None)).Returns(Task.CompletedTask);
         _mockHotkeyService = new Mock<IHotkeyService>();
 
         // Setup default configuration
@@ -107,6 +109,8 @@ public class OptionsViewModelTests
             _mockConfigurationService.Object,
             new Mock<IDialogService>().Object,
             new Mock<ILogger<AdvancedOptionsViewModel>>().Object);
+
+        _encryptionViewModel = new EncryptionOptionsViewModel();
     }
 
     private OptionsViewModel CreateViewModel() =>
@@ -123,7 +127,8 @@ public class OptionsViewModelTests
             _soundsViewModel,
             _hotkeysViewModel,
             _databaseViewModel,
-            _advancedViewModel);
+            _advancedViewModel,
+            _encryptionViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
@@ -146,7 +151,8 @@ public class OptionsViewModelTests
             _soundsViewModel,
             _hotkeysViewModel,
             _databaseViewModel,
-            _advancedViewModel);
+            _advancedViewModel,
+            _encryptionViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();

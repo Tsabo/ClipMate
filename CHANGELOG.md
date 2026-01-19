@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Clip Encryption** - Full encryption support with AES-256-GCM, allowing clips to be encrypted/decrypted individually or in bulk with password protection
+- **Encryption Key Management** - Secure key dialog with session-based key caching and automatic key expiration on system lock/logout
+- **Decrypted Blob Cache** - Memory-based cache for decrypted content to improve performance when viewing encrypted clips
+- **Encryption Configuration** - User preferences for auto-lock on session events, cache timeout, and default encryption settings
+- **Session Monitoring** - Automatic detection of Windows lock/unlock events to trigger encryption key cleanup
+- **Integration Tests** - Added 8 comprehensive integration tests for DatabaseManager, ClipboardCoordinator, and encryption workflows
+- **ClipCacheExpiredMessage** - New event system to notify UI when decryption cache expires
+
+### Changed
+- **Messaging System** - Switched from WeakReferenceMessenger to StrongReferenceMessenger with proper lifecycle management to prevent memory leaks
+- **Clip Model** - Extended with IsEncrypted flag and EncryptionMetadata for tracking encryption state
+- **Blob Storage** - Enhanced to support encrypted content storage and retrieval across all blob types (text, image, binary)
+
+### Fixed
+- **Memory Leaks** - Implemented IDisposable pattern across ViewModels, services, and windows to properly unregister from messenger and prevent resource leaks
+
 ## [0.1.0-alpha.10] - 2026-1-11
 
 ### Added

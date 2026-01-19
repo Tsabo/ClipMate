@@ -19,8 +19,10 @@ namespace ClipMate.Platform.Services;
 /// Service implementing QuickPaste functionality including auto-targeting,
 /// formatting string execution, and keystroke sending to target applications.
 /// </summary>
-public class QuickPasteService : IQuickPasteService
+public class QuickPasteService : IQuickPasteService, IDisposable
 {
+    private bool _disposed;
+
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly IDialogService _dialogService;
@@ -909,5 +911,17 @@ public class QuickPasteService : IQuickPasteService
         return string.IsNullOrEmpty(filePath)
             ? string.Empty
             : Path.GetExtension(filePath);
+    }
+
+    /// <summary>
+    /// Disposes the service and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _messenger.UnregisterAll(this);
+        _disposed = true;
     }
 }

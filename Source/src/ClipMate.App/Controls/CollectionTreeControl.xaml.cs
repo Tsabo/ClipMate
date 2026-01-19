@@ -22,6 +22,7 @@ namespace ClipMate.App.Controls;
 public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedEvent>, IRecipient<CollapseAllNodesRequestedEvent>
 {
     private readonly IConfigurationService _configurationService;
+    private readonly IMessenger _messenger;
     private readonly ILogger<CollectionTreeControl> _logger;
 
     public CollectionTreeControl()
@@ -31,11 +32,23 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
         // Get services from DI container
         var app = (App)Application.Current;
         _configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
+        _messenger = app.ServiceProvider.GetRequiredService<IMessenger>();
         _logger = app.ServiceProvider.GetRequiredService<ILogger<CollectionTreeControl>>();
 
-        // Register for expand/collapse events
-        WeakReferenceMessenger.Default.Register<ExpandAllNodesRequestedEvent>(this);
-        WeakReferenceMessenger.Default.Register<CollapseAllNodesRequestedEvent>(this);
+        // Register for expand/collapse events using injected messenger
+        _messenger.Register<ExpandAllNodesRequestedEvent>(this);
+        _messenger.Register<CollapseAllNodesRequestedEvent>(this);
+
+        // Register for Unloaded event to ensure cleanup
+        Unloaded += OnUnloaded;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        // Unregister from messenger when control is unloaded
+        _messenger.Unregister<ExpandAllNodesRequestedEvent>(this);
+        _messenger.Unregister<CollapseAllNodesRequestedEvent>(this);
+        Unloaded -= OnUnloaded;
     }
 
     /// <summary>

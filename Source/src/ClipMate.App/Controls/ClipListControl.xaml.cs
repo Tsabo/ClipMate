@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -88,6 +89,36 @@ public partial class ClipListControl
             typeof(string),
             typeof(ClipListControl),
             new PropertyMetadata(string.Empty));
+
+    /// <summary>
+    /// Dependency property indicating if any selected clips can be encrypted
+    /// </summary>
+    public static readonly DependencyProperty CanEncryptSelectionProperty =
+        DependencyProperty.Register(
+            nameof(CanEncryptSelection),
+            typeof(bool),
+            typeof(ClipListControl),
+            new PropertyMetadata(false));
+
+    /// <summary>
+    /// Dependency property indicating if any selected clips can be decrypted
+    /// </summary>
+    public static readonly DependencyProperty CanDecryptSelectionProperty =
+        DependencyProperty.Register(
+            nameof(CanDecryptSelection),
+            typeof(bool),
+            typeof(ClipListControl),
+            new PropertyMetadata(false));
+
+    /// <summary>
+    /// Dependency property indicating if any selected clips can be locked
+    /// </summary>
+    public static readonly DependencyProperty CanLockSelectionProperty =
+        DependencyProperty.Register(
+            nameof(CanLockSelection),
+            typeof(bool),
+            typeof(ClipListControl),
+            new PropertyMetadata(false));
 
     /// <summary>
     /// Routed event for selection changes
@@ -190,9 +221,66 @@ public partial class ClipListControl
         set => SetValue(ShortcutFilterTextProperty, value);
     }
 
+    /// <summary>
+    /// Gets whether any selected clips can be encrypted (are not currently encrypted)
+    /// </summary>
+    public bool CanEncryptSelection
+    {
+        get => (bool)GetValue(CanEncryptSelectionProperty);
+        private set => SetValue(CanEncryptSelectionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets whether any selected clips can be decrypted (are currently encrypted)
+    /// </summary>
+    public bool CanDecryptSelection
+    {
+        get => (bool)GetValue(CanDecryptSelectionProperty);
+        private set => SetValue(CanDecryptSelectionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets whether any selected clips can be locked (are temporarily decrypted)
+    /// </summary>
+    public bool CanLockSelection
+    {
+        get => (bool)GetValue(CanLockSelectionProperty);
+        private set => SetValue(CanLockSelectionProperty, value);
+    }
+
     private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        // Selection sync is now handled by GridControlSelectionSync attached property
+        if (d is not ClipListControl control)
+            return;
+
+        // Unsubscribe from old collection
+        if (e.OldValue is ObservableCollection<Clip> oldCollection)
+            oldCollection.CollectionChanged -= control.SelectedItems_CollectionChanged;
+
+        
+        if (e.NewValue is not ObservableCollection<Clip> newCollection)
+            return;
+
+        // Subscribe to new collection
+        newCollection.CollectionChanged += control.SelectedItems_CollectionChanged;
+        control.UpdateEncryptionMenuState();
+    }
+
+    private void SelectedItems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateEncryptionMenuState();
+
+    private void UpdateEncryptionMenuState()
+    {
+        if (SelectedItems.Count == 0)
+        {
+            CanEncryptSelection = false;
+            CanDecryptSelection = false;
+            CanLockSelection = false;
+            return;
+        }
+
+        CanEncryptSelection = SelectedItems.Any(p => !p.Encrypted);
+        CanDecryptSelection = SelectedItems.Any(p => p.Encrypted);
+        CanLockSelection = SelectedItems.Any(p => p.IsDecrypted);
     }
 
     private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -231,8 +319,11 @@ public partial class ClipListControl
             var _ => null,
         };
 
-        _logger.LogDebug("CurrentItemChanged - Grid: {Grid}, ClipId: {ClipId}, Title: {Title}", 
-            isShortcutGrid ? "Shortcuts" : "Clips", newClip?.Id, newClip?.DisplayTitle);
+        _logger.LogDebug("CurrentItemChanged - Grid: {Grid}, ClipId: {ClipId}, Title: {Title}",
+            isShortcutGrid
+                ? "Shortcuts"
+                : "Clips", newClip?.Id, newClip?.DisplayTitle);
+
         SelectedItem = newClip;
 
         // Clear selection in the other grid
@@ -259,16 +350,11 @@ public partial class ClipListControl
         RaiseEvent(new RoutedEventArgs(SelectionChangedEvent, this));
 
         // For shortcut selections, explicitly push to clipboard
-        if (shortcutVm == null || newClip == null)
-            return;
-
-        var app = (App)Application.Current;
-        var clipService = (IClipService?)app.ServiceProvider.GetService(typeof(IClipService));
-        if (clipService == null)
+        if (shortcutVm == null || newClip == null || _clipService == null)
             return;
 
         _logger.LogDebug("Pushing shortcut selection to clipboard: {ClipId}", newClip.Id);
-        await clipService.LoadAndSetClipboardAsync(shortcutVm.DatabaseKey, newClip.Id);
+        await _clipService.LoadAndSetClipboardAsync(shortcutVm.DatabaseKey, newClip.Id);
     }
 
     private async void ClipProperties_Click(object sender, RoutedEventArgs e)
@@ -463,8 +549,10 @@ public partial class ClipListControl
             _logger.LogDebug("Got database key from ExplorerWindowViewModel.PrimaryClipList: '{DatabaseKey}'", databaseKey);
         }
         else
-            _logger.LogDebug("DataContext is neither ClipListViewModel nor ExplorerWindowViewModel, it's {DataContextType}", 
+        {
+            _logger.LogDebug("DataContext is neither ClipListViewModel nor ExplorerWindowViewModel, it's {DataContextType}",
                 DataContext?.GetType().Name ?? "null");
+        }
 
         // Fallback to _currentDatabaseKey if ViewModel doesn't have it
         if (string.IsNullOrEmpty(databaseKey))
@@ -475,15 +563,16 @@ public partial class ClipListControl
 
         if (string.IsNullOrEmpty(databaseKey))
         {
-            _logger.LogError("No database key available. _currentDatabaseKey='{CurrentDatabaseKey}', ClipListViewModel.CurrentDatabaseKey='{ViewModelDatabaseKey}'", 
+            _logger.LogError("No database key available. _currentDatabaseKey='{CurrentDatabaseKey}', ClipListViewModel.CurrentDatabaseKey='{ViewModelDatabaseKey}'",
                 _currentDatabaseKey, clipListViewModel?.CurrentDatabaseKey);
+
             MessageBox.Show("Database key not available. Please select a collection first.",
                 "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             return;
         }
 
-        _logger.LogDebug("Using database key: '{DatabaseKey}', Clip ID: {ClipId}, Clip CollectionId: {CollectionId}, Clip Title: '{Title}'", 
+        _logger.LogDebug("Using database key: '{DatabaseKey}', Clip ID: {ClipId}, Clip CollectionId: {CollectionId}, Clip Title: '{Title}'",
             databaseKey, SelectedItem.Id, SelectedItem.CollectionId, SelectedItem.Title);
 
         var app = (App)Application.Current;
@@ -534,6 +623,10 @@ public partial class ClipListControl
         var clip = Items.FirstOrDefault(p => p.Id == message.ClipId);
         if (clip == null)
             return;
+
+        // Update encryption menu state if the updated clip is selected
+        if (SelectedItems.Any(p => p.Id == message.ClipId))
+            UpdateEncryptionMenuState();
 
         // Refresh the row in the grid to update DisplayTitle
         Dispatcher.InvokeAsync(() =>
@@ -787,7 +880,7 @@ public partial class ClipListControl
                 return;
             }
 
-            _logger.LogDebug("QuickPaste: Pasting clip (ID: {ClipId}, Title: {Title}) to target application", 
+            _logger.LogDebug("QuickPaste: Pasting clip (ID: {ClipId}, Title: {Title}) to target application",
                 fullClip.Id, fullClip.Title);
 
             // Execute QuickPaste
@@ -801,5 +894,57 @@ public partial class ClipListControl
         {
             _logger.LogError(ex, "QuickPaste error");
         }
+    }
+
+    /// <summary>
+    /// Prompts user for decryption key when an encrypted clip is selected.
+    /// </summary>
+    private void PromptForDecryptionKey(Clip clip)
+    {
+        try
+        {
+            var app = (App)Application.Current;
+            var serviceProvider = app.ServiceProvider;
+
+            // Create and configure the decryption dialog
+            var dialog = ActivatorUtilities.CreateInstance<EncryptionKeyDialog>(serviceProvider);
+            dialog.Owner = Window.GetWindow(this);
+            dialog.ViewModel.InitializeForDecryption();
+
+            var result = dialog.ShowDialog();
+            if (result != true)
+            {
+                _logger.LogDebug("Decryption cancelled for clip {ClipId}", clip.Id);
+                return;
+            }
+
+            // Get the messenger and send decrypt request
+            var messenger = serviceProvider.GetRequiredService<IMessenger>();
+            messenger.Send(new DecryptClipsRequestedEvent([clip.Id]));
+
+            _logger.LogDebug("Decryption key provided for clip {ClipId}", clip.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error prompting for decryption key");
+        }
+    }
+
+    private void EncryptClips_Click(object sender, RoutedEventArgs e)
+    {
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
+        _messenger.Send(new EncryptClipsRequestedEvent(clipIds));
+    }
+
+    private void DecryptClips_Click(object sender, RoutedEventArgs e)
+    {
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
+        _messenger.Send(new DecryptClipsRequestedEvent(clipIds));
+    }
+
+    private void LockClips_Click(object sender, RoutedEventArgs e)
+    {
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
+        _messenger.Send(new LockClipsRequestedEvent(clipIds));
     }
 }

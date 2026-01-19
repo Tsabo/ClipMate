@@ -20,7 +20,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
     public void Setup()
     {
         _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
-        
+
         // Create mock service provider with AboutDialogViewModel and IActiveWindowService
         var mockUpdateCheckService = new Mock<IUpdateCheckService>();
         var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
@@ -28,7 +28,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         var mockServiceProvider = new Mock<IServiceProvider>();
         mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(new Mock<IActiveWindowService>().Object);
-        
+
         _viewModel = new MainMenuViewModel(
             _messengerMock.Object,
             new Mock<IUndoService>().Object,
@@ -36,6 +36,12 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
             new Mock<IClipboardService>().Object,
             new Mock<IPowerPasteService>().Object,
             mockServiceProvider.Object);
+    }
+
+    [After(Test)]
+    public void Cleanup()
+    {
+        _viewModel?.Dispose();
     }
 
     [Test]
@@ -108,6 +114,17 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         await Assert.That(_viewModel.SimpleRepairCommand.CanExecute(null)).IsTrue();
         await Assert.That(_viewModel.ComprehensiveRepairCommand.CanExecute(null)).IsTrue();
         await Assert.That(_viewModel.RunCleanupNowCommand.CanExecute(null)).IsTrue();
+    }
+
+    [Test]
+    public async Task EncryptionCommands_WithoutClipListViewModel_ShouldNotBeExecutable()
+    {
+        // Arrange - ViewModel created without ClipListViewModel
+
+        // Act & Assert
+        await Assert.That(_viewModel.EncryptClipsCommand.CanExecute(null)).IsFalse();
+        await Assert.That(_viewModel.DecryptClipsCommand.CanExecute(null)).IsFalse();
+        await Assert.That(_viewModel.LockClipsCommand.CanExecute(null)).IsFalse();
     }
 }
 

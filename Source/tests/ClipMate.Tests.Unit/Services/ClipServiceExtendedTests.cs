@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// Unit tests for ClipService extended operations: Rename, Copy, Move.
 /// Test-driven development for new clip management features.
 /// </summary>
+[Category("ClipService")]
+[Category("Unit")]
 public class ClipServiceExtendedTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
@@ -69,229 +72,232 @@ public class ClipServiceExtendedTests : TestFixtureBase
         Mock.Of<IConfigurationService>(),
         Mock.Of<IClipboardService>(),
         Mock.Of<ITemplateService>(),
+        Mock.Of<IEncryptionService>(),
+        Mock.Of<IDecryptedBlobCacheService>(),
+        Mock.Of<IMessenger>(),
         _logger);
 
-    #region RenameClipAsync Tests
-
-    [Test]
-    public async Task RenameClipAsync_WithValidIdAndTitle_UpdatesClipTitle()
+    [Category("RenameClip")]
+    public class RenameClipAsyncTests : ClipServiceExtendedTests
     {
-        // Arrange
-        var clipId = Guid.NewGuid();
-        var clip = new Clip
+        [Test]
+        public async Task WithValidIdAndTitle_UpdatesClipTitle()
         {
-            Id = clipId,
-            Title = "Old Title",
-            TextContent = "Content",
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var clipId = Guid.NewGuid();
+            var clip = new Clip
+            {
+                Id = clipId,
+                Title = "Old Title",
+                TextContent = "Content",
+                CapturedAt = DateTime.UtcNow,
+            };
 
-        _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(clip);
 
-        _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
-        var service = CreateService();
+            var service = CreateService();
 
-        // Act
-        var result = await service.RenameClipAsync(_testDatabaseKey, clipId, "New Title");
+            // Act
+            var result = await service.RenameClipAsync(_testDatabaseKey, clipId, "New Title");
 
-        // Assert
-        await Assert.That(result).IsTrue();
-        await Assert.That(clip.Title).IsEqualTo("New Title");
-        VerifyAll();
-    }
+            // Assert
+            await Assert.That(result).IsTrue();
+            await Assert.That(clip.Title).IsEqualTo("New Title");
+            VerifyAll();
+        }
 
-    [Test]
-    public async Task RenameClipAsync_WithNonExistentId_ReturnsFalse()
-    {
-        // Arrange
-        _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
-
-        var service = CreateService();
-
-        // Act
-        var result = await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), "New Title");
-
-        // Assert
-        await Assert.That(result).IsFalse();
-        VerifyAll();
-    }
-
-    [Test]
-    public async Task RenameClipAsync_WithEmptyTitle_ThrowsArgumentException()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act & Assert
-        await Assert.That(async () => await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), string.Empty))
-            .Throws<ArgumentException>();
-    }
-
-    #endregion
-
-    #region CopyClipAsync Tests
-
-    [Test]
-    public async Task CopyClipAsync_WithValidId_CreatesNewClip()
-    {
-        // Arrange
-        var sourceClipId = Guid.NewGuid();
-        var targetCollectionId = Guid.NewGuid();
-        var sourceClip = new Clip
+        [Test]
+        public async Task WithNonExistentId_ReturnsFalse()
         {
-            Id = sourceClipId,
-            Title = "Source Title",
-            TextContent = "Content to copy",
-            CollectionId = Guid.NewGuid(),
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Clip?)null);
 
-        var newClip = new Clip
+            var service = CreateService();
+
+            // Act
+            var result = await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), "New Title");
+
+            // Assert
+            await Assert.That(result).IsFalse();
+            VerifyAll();
+        }
+
+        [Test]
+        public async Task WithEmptyTitle_ThrowsArgumentException()
         {
-            Id = Guid.NewGuid(),
-            Title = "Source Title (Copy)",
-            TextContent = "Content to copy",
-            CollectionId = targetCollectionId,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var service = CreateService();
 
-        // Create real SQLite in-memory database context for CopyClipDataAndBlobsAsync
-        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
-            .UseSqlite("DataSource=:memory:")
-            .Options;
-
-        using var dbContext = new ClipMateDbContext(options);
-        dbContext.Database.OpenConnection();
-        dbContext.Database.EnsureCreated();
-
-        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(dbContext);
-
-        _mockClipRepository.Setup(p => p.GetByIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sourceClip);
-
-        _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(newClip);
-
-        // Setup ClipDataRepository to return empty list (no formats to copy)
-        _mockClipDataRepository.Setup(p => p.GetByClipIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ClipData>());
-
-        var service = CreateService();
-
-        // Act
-        var result = await service.CopyClipAsync(_testDatabaseKey, sourceClipId, targetCollectionId);
-
-        // Assert
-        await Assert.That(result).IsNotNull();
-        await Assert.That(result.Id).IsNotEqualTo(sourceClipId);
-        await Assert.That(result.CollectionId).IsEqualTo(targetCollectionId);
-        VerifyAll();
+            // Act & Assert
+            await Assert.That(async () => await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), string.Empty))
+                .Throws<ArgumentException>();
+        }
     }
 
-    [Test]
-    public async Task CopyClipAsync_WithNonExistentId_ThrowsArgumentException()
+    [Category("CopyClip")]
+    public class CopyClipAsyncTests : ClipServiceExtendedTests
     {
-        // Arrange
-        _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
-
-        var service = CreateService();
-
-        // Act & Assert
-        await Assert.That(async () => await service.CopyClipAsync(_testDatabaseKey, Guid.NewGuid(), Guid.NewGuid()))
-            .Throws<ArgumentException>();
-
-        VerifyAll();
-    }
-
-    #endregion
-
-    #region MoveClipAsync Tests
-
-    [Test]
-    public async Task MoveClipAsync_WithValidId_UpdatesCollectionId()
-    {
-        // Arrange
-        var clipId = Guid.NewGuid();
-        var oldCollectionId = Guid.NewGuid();
-        var newCollectionId = Guid.NewGuid();
-
-        var clip = new Clip
+        [Test]
+        public async Task WithValidId_CreatesNewClip()
         {
-            Id = clipId,
-            Title = "Test Clip",
-            TextContent = "Content",
-            CollectionId = oldCollectionId,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var sourceClipId = Guid.NewGuid();
+            var targetCollectionId = Guid.NewGuid();
+            var sourceClip = new Clip
+            {
+                Id = sourceClipId,
+                Title = "Source Title",
+                TextContent = "Content to copy",
+                CollectionId = Guid.NewGuid(),
+                CapturedAt = DateTime.UtcNow,
+            };
 
-        _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+            var newClip = new Clip
+            {
+                Id = Guid.NewGuid(),
+                Title = "Source Title (Copy)",
+                TextContent = "Content to copy",
+                CollectionId = targetCollectionId,
+                CapturedAt = DateTime.UtcNow,
+            };
 
-        _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            // Create real SQLite in-memory database context for CopyClipDataAndBlobsAsync
+            var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+                .UseSqlite("DataSource=:memory:")
+                .Options;
 
-        var service = CreateService();
+            using var dbContext = new ClipMateDbContext(options);
+            dbContext.Database.OpenConnection();
+            dbContext.Database.EnsureCreated();
 
-        // Act
-        var result = await service.MoveClipAsync(_testDatabaseKey, clipId, newCollectionId);
+            _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
+                .Returns(dbContext);
 
-        // Assert
-        await Assert.That(result).IsTrue();
-        await Assert.That(clip.CollectionId).IsEqualTo(newCollectionId);
-        VerifyAll();
-    }
+            _mockClipRepository.Setup(p => p.GetByIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sourceClip);
 
-    [Test]
-    public async Task MoveClipAsync_WithNonExistentId_ReturnsFalse()
-    {
-        // Arrange
-        _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+            _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(newClip);
 
-        var service = CreateService();
+            // Setup ClipDataRepository to return empty list (no formats to copy)
+            _mockClipDataRepository.Setup(p => p.GetByClipIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<ClipData>());
 
-        // Act
-        var result = await service.MoveClipAsync(_testDatabaseKey, Guid.NewGuid(), Guid.NewGuid());
+            var service = CreateService();
 
-        // Assert
-        await Assert.That(result).IsFalse();
-        VerifyAll();
-    }
+            // Act
+            var result = await service.CopyClipAsync(_testDatabaseKey, sourceClipId, targetCollectionId);
 
-    [Test]
-    public async Task MoveClipAsync_ToSameCollection_ReturnsTrueWithoutUpdate()
-    {
-        // Arrange
-        var clipId = Guid.NewGuid();
-        var collectionId = Guid.NewGuid();
+            // Assert
+            await Assert.That(result).IsNotNull();
+            await Assert.That(result.Id).IsNotEqualTo(sourceClipId);
+            await Assert.That(result.CollectionId).IsEqualTo(targetCollectionId);
+            VerifyAll();
+        }
 
-        var clip = new Clip
+        [Test]
+        public async Task WithNonExistentId_ThrowsArgumentException()
         {
-            Id = clipId,
-            Title = "Test Clip",
-            CollectionId = collectionId,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Clip?)null);
 
-        _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+            var service = CreateService();
 
-        var service = CreateService();
+            // Act & Assert
+            await Assert.That(async () => await service.CopyClipAsync(_testDatabaseKey, Guid.NewGuid(), Guid.NewGuid()))
+                .Throws<ArgumentException>();
 
-        // Act
-        var result = await service.MoveClipAsync(_testDatabaseKey, clipId, collectionId);
-
-        // Assert - should return true but not call UpdateAsync since already in target collection
-        await Assert.That(result).IsTrue();
-        _mockClipRepository.Verify(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
-        VerifyAll();
+            VerifyAll();
+        }
     }
 
-    #endregion
+    [Category("MoveClip")]
+    public class MoveClipAsyncTests : ClipServiceExtendedTests
+    {
+        [Test]
+        public async Task WithValidId_UpdatesCollectionId()
+        {
+            // Arrange
+            var clipId = Guid.NewGuid();
+            var oldCollectionId = Guid.NewGuid();
+            var newCollectionId = Guid.NewGuid();
+
+            var clip = new Clip
+            {
+                Id = clipId,
+                Title = "Test Clip",
+                TextContent = "Content",
+                CollectionId = oldCollectionId,
+                CapturedAt = DateTime.UtcNow,
+            };
+
+            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(clip);
+
+            _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            var service = CreateService();
+
+            // Act
+            var result = await service.MoveClipAsync(_testDatabaseKey, clipId, newCollectionId);
+
+            // Assert
+            await Assert.That(result).IsTrue();
+            await Assert.That(clip.CollectionId).IsEqualTo(newCollectionId);
+            VerifyAll();
+        }
+
+        [Test]
+        public async Task WithNonExistentId_ReturnsFalse()
+        {
+            // Arrange
+            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Clip?)null);
+
+            var service = CreateService();
+
+            // Act
+            var result = await service.MoveClipAsync(_testDatabaseKey, Guid.NewGuid(), Guid.NewGuid());
+
+            // Assert
+            await Assert.That(result).IsFalse();
+            VerifyAll();
+        }
+
+        [Test]
+        public async Task ToSameCollection_ReturnsTrueWithoutUpdate()
+        {
+            // Arrange
+            var clipId = Guid.NewGuid();
+            var collectionId = Guid.NewGuid();
+
+            var clip = new Clip
+            {
+                Id = clipId,
+                Title = "Test Clip",
+                CollectionId = collectionId,
+                CapturedAt = DateTime.UtcNow,
+            };
+
+            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(clip);
+
+            var service = CreateService();
+
+            // Act
+            var result = await service.MoveClipAsync(_testDatabaseKey, clipId, collectionId);
+
+            // Assert - should return true but not call UpdateAsync since already in target collection
+            await Assert.That(result).IsTrue();
+            _mockClipRepository.Verify(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
+            VerifyAll();
+        }
+    }
 }

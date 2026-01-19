@@ -80,6 +80,27 @@ public interface IBlobRepository
     Task UpdateTextAsync(BlobTxt blobTxt, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates an existing JPEG BLOB.
+    /// </summary>
+    /// <param name="blobJpg">The JPEG BLOB to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateJpgAsync(BlobJpg blobJpg, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing PNG BLOB.
+    /// </summary>
+    /// <param name="blobPng">The PNG BLOB to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdatePngAsync(BlobPng blobPng, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing binary BLOB.
+    /// </summary>
+    /// <param name="blobBlob">The binary BLOB to update.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task UpdateBlobAsync(BlobBlob blobBlob, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes all BLOBs for a specific clip across all BLOB tables.
     /// </summary>
     /// <param name="clipId">The clip's unique identifier.</param>

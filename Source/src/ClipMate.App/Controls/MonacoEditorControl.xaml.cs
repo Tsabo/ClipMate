@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -102,9 +103,6 @@ public partial class MonacoEditorControl
         get => (bool)GetValue(EnableDebugProperty);
         set => SetValue(EnableDebugProperty, value);
     }
-
-    [GeneratedRegex(@"near\s+\""([^""]+)\""", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex ExtractToken();
 
     private static async void OnEnableDebugChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -1087,7 +1085,7 @@ public partial class MonacoEditorControl
         try
         {
             // Extract token from "near \"TOKEN\"" pattern
-            var match = ExtractToken().Match(errorMessage);
+            var match = RegexPatterns.SqlErrorToken().Match(errorMessage);
             if (!match.Success)
             {
                 // Default to start of text

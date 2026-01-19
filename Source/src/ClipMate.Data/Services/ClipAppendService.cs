@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
@@ -143,7 +144,7 @@ public partial class ClipAppendService : IClipAppendService
     /// </summary>
     private static string StripTrailingLineBreaks(string text) => string.IsNullOrEmpty(text)
         ? text
-        : TrailingLineBreakRegex().Replace(text, string.Empty);
+        : RegexPatterns.TrailingLineBreak().Replace(text, string.Empty);
 
     /// <summary>
     /// Computes a SHA-256 hash of the text content for duplicate detection.
@@ -160,7 +161,4 @@ public partial class ClipAppendService : IClipAppendService
     /// Computes a simple checksum for ClipMate 7.5 compatibility.
     /// </summary>
     private static int ComputeChecksum(string text) => text.GetHashCode();
-
-    [GeneratedRegex(@"(\r\n|\n|\r)+$", RegexOptions.Compiled)]
-    private static partial Regex TrailingLineBreakRegex();
 }

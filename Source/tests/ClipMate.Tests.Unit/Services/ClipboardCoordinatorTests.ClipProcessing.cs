@@ -13,47 +13,6 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ClipboardCoordinatorTests
 {
     [Test]
-    [Skip("Requires real database context - ClipboardCoordinator uses ClipRepository directly, not IClipService")]
-    public async Task ProcessClipsAsync_WithValidClip_ShouldSaveClip()
-    {
-        // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = new Mock<IClipService>();
-        var clip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Test content",
-            ContentHash = "hash123",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
-
-        var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messenger = new Mock<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger.Object, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100); // Let background task start
-
-        // Act
-        await channel.Writer.WriteAsync(clip);
-        await Task.Delay(200); // Give time to process
-
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.Is<Clip>(c => c.ContentHash == "hash123"), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
     public async Task ProcessClipsAsync_WithFilteredClip_ShouldNotSaveClip()
     {
         // Arrange
@@ -134,48 +93,6 @@ public partial class ClipboardCoordinatorTests
 
         // Assert - Messenger sends are tested in other tests, extension methods can't be verified
         // Test passes if no exception is thrown
-    }
-
-    [Test]
-    [Skip("Requires real database context - ClipboardCoordinator uses ClipRepository directly, not IClipService")]
-    public async Task ProcessClipsAsync_WithMultipleClips_ShouldProcessAll()
-    {
-        // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = new Mock<IClipService>();
-
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string dbKey, Clip c, CancellationToken ct) => c);
-
-        var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messenger = new Mock<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, serviceProvider, messenger.Object, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
-
-        var clips = new[]
-        {
-            new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Clip 1", ContentHash = "hash1", CapturedAt = DateTime.UtcNow },
-            new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Clip 2", ContentHash = "hash2", CapturedAt = DateTime.UtcNow },
-            new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Clip 3", ContentHash = "hash3", CapturedAt = DateTime.UtcNow },
-        };
-
-        // Act
-        foreach (var item in clips)
-            await channel.Writer.WriteAsync(item);
-
-        await Task.Delay(400); // Give time to process all clips
-
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Test]

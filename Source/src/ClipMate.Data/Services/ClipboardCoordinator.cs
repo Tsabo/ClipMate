@@ -147,6 +147,10 @@ public class ClipboardCoordinator : IHostedService,
                 await _processingTask;
 
             _cts?.Dispose();
+
+            // Unregister from messenger to prevent memory leaks
+            _messenger.UnregisterAll(this);
+
             _logger.LogInformation("Clipboard coordinator stopped");
         }
         catch (Exception ex)

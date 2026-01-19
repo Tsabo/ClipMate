@@ -85,6 +85,24 @@ internal class BlobRepository : IBlobRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateJpgAsync(BlobJpg blobJpg, CancellationToken cancellationToken = default)
+    {
+        _context.BlobJpg.Update(blobJpg);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdatePngAsync(BlobPng blobPng, CancellationToken cancellationToken = default)
+    {
+        _context.BlobPng.Update(blobPng);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateBlobAsync(BlobBlob blobBlob, CancellationToken cancellationToken = default)
+    {
+        _context.BlobBlob.Update(blobBlob);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     // ==================== Delete Operations ====================
 
     public async Task<int> DeleteByClipIdAsync(Guid clipId, CancellationToken cancellationToken = default)

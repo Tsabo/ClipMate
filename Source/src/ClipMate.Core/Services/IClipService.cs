@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.ValueObjects;
 
 namespace ClipMate.Core.Services;
 
@@ -240,4 +241,66 @@ public interface IClipService
     /// <param name="clip">The clip to load content for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task LoadBlobDataAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Encrypts multiple clips with the provided encryption key.
+    /// Only TEXT clips are supported. Strips non-TEXT ClipData entries and encrypts BLOBs.
+    /// Sets generic "This clip is encrypted - unable to display." title unless CustomTitle is set.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">The clip IDs to encrypt.</param>
+    /// <param name="encryptionKey">The encryption key to use.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of clips successfully encrypted.</returns>
+    Task<int> EncryptClipsAsync(string databaseKey, IReadOnlyList<Guid> clipIds, EncryptionKey encryptionKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decrypts multiple clips with the provided encryption key.
+    /// Can be used for temporary decryption (viewing) or permanent decryption (manual decrypt).
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">The clip IDs to decrypt.</param>
+    /// <param name="encryptionKey">The encryption key to use for decryption.</param>
+    /// <param name="isPermanent">
+    /// If true, permanently decrypts (clears Encrypted flag). If false, temporarily decrypts for
+    /// viewing only.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of clips successfully decrypted.</returns>
+    Task<int> DecryptClipsAsync(string databaseKey, IReadOnlyList<Guid> clipIds, EncryptionKey encryptionKey, bool isPermanent = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Decrypts multiple clips with the provided encryption key.
+    /// Can be used for temporary decryption (viewing) or permanent decryption (manual decrypt).
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clip">The clip to decrypt.</param>
+    /// <param name="encryptionKey">The encryption key to use for decryption.</param>
+    /// <param name="isPermanent">
+    /// If true, permanently decrypts (clears Encrypted flag). If false, temporarily decrypts for
+    /// viewing only.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of clips successfully decrypted.</returns>
+    Task<bool> DecryptClipAsync(string databaseKey, Clip clip, EncryptionKey encryptionKey, bool isPermanent = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Locks decrypted clips by clearing decrypted BLOB cache.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipIds">Optional list of specific clip IDs to lock. If null/empty, locks all cached clips.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clip IDs that were locked.</returns>
+    Task<IReadOnlyList<Guid>> LockClipsAsync(string databaseKey, IReadOnlyList<Guid>? clipIds = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads encrypted BLOB content into a clip's transient properties (TextContent, ImageData, etc.)
+    /// for pasting encrypted base64 data to clipboard.
+    /// Use this before calling IClipboardService.SetClipboardContentAsync for encrypted clips
+    /// that haven't been temporarily decrypted.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clip">The clip to load encrypted content into.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task LoadEncryptedContentAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default);
 }

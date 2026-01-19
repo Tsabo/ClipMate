@@ -22,7 +22,8 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     IRecipient<ClipboardCopiedEvent>,
     IRecipient<ShortcutModeStatusMessage>,
     IRecipient<StatusUpdateEvent>,
-    IRecipient<ReloadClipsRequestedEvent>
+    IRecipient<ReloadClipsRequestedEvent>,
+    IDisposable
 {
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
@@ -782,6 +783,14 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     {
         _templateService.ResetSequenceCounter();
         SetStatus("Template sequence reset to 1");
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
     }
 
     #endregion

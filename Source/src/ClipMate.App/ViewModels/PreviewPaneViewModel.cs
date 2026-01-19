@@ -13,7 +13,7 @@ namespace ClipMate.App.ViewModels;
 /// Displays detailed content preview based on clip type (text, HTML, image, etc.).
 /// Implements IRecipient to receive ClipSelectedEvent messages via MVVM Toolkit Messenger.
 /// </summary>
-public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSelectedEvent>
+public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSelectedEvent>, IDisposable
 {
     private readonly IMessenger _messenger;
 
@@ -140,5 +140,13 @@ public partial class PreviewPaneViewModel : ObservableObject, IRecipient<ClipSel
             // If image loading fails, return null
             return null;
         }
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
     }
 }

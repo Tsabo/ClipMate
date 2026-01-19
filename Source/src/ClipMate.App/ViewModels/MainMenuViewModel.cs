@@ -23,9 +23,11 @@ namespace ClipMate.App.ViewModels;
 /// Contains all menu commands that are common to both window types.
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject,
-    IRecipient<StateRefreshRequestedEvent>
+    IRecipient<StateRefreshRequestedEvent>,
+    IDisposable
 {
     private readonly IClipboardService _clipboardService;
+    private readonly ClipListViewModel? _clipListViewModel;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
     private readonly IMessenger _messenger;
@@ -78,6 +80,7 @@ public partial class MainMenuViewModel : ObservableObject,
         IClipboardService clipboardService,
         IPowerPasteService powerPasteService,
         IServiceProvider serviceProvider,
+        ClipListViewModel? clipListViewModel = null,
         CollectionTreeViewModel? collectionTreeViewModel = null)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -86,6 +89,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _clipListViewModel = clipListViewModel;
         _collectionTreeViewModel = collectionTreeViewModel;
 
         // Subscribe to PowerPaste state changes to update icon
@@ -104,6 +108,17 @@ public partial class MainMenuViewModel : ObservableObject,
 
                 AddCollectionCommand.NotifyCanExecuteChanged();
                 DeleteCollectionCommand.NotifyCanExecuteChanged();
+            };
+        }
+
+        // Subscribe to clip selection changes to update CanExecute for encryption commands
+        if (_clipListViewModel != null)
+        {
+            _clipListViewModel.SelectedClips.CollectionChanged += (_, _) =>
+            {
+                EncryptClipsCommand.NotifyCanExecuteChanged();
+                DecryptClipsCommand.NotifyCanExecuteChanged();
+                LockClipsCommand.NotifyCanExecuteChanged();
             };
         }
     }
@@ -194,14 +209,26 @@ public partial class MainMenuViewModel : ObservableObject,
         dialog.ShowDialog();
     }
 
-    [RelayCommand]
-    private void DecryptClips() { }
+    [RelayCommand(CanExecute = nameof(CanEncryptClips))]
+    private void EncryptClips() => _messenger.Send(new EncryptClipsRequestedEvent([]));
+
+    private bool CanEncryptClips() =>
+        _clipListViewModel?.SelectedClips.Any(p => !p.Encrypted) == true;
+
+    [RelayCommand(CanExecute = nameof(CanDecryptClips))]
+    private void DecryptClips() => _messenger.Send(new DecryptClipsRequestedEvent([]));
+
+    private bool CanDecryptClips() =>
+        _clipListViewModel?.SelectedClips.Any(p => p.Encrypted) == true;
+
+    [RelayCommand(CanExecute = nameof(CanLockClips))]
+    private void LockClips() => _messenger.Send(new LockClipsRequestedEvent([]));
+
+    private bool CanLockClips() =>
+        _clipListViewModel?.SelectedClips.Any(p => p.IsDecrypted) == true;
 
     [RelayCommand]
-    private void EncryptClips() { }
-
-    [RelayCommand]
-    private void ForgetEncryptionKey() { }
+    private void ForgetEncryptionKey() => _messenger.Send(new ForgetEncryptionKeyRequestedEvent());
 
     [RelayCommand]
     private void ShowProperties() => _messenger.Send(new ShowCollectionPropertiesRequestedEvent());
@@ -698,5 +725,15 @@ public partial class MainMenuViewModel : ObservableObject,
                 ? Icons.PowerPasteUp
                 : Icons.PowerPasteDown
             : Icons.PowerPaste; // Inactive state shows default icon
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
+        if (_powerPasteService != null)
+            _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
     }
 }

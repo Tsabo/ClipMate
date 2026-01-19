@@ -9,6 +9,7 @@ public partial class Clip
     /// <summary>
     /// Gets the display title for the clip.
     /// Returns the stored Title field, computing a fallback only if Title is empty.
+    /// For encrypted clips without CustomTitle, displays "This clip is encrypted - unable to display.".
     /// Title is set at capture time and only updated when text is edited IF
     /// AutoChangeClipTitles setting is enabled AND CustomTitle flag is false.
     /// When CustomTitle=true (user manually renamed), title never auto-updates.
@@ -17,6 +18,11 @@ public partial class Clip
     {
         get
         {
+            // For encrypted clips without custom title, show generic label
+            // But allow temporarily decrypted clips (IsDecrypted=true) to show their title
+            if (Encrypted && !IsDecrypted && !CustomTitle)
+                return "This clip is encrypted - unable to display.";
+
             // Return the stored Title if available
             if (!string.IsNullOrWhiteSpace(Title))
                 return Title;

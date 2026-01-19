@@ -1,0 +1,122 @@
+<UserControl x:Class="ClipMate.App.Views.Options.EncryptionOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:EncryptionOptionsViewModel}"
+             mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <dxlc:LayoutControl Orientation="Vertical" Padding="20">
+
+            <!-- Security Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Security" Orientation="Vertical">
+
+                <!-- PBKDF2 Iterations -->
+                <dxlc:LayoutItem Label="PBKDF2 Iterations:">
+                    <StackPanel>
+                        <dxe:SpinEdit Value="{Binding PbkdfIterations}"
+                                      MinValue="100000"
+                                      MaxValue="2000000"
+                                      Increment="100000"
+                                      IsFloatValue="False"
+                                      Width="200"
+                                      HorizontalAlignment="Left"
+                                      ToolTip="Number of iterations for key derivation. Higher is more secure but slower." />
+                        <TextBlock Text="Higher values are more secure but slower. Default: 600,000"
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+                <!-- Default Key Retention -->
+                <dxlc:LayoutItem Label="Default key retention (minutes):">
+                    <StackPanel>
+                        <dxe:SpinEdit Value="{Binding DefaultKeyRetentionMinutes}"
+                                      MinValue="1"
+                                      MaxValue="60"
+                                      Increment="1"
+                                      IsFloatValue="False"
+                                      Width="200"
+                                      HorizontalAlignment="Left"
+                                      ToolTip="How long to remember the encryption key before auto-lock" />
+                        <TextBlock Text="Key will be forgotten after this time. Range: 1-60 minutes"
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+                <!-- Lock on Screen Lock -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Lock when screen is locked"
+                                   IsChecked="{Binding LockOnScreenLock}"
+                                   ToolTip="Automatically forget encryption key when Windows screen locks">
+                        <dxe:CheckEdit.ContentTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="Lock when screen is locked" />
+                                    <TextBlock Text="Automatically forgets encryption key when you lock Windows"
+                                               Margin="0,3,0,0"
+                                               Foreground="Gray"
+                                               FontSize="11"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </dxe:CheckEdit.ContentTemplate>
+                    </dxe:CheckEdit>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- User Prompts Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="User Prompts" Orientation="Vertical">
+
+                <!-- Auto-prompt for Decryption -->
+                <dxlc:LayoutItem>
+                    <dxe:CheckEdit Content="Auto-prompt for decryption"
+                                   IsChecked="{Binding AutoPromptForDecryption}"
+                                   ToolTip="Show decryption dialog when selecting encrypted clips">
+                        <dxe:CheckEdit.ContentTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="Auto-prompt for decryption" />
+                                    <TextBlock
+                                        Text="Automatically shows decryption dialog when you click an encrypted clip"
+                                        Margin="0,3,0,0"
+                                        Foreground="Gray"
+                                        FontSize="11"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </dxe:CheckEdit.ContentTemplate>
+                    </dxe:CheckEdit>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- Information Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Information" Orientation="Vertical">
+                <TextBlock TextWrapping="Wrap" Margin="10">
+                    <Run Text="ClipMate uses AES-256-CBC encryption with PBKDF2 key derivation. " FontWeight="SemiBold" />
+                    <Run Text="All clip types can be encrypted (text, images, files, etc.). " />
+                    <Run Text="Encrypted clips are marked with 🔒 when locked or 🔓 when unlocked. " />
+                    <Run
+                        Text="The encryption key is stored securely in memory and automatically forgotten based on your retention settings." />
+                    <LineBreak /><LineBreak />
+                    <Run Text="Important: " FontWeight="Bold" Foreground="Red" />
+                    <Run
+                        Text="If you forget your encryption password, there is no way to recover encrypted clips. Choose a strong, memorable password."
+                        Foreground="Red" />
+                </TextBlock>
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutControl>
+    </ScrollViewer>
+</UserControl>

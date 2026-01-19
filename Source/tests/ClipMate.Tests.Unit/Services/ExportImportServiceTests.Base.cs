@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Platform.Services;
 
@@ -122,8 +123,5 @@ public abstract partial class ExportImportServiceTestsBase : TestFixtureBase
         };
 
     // Simple tag removal for test purposes
-    private static string StripHtmlTags(string html) => StripHtmlTagsRegEx().Replace(html, string.Empty);
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex StripHtmlTagsRegEx();
+    private static string StripHtmlTags(string html) => RegexPatterns.HtmlTag().Replace(html, string.Empty);
 }

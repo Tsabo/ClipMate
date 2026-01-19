@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using System.Net;
+using System.Security;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Core.ValueObjects;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +39,13 @@ public class ClipOperationsCoordinator :
     IRecipient<StripNonTextRequestedEvent>,
     IRecipient<CaseConversionRequestedEvent>,
     IRecipient<ShowClipPropertiesRequestedEvent>,
-    IRecipient<ClipSelectedEvent>
+    IRecipient<ClipSelectedEvent>,
+    IRecipient<EncryptClipsRequestedEvent>,
+    IRecipient<DecryptClipsRequestedEvent>,
+    IRecipient<LockClipsRequestedEvent>,
+    IRecipient<ForgetEncryptionKeyRequestedEvent>,
+    IRecipient<EncryptionKeyExpiredEvent>,
+    IRecipient<ShowEncryptionCancelledEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
@@ -49,6 +58,9 @@ public class ClipOperationsCoordinator :
     private readonly IPowerPasteService _powerPasteService;
     private readonly ISearchService _searchService;
     private readonly IServiceProvider _serviceProvider;
+
+    // Guard flag to prevent infinite decryption loop
+    private bool _isDecryptingClip;
 
     // Track which clips PowerPaste was started with
     private HashSet<Guid> _powerPasteClipIds = [];
@@ -88,6 +100,10 @@ public class ClipOperationsCoordinator :
         _messenger.Register<ShowSearchWindowEvent>(this);
         _messenger.Register<PowerPasteUpRequestedEvent>(this);
         _messenger.Register<PowerPasteDownRequestedEvent>(this);
+        _messenger.Register<EncryptClipsRequestedEvent>(this);
+        _messenger.Register<DecryptClipsRequestedEvent>(this);
+        _messenger.Register<LockClipsRequestedEvent>(this);
+        _messenger.Register<ForgetEncryptionKeyRequestedEvent>(this);
         _messenger.Register<PowerPasteToggleRequestedEvent>(this);
         _messenger.Register<OpenSourceUrlRequestedEvent>(this);
         _messenger.Register<CleanUpTextRequestedEvent>(this);
@@ -96,6 +112,7 @@ public class ClipOperationsCoordinator :
         _messenger.Register<CaseConversionRequestedEvent>(this);
         _messenger.Register<ShowClipPropertiesRequestedEvent>(this);
         _messenger.Register<ClipSelectedEvent>(this);
+        _messenger.Register<ShowEncryptionCancelledEvent>(this);
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
     }
@@ -138,8 +155,9 @@ public class ClipOperationsCoordinator :
 
     /// <summary>
     /// Handles ClipSelectedEvent to stop PowerPaste when user selects a different clip.
+    /// Also handles automatic decryption of encrypted clips.
     /// </summary>
-    public void Receive(ClipSelectedEvent message)
+    public async void Receive(ClipSelectedEvent message)
     {
         // Stop PowerPaste when user selects a clip that's not part of the current PowerPaste sequence
         if (_powerPasteService.State == PowerPasteState.Active
@@ -152,6 +170,125 @@ public class ClipOperationsCoordinator :
             _powerPasteService.Stop();
             _powerPasteClipIds.Clear();
             SendStatus("PowerPaste stopped - different clip selected");
+        }
+
+        // Handle encrypted clip selection
+        // Guard against re-entrant calls while decrypting (prevents infinite loop from context menu)
+        if (message.SelectedClip is not { Encrypted: true, IsDecrypted: false } || _isDecryptingClip)
+            return;
+
+        _isDecryptingClip = true;
+        _logger.LogInformation("Selected clip {ClipId} is encrypted - prompting for passphrase", message.SelectedClip.Id);
+
+        try
+        {
+            var databaseKey = message.DatabaseKey ?? GetDatabaseKeyForSelectedNode();
+            if (string.IsNullOrEmpty(databaseKey))
+            {
+                _logger.LogError("No database key available for encrypted clip");
+                _messenger.Send(new ShowEncryptionCancelledEvent());
+                return;
+            }
+
+            // Check if we have a cached key
+            SecureString? passphrase;
+            int? expirationMinutes;
+            var shouldCacheKey = false;
+
+            if (EncryptionKeyDialogViewModel.HasCachedKey)
+            {
+                // Use cached key and extend expiration
+                _logger.LogInformation("Using cached encryption key");
+                using var tempViewModel = new EncryptionKeyDialogViewModel(_messenger);
+                tempViewModel.InitializeForDecryption();
+                passphrase = tempViewModel.GetPassphrase();
+
+                // Get expiration setting from cached key
+                expirationMinutes = tempViewModel.RememberUntilShutdown
+                    ? null
+                    : tempViewModel.RetentionMinutes;
+
+                shouldCacheKey = true; // Re-associate this clip with the cached key
+            }
+            else
+            {
+                // Prompt for passphrase
+                var dialog = ActivatorUtilities.CreateInstance<EncryptionKeyDialog>(_serviceProvider);
+                dialog.Owner = _activeWindowService.DialogOwner;
+                dialog.ViewModel.InitializeForDecryption();
+
+                var result = dialog.ShowDialog();
+                if (result != true)
+                {
+                    _logger.LogInformation("User cancelled passphrase entry for clip {ClipId}", message.SelectedClip.Id);
+                    _messenger.Send(new ShowEncryptionCancelledEvent());
+                    return;
+                }
+
+                passphrase = dialog.ViewModel.GetPassphrase();
+
+                // Get expiration setting from dialog
+                expirationMinutes = dialog.ViewModel.RememberUntilShutdown
+                    ? null
+                    : dialog.ViewModel.RetentionMinutes;
+
+                shouldCacheKey = dialog.ViewModel.RememberForMinutes || dialog.ViewModel.RememberUntilShutdown;
+            }
+
+            if (passphrase == null || passphrase.Length == 0)
+            {
+                _logger.LogWarning("Empty passphrase provided");
+                _messenger.Send(new ShowEncryptionCancelledEvent());
+                return;
+            }
+
+            // Convert SecureString to string temporarily for EncryptionKey creation
+            var passphraseString = new NetworkCredential(null, passphrase).Password;
+            var encryptionKey = EncryptionKey.FromPassphrase(passphraseString, expirationMinutes);
+
+
+            // Decrypt the clip temporarily for viewing (isPermanent=false)
+            // Pass the actual clip object to avoid fetching encrypted version from database
+            // This will decrypt the Title in-memory (on the clip object) and set IsDecrypted=true
+            await _clipService.DecryptClipAsync(databaseKey, message.SelectedClip, encryptionKey);
+
+            _logger.LogInformation("Successfully decrypted clip {ClipId} for viewing", message.SelectedClip.Id);
+            SendStatus("Clip decrypted for viewing");
+
+            // Cache the key for this clip if requested
+            if (shouldCacheKey)
+            {
+                using var tempViewModel = new EncryptionKeyDialogViewModel(_messenger);
+                tempViewModel.SetPassphrase(passphrase);
+                tempViewModel.RememberForMinutes = expirationMinutes.HasValue;
+                tempViewModel.RememberUntilShutdown = !expirationMinutes.HasValue;
+                if (expirationMinutes.HasValue)
+                    tempViewModel.RetentionMinutes = expirationMinutes.Value;
+
+                tempViewModel.CacheKey(message.SelectedClip.Id);
+            }
+
+            // Note: DecryptClipsAsync already sets IsDecrypted=true and decrypts the Title
+            // Update icon to show unlocked state (🔓 instead of 🔒)
+            if (message.SelectedClip.IconGlyph.StartsWith("🔒"))
+                message.SelectedClip.IconGlyph = message.SelectedClip.IconGlyph.Replace("🔒", "🔓");
+
+            // Send ClipUpdatedMessage to trigger grid row refresh with the NOW-DECRYPTED title
+            // This refreshes the UI without disrupting selection (unlike Remove/Insert pattern)
+            _messenger.Send(new ClipUpdatedMessage(message.SelectedClip.Id, message.SelectedClip.Title));
+
+            // Send ClipSelectedEvent to update ClipViewer with decrypted content
+            _messenger.Send(new ClipSelectedEvent(message.SelectedClip, databaseKey));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error decrypting clip on selection");
+            _messenger.Send(new ShowEncryptionCancelledEvent());
+            DXMessageBox.Show($"Failed to decrypt clip: {ex.Message}", "Decryption Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isDecryptingClip = false;
         }
     }
 
@@ -288,6 +425,64 @@ public class ClipOperationsCoordinator :
     }
 
     /// <summary>
+    /// Handles decryption request by showing dialog and decrypting clips.
+    /// </summary>
+    public async void Receive(DecryptClipsRequestedEvent message)
+    {
+        var clipIds = message.ClipIds.Any()
+            ? message.ClipIds
+            : _clipListViewModel.SelectedClips.Select(c => c.Id).ToList();
+
+        if (clipIds.Count == 0)
+        {
+            DXMessageBox.Show("Please select one or more clips to decrypt.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var dialog = ActivatorUtilities.CreateInstance<EncryptionKeyDialog>(_serviceProvider);
+            dialog.Owner = _activeWindowService.DialogOwner;
+            dialog.ViewModel.InitializeForDecryption();
+
+            var result = dialog.ShowDialog();
+            if (result != true)
+                return;
+
+            var passphrase = dialog.ViewModel.GetPassphrase();
+            if (passphrase == null || passphrase.Length == 0)
+            {
+                DXMessageBox.Show("Passphrase is required.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var databaseKey = GetDatabaseKeyForSelectedNode();
+            if (string.IsNullOrEmpty(databaseKey))
+            {
+                _logger.LogError("No database key available for decryption");
+                return;
+            }
+
+            // Convert SecureString to string temporarily for EncryptionKey creation
+            var passphraseString = new NetworkCredential(null, passphrase).Password;
+            var encryptionKey = EncryptionKey.FromPassphrase(passphraseString);
+
+            // Permanently decrypt the selected clips
+            await _clipService.DecryptClipsAsync(databaseKey, clipIds, encryptionKey, true);
+            _logger.LogInformation("Decrypted {Count} clip(s)", clipIds.Count);
+            SendStatus($"Decrypted {clipIds.Count} clip(s)");
+
+            // Request clip list reload to reflect decrypted state
+            _messenger.Send(new ReloadClipsRequestedEvent());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error decrypting clips");
+            DXMessageBox.Show($"Failed to decrypt clips: {ex.Message}", "Decryption Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
     /// Handles DeleteClipsRequestedEvent to delete selected clips with confirmation.
     /// </summary>
     public async void Receive(DeleteClipsRequestedEvent message)
@@ -343,6 +538,89 @@ public class ClipOperationsCoordinator :
         {
             _logger.LogError(ex, "Failed to delete clips");
             SendStatus("Error deleting clips", true);
+        }
+    }
+
+    /// <summary>
+    /// Handles encryption request by showing dialog and encrypting clips.
+    /// </summary>
+    public async void Receive(EncryptClipsRequestedEvent message)
+    {
+        var clipIds = message.ClipIds.Any()
+            ? message.ClipIds
+            : _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
+
+        if (clipIds.Count == 0)
+        {
+            DXMessageBox.Show("Please select one or more clips to encrypt.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var dialog = ActivatorUtilities.CreateInstance<EncryptionKeyDialog>(_serviceProvider);
+            dialog.Owner = _activeWindowService.DialogOwner;
+            dialog.ViewModel.InitializeForEncryption();
+
+            var result = dialog.ShowDialog();
+            if (result != true)
+                return;
+
+            var passphrase = dialog.ViewModel.GetPassphrase();
+            if (passphrase == null || passphrase.Length == 0)
+            {
+                DXMessageBox.Show("Passphrase is required.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var databaseKey = GetDatabaseKeyForSelectedNode();
+            if (string.IsNullOrEmpty(databaseKey))
+            {
+                _logger.LogError("No database key available for encryption");
+                return;
+            }
+
+            // Convert SecureString to string temporarily for EncryptionKey creation
+            var passphraseString = new NetworkCredential(null, passphrase).Password;
+            var encryptionKey = EncryptionKey.FromPassphrase(passphraseString);
+            await _clipService.EncryptClipsAsync(databaseKey, clipIds, encryptionKey);
+            _logger.LogInformation("Encrypted {Count} clip(s)", clipIds.Count);
+            SendStatus($"Encrypted {clipIds.Count} clip(s)");
+
+            // Request clip list reload to show encrypted status
+            _messenger.Send(new ReloadClipsRequestedEvent());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error encrypting clips");
+            DXMessageBox.Show($"Failed to encrypt clips: {ex.Message}", "Encryption Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Handles encryption key expiration event - re-locks all temporarily decrypted clips.
+    /// </summary>
+    public async void Receive(EncryptionKeyExpiredEvent message)
+    {
+        try
+        {
+            var databaseKey = GetDatabaseKeyForSelectedNode();
+            if (string.IsNullOrEmpty(databaseKey))
+            {
+                _logger.LogError("No database key available for re-locking clips after key expiration");
+                return;
+            }
+
+            await _clipService.LockClipsAsync(databaseKey);
+            _logger.LogInformation("Re-locked temporarily decrypted clips after key expiration");
+            SendStatus("Encryption key expired - clips locked");
+
+            // Refresh UI to show locked state
+            _messenger.Send(new PreferencesChangedEvent());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error re-locking clips after key expiration");
         }
     }
 
@@ -421,6 +699,80 @@ public class ClipOperationsCoordinator :
         };
 
         dialog.ShowDialog();
+    }
+
+    /// <summary>
+    /// Handles forget encryption key request.
+    /// </summary>
+    public void Receive(ForgetEncryptionKeyRequestedEvent message)
+    {
+        try
+        {
+            EncryptionKeyDialogViewModel.ForgetKey();
+            _logger.LogInformation("Encryption key forgotten");
+            SendStatus("Encryption key cleared from memory");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error forgetting encryption key");
+        }
+    }
+
+    /// <summary>
+    /// Handles lock request by clearing decrypted BLOB cache and forgetting encryption key.
+    /// </summary>
+    public async void Receive(LockClipsRequestedEvent message)
+    {
+        try
+        {
+            var databaseKey = GetDatabaseKeyForSelectedNode();
+            if (string.IsNullOrEmpty(databaseKey))
+            {
+                _logger.LogError("No database key available for locking clips");
+                return;
+            }
+
+            // Determine which clips to lock
+            IReadOnlyList<Guid>? clipIdsToLock;
+            if (message.ClipIds.Any())
+            {
+                // Lock specific clips from message
+                clipIdsToLock = message.ClipIds;
+            }
+            else if (message.LockAll)
+            {
+                // Lock all cached clips (pass null to service)
+                clipIdsToLock = null;
+            }
+            else
+            {
+                // Lock selected clips
+                clipIdsToLock = _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
+            }
+
+            var lockedClipIds = await _clipService.LockClipsAsync(databaseKey, clipIdsToLock);
+            _logger.LogInformation("Locked {Count} encrypted clips", lockedClipIds.Count);
+
+            // Forget cached keys only for the clips we actually locked
+            // This allows selective locking while preserving keys for other decrypted clips
+            if (lockedClipIds.Count > 0)
+            {
+                EncryptionKeyDialogViewModel.ForgetKeysForClips(lockedClipIds);
+                _logger.LogInformation("Forgot encryption keys for {Count} locked clip(s)", lockedClipIds.Count);
+            }
+
+            // Notify UI that clips' cache expired so they refresh to show locked state
+            // ClearClip doesn't invoke the expiration callback, so we send the message here
+            foreach (var item in lockedClipIds)
+                _messenger.Send(new ClipCacheExpiredMessage(item));
+
+            if (lockedClipIds.Count > 0)
+                SendStatus($"Locked {lockedClipIds.Count} clip(s)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error locking clips");
+        }
     }
 
     /// <summary>
@@ -801,6 +1153,15 @@ public class ClipOperationsCoordinator :
             _logger.LogError(ex, "Failed to show clip properties for clip {ClipId}", selectedClip.Id);
             SendStatus($"Failed to show clip properties: {ex.Message}", true);
         }
+    }
+
+    /// <summary>
+    /// Handles ShowEncryptionCancelledEvent (forwarded to ClipViewerControl).
+    /// </summary>
+    public void Receive(ShowEncryptionCancelledEvent message)
+    {
+        // This event is primarily for ClipViewerControl to handle
+        // Coordinator just needs to be registered to avoid warnings
     }
 
     /// <summary>

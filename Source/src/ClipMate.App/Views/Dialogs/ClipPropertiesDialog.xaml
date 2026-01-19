@@ -119,9 +119,16 @@
                               Mask="d" />
             </dxlc:LayoutItem>
 
-            <!-- Checkboxes -->
-            <dxlc:LayoutItem Label="Encrypted">
-                <dxe:CheckEdit IsChecked="{Binding Encrypted}" />
+            <!-- Encryption Status -->
+            <dxlc:LayoutItem Label="Encryption Status:">
+                <StackPanel>
+                    <dxe:CheckEdit IsChecked="{Binding Encrypted}" Content="Encrypted" IsReadOnly="True" />
+                    <TextBlock Text="{Binding EncryptionStatusText}"
+                               Margin="5,5,0,0"
+                               Foreground="Gray"
+                               FontSize="11"
+                               TextWrapping="Wrap" />
+                </StackPanel>
             </dxlc:LayoutItem>
             <dxlc:LayoutItem Label="Macros?">
                 <dxe:CheckEdit IsChecked="{Binding Macro}" />

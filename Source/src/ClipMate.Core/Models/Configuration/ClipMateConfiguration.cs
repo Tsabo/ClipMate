@@ -62,4 +62,9 @@ public class ClipMateConfiguration
     /// Gets or sets the export/import configuration.
     /// </summary>
     public ExportConfiguration Export { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the encryption configuration.
+    /// </summary>
+    public EncryptionConfiguration Encryption { get; set; } = new();
 }

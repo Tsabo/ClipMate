@@ -13,6 +13,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// NOTE: Tests focus on service logic and parameter validation since unsafe pointer methods
 /// cannot be easily mocked with Moq. Win32 API behavior is tested via integration tests.
 /// </summary>
+[Category("PasteService")]
+[Category("Unit")]
 public class PasteServiceTests : TestFixtureBase
 {
     private PasteService CreateService()
@@ -33,221 +35,221 @@ public class PasteServiceTests : TestFixtureBase
         return new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
     }
 
-    #region GetActiveWindowTitle Tests
-
-    [Test]
-    public async Task GetActiveWindowTitle_WithNoActiveWindow_ShouldReturnEmpty()
+    [Category("GetActiveWindowTitle")]
+    public class GetActiveWindowTitleTests : PasteServiceTests
     {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockClipboardService = new Mock<IClipboardService>();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-        mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
-
-        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
-
-        // Act
-        var title = service.GetActiveWindowTitle();
-
-        // Assert
-        await Assert.That(title).IsEmpty();
-    }
-
-    #endregion
-
-    #region Constructor Tests
-
-    [Test]
-    public async Task Constructor_WithNullInterop_ShouldThrowArgumentNullException()
-    {
-        // Arrange
-        var mockClipboardService = new Mock<IClipboardService>();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-
-        // Act & Assert
-        await Assert.That(() => new PasteService(null!, mockClipboardService.Object, mockLogger.Object))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithNullClipboardService_ShouldThrowArgumentNullException()
-    {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-
-        // Act & Assert
-        await Assert.That(() => new PasteService(mockInterop.Object, null!, mockLogger.Object))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithNullLogger_ShouldThrowArgumentNullException()
-    {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockClipboardService = new Mock<IClipboardService>();
-
-        // Act & Assert
-        await Assert.That(() => new PasteService(mockInterop.Object, mockClipboardService.Object, null!))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_WithValidDependencies_ShouldCreateInstance()
-    {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockClipboardService = new Mock<IClipboardService>();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-
-        // Act
-        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
-
-        // Assert
-        await Assert.That(service).IsNotNull();
-    }
-
-    #endregion
-
-    #region PasteToActiveWindowAsync Tests
-
-    [Test]
-    public async Task PasteToActiveWindowAsync_WithNullClip_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var result = await service.PasteToActiveWindowAsync(null!);
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    public async Task PasteToActiveWindowAsync_WithEmptyTextContent_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-        var clip = new Clip
+        [Test]
+        public async Task WithNoActiveWindow_ShouldReturnEmpty()
         {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = string.Empty,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockClipboardService = new Mock<IClipboardService>();
+            var mockLogger = new Mock<ILogger<PasteService>>();
+            mockInterop.Setup(w => w.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
 
-        // Act
-        var result = await service.PasteToActiveWindowAsync(clip);
+            var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
 
-        // Assert
-        await Assert.That(result).IsFalse();
+            // Act
+            var title = service.GetActiveWindowTitle();
+
+            // Assert
+            await Assert.That(title).IsEmpty();
+        }
     }
 
-    [Test]
-    public async Task PasteToActiveWindowAsync_WithNullTextContent_ShouldReturnFalse()
+    [Category("Constructor")]
+    public class ConstructorTests : PasteServiceTests
     {
-        // Arrange
-        var service = CreateService();
-        var clip = new Clip
+        [Test]
+        public async Task WithNullInterop_ShouldThrowArgumentNullException()
         {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = null,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var mockClipboardService = new Mock<IClipboardService>();
+            var mockLogger = new Mock<ILogger<PasteService>>();
 
-        // Act
-        var result = await service.PasteToActiveWindowAsync(clip);
+            // Act & Assert
+            await Assert.That(() => new PasteService(null!, mockClipboardService.Object, mockLogger.Object))
+                .Throws<ArgumentNullException>();
+        }
 
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    public async Task PasteToActiveWindowAsync_WithImageClip_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-        var clip = new Clip
+        [Test]
+        public async Task WithNullClipboardService_ShouldThrowArgumentNullException()
         {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Image,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockLogger = new Mock<ILogger<PasteService>>();
 
-        // Act
-        var result = await service.PasteToActiveWindowAsync(clip);
+            // Act & Assert
+            await Assert.That(() => new PasteService(mockInterop.Object, null!, mockLogger.Object))
+                .Throws<ArgumentNullException>();
+        }
 
-        // Assert - Image paste not yet implemented
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    public async Task PasteToActiveWindowAsync_WithRichTextClip_ShouldReturnFalse()
-    {
-        // Arrange
-        var service = CreateService();
-        var clip = new Clip
+        [Test]
+        public async Task WithNullLogger_ShouldThrowArgumentNullException()
         {
-            Id = Guid.NewGuid(),
-            Type = ClipType.RichText,
-            CapturedAt = DateTime.UtcNow,
-        };
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockClipboardService = new Mock<IClipboardService>();
 
-        // Act
-        var result = await service.PasteToActiveWindowAsync(clip);
+            // Act & Assert
+            await Assert.That(() => new PasteService(mockInterop.Object, mockClipboardService.Object, null!))
+                .Throws<ArgumentNullException>();
+        }
 
-        // Assert - RichText paste not yet implemented
-        await Assert.That(result).IsFalse();
+        [Test]
+        public async Task WithValidDependencies_ShouldCreateInstance()
+        {
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockClipboardService = new Mock<IClipboardService>();
+            var mockLogger = new Mock<ILogger<PasteService>>();
+
+            // Act
+            var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
+
+            // Assert
+            await Assert.That(service).IsNotNull();
+        }
     }
 
-    #endregion
-
-    #region GetActiveWindowProcessName Tests
-
-    [Test]
-    public async Task GetActiveWindowProcessName_WithNoActiveWindow_ShouldReturnEmpty()
+    [Category("PasteToActiveWindow")]
+    public class PasteToActiveWindowAsyncTests : PasteServiceTests
     {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockClipboardService = new Mock<IClipboardService>();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-        mockInterop.Setup(p => p.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
+        [Test]
+        public async Task WithNullClip_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = CreateService();
 
-        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
+            // Act
+            var result = await service.PasteToActiveWindowAsync(null!);
 
-        // Act
-        var processName = service.GetActiveWindowProcessName();
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
 
-        // Assert
-        await Assert.That(processName).IsEmpty();
-    }
-
-    [Test]
-    public async Task GetActiveWindowProcessName_WhenGetWindowThreadProcessIdFails_ShouldReturnEmpty()
-    {
-        // Arrange
-        var mockInterop = CreateWin32InputMock();
-        var mockClipboardService = new Mock<IClipboardService>();
-        var mockLogger = new Mock<ILogger<PasteService>>();
-        mockInterop.Setup(p => p.GetForegroundWindow()).Returns(new HWND(new IntPtr(12345)));
-        mockInterop.Setup(p => p.GetWindowThreadProcessId(It.IsAny<HWND>(), out It.Ref<uint>.IsAny))
-            .Returns((HWND hwnd, out uint processId) =>
+        [Test]
+        public async Task WithEmptyTextContent_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = CreateService();
+            var clip = new Clip
             {
-                processId = 0; // Failed to get process ID
-                return 0u;
-            });
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                TextContent = string.Empty,
+                CapturedAt = DateTime.UtcNow,
+            };
 
-        var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
+            // Act
+            var result = await service.PasteToActiveWindowAsync(clip);
 
-        // Act
-        var processName = service.GetActiveWindowProcessName();
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
 
-        // Assert
-        await Assert.That(processName).IsEmpty();
+        [Test]
+        public async Task WithNullTextContent_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = CreateService();
+            var clip = new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                TextContent = null,
+                CapturedAt = DateTime.UtcNow,
+            };
+
+            // Act
+            var result = await service.PasteToActiveWindowAsync(clip);
+
+            // Assert
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task WithImageClip_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = CreateService();
+            var clip = new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Image,
+                CapturedAt = DateTime.UtcNow,
+            };
+
+            // Act
+            var result = await service.PasteToActiveWindowAsync(clip);
+
+            // Assert - Image paste not yet implemented
+            await Assert.That(result).IsFalse();
+        }
+
+        [Test]
+        public async Task WithRichTextClip_ShouldReturnFalse()
+        {
+            // Arrange
+            var service = CreateService();
+            var clip = new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.RichText,
+                CapturedAt = DateTime.UtcNow,
+            };
+
+            // Act
+            var result = await service.PasteToActiveWindowAsync(clip);
+
+            // Assert - RichText paste not yet implemented
+            await Assert.That(result).IsFalse();
+        }
     }
 
-    #endregion
+    [Category("GetActiveWindowProcessName")]
+    public class GetActiveWindowProcessNameTests : PasteServiceTests
+    {
+        [Test]
+        public async Task WithNoActiveWindow_ShouldReturnEmpty()
+        {
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockClipboardService = new Mock<IClipboardService>();
+            var mockLogger = new Mock<ILogger<PasteService>>();
+            mockInterop.Setup(p => p.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
+
+            var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
+
+            // Act
+            var processName = service.GetActiveWindowProcessName();
+
+            // Assert
+            await Assert.That(processName).IsEmpty();
+        }
+
+        [Test]
+        public async Task WhenGetWindowThreadProcessIdFails_ShouldReturnEmpty()
+        {
+            // Arrange
+            var mockInterop = CreateWin32InputMock();
+            var mockClipboardService = new Mock<IClipboardService>();
+            var mockLogger = new Mock<ILogger<PasteService>>();
+            mockInterop.Setup(p => p.GetForegroundWindow()).Returns(new HWND(new IntPtr(12345)));
+            mockInterop.Setup(p => p.GetWindowThreadProcessId(It.IsAny<HWND>(), out It.Ref<uint>.IsAny))
+                .Returns((HWND hwnd, out uint processId) =>
+                {
+                    processId = 0; // Failed to get process ID
+                    return 0u;
+                });
+
+            var service = new PasteService(mockInterop.Object, mockClipboardService.Object, mockLogger.Object);
+
+            // Act
+            var processName = service.GetActiveWindowProcessName();
+
+            // Assert
+            await Assert.That(processName).IsEmpty();
+        }
+    }
 }

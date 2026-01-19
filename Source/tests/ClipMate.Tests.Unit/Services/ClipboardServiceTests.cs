@@ -176,6 +176,7 @@ public class ClipboardServiceTests : TestFixtureBase
         var config = new ClipMateConfiguration();
         configServiceMock.Setup(c => c.Configuration).Returns(config);
 
-        return new ClipboardService(logger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object);
+        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
+        return new ClipboardService(logger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object, blobCacheServiceMock.Object);
     }
 }

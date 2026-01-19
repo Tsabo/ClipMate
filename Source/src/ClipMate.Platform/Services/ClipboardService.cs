@@ -39,6 +39,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
     private readonly IConfigurationService _configurationService;
+    private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
@@ -54,7 +55,8 @@ public class ClipboardService : IClipboardService, IDisposable
         IConfigurationService configurationService,
         IApplicationProfileService applicationProfileService,
         IClipboardFormatEnumerator clipboardFormatEnumerator,
-        ISoundService soundService)
+        ISoundService soundService,
+        IDecryptedBlobCacheService blobCacheService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
@@ -62,6 +64,7 @@ public class ClipboardService : IClipboardService, IDisposable
         _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
+        _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
@@ -990,19 +993,52 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
+            string? textContent = clip.TextContent;
+            string? rtfContent = clip.RtfContent;
+            string? htmlContent = clip.HtmlContent;
+
+            // Handle encrypted clips - load decrypted content from cache OR encrypted base64 from transient properties
+            if (clip.Encrypted)
+            {
+                if (clip.IsDecrypted)
+                {
+                    // Load decrypted content from cache
+                    var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clip.Id);
+                    if (cachedBlobs != null && cachedBlobs.TextBlobs.Count > 0)
+                    {
+                        // Use first text BLOB as plain text (decrypted)
+                        textContent = cachedBlobs.TextBlobs[0].Data;
+                        _logger.LogDebug("Loaded decrypted text content from cache for clip {ClipId}", clip.Id);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
+                    }
+                }
+                else
+                {
+                    // Use encrypted base64 from transient properties (loaded by caller via IClipService.LoadEncryptedContentAsync)
+                    // If textContent is still null, caller forgot to load - log warning
+                    if (textContent == null)
+                    {
+                        _logger.LogWarning("Clip {ClipId} is encrypted but TextContent not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
+                    }
+                }
+            }
+
             var dataObject = new WpfDataObject();
 
             // Set plain text (always)
-            if (!string.IsNullOrEmpty(clip.TextContent))
-                dataObject.SetText(clip.TextContent);
+            if (!string.IsNullOrEmpty(textContent))
+                dataObject.SetText(textContent);
 
             // Set RTF if available
-            if (!string.IsNullOrEmpty(clip.RtfContent))
-                dataObject.SetData(DataFormats.Rtf, clip.RtfContent);
+            if (!string.IsNullOrEmpty(rtfContent))
+                dataObject.SetData(DataFormats.Rtf, rtfContent);
 
             // Set HTML if available
-            if (!string.IsNullOrEmpty(clip.HtmlContent))
-                dataObject.SetData(DataFormats.Html, clip.HtmlContent);
+            if (!string.IsNullOrEmpty(htmlContent))
+                dataObject.SetData(DataFormats.Html, htmlContent);
 
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -1018,11 +1054,53 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            if (clip.ImageData == null || clip.ImageData.Length == 0)
+            byte[]? imageData = clip.ImageData;
+
+            // Handle encrypted clips - load decrypted content from cache OR encrypted bytes from transient properties
+            if (clip.Encrypted)
+            {
+                if (clip.IsDecrypted)
+                {
+                    // Load decrypted content from cache
+                    var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clip.Id);
+                    if (cachedBlobs != null)
+                    {
+                        // Try PNG first, then JPG
+                        if (cachedBlobs.PngBlobs.Count > 0)
+                        {
+                            imageData = cachedBlobs.PngBlobs[0].Data;
+                            _logger.LogDebug("Loaded decrypted PNG content from cache for clip {ClipId}", clip.Id);
+                        }
+                        else if (cachedBlobs.JpgBlobs.Count > 0)
+                        {
+                            imageData = cachedBlobs.JpgBlobs[0].Data;
+                            _logger.LogDebug("Loaded decrypted JPG content from cache for clip {ClipId}", clip.Id);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Clip {ClipId} is marked as decrypted but no image BLOBs in cache", clip.Id);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
+                    }
+                }
+                else
+                {
+                    // Use encrypted binary data from transient properties (loaded by caller via IClipService.LoadEncryptedContentAsync)
+                    if (imageData == null)
+                    {
+                        _logger.LogWarning("Clip {ClipId} is encrypted but ImageData not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
+                    }
+                }
+            }
+
+            if (imageData == null || imageData.Length == 0)
                 throw new InvalidOperationException("Image data is empty");
 
             // Convert byte array back to BitmapSource
-            using var memoryStream = new MemoryStream(clip.ImageData);
+            using var memoryStream = new MemoryStream(imageData);
             var decoder = BitmapDecoder.Create(memoryStream,
                 BitmapCreateOptions.PreservePixelFormat,
                 BitmapCacheOption.OnLoad);

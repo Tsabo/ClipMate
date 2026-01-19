@@ -12,6 +12,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// Tests for RetentionEnforcementService ensuring retention rules are properly enforced.
 /// Tests MaxClips, MaxBytes, MaxAge retention, Overflow collection behavior, and ReadOnly bypass.
 /// </summary>
+[Category("RetentionEnforcementService")]
+[Category("Unit")]
 public class RetentionEnforcementServiceTests
 {
     private const string _testDatabaseKey = "test-db";
@@ -39,264 +41,264 @@ public class RetentionEnforcementServiceTests
             _mockContextFactory.Object,
             Mock.Of<ILogger<IRetentionEnforcementService>>());
 
-    #region ReadOnly Collection Tests
-
-    [Test]
-    public async Task EnforceRetentionAsync_ReadOnlyCollection_SkipsEnforcement()
+    [Category("ReadOnlyCollection")]
+    public class ReadOnlyCollectionTests : RetentionEnforcementServiceTests
     {
-        // Arrange
-        var collectionId = Guid.NewGuid();
-
-        var collection = new Collection
+        [Test]
+        public async Task SkipsEnforcement()
         {
-            Id = collectionId,
-            Title = "Safe",
-            LmType = CollectionLmType.Normal,
-            ReadOnly = true,
-            MaxClips = 5,
-        };
+            // Arrange
+            var collectionId = Guid.NewGuid();
 
-        var clips = Enumerable.Range(1, 10)
-            .Select(i => new Clip
+            var collection = new Collection
             {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                CapturedAt = DateTimeOffset.UtcNow.AddHours(-i),
-                Size = 100,
-            })
-            .ToList();
+                Id = collectionId,
+                Title = "Safe",
+                LmType = CollectionLmType.Normal,
+                ReadOnly = true,
+                MaxClips = 5,
+            };
 
-        _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-            .ReturnsAsync(collection);
+            var clips = Enumerable.Range(1, 10)
+                .Select(i => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddHours(-i),
+                    Size = 100,
+                })
+                .ToList();
 
-        _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-            .ReturnsAsync(clips);
+            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
+                .ReturnsAsync(collection);
 
-        var service = CreateService();
+            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
+                .ReturnsAsync(clips);
 
-        // Act
-        await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+            var service = CreateService();
 
-        // Assert
-        _mockClipRepository.Verify(
-            p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
-            Times.Never);
+            // Act
+            await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+
+            // Assert
+            _mockClipRepository.Verify(
+                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
+                Times.Never);
+        }
     }
 
-    #endregion
-
-    #region Overflow Collection Tests
-
-    [Test]
-    public async Task EnforceRetentionAsync_OverflowExceeded_MovesToTrashcan()
+    [Category("OverflowCollection")]
+    public class OverflowCollectionTests : RetentionEnforcementServiceTests
     {
-        // Arrange
-        var overflowId = Guid.NewGuid();
-        var trashId = Guid.NewGuid();
-
-        var overflowCollection = new Collection
+        [Test]
+        public async Task ExceededMovesToTrashcan()
         {
-            Id = overflowId,
-            Title = "Overflow",
-            LmType = CollectionLmType.Normal,
-            Role = CollectionRole.Overflow,
-            MaxClips = 5,
-        };
+            // Arrange
+            var overflowId = Guid.NewGuid();
+            var trashId = Guid.NewGuid();
 
-        var clips = Enumerable.Range(1, 10)
-            .Select(p => new Clip
+            var overflowCollection = new Collection
             {
-                Id = Guid.NewGuid(),
-                CollectionId = overflowId,
-                CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
-                Size = 100,
-            })
-            .ToList();
+                Id = overflowId,
+                Title = "Overflow",
+                LmType = CollectionLmType.Normal,
+                Role = CollectionRole.Overflow,
+                MaxClips = 5,
+            };
 
-        var trashCollection = new Collection
-        {
-            Id = trashId,
-            Title = "Trash Can",
-            LmType = CollectionLmType.Normal,
-            Role = CollectionRole.Trashcan,
-        };
+            var clips = Enumerable.Range(1, 10)
+                .Select(p => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = overflowId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
+                    Size = 100,
+                })
+                .ToList();
 
-        _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, overflowId))
-            .ReturnsAsync(overflowCollection);
+            var trashCollection = new Collection
+            {
+                Id = trashId,
+                Title = "Trash Can",
+                LmType = CollectionLmType.Normal,
+                Role = CollectionRole.Trashcan,
+            };
 
-        _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(overflowId))
-            .ReturnsAsync(clips);
+            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, overflowId))
+                .ReturnsAsync(overflowCollection);
 
-        _mockCollectionRepository.Setup(p => p.GetTrashcanCollectionAsync(_testDatabaseKey))
-            .ReturnsAsync(trashCollection);
+            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(overflowId))
+                .ReturnsAsync(clips);
 
-        var service = CreateService();
+            _mockCollectionRepository.Setup(p => p.GetTrashcanCollectionAsync(_testDatabaseKey))
+                .ReturnsAsync(trashCollection);
 
-        // Act
-        await service.EnforceRetentionAsync(_testDatabaseKey, overflowId);
+            var service = CreateService();
 
-        // Assert
-        _mockClipRepository.Verify(
-            p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), trashId),
-            Times.Once);
+            // Act
+            await service.EnforceRetentionAsync(_testDatabaseKey, overflowId);
+
+            // Assert
+            _mockClipRepository.Verify(
+                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), trashId),
+                Times.Once);
+        }
     }
 
-    #endregion
-
-    #region MaxAge Tests
-
-    [Test]
-    public async Task EnforceRetentionAsync_WithMaxAgeExceeded_DeletesOldClips()
+    [Category("MaxAge")]
+    public class MaxAgeTests : RetentionEnforcementServiceTests
     {
-        // Arrange
-        var collectionId = Guid.NewGuid();
-
-        var collection = new Collection
+        [Test]
+        public async Task ExceededDeletesOldClips()
         {
-            Id = collectionId,
-            Title = "InBox",
-            LmType = CollectionLmType.Normal,
-            MaxAgeDays = 30, // Delete clips older than 30 days
-        };
+            // Arrange
+            var collectionId = Guid.NewGuid();
 
-        var oldClips = Enumerable.Range(1, 5)
-            .Select(_ => new Clip
+            var collection = new Collection
             {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                CapturedAt = DateTimeOffset.UtcNow.AddDays(-35), // Older than 30 days
-                Size = 100,
-            })
-            .ToList();
+                Id = collectionId,
+                Title = "InBox",
+                LmType = CollectionLmType.Normal,
+                MaxAgeDays = 30, // Delete clips older than 30 days
+            };
 
-        var recentClips = Enumerable.Range(1, 5)
-            .Select(_ => new Clip
-            {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                CapturedAt = DateTimeOffset.UtcNow.AddDays(-10), // Within 30 days
-                Size = 100,
-            })
-            .ToList();
+            var oldClips = Enumerable.Range(1, 5)
+                .Select(_ => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddDays(-35), // Older than 30 days
+                    Size = 100,
+                })
+                .ToList();
 
-        var allClips = oldClips.Concat(recentClips).ToList();
+            var recentClips = Enumerable.Range(1, 5)
+                .Select(_ => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddDays(-10), // Within 30 days
+                    Size = 100,
+                })
+                .ToList();
 
-        _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-            .ReturnsAsync(collection);
+            var allClips = oldClips.Concat(recentClips).ToList();
 
-        _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-            .ReturnsAsync(allClips);
+            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
+                .ReturnsAsync(collection);
 
-        var service = CreateService();
+            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
+                .ReturnsAsync(allClips);
 
-        // Act
-        await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+            var service = CreateService();
 
-        // Assert
-        // Verify old clips were deleted (moved to Trash)
-        _mockClipRepository.Verify(
-            p => p.DeleteClipsAsync(It.Is<IEnumerable<Guid>>(ids => ids.Count() == 5)),
-            Times.Once);
+            // Act
+            await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+
+            // Assert
+            // Verify old clips were deleted (moved to Trash)
+            _mockClipRepository.Verify(
+                p => p.DeleteClipsAsync(It.Is<IEnumerable<Guid>>(ids => ids.Count() == 5)),
+                Times.Once);
+        }
     }
 
-    #endregion
-
-    #region MaxClips Tests
-
-    [Test]
-    public async Task EnforceRetentionAsync_WithMaxClipsExceeded_MovesOldestClipsToOverflow()
+    [Category("MaxClips")]
+    public class MaxClipsTests : RetentionEnforcementServiceTests
     {
-        // Arrange
-        var collectionId = Guid.NewGuid();
-        var overflowId = Guid.NewGuid();
-
-        var collection = new Collection
+        [Test]
+        public async Task ExceededMovesOldestClipsToOverflow()
         {
-            Id = collectionId,
-            Title = "InBox",
-            LmType = CollectionLmType.Normal,
-            MaxClips = 5, // Limit to 5 clips
-        };
+            // Arrange
+            var collectionId = Guid.NewGuid();
+            var overflowId = Guid.NewGuid();
 
-        var clips = Enumerable.Range(1, 10)
-            .Select(p => new Clip
+            var collection = new Collection
             {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
-                Size = 100,
-            })
-            .ToList();
+                Id = collectionId,
+                Title = "InBox",
+                LmType = CollectionLmType.Normal,
+                MaxClips = 5, // Limit to 5 clips
+            };
 
-        var overflowCollection = new Collection
-        {
-            Id = overflowId,
-            Title = "Overflow",
-            LmType = CollectionLmType.Normal,
-            Role = CollectionRole.Overflow,
-        };
+            var clips = Enumerable.Range(1, 10)
+                .Select(p => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
+                    Size = 100,
+                })
+                .ToList();
 
-        _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-            .ReturnsAsync(collection);
-
-        _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-            .ReturnsAsync(clips);
-
-        _mockCollectionRepository.Setup(p => p.GetOverflowCollectionAsync(_testDatabaseKey))
-            .ReturnsAsync(overflowCollection);
-
-        var service = CreateService();
-
-        // Act
-        await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
-
-        // Assert
-        // Verify that 5 clips were moved to overflow (keeping the 5 newest)
-        _mockClipRepository.Verify(
-            p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), overflowId),
-            Times.Once);
-    }
-
-    [Test]
-    public async Task EnforceRetentionAsync_WithMaxClipsNotExceeded_DoesNothing()
-    {
-        // Arrange
-        var collectionId = Guid.NewGuid();
-
-        var collection = new Collection
-        {
-            Id = collectionId,
-            Title = "InBox",
-            LmType = CollectionLmType.Normal,
-            MaxClips = 10,
-        };
-
-        var clips = Enumerable.Range(1, 5)
-            .Select(p => new Clip
+            var overflowCollection = new Collection
             {
-                Id = Guid.NewGuid(),
-                CollectionId = collectionId,
-                CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
-                Size = 100,
-            })
-            .ToList();
+                Id = overflowId,
+                Title = "Overflow",
+                LmType = CollectionLmType.Normal,
+                Role = CollectionRole.Overflow,
+            };
 
-        _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-            .ReturnsAsync(collection);
+            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
+                .ReturnsAsync(collection);
 
-        _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-            .ReturnsAsync(clips);
+            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
+                .ReturnsAsync(clips);
 
-        var service = CreateService();
+            _mockCollectionRepository.Setup(p => p.GetOverflowCollectionAsync(_testDatabaseKey))
+                .ReturnsAsync(overflowCollection);
 
-        // Act
-        await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+            var service = CreateService();
 
-        // Assert
-        _mockClipRepository.Verify(
-            p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
-            Times.Never);
+            // Act
+            await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+
+            // Assert
+            // Verify that 5 clips were moved to overflow (keeping the 5 newest)
+            _mockClipRepository.Verify(
+                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), overflowId),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task NotExceededDoesNothing()
+        {
+            // Arrange
+            var collectionId = Guid.NewGuid();
+
+            var collection = new Collection
+            {
+                Id = collectionId,
+                Title = "InBox",
+                LmType = CollectionLmType.Normal,
+                MaxClips = 10,
+            };
+
+            var clips = Enumerable.Range(1, 5)
+                .Select(p => new Clip
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = collectionId,
+                    CapturedAt = DateTimeOffset.UtcNow.AddHours(-p),
+                    Size = 100,
+                })
+                .ToList();
+
+            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
+                .ReturnsAsync(collection);
+
+            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
+                .ReturnsAsync(clips);
+
+            var service = CreateService();
+
+            // Act
+            await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
+
+            // Assert
+            _mockClipRepository.Verify(
+                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
+                Times.Never);
+        }
     }
-
-    #endregion
 }

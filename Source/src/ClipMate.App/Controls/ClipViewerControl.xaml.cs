@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
@@ -29,9 +30,9 @@ namespace ClipMate.App.Controls;
 
 /// <summary>
 /// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Bitmap, Picture, and Binary formats.
-/// Listens to ClipSelectedEvent and PreferencesChangedEvent via MVVM Toolkit Messenger.
+/// Listens to ClipSelectedEvent, PreferencesChangedEvent, and ClipCacheExpiredMessage via MVVM Toolkit Messenger.
 /// </summary>
-public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>
+public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>, IRecipient<ClipCacheExpiredMessage>
 {
     #region Constructor
 
@@ -49,6 +50,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
+        _blobCacheService = serviceProvider.GetRequiredService<IDecryptedBlobCacheService>();
 
         // Initialize toolbar ViewModel
         _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
@@ -69,6 +71,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             _messenger.Register<ClipSelectedEvent>(this);
             _messenger.Register<PreferencesChangedEvent>(this);
+            _messenger.Register<ClipCacheExpiredMessage>(this);
 
             // Apply initial editor settings
             ApplyEditorSettings();
@@ -93,6 +96,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             _messenger.Unregister<ClipSelectedEvent>(this);
             _messenger.Unregister<PreferencesChangedEvent>(this);
+            _messenger.Unregister<ClipCacheExpiredMessage>(this);
 
             // Cancel any ongoing load operation
             _loadCancellationTokenSource?.Cancel();
@@ -171,11 +175,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _loadCancellationTokenSource?.Dispose();
         _loadCancellationTokenSource = new CancellationTokenSource();
 
-        // Store the database key before setting ClipId (which triggers load)
+        // Store the database key before loading
         if (!string.IsNullOrEmpty(databaseKey))
             _currentDatabaseKey = databaseKey;
 
-        ClipId = clipId;
+        // Force reload even if ClipId hasn't changed (e.g., after temporary decryption)
+        if (clipId.HasValue)
+            _ = LoadClipDataAsync(clipId.Value, _currentDatabaseKey, _loadCancellationTokenSource.Token);
     }
 
     /// <summary>
@@ -185,6 +191,30 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         _logger.LogInformation("[ClipViewer] Received PreferencesChangedEvent - Applying editor settings");
         ApplyEditorSettings();
+    }
+
+    /// <summary>
+    /// Receives ClipCacheExpiredMessage when a temporarily decrypted clip's cache expires.
+    /// Reloads the clip to show encrypted placeholder instead of cached decrypted data.
+    /// </summary>
+    public void Receive(ClipCacheExpiredMessage message)
+    {
+        // Marshal to UI thread since cache expiration happens on background thread
+        Dispatcher.Invoke(() =>
+        {
+            // If we're currently viewing this clip, reload to show encrypted state
+            if (ClipId != message.ClipId)
+                return;
+
+            _logger.LogInformation("[ClipViewer] Cache expired for currently viewed clip - reloading");
+
+            // Cancel any in-progress load and reload
+            _loadCancellationTokenSource?.Cancel();
+            _loadCancellationTokenSource?.Dispose();
+            _loadCancellationTokenSource = new CancellationTokenSource();
+
+            _ = LoadClipDataAsync(message.ClipId, _currentDatabaseKey, _loadCancellationTokenSource.Token);
+        });
     }
 
     #endregion
@@ -228,9 +258,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly ITextTransformService _textTransformService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
+    private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
     private CancellationTokenSource? _loadCancellationTokenSource;
+    private Clip? _currentClip;
     private List<ClipData> _currentClipData = [];
     private Dictionary<Guid, BlobTxt> _textBlobs = [];
     private Dictionary<Guid, BlobJpg> _jpgBlobs = [];
@@ -266,7 +298,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             IsLoading = true;
             _isLoadingContent = true; // Suppress save operations during load
 
-            // Store the database key for this clip
+            // Store the clip ID and database key for this clip
+            ClipId = clipId;
             _currentDatabaseKey = databaseKey;
 
             // Reset dirty flags for new clip
@@ -300,9 +333,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 throw new InvalidOperationException("No database configured");
 
             // Get repositories - each creates its own fresh context internally
+            var clipRepository = _databaseContextFactory.GetClipRepository(_currentDatabaseKey);
             var clipDataRepository = _databaseContextFactory.GetClipDataRepository(_currentDatabaseKey);
             var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
             var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+
+            // Load the Clip object to check encryption status
+            _currentClip = await clipRepository.GetByIdAsync(clipId, cancellationToken);
 
             // Load all ClipData entries for this clip
             _currentClipData = (await clipDataRepository.GetByClipIdAsync(clipId, cancellationToken))
@@ -318,20 +355,56 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 return;
             }
 
-            // Load all BLOBs upfront
-            var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId, cancellationToken);
-            var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId, cancellationToken);
-            var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId, cancellationToken);
-            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId, cancellationToken);
+            // Load all BLOBs - check cache first, fallback to database
+            var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clipId);
 
-            // Check cancellation after blob loading
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cachedBlobs != null)
+            {
+                // Use cached decrypted BLOBs
+                _logger.LogInformation("[ClipViewer] Using cached decrypted BLOBs for clip {ClipId}", clipId);
+                _textBlobs = cachedBlobs.TextBlobs.ToDictionary(p => p.ClipDataId);
+                _jpgBlobs = cachedBlobs.JpgBlobs.ToDictionary(p => p.ClipDataId);
+                _pngBlobs = cachedBlobs.PngBlobs.ToDictionary(p => p.ClipDataId);
+                _binaryBlobs = cachedBlobs.BinaryBlobs.ToDictionary(p => p.ClipDataId);
 
-            // Create lookup dictionaries by ClipDataId
-            _textBlobs = textBlobs.ToDictionary(p => p.ClipDataId);
-            _jpgBlobs = jpgBlobs.ToDictionary(p => p.ClipDataId);
-            _pngBlobs = pngBlobs.ToDictionary(p => p.ClipDataId);
-            _binaryBlobs = binaryBlobs.ToDictionary(p => p.ClipDataId);
+                // Log details of cached text blobs for debugging
+                foreach (var textBlob in cachedBlobs.TextBlobs)
+                {
+                    _logger.LogDebug("[ClipViewer] Cached TextBlob: ClipDataId={ClipDataId}, Data length={Length}",
+                        textBlob.ClipDataId, textBlob.Data.Length);
+                }
+            }
+            else if (_currentClip?.Encrypted == true)
+            {
+                // Clip is encrypted but not in cache - show encrypted message
+                _logger.LogInformation("[ClipViewer] Clip {ClipId} is encrypted with no cached data - showing placeholder", clipId);
+
+                // Create empty dictionaries
+                _textBlobs = new Dictionary<Guid, BlobTxt>();
+                _jpgBlobs = new Dictionary<Guid, BlobJpg>();
+                _pngBlobs = new Dictionary<Guid, BlobPng>();
+                _binaryBlobs = new Dictionary<Guid, BlobBlob>();
+
+                // Show encrypted message
+                HideAllTabs();
+                await ShowEncryptedPlaceholderAsync();
+                return;
+            }
+            else
+            {
+                // Load from database (not encrypted)
+                _logger.LogInformation("[ClipViewer] Loading BLOBs from database for clip {ClipId}", clipId);
+                var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId, cancellationToken);
+                var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId, cancellationToken);
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId, cancellationToken);
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId, cancellationToken);
+
+                // Create lookup dictionaries by ClipDataId
+                _textBlobs = textBlobs.ToDictionary(p => p.ClipDataId);
+                _jpgBlobs = jpgBlobs.ToDictionary(p => p.ClipDataId);
+                _pngBlobs = pngBlobs.ToDictionary(p => p.ClipDataId);
+                _binaryBlobs = binaryBlobs.ToDictionary(p => p.ClipDataId);
+            }
 
             _logger.LogInformation("[ClipViewer] Loaded blobs - Text: {TextCount}, JPG: {JpgCount}, PNG: {PngCount}, Binary: {BinaryCount}",
                 _textBlobs.Count, _jpgBlobs.Count, _pngBlobs.Count, _binaryBlobs.Count);
@@ -391,7 +464,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         foreach (var item in _currentClipData)
         {
             if (item.StorageType != StorageType.Text ||
-                (item.Format != Formats.Text.Code && item.Format != Formats.UnicodeText.Code))
+                item.Format != Formats.Text.Code && item.Format != Formats.UnicodeText.Code)
                 continue;
 
             textFormat = item;
@@ -406,6 +479,31 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (textFormat != null && _textBlobs.TryGetValue(textFormat.Id, out var blobData))
         {
+            // Check if clip is encrypted and data is not from cache (i.e., Base64 from database)
+            var isEncryptedAndNotCached = _currentClip?.Encrypted == true &&
+                                          _blobCacheService.GetDecryptedBlobs(_currentClip.Id) == null;
+
+            if (isEncryptedAndNotCached)
+            {
+                // Show encrypted placeholder message instead of Base64
+                _logger.LogInformation("[ClipViewer] Clip is encrypted and cache expired - showing placeholder");
+
+                await WaitForMonacoInitializationAsync(TextEditor, 10000, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await TextEditor.LoadContentAsync(
+                    "🔒 This clip is encrypted\n\nEnter the passphrase to view the content.",
+                    "plaintext");
+
+                TextEditor.IsReadOnly = true; // Read-only for encrypted placeholder
+                TextEditor.Visibility = Visibility.Visible;
+                NoTextMessage.Visibility = Visibility.Collapsed;
+                TextTab.Visibility = Visibility.Visible;
+
+                _textFormatClipDataId = null; // Don't allow saving encrypted placeholder
+                return;
+            }
+
             // Wait for Monaco to initialize before setting text
             await WaitForMonacoInitializationAsync(TextEditor, 10000, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -458,6 +556,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (htmlFormat != null && _textBlobs.TryGetValue(htmlFormat.Id, out var blobData))
         {
+            // Check if clip is encrypted and data is not from cache
+            var isEncryptedAndNotCached = _currentClip?.Encrypted == true &&
+                                          _blobCacheService.GetDecryptedBlobs(_currentClip.Id) == null;
+
+            if (isEncryptedAndNotCached)
+            {
+                // Hide HTML tab for encrypted clips without cache
+                _logger.LogInformation("[ClipViewer] HTML clip is encrypted and cache expired - hiding tab");
+                HtmlTab.Visibility = Visibility.Collapsed;
+                return Task.CompletedTask;
+            }
+
             try
             {
                 _logger.LogDebug("[ClipViewer] Starting HTML format load");
@@ -514,10 +624,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         return Task.CompletedTask;
     }
 
-    // Cached regex patterns for ParseCfHtmlFormat
-    private static readonly Regex _startHtmlRegex = new(@"StartHTML:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex _endHtmlRegex = new(@"EndHTML:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     /// <summary>
     /// Parses CF_HTML clipboard format to extract actual HTML content.
     /// CF_HTML format includes metadata headers like "Version:0.9 StartHTML:..." that need to be stripped.
@@ -536,8 +642,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             // Parse the StartHTML and EndHTML offsets to get the full HTML document
             // (This preserves <html> and <body> tags with their styles, like ClipMate 7.5)
-            var startHtmlMatch = _startHtmlRegex.Match(cfHtml);
-            var endHtmlMatch = _endHtmlRegex.Match(cfHtml);
+            var startHtmlMatch = RegexPatterns.StartHtml().Match(cfHtml);
+            var endHtmlMatch = RegexPatterns.EndHtml().Match(cfHtml);
 
             if (startHtmlMatch.Success && endHtmlMatch.Success)
             {
@@ -591,14 +697,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             return string.Empty;
 
         // Remove <script> tags and their content
-        htmlContent = ScriptTagRegEx().Replace(htmlContent, "");
+        htmlContent = RegexPatterns.ScriptTag().Replace(htmlContent, "");
 
         // Remove inline event handlers (onclick, onload, onerror, etc.)
-        htmlContent = InlineEventHandlerQuotedRegex().Replace(htmlContent, "");
-        htmlContent = InlineEventHandlerUnquotedRegex().Replace(htmlContent, "");
+        htmlContent = RegexPatterns.InlineEventHandlerQuoted().Replace(htmlContent, "");
+        htmlContent = RegexPatterns.InlineEventHandlerUnquoted().Replace(htmlContent, "");
 
         // Remove javascript: URLs
-        htmlContent = JavascriptUrlRegEx().Replace(htmlContent, "#");
+        htmlContent = RegexPatterns.JavascriptUrl().Replace(htmlContent, "#");
 
         return htmlContent;
     }
@@ -612,7 +718,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         if (string.IsNullOrWhiteSpace(htmlContent))
             return null;
 
-        var match = SourceUrlRegEx().Match(htmlContent);
+        var match = RegexPatterns.SourceUrl().Match(htmlContent);
 
         return match.Success
             ? match.Groups[1].Value.Trim()
@@ -695,6 +801,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
         if (rtfFormat != null && _textBlobs.TryGetValue(rtfFormat.Id, out var blobData))
         {
+            // Check if clip is encrypted and data is not from cache
+            var isEncryptedAndNotCached = _currentClip?.Encrypted == true &&
+                                          _blobCacheService.GetDecryptedBlobs(_currentClip.Id) == null;
+
+            if (isEncryptedAndNotCached)
+            {
+                // Hide RTF tab for encrypted clips without cache
+                _logger.LogInformation("[ClipViewer] RTF clip is encrypted and cache expired - hiding tab");
+                RtfTab.Visibility = Visibility.Collapsed;
+                return Task.CompletedTask;
+            }
+
             try
             {
                 // Load RTF content into DevExpress RichEditControl
@@ -726,7 +844,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         ClipData? bitmapFormat = null;
         foreach (var item in _currentClipData)
         {
-            if ((item.Format != Formats.Bitmap.Code && item.Format != Formats.Dib.Code) ||
+            if (item.Format != Formats.Bitmap.Code && item.Format != Formats.Dib.Code ||
                 item.StorageType != StorageType.Binary)
                 continue;
 
@@ -1182,6 +1300,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         BinaryTab.Visibility = Visibility.Collapsed;
     }
 
+    private Task ShowEncryptedPlaceholderAsync()
+    {
+        // Show text tab with encrypted message
+        TextTab.Visibility = Visibility.Visible;
+        FormatTabControl.SelectedItem = TextTab;
+        TextEditor.Text = "🔒 This clip is encrypted.\n\nSelect the clip in the list to decrypt it for viewing.";
+        TextEditor.IsReadOnly = true;
+
+        _logger.LogInformation("[ClipViewer] Showing encrypted placeholder");
+        return Task.CompletedTask;
+    }
+
     private void SelectFirstAvailableTab()
     {
         // Try to respect user's preferred default view first
@@ -1625,21 +1755,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             UseShellExecute = true,
         });
     }
-
-    [GeneratedRegex(@"<!--SourceURL:\s*(.+?)-->")]
-    private static partial Regex SourceUrlRegEx();
-
-    [GeneratedRegex(@"<script[^>]*>.*?</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline, "en-US")]
-    private static partial Regex ScriptTagRegEx();
-
-    [GeneratedRegex(@"javascript:\s*[^""'\s>]+", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex JavascriptUrlRegEx();
-
-    [GeneratedRegex(@"\s+on\w+\s*=\s*[""'].*?[""']", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex InlineEventHandlerQuotedRegex();
-
-    [GeneratedRegex(@"\s+on\w+\s*=\s*[^\s>]+", RegexOptions.IgnoreCase, "en-US")]
-    private static partial Regex InlineEventHandlerUnquotedRegex();
 
     #endregion
 }

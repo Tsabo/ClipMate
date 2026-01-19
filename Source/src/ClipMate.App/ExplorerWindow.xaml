@@ -68,19 +68,19 @@
                                        LargeGlyph="{Binding MainMenu.PowerPasteIcon, Converter={StaticResource IconGlyphToImageSourceConverter}}"
                                        Glyph="{Binding MainMenu.PowerPasteIcon, Converter={StaticResource IconGlyphToImageSourceConverter}}" />
 
-                <!-- Delete Button -->
-                <dxb:BarButtonItem Content="Delete"
-                                   Command="{Binding MainMenu.DeleteSelectedCommand}"
-                                   ToolTip="Delete selected clip(s)"
-                                   Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Delete}, Size=24}" />
+                    <!-- Delete Button -->
+                    <dxb:BarButtonItem Content="Delete"
+                                       Command="{Binding MainMenu.DeleteSelectedCommand}"
+                                       ToolTip="Delete selected clip(s)"
+                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Delete}, Size=24}" />
 
-                <!-- Print Button -->
-                <dxb:BarButtonItem Content="Print"
-                                   Command="{Binding MainMenu.PrintCommand}"
-                                   ToolTip="Print selected clip(s)"
-                                   Glyph="{dx:DXImage 'SvgImages/Print/Print.svg'}" />
+                    <!-- Print Button -->
+                    <dxb:BarButtonItem Content="Print"
+                                       Command="{Binding MainMenu.PrintCommand}"
+                                       ToolTip="Print selected clip(s)"
+                                       Glyph="{dx:DXImage 'SvgImages/Print/Print.svg'}" />
 
-                <!-- Append Button -->
+                    <!-- Append Button -->
                     <dxb:BarButtonItem Content="Append"
                                        Command="{Binding MainMenu.AppendClipsCommand}"
                                        ToolTip="Append selected clips together"
@@ -194,15 +194,15 @@
                                            Command="{Binding MainMenu.ImportFromXmlCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='📥'}" />
                         <dxb:BarItemSeparator />
-                        <dxb:BarButtonItem Content="Decrypt and remove encryption on selected clips"
-                                           Command="{Binding MainMenu.DecryptClipsCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🔓'}" />
                         <dxb:BarButtonItem Content="Encrypt selected clips"
                                            Command="{Binding MainMenu.EncryptClipsCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🔒'}" />
-                        <dxb:BarButtonItem Content="Forget Encryption Key"
-                                           Command="{Binding MainMenu.ForgetEncryptionKeyCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🔑'}" />
+                        <dxb:BarButtonItem Content="Decrypt selected clips"
+                                           Command="{Binding MainMenu.DecryptClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔓'}" />
+                        <dxb:BarButtonItem Content="Lock encrypted clips"
+                                           Command="{Binding MainMenu.LockClipsCommand}"
+                                           Glyph="{helpers:EmojiIconSource Emoji='🔐'}" />
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Properties" Command="{Binding MainMenu.ShowPropertiesCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />

@@ -19,13 +19,15 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class ClipListViewModel : ObservableObject,
     IRecipient<ClipAddedEvent>,
+    IRecipient<ClipCacheExpiredMessage>,
     IRecipient<CollectionNodeSelectedEvent>,
     IRecipient<SearchResultsSelectedEvent>,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>,
     IRecipient<ShowAllClipsInChildrenRequestedEvent>,
-    IRecipient<ClipsDeletedEvent>
+    IRecipient<ClipsDeletedEvent>,
+    IDisposable
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -63,6 +65,8 @@ public partial class ClipListViewModel : ObservableObject,
 
     [ObservableProperty]
     private bool _isLoading;
+
+    private Clip? _previousSelectedClip; // Track previous clip to reset IsDecrypted flag
 
     [ObservableProperty]
     private Clip? _selectedClip;
@@ -107,6 +111,7 @@ public partial class ClipListViewModel : ObservableObject,
         // Register this ViewModel as a recipient for clipboard and selection events
         // The messenger will automatically handle weak references and cleanup
         _messenger.Register<ClipAddedEvent>(this);
+        _messenger.Register<ClipCacheExpiredMessage>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
@@ -174,6 +179,40 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Receives ClipCacheExpiredMessage when a temporarily decrypted clip's cache expires.
+    /// Updates the clip's IsDecrypted flag and icon to show it's re-locked.
+    /// </summary>
+    public void Receive(ClipCacheExpiredMessage message)
+    {
+        _logger.LogInformation("ClipCacheExpiredMessage received for clip {ClipId}", message.ClipId);
+
+        // Find the clip in the ObservableCollection
+        var clip = Clips.FirstOrDefault(c => c.Id == message.ClipId);
+        if (clip == null)
+        {
+            _logger.LogDebug("Clip {ClipId} not found in current view, ignoring cache expiration", message.ClipId);
+            return;
+        }
+
+        // Update on UI thread
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            // Clear the IsDecrypted flag
+            clip.IsDecrypted = false;
+
+            // Update icon: 🔓 → 🔒
+            if (clip.IconGlyph.StartsWith("🔓"))
+            {
+                clip.IconGlyph = clip.IconGlyph.Replace("🔓", "🔒");
+                _logger.LogInformation("Re-locked clip {ClipId} - changed icon from 🔓 to 🔒", message.ClipId);
+            }
+
+            // Send ClipUpdatedMessage to refresh the grid row
+            _messenger.Send(new ClipUpdatedMessage(clip.Id, clip.Title));
+        });
+    }
+
+    /// <summary>
     /// Receives ClipsDeletedEvent when clips have been deleted.
     /// Removes the deleted clips from the collection without reloading.
     /// </summary>
@@ -181,16 +220,16 @@ public partial class ClipListViewModel : ObservableObject,
     {
         Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            foreach (var deletedId in message.DeletedClipIds)
+            foreach (var item in message.DeletedClipIds)
             {
-                var clipToRemove = Clips.FirstOrDefault(p => p.Id == deletedId);
+                var clipToRemove = Clips.FirstOrDefault(p => p.Id == item);
                 if (clipToRemove == null)
                     continue;
 
                 Clips.Remove(clipToRemove);
 
                 // If the deleted clip was selected, clear selection
-                if (SelectedClip?.Id == deletedId)
+                if (SelectedClip?.Id == item)
                     SelectedClip = Clips.FirstOrDefault();
             }
 
@@ -347,8 +386,26 @@ public partial class ClipListViewModel : ObservableObject,
         await LoadClipsByCollectionRecursiveAsync(message.CollectionId, message.DatabaseKey);
     }
 
+    /// <summary>
+    /// Sets the SelectedClip property while temporarily suppressing clipboard operations.
+    /// Use this during initial load/navigation to prevent unwanted clipboard side effects.
+    /// </summary>
+    private void SetSelectedClipWithoutClipboardOperation(Clip? clip)
+    {
+        _suppressClipboardOperation = true;
+        SelectedClip = clip;
+        _suppressClipboardOperation = false;
+    }
+
     partial void OnSelectedClipChanged(Clip? value)
     {
+        // Reset IsDecrypted flag on previous clip when navigating away
+        // This ensures temporary decryption prompts again on next selection
+        if (_previousSelectedClip != null && _previousSelectedClip != value)
+            _previousSelectedClip.IsDecrypted = false;
+
+        _previousSelectedClip = value;
+
         _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}, DatabaseKey: {DatabaseKey}",
             value?.Id, value?.DisplayTitle, CurrentDatabaseKey);
 
@@ -470,8 +527,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -540,8 +597,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -584,8 +641,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(clip);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -639,8 +696,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -683,8 +740,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -737,8 +794,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.Add(item);
 
                 _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip
-                SelectedClip = Clips.FirstOrDefault();
+                // Auto-select the first (most recent) clip without triggering clipboard operation
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             });
         }
         catch (Exception ex)
@@ -793,5 +850,14 @@ public partial class ClipListViewModel : ObservableObject,
     {
         if (value)
             IsListView = false;
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
+        _debouncedClipSelection?.Dispose();
     }
 }

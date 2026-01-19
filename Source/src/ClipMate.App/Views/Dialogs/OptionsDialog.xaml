@@ -90,6 +90,11 @@
             <options:AdvancedOptionsControl DataContext="{Binding Advanced}" />
         </dx:DXTabItem>
 
+        <!-- Encryption Tab -->
+        <dx:DXTabItem Header="Encryption">
+            <options:EncryptionOptionsControl DataContext="{Binding Encryption}" />
+        </dx:DXTabItem>
+
     </dx:DXTabControl>
 
 </dx:ThemedWindow>

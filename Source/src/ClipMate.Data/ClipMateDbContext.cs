@@ -171,8 +171,12 @@ public class ClipMateDbContext : DbContext
             // Configure DelDate to store as ticks (INT64) instead of TEXT
             entity.Property(p => p.DelDate)
                 .HasConversion(
-                    p => p.HasValue ? p.Value.UtcTicks : (long?)null,
-                    p => p.HasValue ? new DateTimeOffset(p.Value, TimeSpan.Zero) : null);
+                    p => p.HasValue
+                        ? p.Value.UtcTicks
+                        : (long?)null,
+                    p => p.HasValue
+                        ? new DateTimeOffset(p.Value, TimeSpan.Zero)
+                        : null);
 
             // Transient properties - NOT stored in Clips table (loaded from BLOB tables)
             entity.Ignore(p => p.TextContent);
@@ -180,6 +184,7 @@ public class ClipMateDbContext : DbContext
             entity.Ignore(p => p.HtmlContent);
             entity.Ignore(p => p.ImageData);
             entity.Ignore(p => p.FilePathsJson);
+            entity.Ignore(p => p.IsDecrypted); // Runtime-only decryption state
 
             // Format flag properties - NOT stored in Clips table
             entity.Ignore(p => p.IconGlyph);

@@ -77,6 +77,22 @@ public partial class Clip
     public bool Encrypted { get; set; }
 
     /// <summary>
+    /// Base64-encoded encryption salt (16 bytes).
+    /// Used with PBKDF2 to derive encryption key from passphrase.
+    /// </summary>
+    public string? EncryptionSalt { get; set; }
+
+    /// <summary>
+    /// Base64-encoded initialization vector (16 bytes for AES-256-CBC).
+    /// </summary>
+    public string? EncryptionIv { get; set; }
+
+    /// <summary>
+    /// Encryption algorithm name (e.g., "AES-256").
+    /// </summary>
+    public string? EncryptionMethod { get; set; }
+
+    /// <summary>
     /// Icon index for display (ICONS).
     /// </summary>
     public int Icons { get; set; }
@@ -200,4 +216,11 @@ public partial class Clip
     /// NOT stored in Clips table.
     /// </summary>
     public string? FilePathsJson { get; set; }
+
+    /// <summary>
+    /// Whether this encrypted clip has been decrypted in memory (temporary state).
+    /// When true, encrypted clips can be viewed. Resets to false when user scrolls away.
+    /// NOT stored in Clips table - transient runtime property only.
+    /// </summary>
+    public bool IsDecrypted { get; set; }
 }

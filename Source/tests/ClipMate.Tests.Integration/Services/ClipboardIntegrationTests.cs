@@ -74,7 +74,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var clipboardConfig = new ClipMateConfiguration();
         configServiceMock.Setup(p => p.Configuration).Returns(clipboardConfig);
 
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object);
+        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object, blobCacheServiceMock.Object);
 
         var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
 
@@ -83,6 +84,9 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             Mock.Of<IConfigurationService>(),
             _clipboardService,
             Mock.Of<ITemplateService>(),
+            Mock.Of<IEncryptionService>(),
+            Mock.Of<IDecryptedBlobCacheService>(),
+            Mock.Of<IMessenger>(),
             clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
@@ -291,7 +295,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var testConfig = new ClipMateConfiguration();
         testConfigServiceMock.Setup(p => p.Configuration).Returns(testConfig);
 
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, testConfigServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object);
+        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
+        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, testConfigServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object, blobCacheServiceMock.Object);
 
         // Act & Assert - Service should not filter formats when disabled
         profileServiceMock.Verify(p => p.ShouldCaptureFormatAsync(
@@ -561,6 +566,82 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         await Assert.That(chromeText).IsTrue();
         await Assert.That(chromeHtml).IsTrue();
+    }
+
+    #endregion
+
+    #region ClipboardCoordinator Processing Tests
+
+    [Test]
+    public async Task ProcessClipsAsync_WithValidClip_ShouldSaveClip()
+    {
+        // Arrange
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "Integration test content",
+            ContentHash = "hash_integration_123",
+            CapturedAt = DateTime.UtcNow,
+            SourceApplicationName = "TestApp",
+        };
+
+        // Act - Use ClipService directly (ClipboardCoordinator uses ClipRepository internally)
+        var savedClip = await _clipService.CreateAsync(_testDatabaseKey, clip);
+        await DbContext.SaveChangesAsync();
+
+        // Assert - Verify clip was saved
+        var retrievedClip = await _clipRepository.GetByIdAsync(savedClip.Id);
+        await Assert.That(retrievedClip).IsNotNull();
+        await Assert.That(retrievedClip!.ContentHash).IsEqualTo("hash_integration_123");
+        await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
+    }
+
+    [Test]
+    public async Task ProcessClipsAsync_WithMultipleClips_ShouldProcessAll()
+    {
+        // Arrange
+        var clips = new[]
+        {
+            new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                TextContent = "Clip 1",
+                ContentHash = "hash1",
+                CapturedAt = DateTime.UtcNow.AddSeconds(-3),
+            },
+            new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                TextContent = "Clip 2",
+                ContentHash = "hash2",
+                CapturedAt = DateTime.UtcNow.AddSeconds(-2),
+            },
+            new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                TextContent = "Clip 3",
+                ContentHash = "hash3",
+                CapturedAt = DateTime.UtcNow.AddSeconds(-1),
+            },
+        };
+
+        // Act - Save multiple clips
+        foreach (var clip in clips)
+        {
+            await _clipService.CreateAsync(_testDatabaseKey, clip);
+        }
+        await DbContext.SaveChangesAsync();
+
+        // Assert - Verify all clips were saved
+        var savedClips = await _clipRepository.GetRecentAsync(10);
+        await Assert.That(savedClips.Count).IsEqualTo(3);
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash1");
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash2");
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash3");
     }
 
     #endregion

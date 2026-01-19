@@ -18,6 +18,9 @@ public class ClipExportDto
     public int Locale { get; set; }
     public bool WrapCheck { get; set; }
     public bool Encrypted { get; set; }
+    public string? EncryptionSalt { get; set; }
+    public string? EncryptionIv { get; set; }
+    public string? EncryptionMethod { get; set; }
     public int Icons { get; set; }
     public int Size { get; set; }
     public int Checksum { get; set; }
@@ -52,6 +55,9 @@ public class ClipExportDto
             Locale = clip.Locale,
             WrapCheck = clip.WrapCheck,
             Encrypted = clip.Encrypted,
+            EncryptionSalt = clip.EncryptionSalt,
+            EncryptionIv = clip.EncryptionIv,
+            EncryptionMethod = clip.EncryptionMethod,
             Icons = clip.Icons,
             Size = clip.Size,
             Checksum = clip.Checksum,
@@ -90,6 +96,9 @@ public class ClipExportDto
             Locale = Locale,
             WrapCheck = WrapCheck,
             Encrypted = Encrypted,
+            EncryptionSalt = EncryptionSalt,
+            EncryptionIv = EncryptionIv,
+            EncryptionMethod = EncryptionMethod,
             Icons = Icons,
             Size = Size,
             Checksum = Checksum,

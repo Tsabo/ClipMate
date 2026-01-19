@@ -12,8 +12,10 @@ namespace ClipMate.App.ViewModels;
 /// <summary>
 /// ViewModel for the QuickPaste toolbar.
 /// </summary>
-public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<StateRefreshRequestedEvent>, IRecipient<ShortcutModeStatusMessage>
+public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<StateRefreshRequestedEvent>, IRecipient<ShortcutModeStatusMessage>, IDisposable
 {
+    private bool _disposed;
+
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
     private readonly IMessenger _messenger;
@@ -69,6 +71,18 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         LoadFormattingStrings();
         UpdateTargetDisplay();
         UpdateGoBackState();
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _messenger.UnregisterAll(this);
+        _disposed = true;
     }
 
     /// <summary>

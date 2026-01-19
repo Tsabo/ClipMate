@@ -13,7 +13,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class TextToolsViewModel : ObservableObject
 {
-    private readonly TextTransformService _textTransformService;
+    private readonly ITextTransformService _textTransformService;
 
     [ObservableProperty]
     private CaseConversion _caseConversionMode = CaseConversion.Uppercase;
@@ -65,7 +65,7 @@ public partial class TextToolsViewModel : ObservableObject
     /// </summary>
     /// <param name="textTransformService">The text transformation service.</param>
     /// <exception cref="ArgumentNullException">Thrown when textTransformService is null.</exception>
-    public TextToolsViewModel(TextTransformService textTransformService)
+    public TextToolsViewModel(ITextTransformService textTransformService)
     {
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
 
@@ -99,7 +99,7 @@ public partial class TextToolsViewModel : ObservableObject
                 TextTool.CleanUpText => _textTransformService.CleanUpText(
                     InputText, RemoveExtraSpaces, RemoveExtraLineBreaks, TrimLines),
                 TextTool.ConvertFormat => _textTransformService.ConvertFormat(InputText, SourceFormat, TargetFormat),
-                _ => InputText
+                var _ => InputText,
             };
         }
         catch (ArgumentException ex)
@@ -131,16 +131,16 @@ public partial class TextToolsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCopyToClipboard))]
     private void CopyToClipboard()
     {
-        if (!string.IsNullOrEmpty(OutputText))
+        if (string.IsNullOrEmpty(OutputText))
+            return;
+
+        try
         {
-            try
-            {
-                Clipboard.SetText(OutputText);
-            }
-            catch
-            {
-                // Clipboard operations can fail - ignore for unit tests
-            }
+            Clipboard.SetText(OutputText);
+        }
+        catch
+        {
+            // Clipboard operations can fail - ignore for unit tests
         }
     }
 

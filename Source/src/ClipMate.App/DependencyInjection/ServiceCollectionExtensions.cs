@@ -31,7 +31,9 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<UpdateCheckerService>();
 
         // Register MVVM Toolkit Messenger as singleton
-        services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly
+        // Subscribers must properly unregister in Dispose to prevent memory leaks
+        services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
 
         // Register the shared EventLogSink instance (already receiving logs via Serilog sink)
         services.AddSingleton<IEventLogSink>(p => p.GetRequiredService<EventLogSink>());
@@ -66,6 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ClipPropertiesViewModel>();
         services.AddTransient<RenameClipDialogViewModel>();
         services.AddTransient<ClipViewerViewModel>();
+        services.AddTransient<EncryptionKeyDialogViewModel>();
 
         // Register Clip Viewer factory and manager
         services.AddSingleton<Func<ClipViewerViewModel>>(p => p.GetRequiredService<ClipViewerViewModel>);
@@ -95,6 +98,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<SoundsOptionsViewModel>();
         services.AddTransient<HotkeysOptionsViewModel>();
         services.AddTransient<DatabaseOptionsViewModel>();
+        services.AddTransient<EncryptionOptionsViewModel>();
         services.AddTransient<AdvancedOptionsViewModel>();
         services.AddTransient<OptionsViewModel>();
         services.AddTransient<OptionsDialog>();

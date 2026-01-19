@@ -40,17 +40,6 @@ public class DatabaseManagerTests
         await Assert.That(count).IsEqualTo(0);
     }
 
-    [Test]
-    [Skip("DatabaseManager requires real EF Core DbContext with Database facade - tested in integration tests")]
-    public async Task LoadAutoLoadDatabasesAsync_WithAutoLoadDatabases_LoadsThem()
-    {
-        // This test requires a real DbContext because DatabaseManager calls:
-        // - context.Database.EnsureCreatedAsync()
-        // The Database property and its methods cannot be easily mocked.
-        // See integration tests for coverage of this functionality.
-        await Task.CompletedTask;
-    }
-
     // LoadDatabaseAsync Tests
     [Test]
     public async Task LoadDatabaseAsync_WithNonExistentDatabase_ReturnsFalse()
@@ -76,17 +65,6 @@ public class DatabaseManagerTests
 
         // Assert
         await Assert.That(result).IsFalse();
-    }
-
-    [Test]
-    [Skip("DatabaseManager requires real EF Core DbContext with Database facade - tested in integration tests")]
-    public async Task LoadDatabaseAsync_WithValidDatabase_ReturnsTrue()
-    {
-        // This test requires a real DbContext because DatabaseManager calls:
-        // - context.Database.EnsureCreatedAsync()
-        // The Database property and its methods cannot be easily mocked.
-        // See integration tests for coverage of this functionality.
-        await Task.CompletedTask;
     }
 
     // UnloadDatabase Tests
@@ -227,96 +205,6 @@ public class DatabaseManagerTests
 
         // Assert
         await Assert.That(contexts).IsEmpty();
-    }
-
-    [Test]
-    [Skip("Requires real DbContext - Mock<ClipMateDbContext> has no parameterless constructor")]
-    public async Task CreateAllDatabaseContexts_WithLoadedDatabases_ReturnsDatabaseKeys()
-    {
-        // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-
-        var config = new ClipMateConfiguration
-        {
-            Databases = new Dictionary<string, DatabaseConfiguration>
-            {
-                { "primary", new DatabaseConfiguration { Name = "My Clips", FilePath = "primary.db", AutoLoad = true } },
-                { "secondary", new DatabaseConfiguration { Name = "Secondary", FilePath = "secondary.db", AutoLoad = true } },
-            },
-        };
-
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
-
-        var mockContext1 = new Mock<ClipMateDbContext>();
-        var mockContext2 = new Mock<ClipMateDbContext>();
-
-        contextFactory.Setup(p => p.GetLoadedDatabasePaths())
-            .Returns(["primary.db", "secondary.db"]);
-
-        contextFactory.Setup(p => p.CreateContext("primary.db"))
-            .Returns(mockContext1.Object);
-
-        contextFactory.Setup(p => p.CreateContext("secondary.db"))
-            .Returns(mockContext2.Object);
-
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
-        await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
-
-        // Act
-        var contexts = manager.CreateAllDatabaseContexts().ToList();
-
-        // Assert
-        await Assert.That(contexts).Count().IsEqualTo(2);
-        await Assert.That(contexts[0].DatabaseKey).IsEqualTo("primary");
-        await Assert.That(contexts[1].DatabaseKey).IsEqualTo("secondary");
-        await Assert.That(contexts[0].Context).IsEqualTo(mockContext1.Object);
-        await Assert.That(contexts[1].Context).IsEqualTo(mockContext2.Object);
-    }
-
-    [Test]
-    [Skip("Requires real DbContext - Mock<ClipMateDbContext> has no parameterless constructor")]
-    public async Task CreateAllDatabaseContexts_ReturnsDatabaseKeysNotDisplayNames()
-    {
-        // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-
-        var config = new ClipMateConfiguration
-        {
-            Databases = new Dictionary<string, DatabaseConfiguration>
-            {
-                // Key is "test-db", but Name is "Test Database Display Name"
-                { "test-db", new DatabaseConfiguration { Name = "Test Database Display Name", FilePath = "test.db", AutoLoad = true } },
-            },
-        };
-
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
-
-        var mockContext = new Mock<ClipMateDbContext>();
-
-        contextFactory.Setup(p => p.GetLoadedDatabasePaths())
-            .Returns(["test.db"]);
-
-        contextFactory.Setup(p => p.CreateContext("test.db"))
-            .Returns(mockContext.Object);
-
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
-        await manager.LoadAutoLoadDatabasesAsync();
-
-        // Act
-        var contexts = manager.CreateAllDatabaseContexts().ToList();
-
-        // Assert - Should return the dictionary key, not the display name
-        await Assert.That(contexts).Count().IsEqualTo(1);
-        await Assert.That(contexts[0].DatabaseKey).IsEqualTo("test-db");
-        await Assert.That(contexts[0].DatabaseKey).IsNotEqualTo("Test Database Display Name");
     }
 
     [Test]

@@ -49,6 +49,15 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
         _messenger.Register<ShowTrayIconChangedEvent>(this);
         _messenger.Register<IconClickBehaviorChangedEvent>(this);
         _messenger.Register<StateRefreshRequestedEvent>(this);
+
+        // Unregister when window closes
+        Closing += OnClosing;
+    }
+
+    private void OnClosing(object? sender, CancelEventArgs e)
+    {
+        _messenger.UnregisterAll(this);
+        Closing -= OnClosing;
     }
 
     /// <summary>

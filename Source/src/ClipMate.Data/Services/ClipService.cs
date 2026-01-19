@@ -1,8 +1,14 @@
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
+using ClipMate.Core.Events;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Helpers;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -11,24 +17,33 @@ namespace ClipMate.Data.Services;
 /// Service for managing clips (CRUD operations, history management).
 /// Registered as singleton to support multi-database operations via repository factories.
 /// </summary>
-public class ClipService : IClipService
+public partial class ClipService : IClipService
 {
+    private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
+    private readonly IEncryptionService _encryptionService;
     private readonly ILogger<ClipService> _logger;
+    private readonly IMessenger _messenger;
     private readonly ITemplateService _templateService;
 
     public ClipService(IDatabaseContextFactory databaseContextFactory,
         IConfigurationService configurationService,
         IClipboardService clipboardService,
         ITemplateService templateService,
+        IEncryptionService encryptionService,
+        IDecryptedBlobCacheService blobCacheService,
+        IMessenger messenger,
         ILogger<ClipService> logger)
     {
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
+        _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
+        _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -608,7 +623,7 @@ public class ClipService : IClipService
 
         // Now copy BLOBs with the correct ClipDataId mappings
         // Group by StorageType to copy each type once
-        var storageTypes = sourceClipFormats.Select(f => f.StorageType).Distinct();
+        var storageTypes = sourceClipFormats.Select(p => p.StorageType).Distinct();
 
         foreach (var item in storageTypes)
         {
@@ -832,4 +847,585 @@ public class ClipService : IClipService
         _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
         return databaseKeyOrPath;
     }
+
+    #region Encryption Methods
+
+    /// <inheritdoc />
+    public async Task<int> EncryptClipsAsync(string databaseKey, IReadOnlyList<Guid> clipIds, EncryptionKey encryptionKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(clipIds);
+        ArgumentNullException.ThrowIfNull(encryptionKey);
+
+        var encryptedCount = 0;
+        var clipRepository = GetRepository(databaseKey);
+        var clipDataRepository = _databaseContextFactory.GetClipDataRepository(databaseKey);
+        var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
+
+        foreach (var item in clipIds)
+        {
+            try
+            {
+                var clip = await clipRepository.GetByIdAsync(item, cancellationToken);
+                if (clip == null)
+                {
+                    _logger.LogWarning("Clip {ClipId} not found, skipping encryption", item);
+                    continue;
+                }
+
+                // Skip if already encrypted
+                if (clip.Encrypted)
+                {
+                    _logger.LogInformation("Clip {ClipId} is already encrypted, skipping", item);
+                    continue;
+                }
+
+                // Get all ClipData entries
+                var clipDataEntries = await clipDataRepository.GetByClipIdAsync(item, cancellationToken);
+
+                if (clipDataEntries.Count == 0)
+                {
+                    _logger.LogWarning("Clip {ClipId} has no ClipData entries, skipping encryption", item);
+                    continue;
+                }
+
+                // Get all BLOBs for this clip
+                var textBlobs = await blobRepository.GetTextByClipIdAsync(item, cancellationToken);
+                var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(item, cancellationToken);
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(item, cancellationToken);
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(item, cancellationToken);
+
+                // Generate encryption metadata once by encrypting Title first
+                // This ensures all data (Title + BLOBs) uses the SAME Salt/IV
+                EncryptionMetadata? sharedMetadata = null;
+
+                // Encrypt Title first (unless CustomTitle is set) to generate shared metadata
+                if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
+                {
+                    var titleBytes = Encoding.UTF8.GetBytes(clip.Title);
+                    var result = await _encryptionService.EncryptAsync(titleBytes, encryptionKey, 600_000);
+                    clip.Title = Convert.ToBase64String(result.EncryptedData);
+                    sharedMetadata = result.Metadata;
+
+                    // Store encryption metadata from Title encryption
+                    clip.EncryptionSalt = result.Metadata.Salt;
+                    clip.EncryptionIv = result.Metadata.IV;
+                    clip.EncryptionMethod = result.Metadata.Algorithm;
+
+                    _logger.LogDebug("Encrypted Title for clip {ClipId} and generated shared metadata", item);
+                }
+
+                // If no Title to encrypt, generate metadata from first BLOB encryption
+                // This will be set when we encrypt the first BLOB below
+
+                // Encrypt TEXT BLOBs (reuse shared metadata)
+                foreach (var blob in textBlobs)
+                {
+                    // Encrypt the text data, reusing shared metadata if available
+                    var plainTextBytes = Encoding.UTF8.GetBytes(blob.Data);
+                    var result = await _encryptionService.EncryptAsync(plainTextBytes, encryptionKey, 600_000, sharedMetadata);
+
+                    // Update BLOB with encrypted data (Base64 encoded)
+                    blob.Data = Convert.ToBase64String(result.EncryptedData);
+                    await blobRepository.UpdateTextAsync(blob, cancellationToken);
+
+                    // If no shared metadata yet (no Title), use this BLOB's metadata
+                    if (sharedMetadata == null)
+                    {
+                        sharedMetadata = result.Metadata;
+                        clip.EncryptionSalt = result.Metadata.Salt;
+                        clip.EncryptionIv = result.Metadata.IV;
+                        clip.EncryptionMethod = result.Metadata.Algorithm;
+                    }
+
+                    _logger.LogDebug("Encrypted TEXT BLOB for ClipData {ClipDataId}", blob.ClipDataId);
+                }
+
+                // Encrypt JPG BLOBs (reuse shared metadata)
+                foreach (var blob in jpgBlobs)
+                {
+                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
+                    blob.Data = result.EncryptedData;
+                    await blobRepository.UpdateJpgAsync(blob, cancellationToken);
+
+                    // If no shared metadata yet, use this BLOB's metadata
+                    if (sharedMetadata == null)
+                    {
+                        sharedMetadata = result.Metadata;
+                        clip.EncryptionSalt = result.Metadata.Salt;
+                        clip.EncryptionIv = result.Metadata.IV;
+                        clip.EncryptionMethod = result.Metadata.Algorithm;
+                    }
+
+                    _logger.LogDebug("Encrypted JPG BLOB for ClipData {ClipDataId}", blob.ClipDataId);
+                }
+
+                // Encrypt PNG BLOBs (reuse shared metadata)
+                foreach (var blob in pngBlobs)
+                {
+                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
+                    blob.Data = result.EncryptedData;
+                    await blobRepository.UpdatePngAsync(blob, cancellationToken);
+
+                    // If no shared metadata yet, use this BLOB's metadata
+                    if (sharedMetadata == null)
+                    {
+                        sharedMetadata = result.Metadata;
+                        clip.EncryptionSalt = result.Metadata.Salt;
+                        clip.EncryptionIv = result.Metadata.IV;
+                        clip.EncryptionMethod = result.Metadata.Algorithm;
+                    }
+
+                    _logger.LogDebug("Encrypted PNG BLOB for ClipData {ClipDataId}", blob.ClipDataId);
+                }
+
+                // Encrypt binary BLOBs (reuse shared metadata)
+                foreach (var blob in binaryBlobs)
+                {
+                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
+                    blob.Data = result.EncryptedData;
+                    await blobRepository.UpdateBlobAsync(blob, cancellationToken);
+
+                    // If no shared metadata yet, use this BLOB's metadata
+                    if (sharedMetadata == null)
+                    {
+                        sharedMetadata = result.Metadata;
+                        clip.EncryptionSalt = result.Metadata.Salt;
+                        clip.EncryptionIv = result.Metadata.IV;
+                        clip.EncryptionMethod = result.Metadata.Algorithm;
+                    }
+
+                    _logger.LogDebug("Encrypted binary BLOB for ClipData {ClipDataId}", blob.ClipDataId);
+                }
+
+                // Update Clip metadata
+                clip.Encrypted = true;
+                clip.IsDecrypted = false;
+
+                // SECURITY: Clear transient properties to prevent plain text from remaining in memory
+                // and being returned by subsequent queries (Entity Framework tracking).
+                // These properties are marked as [NotMapped] and only loaded from BLOB tables when needed.
+                clip.TextContent = null;
+                clip.RtfContent = null;
+                clip.HtmlContent = null;
+                clip.ImageData = null;
+
+                await clipRepository.UpdateAsync(clip, cancellationToken);
+                encryptedCount++;
+
+                _logger.LogInformation("Successfully encrypted clip {ClipId}", item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error encrypting clip {ClipId}", item);
+            }
+        }
+
+        return encryptedCount;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> DecryptClipsAsync(string databaseKey, IReadOnlyList<Guid> clipIds, EncryptionKey encryptionKey, bool isPermanent = false, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(clipIds);
+        ArgumentNullException.ThrowIfNull(encryptionKey);
+
+        var decryptedCount = 0;
+        var clipRepository = GetRepository(databaseKey);
+
+        foreach (var item in clipIds)
+        {
+            try
+            {
+                var clip = await clipRepository.GetByIdAsync(item, cancellationToken);
+                if (clip == null)
+                {
+                    _logger.LogWarning("Clip {ClipId} not found, skipping decryption", item);
+                    continue;
+                }
+
+                var result = await DecryptClipAsync(databaseKey, clip, encryptionKey, isPermanent, cancellationToken);
+                if (result)
+                    decryptedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error decrypting clip {ClipId} - wrong key or corrupted data", item);
+            }
+        }
+
+        return decryptedCount;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DecryptClipAsync(string databaseKey, Clip clip, EncryptionKey encryptionKey, bool isPermanent = false, CancellationToken cancellationToken = default)
+    {
+        // Skip if not encrypted
+        if (!clip.Encrypted)
+        {
+            _logger.LogInformation("Clip {ClipId} is not encrypted, skipping", clip.Id);
+            return false;
+        }
+
+        // Skip if already decrypted
+        if (clip.IsDecrypted)
+        {
+            _logger.LogInformation("Clip {ClipId} is already decrypted, skipping", clip.Id);
+            return false;
+        }
+
+        // Validate encryption metadata
+        if (string.IsNullOrEmpty(clip.EncryptionSalt) || string.IsNullOrEmpty(clip.EncryptionIv))
+        {
+            _logger.LogError("Clip {ClipId} is missing encryption metadata, cannot decrypt", clip.Id);
+            return false;
+        }
+
+        var metadata = new EncryptionMetadata(
+            clip.EncryptionSalt,
+            clip.EncryptionIv,
+            clip.EncryptionMethod ?? "AES-256-CBC",
+            0); // Checksum will be validated during decryption
+
+        // Handle decryption mode - Clear flags BEFORE decrypting BLOBs so they get saved with first SaveChangesAsync
+        // Save metadata in local vars first since we'll need them for decryption
+        if (isPermanent)
+        {
+            clip.Encrypted = false;
+            clip.IsDecrypted = false;
+            clip.EncryptionSalt = null;
+            clip.EncryptionIv = null;
+            clip.EncryptionMethod = null;
+        }
+
+        var clipRepository = GetRepository(databaseKey);
+        var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
+
+        // Get all BLOBs for this clip
+        var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+        var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
+        var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
+        var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+
+        // For temporary decryption, we need to work with detached copies to prevent auto-save
+        // Clone the BLOB objects so modifications don't affect tracked entities
+        if (!isPermanent)
+        {
+            textBlobs = textBlobs.Select(b => new BlobTxt
+                {
+                    Id = b.Id,
+                    ClipId = b.ClipId,
+                    ClipDataId = b.ClipDataId,
+                    Data = b.Data,
+                })
+                .ToList();
+
+            jpgBlobs = jpgBlobs.Select(b => new BlobJpg
+                {
+                    Id = b.Id,
+                    ClipId = b.ClipId,
+                    ClipDataId = b.ClipDataId,
+                    Data = b.Data,
+                })
+                .ToList();
+
+            pngBlobs = pngBlobs.Select(b => new BlobPng
+                {
+                    Id = b.Id,
+                    ClipId = b.ClipId,
+                    ClipDataId = b.ClipDataId,
+                    Data = b.Data,
+                })
+                .ToList();
+
+            binaryBlobs = binaryBlobs.Select(b => new BlobBlob
+                {
+                    Id = b.Id,
+                    ClipId = b.ClipId,
+                    ClipDataId = b.ClipDataId,
+                    Data = b.Data,
+                })
+                .ToList();
+
+            _logger.LogDebug("Cloned {Count} BLOB entities for temporary decryption (no persistence)",
+                textBlobs.Count + jpgBlobs.Count + pngBlobs.Count + binaryBlobs.Count);
+        }
+
+        // Decrypt TEXT BLOBs
+        foreach (var item in textBlobs)
+        {
+            try
+            {
+                // Decrypt the data
+                var encryptedBytes = Convert.FromBase64String(item.Data);
+                var decryptedBytes = await _encryptionService.DecryptAsync(encryptedBytes, metadata, encryptionKey, 600_000);
+
+                // Update BLOB object with decrypted data
+                item.Data = Encoding.UTF8.GetString(decryptedBytes);
+
+                // Only persist if permanent decryption
+                if (isPermanent)
+                    await blobRepository.UpdateTextAsync(item, cancellationToken);
+
+                _logger.LogDebug("Decrypted TEXT BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
+            }
+            catch (FormatException ex)
+            {
+                // Handle corrupted data (e.g., from old encryption that didn't properly encrypt all fields)
+                _logger.LogWarning(ex, "TEXT BLOB for ClipData {ClipDataId} contains invalid Base64 - may be corrupted, leaving as-is", item.ClipDataId);
+            }
+            catch (CryptographicException ex)
+            {
+                // BLOB is already decrypted (from previous temporary decrypt that persisted)
+                _logger.LogWarning(ex, "TEXT BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
+            }
+        }
+
+        // Decrypt JPG BLOBs
+        foreach (var item in jpgBlobs)
+        {
+            try
+            {
+                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+                item.Data = decryptedBytes;
+
+                // Only persist if permanent decryption
+                if (isPermanent)
+                    await blobRepository.UpdateJpgAsync(item, cancellationToken);
+
+                _logger.LogDebug("Decrypted JPG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
+            }
+            catch (CryptographicException ex)
+            {
+                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
+                _logger.LogWarning(ex, "JPG BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
+            }
+        }
+
+        // Decrypt PNG BLOBs
+        foreach (var item in pngBlobs)
+        {
+            try
+            {
+                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+                item.Data = decryptedBytes;
+
+                // Only persist if permanent decryption
+                if (isPermanent)
+                    await blobRepository.UpdatePngAsync(item, cancellationToken);
+
+                _logger.LogDebug("Decrypted PNG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
+            }
+            catch (CryptographicException ex)
+            {
+                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
+                _logger.LogWarning(ex, "PNG BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
+            }
+        }
+
+        // Decrypt binary BLOBs
+        foreach (var item in binaryBlobs)
+        {
+            try
+            {
+                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+                item.Data = decryptedBytes;
+
+                // Only persist if permanent decryption
+                if (isPermanent)
+                    await blobRepository.UpdateBlobAsync(item, cancellationToken);
+
+                _logger.LogDebug("Decrypted binary BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
+            }
+            catch (CryptographicException ex)
+            {
+                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
+                _logger.LogWarning(ex, "Binary BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
+            }
+        }
+
+        // Decrypt Title (if it was encrypted)
+        if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
+        {
+            // Only attempt decryption if Title looks like encrypted Base64:
+            // - Length > 44 (AES-256 with IV/Salt produces minimum ~32 bytes → ~44 Base64 chars)
+            // - Valid Base64 pattern with optional padding
+            // This prevents trying to decrypt already-decrypted alphanumeric titles like "MyFile123"
+            var looksEncrypted = clip.Title.Length > 44 && RegexPatterns.IsBase64().IsMatch(clip.Title);
+
+            if (looksEncrypted)
+            {
+                try
+                {
+                    var encryptedTitleBytes = Convert.FromBase64String(clip.Title);
+                    var decryptedTitleBytes = await _encryptionService.DecryptAsync(encryptedTitleBytes, metadata, encryptionKey, 600_000);
+                    clip.Title = Encoding.UTF8.GetString(decryptedTitleBytes);
+                    _logger.LogDebug("Decrypted Title for clip {ClipId}", clip.Id);
+                }
+                catch (FormatException ex)
+                {
+                    // Invalid Base64 - use default title
+                    _logger.LogWarning(ex, "Title for clip {ClipId} has invalid Base64 - using default", clip.Id);
+                    clip.Title = "This clip is encrypted - unable to display.";
+                }
+                catch (CryptographicException ex)
+                {
+                    // Decryption failed (wrong key or corrupted) - use default title
+                    _logger.LogWarning(ex, "Failed to decrypt Title for clip {ClipId} - using default", clip.Id);
+                    clip.Title = "This clip is encrypted - unable to display.";
+                }
+            }
+            else
+                _logger.LogDebug("Title for clip {ClipId} does not look encrypted (length: {Length}), keeping as-is", clip.Id, clip.Title.Length);
+        }
+
+        // For temporary decryption, cache the decrypted BLOBs and set in-memory flag
+        if (!isPermanent)
+        {
+            // Cache decrypted BLOB data
+            var decryptedData = new DecryptedBlobData(
+                textBlobs.ToList().AsReadOnly(),
+                jpgBlobs.ToList().AsReadOnly(),
+                pngBlobs.ToList().AsReadOnly(),
+                binaryBlobs.ToList().AsReadOnly()
+            );
+
+            // Get expiration from encryption key (set by user in dialog)
+            var expiration = encryptionKey.ExpirationMinutes.HasValue
+                ? TimeSpan.FromMinutes(encryptionKey.ExpirationMinutes.Value)
+                : TimeSpan.MaxValue; // "Until shutdown"
+
+            // Cache with eviction callback to clear IsDecrypted flag when expired
+            _blobCacheService.CacheDecryptedBlobs(clip.Id, decryptedData, expiration, OnCacheExpired);
+
+            // Mark as decrypted in-memory (for ClipList icon/title display)
+            clip.IsDecrypted = true;
+            _logger.LogInformation("Temporarily decrypted clip {ClipId} for viewing (cached for {Minutes} minutes)",
+                clip.Id, expiration == TimeSpan.MaxValue
+                    ? "until shutdown"
+                    : expiration.TotalMinutes.ToString("F0"));
+        }
+        else
+        {
+            // For permanent decryption, flags were already cleared before BLOB decryption
+            // Now just need to save Title changes
+            await clipRepository.UpdateAsync(clip, cancellationToken);
+            _logger.LogInformation("Permanently decrypted clip {ClipId} - cleared encryption flags and saved decrypted title", clip.Id);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Called when a cached decrypted clip expires.
+    /// Sends a message to notify ClipListViewModel to update the UI (clear IsDecrypted flag, change icon).
+    /// </summary>
+    private void OnCacheExpired(Guid clipId)
+    {
+        _logger.LogInformation("Cache expired for clip {ClipId} - notifying UI to re-lock", clipId);
+
+        // Send message to ClipListViewModel to update IsDecrypted flag and icon
+        _messenger.Send(new ClipCacheExpiredMessage(clipId));
+    }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<Guid>> LockClipsAsync(string databaseKey, IReadOnlyList<Guid>? clipIds = null, CancellationToken cancellationToken = default)
+    {
+        // Get all currently cached (temporarily decrypted) clip IDs
+        var cachedClipIds = _blobCacheService.GetAllCachedClipIds();
+
+        // If specific clipIds provided, filter to only those that are actually cached
+        var clipsToLock = clipIds is { Count: > 0 }
+            ? cachedClipIds.Where(clipIds.Contains).ToList()
+            : cachedClipIds.ToList();
+
+        var lockedClipIds = new List<Guid>();
+
+        // Clear each cached clip - note that ClearClip doesn't invoke the expiration callback,
+        // so the coordinator will need to send ClipCacheExpiredMessage for each locked clip
+        foreach (var item in clipsToLock)
+        {
+            try
+            {
+                _blobCacheService.ClearClip(item);
+                lockedClipIds.Add(item);
+                _logger.LogInformation("Locked clip {ClipId}", item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error locking clip {ClipId}", item);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyList<Guid>>(lockedClipIds);
+    }
+
+    /// <inheritdoc />
+    public async Task LoadEncryptedContentAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(clip);
+
+        // Only load if clip is encrypted and NOT already decrypted (decrypted content comes from cache)
+        if (!clip.Encrypted || clip.IsDecrypted)
+        {
+            _logger.LogDebug("Clip {ClipId} is not encrypted or already decrypted, skipping encrypted content load", clip.Id);
+            return;
+        }
+
+        var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
+
+        // Load encrypted base64 data from BLOB tables into transient properties
+        switch (clip.Type)
+        {
+            case ClipType.Text:
+            case ClipType.Html:
+            case ClipType.RichText:
+                var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+                if (textBlobs.Count > 0)
+                {
+                    // Set encrypted base64 data into TextContent
+                    clip.TextContent = textBlobs[0].Data;
+                    _logger.LogDebug("Loaded encrypted text content (base64) for clip {ClipId}", clip.Id);
+                }
+
+                break;
+
+            case ClipType.Image:
+                // Try PNG first, then JPG
+                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
+                if (pngBlobs.Count > 0)
+                {
+                    clip.ImageData = pngBlobs[0].Data;
+                    _logger.LogDebug("Loaded encrypted PNG content for clip {ClipId}", clip.Id);
+                }
+                else
+                {
+                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
+                    if (jpgBlobs.Count > 0)
+                    {
+                        clip.ImageData = jpgBlobs[0].Data;
+                        _logger.LogDebug("Loaded encrypted JPG content for clip {ClipId}", clip.Id);
+                    }
+                }
+
+                break;
+
+            case ClipType.Files:
+                // Files typically stored as binary BLOBs
+                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+                if (binaryBlobs.Count > 0)
+                {
+                    // Store in TextContent as base64 for file paths JSON
+                    var textBlobsForFiles = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+                    if (textBlobsForFiles.Count > 0)
+                    {
+                        clip.FilePathsJson = textBlobsForFiles[0].Data;
+                        _logger.LogDebug("Loaded encrypted file paths for clip {ClipId}", clip.Id);
+                    }
+                }
+
+                break;
+        }
+    }
+
+    #endregion
 }

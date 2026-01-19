@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using ClipMate.App.Helpers;
 using ClipMate.App.Models.TreeNodes;
@@ -35,6 +36,7 @@ public partial class ExplorerWindow : IWindow,
     private readonly ILogger<ExplorerWindow>? _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ISessionMonitorService _sessionMonitorService;
     private readonly ITemplateService _templateService;
     private readonly ExplorerWindowViewModel _viewModel;
     private bool _isExiting;
@@ -46,6 +48,7 @@ public partial class ExplorerWindow : IWindow,
         IDatabaseManager databaseManager,
         ITemplateService templateService,
         IActiveWindowService activeWindowService,
+        ISessionMonitorService sessionMonitorService,
         ILogger<ExplorerWindow>? logger = null)
     {
         InitializeComponent();
@@ -57,6 +60,7 @@ public partial class ExplorerWindow : IWindow,
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
+        _sessionMonitorService = sessionMonitorService ?? throw new ArgumentNullException(nameof(sessionMonitorService));
         _logger = logger;
 
         DataContext = _viewModel;
@@ -222,11 +226,61 @@ public partial class ExplorerWindow : IWindow,
 
             // Notify ViewModels to refresh their service-derived state now that everything is loaded
             _messenger.Send(new StateRefreshRequestedEvent());
+
+            // Start session monitoring for lock screen detection
+            InitializeSessionMonitoring();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to initialize ExplorerWindow");
         }
+    }
+
+    private void InitializeSessionMonitoring()
+    {
+        try
+        {
+            // Get window handle
+            var windowHelper = new WindowInteropHelper(this);
+            var hwnd = windowHelper.Handle;
+
+            if (hwnd == IntPtr.Zero)
+            {
+                _logger?.LogWarning("Window handle not available for session monitoring");
+                return;
+            }
+
+            // Start monitoring
+            _sessionMonitorService.Start(hwnd);
+
+            // Add WndProc hook to process session change messages
+            var hwndSource = HwndSource.FromHwnd(hwnd);
+            if (hwndSource != null)
+                hwndSource.AddHook(WndProc);
+            else
+                _logger?.LogWarning("Failed to get HwndSource for session monitoring");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to initialize session monitoring");
+        }
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        // Let the SessionMonitorService process the message
+        if (_sessionMonitorService.ProcessMessage(msg, wParam, lParam))
+            handled = true;
+
+        return IntPtr.Zero;
+    }
+
+    private void OnSessionLocked(object? sender, EventArgs e)
+    {
+        // OBSOLETE: This event handler is no longer needed since SessionMonitorService
+        // now sends LockClipsRequestedEvent directly via messenger.
+        // Keeping the method stub for now in case there are manual subscriptions,
+        // but it should be removed in a future cleanup.
     }
 
     /// <summary>
@@ -689,6 +743,22 @@ public partial class ExplorerWindow : IWindow,
         // If already exiting (from File→Exit or tray menu), allow it
         if (_isExiting)
         {
+            // Clean up session monitoring
+            try
+            {
+                _sessionMonitorService.Stop();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to stop session monitoring");
+            }
+
+            // Dispose ViewModels to unregister from messenger
+            _viewModel.Dispose();
+
+            // Unregister this window from messenger
+            _messenger.UnregisterAll(this);
+
             _logger?.LogInformation("ExplorerWindow closing - application is exiting");
             return;
         }
@@ -696,6 +766,22 @@ public partial class ExplorerWindow : IWindow,
         // Check if Shift key is held - if so, allow actual exit
         if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
         {
+            // Clean up session monitoring
+            try
+            {
+                _sessionMonitorService.Stop();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to stop session monitoring");
+            }
+
+            // Dispose ViewModels to unregister from messenger
+            _viewModel.Dispose();
+
+            // Unregister this window from messenger
+            _messenger.UnregisterAll(this);
+
             _logger?.LogInformation("ExplorerWindow closing with Shift key - allowing exit");
             _isExiting = true;
             return;

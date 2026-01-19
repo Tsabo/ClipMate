@@ -1,0 +1,98 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.EncryptionKeyDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 Title="Enter Encryption Key"
+                 Width="500"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False"
+                 SizeToContent="Height">
+
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     Command="{Binding OkCommand}"
+                                     IsDefault="True"
+                                     DialogResult="OK" />
+        <dx:ThemedWindowDialogButton Content="Cancel"
+                                     IsCancel="True"
+                                     DialogResult="Cancel" />
+        <dx:ThemedWindowDialogButton Content="Help"
+                                     Command="{Binding HelpCommand}" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="10">
+        <!-- Password Entry (with show/hide toggle) -->
+        <dxlc:LayoutItem>
+            <Grid>
+                <!-- PasswordBox (shown when HideKey=true) -->
+                <dxe:PasswordBoxEdit x:Name="KeyPasswordBox"
+                                     EditValueChanged="KeyPasswordBox_OnEditValueChanged"
+                                     Visibility="{Binding HideKey, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                     Margin="0,0,0,10" />
+
+                <!-- TextBox (shown when HideKey=false) -->
+                <dxe:TextEdit x:Name="KeyTextBox"
+                              Text="{Binding PlainTextPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Visibility="{Binding HideKey, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"
+                              Margin="0,0,0,10" />
+            </Grid>
+        </dxlc:LayoutItem>
+
+        <!-- Hide Key Checkbox -->
+        <dxlc:LayoutItem>
+            <dxe:CheckEdit Content="Hide Key"
+                           IsChecked="{Binding HideKey, Mode=TwoWay}"
+                           Checked="HideKeyCheckEdit_OnChecked"
+                           Unchecked="HideKeyCheckEdit_OnUnchecked"
+                           Margin="0,0,0,15" />
+        </dxlc:LayoutItem>
+
+        <!-- Remember Key Section (Extended Mode Only) -->
+        <dxlc:LayoutGroup x:Name="RememberKeySection"
+                          Header="Remember And Re-Use This Key"
+                          Visibility="{Binding IsExtendedMode, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          Orientation="Vertical"
+                          Margin="0,0,0,10">
+
+            <!-- For X Minutes Option -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                    <RadioButton x:Name="RememberForMinutesRadio"
+                                 Content="For"
+                                 IsChecked="{Binding RememberForMinutes, Mode=TwoWay}"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,10,0" />
+                    <dxe:SpinEdit Value="{Binding RetentionMinutes, Mode=TwoWay}"
+                                  MinValue="1"
+                                  MaxValue="60"
+                                  IsEnabled="{Binding RememberForMinutes}"
+                                  Width="60"
+                                  Margin="0,0,10,0" />
+                    <TextBlock Text="Minutes"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <!-- Slider for Minutes -->
+            <dxlc:LayoutItem>
+                <dxe:TrackBarEdit Minimum="1"
+                                  Maximum="60"
+                                  Value="{Binding RetentionMinutes, Mode=TwoWay}"
+                                  IsEnabled="{Binding RememberForMinutes}"
+                                  TickFrequency="5"
+                                  TickPlacement="BottomRight"
+                                  Margin="30,0,0,10" />
+            </dxlc:LayoutItem>
+
+            <!-- Until Shutdown Option -->
+            <dxlc:LayoutItem>
+                <RadioButton Content="Until ClipMate is Shut Down"
+                             IsChecked="{Binding RememberUntilShutdown, Mode=TwoWay}"
+                             Margin="0,5,0,0" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -252,6 +253,9 @@ public class ClipServiceTests
             Mock.Of<IConfigurationService>(),
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),
+            Mock.Of<IEncryptionService>(),
+            Mock.Of<IDecryptedBlobCacheService>(),
+            Mock.Of<IMessenger>(),
             _mockLogger.Object);
 
     private Clip CreateTestClip(Guid id,

@@ -107,9 +107,16 @@ public class ClipRepository : IClipRepository
             if (item.HasText)
                 icons.Add("📄");
 
+            // Add lock icon prefix for encrypted clips
+            var lockIcon = clip.Encrypted
+                ? clip.IsDecrypted
+                    ? "🔓"
+                    : "🔒"
+                : string.Empty;
+
             clip.IconGlyph = icons.Count > 0
-                ? string.Join("", icons)
-                : "❓";
+                ? lockIcon + string.Join("", icons)
+                : lockIcon + "❓";
 
             // Fallback for clips with no ClipData
             if (!item.HasText && !item.HasRtf && !item.HasHtml && !item.HasBitmap && !item.HasFiles)
@@ -275,7 +282,11 @@ public class ClipRepository : IClipRepository
     {
         ArgumentNullException.ThrowIfNull(clip);
 
-        _context.Clips.Update(clip);
+        // Don't call Update if entity is already tracked - EF will auto-detect changes
+        var entry = _context.Entry(clip);
+        if (entry.State == EntityState.Detached)
+            _context.Clips.Update(clip);
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -642,7 +653,8 @@ public class ClipRepository : IClipRepository
         };
     }
 
-    public async Task<Clip> AddAsync(Clip clip, CancellationToken cancellationToken = default) => await CreateAsync(clip, cancellationToken);
+    public async Task<Clip> AddAsync(Clip clip, CancellationToken cancellationToken = default)
+        => await CreateAsync(clip, cancellationToken);
 
     /// <summary>
     /// Deletes all BLOB data associated with a clip (cascades to ClipData and all BLOB tables).
@@ -657,7 +669,10 @@ public class ClipRepository : IClipRepository
         _context.ClipData.RemoveRange(clipDataEntries);
     }
 
-    public async Task<long> GetCountAsync(CancellationToken cancellationToken = default) => await _context.Clips.Where(c => !c.Del).LongCountAsync(cancellationToken);
+    public async Task<long> GetCountAsync(CancellationToken cancellationToken = default)
+        => await _context.Clips
+            .Where(p => !p.Del)
+            .LongCountAsync(cancellationToken);
 
     /// <summary>
     /// Loads format availability flags for a list of clips by checking ClipData table.
@@ -725,9 +740,16 @@ public class ClipRepository : IClipRepository
                 if (flags.HasText)
                     icons.Add("📄");
 
+                // Add lock icon prefix for encrypted clips
+                var lockIcon = item.Encrypted
+                    ? item.IsDecrypted
+                        ? "🔓"
+                        : "🔒"
+                    : string.Empty;
+
                 item.IconGlyph = icons.Count > 0
-                    ? string.Join("", icons)
-                    : "❓";
+                    ? lockIcon + string.Join("", icons)
+                    : lockIcon + "❓";
 
                 _logger.LogDebug("Clip {ClipId}: Formats loaded - {FormatNames}, Icon: {Icon}", item.Id, flags.FormatNames, item.IconGlyph);
             }
@@ -762,6 +784,16 @@ public class ClipRepository : IClipRepository
                     default:
                         item.IconGlyph = "❓";
                         break;
+                }
+
+                // Add lock icon prefix for encrypted clips
+                if (item.Encrypted)
+                {
+                    var lockIcon = item.IsDecrypted
+                        ? "🔓"
+                        : "🔒";
+
+                    item.IconGlyph = lockIcon + item.IconGlyph;
                 }
             }
         }

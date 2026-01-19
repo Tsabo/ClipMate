@@ -33,8 +33,8 @@ public class SearchServiceTests : IntegrationTestBase
         }
 
         Console.WriteLine("Database tables created by EF Core:");
-        foreach (var table in tables)
-            Console.WriteLine($"  - {table}");
+        foreach (var item in tables)
+            Console.WriteLine($"  - {item}");
 
         // Verify expected tables exist
         await Assert.That(tables).Contains("Clips");
@@ -64,11 +64,11 @@ public class SearchServiceTests : IntegrationTestBase
         // Arrange - Create services
         var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
         var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>())).Returns(clipRepository);
+        mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(clipRepository);
         var mockCollectionService = new Mock<ICollectionService>();
-        mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
+        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
         var mockConfigService = new Mock<IConfigurationService>();
-        mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
+        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
         var mockSqlValidationService = new Mock<ISqlValidationService>();
         var searchService = new SearchService(
             mockContextFactory.Object,
@@ -96,9 +96,9 @@ public class SearchServiceTests : IntegrationTestBase
         // Arrange
         var mockContextFactory = new Mock<IDatabaseContextFactory>();
         var mockCollectionService = new Mock<ICollectionService>();
-        mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
+        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
         var mockConfigService = new Mock<IConfigurationService>();
-        mockConfigService.Setup(c => c.Configuration).Returns(new ClipMateConfiguration());
+        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
         var mockSqlValidationService = new Mock<ISqlValidationService>();
         var searchService = new SearchService(
             mockContextFactory.Object,

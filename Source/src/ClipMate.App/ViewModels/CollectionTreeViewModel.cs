@@ -17,7 +17,7 @@ namespace ClipMate.App.ViewModels;
 /// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
 /// Sends CollectionNodeSelectedEvent via messenger when selection changes.
 /// </summary>
-public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>
+public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>, IDisposable
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -27,9 +27,6 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly SearchResultsCache _searchResultsCache;
-
-    [ObservableProperty]
-    private TreeNodeBase? _selectedNode;
 
     public CollectionTreeViewModel(ICollectionService collectionService,
         IFolderService folderService,
@@ -51,6 +48,19 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         // Register to receive SearchExecutedEvent
         _messenger.Register(this);
+    }
+
+    /// <summary>
+    /// Gets or sets the currently selected node in the collection tree.
+    /// </summary>
+    public virtual TreeNodeBase? SelectedNode
+    {
+        get;
+        set
+        {
+            if (SetProperty(ref field, value))
+                OnSelectedNodeChanged(value);
+        }
     }
 
     /// <summary>
@@ -123,7 +133,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     }
 
 
-    partial void OnSelectedNodeChanged(TreeNodeBase? value)
+    protected void OnSelectedNodeChanged(TreeNodeBase? value)
     {
         _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
 
@@ -652,5 +662,13 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         // Cannot use this on virtual collections or trashcan
         return !collectionNode.Collection.IsVirtual;
+    }
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
     }
 }

@@ -42,6 +42,9 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private bool _encrypted;
 
     [ObservableProperty]
+    private string _encryptionStatusText = string.Empty;
+
+    [ObservableProperty]
     private string _folderName = string.Empty;
 
     [ObservableProperty]
@@ -135,6 +138,22 @@ public partial class ClipPropertiesViewModel : ObservableObject
         Size = clip.Size;
         UserId = clip.UserId;
 
+        // Set encryption status text
+        if (clip.Encrypted)
+        {
+            var algorithm = !string.IsNullOrEmpty(clip.EncryptionMethod)
+                ? clip.EncryptionMethod
+                : "Unknown";
+
+            var status = clip.IsDecrypted
+                ? "🔓 Currently unlocked"
+                : "🔒 Currently locked";
+
+            EncryptionStatusText = $"{status} (Algorithm: {algorithm})";
+        }
+        else
+            EncryptionStatusText = "This clip is not encrypted.";
+
         // Load shortcut from database
         var existingShortcut = await _shortcutService.GetByClipIdAsync(_databaseKey, clip.Id, cancellationToken);
         Shortcut = existingShortcut?.Nickname ?? string.Empty;
@@ -170,9 +189,9 @@ public partial class ClipPropertiesViewModel : ObservableObject
             {
                 // Check if this shortcut is already used by another clip
                 var allShortcuts = await _shortcutService.GetAllAsync(_databaseKey);
-                var conflictingShortcut = allShortcuts.FirstOrDefault(s =>
-                    s.Nickname.Equals(Shortcut, StringComparison.OrdinalIgnoreCase) &&
-                    s.ClipId != _originalClip.Id);
+                var conflictingShortcut = allShortcuts.FirstOrDefault(p =>
+                    p.Nickname.Equals(Shortcut, StringComparison.OrdinalIgnoreCase) &&
+                    p.ClipId != _originalClip.Id);
 
                 if (conflictingShortcut != null)
                 {

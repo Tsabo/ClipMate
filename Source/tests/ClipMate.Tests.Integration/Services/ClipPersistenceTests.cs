@@ -3,6 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -203,6 +204,9 @@ public class ClipPersistenceTests : IntegrationTestBase
             Mock.Of<IConfigurationService>(),
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),
+            Mock.Of<IEncryptionService>(),
+            Mock.Of<IDecryptedBlobCacheService>(),
+            Mock.Of<IMessenger>(),
             serviceLogger);
     }
 
@@ -226,6 +230,9 @@ public class ClipPersistenceTests : IntegrationTestBase
             Mock.Of<IConfigurationService>(),
             Mock.Of<IClipboardService>(),
             Mock.Of<ITemplateService>(),
+            Mock.Of<IEncryptionService>(),
+            Mock.Of<IDecryptedBlobCacheService>(),
+            Mock.Of<IMessenger>(),
             serviceLogger);
     }
 }

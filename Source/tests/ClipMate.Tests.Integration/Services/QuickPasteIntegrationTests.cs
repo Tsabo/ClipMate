@@ -106,6 +106,12 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             quickPasteLogger);
     }
 
+    [After(Test)]
+    public void CleanupQuickPasteTest()
+    {
+        _quickPasteService?.Dispose();
+    }
+
     [Test]
     public async Task QuickPaste_SelectsDefaultFormattingString_OnInitialization()
     {
@@ -256,7 +262,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     public async Task QuickPaste_UpdateTarget_DoesNotThrowWhenNoWindow()
     {
         // Arrange - No foreground window
-        _mockWin32.Setup(w => w.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
+        _mockWin32.Setup(p => p.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
         _quickPasteService.SetTargetLock(false);
 
         // Act

@@ -57,8 +57,20 @@ public static class ServiceCollectionExtensions
         // Register Win32IdleDetector for system idle detection
         services.AddSingleton<IWin32IdleDetector, Win32IdleDetector>();
 
+        // Register IMemoryCache for decrypted BLOB caching
+        services.AddMemoryCache();
+
+        // Register DecryptedBlobCacheService for temporary decryption caching
+        services.AddSingleton<IDecryptedBlobCacheService, DecryptedBlobCacheService>();
+
         // Register ExportImportService as transient - only used occasionally for export/import operations
         services.AddTransient<IExportImportService, ExportImportService>();
+
+        // Register encryption service as singleton
+        services.AddSingleton<IEncryptionService, AesEncryptionService>();
+
+        // Register session monitor service for lock screen detection
+        services.AddSingleton<ISessionMonitorService, SessionMonitorService>();
 
         // Register diagnostic services
         services.AddSingleton<IClipboardDiagnosticsService, ClipboardDiagnosticsService>();
@@ -71,8 +83,6 @@ public static class ServiceCollectionExtensions
             var httpClient = new HttpClient();
             return new UpdateCheckService(httpClient, logger);
         });
-
-        // Note: SystemTrayService removed - now using WPF-UI.Tray NotifyIcon component
 
         return services;
     }

@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -11,6 +12,8 @@ namespace ClipMate.Tests.Unit.Services;
 /// <summary>
 /// Unit tests for ClipService CreateAsync operation for new clip creation.
 /// </summary>
+[Category("ClipService")]
+[Category("Unit")]
 public class CreateNewClipTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
@@ -34,9 +37,10 @@ public class CreateNewClipTests : TestFixtureBase
         Mock.Of<IConfigurationService>(),
         Mock.Of<IClipboardService>(),
         Mock.Of<ITemplateService>(),
+        Mock.Of<IEncryptionService>(),
+        Mock.Of<IDecryptedBlobCacheService>(),
+        Mock.Of<IMessenger>(),
         _mockLogger.Object);
-
-    #region CreateAsync Tests
 
     [Test]
     public async Task CreateAsync_WithNewClip_CreatesClipSuccessfully()
@@ -165,6 +169,4 @@ public class CreateNewClipTests : TestFixtureBase
         await Assert.That(result.TextContent).IsEqualTo(clipContent);
         _mockClipRepository.Verify(p => p.CreateAsync(newClip, It.IsAny<CancellationToken>()), Times.Once);
     }
-
-    #endregion
 }
