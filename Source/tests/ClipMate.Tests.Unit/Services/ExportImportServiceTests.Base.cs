@@ -1,17 +1,27 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
+using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
+using Moq;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public abstract partial class ExportImportServiceTestsBase : TestFixtureBase
+public abstract class ExportImportServiceTestsBase : TestFixtureBase
 {
     protected ExportImportService CreateService()
     {
+        var clipService = new Mock<IClipService>();
+
+        // Mock LoadBlobDataAsync to do nothing (test clips already have data populated)
+        clipService.Setup(p => p.LoadBlobDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<Clip>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         var logger = CreateLogger<ExportImportService>();
-        return new ExportImportService(logger);
+        return new ExportImportService(clipService.Object, logger);
     }
 
     protected static string CreateTempDirectory()
@@ -33,6 +43,7 @@ public abstract partial class ExportImportServiceTestsBase : TestFixtureBase
             {
                 Id = Guid.NewGuid(),
                 Title = p,
+                TextContent = p, // Use title as content for testing
                 CapturedAt = DateTimeOffset.UtcNow,
                 ContentHash = Guid.NewGuid().ToString("N"),
                 Type = ClipType.Text,

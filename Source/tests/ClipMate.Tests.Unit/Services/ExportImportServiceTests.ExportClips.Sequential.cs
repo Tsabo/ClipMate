@@ -18,6 +18,7 @@ public class ExportImportServiceSequentialTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
+            "test_db",
             clips,
             dir,
             FileNamingStrategy.Sequential,
@@ -55,6 +56,7 @@ public class ExportImportServiceSequentialTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
+            "test_db",
             clips,
             dir,
             FileNamingStrategy.TitleBased,

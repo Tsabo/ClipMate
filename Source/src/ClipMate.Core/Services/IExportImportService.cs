@@ -12,6 +12,7 @@ public interface IExportImportService
     /// <summary>
     /// Exports clips to individual files (TXT for text, BMP/JPEG/PNG for images).
     /// </summary>
+    /// <param name="databaseKey">Database key to load blob data from.</param>
     /// <param name="clips">Clips to export.</param>
     /// <param name="exportDirectory">Directory to export files to.</param>
     /// <param name="namingStrategy">File naming strategy to use.</param>
@@ -22,7 +23,8 @@ public interface IExportImportService
     /// <param name="imageFormat">Image export format (PNG, JPG, BMP). Defaults to PNG.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The next sequence number to use for future exports.</returns>
-    Task<int> ExportClipsToFilesAsync(IEnumerable<Clip> clips,
+    Task<int> ExportClipsToFilesAsync(string databaseKey,
+        IEnumerable<Clip> clips,
         string exportDirectory,
         FileNamingStrategy namingStrategy,
         bool resetSequence = false,

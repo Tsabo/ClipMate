@@ -18,145 +18,13 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class ExportImportService : IExportImportService
 {
+    private readonly IClipService _clipService;
     private readonly ILogger<ExportImportService> _logger;
 
-    public ExportImportService(ILogger<ExportImportService> logger)
+    public ExportImportService(IClipService clipService, ILogger<ExportImportService> logger)
     {
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    /// <summary>
-    /// Exports clips to individual files (TXT for text, BMP/JPEG/PNG for images).
-    /// </summary>
-    /// <returns>The next sequence number to use for future exports.</returns>
-    public async Task<int> ExportClipsToFilesAsync(IEnumerable<Clip> clips,
-        string exportDirectory,
-        FileNamingStrategy namingStrategy,
-        bool resetSequence = false,
-        int jpegQuality = 85,
-        Action<ExportProgressMessage>? progressCallback = null,
-        int startSequence = 1,
-        ImageExportFormat imageFormat = ImageExportFormat.Png,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            // Ensure export directory exists
-            Directory.CreateDirectory(exportDirectory);
-
-            var clipList = clips.ToList();
-            if (clipList.Count == 0)
-            {
-                progressCallback?.Invoke(new ExportProgressMessage
-                {
-                    IsComplete = true,
-                    Message = "No clips to export.",
-                    Successful = true,
-                });
-
-                return startSequence;
-            }
-
-            // Initialize sequence - use startSequence if resetSequence, otherwise find next available
-            var sequence = resetSequence
-                ? startSequence
-                : GetNextSequenceNumber(exportDirectory, startSequence);
-
-            var exportedFiles = new List<string>();
-            var processed = 0;
-
-            foreach (var item in clipList)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var fileName = namingStrategy switch
-                    {
-                        FileNamingStrategy.Sequential => $"{sequence:00000}",
-                        FileNamingStrategy.TitleBased => SanitizeFileName(item.Title ?? "Untitled"),
-                        FileNamingStrategy.Serial => item.Id.ToString("N"),
-                        FileNamingStrategy.PromptPerFile => throw new NotSupportedException("PromptPerFile requires UI interaction"),
-                        var _ => throw new InvalidOperationException($"Unknown naming strategy: {namingStrategy}"),
-                    };
-
-                    // Determine file extension based on clip content
-                    var (content, extension) = await ExtractClipContent(item, imageFormat, jpegQuality, cancellationToken);
-
-                    if (content != null)
-                    {
-                        var fullPath = Path.Combine(exportDirectory, $"{fileName}{extension}");
-
-                        // Handle filename conflicts for sequential numbering
-                        if (File.Exists(fullPath) && namingStrategy == FileNamingStrategy.Sequential)
-                        {
-                            sequence++;
-                            fullPath = Path.Combine(exportDirectory, $"{sequence:00000}{extension}");
-                        }
-
-                        // Write file
-                        if (content is byte[] bytes)
-                            await File.WriteAllBytesAsync(fullPath, bytes, cancellationToken);
-                        else if (content is string text)
-                            await File.WriteAllTextAsync(fullPath, text, Encoding.UTF8, cancellationToken);
-
-                        exportedFiles.Add(fullPath);
-                        sequence++;
-
-                        progressCallback?.Invoke(new ExportProgressMessage
-                        {
-                            IsComplete = false,
-                            Message = $"Exported: {Path.GetFileName(fullPath)}",
-                            Successful = true,
-                            ProcessedCount = ++processed,
-                            TotalCount = clipList.Count,
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to export clip {ClipId}", item.Id);
-                    progressCallback?.Invoke(new ExportProgressMessage
-                    {
-                        IsComplete = false,
-                        Message = $"Failed to export clip: {ex.Message}",
-                        Successful = false,
-                        ProcessedCount = ++processed,
-                        TotalCount = clipList.Count,
-                    });
-                }
-            }
-
-            progressCallback?.Invoke(new ExportProgressMessage
-            {
-                IsComplete = true,
-                Message = $"Export complete. {exportedFiles.Count} file(s) exported to: {exportDirectory}",
-                Successful = true,
-                ProcessedCount = processed,
-                TotalCount = clipList.Count,
-            });
-
-            _logger.LogInformation("Successfully exported {Count} clips to {Directory}", exportedFiles.Count, exportDirectory);
-
-            return sequence;
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogWarning("Export operation cancelled.");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Export operation failed");
-            progressCallback?.Invoke(new ExportProgressMessage
-            {
-                IsComplete = true,
-                Message = $"Export failed: {ex.Message}",
-                Successful = false,
-            });
-
-            throw;
-        }
     }
 
     /// <summary>
@@ -291,6 +159,144 @@ public class ExportImportService : IExportImportService
             {
                 IsComplete = true,
                 Message = $"XML import failed: {ex.Message}",
+                Successful = false,
+            });
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Exports clips to individual files (TXT for text, BMP/JPEG/PNG for images).
+    /// </summary>
+    /// <returns>The next sequence number to use for future exports.</returns>
+    public async Task<int> ExportClipsToFilesAsync(string databaseKey,
+        IEnumerable<Clip> clips,
+        string exportDirectory,
+        FileNamingStrategy namingStrategy,
+        bool resetSequence = false,
+        int jpegQuality = 85,
+        Action<ExportProgressMessage>? progressCallback = null,
+        int startSequence = 1,
+        ImageExportFormat imageFormat = ImageExportFormat.Png,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Ensure export directory exists
+            Directory.CreateDirectory(exportDirectory);
+
+            var clipList = clips.ToList();
+            if (clipList.Count == 0)
+            {
+                progressCallback?.Invoke(new ExportProgressMessage
+                {
+                    IsComplete = true,
+                    Message = "No clips to export.",
+                    Successful = true,
+                });
+
+                return startSequence;
+            }
+
+            // Initialize sequence - use startSequence if resetSequence, otherwise find next available
+            var sequence = resetSequence
+                ? startSequence
+                : GetNextSequenceNumber(exportDirectory, startSequence);
+
+            var exportedFiles = new List<string>();
+            var processed = 0;
+
+            foreach (var item in clipList)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    // Load blob data from database before extracting content
+                    await _clipService.LoadBlobDataAsync(databaseKey, item, cancellationToken);
+
+                    var fileName = namingStrategy switch
+                    {
+                        FileNamingStrategy.Sequential => $"{sequence:00000}",
+                        FileNamingStrategy.TitleBased => SanitizeFileName(item.Title ?? "Untitled"),
+                        FileNamingStrategy.Serial => item.Id.ToString("N"),
+                        FileNamingStrategy.PromptPerFile => throw new NotSupportedException("PromptPerFile requires UI interaction"),
+                        var _ => throw new InvalidOperationException($"Unknown naming strategy: {namingStrategy}"),
+                    };
+
+                    // Determine file extension based on clip content
+                    var (content, extension) = await ExtractClipContent(item, imageFormat, jpegQuality, cancellationToken);
+
+                    if (content != null)
+                    {
+                        var fullPath = Path.Combine(exportDirectory, $"{fileName}{extension}");
+
+                        // Handle filename conflicts for sequential numbering (only skip if not resetting sequence)
+                        if (File.Exists(fullPath) && namingStrategy == FileNamingStrategy.Sequential && !resetSequence)
+                        {
+                            sequence++;
+                            fullPath = Path.Combine(exportDirectory, $"{sequence:00000}{extension}");
+                        }
+
+                        // Write file
+                        if (content is byte[] bytes)
+                            await File.WriteAllBytesAsync(fullPath, bytes, cancellationToken);
+                        else if (content is string text)
+                            await File.WriteAllTextAsync(fullPath, text, Encoding.UTF8, cancellationToken);
+
+                        exportedFiles.Add(fullPath);
+                        sequence++;
+
+                        progressCallback?.Invoke(new ExportProgressMessage
+                        {
+                            IsComplete = false,
+                            Message = $"Exported: {Path.GetFileName(fullPath)}",
+                            Successful = true,
+                            ProcessedCount = ++processed,
+                            TotalCount = clipList.Count,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to export clip {ClipId}", item.Id);
+                    progressCallback?.Invoke(new ExportProgressMessage
+                    {
+                        IsComplete = false,
+                        Message = $"Failed to export clip: {ex.Message}",
+                        Successful = false,
+                        ProcessedCount = ++processed,
+                        TotalCount = clipList.Count,
+                    });
+                }
+            }
+
+            progressCallback?.Invoke(new ExportProgressMessage
+            {
+                IsComplete = true,
+                Message = $"Export complete. {exportedFiles.Count} file(s) exported to: {exportDirectory}",
+                Successful = true,
+                ProcessedCount = processed,
+                TotalCount = clipList.Count,
+            });
+
+            _logger.LogInformation("Successfully exported {Count} clips to {Directory}", exportedFiles.Count, exportDirectory);
+
+            return sequence;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Export operation cancelled.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Export operation failed");
+            progressCallback?.Invoke(new ExportProgressMessage
+            {
+                IsComplete = true,
+                Message = $"Export failed: {ex.Message}",
                 Successful = false,
             });
 

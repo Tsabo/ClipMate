@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.11] - 2026-1-18
+
 ### Added
 - **Clip Encryption** - Full encryption support with AES-256-GCM, allowing clips to be encrypted/decrypted individually or in bulk with password protection
 - **Encryption Key Management** - Secure key dialog with session-based key caching and automatic key expiration on system lock/logout
@@ -23,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Memory Leaks** - Implemented IDisposable pattern across ViewModels, services, and windows to properly unregister from messenger and prevent resource leaks
+- **InteropBitmap Alpha Channel Corruption** - Fixed critical bug where DIB clipboard format images (screenshots from SnagIt, Windows Snipping Tool) had corrupted transparency due to all alpha channels being set to 0; implemented automatic alpha=255 fix for InteropBitmap sources to restore proper image quality
+- **Image Pixel Data Processing** - Fixed bug in ConvertBitmapSourceToBytes where calling ToArray() created copies of pixel data, causing alpha channel fixes to be discarded before PNG encoding; now uses rented ArrayPool buffer directly for both CopyPixels and WritePixels operations
 
 ## [0.1.0-alpha.10] - 2026-1-11
 

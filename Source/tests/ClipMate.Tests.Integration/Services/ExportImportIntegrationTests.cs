@@ -18,7 +18,6 @@ namespace ClipMate.Tests.Integration.Services;
 /// <summary>
 /// Integration tests for XML export/import with real database persistence.
 /// Verifies that clips saved to database can be exported with all blob data intact.
-/// 
 /// ENCRYPTION EXPORT/IMPORT BEHAVIOR:
 /// - Encrypted clips store encrypted data in normal content fields (TextContent, RtfContent, HtmlContent, ImageData)
 /// - TEXT fields: Encrypted data is base64-encoded (e.g., TextContent = "QUJDREVGMTIzNDU2Nzg5MA==")
@@ -342,7 +341,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         await Assert.That(importedClip.TextContent).IsEqualTo("QUJDREVGMTIzNDU2Nzg5MA==");
         await Assert.That(importedClip.RtfContent).IsEqualTo("cnRmX2VuY3J5cHRlZF9kYXRh");
         await Assert.That(importedClip.HtmlContent).IsEqualTo("aHRtbF9lbmNyeXB0ZWRfZGF0YQ==");
-        
+
         // With the encrypted content and crypto parameters, user can decrypt with correct passphrase
     }
 
@@ -463,7 +462,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         var encryptedClip = await clipService.GetByIdAsync(_testDatabaseKey, savedClip.Id);
         await Assert.That(encryptedClip).IsNotNull();
         await Assert.That(encryptedClip!.Encrypted).IsTrue();
-        
+
         // Verify BLOB data is encrypted (not plain text)
         var blobRepository = new BlobRepository(DbContext);
         var textBlobs = await blobRepository.GetTextByClipIdAsync(savedClip.Id);
@@ -484,7 +483,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         // Act 3 - Import the encrypted clip from XML into a new database context
         var connection = DbContext.Database.GetDbConnection();
-        using var importContext = new ClipMateDbContext(
+        await using var importContext = new ClipMateDbContext(
             new DbContextOptionsBuilder<ClipMateDbContext>()
                 .UseSqlite(connection)
                 .Options);
@@ -504,20 +503,20 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         // Act 4 - Decrypt the imported clip with the same passphrase
         using var decryptionKey = EncryptionKey.FromPassphrase(testPassphrase);
-        await importClipService.DecryptClipsAsync(_testDatabaseKey, [reimportedClip.Id], decryptionKey, isPermanent: true);
+        await importClipService.DecryptClipsAsync(_testDatabaseKey, [reimportedClip.Id], decryptionKey, true);
         await importContext.SaveChangesAsync();
 
         // Assert - Verify decrypted content matches original (read from BLOB table)
         var decryptedClip = await importClipService.GetByIdAsync(_testDatabaseKey, reimportedClip.Id);
         await Assert.That(decryptedClip).IsNotNull();
         await Assert.That(decryptedClip!.Encrypted).IsFalse(); // Permanently decrypted
-        
+
         // Verify BLOB data was decrypted back to original
         // BlobTxt entries contain text content for various formats (plain text, RTF, HTML)
         var importBlobRepo = new BlobRepository(importContext);
         var decryptedTextBlobs = await importBlobRepo.GetTextByClipIdAsync(reimportedClip.Id);
         await Assert.That(decryptedTextBlobs.Count).IsGreaterThan(0);
-        
+
         // Verify at least one blob contains our original text (typically the first one is plain text)
         var hasOriginalText = decryptedTextBlobs.Any(b => b.Data == originalText);
         await Assert.That(hasOriginalText).IsTrue();
@@ -553,7 +552,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         var encryptedClip = await clipService.GetByIdAsync(_testDatabaseKey, savedClip.Id);
         await Assert.That(encryptedClip).IsNotNull();
         await Assert.That(encryptedClip!.Encrypted).IsTrue();
-        
+
         // Verify BLOB data is encrypted (not plain image bytes)
         var blobRepository = new BlobRepository(DbContext);
         var pngBlobs = await blobRepository.GetPngByClipIdAsync(savedClip.Id);
@@ -569,7 +568,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         var importedClip = importData.Clips[0];
 
         var connection = DbContext.Database.GetDbConnection();
-        using var importContext = new ClipMateDbContext(
+        await using var importContext = new ClipMateDbContext(
             new DbContextOptionsBuilder<ClipMateDbContext>()
                 .UseSqlite(connection)
                 .Options);
@@ -580,14 +579,14 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         // Decrypt with same passphrase
         using var decryptionKey = EncryptionKey.FromPassphrase(testPassphrase);
-        await importClipService.DecryptClipsAsync(_testDatabaseKey, [reimportedClip.Id], decryptionKey, isPermanent: true);
+        await importClipService.DecryptClipsAsync(_testDatabaseKey, [reimportedClip.Id], decryptionKey, true);
         await importContext.SaveChangesAsync();
 
         // Assert - Verify decrypted image matches original (read from BLOB table)
         var decryptedClip = await importClipService.GetByIdAsync(_testDatabaseKey, reimportedClip.Id);
         await Assert.That(decryptedClip).IsNotNull();
         await Assert.That(decryptedClip!.Encrypted).IsFalse();
-        
+
         // Verify BLOB data was decrypted back to original image bytes
         var importBlobRepo = new BlobRepository(importContext);
         var decryptedPngBlobs = await importBlobRepo.GetPngByClipIdAsync(reimportedClip.Id);
@@ -741,8 +740,9 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
     private IExportImportService CreateExportImportService()
     {
+        var clipService = Mock.Of<IClipService>();
         var logger = Mock.Of<ILogger<ExportImportService>>();
-        return new ExportImportService(logger);
+        return new ExportImportService(clipService, logger);
     }
 
     private static string CreateTempFilePath(string extension)

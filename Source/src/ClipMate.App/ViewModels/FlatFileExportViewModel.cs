@@ -67,6 +67,8 @@ public partial class FlatFileExportViewModel : ObservableObject
         _configurationService = configurationService;
     }
 
+    public string DatabaseKey { get; private set; } = string.Empty;
+
     public bool? DialogResult { get; set; }
 
     /// <summary>
@@ -77,9 +79,11 @@ public partial class FlatFileExportViewModel : ObservableObject
     /// <summary>
     /// Initializes the ViewModel with the clips to export.
     /// </summary>
+    /// <param name="databaseKey">The database key to load blob data from.</param>
     /// <param name="selectedClips">The clips to export.</param>
-    public void Initialize(IEnumerable<Clip> selectedClips)
+    public void Initialize(string databaseKey, IEnumerable<Clip> selectedClips)
     {
+        DatabaseKey = databaseKey;
         _selectedClips = selectedClips.ToList();
         ProcessingLog = $"{_selectedClips.Count} clip(s) selected for export.\n";
     }
@@ -215,6 +219,7 @@ public partial class FlatFileExportViewModel : ObservableObject
                     : ImageExportFormat.Png;
 
             var finalSequence = await _exportImportService.ExportClipsToFilesAsync(
+                DatabaseKey,
                 _selectedClips,
                 FlatFileExportDirectory,
                 SelectedNamingStrategy,

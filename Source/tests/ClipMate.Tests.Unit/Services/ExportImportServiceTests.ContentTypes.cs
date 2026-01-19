@@ -22,7 +22,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased,
             progressCallback: p => progressMessages.Add(p));
@@ -45,7 +45,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased,
             imageFormat: ImageExportFormat.Jpg);
@@ -67,7 +67,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased,
             imageFormat: ImageExportFormat.Bmp);
@@ -89,7 +89,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.Sequential,
             imageFormat: ImageExportFormat.Png);
@@ -111,14 +111,14 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip1],
+            "test_db", [clip1],
             dirHighQuality,
             FileNamingStrategy.TitleBased,
             jpegQuality: 100,
             imageFormat: ImageExportFormat.Jpg);
 
         await service.ExportClipsToFilesAsync(
-            [clip2],
+            "test_db", [clip2],
             dirLowQuality,
             FileNamingStrategy.TitleBased,
             jpegQuality: 10,
@@ -147,7 +147,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips,
+            "test_db", clips,
             dir,
             FileNamingStrategy.Sequential,
             imageFormat: ImageExportFormat.Png);
@@ -174,7 +174,7 @@ public class ExportImportServiceHtmlTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased);
 
@@ -198,7 +198,7 @@ public class ExportImportServiceHtmlTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.Sequential);
 
@@ -218,7 +218,7 @@ public class ExportImportServiceHtmlTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased);
 
@@ -241,12 +241,12 @@ public class ExportImportServiceRtfTests : ExportImportServiceTestsBase
         // Arrange
         var service = CreateService();
         var dir = CreateTempDirectory();
-        var rtfContent = @"{\rtf1\ansi Hello World}";
+        const string rtfContent = @"{\rtf1\ansi Hello World}";
         var clip = CreateRtfClip(rtfContent, "RtfDoc");
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased);
 
@@ -270,7 +270,7 @@ public class ExportImportServiceRtfTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.Sequential);
 
@@ -290,7 +290,7 @@ public class ExportImportServiceRtfTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased);
 
@@ -317,7 +317,7 @@ public class ExportImportServiceFilesTypeTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            [clip],
+            "test_db", [clip],
             dir,
             FileNamingStrategy.TitleBased);
 
@@ -352,7 +352,7 @@ public class ExportImportServiceCancellationTests : ExportImportServiceTestsBase
 
         // Act & Assert
         await Assert.That(async () => await service.ExportClipsToFilesAsync(
-                clips,
+                "test_db", clips,
                 dir,
                 FileNamingStrategy.Sequential,
                 cancellationToken: cts.Token))
@@ -414,7 +414,7 @@ public class ExportImportServiceCancellationTests : ExportImportServiceTestsBase
 
         // Act - don't cancel
         await service.ExportClipsToFilesAsync(
-            clips,
+            "test_db", clips,
             dir,
             FileNamingStrategy.Sequential,
             cancellationToken: cts.Token);
@@ -447,7 +447,7 @@ public class ExportImportServiceMixedContentTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips,
+            "test_db", clips,
             dir,
             FileNamingStrategy.TitleBased,
             imageFormat: ImageExportFormat.Png);
@@ -477,7 +477,7 @@ public class ExportImportServiceMixedContentTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips,
+            "test_db", clips,
             dir,
             FileNamingStrategy.Sequential,
             imageFormat: ImageExportFormat.Jpg);

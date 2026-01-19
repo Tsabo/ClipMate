@@ -193,7 +193,7 @@ public class ClipOperationsCoordinator :
             // Check if we have a cached key
             SecureString? passphrase;
             int? expirationMinutes;
-            var shouldCacheKey = false;
+            bool shouldCacheKey;
 
             if (EncryptionKeyDialogViewModel.HasCachedKey)
             {
@@ -431,7 +431,7 @@ public class ClipOperationsCoordinator :
     {
         var clipIds = message.ClipIds.Any()
             ? message.ClipIds
-            : _clipListViewModel.SelectedClips.Select(c => c.Id).ToList();
+            : _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
 
         if (clipIds.Count == 0)
         {
@@ -643,7 +643,7 @@ public class ClipOperationsCoordinator :
         }
 
         var vm = ActivatorUtilities.CreateInstance<FlatFileExportViewModel>(_serviceProvider);
-        vm.Initialize(selectedClips);
+        vm.Initialize(_clipListViewModel.CurrentDatabaseKey!, selectedClips);
 
         var dialog = new FlatFileExportDialog(vm)
         {

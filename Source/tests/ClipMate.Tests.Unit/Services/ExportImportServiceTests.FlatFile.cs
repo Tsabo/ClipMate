@@ -1,6 +1,8 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
+using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
+using Moq;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -11,15 +13,29 @@ namespace ClipMate.Tests.Unit.Services;
 public class ExportImportServiceConstructorTests : ExportImportServiceTestsBase
 {
     [Test]
+    public async Task Constructor_WithNullClipService_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var logger = CreateLogger<ExportImportService>();
+        
+        // Act & Assert
+        await Assert.That(() => new ExportImportService(null!, logger))
+            .Throws<ArgumentNullException>();
+    }
+    
+    [Test]
     public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
+        // Arrange
+        var clipService = Mock.Of<IClipService>();
+        
         // Act & Assert
-        await Assert.That(() => new ExportImportService(null!))
+        await Assert.That(() => new ExportImportService(clipService, null!))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task Constructor_WithValidLogger_CreatesInstance()
+    public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         // Act
         var service = CreateService();
@@ -46,13 +62,19 @@ public class ExportImportServiceSequentialNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Sequential,
+            "test_db", clips, dir, FileNamingStrategy.Sequential,
             true);
 
         // Assert - should start from 1, potentially overwriting
         var files = Directory.GetFiles(dir).Select(Path.GetFileName).ToList();
         await Assert.That(files.Contains("00001.txt")).IsTrue();
         await Assert.That(files.Contains("00002.txt")).IsTrue();
+        
+        // Verify content matches clip titles
+        var content1 = await File.ReadAllTextAsync(Path.Combine(dir, "00001.txt"));
+        var content2 = await File.ReadAllTextAsync(Path.Combine(dir, "00002.txt"));
+        await Assert.That(content1).IsEqualTo("New1");
+        await Assert.That(content2).IsEqualTo("New2");
     }
 
     [Test]
@@ -66,13 +88,21 @@ public class ExportImportServiceSequentialNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Sequential);
+            "test_db", clips, dir, FileNamingStrategy.Sequential);
 
         // Assert
         var files = Directory.GetFiles(dir).Select(Path.GetFileName).OrderBy(p => p).ToList();
         await Assert.That(files).Contains("00001.txt");
         await Assert.That(files).Contains("00002.txt");
         await Assert.That(files).Contains("00003.txt");
+        
+        // Verify content matches clip titles
+        var content1 = await File.ReadAllTextAsync(Path.Combine(dir, "00001.txt"));
+        var content2 = await File.ReadAllTextAsync(Path.Combine(dir, "00002.txt"));
+        var content3 = await File.ReadAllTextAsync(Path.Combine(dir, "00003.txt"));
+        await Assert.That(content1).IsEqualTo("First");
+        await Assert.That(content2).IsEqualTo("Second");
+        await Assert.That(content3).IsEqualTo("Third");
     }
 
     [Test]
@@ -86,11 +116,15 @@ public class ExportImportServiceSequentialNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Sequential);
+            "test_db", clips, dir, FileNamingStrategy.Sequential);
 
         // Assert
         await Assert.That(Directory.Exists(dir)).IsTrue();
         await Assert.That(File.Exists(Path.Combine(dir, "00001.txt"))).IsTrue();
+        
+        // Verify content
+        var content = await File.ReadAllTextAsync(Path.Combine(dir, "00001.txt"));
+        await Assert.That(content).IsEqualTo("Test");
     }
 }
 
@@ -111,11 +145,15 @@ public class ExportImportServiceSerialNamingTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Serial);
+            "test_db", clips, dir, FileNamingStrategy.Serial);
 
         // Assert
         var expectedFileName = $"{clipId:N}.txt";
         await Assert.That(File.Exists(Path.Combine(dir, expectedFileName))).IsTrue();
+        
+        // Verify content
+        var content = await File.ReadAllTextAsync(Path.Combine(dir, expectedFileName));
+        await Assert.That(content).IsEqualTo("TestClip");
     }
 
     [Test]
@@ -129,7 +167,7 @@ public class ExportImportServiceSerialNamingTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Serial);
+            "test_db", clips, dir, FileNamingStrategy.Serial);
 
         // Assert
         var files = Directory.GetFiles(dir);
@@ -137,6 +175,14 @@ public class ExportImportServiceSerialNamingTests : ExportImportServiceTestsBase
         // All filenames should be unique (GUID-based)
         var uniqueNames = files.Select(Path.GetFileNameWithoutExtension).Distinct().Count();
         await Assert.That(uniqueNames).IsEqualTo(5);
+        
+        // Verify all files have correct content
+        var expectedTitles = new[] { "A", "B", "C", "D", "E" };
+        foreach (var file in files)
+        {
+            var content = await File.ReadAllTextAsync(file);
+            await Assert.That(expectedTitles).Contains(content);
+        }
     }
 }
 
@@ -156,10 +202,14 @@ public class ExportImportServiceTitleBasedNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.TitleBased);
+            "test_db", clips, dir, FileNamingStrategy.TitleBased);
 
         // Assert
         await Assert.That(File.Exists(Path.Combine(dir, "MyDocument.txt"))).IsTrue();
+        
+        // Verify content
+        var content = await File.ReadAllTextAsync(Path.Combine(dir, "MyDocument.txt"));
+        await Assert.That(content).IsEqualTo("MyDocument");
     }
 
     [Test]
@@ -173,7 +223,7 @@ public class ExportImportServiceTitleBasedNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.TitleBased);
+            "test_db", clips, dir, FileNamingStrategy.TitleBased);
 
         // Assert - should use "Untitled" for null title
         var files = Directory.GetFiles(dir).Select(Path.GetFileName).ToList();
@@ -191,13 +241,17 @@ public class ExportImportServiceTitleBasedNamingTests : ExportImportServiceTests
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.TitleBased);
+            "test_db", clips, dir, FileNamingStrategy.TitleBased);
 
         // Assert - file should be created with the title as filename
         var files = Directory.GetFiles(dir);
         await Assert.That(files.Length).IsEqualTo(1);
         var fileName = Path.GetFileNameWithoutExtension(files[0]);
         await Assert.That(fileName).IsEqualTo("ValidTitle");
+        
+        // Verify content
+        var content = await File.ReadAllTextAsync(files[0]);
+        await Assert.That(content).IsEqualTo("ValidTitle");
     }
 }
 
@@ -218,7 +272,7 @@ public class ExportImportServiceEdgeCaseTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Sequential,
+            "test_db", clips, dir, FileNamingStrategy.Sequential,
             false, 85,
             p => progressMessages.Add(p));
 
@@ -239,7 +293,7 @@ public class ExportImportServiceEdgeCaseTests : ExportImportServiceTestsBase
 
         // Act - PromptPerFile throws inside the loop but is caught
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.PromptPerFile,
+            "test_db", clips, dir, FileNamingStrategy.PromptPerFile,
             false, 85,
             p => progressMessages.Add(p));
 
@@ -259,7 +313,7 @@ public class ExportImportServiceEdgeCaseTests : ExportImportServiceTestsBase
 
         // Act
         await service.ExportClipsToFilesAsync(
-            clips, dir, FileNamingStrategy.Sequential,
+            "test_db", clips, dir, FileNamingStrategy.Sequential,
             false, 85,
             p => progressMessages.Add(p));
 

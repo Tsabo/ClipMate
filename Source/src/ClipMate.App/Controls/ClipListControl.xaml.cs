@@ -257,7 +257,7 @@ public partial class ClipListControl
         if (e.OldValue is ObservableCollection<Clip> oldCollection)
             oldCollection.CollectionChanged -= control.SelectedItems_CollectionChanged;
 
-        
+
         if (e.NewValue is not ObservableCollection<Clip> newCollection)
             return;
 
@@ -396,10 +396,26 @@ public partial class ClipListControl
 
     private void ExportClips_Click(object sender, RoutedEventArgs e)
     {
+        // Get database key from DataContext
+        var databaseKey = DataContext switch
+        {
+            ClipListViewModel clipListVm => clipListVm.CurrentDatabaseKey,
+            ExplorerWindowViewModel explorerVm => explorerVm.PrimaryClipList.CurrentDatabaseKey,
+            var _ => _currentDatabaseKey,
+        } ?? string.Empty;
+
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            MessageBox.Show("Database key not available. Please select a collection first.",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            return;
+        }
+
         var app = (App)Application.Current;
-        var vm = ActivatorUtilities.CreateInstance<FlatFileExportViewModel>(app.ServiceProvider);
-        vm.Initialize(SelectedItems);
-        var dialog = new FlatFileExportDialog(vm)
+        var exportVm = ActivatorUtilities.CreateInstance<FlatFileExportViewModel>(app.ServiceProvider);
+        exportVm.Initialize(databaseKey, SelectedItems);
+        var dialog = new FlatFileExportDialog(exportVm)
         {
             Owner = Application.Current.GetDialogOwner(),
         };
