@@ -223,7 +223,7 @@ SOFTWARE.
 
 ### Data & Configuration
 
-#### Tomlyn.Signed (v0.19.0)
+#### Tomlyn.Signed (v0.20.0)
 
 **License**: BSD 2-Clause License  
 **Source**: https://github.com/xoofx/Tomlyn  
@@ -356,7 +356,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ### Testing
 
-#### TUnit (v1.5.80)
+#### TUnit (v1.12.43)
 
 **License**: MIT  
 **Source**: https://github.com/thomhurst/TUnit  
@@ -425,10 +425,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 The following Microsoft libraries are used under the MIT License:
 
-- **Microsoft.EntityFrameworkCore.Sqlite** (v9.0.11) - Entity Framework Core SQLite provider
-- **Microsoft.Data.Sqlite** (v9.0.11) - SQLite ADO.NET provider
-- **Microsoft.Extensions.*** (v9.0.11) - Dependency injection, logging, hosting abstractions
-- **Microsoft.Windows.CsWin32** (v0.3.264) - Windows API source generator
+- **Microsoft.EntityFrameworkCore.Sqlite** (v10.0.2) - Entity Framework Core SQLite provider
+- **Microsoft.Data.Sqlite** (v10.0.2) - SQLite ADO.NET provider
+- **Microsoft.Extensions.*** (v10.0.2) - Dependency injection, logging, hosting abstractions
+- **Microsoft.Windows.CsWin32** (v0.3.269) - Windows API source generator
 
 **Copyright**: Microsoft Corporation  
 **License**: https://opensource.org/licenses/MIT

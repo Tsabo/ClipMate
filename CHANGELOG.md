@@ -7,15 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.1] - 2026-1-24
+
+### 🎉 Alpha to Beta Transition
+
+ClipMate has reached **99% feature parity** with the original ClipMate and is now entering beta status. All major features are implemented and the focus shifts to stability, polish, and bug fixes. This milestone marks the transition from feature development to production readiness.
+
+**What Beta Means**:
+- Feature complete - all core functionality implemented
+- Focus on stability, performance, and bug fixes
+- Breaking changes minimized
+- Ready for broader testing and feedback
+- Database and configuration formats are stable
+
 ### Added
-- **Printing System** - Complete DevExpress reporting integration with print preview, customizable margins, and dual report implementations (code-based ClipTextReport and designer-based ClipTextReportVisual)
+- **Printing System** - Complete DevExpress reporting integration with print preview
 - **Print Configuration** - User preferences for headers, footers, margins (inches/millimeters), printer selection, clip metadata display, and single-item-per-page mode
 - **Print Preview Dialog** - WPF DocumentPreviewControl with print, export, and page setup functionality
 - **Responsive Print Layout** - Horizontal anchoring system ensures content fills available width across different margin settings and page orientations
+- **Comprehensive Integration Tests** - Added 7 new integration tests for backup functionality, bringing total test coverage to 144+ passing tests
 
 ### Fixed
-- **Configuration File Startup Error** - Fixed `TomlException` on first run where `LogLevel` enum was serialized as integer (`log_level = 3`) instead of string (`log_level = "Information"`), causing parse errors on subsequent startups; added `ConvertToModel` and `ConvertToToml` converters for proper enum serialization/deserialization with backward compatibility for old integer-based config files
-- **Backup Dialog Positioning** - Fixed backup dialogs appearing in top-left corner during startup when no owner window was available; dialogs now use `CenterScreen` positioning when owner is null and `CenterOwner` when owner is available
+- **Configuration File Startup Error** - Fixed `TomlException` on first run where `LogLevel` enum was serialized as integer (`log_level = 3`) instead of string (`log_level = "Information"`)
+- **Backup Dialog Positioning** - Fixed backup dialogs appearing in top-left corner during startup when no owner window was available
 - **Fresh Install Backup Prompt** - Fixed unnecessary backup prompt on first startup when database is empty; backup prompts now only appear when database contains clips to back up, improving first-run user experience
 
 ## [0.1.0-alpha.11] - 2026-1-18

@@ -7,7 +7,9 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 ![ClipMate Explorer Window](Resources/Images/explorer-window.png)
 
-> ⚠️ **Alpha Software** - This is an early alpha release under active development. Many features are incomplete and bugs are expected. Please report issues and help with testing!
+> 🧪 **Beta Software** - ClipMate has reached feature parity with the original ClipMate and is now in beta testing. While all major features are implemented, you may encounter bugs as we focus on stability and polish. Please report any issues you find!
+
+## Download
 
 [![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads-pre/tsabo/clipmate/latest/total?style=for-the-badge&logo=github&logoColor=white)](/releases)
 
@@ -102,10 +104,10 @@ ClipMate uses the following open-source and commercial libraries:
 - **Entity Framework Core 10.0** - Data access (MIT)
 - **Serilog 4.3.0** - Structured logging (Apache 2.0)
 - **Dapper 2.1.66** - Micro-ORM (Apache 2.0)
-- **Tomlyn.Signed 0.19.0** - TOML parsing (BSD-2-Clause)
+- **Tomlyn.Signed 0.20.0** - TOML parsing (BSD-2-Clause)
 - **NAudio 2.2.1** - Sound playback (MIT)
 - **ThrottleDebounce 2.0.1** - Debouncing for auto-save operations (Apache 2.0)
-- **TUnit 1.5.80** - Testing framework (MIT)
+- **TUnit 1.12.43** - Testing framework (MIT)
 
 **Build Tools**:
 - **Cake Build 5.0.0** - Build automation (MIT)
@@ -136,4 +138,4 @@ Development in any way. All trademarks and copyrights for the original ClipMate�
 **Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Alpha** | Version: 0.1.0 | Last Updated: January 19, 2026
+Status: **Beta** | Version: 0.1.0 | Last Updated: January 24, 2026
