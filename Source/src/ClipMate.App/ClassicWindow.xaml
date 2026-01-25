@@ -155,9 +155,10 @@
                         <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P"
                                            Command="{Binding MainMenu.PrintCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🖨️'}" />
-                        <dxb:BarButtonItem Content="Enable Quick Print"
-                                           Command="{Binding MainMenu.EnableQuickPrintCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='⚡'}" />
+                        <dxb:BarCheckItem Content="Enable Quick Print"
+                                          Command="{Binding MainMenu.EnableQuickPrintCommand}"
+                                          IsChecked="{Binding MainMenu.IsQuickPrintEnabled, Mode=OneWay}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='⚡'}" />
                         <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='⚙️'}" />
                         <dxb:BarItemSeparator />

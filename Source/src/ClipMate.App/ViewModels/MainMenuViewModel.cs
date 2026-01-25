@@ -133,6 +133,19 @@ public partial class MainMenuViewModel : ObservableObject,
     public bool IsAutoCapturing => _clipboardService.IsMonitoring;
 
     /// <summary>
+    /// Gets whether QuickPrint is enabled (bypasses print preview dialog).
+    /// This property is read directly from configuration for live state.
+    /// </summary>
+    public bool IsQuickPrintEnabled
+    {
+        get
+        {
+            var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+            return configService.Configuration.Print.QuickPrintEnabled;
+        }
+    }
+
+    /// <summary>
     /// Gets the collection of loaded databases for dynamic menu generation.
     /// </summary>
     public ObservableCollection<DatabaseMenuItemViewModel> LoadedDatabases { get; } = [];
@@ -154,6 +167,7 @@ public partial class MainMenuViewModel : ObservableObject,
         // Refresh all service-derived state properties
         OnPropertyChanged(nameof(IsAutoCapturing));
         OnPropertyChanged(nameof(HasMultipleDatabases));
+        OnPropertyChanged(nameof(IsQuickPrintEnabled));
     }
 
     /// <summary>
@@ -389,12 +403,15 @@ public partial class MainMenuViewModel : ObservableObject,
     private bool CanPrint() => _clipListViewModel?.SelectedClips.Any() == true;
 
     [RelayCommand]
-    private void EnableQuickPrint()
+    private async Task EnableQuickPrint()
     {
         // Toggle QuickPrint setting
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
         configService.Configuration.Print.QuickPrintEnabled = !configService.Configuration.Print.QuickPrintEnabled;
-        _ = configService.SaveAsync();
+        await configService.SaveAsync();
+
+        // Notify property changed for menu checkbox binding
+        OnPropertyChanged(nameof(IsQuickPrintEnabled));
     }
 
     [RelayCommand]

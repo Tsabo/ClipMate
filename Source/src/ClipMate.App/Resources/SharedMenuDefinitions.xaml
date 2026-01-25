@@ -71,7 +71,9 @@
             <dxb:BarButtonItem Content="De-Activate Database" Command="{Binding MainMenu.DeactivateDatabaseCommand}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Print..." KeyGesture="Ctrl+P" Command="{Binding MainMenu.PrintCommand}" />
-            <dxb:BarButtonItem Content="Enable Quick Print" Command="{Binding MainMenu.EnableQuickPrintCommand}" />
+            <dxb:BarCheckItem Content="Enable Quick Print" 
+                              Command="{Binding MainMenu.EnableQuickPrintCommand}" 
+                              IsChecked="{Binding MainMenu.IsQuickPrintEnabled, Mode=OneWay}" />
             <dxb:BarButtonItem Content="Print Options..." Command="{Binding MainMenu.PrintOptionsCommand}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Exit Program (Shut Down)" Command="{Binding MainMenu.ExitCommand}" />
