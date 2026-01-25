@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Print Preview Dialog** - WPF DocumentPreviewControl with print, export, and page setup functionality
 - **Responsive Print Layout** - Horizontal anchoring system ensures content fills available width across different margin settings and page orientations
 
+### Fixed
+- **Configuration File Startup Error** - Fixed `TomlException` on first run where `LogLevel` enum was serialized as integer (`log_level = 3`) instead of string (`log_level = "Information"`), causing parse errors on subsequent startups; added `ConvertToModel` and `ConvertToToml` converters for proper enum serialization/deserialization with backward compatibility for old integer-based config files
+- **Backup Dialog Positioning** - Fixed backup dialogs appearing in top-left corner during startup when no owner window was available; dialogs now use `CenterScreen` positioning when owner is null and `CenterOwner` when owner is available
+
 ## [0.1.0-alpha.11] - 2026-1-18
 
 ### Added
