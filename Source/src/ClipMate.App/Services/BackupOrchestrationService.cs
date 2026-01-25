@@ -87,12 +87,14 @@ public class BackupOrchestrationService
     /// </summary>
     private async Task HandleSingleDatabaseBackupAsync(DatabaseConfiguration dbConfig, ClipMateConfiguration config)
     {
+        var owner = Application.Current.GetDialogOwner();
         var dialog = new DatabaseBackupDialog(
             dbConfig,
             config.Preferences.BackupIntervalDays,
             config.Preferences.AutoConfirmBackupSeconds)
         {
-            Owner = Application.Current.GetDialogOwner(),
+            Owner = owner,
+            WindowStartupLocation = owner == null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
         };
 
         // Record that we prompted the user
@@ -109,12 +111,14 @@ public class BackupOrchestrationService
     /// </summary>
     private async Task HandleMultipleDatabaseBackupsAsync(List<DatabaseConfiguration> databasesToPrompt, ClipMateConfiguration config)
     {
+        var owner = Application.Current.GetDialogOwner();
         var dialog = new MultipleDatabaseBackupDialog(
             databasesToPrompt,
             config.Preferences.BackupIntervalDays,
             config.Preferences.AutoConfirmBackupSeconds)
         {
-            Owner = Application.Current.GetDialogOwner(),
+            Owner = owner,
+            WindowStartupLocation = owner == null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
         };
 
         // Record that we prompted the user for all databases
