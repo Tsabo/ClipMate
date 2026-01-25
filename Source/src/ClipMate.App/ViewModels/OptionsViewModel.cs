@@ -34,7 +34,8 @@ public partial class OptionsViewModel : ObservableObject
         HotkeysOptionsViewModel hotkeysOptionsViewModel,
         DatabaseOptionsViewModel databaseOptionsViewModel,
         AdvancedOptionsViewModel advancedOptionsViewModel,
-        EncryptionOptionsViewModel encryptionOptionsViewModel)
+        EncryptionOptionsViewModel encryptionOptionsViewModel,
+        PrintOptionsViewModel printOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -51,6 +52,7 @@ public partial class OptionsViewModel : ObservableObject
         Database = databaseOptionsViewModel ?? throw new ArgumentNullException(nameof(databaseOptionsViewModel));
         Advanced = advancedOptionsViewModel ?? throw new ArgumentNullException(nameof(advancedOptionsViewModel));
         Encryption = encryptionOptionsViewModel ?? throw new ArgumentNullException(nameof(encryptionOptionsViewModel));
+        Print = printOptionsViewModel ?? throw new ArgumentNullException(nameof(printOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
@@ -67,6 +69,7 @@ public partial class OptionsViewModel : ObservableObject
     public DatabaseOptionsViewModel Database { get; }
     public AdvancedOptionsViewModel Advanced { get; }
     public EncryptionOptionsViewModel Encryption { get; }
+    public PrintOptionsViewModel Print { get; }
 
     /// <summary>
     /// Selects a tab by name.
@@ -91,6 +94,7 @@ public partial class OptionsViewModel : ObservableObject
             "DATABASE" => 9,
             "ADVANCED" => 10,
             "ENCRYPTION" => 11,
+            "PRINT" => 12,
             var _ => SelectedTabIndex,
         };
 
@@ -113,6 +117,7 @@ public partial class OptionsViewModel : ObservableObject
         await Database.LoadAsync();
         Advanced.LoadAsync();
         Encryption.LoadFromConfiguration(_configurationService.Configuration.Encryption);
+        Print.LoadAsync();
 
         _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
@@ -137,6 +142,7 @@ public partial class OptionsViewModel : ObservableObject
             await Database.SaveAsync();
             Advanced.SaveAsync();
             Encryption.SaveToConfiguration(_configurationService.Configuration.Encryption);
+            Print.SaveAsync();
 
             // Save to disk
             await _configurationService.SaveAsync();

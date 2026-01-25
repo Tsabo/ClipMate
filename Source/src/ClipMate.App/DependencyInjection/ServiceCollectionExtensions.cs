@@ -5,6 +5,7 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using PrintPreviewDialog = ClipMate.App.Views.Dialogs.PrintPreviewDialog;
 
 namespace ClipMate.App.DependencyInjection;
 
@@ -88,6 +89,9 @@ public static class ServiceCollectionExtensions
         // Register Text Cleanup dialog (no ViewModel - uses code-behind)
         services.AddTransient<TextCleanupDialog>();
 
+        // Register Print Preview dialog (uses code-behind, no ViewModel)
+        services.AddTransient<PrintPreviewDialog>();
+
         // Register Options dialog components
         services.AddTransient<GeneralOptionsViewModel>();
         services.AddTransient<PowerPasteOptionsViewModel>();
@@ -99,6 +103,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<HotkeysOptionsViewModel>();
         services.AddTransient<DatabaseOptionsViewModel>();
         services.AddTransient<EncryptionOptionsViewModel>();
+        services.AddTransient<PrintOptionsViewModel>();
+        services.AddTransient<PrintPreviewViewModel>();
         services.AddTransient<AdvancedOptionsViewModel>();
         services.AddTransient<OptionsViewModel>();
         services.AddTransient<OptionsDialog>();

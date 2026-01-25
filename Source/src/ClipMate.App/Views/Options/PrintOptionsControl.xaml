@@ -1,0 +1,128 @@
+<UserControl x:Class="ClipMate.App.Views.Options.PrintOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:PrintOptionsViewModel}"
+             mc:Ignorable="d"
+             d:DesignHeight="550"
+             d:DesignWidth="750">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="15">
+            <!-- Options Section -->
+            <GroupBox Header="Options" Margin="0,0,0,10">
+                <StackPanel Margin="10">
+                    <!-- Printer Selection -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Printer:" VerticalAlignment="Center" Grid.Column="0" />
+                        <dxe:ComboBoxEdit Grid.Column="1"
+                                          ItemsSource="{Binding AvailablePrinters}"
+                                          EditValue="{Binding SelectedPrinter, Mode=TwoWay}" />
+                    </Grid>
+
+                    <!-- Print Header -->
+                    <CheckBox Content="Print Header"
+                              IsChecked="{Binding PrintHeader, Mode=TwoWay}"
+                              Margin="0,0,0,5" />
+                    <dxe:TextEdit Text="{Binding HeaderText, Mode=TwoWay}"
+                                  IsEnabled="{Binding PrintHeader}"
+                                  Margin="20,0,0,10" />
+
+                    <!-- Print Footer -->
+                    <CheckBox Content="Print Footer"
+                              IsChecked="{Binding PrintFooter, Mode=TwoWay}"
+                              Margin="0,0,0,10" />
+
+                    <!-- Print Details -->
+                    <CheckBox Content="Print Details (clip metadata)"
+                              IsChecked="{Binding PrintDetails, Mode=TwoWay}"
+                              Margin="0,0,0,10" />
+
+                    <!-- Single Item Per Page -->
+                    <CheckBox Content="Single Item Per Page"
+                              IsChecked="{Binding SingleItemPerPage, Mode=TwoWay}"
+                              Margin="0,0,0,10"
+                              ToolTip="Print one clip per page. Otherwise multiple items will flow naturally." />
+
+                    <!-- QuickPrint -->
+                    <CheckBox Content="QuickPrint (skip preview dialog)"
+                              IsChecked="{Binding QuickPrintEnabled, Mode=TwoWay}" />
+                </StackPanel>
+            </GroupBox>
+
+            <!-- Margins Section -->
+            <GroupBox Header="Margins" Margin="0,0,0,0">
+                <StackPanel Margin="10">
+                    <!-- Margin Units -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <RadioButton Content="Inches"
+                                     IsChecked="{Binding MarginsInInches, Mode=TwoWay}"
+                                     Margin="0,0,20,0" />
+                        <RadioButton Content="Millimeters"
+                                     IsChecked="{Binding MarginsInMillimeters, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <!-- Margin Values -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Left Margin -->
+                        <TextBlock Text="Left:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" />
+                        <dxe:SpinEdit Grid.Row="0" Grid.Column="1"
+                                      Value="{Binding LeftMargin, Mode=TwoWay}"
+                                      MinValue="0"
+                                      MaxValue="10"
+                                      Increment="0.1"
+                                      Mask="n2" />
+
+                        <!-- Right Margin -->
+                        <TextBlock Text="Right:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="3" />
+                        <dxe:SpinEdit Grid.Row="0" Grid.Column="4"
+                                      Value="{Binding RightMargin, Mode=TwoWay}"
+                                      MinValue="0"
+                                      MaxValue="10"
+                                      Increment="0.1"
+                                      Mask="n2" />
+
+                        <!-- Top Margin -->
+                        <TextBlock Text="Top:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0"
+                                   Margin="0,10,0,0" />
+                        <dxe:SpinEdit Grid.Row="1" Grid.Column="1" Margin="0,10,0,0"
+                                      Value="{Binding TopMargin, Mode=TwoWay}"
+                                      MinValue="0"
+                                      MaxValue="10"
+                                      Increment="0.1"
+                                      Mask="n2" />
+
+                        <!-- Bottom Margin -->
+                        <TextBlock Text="Bottom:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="3"
+                                   Margin="0,10,0,0" />
+                        <dxe:SpinEdit Grid.Row="1" Grid.Column="4" Margin="0,10,0,0"
+                                      Value="{Binding BottomMargin, Mode=TwoWay}"
+                                      MinValue="0"
+                                      MaxValue="10"
+                                      Increment="0.1"
+                                      Mask="n2" />
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

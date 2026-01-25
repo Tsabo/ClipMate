@@ -84,6 +84,9 @@ public static class ServiceCollectionExtensions
             return new UpdateCheckService(httpClient, logger);
         });
 
+        // Register PrintService for clip printing
+        services.AddSingleton<IPrintService, PrintService>();
+
         return services;
     }
 }

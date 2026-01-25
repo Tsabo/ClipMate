@@ -62,13 +62,14 @@
             <options:ApplicationProfilesOptionsControl DataContext="{Binding ApplicationProfiles}" />
         </dx:DXTabItem>
 
-        <!-- Font/Language Tab (stub) -->
+        <!-- Font/Language Tab (stub)
         <dx:DXTabItem Header="Font/Language">
             <StackPanel Margin="20">
                 <TextBlock Text="Font/Language Settings" FontSize="18" FontWeight="Bold" Margin="0,0,0,20" />
                 <TextBlock Text="This feature is coming in a future update." FontStyle="Italic" />
             </StackPanel>
         </dx:DXTabItem>
+        -->
 
         <!-- Sounds Tab -->
         <dx:DXTabItem Header="Sounds">
@@ -93,6 +94,11 @@
         <!-- Encryption Tab -->
         <dx:DXTabItem Header="Encryption">
             <options:EncryptionOptionsControl DataContext="{Binding Encryption}" />
+        </dx:DXTabItem>
+
+        <!-- Print Tab -->
+        <dx:DXTabItem Header="Printing">
+            <options:PrintOptionsControl DataContext="{Binding Print}" />
         </dx:DXTabItem>
 
     </dx:DXTabControl>

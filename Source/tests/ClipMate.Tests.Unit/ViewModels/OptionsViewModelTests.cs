@@ -33,6 +33,7 @@ public class OptionsViewModelTests
     private Mock<ISoundService> _mockSoundService = null!;
     private Mock<IStartupManager> _mockStartupManager = null!;
     private PowerPasteOptionsViewModel _powerPasteViewModel = null!;
+    private PrintOptionsViewModel _printOptionsViewModel = null!;
     private QuickPasteOptionsViewModel _quickPasteViewModel = null!;
     private SoundsOptionsViewModel _soundsViewModel = null!;
 
@@ -111,6 +112,9 @@ public class OptionsViewModelTests
             new Mock<ILogger<AdvancedOptionsViewModel>>().Object);
 
         _encryptionViewModel = new EncryptionOptionsViewModel();
+
+        _printOptionsViewModel = new PrintOptionsViewModel(
+            _mockConfigurationService.Object);
     }
 
     private OptionsViewModel CreateViewModel() =>
@@ -128,7 +132,8 @@ public class OptionsViewModelTests
             _hotkeysViewModel,
             _databaseViewModel,
             _advancedViewModel,
-            _encryptionViewModel);
+            _encryptionViewModel,
+            _printOptionsViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
@@ -152,7 +157,8 @@ public class OptionsViewModelTests
             _hotkeysViewModel,
             _databaseViewModel,
             _advancedViewModel,
-            _encryptionViewModel);
+            _encryptionViewModel,
+            _printOptionsViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();

@@ -14,6 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
+using PrintPreviewDialog = ClipMate.App.Views.Dialogs.PrintPreviewDialog;
 using Window = System.Windows.Window;
 
 namespace ClipMate.App.ViewModels;
@@ -119,6 +121,7 @@ public partial class MainMenuViewModel : ObservableObject,
                 EncryptClipsCommand.NotifyCanExecuteChanged();
                 DecryptClipsCommand.NotifyCanExecuteChanged();
                 LockClipsCommand.NotifyCanExecuteChanged();
+                PrintCommand.NotifyCanExecuteChanged();
             };
         }
     }
@@ -133,6 +136,15 @@ public partial class MainMenuViewModel : ObservableObject,
     /// Gets the collection of loaded databases for dynamic menu generation.
     /// </summary>
     public ObservableCollection<DatabaseMenuItemViewModel> LoadedDatabases { get; } = [];
+
+    /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
+        _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
+    }
 
     /// <summary>
     /// Receives a notification when service state changes and refreshes all derived properties.
@@ -314,14 +326,79 @@ public partial class MainMenuViewModel : ObservableObject,
     [RelayCommand]
     private void RunCleanupNow() => _messenger.Send(new RunCleanupNowRequestedEvent());
 
-    [RelayCommand]
-    private void Print() { }
+    [RelayCommand(CanExecute = nameof(CanPrint))]
+    private async Task Print()
+    {
+        var selectedClipIds = _clipListViewModel?.SelectedClips
+            .Select(p => p.Id)
+            .ToList() ?? [];
+
+        var databaseKey = _clipListViewModel?.CurrentDatabaseKey ?? string.Empty;
+
+        if (selectedClipIds.Count > 0 && !string.IsNullOrEmpty(databaseKey))
+        {
+            // Get print configuration
+            var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+            var printConfig = configService.Configuration.Print;
+
+            // Check if QuickPrint is enabled
+            if (printConfig.QuickPrintEnabled)
+            {
+                // QuickPrint: Generate report and print directly without preview
+                try
+                {
+                    var vm = _serviceProvider.GetRequiredService<PrintPreviewViewModel>();
+                    await vm.SetClips(selectedClipIds, databaseKey, printConfig);
+
+                    if (vm.Report == null)
+                        throw new InvalidOperationException("Report generation failed.");
+
+                    // Set printer if specified
+                    if (!string.IsNullOrEmpty(printConfig.SelectedPrinter) &&
+                        printConfig.SelectedPrinter != "(Default Printer)")
+                        vm.Report.PrinterName = printConfig.SelectedPrinter;
+
+                    // Print directly
+                    await vm.Report.PrintAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Failed to print: {ex.Message}",
+                        "Print Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                // Normal print: Show preview dialog
+                var dialog = _serviceProvider.GetRequiredService<PrintPreviewDialog>();
+
+                // Pass clips to dialog
+                await dialog.SetClips(selectedClipIds, databaseKey, printConfig);
+
+                // Show the dialog
+                var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
+                dialog.Owner = activeWindowService.DialogOwner;
+                dialog.ShowDialog();
+            }
+        }
+    }
+
+    private bool CanPrint() => _clipListViewModel?.SelectedClips.Any() == true;
 
     [RelayCommand]
-    private void EnableQuickPrint() { }
+    private void EnableQuickPrint()
+    {
+        // Toggle QuickPrint setting
+        var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        configService.Configuration.Print.QuickPrintEnabled = !configService.Configuration.Print.QuickPrintEnabled;
+        _ = configService.SaveAsync();
+    }
 
     [RelayCommand]
-    private void PrintOptions() { }
+    private void PrintOptions() => _messenger.Send(new OpenOptionsDialogEvent("Print"));
 
     [RelayCommand]
     private void Exit() => _messenger.Send(new ExitApplicationEvent());
@@ -725,15 +802,5 @@ public partial class MainMenuViewModel : ObservableObject,
                 ? Icons.PowerPasteUp
                 : Icons.PowerPasteDown
             : Icons.PowerPaste; // Inactive state shows default icon
-    }
-
-    /// <summary>
-    /// Disposes the view model and unregisters from messenger.
-    /// </summary>
-    public void Dispose()
-    {
-        _messenger.UnregisterAll(this);
-        if (_powerPasteService != null)
-            _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
     }
 }

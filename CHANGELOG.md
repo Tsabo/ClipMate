@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Printing System** - Complete DevExpress reporting integration with print preview, customizable margins, and dual report implementations (code-based ClipTextReport and designer-based ClipTextReportVisual)
+- **Print Configuration** - User preferences for headers, footers, margins (inches/millimeters), printer selection, clip metadata display, and single-item-per-page mode
+- **Print Preview Dialog** - WPF DocumentPreviewControl with print, export, and page setup functionality
+- **Responsive Print Layout** - Horizontal anchoring system ensures content fills available width across different margin settings and page orientations
+
 ## [0.1.0-alpha.11] - 2026-1-18
 
 ### Added

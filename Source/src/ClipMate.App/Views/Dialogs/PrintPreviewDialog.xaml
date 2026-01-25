@@ -1,0 +1,47 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.PrintPreviewDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+                 xmlns:dxp="http://schemas.devexpress.com/winfx/2008/xaml/printing"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance Type=vm:PrintPreviewViewModel}"
+                 Title="Print Preview - ClipMate"
+                 Width="1000"
+                 Height="700"
+                 MinWidth="800"
+                 MinHeight="600"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="CanResize"
+                 ShowInTaskbar="False">
+
+    <!-- Dialog Buttons -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Close"
+                                     IsCancel="True"
+                                     DialogResult="Cancel" />
+        <dx:ThemedWindowDialogButton Content="Help" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <dxb:ToolBarControl Grid.Row="0">
+            <dxb:BarStaticItem Content="Print Preview" />
+        </dxb:ToolBarControl>
+
+        <!-- Print Preview Control -->
+        <dxp:DocumentPreviewControl x:Name="preview"
+                                    Grid.Row="1"
+                                    ShowPageMargins="True"
+                                    RequestDocumentCreation="True"
+                                    DocumentSource="{Binding Report}" />
+    </Grid>
+</dx:ThemedWindow>

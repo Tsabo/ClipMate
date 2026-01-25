@@ -12,6 +12,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
+using DialogResult = ClipMate.Core.Models.DialogResult;
 
 namespace ClipMate.Platform.Services;
 
@@ -21,8 +22,6 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class QuickPasteService : IQuickPasteService, IDisposable
 {
-    private bool _disposed;
-
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly IDialogService _dialogService;
@@ -34,6 +33,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
     private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
     private nint _currentTargetWindowHandle; // Store the window handle for focus switching
+    private bool _disposed;
 
     private bool _goBackEnabled;
     private QuickPasteFormattingString? _selectedFormattingString;
@@ -70,6 +70,18 @@ public class QuickPasteService : IQuickPasteService, IDisposable
 
         // Select default formatting string (one with TitleTrigger = "*")
         SelectDefaultFormattingString();
+    }
+
+    /// <summary>
+    /// Disposes the service and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _messenger.UnregisterAll(this);
+        _disposed = true;
     }
 
     /// <inheritdoc />
@@ -219,17 +231,17 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             _logger.LogInformation("Successfully pasted clip {ClipId} via QuickPaste", clip.Id);
 
             // Handle GoBack functionality - return focus to ClipMate
-            if (_goBackEnabled && _clipMateWindowHandle != IntPtr.Zero)
-            {
-                _logger.LogDebug("GoBack enabled - returning focus to ClipMate window: {Handle:X}", _clipMateWindowHandle);
+            if (!_goBackEnabled || _clipMateWindowHandle == IntPtr.Zero)
+                return true;
 
-                // Small delay to ensure paste operation completes
-                await Task.Delay(50, cancellationToken);
+            _logger.LogDebug("GoBack enabled - returning focus to ClipMate window: {Handle:X}", _clipMateWindowHandle);
 
-                // Switch focus back to ClipMate
-                _win32.SetForegroundWindow(new HWND(_clipMateWindowHandle));
-                _logger.LogDebug("Focus returned to ClipMate");
-            }
+            // Small delay to ensure paste operation completes
+            await Task.Delay(50, cancellationToken);
+
+            // Switch focus back to ClipMate
+            _win32.SetForegroundWindow(new HWND(_clipMateWindowHandle));
+            _logger.LogDebug("Focus returned to ClipMate");
 
             return true;
         }
@@ -911,17 +923,5 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         return string.IsNullOrEmpty(filePath)
             ? string.Empty
             : Path.GetExtension(filePath);
-    }
-
-    /// <summary>
-    /// Disposes the service and unregisters from messenger.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _messenger.UnregisterAll(this);
-        _disposed = true;
     }
 }

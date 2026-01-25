@@ -67,4 +67,9 @@ public class ClipMateConfiguration
     /// Gets or sets the encryption configuration.
     /// </summary>
     public EncryptionConfiguration Encryption { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the print configuration.
+    /// </summary>
+    public PrintConfiguration Print { get; set; } = new();
 }

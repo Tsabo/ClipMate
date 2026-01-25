@@ -9,11 +9,14 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 > ⚠️ **Alpha Software** - This is an early alpha release under active development. Many features are incomplete and bugs are expected. Please report issues and help with testing!
 
+[![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads-pre/tsabo/clipmate/latest/total?style=for-the-badge&logo=github&logoColor=white)](/releases)
+
+
 ## Status
 
-**Current Progress: ~95% Feature Complete**
+**Current Progress: ~98% Feature Complete**
 
-### ✅ Implemented (95%)
+### ✅ Implemented (98%)
 - Clipboard capture and monitoring (text, images, RTF, HTML, files)
 - Multi-database support with collections and folders
 - Search with saved queries and SQL support
@@ -34,9 +37,9 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 - Multi-selection operations (copy/move/delete multiple clips)
 - Undo system for clip operations
 - Encryption with AES-256 and legacy ARC4 decrypt support
+- Printing with DevExpress reports, customizable layouts, and print preview
 
 ### 🚧 Remaining
-- **Printing** - DevExpress print system integration with print preview and report layouts
 - **Minor UI Commands** - ~20 low-priority utility commands (Strip Non-TEXT formats, Unicode to ANSI, etc.)
 
 ### 🧪 Needs Testing

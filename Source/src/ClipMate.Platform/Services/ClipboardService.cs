@@ -36,18 +36,18 @@ public class ClipboardService : IClipboardService, IDisposable
 {
     private const int _channelCapacity = 100; // Max queued clips before backpressure
     private readonly IApplicationProfileService _applicationProfileService;
+    private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
     private readonly IConfigurationService _configurationService;
-    private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
-    private CancellationTokenSource? _pendingCaptureCts;
     private bool _lastClipboardWasEmpty;
     private string _lastContentHash = string.Empty;
+    private CancellationTokenSource? _pendingCaptureCts;
     private string? _suppressCaptureForHash;
     private DateTime _suppressCaptureUntil = DateTime.MinValue;
 
@@ -213,16 +213,17 @@ public class ClipboardService : IClipboardService, IDisposable
                     // Use the clip's existing ContentHash - it's already computed for all clip types
                     _suppressCaptureForHash = clip.ContentHash;
                     _suppressCaptureUntil = DateTime.UtcNow.AddSeconds(2); // Longer window to account for settle delay
-                    
+
                     // Clear last content hash to prevent false duplicate detection
                     // When we restore a clip, the subsequent capture should use suppression hash, not duplicate detection
                     _lastContentHash = string.Empty;
-                    
+
                     if (_logger.IsEnabled(LogLevel.Debug))
                     {
                         var hashPreview = _suppressCaptureForHash.Length >= 8
                             ? _suppressCaptureForHash[..8]
                             : _suppressCaptureForHash;
+
                         _logger.LogDebug("Set clipboard suppression hash BEFORE clipboard modification: {Hash} for clip type {Type}",
                             hashPreview, clip.Type);
                     }
@@ -304,15 +305,15 @@ public class ClipboardService : IClipboardService, IDisposable
             _pendingCaptureCts?.Cancel();
             _pendingCaptureCts = new CancellationTokenSource();
             var captureCts = _pendingCaptureCts;
-            
+
             // Wait for clipboard to settle before capturing
             // Apps like SnagIt add formats sequentially, firing multiple WM_CLIPBOARDUPDATE events
             var now = DateTime.UtcNow;
             var settleTime = _configurationService.Configuration.Preferences.SettleTimeBetweenCapturesMs;
-            
+
             // Update the last change timestamp
             _lastClipboardChange = now;
-            
+
             // Wait for the settle period
             try
             {
@@ -405,7 +406,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 // BUT: Don't play sound if we're still within a suppression window (clipboard was set programmatically)
                 var timeSinceLastChange = (DateTime.UtcNow - _lastClipboardChange).TotalMilliseconds;
                 var isWithinSuppressionWindow = DateTime.UtcNow < _suppressCaptureUntil;
-                
+
                 if (timeSinceLastChange > 200 && !isWithinSuppressionWindow)
                     await _soundService.PlaySoundAsync(SoundEvent.Ignore, captureCts.Token);
 
@@ -1011,9 +1012,9 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            string? textContent = clip.TextContent;
-            string? rtfContent = clip.RtfContent;
-            string? htmlContent = clip.HtmlContent;
+            var textContent = clip.TextContent;
+            var rtfContent = clip.RtfContent;
+            var htmlContent = clip.HtmlContent;
 
             // Handle encrypted clips - load decrypted content from cache OR encrypted base64 from transient properties
             if (clip.Encrypted)
@@ -1029,18 +1030,14 @@ public class ClipboardService : IClipboardService, IDisposable
                         _logger.LogDebug("Loaded decrypted text content from cache for clip {ClipId}", clip.Id);
                     }
                     else
-                    {
                         _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
-                    }
                 }
                 else
                 {
                     // Use encrypted base64 from transient properties (loaded by caller via IClipService.LoadEncryptedContentAsync)
                     // If textContent is still null, caller forgot to load - log warning
                     if (textContent == null)
-                    {
                         _logger.LogWarning("Clip {ClipId} is encrypted but TextContent not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
-                    }
                 }
             }
 
@@ -1072,7 +1069,7 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            byte[]? imageData = clip.ImageData;
+            var imageData = clip.ImageData;
 
             // Handle encrypted clips - load decrypted content from cache OR encrypted bytes from transient properties
             if (clip.Encrypted)
@@ -1095,22 +1092,16 @@ public class ClipboardService : IClipboardService, IDisposable
                             _logger.LogDebug("Loaded decrypted JPG content from cache for clip {ClipId}", clip.Id);
                         }
                         else
-                        {
                             _logger.LogWarning("Clip {ClipId} is marked as decrypted but no image BLOBs in cache", clip.Id);
-                        }
                     }
                     else
-                    {
                         _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
-                    }
                 }
                 else
                 {
                     // Use encrypted binary data from transient properties (loaded by caller via IClipService.LoadEncryptedContentAsync)
                     if (imageData == null)
-                    {
                         _logger.LogWarning("Clip {ClipId} is encrypted but ImageData not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
-                    }
                 }
             }
 
@@ -1137,11 +1128,11 @@ public class ClipboardService : IClipboardService, IDisposable
             // CRITICAL: Use DataObject to preserve original image format on clipboard
             // Instead of only calling SetImage (which loses PNG/JPG format),
             // set both the bitmap AND the original format data
-            var dataObject = new DataObject();
-            
+            var dataObject = new WpfDataObject();
+
             // Set the bitmap for compatibility with apps that only read CF_BITMAP/DIB
             dataObject.SetImage(writableBitmap);
-            
+
             // Preserve the original PNG or JPEG format on clipboard
             // This prevents quality loss when the clip is recaptured
             // IMPORTANT: Don't dispose the MemoryStream - DataObject needs it to remain alive
@@ -1157,7 +1148,7 @@ public class ClipboardService : IClipboardService, IDisposable
                 dataObject.SetData("JFIF", jpgStream);
                 _logger.LogDebug("Preserved JPEG format ({Size} bytes) on clipboard", imageData.Length);
             }
-            
+
             // Set the final DataObject to clipboard
             WpfClipboard.SetDataObject(dataObject, true);
         }
