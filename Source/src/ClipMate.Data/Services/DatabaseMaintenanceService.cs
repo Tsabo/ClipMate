@@ -406,7 +406,12 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
             // Check if never backed up
             if (item.LastBackupDate == null)
             {
-                databasesDue.Add(item);
+                // For fresh installs with empty databases, don't prompt for backup
+                // Only prompt if the database has clips to back up
+                var clipCount = await GetDatabaseClipCountAsync(item);
+                if (clipCount > 0)
+                    databasesDue.Add(item);
+                
                 continue;
             }
 
@@ -416,7 +421,34 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
                 databasesDue.Add(item);
         }
 
-        return await Task.FromResult(databasesDue);
+        return databasesDue;
+    }
+    
+    /// <summary>
+    /// Gets the number of clips in a database (excluding deleted clips).
+    /// </summary>
+    private async Task<long> GetDatabaseClipCountAsync(DatabaseConfiguration databaseConfig)
+    {
+        try
+        {
+            var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+            
+            if (!File.Exists(dbFile))
+                return 0; // Database doesn't exist yet, no clips to backup
+            
+            var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
+            optionsBuilder.UseSqlite($"Data Source={dbFile}");
+            
+            await using var context = new ClipMateDbContext(optionsBuilder.Options);
+            return await context.Clips.LongCountAsync(p => !p.Del);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get clip count for database '{Database}'. Assuming database has clips.", databaseConfig.Name);
+            // If we can't determine the count (e.g., query fails), 
+            // assume it has clips to avoid skipping legitimate backups
+            return 1;
+        }
     }
 
     /// <inheritdoc />

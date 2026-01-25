@@ -317,11 +317,30 @@ public class DatabaseMaintenanceServiceTests
     [Test]
     public async Task CheckBackupDueAsync_ShouldReturnDatabases_WhenNeverBackedUp()
     {
-        // Arrange
+        // Arrange - Database with clips that has never been backed up
+        var dbPath = Path.Combine(_testDirectory, "never_backed_up.db");
         var databases = new List<DatabaseConfiguration>
         {
-            new() { Name = "DB1", AllowBackup = true, LastBackupDate = null },
+            new() { Name = "DB1", FilePath = dbPath, AllowBackup = true, LastBackupDate = null },
         };
+
+        // Create database with clips
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite($"DataSource={dbPath}")
+            .Options;
+        await using (var context = new ClipMateDbContext(options))
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.Clips.Add(new Clip
+            {
+                Title = "Test Clip",
+                CapturedAt = DateTime.UtcNow,
+                Del = false,
+                ContentHash = "test_hash",
+                Type = ClipType.Text,
+            });
+            await context.SaveChangesAsync();
+        }
 
         // Act
         var dueBackups = await _service.CheckBackupDueAsync(databases);
@@ -447,6 +466,203 @@ public class DatabaseMaintenanceServiceTests
 
         // Assert
         await Assert.That(isHealthy).IsFalse();
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldNotIncludeEmptyDatabase()
+    {
+        // Arrange - Create empty database
+        var emptyDbPath = Path.Combine(_testDirectory, "empty.db");
+        var emptyConfig = new DatabaseConfiguration
+        {
+            Name = "empty",
+            FilePath = emptyDbPath,
+            AllowBackup = true,
+            LastBackupDate = null, // Never backed up
+        };
+
+        // Create the database file but don't add any clips
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite($"DataSource={emptyDbPath}")
+            .Options;
+        await using (var context = new ClipMateDbContext(options))
+        {
+            await context.Database.EnsureCreatedAsync();
+        }
+
+        var databases = new[] { emptyConfig };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases);
+
+        // Assert - Empty database should NOT be included in backup list
+        await Assert.That(databasesDue).IsEmpty();
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldIncludeDatabaseWithClips()
+    {
+        // Arrange - Database with clips
+        var dbWithClipsPath = Path.Combine(_testDirectory, "with_clips.db");
+        var config = new DatabaseConfiguration
+        {
+            Name = "with_clips",
+            FilePath = dbWithClipsPath,
+            AllowBackup = true,
+            LastBackupDate = null, // Never backed up
+        };
+
+        // Create database and add clips
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite($"DataSource={dbWithClipsPath}")
+            .Options;
+        await using (var context = new ClipMateDbContext(options))
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.Clips.Add(new Clip
+            {
+                Title = "Test Clip",
+                CapturedAt = DateTime.UtcNow,
+                Del = false,
+                ContentHash = "test_hash",
+                Type = ClipType.Text,
+            });
+            await context.SaveChangesAsync();
+        }
+
+        var databases = new[] { config };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases);
+
+        // Assert - Database with clips SHOULD be included
+        await Assert.That(databasesDue.Count).IsEqualTo(1);
+        await Assert.That(databasesDue[0].Name).IsEqualTo("with_clips");
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldIncludeOverdueDatabase()
+    {
+        // Arrange
+        var config = new DatabaseConfiguration
+        {
+            Name = "test",
+            FilePath = Path.Combine(_testDirectory, "test.db"),
+            AllowBackup = true,
+            LastBackupDate = DateTime.Now.AddDays(-10), // 10 days ago
+        };
+
+        var databases = new[] { config };
+
+        // Act - Check with 7 day interval
+        var databasesDue = await _service.CheckBackupDueAsync(databases, backupIntervalDays: 7);
+
+        // Assert
+        await Assert.That(databasesDue.Count).IsEqualTo(1);
+        await Assert.That(databasesDue[0].Name).IsEqualTo("test");
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldExcludeRecentlyBackedUpDatabase()
+    {
+        // Arrange
+        var config = new DatabaseConfiguration
+        {
+            Name = "test",
+            FilePath = Path.Combine(_testDirectory, "test.db"),
+            AllowBackup = true,
+            LastBackupDate = DateTime.Now.AddDays(-3), // 3 days ago
+        };
+
+        var databases = new[] { config };
+
+        // Act - Check with 7 day interval
+        var databasesDue = await _service.CheckBackupDueAsync(databases, backupIntervalDays: 7);
+
+        // Assert - Should not be due yet
+        await Assert.That(databasesDue).IsEmpty();
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldExcludeDatabaseWithBackupDisabled()
+    {
+        // Arrange
+        var config = new DatabaseConfiguration
+        {
+            Name = "test",
+            FilePath = Path.Combine(_testDirectory, "test.db"),
+            AllowBackup = false, // Backup disabled
+            LastBackupDate = null,
+        };
+
+        var databases = new[] { config };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases);
+
+        // Assert
+        await Assert.That(databasesDue).IsEmpty();
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldExcludeNonExistentDatabase()
+    {
+        // Arrange - Database file doesn't exist
+        var config = new DatabaseConfiguration
+        {
+            Name = "nonexistent",
+            FilePath = Path.Combine(_testDirectory, "nonexistent.db"),
+            AllowBackup = true,
+            LastBackupDate = null,
+        };
+
+        var databases = new[] { config };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases);
+
+        // Assert - Non-existent database should not be included
+        await Assert.That(databasesDue).IsEmpty();
+    }
+
+    [Test]
+    public async Task CheckBackupDueAsync_ShouldExcludeDatabaseWithOnlyDeletedClips()
+    {
+        // Arrange - Database with only deleted clips
+        var dbPath = Path.Combine(_testDirectory, "deleted_only.db");
+        var config = new DatabaseConfiguration
+        {
+            Name = "deleted_only",
+            FilePath = dbPath,
+            AllowBackup = true,
+            LastBackupDate = null,
+        };
+
+        // Create database with deleted clips only
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite($"DataSource={dbPath}")
+            .Options;
+        await using (var context = new ClipMateDbContext(options))
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.Clips.Add(new Clip
+            {
+                Title = "Deleted Clip",
+                CapturedAt = DateTime.UtcNow,
+                Del = true, // Deleted
+                ContentHash = "deleted_hash",
+                Type = ClipType.Text,
+            });
+            await context.SaveChangesAsync();
+        }
+
+        var databases = new[] { config };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases);
+
+        // Assert - Database with only deleted clips should NOT be included
+        await Assert.That(databasesDue).IsEmpty();
     }
 
     private class TestDbContextFactory : IDbContextFactory<ClipMateDbContext>

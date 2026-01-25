@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Configuration File Startup Error** - Fixed `TomlException` on first run where `LogLevel` enum was serialized as integer (`log_level = 3`) instead of string (`log_level = "Information"`), causing parse errors on subsequent startups; added `ConvertToModel` and `ConvertToToml` converters for proper enum serialization/deserialization with backward compatibility for old integer-based config files
 - **Backup Dialog Positioning** - Fixed backup dialogs appearing in top-left corner during startup when no owner window was available; dialogs now use `CenterScreen` positioning when owner is null and `CenterOwner` when owner is available
+- **Fresh Install Backup Prompt** - Fixed unnecessary backup prompt on first startup when database is empty; backup prompts now only appear when database contains clips to back up, improving first-run user experience
 
 ## [0.1.0-alpha.11] - 2026-1-18
 
