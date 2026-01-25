@@ -87,6 +87,7 @@ public class ExplorerWindowViewModelTests
             mockClipViewerWindowManager.Object,
             new Mock<IClipboardService>().Object,
             new Mock<IPowerPasteService>().Object,
+            new Mock<IQuickPasteService>().Object,
             mockServiceProvider.Object);
 
         return new ExplorerWindowViewModel(

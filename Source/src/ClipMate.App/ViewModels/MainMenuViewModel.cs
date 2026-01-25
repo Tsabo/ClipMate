@@ -34,6 +34,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
+    private readonly IQuickPasteService _quickPasteService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
 
@@ -81,6 +82,7 @@ public partial class MainMenuViewModel : ObservableObject,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
         IPowerPasteService powerPasteService,
+        IQuickPasteService quickPasteService,
         IServiceProvider serviceProvider,
         ClipListViewModel? clipListViewModel = null,
         CollectionTreeViewModel? collectionTreeViewModel = null)
@@ -90,6 +92,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _clipListViewModel = clipListViewModel;
         _collectionTreeViewModel = collectionTreeViewModel;
@@ -544,7 +547,34 @@ public partial class MainMenuViewModel : ObservableObject,
     }
 
     [RelayCommand]
-    private void ReestablishClipboard() { }
+    private async Task ReestablishClipboard()
+    {
+        try
+        {
+            // Stop and restart clipboard monitoring to re-register the listener
+            var wasMonitoring = _clipboardService.IsMonitoring;
+            
+            if (wasMonitoring)
+            {
+                await _clipboardService.StopMonitoringAsync();
+                await _clipboardService.StartMonitoringAsync();
+                
+                _messenger.Send(new StatusUpdateEvent("Clipboard connection re-established successfully"));
+            }
+            else
+            {
+                _messenger.Send(new StatusUpdateEvent("Clipboard monitoring is not active"));
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to re-establish clipboard connection: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
 
     /// <summary>
     /// Shows the SQL Maintenance window for the active database.
@@ -800,6 +830,37 @@ public partial class MainMenuViewModel : ObservableObject,
 
     [RelayCommand]
     private void SendEnter() => _messenger.Send(new QuickPasteSendEnterEvent());
+
+    [RelayCommand]
+    private void PasteNow()
+    {
+        // Paste the currently selected clip immediately
+        _messenger.Send(new QuickPasteNowEvent());
+    }
+
+    [RelayCommand]
+    private void ResetSequence()
+    {
+        // Reset the template sequence counter
+        var templateService = _serviceProvider.GetRequiredService<ITemplateService>();
+        templateService.ResetSequenceCounter();
+    }
+
+    [RelayCommand]
+    private void ToggleGoBack()
+    {
+        var current = _quickPasteService.GetGoBackState();
+        _quickPasteService.SetGoBackState(!current);
+        GoBackEnabled = !current;
+    }
+
+    [RelayCommand]
+    private void ToggleTargetLock()
+    {
+        var isLocked = _quickPasteService.IsTargetLocked();
+        _quickPasteService.SetTargetLock(!isLocked);
+        IsTargetLocked = !isLocked;
+    }
 
     [RelayCommand]
     private void QuickPasteSettings() => _messenger.Send(new OpenOptionsDialogEvent("QuickPaste"));

@@ -88,13 +88,17 @@
                                Command="{Binding MainMenu.AppendClipsCommand}" />
             <dxb:BarSubItem Content="Screen Capture" />
             <dxb:BarSubItem Content="QuickPaste">
-                <dxb:BarButtonItem Content="Send Tab (F9)" Command="{Binding MainMenu.SendTabCommand}" />
-                <dxb:BarButtonItem Content="Send Enter (Shift+F9)" Command="{Binding MainMenu.SendEnterCommand}" />
-                <dxb:BarItemSeparator />
-                <dxb:BarCheckItem Content="Go Back After Paste" IsChecked="{Binding MainMenu.GoBackEnabled}" />
-                <dxb:BarCheckItem Content="Lock Target" IsChecked="{Binding MainMenu.IsTargetLocked}" />
-                <dxb:BarItemSeparator />
-                <dxb:BarButtonItem Content="QuickPaste Settings..." Command="{Binding MainMenu.QuickPasteSettingsCommand}" />
+                <dxb:BarCheckItem Content="Lock QuickPaste Target" 
+                                  Command="{Binding MainMenu.ToggleTargetLockCommand}"
+                                  IsChecked="{Binding MainMenu.IsTargetLocked, Mode=OneWay}" />
+                <dxb:BarCheckItem Content="QuickPaste GoBack" 
+                                  Command="{Binding MainMenu.ToggleGoBackCommand}"
+                                  IsChecked="{Binding MainMenu.GoBackEnabled, Mode=OneWay}" />
+                <dxb:BarButtonItem Content="TAB (F9)" Command="{Binding MainMenu.SendTabCommand}" />
+                <dxb:BarButtonItem Content="ENTER (Shift+F9)" Command="{Binding MainMenu.SendEnterCommand}" />
+                <dxb:BarButtonItem Content="Paste Now" Command="{Binding MainMenu.PasteNowCommand}" />
+                <dxb:BarButtonItem Content="Select Formatting String" IsEnabled="False" />
+                <dxb:BarButtonItem Content="Reset Sequence" Command="{Binding MainMenu.ResetSequenceCommand}" />
             </dxb:BarSubItem>
             <dxb:BarItemSeparator />
             <dxb:BarSubItem Content="Case Conversion">

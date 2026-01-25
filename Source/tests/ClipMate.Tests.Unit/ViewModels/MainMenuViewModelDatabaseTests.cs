@@ -35,6 +35,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
             new Mock<IClipViewerWindowManager>().Object,
             new Mock<IClipboardService>().Object,
             new Mock<IPowerPasteService>().Object,
+            new Mock<IQuickPasteService>().Object,
             mockServiceProvider.Object);
     }
 

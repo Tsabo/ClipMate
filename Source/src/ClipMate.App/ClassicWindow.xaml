@@ -179,10 +179,36 @@
                         <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
                                            Command="{Binding MainMenu.AppendClipsCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🧂'}" />
+                        <!-- TODO : Re-implement Screen Capture
                         <dxb:BarSubItem Content="Screen Capture"
                                         Glyph="{helpers:EmojiIconSource Emoji='📷'}" />
+                        -->
                         <dxb:BarSubItem Content="QuickPaste"
-                                        Glyph="{helpers:EmojiIconSource Emoji='⚡'}" />
+                                        Glyph="{helpers:EmojiIconSource Emoji='⚡'}">
+                            <dxb:BarCheckItem Content="Lock QuickPaste Target"
+                                              Command="{Binding MainMenu.ToggleTargetLockCommand}"
+                                              IsChecked="{Binding MainMenu.IsTargetLocked, Mode=OneWay}"
+                                              Glyph="{helpers:EmojiIconSource Emoji='🎯'}" />
+                            <dxb:BarCheckItem Content="QuickPaste GoBack"
+                                              Command="{Binding MainMenu.ToggleGoBackCommand}"
+                                              IsChecked="{Binding MainMenu.GoBackEnabled, Mode=OneWay}"
+                                              Glyph="{helpers:EmojiIconSource Emoji='🔙'}" />
+                            <dxb:BarButtonItem Content="TAB" KeyGesture="F9"
+                                               Command="{Binding MainMenu.SendTabCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='⇥'}" />
+                            <dxb:BarButtonItem Content="ENTER" KeyGesture="Shift+F9"
+                                               Command="{Binding MainMenu.SendEnterCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='↩️'}" />
+                            <dxb:BarButtonItem Content="Paste Now"
+                                               Command="{Binding MainMenu.PasteNowCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='📋'}" />
+                            <dxb:BarButtonItem Content="Select Formatting String"
+                                               IsEnabled="False"
+                                               Glyph="{helpers:EmojiIconSource Emoji='📝'}" />
+                            <dxb:BarButtonItem Content="Reset Sequence"
+                                               Command="{Binding MainMenu.ResetSequenceCommand}"
+                                               Glyph="{helpers:EmojiIconSource Emoji='🔄'}" />
+                        </dxb:BarSubItem>
                         <dxb:BarItemSeparator />
                         <dxb:BarSubItem Content="Case Conversion"
                                         Glyph="{helpers:EmojiIconSource Emoji='🔤'}" />
@@ -238,8 +264,10 @@
                         <dxb:BarButtonItem Content="Application Profile..."
                                            Command="{Binding MainMenu.AppProfileCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='💻'}" />
+                        <!-- TODO : Re-implement Language Selection
                         <dxb:BarButtonItem Content="Language" Command="{Binding MainMenu.LanguageCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🌐'}" />
+                        -->
                         <dxb:BarItemSeparator />
                         <dxb:BarButtonItem Content="Clipboard Diagnostics..."
                                            Command="{Binding MainMenu.ClipboardDiagnosticsCommand}"
@@ -308,6 +336,7 @@
                         <dxb:BarButtonItem Content="Close And Free All Windows"
                                            Command="{Binding MainMenu.CloseAllWindowsCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='❌'}" />
+                        <!--
                         <dxb:BarItemSeparator />
                         <dxb:BarSubItem Content="Visibility"
                                         Glyph="{helpers:EmojiIconSource Emoji='👁️'}" />
@@ -315,6 +344,7 @@
                                         Glyph="{helpers:EmojiIconSource Emoji='📝'}" />
                         <dxb:BarButtonItem Content="Transparency" Command="{Binding MainMenu.TransparencyCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='💫'}" />
+                        -->
                     </dxb:BarSubItem>
 
                     <!-- Help Menu -->
