@@ -228,4 +228,53 @@ public class ConfigurationServiceTests
         // Assert
         await Assert.That((int)service.Configuration.Preferences.LogLevel).IsEqualTo((int)LogLevel.Information); // Default value
     }
+
+    [Test]
+    public async Task SaveAsync_SerializesEnumsAsStrings()
+    {
+        // Arrange
+        var service = await CreateServiceWithValidConfigurationAsync();
+
+        // Set various log levels to test enum serialization
+        service.Configuration.Preferences.LogLevel = LogLevel.Information;
+        await service.SaveAsync();
+
+        // Act - Read the raw TOML file
+        var tomlContent = await File.ReadAllTextAsync(service.ConfigurationFilePath);
+
+        // Assert - Verify that log_level is a string, not an integer
+        await Assert.That(tomlContent).Contains("log_level = \"Information\"");
+        await Assert.That(tomlContent).DoesNotContain("log_level = 3"); // Should not contain integer value
+        await Assert.That(tomlContent).DoesNotContain("log_level = 2"); // Should not contain integer value
+        await Assert.That(tomlContent).DoesNotContain("log_level = 4"); // Should not contain integer value
+    }
+
+    [Test]
+    public async Task LoadAsync_CanParseStringAndIntegerEnumValues()
+    {
+        // Arrange - Create a service and save with string enum
+        var service = await CreateServiceWithValidConfigurationAsync();
+        service.Configuration.Preferences.LogLevel = LogLevel.Debug;
+        await service.SaveAsync();
+
+        // Act - Load it back
+        var service2 = new ConfigurationService(_testConfigDirectory, _logger);
+        var config = await service2.LoadAsync();
+
+        // Assert - Should parse correctly
+        await Assert.That(config.Preferences.LogLevel).IsEqualTo(LogLevel.Debug);
+
+        // Now manually edit the file to use integer (to simulate old config files)
+        var tomlPath = service.ConfigurationFilePath;
+        var tomlContent = await File.ReadAllTextAsync(tomlPath);
+        tomlContent = tomlContent.Replace("log_level = \"Debug\"", "log_level = 2"); // Information = 2
+        await File.WriteAllTextAsync(tomlPath, tomlContent);
+
+        // Load again
+        var service3 = new ConfigurationService(_testConfigDirectory, _logger);
+        var config2 = await service3.LoadAsync();
+
+        // Should still parse correctly (integer 2 should map to Information, which has value 2)
+        await Assert.That(config2.Preferences.LogLevel).IsEqualTo(LogLevel.Information);
+    }
 }

@@ -62,6 +62,17 @@ public class ConfigurationService : IConfigurationService
                 Configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent, options: new TomlModelOptions
                 {
                     IgnoreMissingProperties = true,
+                    ConvertToModel = (value, type) =>
+                    {
+                        // Handle conversion from integer to enum for backward compatibility
+                        // Old config files may have log_level = 3 instead of log_level = "Information"
+                        if (type.IsEnum && value is long longValue)
+                        {
+                            return Enum.ToObject(type, longValue);
+                        }
+
+                        return value;
+                    },
                 });
 
                 _logger.LogInformation("Configuration parsed successfully");
@@ -183,7 +194,21 @@ public class ConfigurationService : IConfigurationService
 
         try
         {
-            var tomlContent = Toml.FromModel(Configuration);
+            // Configure Tomlyn to serialize enums as strings instead of integers
+            var options = new TomlModelOptions
+            {
+                ConvertToToml = (obj) =>
+                {
+                    if (obj is Enum enumValue)
+                    {
+                        return enumValue.ToString();
+                    }
+
+                    return obj;
+                },
+            };
+
+            var tomlContent = Toml.FromModel(Configuration, options);
 
             // Write to temporary file first, then rename for atomicity
             var tempPath = ConfigurationFilePath + ".tmp";
