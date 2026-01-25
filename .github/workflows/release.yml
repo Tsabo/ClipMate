@@ -107,6 +107,44 @@ jobs:
           "⚠️ **Unsigned Pre-Release** - SmartScreen warnings expected. SignPath signing will be enabled after project approval."
         }
         
+        # Extract changelog section for this version
+        $changelogContent = ""
+        if (Test-Path "CHANGELOG.md") {
+          $changelog = Get-Content "CHANGELOG.md" -Raw
+          
+          # Try to find the section for this version
+          # Match ## [version] or ## version patterns
+          $versionPattern = "(?ms)^##\s+\[?$version\]?.*?(?=^##\s+\[?[0-9]|$)"
+          $match = [regex]::Match($changelog, $versionPattern)
+          
+          if ($match.Success) {
+            # Clean up the matched content
+            $changelogContent = $match.Value.Trim()
+            # Remove the version header (we'll add our own)
+            $changelogContent = $changelogContent -replace "^##\s+\[?$version\]?.*?\n", ""
+            $changelogContent = $changelogContent.Trim()
+            
+            if ($changelogContent) {
+              $changelogContent = @"
+        
+        ## What's Changed
+        
+        $changelogContent
+        "@
+            }
+          }
+        }
+        
+        # Fallback if no changelog section found
+        if (-not $changelogContent) {
+          $changelogContent = @"
+        
+        ## What's Changed
+        
+        See the [full changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+        "@
+        }
+        
         $notes = @"
         ## ClipMate $version
         
@@ -115,18 +153,18 @@ jobs:
         | Package | Size | Description |
         |---------|------|-------------|
         | **[ClipMate-Setup-$version.exe](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Setup-$version.exe)** | ~$setupSize MB | Recommended - auto-installs dependencies |
-        | **[ClipMate-Portable-$version.zip](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 9 & WebView2 pre-installed |
+        | **[ClipMate-Portable-$version.zip](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 10 & WebView2 pre-installed |
 
         ### Installation
         
         **Installer (Recommended):**
         - **Target OS:** Windows 11 or Windows 10 version 1809+
-        - **Auto-installs if needed:** .NET 9 Desktop Runtime, WebView2 Runtime
+        - **Auto-installs if needed:** .NET 10 Desktop Runtime, WebView2 Runtime
         - Simply download and run - dependencies handled automatically
         
         **Portable:**
         - Extract ZIP and run `ClipMate.exe`
-        - Requires [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0) pre-installed
+        - Requires [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) pre-installed
         - Requires [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 11)
         
         ### Security
@@ -143,10 +181,11 @@ jobs:
         # Verify portable
         (Get-FileHash ClipMate-Portable-$version.zip).Hash -eq (Get-Content ClipMate-Portable-$version.zip.sha256).Split()[0]
         ``````
+        $changelogContent
         
         ---
         
-        **Full Changelog:** See CHANGELOG.md
+        **Full Changelog:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
         "@
         
         $notes | Out-File -FilePath release_notes.md -Encoding utf8
