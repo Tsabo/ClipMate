@@ -112,17 +112,15 @@ jobs:
         if (Test-Path "CHANGELOG.md") {
           $changelog = Get-Content "CHANGELOG.md" -Raw
           
-          # Try to find the section for this version
-          # Match ## [version] or ## version patterns
-          $versionPattern = "(?ms)^##\s+\[?$version\]?.*?(?=^##\s+\[?[0-9]|$)"
+          # Match version header and capture content until next version header
+          # Pattern matches: ## [version] ... followed by content until ## [ (next version) or end
+          $escapedVersion = [regex]::Escape($version)
+          $versionPattern = '(?ms)^##\s+\[' + $escapedVersion + '\][^\n]*\n+(.*?)(?=\n##\s+\[|\z)'
           $match = [regex]::Match($changelog, $versionPattern)
           
           if ($match.Success) {
-            # Clean up the matched content
-            $changelogContent = $match.Value.Trim()
-            # Remove the version header (we'll add our own)
-            $changelogContent = $changelogContent -replace "^##\s+\[?$version\]?.*?\n", ""
-            $changelogContent = $changelogContent.Trim()
+            # Extract the captured group (content after header, before next version)
+            $changelogContent = $match.Groups[1].Value.Trim()
             
             if ($changelogContent) {
               $changelogContent = @"
@@ -141,7 +139,7 @@ jobs:
         
         ## What's Changed
         
-        See the [full changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+        See the [full changelog](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for details.
         "@
         }
         
@@ -185,7 +183,7 @@ jobs:
         
         ---
         
-        **Full Changelog:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+        **Full Changelog:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md)
         "@
         
         $notes | Out-File -FilePath release_notes.md -Encoding utf8
