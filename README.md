@@ -14,13 +14,15 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 ## Status
 
-**Current Progress: ~98% Feature Complete**
+**Current Progress: ~99% Feature Complete**
 
-### ✅ Implemented (98%)
+### ✅ Implemented (99%)
 - Clipboard capture and monitoring (text, images, RTF, HTML, files)
 - Multi-database support with collections and folders
 - Search with saved queries and SQL support
-- QuickPaste with auto-targeting and formatting strings
+- QuickPaste with auto-targeting, formatting strings, and full menu controls
+  - Lock QuickPaste Target, GoBack mode, Send Tab/Enter keys
+  - Paste Now trigger, Reset Sequence counter
 - PowerPaste automation with macro execution
 - Templates with tag replacement (#DATE#, #TIME#, #SEQUENCE#, etc.)
 - Macro execution with security validation and Windows SendInput API
@@ -38,9 +40,16 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 - Undo system for clip operations
 - Encryption with AES-256 and legacy ARC4 decrypt support
 - Printing with DevExpress reports, customizable layouts, and print preview
+- QuickPrint toggle and Print Options
+- Re-establish clipboard connection (manual listener repair)
+- Window management (close all windows, switch between Classic/Explorer)
 
-### 🚧 Remaining
-- **Minor UI Commands** - ~20 low-priority utility commands (Strip Non-TEXT formats, Unicode to ANSI, etc.)
+### 🚧 Remaining (~1%)
+- **Minor Utility Commands** - Low-priority text/format operations:
+  - Strip Non-TEXT data formats, Convert File Pointer to Text, Unicode to ANSI conversion
+  - Shift Left/Right (text indentation), Spell checking (deferred - Monaco incompatibility)
+  - Select Collection dialog (Ctrl+G style quick picker)
+  - Transparency slider, Visibility/Classic Options submenus
 
 ### 🧪 Needs Testing
 - Cross-database operations (copy/move clips between databases)
