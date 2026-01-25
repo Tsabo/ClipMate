@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ClipMate.App.Services;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
@@ -12,6 +13,7 @@ namespace ClipMate.App.DependencyInjection;
 /// <summary>
 /// Extension methods for registering ClipMate.App layer services.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
     /// <summary>

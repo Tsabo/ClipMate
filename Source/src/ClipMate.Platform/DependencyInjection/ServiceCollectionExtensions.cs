@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
@@ -9,7 +10,8 @@ namespace ClipMate.Platform.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering Platform layer services with the DI container.
-/// </summary>
+/// </summary>\
+[ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
     /// <summary>

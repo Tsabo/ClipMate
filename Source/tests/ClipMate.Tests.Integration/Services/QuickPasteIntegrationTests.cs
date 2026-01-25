@@ -146,10 +146,14 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         // Act
         _quickPasteService.SelectFormattingString(excelFormat);
 
-        // Assert
+        // Assert - Compare by properties since QuickPasteFormattingString doesn't implement value equality
         var selected = _quickPasteService.GetSelectedFormattingString();
-        await Assert.That(selected).IsEqualTo(excelFormat);
-        await Assert.That(selected!.Preamble).IsEqualTo("^{HOME}^@{DOWN}");
+        await Assert.That(selected).IsNotNull();
+        await Assert.That(selected!.Title).IsEqualTo(excelFormat.Title);
+        await Assert.That(selected!.Preamble).IsEqualTo(excelFormat.Preamble);
+        await Assert.That(selected!.PasteKeystrokes).IsEqualTo(excelFormat.PasteKeystrokes);
+        await Assert.That(selected!.Postamble).IsEqualTo(excelFormat.Postamble);
+        await Assert.That(selected!.TitleTrigger).IsEqualTo(excelFormat.TitleTrigger);
     }
 
     [Test]

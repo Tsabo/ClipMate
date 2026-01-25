@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,7 @@ namespace ClipMate.Core.DependencyInjection;
 /// <summary>
 /// Extension methods for registering Core services with the DI container.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace ClipMate.Data.DependencyInjection;
 /// <summary>
 /// Extension methods for registering Data layer services with the DI container.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
     /// <summary>

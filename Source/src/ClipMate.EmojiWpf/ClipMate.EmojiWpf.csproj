@@ -23,6 +23,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="*.cs" />
     <Compile Include="Internal\*.cs" />
   </ItemGroup>

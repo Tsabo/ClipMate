@@ -170,7 +170,7 @@ public class PowerPasteService : IPowerPasteService
                     _logger.LogInformation("PowerPaste sequence complete");
                     await PlayCompletionSoundAsync();
 
-                    Stop();
+                    StopInternal();
 
                     return;
                 }
@@ -197,23 +197,7 @@ public class PowerPasteService : IPowerPasteService
         _lock.Wait();
         try
         {
-            if (State == PowerPasteState.Inactive)
-                return;
-
-            _logger.LogInformation("Stopping PowerPaste");
-
-            var oldState = State;
-            State = PowerPasteState.Inactive;
-            _sequence.Clear();
-            CurrentPosition = -1;
-
-            StateChanged?.Invoke(this, new PowerPasteStateChangedEventArgs
-            {
-                OldState = oldState,
-                NewState = State,
-                Direction = Direction,
-                TotalCount = 0,
-            });
+            StopInternal();
         }
         finally
         {
@@ -228,6 +212,31 @@ public class PowerPasteService : IPowerPasteService
             return null;
 
         return _sequence[CurrentPosition];
+    }
+
+    /// <summary>
+    /// Internal stop method that doesn't acquire the lock.
+    /// Should only be called when the lock is already held.
+    /// </summary>
+    private void StopInternal()
+    {
+        if (State == PowerPasteState.Inactive)
+            return;
+
+        _logger.LogInformation("Stopping PowerPaste");
+
+        var oldState = State;
+        State = PowerPasteState.Inactive;
+        _sequence.Clear();
+        CurrentPosition = -1;
+
+        StateChanged?.Invoke(this, new PowerPasteStateChangedEventArgs
+        {
+            OldState = oldState,
+            NewState = State,
+            Direction = Direction,
+            TotalCount = 0,
+        });
     }
 
     /// <summary>
