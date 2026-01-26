@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Code Coverage Configuration** - Added `.runsettings` file with exclusion rules for P/Invoke, UI layer, auto-generated code, and simple DTOs
+- **Unit Test Coverage** - Comprehensive test suites for Platform services including SoundService, DecryptedBlobCacheService, StartupManager, ClipboardDiagnosticsService, SessionMonitorService, HotkeyService, PrintService, and DatabaseMigrationService
+- **ExcludeFromCodeCoverage Attributes** - Applied to Win32 interop classes and non-testable platform code
+
+### Fixed
+- **Pre-Release Version Comparison** - Improved semantic version parsing to correctly compare pre-release versions
+
 ## [0.1.0-beta.1] - 2026-1-24
 
 ### 🎉 Alpha to Beta Transition
