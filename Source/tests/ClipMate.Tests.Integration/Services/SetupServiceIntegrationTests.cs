@@ -109,7 +109,7 @@ public class SetupServiceIntegrationTests : IntegrationTestBase
     [Category("Integration")]
     [Category("SetupService")]
     [Category("Manual")]
-    [Skip("Test modifies actual ClipMate database - run manually with ClipMate closed")]
+    [Skip("Modifies production database location - run manually only")]
     public async Task EnsureDefaultDatabaseAsync_CreatesNewDatabaseIfNotExists()
     {
         // Arrange
@@ -157,7 +157,7 @@ public class SetupServiceIntegrationTests : IntegrationTestBase
     [Category("Integration")]
     [Category("SetupService")]
     [Category("Manual")]
-    [Skip("Test modifies actual ClipMate database - run manually with ClipMate closed")]
+    [Skip("Modifies production database location - run manually only")]
     public async Task EnsureDefaultDatabaseAsync_ReusesExistingValidDatabase()
     {
         // Arrange
@@ -216,7 +216,7 @@ public class SetupServiceIntegrationTests : IntegrationTestBase
     [Category("Integration")]
     [Category("SetupService")]
     [Category("Manual")]
-    [Skip("Test modifies actual ClipMate database - run manually with ClipMate closed")]
+    [Skip("Modifies production database location - run manually only")]
     public async Task EnsureDefaultDatabaseAsync_RecreatesInvalidDatabase()
     {
         // Arrange
