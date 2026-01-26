@@ -28,7 +28,7 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         
         // Verify no logging occurred (sound was disabled)
         Logger.Verify(
-            x => x.Log(
+            p => p.Log(
                 It.IsAny<LogLevel>(),
                 It.IsAny<EventId>(),
                 It.IsAny<It.IsAnyType>(),
@@ -54,10 +54,10 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         };
 
         // Act & Assert - Each should complete quickly when disabled
-        foreach (var soundEvent in events)
+        foreach (var item in events)
         {
             var startTime = DateTime.UtcNow;
-            await service.PlaySoundAsync(soundEvent);
+            await service.PlaySoundAsync(item);
             var duration = DateTime.UtcNow - startTime;
             
             await Assert.That(duration.TotalMilliseconds).IsLessThan(100);
@@ -135,7 +135,7 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         await service.PlaySoundAsync(SoundEvent.Append);
 
         // Assert - Configuration should have been accessed for behavior checks
-        ConfigService.Verify(x => x.Configuration, Times.AtLeastOnce);
+        ConfigService.Verify(p => p.Configuration, Times.AtLeastOnce);
     }
 
     [Test]
@@ -146,14 +146,14 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         // All sounds disabled by default
 
         // Act - Call all sound events
-        foreach (var soundEvent in Enum.GetValues<SoundEvent>())
+        foreach (var item in Enum.GetValues<SoundEvent>())
         {
-            await service.PlaySoundAsync(soundEvent);
+            await service.PlaySoundAsync(item);
         }
 
         // Assert - No warnings should be logged when sounds are disabled
         Logger.Verify(
-            x => x.Log(
+            p => p.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.IsAny<It.IsAnyType>(),

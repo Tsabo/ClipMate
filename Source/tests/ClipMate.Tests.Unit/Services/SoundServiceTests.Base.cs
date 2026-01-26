@@ -36,7 +36,7 @@ public class SoundServiceTestsBase
             },
         };
 
-        ConfigService.Setup(x => x.Configuration).Returns(Configuration);
+        ConfigService.Setup(p => p.Configuration).Returns(Configuration);
     }
 
     protected SoundService CreateService() => new(ConfigService.Object, Logger.Object);
