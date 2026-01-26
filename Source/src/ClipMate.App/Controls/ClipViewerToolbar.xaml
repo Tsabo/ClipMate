@@ -20,7 +20,7 @@
         <dxb:BarCheckItem Command="{Binding ToggleTackCommand}"
                           IsChecked="{Binding IsTacked, Mode=OneWay}"
                           Glyph="{helpers:EmojiIconSource Emoji='📌'}"
-                          ToolTip="Tack Viewer: Keep viewer open and allow drag-drop from clip list" />
+                          ToolTip="Tack Viewer: Pin to current clip, preventing automatic switching to clipboard contents" />
 
         <dxb:BarCheckItem Command="{Binding ToggleWordWrapCommand}"
                           IsChecked="{Binding IsWordWrapEnabled, Mode=OneWay}"

@@ -168,7 +168,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     {
         var clipId = message.SelectedClip?.Id;
         var databaseKey = message.DatabaseKey;
-        _logger.LogInformation("[ClipViewer] Received ClipSelectedEvent - ClipId: {ClipId}, DatabaseKey: {DatabaseKey}", clipId, databaseKey);
+        _logger.LogInformation("[ClipViewer] Received ClipSelectedEvent - ClipId: {ClipId}, DatabaseKey: {DatabaseKey}, IsTacked: {IsTacked}", clipId, databaseKey, _toolbarViewModel.IsTacked);
+
+        // If tacked, ignore clip selection events (keep viewer pinned to current clip)
+        if (_toolbarViewModel.IsTacked)
+        {
+            _logger.LogDebug("[ClipViewer] Ignoring ClipSelectedEvent because viewer is tacked");
+            return;
+        }
 
         // Cancel previous load operation
         _loadCancellationTokenSource?.Cancel();

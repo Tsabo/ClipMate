@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ExcludeFromCodeCoverage Attributes** - Applied to Win32 interop classes and non-testable platform code
 
 ### Fixed
+- **ClipViewer Tack Functionality** - Fixed tack button not preventing viewer from switching clips; viewer now stays pinned to current clip when tacked, allowing cut/paste operations within a single clip without automatic switching to clipboard contents
 - **Pre-Release Version Comparison** - Improved semantic version parsing to correctly compare pre-release versions
 
 ## [0.1.0-beta.1] - 2026-1-24
