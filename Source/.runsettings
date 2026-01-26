@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+    <RunConfiguration>
+        <MaxCpuCount>0</MaxCpuCount>
+        <ResultsDirectory>.\TestResults</ResultsDirectory>
+        <TargetPlatform>x64</TargetPlatform>
+        <TestSessionTimeout>300000</TestSessionTimeout>  <!-- 5 minutes -->
+        <TreatNoTestsAsError>false</TreatNoTestsAsError>
+    </RunConfiguration>
+
+    <DataCollectionRunSettings>
+        <DataCollectors>
+            <DataCollector friendlyName="XPlat Code Coverage">
+                <Configuration>
+                    <!-- Exclude patterns -->
+                    <Exclude>
+                        <!-- P/Invoke and Win32 interop -->
+                        [ClipMate.Platform]ClipMate.Platform.PInvoke.*
+                        [ClipMate.Platform]ClipMate.Platform.Win32.*
+            
+                        <!-- Win32-heavy services that are not unit testable -->
+                        [ClipMate.Platform]ClipMate.Platform.Services.Win32IdleDetector
+                        [ClipMate.Platform]ClipMate.Platform.Services.QuickPasteService
+                        [ClipMate.Platform]ClipMate.Platform.Services.PasteTraceService
+                        [ClipMate.Platform]ClipMate.Platform.Services.FileLoggingService
+            
+                        <!-- WPF UI Layer -->
+                        [ClipMate.App]*.Views.*
+                        [ClipMate.App]*.Controls.*
+                        [ClipMate.App]*.Converters.*
+                        [ClipMate.App]ClipMate.App.App
+            
+                        <!-- Auto-generated code -->
+                        [*]*Designer.cs
+                        [*]*.g.cs
+                        [*]*.g.i.cs
+                        [*]*.AssemblyInfo.cs
+            
+                        <!-- Simple models and DTOs (records with no logic) -->
+                        [ClipMate.Core]ClipMate.Core.Models.PrintClipData
+                        [ClipMate.Core]ClipMate.Core.Models.ClipFormatData
+                        [ClipMate.Core]ClipMate.Core.Models.BlobTxt
+                        [ClipMate.Core]ClipMate.Core.Models.BlobJpg
+                        [ClipMate.Core]ClipMate.Core.Models.BlobPng
+                        [ClipMate.Core]ClipMate.Core.Models.BlobBlob
+                        [ClipMate.Core]ClipMate.Core.Models.DecryptedBlobData
+            
+                        <!-- Event/Message DTOs (simple data carriers) -->
+                        [ClipMate.Core]ClipMate.Core.Events.*
+            
+                        <!-- Application entry points -->
+                        [ClipMate.App]ClipMate.App.Program
+                    </Exclude>
+
+                    <!-- Include everything else -->
+                    <Include>
+                    [ClipMate.*]*
+                    </Include>
+
+                    <!-- Exclude by attribute -->
+                    <ExcludeByAttribute>Obsolete,GeneratedCode,CompilerGenerated</ExcludeByAttribute>
+
+                    <!-- Exclude by file -->
+                    <ExcludeByFile>
+                    **/Migrations/**/*.cs
+                    **/*Designer.cs
+                    **/obj/**
+                    **/bin/**
+                    </ExcludeByFile>
+
+                    <!-- Report format -->
+                    <Format>cobertura,opencover</Format>
+
+                    <!-- Include test assembly (useful for coverage of test utilities) -->
+                    <IncludeTestAssembly>false</IncludeTestAssembly>
+
+                    <!-- Single hit - mark line as covered if hit at least once -->
+                    <SingleHit>false</SingleHit>
+
+                    <!-- Use source link for better source mapping -->
+                    <UseSourceLink>true</UseSourceLink>
+                </Configuration>
+            </DataCollector>
+        </DataCollectors>
+    </DataCollectionRunSettings>
+
+    <LoggerRunSettings>
+        <Loggers>
+            <Logger friendlyName="console" enabled="True">
+                <Configuration>
+                    <Verbosity>minimal</Verbosity>
+                </Configuration>
+            </Logger>
+            <Logger friendlyName="trx" enabled="True">
+                <Configuration>
+                    <LogFileName>test-results.trx</LogFileName>
+                </Configuration>
+            </Logger>
+        </Loggers>
+    </LoggerRunSettings>
+</RunSettings>
