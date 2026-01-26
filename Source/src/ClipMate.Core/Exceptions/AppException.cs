@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace ClipMate.Core.Exceptions;
 
 /// <summary>
 /// Base exception class for all ClipMate application exceptions.
 /// </summary>
+[ExcludeFromCodeCoverage(Justification = "Simple exception class.")]
 public class AppException : Exception
 {
     /// <summary>

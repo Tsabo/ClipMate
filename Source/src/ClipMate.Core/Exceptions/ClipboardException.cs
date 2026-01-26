@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace ClipMate.Core.Exceptions;
 
 /// <summary>
 /// Exception thrown when clipboard operations fail.
 /// </summary>
+[ExcludeFromCodeCoverage(Justification = "Simple exception class.")]
 public class ClipboardException : AppException
 {
     /// <summary>
