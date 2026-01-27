@@ -32,9 +32,6 @@ public class ClipViewerWindowManager : IClipViewerWindowManager, IRecipient<Clip
     public bool IsOpen => _window?.IsVisible == true;
 
     /// <inheritdoc />
-    public bool IsPinned { get; set; }
-
-    /// <inheritdoc />
     public void ShowClipViewer(Guid clipId, string? databaseKey = null)
     {
         EnsureWindow();
@@ -60,9 +57,7 @@ public class ClipViewerWindowManager : IClipViewerWindowManager, IRecipient<Clip
             return;
         }
 
-        // Otherwise, show with current selection and clear pin
-        IsPinned = false;
-
+        // Otherwise, show with current selection
         if (_lastSelectedClipId.HasValue)
             ShowClipViewer(_lastSelectedClipId.Value, _lastSelectedDatabaseKey);
         else
@@ -77,8 +72,6 @@ public class ClipViewerWindowManager : IClipViewerWindowManager, IRecipient<Clip
     public void CloseClipViewer()
     {
         _window?.Hide();
-        // Reset pin state when window is closed
-        IsPinned = false;
     }
 
     /// <summary>
@@ -91,8 +84,9 @@ public class ClipViewerWindowManager : IClipViewerWindowManager, IRecipient<Clip
         _lastSelectedClipId = message.SelectedClip?.Id;
         _lastSelectedDatabaseKey = message.DatabaseKey;
 
-        // Skip update if pinned, window not visible, or no clip selected
-        if (IsPinned || !IsOpen || message.SelectedClip == null)
+        // Skip update if window not visible or no clip selected
+        // Note: UpdateClipViewer will check the control's IsTacked state
+        if (!IsOpen || message.SelectedClip == null)
             return;
 
         // Use UpdateClipViewer to avoid stealing focus during auto-follow
@@ -105,12 +99,5 @@ public class ClipViewerWindowManager : IClipViewerWindowManager, IRecipient<Clip
             return;
 
         _window = new ClipViewerWindow(_viewModelFactory(), this);
-        _window.Closed += OnWindowClosed;
-    }
-
-    private void OnWindowClosed(object? sender, EventArgs e)
-    {
-        // Reset pin state when window is closed
-        IsPinned = false;
     }
 }

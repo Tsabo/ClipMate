@@ -11,12 +11,6 @@ public interface IClipViewerWindowManager
     bool IsOpen { get; }
 
     /// <summary>
-    /// Gets or sets whether the current clip is pinned.
-    /// When pinned, clip selection changes are ignored until unpinned.
-    /// </summary>
-    bool IsPinned { get; set; }
-
-    /// <summary>
     /// Shows the clip viewer window with the specified clip.
     /// Activates the window (steals focus).
     /// </summary>

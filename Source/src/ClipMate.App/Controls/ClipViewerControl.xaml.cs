@@ -254,6 +254,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         private set => SetValue(IsLoadingProperty, value);
     }
 
+    /// <summary>
+    /// Gets whether the viewer is tacked (pinned to current clip).
+    /// </summary>
+    public bool IsTacked => _toolbarViewModel?.IsTacked ?? false;
+
     #endregion
 
     #region Fields

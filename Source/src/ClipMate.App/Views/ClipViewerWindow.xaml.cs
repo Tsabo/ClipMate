@@ -8,7 +8,7 @@ namespace ClipMate.App.Views;
 /// Floating window for viewing individual clipboard entries.
 /// Launched via F2 hotkey.
 /// </summary>
-public partial class ClipViewerWindow : INotifyPropertyChanged
+public partial class ClipViewerWindow
 {
     private readonly ClipViewerViewModel _viewModel;
     private readonly IClipViewerWindowManager _windowManager;
@@ -27,23 +27,9 @@ public partial class ClipViewerWindow : INotifyPropertyChanged
 
     /// <summary>
     /// Gets or sets whether the current clip is pinned.
-    /// Delegates to the window manager for state management.
+    /// Delegates to the ClipViewerControl's IsTacked state.
     /// </summary>
-    public bool IsPinned
-    {
-        get => _windowManager.IsPinned;
-        set
-        {
-            if (_windowManager.IsPinned != value)
-            {
-                _windowManager.IsPinned = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPinned)));
-            }
-        }
-    }
-
-    /// <inheritdoc />
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public bool IsPinned => ClipViewer.IsTacked;
 
     /// <summary>
     /// Loads a clip by ID and shows/activates the window.
@@ -72,6 +58,10 @@ public partial class ClipViewerWindow : INotifyPropertyChanged
     /// <param name="databaseKey">The database key where the clip is stored.</param>
     public async void UpdateClip(Guid clipId, string? databaseKey = null)
     {
+        // Don't update if the control is tacked (pinned to current clip)
+        if (ClipViewer.IsTacked)
+            return;
+
         // If window is not visible, show it first so WebView2 can initialize
         if (!IsVisible)
         {

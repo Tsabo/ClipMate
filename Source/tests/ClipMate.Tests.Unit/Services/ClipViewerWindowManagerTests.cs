@@ -94,68 +94,6 @@ public class ClipViewerWindowManagerTests
         }
     }
 
-    [Category("IsPinned")]
-    public class IsPinnedTests : ClipViewerWindowManagerTests
-    {
-        [Test]
-        public async Task DefaultsToFalse()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-
-            // Assert
-            await Assert.That(manager.IsPinned).IsFalse();
-        }
-
-        [Test]
-        public async Task CanBeSetToTrue()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-
-            // Act
-            manager.IsPinned = true;
-
-            // Assert
-            await Assert.That(manager.IsPinned).IsTrue();
-        }
-
-        [Test]
-        public async Task CanBeToggledBackToFalse()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-            manager.IsPinned = true;
-
-            // Act
-            manager.IsPinned = false;
-
-            // Assert
-            await Assert.That(manager.IsPinned).IsFalse();
-        }
-
-        [Test]
-        public async Task CanBeSetMultipleTimes()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-
-            // Act - toggle multiple times
-            manager.IsPinned = true;
-            manager.IsPinned = true; // Same value
-            manager.IsPinned = false;
-            manager.IsPinned = false; // Same value
-            manager.IsPinned = true;
-
-            // Assert
-            await Assert.That(manager.IsPinned).IsTrue();
-        }
-    }
-
     [Category("CloseClipViewer")]
     public class CloseClipViewerTests : ClipViewerWindowManagerTests
     {
@@ -168,21 +106,6 @@ public class ClipViewerWindowManagerTests
 
             // Act & Assert - should not throw
             manager.CloseClipViewer();
-        }
-
-        [Test]
-        public async Task ResetsPinState()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-            manager.IsPinned = true;
-
-            // Act
-            manager.CloseClipViewer();
-
-            // Assert
-            await Assert.That(manager.IsPinned).IsFalse();
         }
 
         [Test]
@@ -294,14 +217,13 @@ public class ClipViewerWindowManagerTests
     public class ToggleVisibilityTests : ClipViewerWindowManagerTests
     {
         [Test]
-        public async Task ResetsPinState()
+        public async Task WhenWindowNotCreated_DoesNotThrow()
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
             var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-            manager.IsPinned = true;
 
-            // Act
+            // Act & Assert - should not throw
             try
             {
                 manager.ToggleVisibility();
@@ -311,29 +233,6 @@ public class ClipViewerWindowManagerTests
                 // Expected - no dispatcher available in unit test
             }
 
-            // Assert - pin should be reset regardless of window state
-            await Assert.That(manager.IsPinned).IsFalse();
-        }
-
-        [Test]
-        public async Task WhenOpen_ClosesWindow()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-
-            // Note: We can't fully test this without a real window, but we can verify
-            // the method doesn't throw when window is not yet created
-            try
-            {
-                manager.ToggleVisibility();
-            }
-            catch (InvalidOperationException)
-            {
-                // Expected - no dispatcher available in unit test
-            }
-
-            // Assert
             await Assert.That(manager.IsOpen).IsFalse();
         }
     }
@@ -370,25 +269,6 @@ public class ClipViewerWindowManagerTests
         }
 
         [Test]
-        public async Task WhenPinned_DoesNotUpdateViewer()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-            manager.IsPinned = true;
-
-            var clip = new Clip { Id = Guid.NewGuid(), Title = "Test Clip" };
-            var message = new ClipSelectedEvent(clip, "db_test");
-
-            // Act
-            manager.Receive(message);
-
-            // Assert - pin state should be maintained
-            await Assert.That(manager.IsPinned).IsTrue();
-            await Assert.That(manager.IsOpen).IsFalse();
-        }
-
-        [Test]
         public async Task TracksClipIdForToggleVisibility()
         {
             // Arrange
@@ -411,8 +291,8 @@ public class ClipViewerWindowManagerTests
                 // Expected - no dispatcher available in unit test
             }
 
-            // Assert - pin should be reset (verifies ToggleVisibility ran)
-            await Assert.That(manager.IsPinned).IsFalse();
+            // Assert - verify window operations completed without errors
+            await Assert.That(manager.IsOpen).IsFalse();
         }
 
         [Test]
@@ -449,27 +329,6 @@ public class ClipViewerWindowManagerTests
 
             // Assert - should handle gracefully without state corruption
             await Assert.That(manager.IsOpen).IsFalse();
-            await Assert.That(manager.IsPinned).IsFalse();
-        }
-
-        [Test]
-        public async Task MaintainsPinStateAcrossMultipleSelections()
-        {
-            // Arrange
-            var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
-            manager.IsPinned = true;
-
-            // Act - send multiple selection events while pinned
-            for (var i = 0; i < 10; i++)
-            {
-                var clip = new Clip { Id = Guid.NewGuid(), Title = $"Clip {i}" };
-                var message = new ClipSelectedEvent(clip, "db_test");
-                manager.Receive(message);
-            }
-
-            // Assert - pin state should be maintained
-            await Assert.That(manager.IsPinned).IsTrue();
         }
     }
 }
