@@ -30,6 +30,12 @@ public partial class AboutDialogViewModel : ObservableObject
         var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
         var semVer = infoVersion?.InformationalVersion ?? "0.0.0";
 
+        // Strip Git commit hash (everything after and including '+')
+        // e.g., "0.1.0+a56a07b" becomes "0.1.0"
+        var plusIndex = semVer.IndexOf('+');
+        if (plusIndex >= 0)
+            semVer = semVer[..plusIndex];
+
         // Display version with 'v' prefix
         Version = $"v{semVer}";
 
