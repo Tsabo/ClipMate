@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] - 2026-1-26
+
 ### Added
 - **Code Coverage Configuration** - Added `.runsettings` file with exclusion rules for P/Invoke, UI layer, auto-generated code, and simple DTOs
 - **Unit Test Coverage** - Comprehensive test suites for Platform services including SoundService, DecryptedBlobCacheService, StartupManager, ClipboardDiagnosticsService, SessionMonitorService, HotkeyService, PrintService, and DatabaseMigrationService
