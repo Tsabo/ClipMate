@@ -16,44 +16,23 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 ## Status
 
-**Current Progress: ~99% Feature Complete**
+ClipMate has reached **99% feature parity** with the original ClipMate 7.5 and is now in **beta testing**. All core functionality is implemented and stable, with focus now on polish, performance, and bug fixes.
 
-### ✅ Implemented (99%)
-- Clipboard capture and monitoring (text, images, RTF, HTML, files)
-- Multi-database support with collections and folders
-- Search with saved queries and SQL support
-- QuickPaste with auto-targeting, formatting strings, and full menu controls
-  - Lock QuickPaste Target, GoBack mode, Send Tab/Enter keys
-  - Paste Now trigger, Reset Sequence counter
-- PowerPaste automation with macro execution
-- Templates with tag replacement (#DATE#, #TIME#, #SEQUENCE#, etc.)
-- Macro execution with security validation and Windows SendInput API
-- Shortcuts (nicknames) for quick clip access
-- Import/Export (XML and flat-file formats)
-- Application profiles for capture filtering
-- Diagnostic tools (SQL console, event log, clipboard diagnostics, paste trace)
-- Floating clip viewer with auto-follow functionality
-- Text editing and transformation (case conversion, cleanup, line break removal)
-- 6-format clip viewer (Text, HTML, RTF, Bitmap, Picture, Binary)
-- Update checker with GitHub API integration
-- Documentation site with 50+ pages (tutorials, UI, options, advanced features)
-- Database maintenance (backup, restore, repair, cleanup)
-- Multi-selection operations (copy/move/delete multiple clips)
-- Undo system for clip operations
-- Encryption with AES-256 and legacy ARC4 decrypt support
-- Printing with DevExpress reports, customizable layouts, and print preview
-- QuickPrint toggle and Print Options
-- Re-establish clipboard connection (manual listener repair)
-- Window management (close all windows, switch between Classic/Explorer)
+### Key Features
+- **Clipboard Management** - Capture and organize text, images, RTF, HTML, and files with multi-format support
+- **QuickPaste & PowerPaste** - Smart auto-targeting paste and macro automation for workflow efficiency
+- **Organization** - Multi-database support with collections, folders, and virtual (SQL-based) collections
+- **Search & Discovery** - Full-text search, saved queries, and SQL console for advanced filtering
+- **Templates & Shortcuts** - Reusable content with tag replacement and nickname-based quick access
+- **Text Editing** - Monaco editor integration with syntax highlighting, transformations
+- **Encryption** - AES-256 protection with session-based key management and automatic cleanup
+- **Printing** - Customizable reports with print preview and layout options
+- **Diagnostics** - SQL console, event log, clipboard diagnostics, and paste trace tools
+- **Import/Export** - XML and flat-file formats for backup and data migration
 
-### 🚧 Remaining (~1%)
-- **Minor Utility Commands** - Low-priority text/format operations:
-  - Strip Non-TEXT data formats, Convert File Pointer to Text, Unicode to ANSI conversion
-  - Shift Left/Right (text indentation), Spell checking (deferred - Monaco incompatibility)
-  - Select Collection dialog (Ctrl+G style quick picker)
-  - Transparency slider, Visibility/Classic Options submenus
+For complete feature documentation, see the [documentation site](https://jeremy.browns.info/ClipMate/).
 
-### 🧪 Needs Testing
+### 🧪 Beta Testing Focus
 - Cross-database operations (copy/move clips between databases)
 - Large database performance (1000+ clips)
 - Edge cases in clipboard format handling (RTF, HTML, File formats)
@@ -64,19 +43,10 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 **Live Site**: [https://jeremy.browns.info/ClipMate/](https://jeremy.browns.info/ClipMate/)
 
-**Completed**:
-- 50+ documentation pages written
-- 7 comprehensive tutorial lessons (basic operation → shortcuts)
-- Complete UI reference (ClipMate Classic/Explorer, ClipList, ClipViewer, toolbars)
-- All 11 options tabs documented
-- Advanced features (templates, macros, search, data management)
-- Glossary with terminology definitions
-- GitHub Pages deployment with automatic builds
-
 **Remaining Work**:
 - Screenshots and images for visual guides
 - Final accuracy review against current implementation
-- Missing feature documentation (encryption, printing - when implemented)
+- Missing feature documentation (encryption, printing)
 - Video tutorials or animated GIFs for key workflows
 
 
@@ -138,4 +108,4 @@ Development in any way. All trademarks and copyrights for the original ClipMate�
 **Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Beta** | Version: 0.1.0 | Last Updated: January 24, 2026
+Status: **Beta** | Version: 0.1.0 | Last Updated: January 26, 2026
