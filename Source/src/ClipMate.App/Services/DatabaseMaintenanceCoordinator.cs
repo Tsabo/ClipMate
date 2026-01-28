@@ -20,7 +20,8 @@ public class DatabaseMaintenanceCoordinator :
     IRecipient<RestoreDatabaseRequestedEvent>,
     IRecipient<EmptyTrashRequestedEvent>,
     IRecipient<SimpleRepairRequestedEvent>,
-    IRecipient<ComprehensiveRepairRequestedEvent>
+    IRecipient<ComprehensiveRepairRequestedEvent>,
+    IRecipient<RunCleanupNowRequestedEvent>
 {
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseManager _databaseManager;
@@ -49,6 +50,7 @@ public class DatabaseMaintenanceCoordinator :
         _messenger.Register<EmptyTrashRequestedEvent>(this);
         _messenger.Register<SimpleRepairRequestedEvent>(this);
         _messenger.Register<ComprehensiveRepairRequestedEvent>(this);
+        _messenger.Register<RunCleanupNowRequestedEvent>(this);
 
         _logger.LogInformation("DatabaseMaintenanceCoordinator initialized and registered for events");
     }
@@ -308,6 +310,52 @@ public class DatabaseMaintenanceCoordinator :
             {
                 _logger.LogError(ex, "Error repairing database");
                 ThemedMessageBox.Show($"Error repairing database:\n{ex.Message}", "Repair Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Handles RunCleanupNowRequestedEvent from menu.
+    /// </summary>
+    public void Receive(RunCleanupNowRequestedEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                var loadedDatabases = _databaseManager.GetLoadedDatabases().ToList();
+                if (loadedDatabases.Count == 0)
+                {
+                    _logger.LogWarning("Cleanup requested but no database is currently loaded");
+                    return;
+                }
+
+                // Filter to databases that have cleanup enabled
+                var cleanupEnabledDatabases = loadedDatabases.Where(p => p.PurgeDays > 0).ToList();
+
+                if (cleanupEnabledDatabases.Count == 0)
+                {
+                    _logger.LogInformation("Cleanup requested but all loaded databases have cleanup disabled (PurgeDays = 0)");
+                    return;
+                }
+
+                // Run cleanup on all enabled databases
+                var totalPurged = 0;
+                var progress = new Progress<string>(p => _logger.LogInformation("Cleanup: {Message}", p));
+
+                foreach (var item in cleanupEnabledDatabases)
+                {
+                    var count = await _maintenanceService.RunCleanupAsync(item, progress);
+                    totalPurged += count;
+                    _logger.LogInformation("Cleanup on '{Database}': {Count} clips purged", item.Name, count);
+                }
+
+                _logger.LogInformation("Manual cleanup completed: {Total} clips purged across {DatabaseCount} databases", totalPurged, cleanupEnabledDatabases.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running cleanup");
+                ThemedMessageBox.Show($"Error running cleanup:\n{ex.Message}", "Cleanup Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         });
     }
