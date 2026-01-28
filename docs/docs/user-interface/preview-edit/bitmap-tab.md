@@ -36,4 +36,3 @@ The quickest method:
 
 - [Preview/Edit Window](index.md)
 - [Picture Tab](picture-tab.md) - For vector/metafile images
-- [Screen Capture](../../advanced/screen-capture.md)

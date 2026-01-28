@@ -11,7 +11,7 @@ Configuration settings that determine which clipboard formats to capture from ea
 
 ## Bitmap
 
-A pixel-based image format. Screenshots and photographs are typically captured as bitmaps. See [Bitmap Tab](user-interface/preview-edit/bitmap-tab.md).
+A pixel-based image format. Photographs and pixel-based images copied to the clipboard are captured as bitmaps. See [Bitmap Tab](user-interface/preview-edit/bitmap-tab.md).
 
 ## Clip Item
 

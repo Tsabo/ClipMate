@@ -15,9 +15,6 @@ Use templates to paste clips with metadata like date/time, source URL, and seque
 ### Macro Pasting
 Send keystrokes along with paste operations for automated data entry. See [Macro Pasting](macro-pasting.md).
 
-### Screen Capture
-Capture screen regions or windows directly to ClipMate. See [Screen Capture](screen-capture.md).
-
 ### Data Management
 Learn how to organize clips using collections, control retention policies, and manage the flow of clips through your system. See [Data Management](data-management.md).
 

@@ -45,8 +45,6 @@ Some combinations are unwise:
 | **Show ClipMate Window** | Bring Classic or Explorer to foreground (like clicking tray icon) |
 | **Scroll To Next/Previous Item** | Navigate clips in current collection |
 | **Activate QuickPaste** | Open ClipMate in QuickPaste mode |
-| **Region Screen Capture** | Capture a selected screen region |
-| **Object Screen Capture** | Capture a window or control |
 | **View Clip In Floating Window** | Open floating view/edit window |
 | **Pop-Up ClipBar List** | Show ClipBar dropdown (keyboard access to ClipList) |
 | **Toggle Auto-Capture** | Suspend/resume automatic clipboard capture |
@@ -64,4 +62,3 @@ ClipMate doesn't support hotkeys for individual clips. Instead, use the **Shortc
 ## See Also
 
 - [QuickPaste Options](quickpaste.md)
-- [Screen Capture](../advanced/screen-capture.md)

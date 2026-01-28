@@ -44,10 +44,6 @@ ClipMate uses different report layouts for different content types:
 
 The large/small bitmap threshold is configurable (default: 640 pixels).
 
-## Automatic Screenshot Printing
-
-You can configure ClipMate to automatically print screen captures, similar to the DOS-era PrintScreen behavior. Enable this in **Options → Printing → Automatically print screen shots**.
-
 ## HTML Printing
 
 HTML clips have special printing support through Internet Explorer's native print engine:

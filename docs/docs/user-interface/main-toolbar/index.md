@@ -40,14 +40,6 @@ To customize a toolbar:
 | 💥 [Explode PowerPaste](powerpaste.md#exploding-powerpaste) | Split Mode | Enable PowerPaste explode mode |
 | 📜 [Event Log](event-log.md) | Diagnostics | View clipboard activity log |
 
-## Screen Capture Buttons
-
-| Button | Function | Description |
-|--------|----------|-------------|
-| Screen Capture by Area | Region Capture | Capture a selected screen region |
-| Screen Capture by Desktop | Full Capture | Capture the entire desktop |
-| Screen Capture by Monitor | Monitor Capture | Capture a specific monitor |
-
 ## Additional Toolbar Options
 
 Some buttons have additional features:
