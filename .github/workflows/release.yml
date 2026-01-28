@@ -12,6 +12,9 @@ jobs:
   release:
     name: Create Release
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+      prerelease: ${{ steps.get_version.outputs.PRERELEASE }}
     
     steps:
     - name: Checkout code
@@ -210,3 +213,20 @@ jobs:
         name: release-build-logs
         path: build/logs/
         retention-days: 90
+
+  winget:
+    name: Publish to WinGet
+    runs-on: windows-latest
+    needs: release
+    # Publish stable and beta releases, skip alpha/dev versions
+    if: ${{ !contains(needs.release.outputs.version, 'alpha') && !contains(needs.release.outputs.version, 'dev') }}
+    
+    steps:
+    - name: Publish to WinGet Community Repository
+      uses: vedantmgoyal9/winget-releaser@main
+      with:
+        identifier: Tsabo.ClipMate
+        version: ${{ needs.release.outputs.version }}
+        installers-regex: 'ClipMate-Setup-.*\.exe$'
+        token: ${{ secrets.WINGET_TOKEN }}
+        fork-user: Tsabo  # Your GitHub username
