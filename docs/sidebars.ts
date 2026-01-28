@@ -84,7 +84,6 @@ const sidebars: SidebarsConfig = {
         'advanced/index',
         'advanced/templates',
         'advanced/macro-pasting',
-        'advanced/screen-capture',
         'advanced/data-management',
       ],
     },
