@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Manual Cleanup Trigger** - Fixed main menu database cleanup menu item.
+
 ## [0.1.0-beta.2] - 2026-1-26
 
 ### Added
