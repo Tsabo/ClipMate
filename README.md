@@ -11,7 +11,7 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 
 ## Download
 
-[![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads-pre/tsabo/clipmate/latest/total?style=for-the-badge&logo=github&logoColor=white)](/releases)
+[![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads-pre/tsabo/clipmate/latest/total?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Tsabo/ClipMate/releases)
 
 
 ## Status
