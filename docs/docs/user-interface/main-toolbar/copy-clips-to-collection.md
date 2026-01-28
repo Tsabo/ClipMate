@@ -5,7 +5,11 @@ title: Copy Clips to Collection
 
 # <span class="clipmate-emoji">&#xE006;</span> Copy Clips to Collection
 
-![Copy to Collection Dropdown](img/toolbar-copy-collection.png)
+import ToolbarImage from './img/toolbar-copy-collection.png';
+
+<p>
+    <img decoding="async" loading="lazy" alt="Copy to Collection Dropdown" src={ToolbarImage} style={{ width: 200 }} />
+</p>
 
 Copies selected clip(s) to another collection while keeping the original in place. Use this when you want a clip to exist in multiple collections.
 

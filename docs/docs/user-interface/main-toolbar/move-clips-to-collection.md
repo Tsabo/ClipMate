@@ -5,7 +5,11 @@ title: Move Clips to Collection
 
 # <span class="clipmate-emoji">&#xE007;</span> Move Clips to Collection
 
-![Move to Collection Dropdown](img/toolbar-move-collection.png)
+import ToolbarImage from './img/toolbar-move-collection.png';
+
+<p>
+    <img decoding="async" loading="lazy" alt="Move to Collection Dropdown" src={ToolbarImage} style={{ width: 200 }} />
+</p>
 
 Moves selected clip(s) to another collection. This is the primary way to organize clips into different collections for long-term storage.
 
