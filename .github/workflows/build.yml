@@ -111,5 +111,5 @@ jobs:
           job-summary: 'true'
           dotnet-version: '10.0.x'
           ignore: |
-            DevExpress.Wpf.Themes.*
+            DevExpress.*
             Microsoft.*
