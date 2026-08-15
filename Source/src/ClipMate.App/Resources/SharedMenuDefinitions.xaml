@@ -84,8 +84,9 @@
             <dxb:BarButtonItem Content="Select All Clips" Command="{Binding MainMenu.SelectAllCommand}" />
             <dxb:BarItemSeparator />
             <dxb:BarButtonItem Content="Capture Special..." Command="{Binding MainMenu.CaptureSpecialCommand}" />
-            <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
-                               Command="{Binding MainMenu.AppendClipsCommand}" />
+            <dxb:BarCheckItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
+                              IsChecked="{Binding MainMenu.IsAutoAppendActive, Mode=OneWay}"
+                              Command="{Binding MainMenu.AppendClipsCommand}" />
             <dxb:BarSubItem Content="Screen Capture" />
             <dxb:BarSubItem Content="QuickPaste">
                 <dxb:BarCheckItem Content="Lock QuickPaste Target" 

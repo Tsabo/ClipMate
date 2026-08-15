@@ -75,10 +75,11 @@
                                        Command="{Binding MainMenu.SelectNextCommand}"
                                        KeyGesture="Ctrl+Alt+N"
                                        Glyph="{dx:DXImage 'SvgImages/Arrows/Down.svg'}" />
-                    <dxb:BarButtonItem Content="Append Clips Together (Glue)"
-                                       Command="{Binding MainMenu.AppendClipsCommand}"
-                                       KeyGesture="Ctrl+Alt+A"
-                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}}" />
+                    <dxb:BarCheckItem Content="Append Clips Together (Glue)"
+                                      IsChecked="{Binding MainMenu.IsAutoAppendActive, Mode=OneWay}"
+                                      Command="{Binding MainMenu.AppendClipsCommand}"
+                                      KeyGesture="Ctrl+Alt+A"
+                                      Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}}" />
 
                     <!-- Editing Submenu -->
                     <dxb:BarSubItem Content="Editing"

@@ -19,6 +19,7 @@ public class ClipboardCoordinator : IHostedService,
     IRecipient<ToggleAutoCaptureEvent>,
     IRecipient<ManualCaptureClipboardEvent>
 {
+    private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
@@ -32,6 +33,7 @@ public class ClipboardCoordinator : IHostedService,
     public ClipboardCoordinator(IClipboardService clipboardService,
         IConfigurationService configurationService,
         IDatabaseContextFactory databaseContextFactory,
+        IAutoAppendService autoAppendService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
@@ -39,6 +41,7 @@ public class ClipboardCoordinator : IHostedService,
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -467,6 +470,34 @@ public class ClipboardCoordinator : IHostedService,
         // Create repository using the factory
         var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
 
+        // Auto-Append mode: merge this capture into the growing clip instead of creating a new one
+        if (_autoAppendService.IsActive &&
+            clip.Type is ClipType.Text or ClipType.RichText &&
+            _autoAppendService.GrowingClipId is { } growingClipId &&
+            _autoAppendService.DatabaseKey == activeDatabaseKey)
+        {
+            var clipAppendService = scope.ServiceProvider.GetRequiredService<IClipAppendService>();
+            var preferences = _configurationService.Configuration.Preferences;
+
+            var updatedClip = await clipAppendService.AppendCapturedTextAsync(
+                growingClipId,
+                clip.TextContent ?? string.Empty,
+                preferences.AppendSeparatorString,
+                preferences.StripTrailingLineBreak,
+                cancellationToken);
+
+            _logger.LogInformation("Auto-Append: merged captured text into growing clip {ClipId}", updatedClip.Id);
+
+            _messenger.Send(new ClipContentUpdatedEvent(
+                updatedClip.Id,
+                activeDatabaseKey,
+                updatedClip.TextContent ?? string.Empty,
+                updatedClip.Title ?? string.Empty,
+                updatedClip.Size));
+
+            return;
+        }
+
         // Check for duplicate by content hash (in the active database)
         var existing = await clipRepository.GetByContentHashAsync(clip.ContentHash, cancellationToken);
         Clip savedClip;
@@ -522,5 +553,10 @@ public class ClipboardCoordinator : IHostedService,
             savedClip.FolderId);
 
         _messenger.Send(clipAddedEvent);
+
+        // Auto-Append mode: the first capture since activation becomes the growing clip
+        if (_autoAppendService is { IsActive: true, GrowingClipId: null } &&
+            clip.Type is ClipType.Text or ClipType.RichText)
+            _autoAppendService.SetGrowingClip(savedClip.Id, activeDatabaseKey);
     }
 }

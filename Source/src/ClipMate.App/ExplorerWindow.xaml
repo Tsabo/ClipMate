@@ -80,11 +80,12 @@
                                        ToolTip="Print selected clip(s)"
                                        Glyph="{dx:DXImage 'SvgImages/Print/Print.svg'}" />
 
-                    <!-- Append Button -->
-                    <dxb:BarButtonItem Content="Append"
-                                       Command="{Binding MainMenu.AppendClipsCommand}"
-                                       ToolTip="Append selected clips together"
-                                       Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}, Size=24}" />
+                    <!-- Append Button: selecting 2+ clips appends them; with fewer selected, toggles Auto-Append mode -->
+                    <dxb:BarCheckItem Content="Append"
+                                      IsChecked="{Binding MainMenu.IsAutoAppendActive, Mode=OneWay}"
+                                      Command="{Binding MainMenu.AppendClipsCommand}"
+                                      ToolTip="Append selected clips together, or click with fewer than 2 selected to toggle Auto-Append mode"
+                                      Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Append}, Size=24}" />
 
                     <!-- Remove Breaks Button -->
                     <dxb:BarButtonItem Content="Remove Breaks"
@@ -273,9 +274,10 @@
                         <dxb:BarButtonItem Content="Capture Special..."
                                            Command="{Binding MainMenu.CaptureSpecialCommand}"
                                            Glyph="{helpers:EmojiIconSource Emoji='🎯'}" />
-                        <dxb:BarButtonItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
-                                           Command="{Binding MainMenu.AppendClipsCommand}"
-                                           Glyph="{helpers:EmojiIconSource Emoji='🧂'}" />
+                        <dxb:BarCheckItem Content="Append Clips Together (Glue)" KeyGesture="Ctrl+Alt+A"
+                                          IsChecked="{Binding MainMenu.IsAutoAppendActive, Mode=OneWay}"
+                                          Command="{Binding MainMenu.AppendClipsCommand}"
+                                          Glyph="{helpers:EmojiIconSource Emoji='🧂'}" />
                         <!-- TODO : Re-implement Screen Capture
                         <dxb:BarSubItem Content="Screen Capture"
                                         Glyph="{helpers:EmojiIconSource Emoji='📷'}" />

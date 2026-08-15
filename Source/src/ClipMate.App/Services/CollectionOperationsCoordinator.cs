@@ -34,6 +34,7 @@ public class CollectionOperationsCoordinator :
     IRecipient<ShowCollectionPropertiesRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
+    private readonly IAutoAppendService _autoAppendService;
     private readonly IClipAppendService _clipAppendService;
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
@@ -49,6 +50,7 @@ public class CollectionOperationsCoordinator :
     private TreeNodeBase? _lastSelectedNode;
 
     public CollectionOperationsCoordinator(IActiveWindowService activeWindowService,
+        IAutoAppendService autoAppendService,
         ClipListViewModel clipListViewModel,
         CollectionTreeViewModel collectionTreeViewModel,
         IClipService clipService,
@@ -61,6 +63,7 @@ public class CollectionOperationsCoordinator :
         ILogger<CollectionOperationsCoordinator> logger)
     {
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
+        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _clipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
@@ -162,7 +165,7 @@ public class CollectionOperationsCoordinator :
         try
         {
             // Determine parent based on user's positioning choice
-            Guid? effectiveParentId = dialog.PositionBelowSelected
+            var effectiveParentId = dialog.PositionBelowSelected
                 ? parentId
                 : null;
 
@@ -182,53 +185,77 @@ public class CollectionOperationsCoordinator :
     }
 
     /// <summary>
-    /// Handles AppendClipsRequestedEvent to glue selected text clips together.
+    /// Handles AppendClipsRequestedEvent to glue selected text clips together, or to toggle
+    /// Auto-Append mode when fewer than 2 clips are selected.
     /// </summary>
     public async void Receive(AppendClipsRequestedEvent message)
     {
-        var selectedClips = _clipListViewModel.SelectedClips.ToList();
-
-        if (selectedClips.Count < 2)
-        {
-            SendStatus("Select at least 2 clips to append");
-            return;
-        }
-
-        // Verify all clips are text-based
-        var nonTextClips = selectedClips.Where(p => p.Type != ClipType.Text &&
-                                                    p.Type != ClipType.RichText)
-            .ToList();
-
-        if (nonTextClips.Count > 0)
-        {
-            DXMessageBox.Show(
-                _activeWindowService.DialogOwner,
-                "Append (Glue) is only available for text clips.",
-                "Append Clips",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            return;
-        }
-
+        // DevExpress's BarCheckItem toggles its own checked visual on every click regardless of
+        // the OneWay binding, so every path through this handler must push a refresh at the end
+        // to resync the toolbar button back to the real IsAutoAppendActive state.
         try
         {
-            var preferences = _configurationService.Configuration.Preferences;
-            var separator = preferences.AppendSeparatorString;
-            var stripTrailing = preferences.StripTrailingLineBreak;
+            if (_autoAppendService.IsActive)
+            {
+                _autoAppendService.Deactivate();
+                _logger.LogInformation("Auto-Append mode deactivated");
+                SendStatus("Auto-Append mode off");
 
-            var resultClip = await _clipAppendService.AppendClipsAsync(selectedClips, separator, stripTrailing);
+                return;
+            }
 
-            _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", selectedClips.Count, resultClip.Id);
-            SendStatus($"Appended {selectedClips.Count} clips");
+            var selectedClips = _clipListViewModel.SelectedClips.ToList();
 
-            // Refresh the clip list
-            _messenger.Send(new ClipUpdatedMessage(resultClip.Id, resultClip.Title));
+            if (selectedClips.Count < 2)
+            {
+                _autoAppendService.Activate();
+                _logger.LogInformation("Auto-Append mode activated");
+                SendStatus("Auto-Append mode on — new copies will be combined until you click Append again");
+
+                return;
+            }
+
+            // Verify all clips are text-based
+            var nonTextClips = selectedClips.Where(p => p.Type != ClipType.Text &&
+                                                        p.Type != ClipType.RichText)
+                .ToList();
+
+            if (nonTextClips.Count > 0)
+            {
+                DXMessageBox.Show(
+                    _activeWindowService.DialogOwner,
+                    "Append (Glue) is only available for text clips.",
+                    "Append Clips",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                return;
+            }
+
+            try
+            {
+                var preferences = _configurationService.Configuration.Preferences;
+                var separator = preferences.AppendSeparatorString;
+                var stripTrailing = preferences.StripTrailingLineBreak;
+
+                var resultClip = await _clipAppendService.AppendClipsAsync(selectedClips, separator, stripTrailing);
+
+                _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", selectedClips.Count, resultClip.Id);
+                SendStatus($"Appended {selectedClips.Count} clips");
+
+                // Insert the newly created clip into the clip list
+                var databaseKey = _collectionService.GetActiveDatabaseKey();
+                _messenger.Send(new ClipAddedEvent(resultClip, false, databaseKey!, resultClip.CollectionId, resultClip.FolderId));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to append clips");
+                SendStatus($"Failed to append: {ex.Message}", true);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Failed to append clips");
-            SendStatus($"Failed to append: {ex.Message}", true);
+            _messenger.Send(new StateRefreshRequestedEvent());
         }
     }
 

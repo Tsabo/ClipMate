@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -12,8 +11,9 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Service for appending multiple clips together into a single clip.
 /// </summary>
-public partial class ClipAppendService : IClipAppendService
+public class ClipAppendService : IClipAppendService
 {
+    private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<ClipAppendService> _logger;
@@ -21,11 +21,13 @@ public partial class ClipAppendService : IClipAppendService
 
     public ClipAppendService(IDatabaseContextFactory contextFactory,
         ICollectionService collectionService,
+        IClipService clipService,
         ISoundService soundService,
         ILogger<ClipAppendService> logger)
     {
         _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -60,13 +62,13 @@ public partial class ClipAppendService : IClipAppendService
 
             foreach (var item in clipList)
             {
-                // Get the text content (ensure it's loaded)
+                // Get the text content (ensure it's loaded). Grid-bound Clip objects are
+                // lightweight and don't carry blob content until explicitly loaded.
                 var textContent = item.TextContent;
                 if (string.IsNullOrEmpty(textContent))
                 {
-                    // Try to load text content from repository if not loaded
-                    var loadedClip = await clipRepository.GetByIdAsync(item.Id, cancellationToken);
-                    textContent = loadedClip?.TextContent;
+                    await _clipService.LoadBlobDataAsync(databaseKey, item, cancellationToken);
+                    textContent = item.TextContent;
                 }
 
                 if (string.IsNullOrEmpty(textContent))
@@ -119,6 +121,99 @@ public partial class ClipAppendService : IClipAppendService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to append clips");
+
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Clip> AppendCapturedTextAsync(Guid targetClipId,
+        string capturedText,
+        string separator,
+        bool stripTrailingLineBreaks,
+        CancellationToken cancellationToken = default)
+    {
+        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        if (string.IsNullOrEmpty(databaseKey))
+            throw new InvalidOperationException("No active database selected");
+
+        var clipRepository = _contextFactory.GetClipRepository(databaseKey);
+        var clipDataRepository = _contextFactory.GetClipDataRepository(databaseKey);
+        var blobRepository = _contextFactory.GetBlobRepository(databaseKey);
+
+        var targetClip = await clipRepository.GetByIdAsync(targetClipId, cancellationToken) ??
+                         throw new InvalidOperationException($"Clip {targetClipId} was not found.");
+
+        try
+        {
+            // Text content lives in the ClipData/BlobTxt tables, not on the Clip row itself -
+            // find the existing text blob (if any) so we can update it in place.
+            var clipDataList = await clipDataRepository.GetByClipIdAsync(targetClipId, cancellationToken);
+            var textClipData = clipDataList.FirstOrDefault(p => p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code);
+
+            var textBlobs = await blobRepository.GetTextByClipIdAsync(targetClipId, cancellationToken);
+            var existingBlob = textClipData != null
+                ? textBlobs.FirstOrDefault(p => p.ClipDataId == textClipData.Id)
+                : null;
+
+            var existingText = existingBlob?.Data ?? string.Empty;
+            if (stripTrailingLineBreaks)
+                existingText = StripTrailingLineBreaks(existingText);
+
+            var processedSeparator = ProcessEscapeSequences(separator);
+
+            var combinedText = new StringBuilder(existingText);
+            if (!string.IsNullOrEmpty(processedSeparator))
+                combinedText.Append(processedSeparator);
+
+            combinedText.Append(capturedText);
+
+            var finalText = combinedText.ToString();
+
+            if (existingBlob != null)
+            {
+                existingBlob.Data = finalText;
+                await blobRepository.UpdateTextAsync(existingBlob, cancellationToken);
+            }
+            else
+            {
+                // No existing text blob on this clip (e.g. the seed capture had no text format yet) - create one.
+                var newClipData = await clipDataRepository.CreateAsync(new ClipData
+                {
+                    Id = Guid.NewGuid(),
+                    ClipId = targetClipId,
+                    FormatName = Formats.UnicodeText.Name,
+                    Format = Formats.UnicodeText.Code,
+                    Size = finalText.Length * 2,
+                    StorageType = 1,
+                }, cancellationToken);
+
+                await blobRepository.CreateTextAsync(new BlobTxt
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = newClipData.Id,
+                    ClipId = targetClipId,
+                    Data = finalText,
+                }, cancellationToken);
+            }
+
+            targetClip.TextContent = finalText;
+            targetClip.Size = Encoding.UTF8.GetByteCount(finalText);
+            targetClip.ContentHash = ComputeContentHash(finalText);
+            targetClip.Checksum = ComputeChecksum(finalText);
+
+            await clipRepository.UpdateAsync(targetClip, cancellationToken);
+
+            await _soundService.PlaySoundAsync(SoundEvent.Append, cancellationToken);
+
+            _logger.LogInformation("Appended captured text onto clip {ClipId}, now {Length} characters",
+                targetClip.Id, finalText.Length);
+
+            return targetClip;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to append captured text onto clip {ClipId}", targetClipId);
 
             throw;
         }

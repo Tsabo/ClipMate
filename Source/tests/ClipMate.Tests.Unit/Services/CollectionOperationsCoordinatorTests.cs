@@ -25,6 +25,7 @@ public class CollectionOperationsCoordinatorTests
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
                 null!,
+                null!, // IAutoAppendService
                 null!, // ClipListViewModel - required but can be null for this test
                 null!,
                 null!,
@@ -55,6 +56,7 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!,
                 null!,
+                null!,
                 null!, // messenger is null
                 null!,
                 logger.Object))
@@ -71,6 +73,7 @@ public class CollectionOperationsCoordinatorTests
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
                 activeWindow.Object,
+                null!,
                 null!,
                 null!,
                 null!,

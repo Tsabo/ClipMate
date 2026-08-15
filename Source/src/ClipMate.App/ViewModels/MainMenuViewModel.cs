@@ -28,6 +28,7 @@ public partial class MainMenuViewModel : ObservableObject,
     IRecipient<StateRefreshRequestedEvent>,
     IDisposable
 {
+    private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
     private readonly ClipListViewModel? _clipListViewModel;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
@@ -81,6 +82,7 @@ public partial class MainMenuViewModel : ObservableObject,
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
+        IAutoAppendService autoAppendService,
         IPowerPasteService powerPasteService,
         IQuickPasteService quickPasteService,
         IServiceProvider serviceProvider,
@@ -91,6 +93,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -136,6 +139,12 @@ public partial class MainMenuViewModel : ObservableObject,
     public bool IsAutoCapturing => _clipboardService.IsMonitoring;
 
     /// <summary>
+    /// Gets whether Auto-Append mode is currently active.
+    /// This property is read directly from the auto-append service for live state.
+    /// </summary>
+    public bool IsAutoAppendActive => _autoAppendService.IsActive;
+
+    /// <summary>
     /// Gets whether QuickPrint is enabled (bypasses print preview dialog).
     /// This property is read directly from configuration for live state.
     /// </summary>
@@ -169,6 +178,7 @@ public partial class MainMenuViewModel : ObservableObject,
     {
         // Refresh all service-derived state properties
         OnPropertyChanged(nameof(IsAutoCapturing));
+        OnPropertyChanged(nameof(IsAutoAppendActive));
         OnPropertyChanged(nameof(HasMultipleDatabases));
         OnPropertyChanged(nameof(IsQuickPrintEnabled));
     }
@@ -553,18 +563,16 @@ public partial class MainMenuViewModel : ObservableObject,
         {
             // Stop and restart clipboard monitoring to re-register the listener
             var wasMonitoring = _clipboardService.IsMonitoring;
-            
+
             if (wasMonitoring)
             {
                 await _clipboardService.StopMonitoringAsync();
                 await _clipboardService.StartMonitoringAsync();
-                
+
                 _messenger.Send(new StatusUpdateEvent("Clipboard connection re-established successfully"));
             }
             else
-            {
                 _messenger.Send(new StatusUpdateEvent("Clipboard monitoring is not active"));
-            }
         }
         catch (Exception ex)
         {

@@ -160,7 +160,7 @@ public partial class ClipAppendServiceTests
 
     [Test]
     [Category("AppendClipsAsync")]
-    public async Task AppendClipsAsync_WithClipMissingTextContent_LoadsFromRepository()
+    public async Task AppendClipsAsync_WithClipMissingTextContent_LoadsBlobData()
     {
         // Arrange
         var service = CreateService();
@@ -172,7 +172,7 @@ public partial class ClipAppendServiceTests
         var clipWithoutText = new Clip
         {
             Id = clipId,
-            TextContent = null, // Missing text content
+            TextContent = null, // Missing text content - grid-bound clips don't carry blob content by default
             Type = ClipType.Text,
             CapturedAt = DateTimeOffset.Now,
             CollectionId = collectionId,
@@ -180,9 +180,9 @@ public partial class ClipAppendServiceTests
             Creator = "TestUser",
         };
 
-        var loadedClip = CreateTestClip("Loaded text", clipId, collectionId);
-        mockClipRepo.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(loadedClip);
+        _mockClipService.Setup(p => p.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, It.IsAny<CancellationToken>()))
+            .Callback<string, Clip, CancellationToken>((_, clip, _) => clip.TextContent = "Loaded text")
+            .Returns(Task.CompletedTask);
 
         Clip? capturedClip = null;
         mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
@@ -195,7 +195,7 @@ public partial class ClipAppendServiceTests
         // Assert
         await Assert.That(capturedClip).IsNotNull();
         await Assert.That(capturedClip!.TextContent).IsEqualTo("Loaded text");
-        mockClipRepo.Verify(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockClipService.Verify(p => p.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -224,8 +224,8 @@ public partial class ClipAppendServiceTests
             },
         };
 
-        mockClipRepo.Setup(p => p.GetByIdAsync(emptyClipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        // LoadBlobDataAsync is left unconfigured for the empty clip - it won't populate TextContent,
+        // so the clip should be skipped.
 
         Clip? capturedClip = null;
         mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))

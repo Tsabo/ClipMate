@@ -19,6 +19,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class ClipListViewModel : ObservableObject,
     IRecipient<ClipAddedEvent>,
+    IRecipient<ClipContentUpdatedEvent>,
     IRecipient<ClipCacheExpiredMessage>,
     IRecipient<CollectionNodeSelectedEvent>,
     IRecipient<SearchResultsSelectedEvent>,
@@ -111,6 +112,7 @@ public partial class ClipListViewModel : ObservableObject,
         // Register this ViewModel as a recipient for clipboard and selection events
         // The messenger will automatically handle weak references and cleanup
         _messenger.Register<ClipAddedEvent>(this);
+        _messenger.Register<ClipContentUpdatedEvent>(this);
         _messenger.Register<ClipCacheExpiredMessage>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
         _messenger.Register<QuickPasteNowEvent>(this);
@@ -217,6 +219,27 @@ public partial class ClipListViewModel : ObservableObject,
             }
 
             // Send ClipUpdatedMessage to refresh the grid row
+            _messenger.Send(new ClipUpdatedMessage(clip.Id, clip.Title));
+        });
+    }
+
+    /// <summary>
+    /// Receives ClipContentUpdatedEvent when an existing clip's content changed in place
+    /// (e.g. Auto-Append mode merging a new capture into the growing clip). Updates the same
+    /// clip object instance bound to the grid, then requests a row refresh.
+    /// </summary>
+    public void Receive(ClipContentUpdatedEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var clip = Clips.FirstOrDefault(p => p.Id == message.ClipId);
+            if (clip == null)
+                return;
+
+            clip.TextContent = message.TextContent;
+            clip.Title = message.Title;
+            clip.Size = message.Size;
+
             _messenger.Send(new ClipUpdatedMessage(clip.Id, clip.Title));
         });
     }

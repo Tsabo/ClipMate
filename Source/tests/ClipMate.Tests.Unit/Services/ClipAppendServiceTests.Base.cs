@@ -13,6 +13,7 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ClipAppendServiceTests
 {
     private const string _testDatabaseKey = "test-db";
+    private Mock<IClipService> _mockClipService = null!;
     private Mock<ICollectionService> _mockCollectionService = null!;
     private Mock<IDatabaseContextFactory> _mockContextFactory = null!;
     private Mock<ILogger<ClipAppendService>> _mockLogger = null!;
@@ -24,6 +25,7 @@ public partial class ClipAppendServiceTests
         _mockLogger = new Mock<ILogger<ClipAppendService>>();
         _mockContextFactory = new Mock<IDatabaseContextFactory>();
         _mockCollectionService = new Mock<ICollectionService>();
+        _mockClipService = new Mock<IClipService>();
         _mockSoundService = new Mock<ISoundService>();
 
         // Default: return test database key
@@ -33,6 +35,7 @@ public partial class ClipAppendServiceTests
     private ClipAppendService CreateService() => new(
         _mockContextFactory.Object,
         _mockCollectionService.Object,
+        _mockClipService.Object,
         _mockSoundService.Object,
         _mockLogger.Object);
 

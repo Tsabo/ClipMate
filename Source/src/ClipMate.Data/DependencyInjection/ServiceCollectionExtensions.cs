@@ -57,6 +57,9 @@ public static class ServiceCollectionExtensions
         // PowerPasteService maintains explode mode state
         services.AddSingleton<IPowerPasteService, PowerPasteService>();
 
+        // AutoAppendService maintains Auto-Append mode toggle state
+        services.AddSingleton<IAutoAppendService, AutoAppendService>();
+
         // UndoService maintains undo/redo state
         services.AddSingleton<IUndoService, UndoService>();
 

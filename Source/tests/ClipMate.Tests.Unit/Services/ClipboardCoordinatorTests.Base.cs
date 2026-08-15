@@ -49,7 +49,8 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         Mock<IFolderService>? folderService = null,
         Mock<IApplicationFilterService>? filterService = null,
         Mock<IDatabaseManager>? databaseManager = null,
-        Mock<IDatabaseContextFactory>? contextFactory = null)
+        Mock<IDatabaseContextFactory>? contextFactory = null,
+        Mock<IClipAppendService>? clipAppendService = null)
     {
         var clipServiceProvided = clipService != null;
         var collectionServiceProvided = collectionService != null;
@@ -63,6 +64,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         filterService ??= new Mock<IApplicationFilterService>();
         databaseManager ??= new Mock<IDatabaseManager>();
         contextFactory ??= new Mock<IDatabaseContextFactory>();
+        clipAppendService ??= new Mock<IClipAppendService>();
 
         // Setup default behaviors only if not provided by caller
         if (!clipServiceProvided)
@@ -80,6 +82,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                     ParentId = null,
                     Title = "Inbox",
                     LmType = CollectionLmType.Normal,
+                    AcceptNewClips = true,
                 });
 
             // Setup GetActiveDatabaseKey to return a test database key
@@ -120,6 +123,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         services.AddTransient(_ => filterService.Object);
         services.AddTransient(_ => databaseManager.Object);
         services.AddTransient(_ => contextFactory.Object);
+        services.AddTransient(_ => clipAppendService.Object);
         services.AddTransient(_ => new Mock<ISoundService>().Object);
         services.AddLogging();
 

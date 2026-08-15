@@ -23,6 +23,7 @@ public partial class ClipAppendServiceTests
         var exception = Assert.Throws<ArgumentNullException>(() => new ClipAppendService(
             null!,
             _mockCollectionService.Object,
+            _mockClipService.Object,
             _mockSoundService.Object,
             _mockLogger.Object));
 
@@ -37,10 +38,26 @@ public partial class ClipAppendServiceTests
         var exception = Assert.Throws<ArgumentNullException>(() => new ClipAppendService(
             _mockContextFactory.Object,
             null!,
+            _mockClipService.Object,
             _mockSoundService.Object,
             _mockLogger.Object));
 
         await Assert.That(exception.ParamName).IsEqualTo("collectionService");
+    }
+
+    [Test]
+    [Category("Constructor")]
+    public async Task Constructor_WithNullClipService_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentNullException>(() => new ClipAppendService(
+            _mockContextFactory.Object,
+            _mockCollectionService.Object,
+            null!,
+            _mockSoundService.Object,
+            _mockLogger.Object));
+
+        await Assert.That(exception.ParamName).IsEqualTo("clipService");
     }
 
     [Test]
@@ -51,6 +68,7 @@ public partial class ClipAppendServiceTests
         var exception = Assert.Throws<ArgumentNullException>(() => new ClipAppendService(
             _mockContextFactory.Object,
             _mockCollectionService.Object,
+            _mockClipService.Object,
             null!,
             _mockLogger.Object));
 
@@ -65,6 +83,7 @@ public partial class ClipAppendServiceTests
         var exception = Assert.Throws<ArgumentNullException>(() => new ClipAppendService(
             _mockContextFactory.Object,
             _mockCollectionService.Object,
+            _mockClipService.Object,
             _mockSoundService.Object,
             null!));
 

@@ -124,6 +124,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddTransient<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         services.AddSingleton(contextFactory.Object);
+        services.AddSingleton<IAutoAppendService, AutoAppendService>();
 
         // Register sound service mock
         var soundServiceMock = new Mock<ISoundService>();
@@ -151,7 +152,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory.Object, _serviceProvider, messenger, coordinatorLogger);
+        var autoAppendService = _serviceProvider.GetRequiredService<IAutoAppendService>();
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory.Object, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed
@@ -631,9 +633,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Act - Save multiple clips
         foreach (var clip in clips)
-        {
             await _clipService.CreateAsync(_testDatabaseKey, clip);
-        }
+
         await DbContext.SaveChangesAsync();
 
         // Assert - Verify all clips were saved
