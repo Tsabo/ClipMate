@@ -92,5 +92,5 @@ jobs:
       - name: Generate graph
         uses: Tsabo/nugraph-action@master
         with:
-          project-path: ./Source/src/ClipMate.sln
+          project-path: ./Source/ClipMate.sln
           job-summary: 'true'
