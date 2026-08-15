@@ -36,7 +36,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        global-json-file: Source/global.json
 
     - name: Cache NuGet packages
       uses: actions/cache@v4
