@@ -82,3 +82,15 @@ jobs:
         path: build/logs/test-results/**/*.trx
         reporter: dotnet-trx
         fail-on-error: false
+
+  generate-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate graph
+        uses: Tsabo/nugraph-action@main
+        with:
+          project-path: ./Source/src/ClipMate.sln
+          job-summary: 'true'

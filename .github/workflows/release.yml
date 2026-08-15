@@ -229,4 +229,4 @@ jobs:
         version: ${{ needs.release.outputs.version }}
         installers-regex: 'ClipMate-Setup-.*\.exe$'
         token: ${{ secrets.WINGET_TOKEN }}
-        fork-user: Tsabo  # Your GitHub username
+        fork-user: Tsabo
