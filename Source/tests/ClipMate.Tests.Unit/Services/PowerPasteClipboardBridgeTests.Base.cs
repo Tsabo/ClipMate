@@ -26,7 +26,7 @@ public partial class PowerPasteClipboardBridgeTests
 
         var config = new ClipMateConfiguration
         {
-            Preferences = new PreferencesConfiguration { PowerPasteDelay = 20 },
+            Preferences = new PreferencesConfiguration { PowerPasteDelay = 200 },
         };
 
         _mockConfigService.Setup(p => p.Configuration).Returns(config);

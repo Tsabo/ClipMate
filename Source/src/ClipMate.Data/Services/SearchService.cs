@@ -96,10 +96,10 @@ public class SearchService : ISearchService
 
         // Date range filters
         if (filters?.DateRange?.From.HasValue == true)
-            conditions.Add($"Clips.TimeStamp > \"{filters.DateRange.From.Value:yyyy-MM-dd}\"");
+            conditions.Add($"Clips.TimeStamp > '{filters.DateRange.From.Value:yyyy-MM-dd}'");
 
         if (filters?.DateRange?.To.HasValue == true)
-            conditions.Add($"Clips.TimeStamp < \"{filters.DateRange.To.Value:yyyy-MM-dd}\"");
+            conditions.Add($"Clips.TimeStamp < '{filters.DateRange.To.Value:yyyy-MM-dd}'");
 
         // Format filter (requires join with ClipData)
         if (!string.IsNullOrEmpty(filters?.Format))
@@ -111,27 +111,27 @@ public class SearchService : ISearchService
 
         // Text search conditions using TextSearch custom function
         if (!string.IsNullOrEmpty(filters?.TitleQuery))
-            conditions.Add($"TextSearch(Clips.TITLE, \"{EscapeQuery(filters.TitleQuery)}\") = 1");
+            conditions.Add($"TextSearch(Clips.TITLE, '{EscapeQuery(filters.TitleQuery)}') = 1");
 
         if (!string.IsNullOrEmpty(filters?.TextContentQuery))
         {
             needsClipDataJoin = true;
             needsBlobTxtJoin = true;
-            conditions.Add($"TextSearch(BlobTxt.Data, \"{EscapeQuery(filters.TextContentQuery)}\") = 1");
+            conditions.Add($"TextSearch(BlobTxt.Data, '{EscapeQuery(filters.TextContentQuery)}') = 1");
         }
 
         if (!string.IsNullOrEmpty(filters?.CreatorQuery))
-            conditions.Add($"TextSearch(Clips.CREATOR, \"{EscapeQuery(filters.CreatorQuery)}\") = 1");
+            conditions.Add($"TextSearch(Clips.CREATOR, '{EscapeQuery(filters.CreatorQuery)}') = 1");
 
         if (!string.IsNullOrEmpty(filters?.SourceUrlQuery))
-            conditions.Add($"TextSearch(Clips.SOURCEURL, \"{EscapeQuery(filters.SourceUrlQuery)}\") = 1");
+            conditions.Add($"TextSearch(Clips.SOURCEURL, '{EscapeQuery(filters.SourceUrlQuery)}') = 1");
 
         // Legacy query parameter (searches in text content via BlobTxt)
         if (!string.IsNullOrWhiteSpace(query))
         {
             needsClipDataJoin = true;
             needsBlobTxtJoin = true;
-            conditions.Add($"TextSearch(\"{EscapeQuery(query)}\" in blobtxt.data)");
+            conditions.Add($"TextSearch('{EscapeQuery(query)}' in blobtxt.data)");
         }
 
         // Build FROM clause with necessary joins
@@ -279,9 +279,9 @@ public class SearchService : ISearchService
     }
 
     /// <summary>
-    /// Escapes double quotes in search query for TextSearch function.
+    /// Escapes single quotes in search query for use inside a SQL string literal.
     /// </summary>
-    private static string EscapeQuery(string query) => query.Replace("\"", "\\\"");
+    private static string EscapeQuery(string query) => query.Replace("'", "''");
 
     private int FormatToFormatId(string format)
     {
