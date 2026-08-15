@@ -48,7 +48,7 @@ public partial class ClipListControl
             nameof(SelectedItem),
             typeof(Clip),
             typeof(ClipListControl),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnSelectedItemChanged));
 
     /// <summary>
     /// Dependency property for the header text displayed above the grid
@@ -140,6 +140,10 @@ public partial class ClipListControl
 
     // Shortcut mode state
     private bool _isInShortcutMode;
+
+    // Guards against re-entrancy between ClipDataGrid_CurrentItemChanged (grid -> SelectedItem)
+    // and OnSelectedItemChanged (SelectedItem -> grid), which would otherwise fire each other.
+    private bool _isSyncingSelectionFromGrid;
     private string _shortcutFilter = string.Empty;
 
     public ClipListControl()
@@ -248,6 +252,39 @@ public partial class ClipListControl
         private set => SetValue(CanLockSelectionProperty, value);
     }
 
+    /// <summary>
+    /// Handles external changes to SelectedItem (e.g. from hotkey-driven navigation in the ViewModel)
+    /// by moving the grid's focused row to match and scrolling it into view. Without this, the grid's
+    /// CurrentItemChanged event (grid -> SelectedItem) only flows one direction, so changes made to
+    /// SelectedItem from outside the grid never move the visible highlighted/focused row.
+    /// </summary>
+    private static void OnSelectedItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not ClipListControl control || control._isSyncingSelectionFromGrid)
+            return;
+
+        control.SyncGridFocusedRow(e.NewValue as Clip);
+    }
+
+    private void SyncGridFocusedRow(Clip? clip)
+    {
+        if (ClipDataGrid == null || ClipTableView == null)
+            return;
+
+        if (clip == null)
+        {
+            ClipDataGrid.CurrentItem = null;
+            return;
+        }
+
+        var rowHandle = ClipDataGrid.FindRow(clip);
+        if (rowHandle == DataControlBase.InvalidRowHandle)
+            return;
+
+        ClipTableView.FocusedRowHandle = rowHandle;
+        ClipTableView.ScrollIntoView(rowHandle);
+    }
+
     private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not ClipListControl control)
@@ -324,7 +361,15 @@ public partial class ClipListControl
                 ? "Shortcuts"
                 : "Clips", newClip?.Id, newClip?.DisplayTitle);
 
-        SelectedItem = newClip;
+        _isSyncingSelectionFromGrid = true;
+        try
+        {
+            SelectedItem = newClip;
+        }
+        finally
+        {
+            _isSyncingSelectionFromGrid = false;
+        }
 
         // Clear selection in the other grid
         if (isShortcutGrid)

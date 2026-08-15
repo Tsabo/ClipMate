@@ -348,7 +348,15 @@ public partial class ClipListViewModel : ObservableObject,
                 : -1;
 
             var nextIndex = (currentIndex + 1) % Clips.Count;
-            SelectedClip = Clips[nextIndex];
+            var nextClip = Clips[nextIndex];
+
+            SelectedClip = nextClip;
+
+            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
+            // SelectedClip alone drives clipboard "flip" logic; SelectedClips is what the
+            // DevExpress grid's row highlight is actually bound to (see GridControlSelectionSync).
+            SelectedClips.Clear();
+            SelectedClips.Add(nextClip);
         });
     }
 
@@ -370,7 +378,13 @@ public partial class ClipListViewModel : ObservableObject,
                 ? Clips.Count - 1
                 : currentIndex - 1;
 
-            SelectedClip = Clips[previousIndex];
+            var previousClip = Clips[previousIndex];
+
+            SelectedClip = previousClip;
+
+            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
+            SelectedClips.Clear();
+            SelectedClips.Add(previousClip);
         });
     }
 
