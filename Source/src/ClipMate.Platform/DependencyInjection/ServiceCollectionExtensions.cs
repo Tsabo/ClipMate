@@ -10,7 +10,8 @@ namespace ClipMate.Platform.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering Platform layer services with the DI container.
-/// </summary>\
+/// </summary>
+/// \
 [ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
@@ -77,6 +78,11 @@ public static class ServiceCollectionExtensions
         // Register diagnostic services
         services.AddSingleton<IClipboardDiagnosticsService, ClipboardDiagnosticsService>();
         services.AddSingleton<IPasteTraceService, PasteTraceService>();
+
+        // Register PowerPasteClipboardBridge as singleton first (so it can be injected), then
+        // as a hosted service so it starts listening for PowerPaste state changes at app startup
+        services.AddSingleton<PowerPasteClipboardBridge>();
+        services.AddHostedService(p => p.GetRequiredService<PowerPasteClipboardBridge>());
 
         // Register UpdateCheckService with HttpClient
         services.AddTransient<IUpdateCheckService>(p =>

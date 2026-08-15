@@ -43,6 +43,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
     private readonly IWin32ClipboardInterop _win32;
+    private bool _captureSuspended;
     private HwndSource? _hwndSource;
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private bool _lastClipboardWasEmpty;
@@ -282,6 +283,20 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
+    /// <inheritdoc />
+    public void SuspendCapture()
+    {
+        _captureSuspended = true;
+        _logger.LogDebug("Clipboard capture suspended");
+    }
+
+    /// <inheritdoc />
+    public void ResumeCapture()
+    {
+        _captureSuspended = false;
+        _logger.LogDebug("Clipboard capture resumed");
+    }
+
     public void Dispose() => StopMonitoringAsync().Wait();
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -292,6 +307,14 @@ public class ClipboardService : IClipboardService, IDisposable
             return IntPtr.Zero;
 
         handled = true;
+
+        if (_captureSuspended)
+        {
+            _logger.LogDebug("Ignoring clipboard change notification - capture is suspended");
+
+            return IntPtr.Zero;
+        }
+
         _ = Task.Run(async () => await HandleClipboardChangeAsync());
 
         return IntPtr.Zero;
@@ -339,6 +362,16 @@ public class ClipboardService : IClipboardService, IDisposable
                     _logger.LogDebug("Clipboard capture cancelled during capture delay");
                     return;
                 }
+            }
+
+            // Re-check suspension in case it started after this notification was already queued -
+            // reading the clipboard here (GetClipboardData) can itself satisfy a delayed-render
+            // registration (e.g. PowerPaste's), so this must not run while suspended.
+            if (_captureSuspended)
+            {
+                _logger.LogDebug("Clipboard capture cancelled - capture is suspended");
+
+                return;
             }
 
             var clip = await GetCurrentClipboardContentAsync(captureCts.Token);

@@ -1,0 +1,58 @@
+using Moq;
+
+namespace ClipMate.Tests.Unit.Services;
+
+public partial class PowerPasteClipboardBridgeTests
+{
+    [Test]
+    [Category("OnPasteDetected")]
+    public async Task OnPasteDetected_AfterDelayElapses_AdvancesSequenceOnce()
+    {
+        // Arrange
+        var bridge = CreateBridge();
+
+        // Act
+        bridge.OnPasteDetected();
+        await Task.Delay(100); // PowerPasteDelay is configured to 20ms in test setup
+
+        // Assert
+        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
+    }
+
+    [Test]
+    [Category("OnPasteDetected")]
+    public async Task OnPasteDetected_CalledRepeatedlyWithinDelayWindow_AdvancesOnlyOnce()
+    {
+        // Arrange - simulates an application probing several clipboard formats for a single paste
+        var bridge = CreateBridge();
+
+        // Act
+        bridge.OnPasteDetected();
+        await Task.Delay(5);
+        bridge.OnPasteDetected();
+        await Task.Delay(5);
+        bridge.OnPasteDetected();
+        await Task.Delay(100);
+
+        // Assert
+        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
+    }
+
+    [Test]
+    [Category("OnPasteDetected")]
+    public async Task OnPasteDetected_CalledAgainAfterPreviousAdvanceCompletes_AdvancesTwice()
+    {
+        // Arrange - two distinct, well-separated pastes should each advance the sequence
+        var bridge = CreateBridge();
+
+        // Act
+        bridge.OnPasteDetected();
+        await Task.Delay(100);
+
+        bridge.OnPasteDetected();
+        await Task.Delay(100);
+
+        // Assert
+        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Exactly(2));
+    }
+}

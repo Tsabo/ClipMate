@@ -422,25 +422,85 @@ public class PreferencesConfiguration
     public List<QuickPasteFormattingString> QuickPasteFormattingStrings { get; set; } =
     [
         new()
-            { Title = "Paste Ctrl+V", Preamble = "", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "*" },
+        {
+            Title = "Paste Ctrl+V",
+            Preamble = "",
+            PasteKeystrokes = "^v",
+            Postamble = "",
+            TitleTrigger = "*",
+        },
         new()
-            { Title = "Paste Shift+Ins", Preamble = "", PasteKeystrokes = "~{INSERT}", Postamble = "", TitleTrigger = "" },
+        {
+            Title = "Paste Shift+Ins",
+            Preamble = "",
+            PasteKeystrokes = "~{INSERT}",
+            Postamble = "",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Paste Edit Menu", Preamble = "", PasteKeystrokes = "@e#PAUSE#p", Postamble = "", TitleTrigger = "" },
+        {
+            Title = "Paste Edit Menu",
+            Preamble = "",
+            PasteKeystrokes = "@e#PAUSE#p",
+            Postamble = "",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Paste + ENTER", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}", TitleTrigger = "" },
+        {
+            Title = "Paste + ENTER",
+            Preamble = "",
+            PasteKeystrokes = "^v",
+            Postamble = "{ENTER}",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Paste + TAB", Preamble = "", PasteKeystrokes = "^v", Postamble = "{TAB}", TitleTrigger = "" },
+        {
+            Title = "Paste + TAB",
+            Preamble = "",
+            PasteKeystrokes = "^v",
+            Postamble = "{TAB}",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Paste + Time", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}Captured At: #DATE# #TIME#", TitleTrigger = "" },
+        {
+            Title = "Paste + Time",
+            Preamble = "",
+            PasteKeystrokes = "^v",
+            Postamble = "{ENTER}Captured At: #DATE# #TIME#",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Current Date_Time", Preamble = "The Date_Time Is:", PasteKeystrokes = "", Postamble = "#CURRENTDATE# #CURRENTTIME#", TitleTrigger = "" },
+        {
+            Title = "Current Date_Time",
+            Preamble = "The Date_Time Is:",
+            PasteKeystrokes = "",
+            Postamble = "#CURRENTDATE# #CURRENTTIME#",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Clip + URL", Preamble = "", PasteKeystrokes = "^v", Postamble = "{ENTER}#URL#", TitleTrigger = "" },
+        {
+            Title = "Clip + URL",
+            Preamble = "",
+            PasteKeystrokes = "^v",
+            Postamble = "{ENTER}#URL#",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Title, Clip, URL", Preamble = "#TITLE#:{ENTER}", PasteKeystrokes = "@e p", Postamble = "{ENTER}URL:#URL#{ENTER}", TitleTrigger = "" },
+        {
+            Title = "Title, Clip, URL",
+            Preamble = "#TITLE#:{ENTER}",
+            PasteKeystrokes = "@e p",
+            Postamble = "{ENTER}URL:#URL#{ENTER}",
+            TitleTrigger = "",
+        },
         new()
-            { Title = "Sequence + Paste", Preamble = "Item Nbr: #SEQUENCE#{TAB}", PasteKeystrokes = "^v", Postamble = "", TitleTrigger = "" },
+        {
+            Title = "Sequence + Paste",
+            Preamble = "Item Nbr: #SEQUENCE#{TAB}",
+            PasteKeystrokes = "^v",
+            Postamble = "",
+            TitleTrigger = "",
+        },
     ];
 
     /// <summary>

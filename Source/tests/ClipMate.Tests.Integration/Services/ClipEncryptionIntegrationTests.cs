@@ -482,7 +482,7 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
         await Assert.That(encryptedClip2!.Encrypted).IsTrue();
 
         // Salts should be different (different keys)
-        await Assert.That(encryptedClip1.EncryptionSalt).IsNotEqualTo(encryptedClip2.EncryptionSalt);
+        await Assert.That(encryptedClip1.EncryptionSalt!).IsNotEqualTo(encryptedClip2.EncryptionSalt!);
 
         // Decrypt clip1 with keyAlpha
         await clipService.DecryptClipsAsync(_testDatabaseKey, [clip1.Id], keyAlpha, true);

@@ -638,11 +638,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             _logger?.LogInformation("Starting PowerPaste in {Direction} direction, Explode={Explode}, Loop={Loop}",
                 direction, MainMenu.IsExplodeMode, MainMenu.IsLoopMode);
 
-            // Get the selected clip(s) from ClipListView
-            // Try multi-selection first, fall back to single selection
-            Clip[] selectedClips;
+            // Get the selected clip(s) from ClipListView, in on-screen top-to-bottom order -
+            // Up/Down direction only makes sense relative to that, not the grid's arbitrary
+            // selection-reporting order. Try multi-selection first, fall back to single selection.
+            IReadOnlyList<Clip> selectedClips;
             if (PrimaryClipList.SelectedClips.Count > 0)
-                selectedClips = PrimaryClipList.SelectedClips.ToArray();
+                selectedClips = PrimaryClipList.GetSelectedClipsInDisplayOrder();
             else if (PrimaryClipList.SelectedClip != null)
                 selectedClips = [PrimaryClipList.SelectedClip];
             else
@@ -651,6 +652,11 @@ public partial class ExplorerWindowViewModel : ObservableObject,
                 SetStatus("Select a clip to start PowerPaste");
                 return;
             }
+
+            // Clips from the grid only carry metadata - hydrate full content before PowerPaste
+            // inspects it (e.g. to decide whether a clip has text to paste)
+            foreach (var clip in selectedClips)
+                await PrimaryClipList.LoadBlobDataAsync(clip);
 
             // Start PowerPaste
             var powerPasteDirection = direction == "Up"
@@ -788,10 +794,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// <summary>
     /// Disposes the view model and unregisters from messenger.
     /// </summary>
-    public void Dispose()
-    {
-        _messenger.UnregisterAll(this);
-    }
+    public void Dispose() => _messenger.UnregisterAll(this);
 
     #endregion
 }

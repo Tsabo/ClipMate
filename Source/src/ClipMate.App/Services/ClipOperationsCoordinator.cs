@@ -899,7 +899,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(PowerPasteDownRequestedEvent message)
     {
-        var selectedClips = _clipListViewModel.SelectedClips;
+        var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
         if (selectedClips.Count == 0)
         {
@@ -909,6 +909,7 @@ public class ClipOperationsCoordinator :
 
         try
         {
+            await HydrateClipsForPowerPasteAsync(selectedClips);
             await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Down);
             _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Down";
             _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
@@ -941,12 +942,13 @@ public class ClipOperationsCoordinator :
                 _powerPasteService.Stop();
 
                 // Start with Up direction
-                var selectedClips = _clipListViewModel.SelectedClips;
+                var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
                 if (selectedClips.Count <= 0)
                     return;
 
                 try
                 {
+                    await HydrateClipsForPowerPasteAsync(selectedClips);
                     await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
                     config.PowerPasteLastDirection = "Up";
                     _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
@@ -971,7 +973,7 @@ public class ClipOperationsCoordinator :
         }
 
         // Off → Down: Start PowerPaste in Down direction
-        var selectedClipsToStart = _clipListViewModel.SelectedClips;
+        var selectedClipsToStart = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
         if (selectedClipsToStart.Count == 0)
         {
@@ -981,6 +983,7 @@ public class ClipOperationsCoordinator :
 
         try
         {
+            await HydrateClipsForPowerPasteAsync(selectedClipsToStart);
             await _powerPasteService.StartAsync(selectedClipsToStart, PowerPasteDirection.Down);
             config.PowerPasteLastDirection = "Down";
             _powerPasteClipIds = selectedClipsToStart.Select(p => p.Id).ToHashSet();
@@ -998,7 +1001,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(PowerPasteUpRequestedEvent message)
     {
-        var selectedClips = _clipListViewModel.SelectedClips;
+        var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
         if (selectedClips.Count == 0)
         {
@@ -1008,6 +1011,7 @@ public class ClipOperationsCoordinator :
 
         try
         {
+            await HydrateClipsForPowerPasteAsync(selectedClips);
             await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
             _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Up";
             _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
@@ -1204,6 +1208,21 @@ public class ClipOperationsCoordinator :
 
         // TODO: Implement non-text stripping (requires deleting ClipData entries and blobs)
         SendStatus("Strip Non-Text: Feature coming in a future update");
+    }
+
+    /// <summary>
+    /// Loads full blob content (TextContent, ImageData, etc.) for clips selected for PowerPaste.
+    /// Clips from the grid only carry metadata until hydrated - PowerPaste needs full content to
+    /// decide how to arm each clip for paste detection.
+    /// </summary>
+    private async Task HydrateClipsForPowerPasteAsync(IReadOnlyList<Clip> clips)
+    {
+        var databaseKey = GetDatabaseKeyForSelectedNode();
+        if (string.IsNullOrEmpty(databaseKey))
+            return;
+
+        foreach (var clip in clips)
+            await _clipService.LoadBlobDataAsync(databaseKey, clip);
     }
 
     /// <summary>

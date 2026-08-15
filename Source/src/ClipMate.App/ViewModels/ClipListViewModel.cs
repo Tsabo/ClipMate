@@ -122,6 +122,15 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Disposes the view model and unregisters from messenger.
+    /// </summary>
+    public void Dispose()
+    {
+        _messenger.UnregisterAll(this);
+        _debouncedClipSelection?.Dispose();
+    }
+
+    /// <summary>
     /// Receives ClipAddedEvent messages from the messenger.
     /// This method is called automatically by the messenger when a ClipAddedEvent is sent.
     /// </summary>
@@ -472,6 +481,38 @@ public partial class ClipListViewModel : ObservableObject,
         {
             _logger.LogError(ex, "[ClipListViewModel] Failed to set clipboard content for clip: {ClipId}", clip.Id);
         }
+    }
+
+    /// <summary>
+    /// Loads a clip's full blob content (TextContent, ImageData, etc.) from the database into its
+    /// transient properties, without touching the clipboard. Clips from the grid only carry
+    /// metadata until hydrated - callers that inspect content (e.g. PowerPaste) must call this first.
+    /// </summary>
+    public async Task LoadBlobDataAsync(Clip clip, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(CurrentDatabaseKey))
+            throw new InvalidOperationException("No database is currently selected");
+
+        await _clipService.LoadBlobDataAsync(CurrentDatabaseKey, clip, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets the currently selected clips ordered to match their position in the displayed grid
+    /// (top to bottom), rather than whatever order the grid's selection API happens to report
+    /// them in (e.g. click/selection order). Used by PowerPaste, where "Up"/"Down" direction only
+    /// makes sense relative to the on-screen list order.
+    /// </summary>
+    public IReadOnlyList<Clip> GetSelectedClipsInDisplayOrder()
+    {
+        var displayIndexById = new Dictionary<Guid, int>();
+        for (var i = 0; i < Clips.Count; i++)
+            displayIndexById[Clips[i].Id] = i;
+
+        return SelectedClips
+            .OrderBy(p => displayIndexById.TryGetValue(p.Id, out var index)
+                ? index
+                : int.MaxValue)
+            .ToList();
     }
 
     /// <summary>
@@ -850,14 +891,5 @@ public partial class ClipListViewModel : ObservableObject,
     {
         if (value)
             IsListView = false;
-    }
-
-    /// <summary>
-    /// Disposes the view model and unregisters from messenger.
-    /// </summary>
-    public void Dispose()
-    {
-        _messenger.UnregisterAll(this);
-        _debouncedClipSelection?.Dispose();
     }
 }

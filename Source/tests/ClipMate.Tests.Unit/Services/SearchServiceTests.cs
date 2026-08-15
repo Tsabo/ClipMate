@@ -16,10 +16,10 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class SearchServiceTests
 {
-    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
-    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IClipRepository> _mockClipRepository;
+    private readonly Mock<ICollectionService> _mockCollectionService;
     private readonly Mock<IConfigurationService> _mockConfigurationService;
+    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
     private readonly Mock<ILogger<SearchService>> _mockLogger;
     private readonly Mock<ISqlValidationService> _mockSqlValidationService;
     private ClipMateDbContext _dbContext = null!;
@@ -49,8 +49,8 @@ public class SearchServiceTests
 
         var config = new ClipMateConfiguration();
         _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
-        _mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>())).Returns(_mockClipRepository.Object);
-        _mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
+        _mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(_mockClipRepository.Object);
+        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
 
         _searchService = new SearchService(
             _mockContextFactory.Object,
@@ -283,9 +283,9 @@ public class SearchServiceTests
         await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(1);
         await Assert.That(config.SavedSearchQueries[0].Name).IsEqualTo("My Search");
         await Assert.That(config.SavedSearchQueries[0].Query).IsEqualTo("test");
-        await Assert.That(config.SavedSearchQueries[0].IsCaseSensitive).IsEqualTo(true);
-        await Assert.That(config.SavedSearchQueries[0].IsRegex).IsEqualTo(false);
-        _mockConfigurationService.Verify(c => c.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        await Assert.That(config.SavedSearchQueries[0].IsCaseSensitive).IsTrue();
+        await Assert.That(config.SavedSearchQueries[0].IsRegex).IsFalse();
+        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]

@@ -22,7 +22,7 @@ public interface IClipboardService
 
     /// <summary>
     /// Starts monitoring the system clipboard for changes.
-    /// Captured clips are published to the <see cref="ClipsChannel"/>.
+    /// Captured clips are published to the <see cref="ClipsChannel" />.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token to stop monitoring.</param>
     /// <returns>A task that completes when monitoring has started.</returns>
@@ -49,4 +49,16 @@ public interface IClipboardService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that completes when the clipboard has been updated.</returns>
     Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Suspends reacting to clipboard change notifications without stopping monitoring or
+    /// completing the clips channel. Used by features (e.g. PowerPaste) that repeatedly modify
+    /// the clipboard themselves and would otherwise have those changes misread as new captures.
+    /// </summary>
+    void SuspendCapture();
+
+    /// <summary>
+    /// Resumes reacting to clipboard change notifications after a prior <see cref="SuspendCapture" />.
+    /// </summary>
+    void ResumeCapture();
 }
