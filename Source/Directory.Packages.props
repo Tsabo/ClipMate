@@ -18,7 +18,7 @@
   </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="JeremyAnsel.HLSL.Targets" Version="2.0.35" />
-    <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.71" />
+    <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />
   </ItemGroup>
   <ItemGroup Label="Configuration Files">
     <PackageVersion Include="Tomlyn.Signed" Version="0.20.0" />
