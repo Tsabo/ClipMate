@@ -89,6 +89,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: AddDevExpressLicense
+        shell: cmd
+        run: |
+          set "DEST=%APPDATA%\DevExpress"
+          if not exist "%DEST%" mkdir "%DEST%"
+          echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
+
       - name: Generate graph
         uses: Tsabo/nugraph-action@master
         with:
