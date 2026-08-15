@@ -110,3 +110,5 @@ jobs:
           project-path: ./Source/ClipMate.sln
           job-summary: 'true'
           dotnet-version: '10.0.x'
+          ignore: |
+            DevExpress.Wpf.Themes.*
