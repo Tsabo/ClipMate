@@ -90,7 +90,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate graph
-        uses: Tsabo/nugraph-action@main
+        uses: Tsabo/nugraph-action@master
         with:
           project-path: ./Source/src/ClipMate.sln
           job-summary: 'true'
