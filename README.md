@@ -1,5 +1,10 @@
 # ClipMate
 
+[![Latest Release](https://img.shields.io/github/v/release/tsabo/clipmate?include_prereleases&style=for-the-badge&logo=github&logoColor=white)](https://github.com/Tsabo/ClipMate/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/tsabo/clipmate/build.yml?branch=master&style=for-the-badge&logo=github&logoColor=white&label=build)](https://github.com/Tsabo/ClipMate/actions/workflows/build.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/tsabo/clipmate/codeql.yml?branch=master&style=for-the-badge&logo=github&logoColor=white&label=codeql)](https://github.com/Tsabo/ClipMate/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/github/license/tsabo/clipmate?style=for-the-badge)](LICENSE)
+
 A modern recreation of the classic ClipMate clipboard manager built with .NET 10 and WPF.
 
 > This project is a modern, open‑source tribute to the original [ClipMate](http://www.clipmate.com/clipmate7.htm)® by
@@ -8,6 +13,14 @@ A modern recreation of the classic ClipMate clipboard manager built with .NET 10
 ![ClipMate Explorer Window](Resources/Images/explorer-window.png)
 
 > 🧪 **Beta Software** - ClipMate has reached feature parity with the original ClipMate and is now in beta testing. While all major features are implemented, you may encounter bugs as we focus on stability and polish. Please report any issues you find!
+
+## Install via WinGet
+
+[![WinGet](https://img.shields.io/winget/v/Tsabo.ClipMate?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/t/Tsabo/ClipMate)
+
+```
+winget install Tsabo.ClipMate
+```
 
 ## Download
 

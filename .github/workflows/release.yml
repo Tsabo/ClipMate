@@ -157,12 +157,17 @@ jobs:
         | **[ClipMate-Portable-$version.zip](https://github.com/${{ github.repository }}/releases/download/v$version/ClipMate-Portable-$version.zip)** | ~$portableSize MB | Portable - requires .NET 10 & WebView2 pre-installed |
 
         ### Installation
-        
+
+        **WinGet:**
+        ``````pwsh
+        winget install Tsabo.ClipMate
+        ``````
+
         **Installer (Recommended):**
         - **Target OS:** Windows 11 or Windows 10 version 1809+
         - **Auto-installs if needed:** .NET 10 Desktop Runtime, WebView2 Runtime
         - Simply download and run - dependencies handled automatically
-        
+
         **Portable:**
         - Extract ZIP and run `ClipMate.exe`
         - Requires [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) pre-installed
