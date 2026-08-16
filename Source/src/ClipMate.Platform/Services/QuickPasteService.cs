@@ -65,8 +65,8 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         _messenger.Register<QuickPasteConfigurationChangedEvent>(this, (_, _) => OnConfigurationChanged());
 
         // Subscribe to QuickPaste action events from menu commands
-        _messenger.Register<QuickPasteSendTabEvent>(this, (_, _) => SendTabKeystroke());
-        _messenger.Register<QuickPasteSendEnterEvent>(this, (_, _) => SendEnterKeystroke());
+        _messenger.Register<QuickPasteSendTabEvent>(this, (_, _) => _ = SendTabKeystroke());
+        _messenger.Register<QuickPasteSendEnterEvent>(this, (_, _) => _ = SendEnterKeystroke());
 
         // Select default formatting string (one with TitleTrigger = "*")
         SelectDefaultFormattingString();
@@ -254,10 +254,18 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     }
 
     /// <inheritdoc />
-    public void SendTabKeystroke() => SendSpecialKey(VIRTUAL_KEY.VK_TAB);
+    public async Task SendTabKeystroke()
+    {
+        await FocusTargetWindowAsync();
+        SendSpecialKey(VIRTUAL_KEY.VK_TAB);
+    }
 
     /// <inheritdoc />
-    public void SendEnterKeystroke() => SendSpecialKey(VIRTUAL_KEY.VK_RETURN);
+    public async Task SendEnterKeystroke()
+    {
+        await FocusTargetWindowAsync();
+        SendSpecialKey(VIRTUAL_KEY.VK_RETURN);
+    }
 
     /// <inheritdoc />
     public void ResetSequence()
@@ -299,6 +307,29 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     public string GetCurrentTargetString() => _currentTarget == null
         ? string.Empty
         : $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
+
+    /// <summary>
+    /// Updates the target (unless locked) and switches focus to it, mirroring the focus-switch step in
+    /// <see cref="PasteClipAsync" />. Needed because TAB/ENTER are triggered from ClipMate's own UI
+    /// (menu click), which steals focus away from the target before the keystroke would otherwise be sent.
+    /// </summary>
+    private async Task FocusTargetWindowAsync()
+    {
+        if (!_targetLocked)
+            UpdateTarget();
+
+        if (_currentTargetWindowHandle == IntPtr.Zero)
+        {
+            _logger.LogWarning("No valid window handle for target application");
+
+            return;
+        }
+
+        _win32.SetForegroundWindow(new HWND(_currentTargetWindowHandle));
+
+        // Give the window time to activate before sending the keystroke.
+        await Task.Delay(300);
+    }
 
     private void OnConfigurationChanged()
     {

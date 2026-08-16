@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text;
+using System.Text.Json;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
 using ClipMate.Data.Dapper;
@@ -69,9 +70,9 @@ public class ClipRepository : IClipRepository
                 })
             .ToListAsync(cancellationToken);
 
-        // Sort in memory and take the requested count
+        // Sort in memory and take the requested count (by manual SortKey, which also correlates with capture order)
         clipsWithFormats = clipsWithFormats
-            .OrderByDescending(p => p.Clip.CapturedAt)
+            .OrderByDescending(p => p.Clip.SortKey)
             .Take(count)
             .ToList();
 
@@ -154,8 +155,8 @@ public class ClipRepository : IClipRepository
             .Where(p => p.CollectionId == collectionId && !p.Del)
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -170,8 +171,8 @@ public class ClipRepository : IClipRepository
             .Where(p => p.FolderId == folderId && !p.Del)
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -186,8 +187,8 @@ public class ClipRepository : IClipRepository
             .Where(p => p.IsFavorite && !p.Del)
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -334,6 +335,94 @@ public class ClipRepository : IClipRepository
         return clipsToDelete.Count;
     }
 
+    /// <inheritdoc />
+    public async Task<bool> ConvertFilePointerToTextAsync(Guid clipId, CancellationToken cancellationToken = default)
+    {
+        var clip = await _context.Clips.FirstOrDefaultAsync(p => p.Id == clipId && !p.Del, cancellationToken);
+        if (clip == null || clip.Type != ClipType.Files)
+            return false;
+
+        var clipDataEntries = await _context.ClipData
+            .Where(p => p.ClipId == clipId)
+            .ToListAsync(cancellationToken);
+
+        var hDropEntry = clipDataEntries.FirstOrDefault(p => p.Format == Formats.HDrop.Code || p.FormatName == Formats.HDrop.Name);
+        var textEntry = clipDataEntries.FirstOrDefault(p => p.Format == Formats.UnicodeText.Code || p.Format == Formats.Text.Code
+                                                                                                 || p.FormatName == Formats.UnicodeText.Name || p.FormatName == Formats.Text.Name);
+
+        if (textEntry == null)
+        {
+            // No text blob captured yet (e.g. AutoExpandHdropFilePointers was off) - derive it from the HDROP file list.
+            if (hDropEntry == null)
+                return false;
+
+            var blobBlob = await _context.BlobBlob.FirstOrDefaultAsync(p => p.ClipDataId == hDropEntry.Id, cancellationToken);
+            if (blobBlob == null)
+                return false;
+
+            var filePathsJson = Encoding.UTF8.GetString(blobBlob.Data);
+            var filePaths = JsonSerializer.Deserialize<List<string>>(filePathsJson) ?? [];
+            var text = string.Join(Environment.NewLine, filePaths);
+
+            var newClipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clipId,
+                FormatName = Formats.UnicodeText.Name,
+                Format = Formats.UnicodeText.Code,
+                Size = text.Length * 2,
+                StorageType = 1, // TEXT
+            };
+
+            _context.ClipData.Add(newClipData);
+            _context.BlobTxt.Add(new BlobTxt
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = newClipData.Id,
+                ClipId = clipId,
+                Data = text,
+            });
+        }
+
+        // Remove the HDROP entry (cascades to its BlobBlob row).
+        if (hDropEntry != null)
+            _context.ClipData.Remove(hDropEntry);
+
+        clip.Type = ClipType.Text;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Refresh cached format flags (HasFiles/HasText/IconGlyph) to reflect the new type immediately.
+        await LoadFormatFlagsAsync([clip], cancellationToken);
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> MoveClipSortOrderAsync(Guid clipId, bool toTop, CancellationToken cancellationToken = default)
+    {
+        var clip = await _context.Clips.FirstOrDefaultAsync(p => p.Id == clipId && !p.Del, cancellationToken);
+        if (clip == null)
+            return false;
+
+        var siblingKeys = await _context.Clips
+            .Where(p => p.CollectionId == clip.CollectionId && !p.Del && p.Id != clipId)
+            .Select(p => p.SortKey)
+            .ToListAsync(cancellationToken);
+
+        if (siblingKeys.Count == 0)
+            return true; // Nothing to reorder against.
+
+        // SortKey is displayed descending (matches insertion/CapturedAt order), so "top" is the max.
+        clip.SortKey = toTop
+            ? siblingKeys.Max() + 100
+            : siblingKeys.Min() - 100;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
     public async Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         return await _context.ClipData
@@ -433,8 +522,8 @@ public class ClipRepository : IClipRepository
         var clips = await _context.Clips
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         await LoadFormatFlagsAsync(clips, cancellationToken);
 
@@ -448,8 +537,8 @@ public class ClipRepository : IClipRepository
             .Where(p => p.Type == type)
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         await LoadFormatFlagsAsync(clips, cancellationToken);
 
@@ -463,8 +552,8 @@ public class ClipRepository : IClipRepository
             .Where(p => p.Label == "Pinned" && !p.Del)
             .ToListAsync(cancellationToken);
 
-        // Sort in memory after fetching
-        clips = clips.OrderByDescending(p => p.CapturedAt).ToList();
+        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
+        clips = clips.OrderByDescending(p => p.SortKey).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);

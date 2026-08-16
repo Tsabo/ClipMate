@@ -62,14 +62,14 @@ public interface IQuickPasteService
     Task<bool> PasteClipAsync(Clip clip, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sends a TAB keystroke to the current target.
+    /// Switches focus to the current target (updating it first, unless locked) and sends a TAB keystroke.
     /// </summary>
-    void SendTabKeystroke();
+    Task SendTabKeystroke();
 
     /// <summary>
-    /// Sends an ENTER keystroke to the current target.
+    /// Switches focus to the current target (updating it first, unless locked) and sends an ENTER keystroke.
     /// </summary>
-    void SendEnterKeystroke();
+    Task SendEnterKeystroke();
 
     /// <summary>
     /// Resets the sequence counter used by #SEQUENCE# macro to 1.

@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using ClipMate.Core.Events;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
@@ -17,7 +16,7 @@ namespace ClipMate.Data.Services;
 /// Service for managing clips (CRUD operations, history management).
 /// Registered as singleton to support multi-database operations via repository factories.
 /// </summary>
-public partial class ClipService : IClipService
+public class ClipService : IClipService
 {
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IClipboardService _clipboardService;
@@ -179,6 +178,20 @@ public partial class ClipService : IClipService
 
         clip.Title = newTitle;
         return await repository.UpdateAsync(clip, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ConvertFilePointerToTextAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
+    {
+        var repository = GetRepository(databaseKey);
+        return await repository.ConvertFilePointerToTextAsync(clipId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> MoveClipSortOrderAsync(string databaseKey, Guid clipId, bool toTop, CancellationToken cancellationToken = default)
+    {
+        var repository = GetRepository(databaseKey);
+        return await repository.MoveClipSortOrderAsync(clipId, toTop, cancellationToken);
     }
 
     /// <inheritdoc />

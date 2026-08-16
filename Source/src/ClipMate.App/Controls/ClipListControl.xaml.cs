@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.Options;
 using Application = System.Windows.Application;
 using Binding = System.Windows.Data.Binding;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using MenuItem = System.Windows.Controls.MenuItem;
 using MessageBox = System.Windows.MessageBox;
 using ModifierKeys = System.Windows.Input.ModifierKeys;
 using Shortcut = ClipMate.Core.Models.Shortcut;
@@ -418,25 +420,62 @@ public partial class ClipListControl
         dialog.ShowDialog();
     }
 
-    private async void PasteNow_Click(object sender, RoutedEventArgs e)
-    {
-        if (SelectedItem == null)
-            return;
+    private async void PasteNow_Click(object sender, RoutedEventArgs e) => await TriggerQuickPasteAsync();
 
-        // Get the parent ViewModel to access SetClipboardContentAsync
-        var app = (App)Application.Current;
-        if (app.ServiceProvider.GetService(typeof(ClipListViewModel)) is ClipListViewModel viewModel)
-            await viewModel.SetClipboardContentAsync(SelectedItem);
-    }
-
-    private void CreateNewClip_Click(object sender, RoutedEventArgs e)
-    {
-        // TODO: Implement create new clip
-    }
+    private void CreateNewClip_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new CreateNewClipRequestedEvent(Guid.Empty));
 
     private void ViewClip_Click(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement view clip
+        var app = (App)Application.Current;
+        if (app.ServiceProvider.GetService(typeof(IClipViewerWindowManager)) is IClipViewerWindowManager viewerManager)
+            viewerManager.ToggleVisibility();
+    }
+
+    private async void QuickPasteTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (_quickPasteService != null)
+            await _quickPasteService.SendTabKeystroke();
+    }
+
+    private async void QuickPasteEnter_Click(object sender, RoutedEventArgs e)
+    {
+        if (_quickPasteService != null)
+            await _quickPasteService.SendEnterKeystroke();
+    }
+
+    private void QuickPasteLockTarget_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem)
+            _quickPasteService?.SetTargetLock(menuItem.IsChecked);
+    }
+
+    private void QuickPasteGoBack_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem)
+            _quickPasteService?.SetGoBackState(menuItem.IsChecked);
+    }
+
+    private void QuickPasteResetSequence_Click(object sender, RoutedEventArgs e)
+    {
+        var app = (App)Application.Current;
+        if (app.ServiceProvider.GetService(typeof(ITemplateService)) is ITemplateService templateService)
+            templateService.ResetSequenceCounter();
+    }
+
+    private void ConvertFilePointer_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new ConvertFilePointerRequestedEvent());
+
+    private void MoveToTop_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new MoveClipSortOrderRequestedEvent(true));
+
+    private void MoveToBottom_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new MoveClipSortOrderRequestedEvent(false));
+
+    private void ShowColumnHeaders_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem)
+            ClipTableView.ShowColumnHeaders = menuItem.IsChecked;
     }
 
     private void ExportClips_Click(object sender, RoutedEventArgs e)
@@ -940,6 +979,10 @@ public partial class ClipListControl
                 _logger.LogDebug("QuickPaste: Could not load clip {ClipId}", selectedClip.Id);
                 return;
             }
+
+            // GetByIdAsync only loads format flags (HasText/HasFiles/etc), not the actual blob
+            // content - load TextContent/ImageData/etc. before handing the clip to QuickPaste.
+            await _clipService.LoadBlobDataAsync(databaseKey, fullClip);
 
             _logger.LogDebug("QuickPaste: Pasting clip (ID: {ClipId}, Title: {Title}) to target application",
                 fullClip.Id, fullClip.Title);

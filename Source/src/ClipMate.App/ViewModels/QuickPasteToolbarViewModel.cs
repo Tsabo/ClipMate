@@ -14,8 +14,6 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<StateRefreshRequestedEvent>, IRecipient<ShortcutModeStatusMessage>, IDisposable
 {
-    private bool _disposed;
-
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
     private readonly IMessenger _messenger;
@@ -29,6 +27,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
 
     [ObservableProperty]
     private string _currentTargetTooltip = "No active window detected";
+
+    private bool _disposed;
 
     [ObservableProperty]
     private ObservableCollection<QuickPasteFormattingString> _formattingStrings = [];
@@ -205,11 +205,11 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     /// Sends a TAB keystroke to the target application.
     /// </summary>
     [RelayCommand]
-    private void SendTab()
+    private async Task SendTab()
     {
         try
         {
-            _quickPasteService.SendTabKeystroke();
+            await _quickPasteService.SendTabKeystroke();
             _logger.LogDebug("TAB keystroke sent");
         }
         catch (Exception ex)
@@ -222,11 +222,11 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     /// Sends an ENTER keystroke to the target application.
     /// </summary>
     [RelayCommand]
-    private void SendEnter()
+    private async Task SendEnter()
     {
         try
         {
-            _quickPasteService.SendEnterKeystroke();
+            await _quickPasteService.SendEnterKeystroke();
             _logger.LogDebug("ENTER keystroke sent");
         }
         catch (Exception ex)

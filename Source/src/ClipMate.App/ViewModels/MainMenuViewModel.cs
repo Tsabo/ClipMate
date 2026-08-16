@@ -494,7 +494,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private void ToggleCase() => _messenger.Send(new CaseConversionRequestedEvent(CaseConversionType.Toggle));
 
     [RelayCommand]
-    private void ConvertFilePointer() { }
+    private void ConvertFilePointer() => _messenger.Send(new ConvertFilePointerRequestedEvent());
 
     [RelayCommand]
     private void UnicodeToAnsi() { }

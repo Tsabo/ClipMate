@@ -45,7 +45,9 @@ public class ClipOperationsCoordinator :
     IRecipient<LockClipsRequestedEvent>,
     IRecipient<ForgetEncryptionKeyRequestedEvent>,
     IRecipient<EncryptionKeyExpiredEvent>,
-    IRecipient<ShowEncryptionCancelledEvent>
+    IRecipient<ShowEncryptionCancelledEvent>,
+    IRecipient<ConvertFilePointerRequestedEvent>,
+    IRecipient<MoveClipSortOrderRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
@@ -113,6 +115,8 @@ public class ClipOperationsCoordinator :
         _messenger.Register<ShowClipPropertiesRequestedEvent>(this);
         _messenger.Register<ClipSelectedEvent>(this);
         _messenger.Register<ShowEncryptionCancelledEvent>(this);
+        _messenger.Register<ConvertFilePointerRequestedEvent>(this);
+        _messenger.Register<MoveClipSortOrderRequestedEvent>(this);
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
     }
@@ -289,6 +293,50 @@ public class ClipOperationsCoordinator :
         finally
         {
             _isDecryptingClip = false;
+        }
+    }
+
+    /// <summary>
+    /// Handles ConvertFilePointerRequestedEvent by converting selected Files-type clips to plain text.
+    /// </summary>
+    public async void Receive(ConvertFilePointerRequestedEvent message)
+    {
+        var selectedClips = _clipListViewModel.SelectedClips.Where(p => p.Type == ClipType.Files).ToList();
+
+        if (selectedClips.Count == 0)
+        {
+            SendStatus("No file-pointer clips selected");
+            return;
+        }
+
+        var databaseKey = GetDatabaseKeyForSelectedNode();
+
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogError("Cannot convert file pointer: database key not found");
+            SendStatus("Error: database not found", true);
+            return;
+        }
+
+        try
+        {
+            var convertedCount = 0;
+            foreach (var item in selectedClips)
+            {
+                if (await _clipService.ConvertFilePointerToTextAsync(databaseKey, item.Id))
+                    convertedCount++;
+            }
+
+            SendStatus($"Converted {convertedCount} clip(s) to text");
+
+            _messenger.Send(new ReloadClipsRequestedEvent());
+
+            _logger.LogInformation("Converted {Count} file-pointer clip(s) to text", convertedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to convert file pointer to text");
+            SendStatus("Error converting file pointer to text", true);
         }
     }
 
@@ -772,6 +820,45 @@ public class ClipOperationsCoordinator :
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error locking clips");
+        }
+    }
+
+    /// <summary>
+    /// Handles MoveClipSortOrderRequestedEvent by moving the selected clip to the top/bottom of its sort order.
+    /// </summary>
+    public async void Receive(MoveClipSortOrderRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+
+        if (selectedClip == null)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        var databaseKey = GetDatabaseKeyForSelectedNode();
+
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogError("Cannot move clip: database key not found");
+            SendStatus("Error: database not found", true);
+            return;
+        }
+
+        try
+        {
+            await _clipService.MoveClipSortOrderAsync(databaseKey, selectedClip.Id, message.ToTop);
+
+            SendStatus(message.ToTop
+                ? "Moved clip to top of sort order"
+                : "Moved clip to bottom of sort order");
+
+            _messenger.Send(new ReloadClipsRequestedEvent());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to move clip sort order");
+            SendStatus("Error moving clip", true);
         }
     }
 

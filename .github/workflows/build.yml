@@ -12,6 +12,40 @@ on:
     branches: [ master, develop ]
 
 jobs:
+  generate-graph:
+    name: Generate NuGet Dependency Graph
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: AddDevExpressLicense
+        shell: cmd
+        run: |
+          set "DEST=%APPDATA%\DevExpress"
+          if not exist "%DEST%" mkdir "%DEST%"
+          echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
+
+      - name: Generate graph
+        uses: Tsabo/nugraph-action@master
+        with:
+          project-path: ./Source/ClipMate.sln
+          job-summary: 'true'
+          dotnet-version: '10.0.x'
+          hide-empty-graphs: 'true'
+          ignore: |
+            DevExpress.*
+            Microsoft.*
+            System.*
+
   build:
     name: Build and Test
     runs-on: windows-latest
@@ -82,35 +116,3 @@ jobs:
         path: build/logs/test-results/**/*.trx
         reporter: dotnet-trx
         fail-on-error: false
-
-  generate-graph:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('Source/Directory.Packages.props') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      - name: AddDevExpressLicense
-        shell: cmd
-        run: |
-          set "DEST=%APPDATA%\DevExpress"
-          if not exist "%DEST%" mkdir "%DEST%"
-          echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
-
-      - name: Generate graph
-        uses: Tsabo/nugraph-action@master
-        with:
-          project-path: ./Source/ClipMate.sln
-          job-summary: 'true'
-          dotnet-version: '10.0.x'
-          ignore: |
-            DevExpress.*
-            Microsoft.*
-            System.*

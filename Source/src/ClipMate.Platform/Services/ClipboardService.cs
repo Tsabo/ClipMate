@@ -817,13 +817,22 @@ public class ClipboardService : IClipboardService, IDisposable
                         return null;
 
                     var filePathsJson = JsonSerializer.Serialize(filePaths);
+                    var text = string.Join(Environment.NewLine, filePaths);
+
+                    // "HDROP Expansion" preference: capture straight to a plain-text clip instead of
+                    // a Files clip, equivalent to running Edit > Convert File Pointer To Text automatically.
+                    var autoExpand = _configurationService.Configuration.Preferences.AutoExpandHdropFilePointers;
 
                     var clip = new Clip
                     {
                         Id = Guid.NewGuid(),
-                        Type = ClipType.Files,
-                        FilePathsJson = filePathsJson,
-                        TextContent = string.Join(Environment.NewLine, filePaths), // For search
+                        Type = autoExpand
+                            ? ClipType.Text
+                            : ClipType.Files,
+                        FilePathsJson = autoExpand
+                            ? null
+                            : filePathsJson,
+                        TextContent = text, // For search, and as the primary content when auto-expanded
                         CapturedAt = DateTimeOffset.Now,
                         // Generate content hash from file paths
                         ContentHash = ContentHasher.HashText(filePathsJson),

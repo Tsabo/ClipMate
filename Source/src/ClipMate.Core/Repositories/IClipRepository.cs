@@ -151,4 +151,23 @@ public interface IClipRepository
     /// <param name="clipIds">Clips to restore.</param>
     /// <param name="targetCollectionId">Target collection for restored clips.</param>
     Task RestoreClipsAsync(IEnumerable<Guid> clipIds, Guid targetCollectionId);
+
+    /// <summary>
+    /// Converts a Files-type clip's HDROP data into plain text listing the file paths, switching
+    /// its Type to Text. No-op (returns false) if the clip isn't found or isn't a Files clip.
+    /// </summary>
+    /// <param name="clipId">The clip's unique identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if converted successfully; otherwise, false.</returns>
+    Task<bool> ConvertFilePointerToTextAsync(Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves a clip to the top or bottom of its collection's manual sort order by adjusting SortKey
+    /// beyond the current min/max of its sibling clips.
+    /// </summary>
+    /// <param name="clipId">The clip's unique identifier.</param>
+    /// <param name="toTop">True to move to the top of the sort order; false to move to the bottom.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if moved successfully; otherwise, false.</returns>
+    Task<bool> MoveClipSortOrderAsync(Guid clipId, bool toTop, CancellationToken cancellationToken = default);
 }

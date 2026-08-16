@@ -303,4 +303,24 @@ public interface IClipService
     /// <param name="clip">The clip to load encrypted content into.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task LoadEncryptedContentAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts a Files-type clip's HDROP data into plain text listing the file paths, switching
+    /// its Type to Text. No-op (returns false) if the clip isn't found or isn't a Files clip.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if converted successfully; otherwise, false.</returns>
+    Task<bool> ConvertFilePointerToTextAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves a clip to the top or bottom of its collection's manual sort order.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="toTop">True to move to the top of the sort order; false to move to the bottom.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if moved successfully; otherwise, false.</returns>
+    Task<bool> MoveClipSortOrderAsync(string databaseKey, Guid clipId, bool toTop, CancellationToken cancellationToken = default);
 }

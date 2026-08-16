@@ -402,6 +402,8 @@ public class PreferencesConfiguration
     public List<string> QuickPasteBadTargets { get; set; } =
     [
         "CLIPMATE:",
+        "EXPLORER:SHELL_TRAYWND",
+        "EXPLORER:NOTIFYICONOVERFLOWWINDOW",
         "POWERPNT:PROPERTIES",
         "WINWORD:MSOCOMMANDBARPOPUP",
         "WINWORD:MSOCOMMANDBARSHADOW",
