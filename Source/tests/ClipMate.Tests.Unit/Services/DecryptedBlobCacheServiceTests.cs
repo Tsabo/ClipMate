@@ -242,13 +242,13 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         _service.CacheDecryptedBlobs(
             clipId,
             blobs,
-            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(3),
             _ => callbackInvoked = true);
 
-        // Act - Clear before expiration
-        await Task.Delay(50);
+        // Act - Clear before expiration (wide margin to tolerate CI scheduling jitter)
+        await Task.Delay(100);
         _service.ClearClip(clipId);
-        await Task.Delay(1500);
+        await Task.Delay(3500);
 
         // Assert - Callback should not have been invoked
         await Assert.That(callbackInvoked).IsFalse();
