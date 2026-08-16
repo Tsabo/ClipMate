@@ -121,4 +121,4 @@ Development in any way. All trademarks and copyrights for the original ClipMateÂ
 **Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Beta** | Version: 0.1.0 | Last Updated: January 26, 2026
+Status: **Beta** | Version: 0.1.0 | Last Updated: August 15, 2026
