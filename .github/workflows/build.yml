@@ -41,6 +41,7 @@ jobs:
           job-summary: 'true'
           dotnet-version: '10.0.x'
           hide-empty-graphs: 'true'
+          title: ''
           ignore: |
             DevExpress.*
             Microsoft.*
