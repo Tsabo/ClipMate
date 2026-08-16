@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] - 2026-8-15
+
 ### Fixed
 - **Manual Cleanup Trigger** - Fixed main menu database cleanup menu item.
+- **PowerPaste Not Detecting Pastes** - PowerPaste now correctly detects when a clip has been pasted into another application and advances to the next clip in the sequence.
+- **Clip Selection Highlight During Hotkey Navigation** - Fixed the highlighted clip not following along when moving through clips with the hotkey; the list now scrolls and highlights the correct clip together.
+- **Append/Glue Clips** - Fixed appended (glued) clips not showing up in the clip list and containing no text. Also added Auto-Append mode, which continuously glues new clips together until turned off.
+- **Clip Context Menu Commands** - Fixed several right-click context menu commands that didn't work (QuickPaste Tools, Create New Clip, View Clip, Convert File Pointer to Text, Move to Top/Bottom, Show Column Headers), and fixed QuickPaste's Paste Now/Tab/Enter actions not actually pasting into the target application.
 
 ## [0.1.0-beta.2] - 2026-1-26
 
