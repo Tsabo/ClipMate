@@ -27,7 +27,13 @@ AppUpdatesURL={#MyAppURL}/releases
 AppCopyright=Copyright © 2026 {#MyAppPublisher}
 
 ; Installation paths
-DefaultDirName={autopf}\{#MyAppName}
+; Per-user only. Do NOT use {autopf}/{auto*} here: those resolve at runtime based on
+; whether setup happens to be elevated, so the install scope is ambiguous. WinGet manifest
+; generation (komac) resolves this directive to decide the Scope key -- it read {autopf}
+; as %ProgramFiles% and published "Scope: machine" for 0.1.0-beta.3, after which
+; `winget upgrade` refused to apply it over the per-user installs people actually had
+; ("No applicable upgrade found"). Pinning to {localappdata} keeps scope deterministic.
+DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
@@ -48,7 +54,10 @@ WizardStyle=modern
 MinVersion=10.0.17763
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
+; Per-user install, never elevate. Empty overrides list means neither the user nor a
+; command-line switch can flip this to a machine-wide install.
 PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=
 
 ; License
 LicenseFile=..\..\LICENSE

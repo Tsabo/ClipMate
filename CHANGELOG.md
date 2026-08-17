@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.4] - 2026-8-17
+
+### Fixed
+- **WinGet Upgrade Blocked** - `winget upgrade` reported "No applicable upgrade found" for anyone on 0.1.0-beta.2 or earlier. The installer used Inno Setup's `{autopf}` directory constant, which resolves to either Program Files or the user's local app data depending on whether setup happens to be elevated. WinGet manifest generation read that as a machine-wide install and published `Scope: machine`, which WinGet then refused to apply over the per-user installs people actually had. The installer is now explicitly per-user and installs to `%LOCALAPPDATA%\Programs\ClipMate`.
+- **Clip Database Deleted On Uninstall** - Uninstalling ClipMate silently deleted `%LOCALAPPDATA%\ClipMate`, destroying your entire clip database and settings with no warning or opportunity to back them up. Uninstall now keeps your data by default and asks before removing it.
+
+### Note for existing users
+If you installed 0.1.0-beta.3 from an elevated (Administrator) terminal, ClipMate landed in `C:\Program Files\ClipMate` and WinGet will not upgrade it to this per-user release. Back up `%LOCALAPPDATA%\ClipMate`, uninstall, then reinstall with `winget install Tsabo.ClipMate`.
+
 ## [0.1.0-beta.3] - 2026-8-15
 
 ### Fixed
