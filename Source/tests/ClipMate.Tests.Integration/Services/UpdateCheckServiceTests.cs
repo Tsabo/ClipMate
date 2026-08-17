@@ -20,6 +20,16 @@ public class UpdateCheckServiceTests : IDisposable
 
     private UpdateCheckService CreateService() => new(_httpClient, _logger.Object);
 
+    /// <summary>
+    /// UpdateCheckService swallows HTTP failures and returns null, so a null result can mean
+    /// either "no update found" or "the GitHub API call failed" (e.g. rate limiting on shared
+    /// CI runner IPs). The service logs an error only on the failure path.
+    /// </summary>
+    private bool LoggedApiFailure() =>
+        _logger.Invocations.Any(i =>
+            i.Method.Name == nameof(ILogger.Log) &&
+            i.Arguments[0] is LogLevel.Error);
+
     [Test]
     [Category("Integration")]
     [Category("External")]
@@ -33,6 +43,7 @@ public class UpdateCheckServiceTests : IDisposable
         var result = await service.CheckForUpdatesAsync(currentVersion, true);
 
         // Assert
+        Skip.When(result == null && LoggedApiFailure(), "GitHub API request failed (e.g. rate limited) rather than genuinely finding no update");
         await Assert.That(result).IsNotNull();
         await Assert.That(result!.Version).IsNotEqualTo(currentVersion);
 
