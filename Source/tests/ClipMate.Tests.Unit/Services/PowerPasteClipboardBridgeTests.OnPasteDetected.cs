@@ -13,7 +13,7 @@ public partial class PowerPasteClipboardBridgeTests
 
         // Act
         bridge.OnPasteDetected();
-        await Task.Delay(500); // PowerPasteDelay is configured to 200ms in test setup
+        await WaitForAdvanceCallsAsync(1, TimeSpan.FromSeconds(5)); // PowerPasteDelay is configured to 200ms in test setup
 
         // Assert
         _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
@@ -34,7 +34,7 @@ public partial class PowerPasteClipboardBridgeTests
         bridge.OnPasteDetected();
         await Task.Delay(30);
         bridge.OnPasteDetected();
-        await Task.Delay(500);
+        await WaitForAdvanceCallsAsync(1, TimeSpan.FromSeconds(5));
 
         // Assert
         _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
@@ -49,10 +49,10 @@ public partial class PowerPasteClipboardBridgeTests
 
         // Act
         bridge.OnPasteDetected();
-        await Task.Delay(500);
+        await WaitForAdvanceCallsAsync(1, TimeSpan.FromSeconds(5));
 
         bridge.OnPasteDetected();
-        await Task.Delay(500);
+        await WaitForAdvanceCallsAsync(2, TimeSpan.FromSeconds(5));
 
         // Assert
         _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Exactly(2));

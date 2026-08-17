@@ -43,6 +43,24 @@ public partial class PowerPasteClipboardBridgeTests
         _mockConfigService.Object,
         _mockLogger.Object);
 
+    /// <summary>
+    /// OnPasteDetected advances the sequence on a background Task.Run after a real-time debounce
+    /// delay, so tests must wait for it rather than assume a fixed sleep completes in time - CI
+    /// runners under load can stall the threadpool well past the nominal delay.
+    /// </summary>
+    private async Task WaitForAdvanceCallsAsync(int expectedCount, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var actual = _mockPowerPasteService.Invocations.Count(i => i.Method.Name == nameof(IPowerPasteService.AdvanceToNextAsync));
+            if (actual >= expectedCount)
+                return;
+
+            await Task.Delay(20);
+        }
+    }
+
     private static Clip CreateTextClip(string text = "Hello") => new()
     {
         Id = Guid.NewGuid(),
