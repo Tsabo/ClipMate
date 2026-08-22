@@ -83,17 +83,18 @@ ClipMate uses the following open-source and commercial libraries:
 **Key Dependencies**:
 - **DevExpress WPF 25.2.3** - UI controls and theming (**Commercial license required**)
 - **Monaco Editor 0.52.0** - Code/text editing via WebView2 (MIT)
-- **CommunityToolkit.Mvvm 8.4.0** - MVVM infrastructure (MIT)
+- **CommunityToolkit.Mvvm 8.4.2** - MVVM infrastructure (MIT)
 - **Entity Framework Core 10.0** - Data access (MIT)
-- **Serilog 4.3.0** - Structured logging (Apache 2.0)
-- **Dapper 2.1.66** - Micro-ORM (Apache 2.0)
+- **Serilog 4.4.0** - Structured logging (Apache 2.0)
+- **Dapper 2.1.79** - Micro-ORM (Apache 2.0)
 - **Tomlyn.Signed 0.20.0** - TOML parsing (BSD-2-Clause)
-- **NAudio 2.2.1** - Sound playback (MIT)
-- **ThrottleDebounce 2.0.1** - Debouncing for auto-save operations (Apache 2.0)
-- **TUnit 1.12.43** - Testing framework (MIT)
+- **NAudio 2.3.0** - Sound playback (MIT)
+- **ThrottleDebounce 2.0.2** - Debouncing for auto-save operations (Apache 2.0)
+- **TUnit 1.65.0** - Testing framework (MIT)
+- **Moq 4.20.72** - Mocking framework for unit tests (BSD-3-Clause)
 
 **Build Tools**:
-- **Cake Build 5.0.0** - Build automation (MIT)
+- **Cake Build 4.2.0** - Build automation (MIT)
 - **nanoemoji** - Color font generation (Apache 2.0)
 - **fonttools** - Font manipulation library (MIT)
 - **Ninja** - Build system (Apache 2.0)
@@ -121,4 +122,4 @@ Development in any way. All trademarks and copyrights for the original ClipMateÂ
 **Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Beta** | Version: 0.1.0 | Last Updated: August 15, 2026
+Status: **Beta** | Version: 0.1.0 | Last Updated: August 22, 2026

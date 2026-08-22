@@ -86,7 +86,7 @@ TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/abbaye/WpfHexEditorControl  
-**Copyright**: Derek John Abbotts (Abbaye) and contributors  
+**Copyright**: Derek Tremblay and contributors  
 **Used for**: Binary content viewing and hex editing
 
 **License Text**:
@@ -95,7 +95,7 @@ Apache License
 Version 2.0, January 2004
 http://www.apache.org/licenses/
 
-Copyright [2024] [Derek John Abbotts (Abbaye)]
+Copyright [2024] [Derek Tremblay]
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -133,7 +133,7 @@ limitations under the License.
 
 ### UI Frameworks
 
-#### CommunityToolkit.Mvvm (v8.4.0)
+#### CommunityToolkit.Mvvm (v8.4.2)
 
 **License**: MIT  
 **Source**: https://github.com/CommunityToolkit/dotnet  
@@ -156,7 +156,7 @@ limitations under the License.
 
 ---
 
-#### LinkingMountains.ImageZoom (v1.0.0)
+#### LinkingMountains.ImageZoom (v1.0.3)
 
 **License**: MIT  
 **Source**: https://github.com/LinkingMountains/ImageZoom  
@@ -173,6 +173,17 @@ limitations under the License.
 **Used for**: HTML preview using Microsoft Edge WebView2
 
 **License**: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3650.58/License
+
+---
+
+#### HtmlRenderer.WPF (v1.6.1)
+
+**License**: BSD 3-Clause License  
+**Source**: https://github.com/ArthurHub/HTML-Renderer  
+**Copyright**: Arthur Teplitzki  
+**Used for**: Rendering HTML content in WPF controls
+
+**License**: https://licenses.nuget.org/BSD-3-Clause
 
 ---
 
@@ -210,7 +221,7 @@ SOFTWARE.
 
 ---
 
-#### ThrottleDebounce (v2.0.1)
+#### ThrottleDebounce (v2.0.2)
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/Aldaviva/ThrottleDebounce  
@@ -262,7 +273,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-#### Dapper (v2.1.66)
+#### Dapper (v2.1.79)
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/DapperLib/Dapper  
@@ -275,7 +286,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ### Logging
 
-#### Serilog (v4.3.0)
+#### Serilog (v4.4.0)
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/serilog/serilog  
@@ -286,7 +297,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-#### NAudio (v2.2.1)
+#### NAudio (v2.3.0)
 
 **License**: MIT  
 **Source**: https://github.com/naudio/NAudio  
@@ -299,7 +310,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ### Build Tools
 
-#### Cake Build (v5.0.0)
+#### Cake Build (v4.2.0)
 
 **License**: MIT  
 **Source**: https://github.com/cake-build/cake  
@@ -356,7 +367,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ### Testing
 
-#### TUnit (v1.12.43)
+#### TUnit (v1.65.0)
 
 **License**: MIT  
 **Source**: https://github.com/thomhurst/TUnit  
@@ -425,10 +436,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 The following Microsoft libraries are used under the MIT License:
 
-- **Microsoft.EntityFrameworkCore.Sqlite** (v10.0.2) - Entity Framework Core SQLite provider
-- **Microsoft.Data.Sqlite** (v10.0.2) - SQLite ADO.NET provider
-- **Microsoft.Extensions.*** (v10.0.2) - Dependency injection, logging, hosting abstractions
-- **Microsoft.Windows.CsWin32** (v0.3.269) - Windows API source generator
+- **Microsoft.EntityFrameworkCore.Sqlite** (v10.0.11) - Entity Framework Core SQLite provider
+- **Microsoft.Data.Sqlite** (v10.0.11) - SQLite ADO.NET provider
+- **Microsoft.Extensions.*** (v10.0.11) - Dependency injection, logging, hosting abstractions
+- **Microsoft.Windows.CsWin32** (v0.3.298) - Windows API source generator
+- **System.Security.Cryptography.Xml** (v10.0.11) - Pinned as a security override to avoid known high severity vulnerabilities in 8.0.2 (GHSA-37gx-xxp4-5rgx, GHSA-w3x6-4m5h-cxqf)
 
 **Copyright**: Microsoft Corporation  
 **License**: https://opensource.org/licenses/MIT
@@ -464,6 +476,7 @@ The use of DevExpress components is clearly separated in the codebase and can be
 | CommunityToolkit.Mvvm | MIT | ✅ Yes | ✅ Yes |
 | DevExpress WPF | **Commercial** | ✅ Yes | **License Required** |
 | Monaco Editor | MIT | ✅ Yes | ✅ Yes |
+| HtmlRenderer.WPF | BSD-3-Clause | ✅ Yes | ✅ Yes |
 | ThrottleDebounce | Apache 2.0 | ✅ Yes | ✅ Yes |
 | Tomlyn.Signed | BSD-2-Clause | ✅ Yes | ✅ Yes |
 | Dapper | Apache 2.0 | ✅ Yes | ✅ Yes |
@@ -479,6 +492,6 @@ The use of DevExpress components is clearly separated in the codebase and can be
 
 ---
 
-**Last Updated**: January 10, 2026
+**Last Updated**: August 22, 2026
 
 For the most up-to-date license information, please refer to the individual package repositories and official license files.
