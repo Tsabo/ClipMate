@@ -37,6 +37,11 @@
             <options:GeneralOptionsControl DataContext="{Binding General}" />
         </dx:DXTabItem>
 
+        <!-- Appearance Tab -->
+        <dx:DXTabItem Header="Appearance">
+            <options:AppearanceOptionsControl DataContext="{Binding Appearance}" />
+        </dx:DXTabItem>
+
         <!-- Pasting Tab -->
         <dx:DXTabItem Header="Pasting">
             <options:PastingOptionsControl DataContext="{Binding PowerPaste}" />

@@ -7,6 +7,7 @@
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
+             xmlns:dialogs="clr-namespace:ClipMate.App.Views.Dialogs"
              d:DataContext="{d:DesignInstance Type=vm:EditorOptionsViewModel}"
              mc:Ignorable="d">
 
@@ -82,7 +83,10 @@
             <!-- Theme -->
             <dxlc:LayoutItem Label="Theme:" LabelPosition="Left">
                 <dxe:ComboBoxEdit Text="{Binding EditorTheme, UpdateSourceTrigger=PropertyChanged}"
-                                  ToolTip="Select the editor color theme">
+                                  IsEnabled="{Binding DataContext.Appearance.MonacoThemeFollowsAppTheme,
+                                                       RelativeSource={RelativeSource AncestorType={x:Type dialogs:OptionsDialog}},
+                                                       Converter={StaticResource InverseBoolConverter}}"
+                                  ToolTip="Select the editor color theme. Disabled while 'Text editor theme follows application theme' is enabled on the Appearance tab.">
                     <dxe:ComboBoxEditItem Content="vs-light" />
                     <dxe:ComboBoxEditItem Content="vs-dark" />
                     <dxe:ComboBoxEditItem Content="hc-black" />

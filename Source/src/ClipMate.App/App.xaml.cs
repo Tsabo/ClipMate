@@ -9,6 +9,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
 using ClipMate.Platform.DependencyInjection;
+using DevExpress.Xpf.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -320,6 +321,8 @@ public partial class App
 
         Log.Logger = SerilogConfigurationFactory.CreateConfiguredLogger(_eventLogSink, configuration);
 
+        ApplyApplicationTheme(configuration.Appearance.AppTheme);
+
         return Host.CreateDefaultBuilder()
             .UseSerilog() // Use Serilog for logging
             .ConfigureAppConfiguration(p => p.SetBasePath(AppContext.BaseDirectory))
@@ -340,6 +343,17 @@ public partial class App
                 // Register App services
                 services.AddClipMateApp();
             });
+    }
+
+    /// <summary>
+    /// Applies the DevExpress application theme corresponding to the configured <see cref="AppTheme"/>.
+    /// Must run before any <c>ThemedWindow</c> is constructed.
+    /// </summary>
+    internal static void ApplyApplicationTheme(AppTheme appTheme)
+    {
+        ApplicationThemeHelper.ApplicationThemeName = appTheme == AppTheme.Dark
+            ? Theme.Office2019BlackName
+            : Theme.Office2019ColorfulName;
     }
 
     /// <summary>

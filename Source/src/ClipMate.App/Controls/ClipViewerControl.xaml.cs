@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
@@ -1410,6 +1409,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         BinaryTab.Visibility = preferences.EnableBinaryView
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        // Push updated Monaco options (e.g. theme) to the already-open editor
+        _ = TextEditor.UpdateOptionsAsync();
 
         _logger.LogDebug("[ClipViewer] Applied editor settings - BinaryTab visible: {BinaryVisible}",
             preferences.EnableBinaryView);

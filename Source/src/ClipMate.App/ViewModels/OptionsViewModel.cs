@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -25,6 +26,7 @@ public partial class OptionsViewModel : ObservableObject
         IMessenger messenger,
         ILogger<OptionsViewModel> logger,
         GeneralOptionsViewModel generalOptionsViewModel,
+        AppearanceOptionsViewModel appearanceOptionsViewModel,
         PowerPasteOptionsViewModel powerPasteOptionsViewModel,
         QuickPasteOptionsViewModel quickPasteOptionsViewModel,
         EditorOptionsViewModel editorOptionsViewModel,
@@ -42,6 +44,7 @@ public partial class OptionsViewModel : ObservableObject
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         General = generalOptionsViewModel ?? throw new ArgumentNullException(nameof(generalOptionsViewModel));
+        Appearance = appearanceOptionsViewModel ?? throw new ArgumentNullException(nameof(appearanceOptionsViewModel));
         PowerPaste = powerPasteOptionsViewModel ?? throw new ArgumentNullException(nameof(powerPasteOptionsViewModel));
         QuickPaste = quickPasteOptionsViewModel ?? throw new ArgumentNullException(nameof(quickPasteOptionsViewModel));
         Editor = editorOptionsViewModel ?? throw new ArgumentNullException(nameof(editorOptionsViewModel));
@@ -59,6 +62,7 @@ public partial class OptionsViewModel : ObservableObject
 
     // Child ViewModels for each tab
     public GeneralOptionsViewModel General { get; }
+    public AppearanceOptionsViewModel Appearance { get; }
     public PowerPasteOptionsViewModel PowerPaste { get; }
     public QuickPasteOptionsViewModel QuickPaste { get; }
     public EditorOptionsViewModel Editor { get; }
@@ -83,12 +87,13 @@ public partial class OptionsViewModel : ObservableObject
         SelectedTabIndex = tabName.ToUpperInvariant() switch
         {
             "GENERAL" => 0,
-            "PASTING" => 1,
-            "QUICKPASTE" => 2,
-            "EDITOR" => 3,
-            "CAPTURING" => 4,
-            "APPPROFILES" => 5,
-            "FONTLANGUAGE" => 6,
+            "APPEARANCE" => 1,
+            "PASTING" => 2,
+            "QUICKPASTE" => 3,
+            "EDITOR" => 4,
+            "CAPTURING" => 5,
+            "APPPROFILES" => 6,
+            "FONTLANGUAGE" => 7, // Tab is currently commented out in OptionsDialog.xaml; unreachable.
             "SOUNDS" => 7,
             "HOTKEYS" => 8,
             "DATABASE" => 9,
@@ -107,6 +112,7 @@ public partial class OptionsViewModel : ObservableObject
     public async Task LoadConfigurationAsync()
     {
         await General.LoadAsync();
+        Appearance.LoadAsync();
         PowerPaste.LoadAsync();
         QuickPaste.LoadAsync();
         Editor.LoadAsync();
@@ -132,6 +138,7 @@ public partial class OptionsViewModel : ObservableObject
         {
             // Save from all child ViewModels
             await General.SaveAsync();
+            Appearance.SaveAsync();
             PowerPaste.SaveAsync();
             QuickPaste.SaveAsync();
             Editor.SaveAsync();
@@ -144,8 +151,21 @@ public partial class OptionsViewModel : ObservableObject
             Encryption.SaveToConfiguration(_configurationService.Configuration.Encryption);
             Print.SaveAsync();
 
+            // If the Monaco editor theme follows the app theme, override whatever the Editor
+            // tab saved with the theme matching the newly saved app theme.
+            var appearanceConfig = _configurationService.Configuration.Appearance;
+            if (appearanceConfig.MonacoThemeFollowsAppTheme)
+            {
+                _configurationService.Configuration.MonacoEditor.Theme = appearanceConfig.AppTheme == AppTheme.Dark
+                    ? "vs-dark"
+                    : "vs-light";
+            }
+
             // Save to disk
             await _configurationService.SaveAsync();
+
+            // Apply the DevExpress application theme
+            App.ApplyApplicationTheme(appearanceConfig.AppTheme);
 
             // Broadcast preferences changed event
             _messenger.Send(new PreferencesChangedEvent());

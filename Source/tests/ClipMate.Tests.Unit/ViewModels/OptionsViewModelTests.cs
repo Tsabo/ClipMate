@@ -15,6 +15,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public class OptionsViewModelTests
 {
     private AdvancedOptionsViewModel _advancedViewModel = null!;
+    private AppearanceOptionsViewModel _appearanceViewModel = null!;
     private ApplicationProfilesOptionsViewModel _applicationProfilesViewModel = null!;
     private CapturingOptionsViewModel _capturingViewModel = null!;
     private DatabaseOptionsViewModel _databaseViewModel = null!;
@@ -54,6 +55,7 @@ public class OptionsViewModelTests
         {
             Preferences = new ConfigModels.PreferencesConfiguration(),
             MonacoEditor = new ConfigModels.MonacoEditorConfiguration(),
+            Appearance = new ConfigModels.AppearanceConfiguration(),
         };
 
         _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
@@ -64,6 +66,10 @@ public class OptionsViewModelTests
             _mockStartupManager.Object,
             _mockMessenger.Object,
             new Mock<ILogger<GeneralOptionsViewModel>>().Object);
+
+        _appearanceViewModel = new AppearanceOptionsViewModel(
+            _mockConfigurationService.Object,
+            new Mock<ILogger<AppearanceOptionsViewModel>>().Object);
 
         _powerPasteViewModel = new PowerPasteOptionsViewModel(
             _mockConfigurationService.Object,
@@ -123,6 +129,7 @@ public class OptionsViewModelTests
             _mockMessenger.Object,
             _mockLogger.Object,
             _generalViewModel,
+            _appearanceViewModel,
             _powerPasteViewModel,
             _quickPasteViewModel,
             _editorViewModel,
@@ -148,6 +155,7 @@ public class OptionsViewModelTests
             _mockMessenger.Object,
             _mockLogger.Object,
             _generalViewModel,
+            _appearanceViewModel,
             _powerPasteViewModel,
             _quickPasteViewModel,
             _editorViewModel,

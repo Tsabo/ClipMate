@@ -72,4 +72,9 @@ public class ClipMateConfiguration
     /// Gets or sets the print configuration.
     /// </summary>
     public PrintConfiguration Print { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the appearance/theming configuration.
+    /// </summary>
+    public AppearanceConfiguration Appearance { get; set; } = new();
 }

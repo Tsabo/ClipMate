@@ -1,0 +1,47 @@
+<UserControl x:Class="ClipMate.App.Views.Options.AppearanceOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
+             d:DataContext="{d:DesignInstance Type=vm:AppearanceOptionsViewModel}"
+             mc:Ignorable="d">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+
+        <!-- Theme Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Theme" Orientation="Vertical">
+
+            <dxlc:LayoutItem Label="Application theme:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Light"
+                                 IsChecked="{Binding AppTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:AppTheme.Light}}"
+                                 GroupName="AppTheme" Margin="0,0,5,0" />
+                    <RadioButton Content="Dark"
+                                 IsChecked="{Binding AppTheme, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:AppTheme.Dark}}"
+                                 GroupName="AppTheme" />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Text editor theme follows application theme"
+                               IsChecked="{Binding MonacoThemeFollowsAppTheme}"
+                               ToolTip="Automatically switch the clip text editor between its light and dark theme to match the application theme. Uncheck to pick the editor theme manually on the Editor tab." />
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Reset Button -->
+        <dxlc:LayoutItem>
+            <Button Content="Reset to Defaults"
+                    Command="{Binding ResetToDefaultsCommand}"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0" />
+        </dxlc:LayoutItem>
+
+    </dxlc:LayoutControl>
+
+</UserControl>

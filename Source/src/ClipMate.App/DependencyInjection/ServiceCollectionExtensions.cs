@@ -96,6 +96,7 @@ public static class ServiceCollectionExtensions
 
         // Register Options dialog components
         services.AddTransient<GeneralOptionsViewModel>();
+        services.AddTransient<AppearanceOptionsViewModel>();
         services.AddTransient<PowerPasteOptionsViewModel>();
         services.AddTransient<QuickPasteOptionsViewModel>();
         services.AddTransient<EditorOptionsViewModel>();
