@@ -113,8 +113,12 @@ public partial class App
 
             // Run startup orchestration (initialization, maintenance, window creation)
             // This MUST happen before starting hosted services so active collection is set
+            var forceBackupPrompt = e.Args.Any(p => p.TrimStart('-', '/').Equals("force-backup-prompt", StringComparison.OrdinalIgnoreCase));
+            if (forceBackupPrompt)
+                Log.Information("Force backup prompt requested via command-line switch");
+
             var startupService = ServiceProvider.GetRequiredService<StartupOrchestrationService>();
-            await startupService.RunAsync();
+            await startupService.RunAsync(forceBackupPrompt);
 
             // Start all hosted services (clipboard monitoring, PowerPaste, etc)
             await _host.StartAsync();

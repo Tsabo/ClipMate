@@ -12,7 +12,7 @@ namespace ClipMate.App.Views.Dialogs;
 /// </summary>
 public partial class DatabaseBackupDialog
 {
-    private readonly DispatcherTimer? _countdownTimer;
+    private readonly DispatcherTimer _countdownTimer;
     private readonly DatabaseBackupViewModel _viewModel;
     private bool _userInteracted;
 
@@ -31,20 +31,16 @@ public partial class DatabaseBackupDialog
         _viewModel = new DatabaseBackupViewModel(databaseConfig, globalBackupIntervalDays, globalAutoConfirmSeconds);
         DataContext = _viewModel;
 
-        // Setup countdown timer if auto-confirm is enabled
-        if (_viewModel is { AutoConfirmEnabled: true, AutoConfirmSeconds: > 0 })
+        _countdownTimer = new DispatcherTimer
         {
-            _viewModel.CountdownSeconds = _viewModel.AutoConfirmSeconds;
-            _viewModel.CountdownVisible = true;
+            Interval = TimeSpan.FromSeconds(1),
+        };
 
-            _countdownTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1),
-            };
+        _countdownTimer.Tick += CountdownTimer_Tick;
 
-            _countdownTimer.Tick += CountdownTimer_Tick;
-            _countdownTimer.Start();
-        }
+        // Start the countdown timer if auto-confirm is enabled
+        if (_viewModel is { AutoConfirmEnabled: true, AutoConfirmSeconds: > 0 })
+            StartCountdown();
 
         Loaded += OnLoaded;
     }
@@ -59,6 +55,11 @@ public partial class DatabaseBackupDialog
     /// </summary>
     public bool ShouldBackup { get; private set; }
 
+    /// <summary>
+    /// Gets whether the backup was confirmed automatically by the countdown timer, rather than by the user.
+    /// </summary>
+    public bool AutoConfirmed { get; private set; }
+
     private void OnLoaded(object sender, RoutedEventArgs e) => Title = $"ClipMate Database [{_viewModel.DatabaseName}] Backup";
 
     private void CountdownTimer_Tick(object? sender, EventArgs e)
@@ -66,7 +67,7 @@ public partial class DatabaseBackupDialog
         if (_userInteracted)
         {
             // User interacted, stop countdown
-            _countdownTimer?.Stop();
+            _countdownTimer.Stop();
             _viewModel.CountdownVisible = false;
             return;
         }
@@ -75,16 +76,31 @@ public partial class DatabaseBackupDialog
 
         if (_viewModel.CountdownSeconds <= 0)
         {
-            _countdownTimer?.Stop();
+            _countdownTimer.Stop();
             // Auto-confirm the dialog
+            AutoConfirmed = true;
             PerformBackup();
         }
+    }
+
+    private void StartCountdown()
+    {
+        _userInteracted = false;
+        _viewModel.CountdownSeconds = _viewModel.AutoConfirmSeconds;
+        _viewModel.CountdownVisible = true;
+        _countdownTimer.Start();
     }
 
     private void OnUserInteraction(object sender, RoutedEventArgs e)
     {
         _userInteracted = true;
         _viewModel.CountdownVisible = false;
+    }
+
+    private void AutoConfirmCheckEdit_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.AutoConfirmSeconds > 0)
+            StartCountdown();
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -115,6 +131,12 @@ public partial class DatabaseBackupDialog
         // Validate backup directory
         if (string.IsNullOrWhiteSpace(_viewModel.BackupDirectory))
         {
+            if (AutoConfirmed)
+            {
+                _viewModel.CountdownVisible = false;
+                return;
+            }
+
             DXMessageBox.Show(
                 this,
                 "Please specify a backup directory.",
@@ -130,32 +152,48 @@ public partial class DatabaseBackupDialog
         // Check if directory exists
         if (!Directory.Exists(expandedPath))
         {
-            var result = DXMessageBox.Show(
-                this,
-                $"The backup directory does not exist:\n{expandedPath}\n\nWould you like to create it?",
-                "Directory Not Found",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Cancel)
-                return;
-
-            if (result == MessageBoxResult.Yes)
+            if (AutoConfirmed)
             {
+                // No one is watching to answer the prompt, so create it silently.
                 try
                 {
                     Directory.CreateDirectory(expandedPath);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    DXMessageBox.Show(
-                        this,
-                        $"Failed to create backup directory:\n{ex.Message}",
-                        "Error",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-
+                    _viewModel.CountdownVisible = false;
                     return;
+                }
+            }
+            else
+            {
+                var result = DXMessageBox.Show(
+                    this,
+                    $"The backup directory does not exist:\n{expandedPath}\n\nWould you like to create it?",
+                    "Directory Not Found",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Cancel)
+                    return;
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(expandedPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        DXMessageBox.Show(
+                            this,
+                            $"Failed to create backup directory:\n{ex.Message}",
+                            "Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+
+                        return;
+                    }
                 }
             }
         }
@@ -171,6 +209,12 @@ public partial class DatabaseBackupDialog
             }
             catch (UnauthorizedAccessException)
             {
+                if (AutoConfirmed)
+                {
+                    _viewModel.CountdownVisible = false;
+                    return;
+                }
+
                 DXMessageBox.Show(
                     this,
                     $"You do not have write permissions for the backup directory:\n{expandedPath}",
@@ -183,7 +227,7 @@ public partial class DatabaseBackupDialog
         }
 
         // Stop timer if running
-        _countdownTimer?.Stop();
+        _countdownTimer.Stop();
 
         // Update configuration with new settings
         UpdatedConfiguration = _viewModel.ToConfiguration();
@@ -195,7 +239,7 @@ public partial class DatabaseBackupDialog
     private void CancelButton_Click(object sender, RoutedEventArgs e)
     {
         _userInteracted = true;
-        _countdownTimer?.Stop();
+        _countdownTimer.Stop();
         ShouldBackup = false;
         DialogResult = false;
         Close();
@@ -203,7 +247,7 @@ public partial class DatabaseBackupDialog
 
     protected override void OnClosed(EventArgs e)
     {
-        _countdownTimer?.Stop();
+        _countdownTimer.Stop();
         base.OnClosed(e);
     }
 }

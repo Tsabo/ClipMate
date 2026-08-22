@@ -21,8 +21,10 @@ public class MultipleDatabaseBackupViewModel : ObservableObject
         int globalBackupIntervalDays,
         int globalAutoConfirmSeconds)
     {
-        DatabaseItems = new ObservableCollection<DatabaseBackupItem>(
-            configs.Select(c => new DatabaseBackupItem(c)));
+        DatabaseItems =
+        [
+            .. configs.Select(c => new DatabaseBackupItem(c)),
+        ];
 
         _sharedBackupDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -81,20 +83,32 @@ public class MultipleDatabaseBackupViewModel : ObservableObject
     public int CountdownSeconds
     {
         get => _countdownSeconds;
-        set => SetProperty(ref _countdownSeconds, value);
+        set
+        {
+            if (SetProperty(ref _countdownSeconds, value))
+                OnPropertyChanged(nameof(BackupButtonText));
+        }
     }
 
     public bool CountdownVisible
     {
         get => _countdownVisible;
-        set => SetProperty(ref _countdownVisible, value);
+        set
+        {
+            if (SetProperty(ref _countdownVisible, value))
+                OnPropertyChanged(nameof(BackupButtonText));
+        }
     }
+
+    public string BackupButtonText => CountdownVisible
+        ? $"Backup Selected ({CountdownSeconds})"
+        : "Backup Selected";
 
     public string SelectedCountText
     {
         get
         {
-            var count = DatabaseItems.Count(d => d.IsSelected);
+            var count = DatabaseItems.Count(p => p.IsSelected);
             return count == 1
                 ? "1 database"
                 : $"{count} databases";

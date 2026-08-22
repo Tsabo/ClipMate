@@ -35,7 +35,11 @@ public class StartupOrchestrationService
     /// Runs the complete startup orchestration including initialization pipeline,
     /// coordinators, maintenance tasks, and window creation.
     /// </summary>
-    public async Task RunAsync()
+    /// <param name="forceBackupPrompt">
+    /// When true, forces the backup dialog to display regardless of due date, for testing or
+    /// manual use.
+    /// </param>
+    public async Task RunAsync(bool forceBackupPrompt = false)
     {
         // Run initialization pipeline (database schema, configuration, default data)
         var pipeline = _serviceProvider.GetRequiredService<StartupInitializationPipeline>();
@@ -46,7 +50,7 @@ public class StartupOrchestrationService
 
         // Check if any databases need backup
         var backupService = _serviceProvider.GetRequiredService<BackupOrchestrationService>();
-        await backupService.CheckAndPromptForBackupsAsync();
+        await backupService.CheckAndPromptForBackupsAsync(forceBackupPrompt);
 
         // Run startup cleanup tasks (if configured)
         await RunStartupMaintenanceTasksAsync();

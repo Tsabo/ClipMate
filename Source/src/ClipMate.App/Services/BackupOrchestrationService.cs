@@ -29,42 +29,54 @@ public class BackupOrchestrationService
     /// <summary>
     /// Checks if any databases are due for backup and prompts the user.
     /// </summary>
-    public async Task CheckAndPromptForBackupsAsync()
+    /// <param name="forcePrompt">When true, bypasses the disabled/due/snooze checks and prompts for all configured databases.</param>
+    public async Task CheckAndPromptForBackupsAsync(bool forcePrompt = false)
     {
         try
         {
             var config = _configService.Configuration;
+            List<DatabaseConfiguration> databasesToPrompt;
 
-            // Check if backup interval is disabled globally
-            if (config.Preferences.BackupIntervalDays is 0 or >= 9999)
+            if (forcePrompt)
             {
-                _logger.LogDebug("Automatic backups disabled (interval: {Days} days)", config.Preferences.BackupIntervalDays);
-                return;
+                _logger.LogInformation("Backup prompt forced via command-line switch");
+                databasesToPrompt = [.. config.Databases.Values];
             }
-
-            // Get list of databases that need backup
-            var databasesDue = await _maintenanceService.CheckBackupDueAsync(config.Databases.Values);
-
-            if (databasesDue.Count == 0)
+            else
             {
-                _logger.LogDebug("No databases due for backup");
-                return;
-            }
+                // Check if backup interval is disabled globally
+                if (config.Preferences.BackupIntervalDays is 0 or >= 9999)
+                {
+                    _logger.LogDebug("Automatic backups disabled (interval: {Days} days)", config.Preferences.BackupIntervalDays);
+                    return;
+                }
 
-            _logger.LogInformation("Found {Count} database(s) due for backup", databasesDue.Count);
+                // Get list of databases that need backup
+                var databasesDue = await _maintenanceService.CheckBackupDueAsync(config.Databases.Values);
 
-            // Filter out databases that were recently prompted (within 3 days)
-            const int promptSnoozesDays = 3;
-            var now = DateTime.UtcNow;
-            var databasesToPrompt = databasesDue
-                .Where(p => p.LastBackupPromptDate == null ||
-                            (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays)
-                .ToList();
+                if (databasesDue.Count == 0)
+                {
+                    _logger.LogDebug("No databases due for backup");
+                    return;
+                }
 
-            if (databasesToPrompt.Count == 0)
-            {
-                _logger.LogDebug("All databases due for backup were recently prompted (within {Days} days)", promptSnoozesDays);
-                return;
+                _logger.LogInformation("Found {Count} database(s) due for backup", databasesDue.Count);
+
+                // Filter out databases that were recently prompted (within 3 days)
+                const int promptSnoozesDays = 3;
+                var now = DateTime.UtcNow;
+                databasesToPrompt =
+                [
+                    .. databasesDue
+                        .Where(p => p.LastBackupPromptDate == null ||
+                                    (now - p.LastBackupPromptDate.Value).TotalDays >= promptSnoozesDays),
+                ];
+
+                if (databasesToPrompt.Count == 0)
+                {
+                    _logger.LogDebug("All databases due for backup were recently prompted (within {Days} days)", promptSnoozesDays);
+                    return;
+                }
             }
 
             // Show backup dialog(s) based on count
@@ -87,21 +99,18 @@ public class BackupOrchestrationService
     /// </summary>
     private async Task HandleSingleDatabaseBackupAsync(DatabaseConfiguration dbConfig, ClipMateConfiguration config)
     {
-        var owner = Application.Current.GetDialogOwner();
         var dialog = new DatabaseBackupDialog(
             dbConfig,
             config.Preferences.BackupIntervalDays,
-            config.Preferences.AutoConfirmBackupSeconds)
-        {
-            Owner = owner,
-            WindowStartupLocation = owner == null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
-        };
+            config.Preferences.AutoConfirmBackupSeconds);
+
+        dialog.CenterOnOwnerOrScreen(Application.Current.GetDialogOwner());
 
         // Record that we prompted the user
         dbConfig.LastBackupPromptDate = DateTime.UtcNow;
 
         if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
-            await PerformBackupAsync(dbConfig, dialog.UpdatedConfiguration);
+            await PerformBackupAsync(dbConfig, dialog.UpdatedConfiguration, dialog.AutoConfirmed);
         else
             await _configService.SaveAsync(); // Save the prompt date even if cancelled
     }
@@ -111,15 +120,12 @@ public class BackupOrchestrationService
     /// </summary>
     private async Task HandleMultipleDatabaseBackupsAsync(List<DatabaseConfiguration> databasesToPrompt, ClipMateConfiguration config)
     {
-        var owner = Application.Current.GetDialogOwner();
         var dialog = new MultipleDatabaseBackupDialog(
             databasesToPrompt,
             config.Preferences.BackupIntervalDays,
-            config.Preferences.AutoConfirmBackupSeconds)
-        {
-            Owner = owner,
-            WindowStartupLocation = owner == null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
-        };
+            config.Preferences.AutoConfirmBackupSeconds);
+
+        dialog.CenterOnOwnerOrScreen(Application.Current.GetDialogOwner());
 
         // Record that we prompted the user for all databases
         foreach (var item in databasesToPrompt)
@@ -128,7 +134,7 @@ public class BackupOrchestrationService
         if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
         {
             foreach (var item in dialog.SelectedDatabases)
-                await PerformBackupAsync(item, item);
+                await PerformBackupAsync(item, item, dialog.AutoConfirmed);
         }
         else
             await _configService.SaveAsync(); // Save the prompt dates even if cancelled
@@ -137,7 +143,7 @@ public class BackupOrchestrationService
     /// <summary>
     /// Performs a database backup operation.
     /// </summary>
-    private async Task PerformBackupAsync(DatabaseConfiguration dbConfig, DatabaseConfiguration updatedConfig)
+    private async Task PerformBackupAsync(DatabaseConfiguration dbConfig, DatabaseConfiguration updatedConfig, bool autoConfirmed = false)
     {
         try
         {
@@ -151,22 +157,28 @@ public class BackupOrchestrationService
 
             _logger.LogInformation("Backup completed: {Path}", backupPath);
 
-            // Show success notification
-            MessageBox.Show(
-                $"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
-                "Backup Complete",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            // Auto-confirmed backups run unattended, so skip the notification nobody is there to dismiss.
+            if (!autoConfirmed)
+            {
+                MessageBox.Show(
+                    $"Database backup completed successfully!\n\nBackup saved to:\n{backupPath}",
+                    "Backup Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Backup failed for database: {Database}", dbConfig.Name);
 
-            MessageBox.Show(
-                $"Database backup failed:\n\n{ex.Message}",
-                "Backup Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            if (!autoConfirmed)
+            {
+                MessageBox.Show(
+                    $"Database backup failed:\n\n{ex.Message}",
+                    "Backup Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
     }
 
@@ -192,7 +204,7 @@ public class BackupOrchestrationService
                 foreach (var item in shutdownCleanupDbs)
                 {
                     _logger.LogDebug("Running cleanup for database: {Name}", item.Name);
-                    var progress = new Progress<string>(message => _logger.LogDebug("Cleanup: {Message}", message));
+                    var progress = new Progress<string>(p => _logger.LogDebug("Cleanup: {Message}", p));
                     await _maintenanceService.RunCleanupAsync(item, progress);
                 }
             }

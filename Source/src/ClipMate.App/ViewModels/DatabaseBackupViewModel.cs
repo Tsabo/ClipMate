@@ -74,14 +74,26 @@ public class DatabaseBackupViewModel : ObservableObject
     public int CountdownSeconds
     {
         get => _countdownSeconds;
-        set => SetProperty(ref _countdownSeconds, value);
+        set
+        {
+            if (SetProperty(ref _countdownSeconds, value))
+                OnPropertyChanged(nameof(OkButtonText));
+        }
     }
 
     public bool CountdownVisible
     {
         get => _countdownVisible;
-        set => SetProperty(ref _countdownVisible, value);
+        set
+        {
+            if (SetProperty(ref _countdownVisible, value))
+                OnPropertyChanged(nameof(OkButtonText));
+        }
     }
+
+    public string OkButtonText => CountdownVisible
+        ? $"OK ({CountdownSeconds})"
+        : "OK";
 
     public string BackupFileName =>
         $"ClipMate_DB_{DatabaseName}_{DateTime.Now:yyyy-MM-dd}.zip";
