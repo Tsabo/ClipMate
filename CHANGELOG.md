@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.5] - 2026-8-22
+
+### Added
+- **Dark Mode** - Added a Light/Dark theme option under Appearance settings. Switch anytime and the app (including the text editor) updates immediately. ([#9](https://github.com/Tsabo/ClipMate/issues/9))
+
+### Fixed
+- **Annoying Backup Dialog** - The "OK this automatically" option on the database backup prompt didn't actually work, so it never stopped asking even when you'd told it not to. It's now fixed, along with a few related issues that could leave the backup prompt invisible or stuck waiting on a hidden confirmation popup. ([#8](https://github.com/Tsabo/ClipMate/issues/8))
+
 ## [0.1.0-beta.4] - 2026-8-17
 
 ### Fixed
