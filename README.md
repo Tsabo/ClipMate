@@ -4,6 +4,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/tsabo/clipmate/build.yml?branch=master&style=for-the-badge&logo=github&logoColor=white&label=build)](https://github.com/Tsabo/ClipMate/actions/workflows/build.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/tsabo/clipmate/codeql.yml?branch=master&style=for-the-badge&logo=github&logoColor=white&label=codeql)](https://github.com/Tsabo/ClipMate/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/github/license/tsabo/clipmate?style=for-the-badge)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-clipmate-blue?style=for-the-badge&logo=readthedocs)](https://jeremy.browns.info/ClipMate/)
 
 A modern recreation of the classic ClipMate clipboard manager built with .NET 10 and WPF.
 
