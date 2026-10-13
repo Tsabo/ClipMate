@@ -31,6 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Fixtures\ClipMate7\*.dat;Fixtures\ClipMate7\*.blb" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\ClipMate.Core\ClipMate.Core.csproj" />
     <ProjectReference Include="..\..\src\ClipMate.Data\ClipMate.Data.csproj" />
     <ProjectReference Include="..\..\src\ClipMate.Platform\ClipMate.Platform.csproj" />

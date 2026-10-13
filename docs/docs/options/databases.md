@@ -106,6 +106,32 @@ Restore from backup with **File** > **Database Maintenance** > **Restore Databas
 2. Consider backing up current database first
 3. For preserving existing data, create a new database and restore there
 
+## Importing from ClipMate 7
+
+If you used the original ClipMate 7.x, you can bring its clips across. Click **Import ClipMate 7...** under the database list.
+
+1. **Folder** - ClipMate looks in the default location (`%APPDATA%\Thornsoft Development\ClipMate7`) automatically. Use **Browse...** if your ClipMate 7 database is somewhere else. ClipMate shows how many clips, collections and shortcuts it found.
+2. **Import Into** - Choose one:
+   - **A new database** - Creates a separate database with the default collections and imports into it. It is added to the database list when you click **OK** in Options.
+   - **Merge into an existing database** - Adds the clips to one of your current databases.
+3. Click **Go**, then **Done** when the import finishes.
+
+What gets imported:
+
+- Clips with their text, rich text, HTML, images and file lists, plus titles, capture dates, source URLs and macro settings
+- Collections and folders. Collections that already exist (such as InBox, Safe and Overflow) are reused rather than duplicated
+- Shortcuts (nicknames)
+
+What is skipped:
+
+- **Encrypted clips** - ClipMate 7's encryption can't be read. Decrypt these clips in ClipMate 7 before you import.
+- **Virtual collections** - ClipMate has its own versions of these.
+- **Clips already present** - Clips are matched by their ClipMate 7 identity, so you can safely run the import again.
+
+:::tip
+You can run the import while ClipMate 7 is still open. For a consistent copy, though, close ClipMate 7 first. The import is all-or-nothing: if it fails or you click **Abort**, nothing is changed.
+:::
+
 ## See Also
 
 - [Data Management](../advanced/data-management.md)

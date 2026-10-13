@@ -1,0 +1,3 @@
+# ClipMate 7 DBISAM fixture tables - never normalize line endings
+*.dat binary
+*.blb binary

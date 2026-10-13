@@ -2,9 +2,13 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using ClipMate.App.Views.Dialogs;
+using ClipMate.Core.Events;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
@@ -15,8 +19,16 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class DatabaseOptionsViewModel : ObservableObject
 {
+    private readonly IClipMate7ImportService _clipMate7ImportService;
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<DatabaseOptionsViewModel> _logger;
+    private readonly IMessenger _messenger;
+
+    /// <summary>
+    /// The database definitions as they were when the configuration was loaded or last saved.
+    /// </summary>
+    private Dictionary<string, DatabaseConfiguration> _savedDatabases = [];
 
     [ObservableProperty]
     private int _autoConfirmBackupSeconds;
@@ -34,9 +46,15 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     private int _selectedDatabaseIndex = -1;
 
     public DatabaseOptionsViewModel(IConfigurationService configurationService,
+        IClipMate7ImportService clipMate7ImportService,
+        IDatabaseManager databaseManager,
+        IMessenger messenger,
         ILogger<DatabaseOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _clipMate7ImportService = clipMate7ImportService ?? throw new ArgumentNullException(nameof(clipMate7ImportService));
+        _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -53,6 +71,8 @@ public partial class DatabaseOptionsViewModel : ObservableObject
             Databases = new ObservableCollection<DatabaseConfigurationViewModel>(
                 config.Databases.Select(p => new DatabaseConfigurationViewModel(p.Key, p.Value)));
 
+            _savedDatabases = new Dictionary<string, DatabaseConfiguration>(config.Databases);
+
             // Load global backup settings
             BackupIntervalDays = config.Preferences.BackupIntervalDays;
             AutoConfirmBackupSeconds = config.Preferences.AutoConfirmBackupSeconds;
@@ -68,12 +88,27 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     /// </summary>
     public async Task SaveAsync()
     {
+        var current = Databases.ToDictionary(p => p.DatabaseKey, p => p.Configuration);
+        var removedKeys = _savedDatabases.Keys.Where(p => !current.ContainsKey(p)).ToList();
+        var addedKeys = current.Where(p => p.Value.AutoLoad && !_savedDatabases.ContainsKey(p.Key)).Select(p => p.Key).ToList();
+
+        // Edit replaces the configuration object, so a reference change means the definition was edited
+        var changed = current.Count != _savedDatabases.Count ||
+                      current.Any(p => !_savedDatabases.TryGetValue(p.Key, out var saved) || !ReferenceEquals(saved, p.Value));
+
+        // Unload removed databases while their definitions are still in the configuration (unloading looks them up by key)
+        foreach (var item in removedKeys)
+        {
+            if (_databaseManager.UnloadDatabase(item))
+                _logger.LogInformation("Unloaded removed database: {Key}", item);
+        }
+
         await Task.Run(() =>
         {
             var config = _configurationService.Configuration;
 
             // Convert ObservableCollection back to Dictionary, preserving original keys
-            config.Databases = Databases.ToDictionary(p => p.DatabaseKey, x => x.Configuration);
+            config.Databases = current;
 
             // Save global backup settings
             config.Preferences.BackupIntervalDays = BackupIntervalDays;
@@ -81,6 +116,18 @@ public partial class DatabaseOptionsViewModel : ObservableObject
 
             _logger.LogDebug("Database configuration saved. {Count} databases", Databases.Count);
         });
+
+        _savedDatabases = new Dictionary<string, DatabaseConfiguration>(current);
+
+        // Databases are otherwise only loaded at startup, so load auto-load databases added in this session (via Add or Import ClipMate 7)
+        foreach (var item in addedKeys)
+        {
+            _logger.LogInformation("Activating newly added database: {Key}", item);
+            _messenger.Send(new ActivateDatabaseRequestedEvent(item));
+        }
+
+        if (changed)
+            _messenger.Send(new RefreshCollectionTreeRequestedEvent());
     }
 
     /// <summary>
@@ -97,11 +144,49 @@ public partial class DatabaseOptionsViewModel : ObservableObject
         if (dialog.ShowDialog() != true || dialog.DatabaseConfig == null)
             return;
 
+        var key = AddDatabaseConfiguration(dialog.DatabaseConfig);
+        _logger.LogDebug("Added database: {Name} with key {Key}", dialog.DatabaseConfig.Name, key);
+    }
+
+    /// <summary>
+    /// Imports an original ClipMate 7.x database into a new database or an existing one.
+    /// </summary>
+    [RelayCommand]
+    private void ImportClipMate7()
+    {
+        var targets = Databases
+            .Where(p => !p.Configuration.ReadOnly && !string.IsNullOrWhiteSpace(p.FilePath) && File.Exists(Environment.ExpandEnvironmentVariables(p.FilePath)))
+            .Select(p => new ClipMate7ImportTarget(p.Name, Environment.ExpandEnvironmentVariables(p.FilePath)));
+
+        var viewModel = new ClipMate7ImportViewModel(_clipMate7ImportService, targets);
+        var dialog = new ClipMate7ImportDialog(viewModel)
+        {
+            Owner = Application.Current.GetDialogOwner(),
+        };
+
+        dialog.ShowDialog();
+
+        if (viewModel.CreatedDatabase is { } created)
+        {
+            var key = AddDatabaseConfiguration(created);
+            SelectedDatabase = Databases.Last();
+            _logger.LogInformation("Added imported ClipMate 7 database: {Name} with key {Key}", created.Name, key);
+        }
+        else if (viewModel.MergedDatabasePath is not null)
+        {
+            // Clips and collections were added to a database that may be open
+            _messenger.Send(new RefreshCollectionTreeRequestedEvent());
+            _messenger.Send(new ReloadClipsRequestedEvent());
+        }
+    }
+
+    private string AddDatabaseConfiguration(DatabaseConfiguration configuration)
+    {
         // Generate a unique GUID-based key for the new database
         var guid = Guid.NewGuid().ToString("N");
         var key = $"db_{guid[..8]}";
-        Databases.Add(new DatabaseConfigurationViewModel(key, dialog.DatabaseConfig));
-        _logger.LogDebug("Added database: {Name} with key {Key}", dialog.DatabaseConfig.Name, key);
+        Databases.Add(new DatabaseConfigurationViewModel(key, configuration));
+        return key;
     }
 
     /// <summary>

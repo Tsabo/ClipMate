@@ -76,6 +76,8 @@ public interface IDatabaseMaintenanceService
 
     /// <summary>
     /// Checks which databases are due for backup based on their AllowBackup flag and LastBackupDate.
+    /// A database that has never been backed up is due once it contains clips and its file is at least
+    /// <paramref name="backupIntervalDays" /> old.
     /// </summary>
     /// <param name="allDatabases">All database configurations to check.</param>
     /// <param name="backupIntervalDays">Number of days between backups (default: 7).</param>

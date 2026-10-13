@@ -342,6 +342,9 @@ public class DatabaseMaintenanceServiceTests
             await context.SaveChangesAsync();
         }
 
+        // A never-backed-up database is only due once its file is older than the backup interval
+        File.SetCreationTime(dbPath, DateTime.Now.AddDays(-30));
+
         // Act
         var dueBackups = await _service.CheckBackupDueAsync(databases);
 
@@ -532,12 +535,51 @@ public class DatabaseMaintenanceServiceTests
 
         var databases = new[] { config };
 
+        File.SetCreationTime(dbWithClipsPath, DateTime.Now.AddDays(-30));
+
         // Act
         var databasesDue = await _service.CheckBackupDueAsync(databases);
 
         // Assert - Database with clips SHOULD be included
         await Assert.That(databasesDue.Count).IsEqualTo(1);
         await Assert.That(databasesDue[0].Name).IsEqualTo("with_clips");
+    }
+
+    [Test]
+    [Arguments(0, 7, false)] // Just created/imported: not due yet
+    [Arguments(6, 7, false)]
+    [Arguments(8, 7, true)]
+    [Arguments(8, 14, false)] // Honors the configured interval
+    [Arguments(15, 14, true)]
+    public async Task CheckBackupDueAsync_NeverBackedUp_IsDueOneIntervalAfterCreation(int ageDays, int intervalDays, bool expectedDue)
+    {
+        // Arrange - Database with clips that has never been backed up
+        var dbPath = Path.Combine(_testDirectory, $"new_{ageDays}_{intervalDays}.db");
+        var options = new DbContextOptionsBuilder<ClipMateDbContext>()
+            .UseSqlite($"DataSource={dbPath}")
+            .Options;
+        await using (var context = new ClipMateDbContext(options))
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.Clips.Add(new Clip
+            {
+                Title = "Imported Clip",
+                CapturedAt = DateTime.UtcNow,
+                Del = false,
+                ContentHash = "test_hash",
+                Type = ClipType.Text,
+            });
+            await context.SaveChangesAsync();
+        }
+
+        File.SetCreationTime(dbPath, DateTime.Now.AddDays(-ageDays));
+        var databases = new[] { new DatabaseConfiguration { Name = "new", FilePath = dbPath, AllowBackup = true, LastBackupDate = null } };
+
+        // Act
+        var databasesDue = await _service.CheckBackupDueAsync(databases, intervalDays);
+
+        // Assert
+        await Assert.That(databasesDue.Count == 1).IsEqualTo(expectedDue);
     }
 
     [Test]

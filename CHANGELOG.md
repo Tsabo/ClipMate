@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Import from ClipMate 7** - A new **Import ClipMate 7...** button on the Database options page brings clips, collections and shortcuts across from an original ClipMate 7.x database. You can import into a new database or merge into an existing one, and running it again skips clips that were already imported. The reader is built in, so nothing extra is needed. Clips encrypted in ClipMate 7 are skipped, and the import says how many.
+
+### Fixed
+- **Database Changes Needed a Restart** - Adding, importing or removing a database in Options didn't change the collection tree until ClipMate was restarted. Activating or deactivating a database didn't refresh it either. The tree now updates as soon as you click OK.
+- **Removed Database Stayed Locked** - A database you'd just removed couldn't be deleted or moved in Explorer, because ClipMate kept the file open until it exited. Removing a database now releases its file straight away.
+- **Backup Prompt Right After Adding a Database** - A database you'd just added or imported triggered the backup prompt the next time ClipMate started. A database that has never been backed up is now first due one backup interval after it was created.
+- **Backup Interval Ignored** - The **Database Backup Interval** in Options had no effect, and ClipMate always prompted every 7 days. Your chosen interval is now used.
+- **Backup Countdown** - The auto-confirm countdown on the backup prompt could start before the dialog appeared, or cancel itself as though you'd clicked something. Changes to the auto-confirm setting made in the dialog weren't remembered for next time. Both are fixed.
+- **Pasting Expanded File Clips** - Files copied in Explorer while **HDROP Expansion** was on became text-only clips. You could no longer paste them back into Explorer as files. They now keep the file list and paste as files again.
+
 ## [0.1.0-beta.5] - 2026-8-22
 
 ### Added

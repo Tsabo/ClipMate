@@ -52,7 +52,7 @@ public class BackupOrchestrationService
                 }
 
                 // Get list of databases that need backup
-                var databasesDue = await _maintenanceService.CheckBackupDueAsync(config.Databases.Values);
+                var databasesDue = await _maintenanceService.CheckBackupDueAsync(config.Databases.Values, config.Preferences.BackupIntervalDays);
 
                 if (databasesDue.Count == 0)
                 {

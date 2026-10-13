@@ -406,6 +406,11 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
             // Check if never backed up
             if (item.LastBackupDate == null)
             {
+                // A database that has never been backed up is due one interval after it was created, so a database
+                // that was just created, added or imported doesn't prompt on the next start
+                if (GetDatabaseCreationTime(item) is { } createdAt && DateTime.Now < createdAt.AddDays(backupIntervalDays))
+                    continue;
+
                 // For fresh installs with empty databases, don't prompt for backup
                 // Only prompt if the database has clips to back up
                 var clipCount = await GetDatabaseClipCountAsync(item);
@@ -424,6 +429,18 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
         return databasesDue;
     }
     
+    /// <summary>
+    /// Gets when the database file was created, or null if it doesn't exist.
+    /// </summary>
+    private static DateTime? GetDatabaseCreationTime(DatabaseConfiguration databaseConfig)
+    {
+        var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+
+        return File.Exists(dbFile)
+            ? File.GetCreationTime(dbFile)
+            : null;
+    }
+
     /// <summary>
     /// Gets the number of clips in a database (excluding deleted clips).
     /// </summary>

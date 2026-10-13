@@ -71,7 +71,12 @@
                     <Button Content="Open Folder in Windows Explorer"
                             Command="{Binding OpenFolderCommand}"
                             Padding="10,5"
+                            Margin="0,0,10,0"
                             ToolTip="Open the database folder in Windows Explorer" />
+                    <Button Content="Import ClipMate 7..."
+                            Command="{Binding ImportClipMate7Command}"
+                            Padding="10,5"
+                            ToolTip="Import clips, collections and shortcuts from an original ClipMate 7.x database" />
                 </StackPanel>
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>

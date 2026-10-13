@@ -1,6 +1,9 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
@@ -18,7 +21,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
     {
         _configServiceMock = A.Fake<IConfigurationService>(o => o.Strict());
         var logger = CreateLogger<DatabaseOptionsViewModel>();
-        _viewModel = new DatabaseOptionsViewModel(_configServiceMock, logger);
+        _viewModel = new DatabaseOptionsViewModel(_configServiceMock, A.Fake<IClipMate7ImportService>(), A.Fake<IDatabaseManager>(), A.Fake<IMessenger>(), logger);
     }
 
     [Test]
@@ -76,6 +79,68 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
         await Assert.That(config.Databases.First().Value.Name).IsEqualTo("Test DB");
         await Assert.That(config.Preferences.BackupIntervalDays).IsEqualTo(14);
         await Assert.That(config.Preferences.AutoConfirmBackupSeconds).IsEqualTo(20);
+    }
+
+    [Test]
+    public async Task SaveAsync_ShouldActivateNewlyAddedAutoLoadDatabasesOnly()
+    {
+        // Arrange
+        var (viewModel, _, activated, refreshCount) = await CreateLoadedViewModelAsync();
+        viewModel.Databases.Add(new DatabaseConfigurationViewModel("added", new DatabaseConfiguration { Name = "Added", AutoLoad = true }));
+        viewModel.Databases.Add(new DatabaseConfigurationViewModel("manual", new DatabaseConfiguration { Name = "Manual", AutoLoad = false }));
+
+        // Act
+        await viewModel.SaveAsync();
+        await viewModel.SaveAsync(); // A second save with no changes must not activate or refresh again
+
+        // Assert
+        await Assert.That(activated).IsEquivalentTo(["added"]);
+        await Assert.That(refreshCount()).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SaveAsync_ShouldUnloadRemovedDatabaseAndRefreshTree()
+    {
+        // Arrange
+        var (viewModel, databaseManager, activated, refreshCount) = await CreateLoadedViewModelAsync();
+        viewModel.Databases.Remove(viewModel.Databases.Single(p => p.DatabaseKey == "existing"));
+
+        // Act
+        await viewModel.SaveAsync();
+
+        // Assert
+        A.CallTo(() => databaseManager.UnloadDatabase("existing")).MustHaveHappenedOnceExactly();
+        await Assert.That(activated).IsEmpty();
+        await Assert.That(refreshCount()).IsEqualTo(1);
+    }
+
+    private async Task<(DatabaseOptionsViewModel ViewModel, IDatabaseManager DatabaseManager, List<string> Activated, Func<int> RefreshCount)>
+        CreateLoadedViewModelAsync()
+    {
+        var config = new ClipMateConfiguration
+        {
+            Databases = new Dictionary<string, DatabaseConfiguration>
+            {
+                ["existing"] = new() { Name = "Existing", AutoLoad = true },
+            },
+            Preferences = new PreferencesConfiguration(),
+        };
+
+        A.CallTo(() => _configServiceMock.Configuration).Returns(config);
+
+        var messenger = new StrongReferenceMessenger();
+        var activated = new List<string>();
+        var refreshes = 0;
+        messenger.Register<ActivateDatabaseRequestedEvent>(this, (_, m) => activated.Add(m.DatabaseKey));
+        messenger.Register<RefreshCollectionTreeRequestedEvent>(this, (_, _) => refreshes++);
+
+        var databaseManager = A.Fake<IDatabaseManager>();
+        var viewModel = new DatabaseOptionsViewModel(_configServiceMock, A.Fake<IClipMate7ImportService>(), databaseManager, messenger,
+            CreateLogger<DatabaseOptionsViewModel>());
+
+        await viewModel.LoadAsync();
+
+        return (viewModel, databaseManager, activated, () => refreshes);
     }
 
     [Test]

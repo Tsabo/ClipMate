@@ -1,0 +1,110 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.ClipMate7ImportDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 d:DataContext="{d:DesignInstance Type=vm:ClipMate7ImportViewModel}"
+                 mc:Ignorable="d"
+                 Title="Import ClipMate 7 Database"
+                 Width="700"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 SizeToContent="Height"
+                 ShowInTaskbar="False">
+
+    <!-- DevExpress Dialog Buttons: Go/Abort/Done pattern -->
+    <dx:ThemedWindow.DialogButtons>
+        <dx:ThemedWindowDialogButton Content="Go"
+                                     Command="{Binding ExecuteImportCommand}"
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Abort"
+                                     Command="{Binding AbortCommand}"
+                                     IsCancel="True"
+                                     AllowCloseWindow="False" />
+        <dx:ThemedWindowDialogButton Content="Done"
+                                     Command="{Binding DoneCommand}"
+                                     AllowCloseWindow="False" />
+    </dx:ThemedWindow.DialogButtons>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+
+        <!-- Source -->
+        <dxlc:LayoutGroup Header="ClipMate 7 Database" View="GroupBox" Orientation="Horizontal">
+            <dxlc:LayoutItem Label="Folder" HorizontalAlignment="Stretch">
+                <dxe:TextEdit EditValue="{Binding SourceFolder, Mode=OneWay}"
+                              IsReadOnly="True"
+                              ToolTip="Folder containing the ClipMate 7 database files (CLIP.DAT, COLL.DAT, ...)" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Right">
+                <dx:SimpleButton Content="Browse..."
+                                 Margin="8,0,0,0"
+                                 Click="BrowseSourceFolder_Click"
+                                 IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Target -->
+        <dxlc:LayoutGroup Header="Import Into" View="GroupBox" Orientation="Vertical"
+                          IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}">
+            <dxlc:LayoutItem>
+                <RadioButton Content="A new database"
+                             GroupName="ImportTarget"
+                             IsChecked="{Binding IsNewDatabase, Mode=TwoWay}" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutGroup Orientation="Vertical" Margin="20,0,0,0"
+                              IsEnabled="{Binding IsNewDatabase}">
+                <dxlc:LayoutItem Label="Title">
+                    <dxe:TextEdit EditValue="{Binding NewDatabaseName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="Display name for the new database" />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutGroup Orientation="Horizontal">
+                    <dxlc:LayoutItem Label="File" HorizontalAlignment="Stretch">
+                        <dxe:TextEdit EditValue="{Binding NewDatabaseFilePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Database file to create. Each database should have its own folder." />
+                    </dxlc:LayoutItem>
+                    <dxlc:LayoutItem HorizontalAlignment="Right">
+                        <dx:SimpleButton Content="Browse..." Margin="8,0,0,0" Click="BrowseNewDatabase_Click" />
+                    </dxlc:LayoutItem>
+                </dxlc:LayoutGroup>
+            </dxlc:LayoutGroup>
+
+            <dxlc:LayoutItem>
+                <RadioButton Content="Merge into an existing database"
+                             GroupName="ImportTarget"
+                             IsChecked="{Binding IsMerge, Mode=TwoWay}" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem Label="Database" Margin="20,0,0,0"
+                             IsEnabled="{Binding IsMerge}">
+                <dxe:ComboBoxEdit ItemsSource="{Binding Targets}"
+                                  SelectedItem="{Binding SelectedTarget, Mode=TwoWay}"
+                                  DisplayMember="Name"
+                                  IsTextEditable="False"
+                                  ToolTip="Clips already in this database are skipped" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+        <!-- Processing -->
+        <dxlc:LayoutGroup Header="Processing" View="GroupBox" Orientation="Vertical">
+            <dxlc:LayoutItem>
+                <TextBox x:Name="LogTextBox"
+                         Height="160"
+                         Text="{Binding ProcessingLog, Mode=OneWay}"
+                         IsReadOnly="True"
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         TextChanged="LogTextBox_TextChanged" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem>
+                <dxe:ProgressBarEdit Value="{Binding ProgressValue}"
+                                     Maximum="{Binding ProgressMaximum}"
+                                     ContentDisplayMode="None" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

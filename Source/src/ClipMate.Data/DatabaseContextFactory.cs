@@ -1,3 +1,4 @@
+using System.Data;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
@@ -119,6 +120,9 @@ public class DatabaseContextFactory : IDatabaseContextFactory
             if (!_loadedDatabases.Remove(normalizedPath))
                 return false;
         }
+
+        // Release the file: pooled connections otherwise keep it open until the application exits
+        SqliteConnection.ClearAllPools();
 
         _logger.LogInformation("Unregistered database: {DatabasePath}", normalizedPath);
 
@@ -316,41 +320,46 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     }
 
     /// <summary>
-    /// Applies SQLite pragmas to optimize database performance based on configuration.
+    /// Applies SQLite pragmas each time the context's connection opens.
     /// </summary>
+    /// <remarks>
+    /// The connection is deliberately not opened here: a context holding an open connection keeps the database file
+    /// locked for as long as the context lives, and contexts handed out inside repositories are not always disposed.
+    /// Instead EF Core (and Dapper) open and close the connection per operation, returning it to the pool, which
+    /// <see cref="CloseDatabase" /> clears so the file can be moved or deleted.
+    /// </remarks>
     private void ApplySqlitePragmas(ClipMateDbContext context, string databasePath)
     {
-        try
-        {
-            var preferences = _configurationService.Configuration.Preferences;
-            var connection = context.Database.GetDbConnection();
+        if (context.Database.GetDbConnection() is not SqliteConnection sqliteConnection)
+            return;
 
-            if (connection is not SqliteConnection sqliteConnection)
+        sqliteConnection.StateChange += (_, e) =>
+        {
+            if (e.CurrentState != ConnectionState.Open)
                 return;
 
-            sqliteConnection.Open();
-
-            using var command = sqliteConnection.CreateCommand();
-
-            // Set journal_mode and synchronous based on EnableCachedDatabaseWrites
-            if (preferences.EnableCachedDatabaseWrites)
+            try
             {
-                // WAL mode + NORMAL synchronous = Better performance, small risk of corruption on system crash
-                command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
-                _logger.LogDebug("Applying cached write pragmas (WAL/NORMAL) to database: {DatabasePath}", databasePath);
-            }
-            else
-            {
-                // DELETE mode + FULL synchronous = Maximum safety, slower performance
-                command.CommandText = "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;";
-                _logger.LogDebug("Applying safe write pragmas (DELETE/FULL) to database: {DatabasePath}", databasePath);
-            }
+                using var command = sqliteConnection.CreateCommand();
 
-            command.ExecuteNonQuery();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to apply SQLite pragmas to database: {DatabasePath}", databasePath);
-        }
+                // Set journal_mode and synchronous based on EnableCachedDatabaseWrites
+                if (_configurationService.Configuration.Preferences.EnableCachedDatabaseWrites)
+                {
+                    // WAL mode + NORMAL synchronous = Better performance, small risk of corruption on system crash
+                    command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
+                }
+                else
+                {
+                    // DELETE mode + FULL synchronous = Maximum safety, slower performance
+                    command.CommandText = "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;";
+                }
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to apply SQLite pragmas to database: {DatabasePath}", databasePath);
+            }
+        };
     }
 }

@@ -90,6 +90,10 @@ internal class DatabaseManager : IDatabaseManager
 
         _configuration ??= await _configService.LoadAsync(cancellationToken);
 
+        // Pick up databases added to the live configuration since it was cached (e.g. via Options)
+        if (!_configuration.Databases.ContainsKey(databaseKey))
+            _configuration = _configService.Configuration;
+
         if (!_configuration.Databases.TryGetValue(databaseKey, out var dbConfig))
         {
             _logger.LogWarning("Database not found in configuration: {Key}", databaseKey);

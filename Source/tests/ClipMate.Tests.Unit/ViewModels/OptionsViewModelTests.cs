@@ -2,6 +2,7 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -110,6 +111,9 @@ public class OptionsViewModelTests
 
         _databaseViewModel = new DatabaseOptionsViewModel(
             _mockConfigurationService,
+            A.Fake<IClipMate7ImportService>(),
+            A.Fake<IDatabaseManager>(),
+            A.Fake<IMessenger>(),
             A.Fake<ILogger<DatabaseOptionsViewModel>>());
 
         _advancedViewModel = new AdvancedOptionsViewModel(

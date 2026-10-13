@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IClipAppendService, ClipAppendService>();
         services.AddTransient<DatabaseSchemaMigrationService>();
         services.AddTransient<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
+        services.AddTransient<IClipMate7ImportService, ClipMate7ImportService>();
         services.AddTransient<IRetentionEnforcementService, RetentionEnforcementService>();
 
         // Stateful services that must be Singleton

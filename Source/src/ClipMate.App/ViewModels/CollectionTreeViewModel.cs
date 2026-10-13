@@ -17,7 +17,7 @@ namespace ClipMate.App.ViewModels;
 /// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
 /// Sends CollectionNodeSelectedEvent via messenger when selection changes.
 /// </summary>
-public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>, IDisposable
+public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>, IRecipient<RefreshCollectionTreeRequestedEvent>, IDisposable
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -27,6 +27,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly SearchResultsCache _searchResultsCache;
+    private int _loadVersion;
 
     public CollectionTreeViewModel(ICollectionService collectionService,
         IFolderService folderService,
@@ -46,8 +47,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
 
-        // Register to receive SearchExecutedEvent
-        _messenger.Register(this);
+        // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
+        _messenger.Register<SearchExecutedEvent>(this);
+        _messenger.Register<RefreshCollectionTreeRequestedEvent>(this);
     }
 
     /// <summary>
@@ -132,6 +134,37 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         });
     }
 
+    /// <summary>
+    /// Rebuilds the tree, e.g. after databases are added, removed or activated. Keeps the current selection when it still exists.
+    /// </summary>
+    public void Receive(RefreshCollectionTreeRequestedEvent message)
+    {
+        Application.Current.Dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                var selectedDatabaseKey = GetDatabaseKeyForNode(SelectedNode);
+                var selectedId = SelectedNode switch
+                {
+                    CollectionTreeNode collectionNode => collectionNode.Collection.Id,
+                    VirtualCollectionTreeNode virtualNode => virtualNode.VirtualCollection.Id,
+                    var _ => (Guid?)null,
+                };
+
+                if (!await LoadAsync())
+                    return; // A newer refresh superseded this one
+
+                // Collection GUIDs can repeat across databases, so look only within the previously selected database
+                var databaseNode = RootNodes.OfType<DatabaseTreeNode>().FirstOrDefault(p => p.DatabasePath == selectedDatabaseKey);
+                if (databaseNode is not null && selectedId is { } id && FindNodeByIdRecursive(databaseNode, id) is { } node)
+                    SelectedNode = node;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to refresh collection tree");
+            }
+        });
+    }
 
     protected void OnSelectedNodeChanged(TreeNodeBase? value)
     {
@@ -225,14 +258,22 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// Loads the complete tree hierarchy: Database -> Collections/Virtual Collections -> Folders.
     /// Creates a database node for each configured database.
     /// </summary>
-    public async Task LoadAsync(CancellationToken cancellationToken = default)
+    /// <returns>False if a newer load started while this one was building, in which case the result was discarded.</returns>
+    public async Task<bool> LoadAsync(CancellationToken cancellationToken = default)
     {
-        RootNodes.Clear();
+        // Build before clearing, and discard stale results, so overlapping loads can't leave duplicate or outdated nodes
+        var version = Interlocked.Increment(ref _loadVersion);
         var treeNodes = await _collectionTreeBuilder.BuildTreeAsync(
             TreeNodeType.None, cancellationToken);
 
+        if (version != Volatile.Read(ref _loadVersion))
+            return false;
+
+        RootNodes.Clear();
         foreach (var item in treeNodes)
             RootNodes.Add(item);
+
+        return true;
     }
 
     /// <summary>
