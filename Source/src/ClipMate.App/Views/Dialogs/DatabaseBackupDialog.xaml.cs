@@ -14,6 +14,7 @@ public partial class DatabaseBackupDialog
 {
     private readonly DispatcherTimer _countdownTimer;
     private readonly DatabaseBackupViewModel _viewModel;
+    private bool _contentRendered;
     private bool _userInteracted;
 
     /// <summary>
@@ -38,9 +39,9 @@ public partial class DatabaseBackupDialog
 
         _countdownTimer.Tick += CountdownTimer_Tick;
 
-        // Start the countdown timer if auto-confirm is enabled
-        if (_viewModel is { AutoConfirmEnabled: true, AutoConfirmSeconds: > 0 })
-            StartCountdown();
+        // Defer the countdown until the window is rendered; initial binding raises Checked/EditValueChanged
+        // events that would otherwise start it early or cancel it as if the user had interacted.
+        ContentRendered += OnContentRendered;
 
         Loaded += OnLoaded;
     }
@@ -59,6 +60,22 @@ public partial class DatabaseBackupDialog
     /// Gets whether the backup was confirmed automatically by the countdown timer, rather than by the user.
     /// </summary>
     public bool AutoConfirmed { get; private set; }
+
+    /// <summary>
+    /// Gets the auto-confirm seconds chosen in the dialog, or 0 when auto-confirm is disabled.
+    /// Callers persist this to <see cref="PreferencesConfiguration.AutoConfirmBackupSeconds" />.
+    /// </summary>
+    public int AutoConfirmSeconds => _viewModel.AutoConfirmEnabled
+        ? _viewModel.AutoConfirmSeconds
+        : 0;
+
+    private void OnContentRendered(object? sender, EventArgs e)
+    {
+        _contentRendered = true;
+
+        if (_viewModel is { AutoConfirmEnabled: true, AutoConfirmSeconds: > 0 })
+            StartCountdown();
+    }
 
     private void OnLoaded(object sender, RoutedEventArgs e) => Title = $"ClipMate Database [{_viewModel.DatabaseName}] Backup";
 
@@ -93,13 +110,16 @@ public partial class DatabaseBackupDialog
 
     private void OnUserInteraction(object sender, RoutedEventArgs e)
     {
+        if (!_contentRendered)
+            return;
+
         _userInteracted = true;
         _viewModel.CountdownVisible = false;
     }
 
     private void AutoConfirmCheckEdit_Checked(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.AutoConfirmSeconds > 0)
+        if (_contentRendered && _viewModel.AutoConfirmSeconds > 0)
             StartCountdown();
     }
 

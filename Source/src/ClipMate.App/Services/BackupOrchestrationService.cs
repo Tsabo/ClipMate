@@ -109,7 +109,10 @@ public class BackupOrchestrationService
         // Record that we prompted the user
         dbConfig.LastBackupPromptDate = DateTime.UtcNow;
 
-        if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
+        var confirmed = dialog.ShowDialog() == true;
+        config.Preferences.AutoConfirmBackupSeconds = dialog.AutoConfirmSeconds;
+
+        if (confirmed && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
             await PerformBackupAsync(dbConfig, dialog.UpdatedConfiguration, dialog.AutoConfirmed);
         else
             await _configService.SaveAsync(); // Save the prompt date even if cancelled
@@ -131,7 +134,10 @@ public class BackupOrchestrationService
         foreach (var item in databasesToPrompt)
             item.LastBackupPromptDate = DateTime.UtcNow;
 
-        if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
+        var confirmed = dialog.ShowDialog() == true;
+        config.Preferences.AutoConfirmBackupSeconds = dialog.AutoConfirmSeconds;
+
+        if (confirmed && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
         {
             foreach (var item in dialog.SelectedDatabases)
                 await PerformBackupAsync(item, item, dialog.AutoConfirmed);

@@ -86,7 +86,10 @@ public class DatabaseMaintenanceCoordinator :
 
                     _logger.LogInformation("Showing backup dialog for database: {Name}", currentDb.Name);
 
-                    if (dialog.ShowDialog() == true && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
+                    var confirmed = dialog.ShowDialog() == true;
+                    await SaveAutoConfirmBackupSecondsAsync(dialog.AutoConfirmSeconds);
+
+                    if (confirmed && dialog is { ShouldBackup: true, UpdatedConfiguration: not null })
                     {
                         // Perform the backup
                         var backupPath = await _maintenanceService.BackupDatabaseAsync(
@@ -117,7 +120,10 @@ public class DatabaseMaintenanceCoordinator :
 
                     _logger.LogInformation("Showing multiple database backup dialog for {Count} databases", loadedDatabases.Count);
 
-                    if (dialog.ShowDialog() == true && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
+                    var confirmed = dialog.ShowDialog() == true;
+                    await SaveAutoConfirmBackupSecondsAsync(dialog.AutoConfirmSeconds);
+
+                    if (confirmed && dialog.ShouldBackup && dialog.SelectedDatabases.Count != 0)
                     {
                         foreach (var item in dialog.SelectedDatabases)
                         {
@@ -150,6 +156,19 @@ public class DatabaseMaintenanceCoordinator :
                 ThemedMessageBox.Show($"Error backing up database:\n{ex.Message}", "Backup Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         });
+    }
+
+    /// <summary>
+    /// Persists the auto-confirm choice made in a backup dialog so the next prompt remembers it.
+    /// </summary>
+    private async Task SaveAutoConfirmBackupSecondsAsync(int seconds)
+    {
+        var preferences = _configurationService.Configuration.Preferences;
+        if (preferences.AutoConfirmBackupSeconds == seconds)
+            return;
+
+        preferences.AutoConfirmBackupSeconds = seconds;
+        await _configurationService.SaveAsync();
     }
 
     /// <summary>
