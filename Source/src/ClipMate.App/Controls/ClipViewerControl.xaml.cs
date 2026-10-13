@@ -76,7 +76,12 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             ApplyEditorSettings();
 
             // Set up debounced auto-save (1 second after last change)
-            _debouncedTextSave = Debouncer.Debounce(SaveTextEditorDebounced, TimeSpan.FromSeconds(1));
+            // Wrapped as a Func because ThrottleDebounce 3.0.0's Action overloads throw RuntimeBinderException on execution
+            _debouncedTextSave = Debouncer.Debounce(() =>
+            {
+                SaveTextEditorDebounced();
+                return true;
+            }, TimeSpan.FromSeconds(1));
 
             // Monitor Text property changes on text editor
             var textDescriptor = DependencyPropertyDescriptor.FromProperty(MonacoEditorControl.TextProperty, typeof(MonacoEditorControl));
@@ -292,7 +297,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private bool _textEditorLanguageDirty;
 
     // Debounced actions for auto-save
-    private RateLimitedAction? _debouncedTextSave;
+    private RateLimitedFunc<bool>? _debouncedTextSave;
 
     #endregion
 

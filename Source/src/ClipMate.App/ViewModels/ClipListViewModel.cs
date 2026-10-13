@@ -33,7 +33,7 @@ public partial class ClipListViewModel : ObservableObject,
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
-    private readonly RateLimitedAction _debouncedClipSelection;
+    private readonly RateLimitedFunc<bool> _debouncedClipSelection;
     private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
@@ -107,7 +107,12 @@ public partial class ClipListViewModel : ObservableObject,
 
         // Initialize debouncer with 400ms delay to prevent clipboard contention during rapid navigation
         // Increased from 150ms to allow clipboard operations to complete before next selection
-        _debouncedClipSelection = Debouncer.Debounce(ProcessClipSelection, TimeSpan.FromMilliseconds(400));
+        // Wrapped as a Func because ThrottleDebounce 3.0.0's Action overloads throw RuntimeBinderException on execution
+        _debouncedClipSelection = Debouncer.Debounce(() =>
+        {
+            ProcessClipSelection();
+            return true;
+        }, TimeSpan.FromMilliseconds(400));
 
         // Register this ViewModel as a recipient for clipboard and selection events
         // The messenger will automatically handle weak references and cleanup
