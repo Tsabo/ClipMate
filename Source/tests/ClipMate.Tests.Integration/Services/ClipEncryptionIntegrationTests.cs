@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -295,40 +295,40 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
 
     private ClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        var mockFactory = new Mock<IDatabaseContextFactory>();
-        var clipRepository = new ClipRepository(context, Mock.Of<ILogger<ClipRepository>>());
+        var mockFactory = A.Fake<IDatabaseContextFactory>();
+        var clipRepository = new ClipRepository(context, A.Fake<ILogger<ClipRepository>>());
         var clipDataRepository = new ClipDataRepository(context);
         var blobRepository = new BlobRepository(context);
 
-        mockFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => mockFactory.GetClipRepository(_testDatabaseKey))
             .Returns(clipRepository);
 
-        mockFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey))
+        A.CallTo(() => mockFactory.GetClipDataRepository(_testDatabaseKey))
             .Returns(clipDataRepository);
 
-        mockFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey))
+        A.CallTo(() => mockFactory.GetBlobRepository(_testDatabaseKey))
             .Returns(blobRepository);
 
         var encryptionService = new AesEncryptionService();
-        var logger = Mock.Of<ILogger<ClipService>>();
-        var configService = Mock.Of<IConfigurationService>();
-        var clipboardService = Mock.Of<IClipboardService>();
-        var templateService = Mock.Of<ITemplateService>();
+        var logger = A.Fake<ILogger<ClipService>>();
+        var configService = A.Fake<IConfigurationService>();
+        var clipboardService = A.Fake<IClipboardService>();
+        var templateService = A.Fake<ITemplateService>();
 
         // Use real DecryptedBlobCacheService for integration tests - create new instance per call
 #pragma warning disable CA2000 // Dispose objects before losing scope - test objects don't require explicit disposal
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var blobCacheService = new DecryptedBlobCacheService(memoryCache, Mock.Of<ILogger<DecryptedBlobCacheService>>());
+        var blobCacheService = new DecryptedBlobCacheService(memoryCache, A.Fake<ILogger<DecryptedBlobCacheService>>());
 #pragma warning restore CA2000
 
         return new ClipService(
-            mockFactory.Object,
+            mockFactory,
             configService,
             clipboardService,
             templateService,
             encryptionService,
             blobCacheService!,
-            Mock.Of<IMessenger>(),
+            A.Fake<IMessenger>(),
             logger);
     }
 

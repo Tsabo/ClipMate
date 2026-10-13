@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,7 +11,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "Untitled - Notepad");
@@ -26,8 +26,8 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([]);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "Document");
@@ -43,15 +43,15 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filter = CreateTestFilter("Block Notepad", "notepad.exe");
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "Some title");
 
         // Assert
         await Assert.That(result).IsTrue();
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.Filter, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.Filter, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -61,15 +61,15 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filter = CreateTestFilter("Block Passwords", windowTitlePattern: "*password*");
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("chrome.exe", "Enter Password - Google Chrome");
 
         // Assert
         await Assert.That(result).IsTrue();
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.Filter, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.Filter, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -82,8 +82,8 @@ public partial class ApplicationFilterServiceTests
             "notepad.exe",
             "*password*");
 
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "password.txt - Notepad");
@@ -102,8 +102,8 @@ public partial class ApplicationFilterServiceTests
             "notepad.exe",
             "*password*");
 
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "document.txt - Notepad");
@@ -122,8 +122,8 @@ public partial class ApplicationFilterServiceTests
             "notepad.exe",
             "*password*");
 
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("chrome.exe", "password.txt");
@@ -139,8 +139,8 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filter = CreateTestFilter("Block Chrome", "chrome*.exe");
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result1 = await service.ShouldFilterAsync("chrome.exe", "Title");
@@ -160,8 +160,8 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filter = CreateTestFilter("Block Notepad", "NOTEPAD.EXE");
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync("notepad.exe", "Title");
@@ -176,7 +176,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
         // Act
@@ -193,8 +193,8 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filter = CreateTestFilter("Test", "notepad.exe");
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([filter]);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns([filter]);
 
         // Act
         var result = await service.ShouldFilterAsync(null, null);

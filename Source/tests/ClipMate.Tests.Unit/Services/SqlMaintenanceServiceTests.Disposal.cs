@@ -78,7 +78,7 @@ public partial class SqlMaintenanceServiceTests
     {
         // Arrange
         var (dbContext, mockLogger, connection) = CreateMocks();
-        var service = new SqlMaintenanceService(dbContext, mockLogger.Object, true);
+        var service = new SqlMaintenanceService(dbContext, mockLogger, true);
 
         // Act
         await service.DisposeAsync();
@@ -98,7 +98,7 @@ public partial class SqlMaintenanceServiceTests
     {
         // Arrange
         var (dbContext, mockLogger, connection) = CreateMocks();
-        var service = new SqlMaintenanceService(dbContext, mockLogger.Object, false);
+        var service = new SqlMaintenanceService(dbContext, mockLogger, false);
 
         // Act
         await service.DisposeAsync();

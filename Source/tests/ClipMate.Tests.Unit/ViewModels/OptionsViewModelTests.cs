@@ -5,7 +5,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 using ConfigModels = ClipMate.Core.Models.Configuration;
 
 namespace ClipMate.Tests.Unit.ViewModels;
@@ -26,13 +26,13 @@ public class OptionsViewModelTests
     // Child ViewModels
     private GeneralOptionsViewModel _generalViewModel = null!;
     private HotkeysOptionsViewModel _hotkeysViewModel = null!;
-    private Mock<IConfigurationService> _mockConfigurationService = null!;
-    private Mock<IHotkeyService> _mockHotkeyService = null!;
-    private Mock<ILogger<OptionsViewModel>> _mockLogger = null!;
-    private Mock<IMessenger> _mockMessenger = null!;
-    private Mock<IApplicationProfileService> _mockProfileService = null!;
-    private Mock<ISoundService> _mockSoundService = null!;
-    private Mock<IStartupManager> _mockStartupManager = null!;
+    private IConfigurationService _mockConfigurationService = null!;
+    private IHotkeyService _mockHotkeyService = null!;
+    private ILogger<OptionsViewModel> _mockLogger = null!;
+    private IMessenger _mockMessenger = null!;
+    private IApplicationProfileService _mockProfileService = null!;
+    private ISoundService _mockSoundService = null!;
+    private IStartupManager _mockStartupManager = null!;
     private PowerPasteOptionsViewModel _powerPasteViewModel = null!;
     private PrintOptionsViewModel _printOptionsViewModel = null!;
     private QuickPasteOptionsViewModel _quickPasteViewModel = null!;
@@ -41,14 +41,14 @@ public class OptionsViewModelTests
     [Before(Test)]
     public void Setup()
     {
-        _mockConfigurationService = new Mock<IConfigurationService>();
-        _mockStartupManager = new Mock<IStartupManager>();
-        _mockMessenger = new Mock<IMessenger>();
-        _mockLogger = new Mock<ILogger<OptionsViewModel>>();
-        _mockProfileService = new Mock<IApplicationProfileService>();
-        _mockSoundService = new Mock<ISoundService>();
-        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), CancellationToken.None)).Returns(Task.CompletedTask);
-        _mockHotkeyService = new Mock<IHotkeyService>();
+        _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockStartupManager = A.Fake<IStartupManager>();
+        _mockMessenger = A.Fake<IMessenger>();
+        _mockLogger = A.Fake<ILogger<OptionsViewModel>>();
+        _mockProfileService = A.Fake<IApplicationProfileService>();
+        _mockSoundService = A.Fake<ISoundService>();
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, CancellationToken.None)).Returns(Task.CompletedTask);
+        _mockHotkeyService = A.Fake<IHotkeyService>();
 
         // Setup default configuration
         var config = new ConfigModels.ClipMateConfiguration
@@ -58,76 +58,76 @@ public class OptionsViewModelTests
             Appearance = new ConfigModels.AppearanceConfiguration(),
         };
 
-        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
 
         // Create all child ViewModels
         _generalViewModel = new GeneralOptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockStartupManager.Object,
-            _mockMessenger.Object,
-            new Mock<ILogger<GeneralOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            _mockStartupManager,
+            _mockMessenger,
+            A.Fake<ILogger<GeneralOptionsViewModel>>());
 
         _appearanceViewModel = new AppearanceOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<ILogger<AppearanceOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<ILogger<AppearanceOptionsViewModel>>());
 
         _powerPasteViewModel = new PowerPasteOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<ILogger<PowerPasteOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<ILogger<PowerPasteOptionsViewModel>>());
 
         _quickPasteViewModel = new QuickPasteOptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockMessenger.Object,
-            new Mock<ILogger<QuickPasteOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            _mockMessenger,
+            A.Fake<ILogger<QuickPasteOptionsViewModel>>());
 
         _editorViewModel = new EditorOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<ILogger<EditorOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<ILogger<EditorOptionsViewModel>>());
 
         _capturingViewModel = new CapturingOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<ILogger<CapturingOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<ILogger<CapturingOptionsViewModel>>());
 
         _applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
-            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object,
-            _mockProfileService.Object);
+            A.Fake<ILogger<ApplicationProfilesOptionsViewModel>>(),
+            _mockProfileService);
 
         _soundsViewModel = new SoundsOptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockSoundService.Object,
-            new Mock<ILogger<SoundsOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            _mockSoundService,
+            A.Fake<ILogger<SoundsOptionsViewModel>>());
 
-        var mockHotkeyCoordinator = new Mock<HotkeyCoordinator>(
-            _mockHotkeyService.Object,
-            _mockConfigurationService.Object,
-            _mockMessenger.Object,
-            new Mock<ILogger<HotkeyCoordinator>>().Object);
+        var mockHotkeyCoordinator = A.Fake<HotkeyCoordinator>(o => o.WithArgumentsForConstructor(() => new HotkeyCoordinator(
+            _mockHotkeyService,
+            _mockConfigurationService,
+            _mockMessenger,
+            A.Fake<ILogger<HotkeyCoordinator>>())));
 
         _hotkeysViewModel = new HotkeysOptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockHotkeyService.Object,
-            mockHotkeyCoordinator.Object);
+            _mockConfigurationService,
+            _mockHotkeyService,
+            mockHotkeyCoordinator);
 
         _databaseViewModel = new DatabaseOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<ILogger<DatabaseOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<ILogger<DatabaseOptionsViewModel>>());
 
         _advancedViewModel = new AdvancedOptionsViewModel(
-            _mockConfigurationService.Object,
-            new Mock<IDialogService>().Object,
-            new Mock<ILogger<AdvancedOptionsViewModel>>().Object);
+            _mockConfigurationService,
+            A.Fake<IDialogService>(),
+            A.Fake<ILogger<AdvancedOptionsViewModel>>());
 
         _encryptionViewModel = new EncryptionOptionsViewModel();
 
         _printOptionsViewModel = new PrintOptionsViewModel(
-            _mockConfigurationService.Object);
+            _mockConfigurationService);
     }
 
     private OptionsViewModel CreateViewModel() =>
         new(
-            _mockConfigurationService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
+            _mockConfigurationService,
+            _mockMessenger,
+            _mockLogger,
             _generalViewModel,
             _appearanceViewModel,
             _powerPasteViewModel,
@@ -147,13 +147,13 @@ public class OptionsViewModelTests
     {
         // Arrange - Create ViewModel without profile service
         var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(
-            new Mock<ILogger<ApplicationProfilesOptionsViewModel>>().Object); // No profile service
+            A.Fake<ILogger<ApplicationProfilesOptionsViewModel>>()); // No profile service
 
         // Act
         var viewModel = new OptionsViewModel(
-            _mockConfigurationService.Object,
-            _mockMessenger.Object,
-            _mockLogger.Object,
+            _mockConfigurationService,
+            _mockMessenger,
+            _mockLogger,
             _generalViewModel,
             _appearanceViewModel,
             _powerPasteViewModel,
@@ -189,9 +189,9 @@ public class OptionsViewModelTests
     public async Task LoadConfigurationAsync_WithProfileService_ShouldLoadProfilesEnabledState()
     {
         // Arrange
-        _mockProfileService.Setup(p => p.IsApplicationProfilesEnabled()).Returns(true);
-        _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
-            .ReturnsAsync(new Dictionary<string, ApplicationProfile>());
+        A.CallTo(() => _mockProfileService.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None))
+            .Returns(new Dictionary<string, ApplicationProfile>());
 
         var viewModel = CreateViewModel();
 
@@ -200,8 +200,8 @@ public class OptionsViewModelTests
 
         // Assert
         await Assert.That(viewModel.ApplicationProfiles.EnableApplicationProfiles).IsTrue();
-        _mockProfileService.Verify(p => p.IsApplicationProfilesEnabled(), Times.Once);
-        _mockProfileService.Verify(p => p.GetAllProfilesAsync(CancellationToken.None), Times.Once);
+        A.CallTo(() => _mockProfileService.IsApplicationProfilesEnabled()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -215,8 +215,8 @@ public class OptionsViewModelTests
             ["DEVENV"] = ApplicationProfileTestFixtures.GetDevenvProfile(),
         };
 
-        _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
-            .ReturnsAsync(profiles);
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None))
+            .Returns(profiles);
 
         var viewModel = CreateViewModel();
 
@@ -234,22 +234,18 @@ public class OptionsViewModelTests
     public async Task LoadApplicationProfilesAsync_WithoutProfileService_ShouldLogWarning()
     {
         // Arrange - Create ViewModel without profile service
-        var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<ApplicationProfilesOptionsViewModel>>();
+        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger);
 
         // Act
         await applicationProfilesViewModel.LoadApplicationProfilesCommand.ExecuteAsync(null);
 
         // Assert
         await Assert.That(_applicationProfilesViewModel.ApplicationProfileNodes).IsEmpty();
-        mockLogger.Verify(
-            p => p.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("not available")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        A.CallTo(mockLogger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Warning
+                && call.GetArgument<object>(2)!.ToString()!.Contains("not available"))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -261,8 +257,8 @@ public class OptionsViewModelTests
             ["NOTEPAD"] = ApplicationProfileTestFixtures.GetNotepadProfile(),
         };
 
-        _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
-            .ReturnsAsync(profiles);
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None))
+            .Returns(profiles);
 
         var viewModel = CreateViewModel();
 
@@ -274,35 +270,31 @@ public class OptionsViewModelTests
 
         // Assert
         await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).IsEmpty();
-        _mockProfileService.Verify(p => p.DeleteAllProfilesAsync(CancellationToken.None), Times.Once);
+        A.CallTo(() => _mockProfileService.DeleteAllProfilesAsync(CancellationToken.None)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task DeleteAllProfilesAsync_WithoutProfileService_ShouldLogWarning()
     {
         // Arrange - Create ViewModel without profile service
-        var mockLogger = new Mock<ILogger<ApplicationProfilesOptionsViewModel>>();
-        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<ApplicationProfilesOptionsViewModel>>();
+        var applicationProfilesViewModel = new ApplicationProfilesOptionsViewModel(mockLogger);
 
         // Act
         await applicationProfilesViewModel.DeleteAllProfilesCommand.ExecuteAsync(null);
 
         // Assert
-        mockLogger.Verify(
-            p => p.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("not available")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        A.CallTo(mockLogger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Warning
+                && call.GetArgument<object>(2)!.ToString()!.Contains("not available"))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task OkCommand_ShouldSaveProfileEnabledState()
     {
         // Arrange
-        _mockStartupManager.Setup(p => p.IsEnabledAsync()).ReturnsAsync((true, false, string.Empty));
+        A.CallTo(() => _mockStartupManager.IsEnabledAsync()).Returns((true, false, string.Empty));
 
         var viewModel = CreateViewModel();
 
@@ -312,15 +304,15 @@ public class OptionsViewModelTests
         await viewModel.OkCommand.ExecuteAsync(null);
 
         // Assert
-        _mockProfileService.Verify(p => p.SetApplicationProfilesEnabled(true), Times.Once);
-        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockProfileService.SetApplicationProfilesEnabled(true)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task OkCommand_ShouldUpdateAllProfileNodes()
     {
         // Arrange
-        _mockStartupManager.Setup(x => x.IsEnabledAsync()).ReturnsAsync((true, false, string.Empty));
+        A.CallTo(() => _mockStartupManager.IsEnabledAsync()).Returns((true, false, string.Empty));
 
         var notepadProfile = ApplicationProfileTestFixtures.GetNotepadProfile();
         var chromeProfile = ApplicationProfileTestFixtures.GetChromeProfile();
@@ -331,8 +323,8 @@ public class OptionsViewModelTests
             ["CHROME"] = chromeProfile,
         };
 
-        _mockProfileService.Setup(p => p.GetAllProfilesAsync(CancellationToken.None))
-            .ReturnsAsync(profiles);
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None))
+            .Returns(profiles);
 
         var viewModel = CreateViewModel();
 
@@ -346,9 +338,7 @@ public class OptionsViewModelTests
         await viewModel.OkCommand.ExecuteAsync(null);
 
         // Assert
-        _mockProfileService.Verify(
-            p => p.UpdateProfileAsync(It.IsAny<ApplicationProfile>(), CancellationToken.None),
-            Times.Exactly(2));
+        A.CallTo(() => _mockProfileService.UpdateProfileAsync(A<ApplicationProfile>.Ignored, CancellationToken.None)).MustHaveHappened(2, Times.Exactly);
     }
 
     [Test]

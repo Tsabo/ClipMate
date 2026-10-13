@@ -4,7 +4,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -17,29 +17,29 @@ namespace ClipMate.Tests.Unit.Services;
 public class RetentionEnforcementServiceTests
 {
     private const string _testDatabaseKey = "test-db";
-    private Mock<IDatabaseContextFactory> _mockContextFactory = null!;
-    private Mock<IClipRepository> _mockClipRepository = null!;
-    private Mock<ICollectionRepository> _mockCollectionRepository = null!;
+    private IDatabaseContextFactory _mockContextFactory = null!;
+    private IClipRepository _mockClipRepository = null!;
+    private ICollectionRepository _mockCollectionRepository = null!;
 
     [Before(Test)]
     public void Setup()
     {
         // Mock repositories
-        _mockClipRepository = new Mock<IClipRepository>();
-        _mockCollectionRepository = new Mock<ICollectionRepository>();
+        _mockClipRepository = A.Fake<IClipRepository>();
+        _mockCollectionRepository = A.Fake<ICollectionRepository>();
 
         // Mock context factory to return our mocked repositories
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
-        _mockContextFactory.Setup(f => f.GetClipRepository(It.IsAny<string>()))
-            .Returns(_mockClipRepository.Object);
-        _mockContextFactory.Setup(f => f.GetCollectionRepository(It.IsAny<string>()))
-            .Returns(_mockCollectionRepository.Object);
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(A<string>.Ignored))
+            .Returns(_mockClipRepository);
+        A.CallTo(() => _mockContextFactory.GetCollectionRepository(A<string>.Ignored))
+            .Returns(_mockCollectionRepository);
     }
 
     private IRetentionEnforcementService CreateService() =>
         new RetentionEnforcementService(
-            _mockContextFactory.Object,
-            Mock.Of<ILogger<IRetentionEnforcementService>>());
+            _mockContextFactory,
+            A.Fake<ILogger<IRetentionEnforcementService>>());
 
     [Category("ReadOnlyCollection")]
     public class ReadOnlyCollectionTests : RetentionEnforcementServiceTests
@@ -69,11 +69,11 @@ public class RetentionEnforcementServiceTests
                 })
                 .ToList();
 
-            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-                .ReturnsAsync(collection);
+            A.CallTo(() => _mockCollectionRepository.GetByIdAsync(_testDatabaseKey, collectionId))
+                .Returns(collection);
 
-            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-                .ReturnsAsync(clips);
+            A.CallTo(() => _mockClipRepository.GetClipsInCollectionAsync(collectionId))
+                .Returns(clips);
 
             var service = CreateService();
 
@@ -81,9 +81,7 @@ public class RetentionEnforcementServiceTests
             await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
 
             // Assert
-            _mockClipRepository.Verify(
-                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
-                Times.Never);
+            A.CallTo(() => _mockClipRepository.MoveClipsToCollectionAsync(A<IEnumerable<Guid>>.Ignored, A<Guid>.Ignored)).MustNotHaveHappened();
         }
     }
 
@@ -124,14 +122,14 @@ public class RetentionEnforcementServiceTests
                 Role = CollectionRole.Trashcan,
             };
 
-            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, overflowId))
-                .ReturnsAsync(overflowCollection);
+            A.CallTo(() => _mockCollectionRepository.GetByIdAsync(_testDatabaseKey, overflowId))
+                .Returns(overflowCollection);
 
-            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(overflowId))
-                .ReturnsAsync(clips);
+            A.CallTo(() => _mockClipRepository.GetClipsInCollectionAsync(overflowId))
+                .Returns(clips);
 
-            _mockCollectionRepository.Setup(p => p.GetTrashcanCollectionAsync(_testDatabaseKey))
-                .ReturnsAsync(trashCollection);
+            A.CallTo(() => _mockCollectionRepository.GetTrashcanCollectionAsync(_testDatabaseKey))
+                .Returns(trashCollection);
 
             var service = CreateService();
 
@@ -139,9 +137,7 @@ public class RetentionEnforcementServiceTests
             await service.EnforceRetentionAsync(_testDatabaseKey, overflowId);
 
             // Assert
-            _mockClipRepository.Verify(
-                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), trashId),
-                Times.Once);
+            A.CallTo(() => _mockClipRepository.MoveClipsToCollectionAsync(A<IEnumerable<Guid>>.Ignored, trashId)).MustHaveHappenedOnceExactly();
         }
     }
 
@@ -184,11 +180,11 @@ public class RetentionEnforcementServiceTests
 
             var allClips = oldClips.Concat(recentClips).ToList();
 
-            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-                .ReturnsAsync(collection);
+            A.CallTo(() => _mockCollectionRepository.GetByIdAsync(_testDatabaseKey, collectionId))
+                .Returns(collection);
 
-            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-                .ReturnsAsync(allClips);
+            A.CallTo(() => _mockClipRepository.GetClipsInCollectionAsync(collectionId))
+                .Returns(allClips);
 
             var service = CreateService();
 
@@ -197,9 +193,7 @@ public class RetentionEnforcementServiceTests
 
             // Assert
             // Verify old clips were deleted (moved to Trash)
-            _mockClipRepository.Verify(
-                p => p.DeleteClipsAsync(It.Is<IEnumerable<Guid>>(ids => ids.Count() == 5)),
-                Times.Once);
+            A.CallTo(() => _mockClipRepository.DeleteClipsAsync(A<IEnumerable<Guid>>.That.Matches(ids => ids.Count() == 5))).MustHaveHappenedOnceExactly();
         }
     }
 
@@ -239,14 +233,14 @@ public class RetentionEnforcementServiceTests
                 Role = CollectionRole.Overflow,
             };
 
-            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-                .ReturnsAsync(collection);
+            A.CallTo(() => _mockCollectionRepository.GetByIdAsync(_testDatabaseKey, collectionId))
+                .Returns(collection);
 
-            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-                .ReturnsAsync(clips);
+            A.CallTo(() => _mockClipRepository.GetClipsInCollectionAsync(collectionId))
+                .Returns(clips);
 
-            _mockCollectionRepository.Setup(p => p.GetOverflowCollectionAsync(_testDatabaseKey))
-                .ReturnsAsync(overflowCollection);
+            A.CallTo(() => _mockCollectionRepository.GetOverflowCollectionAsync(_testDatabaseKey))
+                .Returns(overflowCollection);
 
             var service = CreateService();
 
@@ -255,9 +249,7 @@ public class RetentionEnforcementServiceTests
 
             // Assert
             // Verify that 5 clips were moved to overflow (keeping the 5 newest)
-            _mockClipRepository.Verify(
-                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), overflowId),
-                Times.Once);
+            A.CallTo(() => _mockClipRepository.MoveClipsToCollectionAsync(A<IEnumerable<Guid>>.Ignored, overflowId)).MustHaveHappenedOnceExactly();
         }
 
         [Test]
@@ -284,11 +276,11 @@ public class RetentionEnforcementServiceTests
                 })
                 .ToList();
 
-            _mockCollectionRepository.Setup(p => p.GetByIdAsync(_testDatabaseKey, collectionId))
-                .ReturnsAsync(collection);
+            A.CallTo(() => _mockCollectionRepository.GetByIdAsync(_testDatabaseKey, collectionId))
+                .Returns(collection);
 
-            _mockClipRepository.Setup(p => p.GetClipsInCollectionAsync(collectionId))
-                .ReturnsAsync(clips);
+            A.CallTo(() => _mockClipRepository.GetClipsInCollectionAsync(collectionId))
+                .Returns(clips);
 
             var service = CreateService();
 
@@ -296,9 +288,7 @@ public class RetentionEnforcementServiceTests
             await service.EnforceRetentionAsync(_testDatabaseKey, collectionId);
 
             // Assert
-            _mockClipRepository.Verify(
-                p => p.MoveClipsToCollectionAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<Guid>()),
-                Times.Never);
+            A.CallTo(() => _mockClipRepository.MoveClipsToCollectionAsync(A<IEnumerable<Guid>>.Ignored, A<Guid>.Ignored)).MustNotHaveHappened();
         }
     }
 }

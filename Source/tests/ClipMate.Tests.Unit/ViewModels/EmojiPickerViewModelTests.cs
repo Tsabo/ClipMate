@@ -2,7 +2,7 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Emoji.Wpf;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -24,7 +24,7 @@ public class EmojiPickerViewModelTests
         var configService = CreateMockConfigService();
 
         // Act
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
 
         // Assert
         await Assert.That(viewModel.SearchText).IsEqualTo(string.Empty);
@@ -43,7 +43,7 @@ public class EmojiPickerViewModelTests
         ]);
 
         // Act
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
 
         // Assert
         await Assert.That(viewModel.RecentEmojis.Count).IsGreaterThanOrEqualTo(0);
@@ -55,7 +55,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         // Act
         viewModel.SearchText = "smile";
 
@@ -68,7 +68,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object)
+        var viewModel = new EmojiPickerViewModel(configService)
         {
             SearchText = "test",
         };
@@ -86,7 +86,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var categories = EmojiData.AllGroups.ToList();
 
         if (categories.Count > 1)
@@ -109,7 +109,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var emoji = new EmojiData.Emoji { Text = "😀", Name = "grinning face" };
 
         // Act
@@ -124,14 +124,14 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var emoji = new EmojiData.Emoji { Text = "😀", Name = "grinning face" };
 
         // Act
         viewModel.SelectEmojiCommand.Execute(emoji);
 
         // Assert - verify SaveAsync was called to persist usage
-        configService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => configService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -139,7 +139,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var emoji1 = new EmojiData.Emoji { Text = "😀", Name = "grinning face" };
         var emoji2 = new EmojiData.Emoji { Text = "😎", Name = "smiling face with sunglasses" };
 
@@ -148,7 +148,7 @@ public class EmojiPickerViewModelTests
         viewModel.SelectEmojiCommand.Execute(emoji2);
 
         // Assert - verify SaveAsync was called multiple times
-        configService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        A.CallTo(() => configService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappened(2, Times.OrMore);
     }
 
     // SelectCategoryCommand Tests
@@ -157,7 +157,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var categories = EmojiData.AllGroups.ToList();
 
         if (categories.Count > 1)
@@ -178,7 +178,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
         var categories = EmojiData.AllGroups.ToList();
 
         viewModel.SearchText = "test search";
@@ -200,7 +200,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
 
         // Act
         var canExecute = viewModel.OkCommand.CanExecute(null);
@@ -214,7 +214,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
 
         // Act
         viewModel.OkCommand.Execute(null);
@@ -229,7 +229,7 @@ public class EmojiPickerViewModelTests
     {
         // Arrange
         var configService = CreateMockConfigService();
-        var viewModel = new EmojiPickerViewModel(configService.Object);
+        var viewModel = new EmojiPickerViewModel(configService);
 
         // Act
         var categories = viewModel.Categories;
@@ -240,16 +240,16 @@ public class EmojiPickerViewModelTests
     }
 
     // Helper Methods
-    private static Mock<IConfigurationService> CreateMockConfigService(List<RecentEmoji>? recentEmojis = null)
+    private static IConfigurationService CreateMockConfigService(List<RecentEmoji>? recentEmojis = null)
     {
-        var mock = new Mock<IConfigurationService>();
+        var mock = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             RecentEmojis = recentEmojis ?? [],
         };
 
-        mock.Setup(p => p.Configuration).Returns(config);
-        mock.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        A.CallTo(() => mock.Configuration).Returns(config);
+        A.CallTo(() => mock.SaveAsync(A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         return mock;
     }

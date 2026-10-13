@@ -1,6 +1,6 @@
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -23,10 +23,10 @@ public class StartupManagerTests
     public async Task Constructor_WithValidLogger_CreatesInstance()
     {
         // Arrange
-        var logger = new Mock<ILogger<StartupManager>>();
+        var logger = A.Fake<ILogger<StartupManager>>();
 
         // Act
-        var service = new StartupManager(logger.Object);
+        var service = new StartupManager(logger);
 
         // Assert
         await Assert.That(service).IsNotNull();
@@ -36,8 +36,8 @@ public class StartupManagerTests
     public async Task IsEnabledAsync_ReturnsTaskWithTuple()
     {
         // Arrange
-        var logger = new Mock<ILogger<StartupManager>>();
-        var service = new StartupManager(logger.Object);
+        var logger = A.Fake<ILogger<StartupManager>>();
+        var service = new StartupManager(logger);
 
         // Act
         var result = await service.IsEnabledAsync();
@@ -51,8 +51,8 @@ public class StartupManagerTests
     public async Task EnableAsync_ReturnsTaskWithTuple()
     {
         // Arrange
-        var logger = new Mock<ILogger<StartupManager>>();
-        var service = new StartupManager(logger.Object);
+        var logger = A.Fake<ILogger<StartupManager>>();
+        var service = new StartupManager(logger);
 
         // Act
         var result = await service.EnableAsync();
@@ -65,8 +65,8 @@ public class StartupManagerTests
     public async Task DisableAsync_ReturnsTaskWithTuple()
     {
         // Arrange
-        var logger = new Mock<ILogger<StartupManager>>();
-        var service = new StartupManager(logger.Object);
+        var logger = A.Fake<ILogger<StartupManager>>();
+        var service = new StartupManager(logger);
 
         // Act
         var result = await service.DisableAsync();

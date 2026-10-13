@@ -14,10 +14,10 @@ public partial class MaintenanceSchedulerServiceTests
         // Act & Assert
         await Assert.That(() => new MaintenanceSchedulerService(
                 null!,
-                _mockMaintenanceService.Object,
-                _mockConfigService.Object,
-                _mockIdleDetector.Object,
-                _mockLogger.Object))
+                _mockMaintenanceService,
+                _mockConfigService,
+                _mockIdleDetector,
+                _mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -27,11 +27,11 @@ public partial class MaintenanceSchedulerServiceTests
     {
         // Act & Assert
         await Assert.That(() => new MaintenanceSchedulerService(
-                _mockRetentionService.Object,
+                _mockRetentionService,
                 null!,
-                _mockConfigService.Object,
-                _mockIdleDetector.Object,
-                _mockLogger.Object))
+                _mockConfigService,
+                _mockIdleDetector,
+                _mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -41,11 +41,11 @@ public partial class MaintenanceSchedulerServiceTests
     {
         // Act & Assert
         await Assert.That(() => new MaintenanceSchedulerService(
-                _mockRetentionService.Object,
-                _mockMaintenanceService.Object,
+                _mockRetentionService,
+                _mockMaintenanceService,
                 null!,
-                _mockIdleDetector.Object,
-                _mockLogger.Object))
+                _mockIdleDetector,
+                _mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -55,11 +55,11 @@ public partial class MaintenanceSchedulerServiceTests
     {
         // Act & Assert
         await Assert.That(() => new MaintenanceSchedulerService(
-                _mockRetentionService.Object,
-                _mockMaintenanceService.Object,
-                _mockConfigService.Object,
+                _mockRetentionService,
+                _mockMaintenanceService,
+                _mockConfigService,
                 null!,
-                _mockLogger.Object))
+                _mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -69,10 +69,10 @@ public partial class MaintenanceSchedulerServiceTests
     {
         // Act & Assert
         await Assert.That(() => new MaintenanceSchedulerService(
-                _mockRetentionService.Object,
-                _mockMaintenanceService.Object,
-                _mockConfigService.Object,
-                _mockIdleDetector.Object,
+                _mockRetentionService,
+                _mockMaintenanceService,
+                _mockConfigService,
+                _mockIdleDetector,
                 null!))
             .Throws<ArgumentNullException>();
     }

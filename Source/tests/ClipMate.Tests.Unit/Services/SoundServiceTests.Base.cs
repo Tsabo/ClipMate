@@ -3,21 +3,21 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public class SoundServiceTestsBase
 {
-    protected Mock<IConfigurationService> ConfigService { get; private set; } = null!;
-    protected Mock<ILogger<SoundService>> Logger { get; private set; } = null!;
+    protected IConfigurationService ConfigService { get; private set; } = null!;
+    protected ILogger<SoundService> Logger { get; private set; } = null!;
     protected ClipMateConfiguration Configuration { get; private set; } = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        ConfigService = new Mock<IConfigurationService>();
-        Logger = new Mock<ILogger<SoundService>>();
+        ConfigService = A.Fake<IConfigurationService>();
+        Logger = A.Fake<ILogger<SoundService>>();
 
         // Create default configuration with sounds disabled
         Configuration = new ClipMateConfiguration
@@ -36,8 +36,8 @@ public class SoundServiceTestsBase
             },
         };
 
-        ConfigService.Setup(p => p.Configuration).Returns(Configuration);
+        A.CallTo(() => ConfigService.Configuration).Returns(Configuration);
     }
 
-    protected SoundService CreateService() => new(ConfigService.Object, Logger.Object);
+    protected SoundService CreateService() => new(ConfigService, Logger);
 }

@@ -4,7 +4,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,22 +12,22 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Unit")]
 public partial class PowerPasteServiceTests
 {
-    private Mock<IConfigurationService> _mockConfigService = null!;
-    private Mock<ILogger<PowerPasteService>> _mockLogger = null!;
-    private Mock<ISoundService> _mockSoundService = null!;
+    private IConfigurationService _mockConfigService = null!;
+    private ILogger<PowerPasteService> _mockLogger = null!;
+    private ISoundService _mockSoundService = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockLogger = new Mock<ILogger<PowerPasteService>>();
-        _mockConfigService = new Mock<IConfigurationService>();
-        _mockSoundService = new Mock<ISoundService>();
+        _mockLogger = A.Fake<ILogger<PowerPasteService>>();
+        _mockConfigService = A.Fake<IConfigurationService>();
+        _mockSoundService = A.Fake<ISoundService>();
 
         // Configure sound service to return completed task (with or without cancellation token)
-        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>()))
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(A<SoundEvent>.Ignored))
             .Returns(Task.CompletedTask);
 
-        _mockSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Default configuration
@@ -42,13 +42,13 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
     }
 
     private PowerPasteService CreateService() => new(
-        _mockConfigService.Object,
-        _mockSoundService.Object,
-        _mockLogger.Object);
+        _mockConfigService,
+        _mockSoundService,
+        _mockLogger);
 
     private static Clip CreateTestClip(string textContent,
         Guid? id = null,

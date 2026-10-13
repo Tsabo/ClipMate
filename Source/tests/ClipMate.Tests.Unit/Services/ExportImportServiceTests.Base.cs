@@ -3,7 +3,7 @@ using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,17 +11,17 @@ public abstract class ExportImportServiceTestsBase : TestFixtureBase
 {
     protected ExportImportService CreateService()
     {
-        var clipService = new Mock<IClipService>();
+        var clipService = A.Fake<IClipService>();
 
         // Mock LoadBlobDataAsync to do nothing (test clips already have data populated)
-        clipService.Setup(p => p.LoadBlobDataAsync(
-                It.IsAny<string>(),
-                It.IsAny<Clip>(),
-                It.IsAny<CancellationToken>()))
+        A.CallTo(() => clipService.LoadBlobDataAsync(
+                A<string>.Ignored,
+                A<Clip>.Ignored,
+                A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         var logger = CreateLogger<ExportImportService>();
-        return new ExportImportService(clipService.Object, logger);
+        return new ExportImportService(clipService, logger);
     }
 
     protected static string CreateTempDirectory()

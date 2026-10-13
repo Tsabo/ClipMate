@@ -22,7 +22,7 @@ public partial class SqlValidationServiceTests
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new SqlValidationService(
             null!,
-            _mockLogger.Object));
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("databaseManager");
     }
@@ -33,7 +33,7 @@ public partial class SqlValidationServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new SqlValidationService(
-            _mockDatabaseManager.Object,
+            _mockDatabaseManager,
             null!));
 
         await Assert.That(exception.ParamName).IsEqualTo("logger");

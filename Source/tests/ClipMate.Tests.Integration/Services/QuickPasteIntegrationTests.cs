@@ -8,7 +8,7 @@ using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -19,8 +19,8 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
 {
     private IConfigurationService _configurationService = null!;
     private IMessenger _messenger = null!;
-    private Mock<IClipboardService> _mockClipboardService = null!;
-    private Mock<IWin32InputInterop> _mockWin32 = null!;
+    private IClipboardService _mockClipboardService = null!;
+    private IWin32InputInterop _mockWin32 = null!;
     private QuickPasteService _quickPasteService = null!;
     private ClipMateConfiguration _testConfig = null!;
 
@@ -29,8 +29,8 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     {
         await SetupAsync();
 
-        _mockWin32 = new Mock<IWin32InputInterop>();
-        _mockClipboardService = new Mock<IClipboardService>();
+        _mockWin32 = A.Fake<IWin32InputInterop>();
+        _mockClipboardService = A.Fake<IClipboardService>();
         _messenger = WeakReferenceMessenger.Default;
 
         // Create test configuration with realistic QuickPaste settings
@@ -85,7 +85,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         };
 
         var tempDir = Path.Combine(Path.GetTempPath(), "ClipMateTests", Guid.NewGuid().ToString());
-        var mockLogger = Mock.Of<ILogger<ConfigurationService>>();
+        var mockLogger = A.Fake<ILogger<ConfigurationService>>();
         _configurationService = new ConfigurationService(tempDir, mockLogger);
 
         // Manually set the configuration since we're not loading from file
@@ -93,16 +93,16 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
             .GetProperty("Configuration")!
             .SetValue(_configurationService, _testConfig);
 
-        var quickPasteLogger = Mock.Of<ILogger<QuickPasteService>>();
+        var quickPasteLogger = A.Fake<ILogger<QuickPasteService>>();
 
         _quickPasteService = new QuickPasteService(
-            _mockWin32.Object,
-            _mockClipboardService.Object,
+            _mockWin32,
+            _mockClipboardService,
             _configurationService,
             _messenger,
-            Mock.Of<IMacroExecutionService>(),
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IDialogService>(),
+            A.Fake<IMacroExecutionService>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IDialogService>(),
             quickPasteLogger);
     }
 
@@ -266,7 +266,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     public async Task QuickPaste_UpdateTarget_DoesNotThrowWhenNoWindow()
     {
         // Arrange - No foreground window
-        _mockWin32.Setup(p => p.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
+        A.CallTo(() => _mockWin32.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
         _quickPasteService.SetTargetLock(false);
 
         // Act

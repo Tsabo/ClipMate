@@ -5,7 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -14,32 +14,32 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ApplicationFilterServiceTests
 {
     private const string _testDatabaseKey = "test-db";
-    private Mock<ICollectionService> _mockCollectionService = null!;
-    private Mock<IDatabaseContextFactory> _mockContextFactory = null!;
-    private Mock<IApplicationFilterRepository> _mockFilterRepository = null!;
-    private Mock<ILogger<ApplicationFilterService>> _mockLogger = null!;
-    private Mock<ISoundService> _mockSoundService = null!;
+    private ICollectionService _mockCollectionService = null!;
+    private IDatabaseContextFactory _mockContextFactory = null!;
+    private IApplicationFilterRepository _mockFilterRepository = null!;
+    private ILogger<ApplicationFilterService> _mockLogger = null!;
+    private ISoundService _mockSoundService = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockLogger = new Mock<ILogger<ApplicationFilterService>>();
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockSoundService = new Mock<ISoundService>();
-        _mockFilterRepository = new Mock<IApplicationFilterRepository>();
+        _mockLogger = A.Fake<ILogger<ApplicationFilterService>>();
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockSoundService = A.Fake<ISoundService>();
+        _mockFilterRepository = A.Fake<IApplicationFilterRepository>();
 
         // Default: return test database key
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(_testDatabaseKey);
-        _mockContextFactory.Setup(p => p.GetApplicationFilterRepository(_testDatabaseKey))
-            .Returns(_mockFilterRepository.Object);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(_testDatabaseKey);
+        A.CallTo(() => _mockContextFactory.GetApplicationFilterRepository(_testDatabaseKey))
+            .Returns(_mockFilterRepository);
     }
 
     private ApplicationFilterService CreateService() => new(
-        _mockContextFactory.Object,
-        _mockCollectionService.Object,
-        _mockSoundService.Object,
-        _mockLogger.Object);
+        _mockContextFactory,
+        _mockCollectionService,
+        _mockSoundService,
+        _mockLogger);
 
     private static ApplicationFilter CreateTestFilter(string name,
         string? processName = null,

@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,8 +15,8 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
     {
         // Arrange
         var existingProfile = ApplicationProfileTestFixtures.GetNotepadProfile();
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingProfile);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns(existingProfile);
 
         // Act
         var result = await Service.GetOrCreateProfileAsync("notepad.exe");
@@ -25,17 +25,17 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
         await Assert.That(result).IsNotNull();
         await Assert.That(result.ApplicationName).IsEqualTo("NOTEPAD");
         await Assert.That(result.Formats["TEXT"]).IsTrue();
-        MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
     public async Task GetOrCreateProfileAsync_CreatesNewProfile_WhenNotExists()
     {
         // Arrange
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationProfile?)null);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns((ApplicationProfile?)null);
 
-        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -57,17 +57,17 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
         await Assert.That(result.Formats["CF_LOCALE"]).IsFalse();
         await Assert.That(result.Formats["OlePrivateData"]).IsFalse();
 
-        MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(s => s.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.That.Matches(s => s.ApplicationName == "NOTEPAD"), A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task GetOrCreateProfileAsync_NormalizesApplicationName()
     {
         // Arrange
-        MockStore.Setup(p => p.GetProfileAsync("CHROME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationProfile?)null);
+        A.CallTo(() => MockStore.GetProfileAsync("CHROME", A<CancellationToken>.Ignored))
+            .Returns((ApplicationProfile?)null);
 
-        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -75,6 +75,6 @@ public class ApplicationProfileServiceGetOrCreateTests : ApplicationProfileServi
 
         // Assert
         await Assert.That(result.ApplicationName).IsEqualTo("CHROME");
-        MockStore.Verify(p => p.GetProfileAsync("CHROME", It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.GetProfileAsync("CHROME", A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

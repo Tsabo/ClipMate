@@ -4,7 +4,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,9 +15,9 @@ public class DatabaseManagerTests
     public async Task LoadAutoLoadDatabasesAsync_WithNoAutoLoadDatabases_ReturnsZero()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var config = new ClipMateConfiguration
         {
@@ -27,11 +27,11 @@ public class DatabaseManagerTests
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var count = await manager.LoadAutoLoadDatabasesAsync();
@@ -45,20 +45,20 @@ public class DatabaseManagerTests
     public async Task LoadDatabaseAsync_WithNonExistentDatabase_ReturnsFalse()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var result = await manager.LoadDatabaseAsync("NonExistent");
@@ -72,12 +72,12 @@ public class DatabaseManagerTests
     public async Task UnloadDatabase_WithoutLoadedConfiguration_ReturnsFalse()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var result = manager.UnloadDatabase("Test DB");
@@ -90,20 +90,20 @@ public class DatabaseManagerTests
     public async Task UnloadDatabase_WithNonExistentDatabase_ReturnsFalse()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
         await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
 
         // Act
@@ -118,12 +118,12 @@ public class DatabaseManagerTests
     public async Task GetLoadedDatabases_WithoutLoadedConfiguration_ReturnsEmpty()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var databases = manager.GetLoadedDatabases();
@@ -137,30 +137,30 @@ public class DatabaseManagerTests
     public async Task Dispose_CalledOnce_DisposesContextFactory()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         manager.Dispose();
 
         // Assert
-        contextFactory.Verify(p => p.Dispose(), Times.Once);
+        A.CallTo(() => contextFactory.Dispose()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task Dispose_CalledMultipleTimes_DisposesOnlyOnce()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         manager.Dispose();
@@ -168,19 +168,19 @@ public class DatabaseManagerTests
         manager.Dispose();
 
         // Assert
-        contextFactory.Verify(p => p.Dispose(), Times.Once);
+        A.CallTo(() => contextFactory.Dispose()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task AfterDispose_LoadAutoLoadDatabasesAsync_ThrowsObjectDisposedException()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
         manager.Dispose();
 
         // Act & Assert
@@ -193,12 +193,12 @@ public class DatabaseManagerTests
     public async Task CreateAllDatabaseContexts_WithoutLoadedConfiguration_ReturnsEmpty()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var contexts = manager.CreateAllDatabaseContexts().ToList();
@@ -211,12 +211,12 @@ public class DatabaseManagerTests
     public async Task CreateAllDatabaseContexts_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var logger = new Mock<ILogger<DatabaseManager>>();
+        var configService = A.Fake<IConfigurationService>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var logger = A.Fake<ILogger<DatabaseManager>>();
 
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory.Object, logger.Object, messenger.Object);
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
         manager.Dispose();
 
         // Act & Assert

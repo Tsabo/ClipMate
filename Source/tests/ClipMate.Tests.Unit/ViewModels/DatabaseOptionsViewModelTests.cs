@@ -1,7 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -10,15 +10,15 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class DatabaseOptionsViewModelTests : TestFixtureBase
 {
-    private Mock<IConfigurationService> _configServiceMock = null!;
+    private IConfigurationService _configServiceMock = null!;
     private DatabaseOptionsViewModel _viewModel = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _configServiceMock = MockRepository.Create<IConfigurationService>();
+        _configServiceMock = A.Fake<IConfigurationService>(o => o.Strict());
         var logger = CreateLogger<DatabaseOptionsViewModel>();
-        _viewModel = new DatabaseOptionsViewModel(_configServiceMock.Object, logger);
+        _viewModel = new DatabaseOptionsViewModel(_configServiceMock, logger);
     }
 
     [Test]
@@ -39,7 +39,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
             },
         };
 
-        _configServiceMock.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configServiceMock.Configuration).Returns(config);
 
         // Act
         await _viewModel.LoadAsync();
@@ -62,7 +62,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
             Preferences = new PreferencesConfiguration(),
         };
 
-        _configServiceMock.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configServiceMock.Configuration).Returns(config);
 
         _viewModel.Databases.Add(new DatabaseConfigurationViewModel("test", new DatabaseConfiguration { Name = "Test DB" }));
         _viewModel.BackupIntervalDays = 14;

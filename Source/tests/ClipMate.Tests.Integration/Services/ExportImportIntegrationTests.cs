@@ -11,7 +11,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -598,51 +598,51 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
     private IClipService CreateClipService()
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return real repositories for the test database
-        var clipLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipLogger = A.Fake<ILogger<ClipRepository>>();
         var clipRepository = new ClipRepository(DbContext, clipLogger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(clipRepository);
 
         var clipDataRepository = new ClipDataRepository(DbContext);
-        contextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipDataRepository(_testDatabaseKey))
             .Returns(clipDataRepository);
 
         var blobRepository = new BlobRepository(DbContext);
-        contextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetBlobRepository(_testDatabaseKey))
             .Returns(blobRepository);
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IEncryptionService>(),
-            Mock.Of<IDecryptedBlobCacheService>(),
-            Mock.Of<IMessenger>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IEncryptionService>(),
+            A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IMessenger>(),
             serviceLogger);
     }
 
     private IClipService CreateClipServiceWithRealEncryption()
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return real repositories for the test database
-        var clipLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipLogger = A.Fake<ILogger<ClipRepository>>();
         var clipRepository = new ClipRepository(DbContext, clipLogger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(clipRepository);
 
         var clipDataRepository = new ClipDataRepository(DbContext);
-        contextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipDataRepository(_testDatabaseKey))
             .Returns(clipDataRepository);
 
         var blobRepository = new BlobRepository(DbContext);
-        contextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetBlobRepository(_testDatabaseKey))
             .Returns(blobRepository);
 
         // Use real encryption service
@@ -651,39 +651,39 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         // Use real decrypted blob cache service
 #pragma warning disable CA2000 // Dispose objects before losing scope - test objects don't require explicit disposal
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var cacheLogger = Mock.Of<ILogger<DecryptedBlobCacheService>>();
+        var cacheLogger = A.Fake<ILogger<DecryptedBlobCacheService>>();
         var decryptedBlobCacheService = new DecryptedBlobCacheService(memoryCache, cacheLogger);
 #pragma warning restore CA2000
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            Mock.Of<IMessenger>(),
+            A.Fake<IMessenger>(),
             serviceLogger);
     }
 
     private IClipService CreateClipServiceWithRealEncryptionAndContext(ClipMateDbContext context)
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return real repositories with the provided context
-        var clipLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipLogger = A.Fake<ILogger<ClipRepository>>();
         var clipRepository = new ClipRepository(context, clipLogger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(clipRepository);
 
         var clipDataRepository = new ClipDataRepository(context);
-        contextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipDataRepository(_testDatabaseKey))
             .Returns(clipDataRepository);
 
         var blobRepository = new BlobRepository(context);
-        contextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetBlobRepository(_testDatabaseKey))
             .Returns(blobRepository);
 
         // Use real encryption service
@@ -692,56 +692,56 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         // Use real decrypted blob cache service
 #pragma warning disable CA2000 // Dispose objects before losing scope - test objects don't require explicit disposal
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var cacheLogger = Mock.Of<ILogger<DecryptedBlobCacheService>>();
+        var cacheLogger = A.Fake<ILogger<DecryptedBlobCacheService>>();
         var decryptedBlobCacheService = new DecryptedBlobCacheService(memoryCache, cacheLogger);
 #pragma warning restore CA2000
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            Mock.Of<IMessenger>(),
+            A.Fake<IMessenger>(),
             serviceLogger);
     }
 
     private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return real repositories with the provided context
-        var clipLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipLogger = A.Fake<ILogger<ClipRepository>>();
         var clipRepository = new ClipRepository(context, clipLogger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(clipRepository);
 
         var clipDataRepository = new ClipDataRepository(context);
-        contextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipDataRepository(_testDatabaseKey))
             .Returns(clipDataRepository);
 
         var blobRepository = new BlobRepository(context);
-        contextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetBlobRepository(_testDatabaseKey))
             .Returns(blobRepository);
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IEncryptionService>(), Mock.Of<IDecryptedBlobCacheService>(),
-            Mock.Of<IMessenger>(), serviceLogger);
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IEncryptionService>(), A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IMessenger>(), serviceLogger);
     }
 
     private IExportImportService CreateExportImportService()
     {
-        var clipService = Mock.Of<IClipService>();
-        var logger = Mock.Of<ILogger<ExportImportService>>();
+        var clipService = A.Fake<IClipService>();
+        var logger = A.Fake<ILogger<ExportImportService>>();
         return new ExportImportService(clipService, logger);
     }
 

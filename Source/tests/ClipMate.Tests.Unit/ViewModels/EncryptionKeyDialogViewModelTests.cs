@@ -1,7 +1,7 @@
 using System.Security;
 using ClipMate.App.ViewModels;
 using CommunityToolkit.Mvvm.Messaging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -11,12 +11,12 @@ namespace ClipMate.Tests.Unit.ViewModels;
 [NotInParallel]
 public class EncryptionKeyDialogViewModelTests : TestFixtureBase
 {
-    private Mock<IMessenger> _mockMessenger = null!;
+    private IMessenger _mockMessenger = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockMessenger = new Mock<IMessenger>();
+        _mockMessenger = A.Fake<IMessenger>();
 
         // Clear any cached keys from previous tests
         EncryptionKeyDialogViewModel.ForgetKey();
@@ -35,7 +35,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("test-password-123");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = true;
         viewModel.RetentionMinutes = 5;
@@ -55,12 +55,12 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         var clipId2 = Guid.NewGuid();
         var passphrase = CreateSecureString("shared-password");
 
-        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel1.SetPassphrase(passphrase);
         viewModel1.RememberForMinutes = false;
         viewModel1.RememberUntilShutdown = true;
 
-        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel2.SetPassphrase(passphrase);
         viewModel2.RememberForMinutes = false;
         viewModel2.RememberUntilShutdown = true;
@@ -82,12 +82,12 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         var passphrase1 = CreateSecureString("password-alpha");
         var passphrase2 = CreateSecureString("password-beta");
 
-        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel1.SetPassphrase(passphrase1);
         viewModel1.RememberForMinutes = false;
         viewModel1.RememberUntilShutdown = true;
 
-        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel2.SetPassphrase(passphrase2);
         viewModel1.RememberForMinutes = false;
         viewModel2.RememberUntilShutdown = true;
@@ -106,7 +106,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("solo-password");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = false;
         viewModel.RememberUntilShutdown = true;
@@ -130,7 +130,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         var clipId3 = Guid.NewGuid();
         var passphrase = CreateSecureString("shared-pass");
 
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = false;
         viewModel.RememberUntilShutdown = true;
@@ -168,13 +168,13 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         var passphrase1 = CreateSecureString("password-1");
         var passphrase2 = CreateSecureString("password-2");
 
-        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel1.SetPassphrase(passphrase1);
         viewModel1.RememberForMinutes = false;
         viewModel1.RememberUntilShutdown = true;
         viewModel1.CacheKey(clipId1);
 
-        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel2.SetPassphrase(passphrase2);
         viewModel1.RememberForMinutes = false;
         viewModel2.RememberUntilShutdown = true;
@@ -198,13 +198,13 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         var passphrase1 = CreateSecureString("key-alpha");
         var passphrase2 = CreateSecureString("key-beta");
 
-        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel1.SetPassphrase(passphrase1);
         viewModel1.RememberForMinutes = false;
         viewModel1.RememberUntilShutdown = true;
         viewModel1.CacheKey(clipId1);
 
-        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel2.SetPassphrase(passphrase2);
         viewModel2.RememberForMinutes = false;
         viewModel2.RememberUntilShutdown = true;
@@ -225,7 +225,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("temp-password");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = true;
         viewModel.RetentionMinutes = 1; // 1 minute
@@ -254,14 +254,14 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("cached-password");
-        var cacheViewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var cacheViewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         cacheViewModel.SetPassphrase(passphrase);
         cacheViewModel.RememberForMinutes = false;
         cacheViewModel.RememberUntilShutdown = true;
         cacheViewModel.CacheKey(clipId);
 
         // Act
-        var retrieveViewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var retrieveViewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         retrieveViewModel.InitializeForDecryption();
 
         // Assert - Should have loaded passphrase from cache
@@ -276,7 +276,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("extend-test");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = true;
         viewModel.RetentionMinutes = 5;
@@ -308,7 +308,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
         // Arrange
         var clipId = Guid.NewGuid();
         var passphrase = CreateSecureString("permanent-key");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
         viewModel.RememberForMinutes = false;
         viewModel.RememberUntilShutdown = true;
@@ -324,7 +324,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
     public async Task SetPassphrase_DisposesOldPassphrase()
     {
         // Arrange
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         var passphrase1 = CreateSecureString("first-password");
         var passphrase2 = CreateSecureString("second-password");
 
@@ -342,7 +342,7 @@ public class EncryptionKeyDialogViewModelTests : TestFixtureBase
     {
         // Arrange
         var passphrase = CreateSecureString("dispose-test");
-        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var viewModel = new EncryptionKeyDialogViewModel(_mockMessenger);
         viewModel.SetPassphrase(passphrase);
 
         // Act

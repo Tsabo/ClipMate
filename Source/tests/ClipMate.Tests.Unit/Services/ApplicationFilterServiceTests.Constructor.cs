@@ -22,9 +22,9 @@ public partial class ApplicationFilterServiceTests
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ApplicationFilterService(
             null!,
-            _mockCollectionService.Object,
-            _mockSoundService.Object,
-            _mockLogger.Object));
+            _mockCollectionService,
+            _mockSoundService,
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("contextFactory");
     }
@@ -35,10 +35,10 @@ public partial class ApplicationFilterServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ApplicationFilterService(
-            _mockContextFactory.Object,
+            _mockContextFactory,
             null!,
-            _mockSoundService.Object,
-            _mockLogger.Object));
+            _mockSoundService,
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("collectionService");
     }
@@ -49,10 +49,10 @@ public partial class ApplicationFilterServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ApplicationFilterService(
-            _mockContextFactory.Object,
-            _mockCollectionService.Object,
+            _mockContextFactory,
+            _mockCollectionService,
             null!,
-            _mockLogger.Object));
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("soundService");
     }
@@ -63,9 +63,9 @@ public partial class ApplicationFilterServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new ApplicationFilterService(
-            _mockContextFactory.Object,
-            _mockCollectionService.Object,
-            _mockSoundService.Object,
+            _mockContextFactory,
+            _mockCollectionService,
+            _mockSoundService,
             null!));
 
         await Assert.That(exception.ParamName).IsEqualTo("logger");

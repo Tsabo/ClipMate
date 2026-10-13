@@ -3,7 +3,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using ClipMate.Core.Models;
 using ClipMate.Platform;
-using Moq;
+using FakeItEasy;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -16,10 +16,10 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        A.CallTo(() => mockInterop.RegisterHotKey(A<HWND>.Ignored, A<int>.Ignored, A<HOT_KEY_MODIFIERS>.Ignored, A<uint>.Ignored))
             .Returns(true);
 
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };
@@ -37,10 +37,10 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(w => w.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        A.CallTo(() => mockInterop.RegisterHotKey(A<HWND>.Ignored, A<int>.Ignored, A<HOT_KEY_MODIFIERS>.Ignored, A<uint>.Ignored))
             .Returns(false); // Win32 registration fails
 
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };
@@ -56,7 +56,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
 
         // Create and initialize window on same thread to avoid cross-thread issues
         var window = new Window();
@@ -72,7 +72,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var callback = () => { };
 
         // Act & Assert
@@ -85,7 +85,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         manager.Dispose();
         var callback = () => { };
 
@@ -100,10 +100,10 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        A.CallTo(() => mockInterop.RegisterHotKey(A<HWND>.Ignored, A<int>.Ignored, A<HOT_KEY_MODIFIERS>.Ignored, A<uint>.Ignored))
             .Returns(true);
 
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };

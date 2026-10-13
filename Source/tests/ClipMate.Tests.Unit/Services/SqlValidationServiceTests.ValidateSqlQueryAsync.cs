@@ -1,4 +1,5 @@
 using ClipMate.Data;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -221,7 +222,7 @@ public partial class SqlValidationServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
+        A.CallTo(() => _mockDatabaseManager.CreateDatabaseContext(_testDatabaseKey))
             .Returns((ClipMateDbContext?)null);
 
         // Act

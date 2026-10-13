@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,10 +11,10 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        A.CallTo(() => mockManager.RegisterHotkey(A<ModifierKeys>.Ignored, A<int>.Ignored, A<Action>.Ignored))
             .Returns(1);
 
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         var action = () => { };
 
         // Act
@@ -30,7 +30,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
 
         // Act & Assert
         await Assert.That(() => service.RegisterHotkey(100, ModifierKeys.Control, 0x56, null!))
@@ -42,10 +42,10 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        A.CallTo(() => mockManager.RegisterHotkey(A<ModifierKeys>.Ignored, A<int>.Ignored, A<Action>.Ignored))
             .Returns(1);
 
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         var action1 = () => { };
         var action2 = () => { };
 
@@ -64,7 +64,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         service.Dispose();
         var action = () => { };
 
@@ -80,11 +80,11 @@ public partial class HotkeyServiceTests
         var mockManager = CreateMockHotkeyManager();
         var capturedModifiers = ModifierKeys.None;
 
-        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
-            .Callback<ModifierKeys, int, Action>((mods, key, action) => capturedModifiers = mods)
+        A.CallTo(() => mockManager.RegisterHotkey(A<ModifierKeys>.Ignored, A<int>.Ignored, A<Action>.Ignored))
+            .Invokes((ModifierKeys mods, int key, Action action) => capturedModifiers = mods)
             .Returns(1);
 
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         var action = () => { };
 
         // Act

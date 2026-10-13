@@ -8,7 +8,7 @@ using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -62,20 +62,20 @@ public class SearchServiceTests : IntegrationTestBase
         await DbContext.SaveChangesAsync();
 
         // Arrange - Create services
-        var clipRepository = new ClipRepository(DbContext, Mock.Of<ILogger<ClipRepository>>());
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(clipRepository);
-        var mockCollectionService = new Mock<ICollectionService>();
-        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
-        var mockConfigService = new Mock<IConfigurationService>();
-        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
-        var mockSqlValidationService = new Mock<ISqlValidationService>();
+        var clipRepository = new ClipRepository(DbContext, A.Fake<ILogger<ClipRepository>>());
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => mockContextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepository);
+        var mockCollectionService = A.Fake<ICollectionService>();
+        A.CallTo(() => mockCollectionService.GetActiveDatabaseKey()).Returns("test-db");
+        var mockConfigService = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
+        var mockSqlValidationService = A.Fake<ISqlValidationService>();
         var searchService = new SearchService(
-            mockContextFactory.Object,
-            mockCollectionService.Object,
-            mockConfigService.Object,
-            mockSqlValidationService.Object,
-            Mock.Of<ILogger<SearchService>>());
+            mockContextFactory,
+            mockCollectionService,
+            mockConfigService,
+            mockSqlValidationService,
+            A.Fake<ILogger<SearchService>>());
 
         // Act
         var filters = new SearchFilters
@@ -94,18 +94,18 @@ public class SearchServiceTests : IntegrationTestBase
     public async Task BuildSqlQuery_WithTitleFilter_GeneratesValidSQL()
     {
         // Arrange
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        var mockCollectionService = new Mock<ICollectionService>();
-        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
-        var mockConfigService = new Mock<IConfigurationService>();
-        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
-        var mockSqlValidationService = new Mock<ISqlValidationService>();
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        var mockCollectionService = A.Fake<ICollectionService>();
+        A.CallTo(() => mockCollectionService.GetActiveDatabaseKey()).Returns("test-db");
+        var mockConfigService = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
+        var mockSqlValidationService = A.Fake<ISqlValidationService>();
         var searchService = new SearchService(
-            mockContextFactory.Object,
-            mockCollectionService.Object,
-            mockConfigService.Object,
-            mockSqlValidationService.Object,
-            Mock.Of<ILogger<SearchService>>());
+            mockContextFactory,
+            mockCollectionService,
+            mockConfigService,
+            mockSqlValidationService,
+            A.Fake<ILogger<SearchService>>());
 
         // Act
         var filters = new SearchFilters

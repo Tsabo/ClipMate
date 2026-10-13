@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using ClipMate.Core.Models;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -27,14 +27,8 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         await Assert.That(stopwatch.ElapsedMilliseconds).IsLessThan(100);
         
         // Verify no logging occurred (sound was disabled)
-        Logger.Verify(
-            p => p.Log(
-                It.IsAny<LogLevel>(),
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Never);
+        A.CallTo(Logger).Where(call => call.Method.Name == "Log")
+            .MustNotHaveHappened();
     }
 
     [Test]
@@ -135,7 +129,7 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         await service.PlaySoundAsync(SoundEvent.Append);
 
         // Assert - Configuration should have been accessed for behavior checks
-        ConfigService.Verify(p => p.Configuration, Times.AtLeastOnce);
+        A.CallTo(() => ConfigService.Configuration).MustHaveHappened();
     }
 
     [Test]
@@ -152,13 +146,8 @@ public class SoundServiceTestsPlaySound : SoundServiceTestsBase
         }
 
         // Assert - No warnings should be logged when sounds are disabled
-        Logger.Verify(
-            p => p.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Never);
+        A.CallTo(Logger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Warning)
+            .MustNotHaveHappened();
     }
 }

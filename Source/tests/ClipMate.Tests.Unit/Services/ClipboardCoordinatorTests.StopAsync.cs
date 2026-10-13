@@ -2,7 +2,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -17,12 +17,12 @@ public partial class ClipboardCoordinatorTests
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
         var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var autoAppendService = new Mock<IAutoAppendService>().Object;
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var autoAppendService = A.Fake<IAutoAppendService>();
         var serviceProvider = CreateMockServiceProvider();
-        var messenger = new Mock<IMessenger>().Object;
+        var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendService, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start
@@ -32,6 +32,6 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipboardService.Verify(p => p.StopMonitoringAsync(), Times.Once);
+        A.CallTo(() => clipboardService.StopMonitoringAsync()).MustHaveHappenedOnceExactly();
     }
 }

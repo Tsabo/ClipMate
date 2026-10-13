@@ -1,6 +1,6 @@
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -8,10 +8,10 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Unit")]
 public class MacroExecutionServiceTests
 {
-    private Mock<IWin32InputInterop> CreateMockInputInterop() =>
+    private IWin32InputInterop CreateMockInputInterop() =>
         // Note: Cannot mock unsafe pointer parameters directly
         // Tests verify parsing logic; actual SendInput calls return default values
-        new();
+        A.Fake<IWin32InputInterop>();
 
     [Category("Pause")]
     public class PauseTests : MacroExecutionServiceTests
@@ -21,7 +21,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Before{PAUSE}After";
             var startTime = DateTime.UtcNow;
 
@@ -43,7 +43,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Long text{PAUSE}{PAUSE}{PAUSE}";
             var cts = new CancellationTokenSource();
 
@@ -66,7 +66,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Hello World";
 
             // Act
@@ -81,7 +81,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Username{TAB}Password";
 
             // Act
@@ -96,7 +96,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Submit{ENTER}";
 
             // Act
@@ -115,7 +115,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "~a"; // Shift+A
 
             // Act
@@ -130,7 +130,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "^c"; // Ctrl+C
 
             // Act
@@ -145,7 +145,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "@f"; // Alt+F
 
             // Act
@@ -164,7 +164,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "{UP}{DOWN}{LEFT}{RIGHT}";
 
             // Act
@@ -179,7 +179,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "{F1}{F5}{F12}";
 
             // Act
@@ -194,7 +194,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "{HOME}{END}{PGUP}{PGDN}";
 
             // Act
@@ -213,7 +213,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "{LEFT 6}";
 
             // Act
@@ -228,7 +228,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "{TAB 0}";
 
             // Act
@@ -247,7 +247,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Price: {~}50";
 
             // Act
@@ -262,7 +262,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Power: 2{^}3";
 
             // Act
@@ -277,7 +277,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "email{@}domain.com";
 
             // Act
@@ -296,7 +296,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Line 1\nLine 2\rLine 3\r\nLine 4";
 
             // Act
@@ -312,7 +312,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Line 1{ENTER}Line 2{ENTER}";
 
             // Act
@@ -331,7 +331,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "MyUserID{TAB}MyPassword{ENTER}";
 
             // Act
@@ -346,7 +346,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "^a{DELETE}New Text{ESC}";
 
             // Act
@@ -365,7 +365,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Normal text with {TAB} and {ENTER}";
 
             // Act
@@ -380,7 +380,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "@{F4}@{F4}@{F4}"; // Multiple Alt+F4
 
             // Act
@@ -395,7 +395,7 @@ public class MacroExecutionServiceTests
         {
             // Arrange
             var mockInput = CreateMockInputInterop();
-            var service = new MacroExecutionService(mockInput.Object);
+            var service = new MacroExecutionService(mockInput);
             const string macroText = "Close window: @{F4}";
 
             // Act

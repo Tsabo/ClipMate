@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -38,8 +38,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task LoadProfilesAsync_ReturnsEmptyDictionary_WhenFileDoesNotExist()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         // Act
         var profiles = await store.LoadProfilesAsync();
@@ -53,8 +53,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task SaveProfilesAsync_CreatesFile_WithValidTomlContent()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         var profiles = new Dictionary<string, ApplicationProfile>
         {
@@ -77,8 +77,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task LoadProfilesAsync_DeserializesProfiles_FromValidToml()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         var originalProfiles = new Dictionary<string, ApplicationProfile>
         {
@@ -102,8 +102,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task AddOrUpdateProfileAsync_AddsNewProfile_WhenNotExists()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
 
@@ -119,8 +119,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task AddOrUpdateProfileAsync_UpdatesExistingProfile_WhenExists()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
         await store.AddOrUpdateProfileAsync(profile);
@@ -142,8 +142,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task DeleteProfileAsync_RemovesProfile_WhenExists()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetNotepadProfile());
         await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetChromeProfile());
@@ -161,8 +161,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task DeleteAllProfilesAsync_RemovesAllProfiles()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetNotepadProfile());
         await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetChromeProfile());
@@ -179,8 +179,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task GetProfileAsync_ReturnsProfile_WhenExists()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetNotepadProfile());
 
@@ -196,8 +196,8 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
     public async Task GetProfileAsync_ReturnsNull_WhenNotExists()
     {
         // Arrange
-        var logger = new Mock<ILogger<ApplicationProfileStore>>();
-        var store = new ApplicationProfileStore(_tempFilePath, logger.Object);
+        var logger = A.Fake<ILogger<ApplicationProfileStore>>();
+        var store = new ApplicationProfileStore(_tempFilePath, logger);
 
         // Act
         var profile = await store.GetProfileAsync("NONEXISTENT");

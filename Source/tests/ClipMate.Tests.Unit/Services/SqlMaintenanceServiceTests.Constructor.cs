@@ -1,6 +1,6 @@
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,10 +12,10 @@ public partial class SqlMaintenanceServiceTests
     public async Task Constructor_WithNullDbContext_ThrowsArgumentNullException()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<SqlMaintenanceService>>();
+        var mockLogger = A.Fake<ILogger<SqlMaintenanceService>>();
 
         // Act & Assert
-        await Assert.That(() => new SqlMaintenanceService(null!, mockLogger.Object))
+        await Assert.That(() => new SqlMaintenanceService(null!, mockLogger))
             .Throws<ArgumentNullException>()
             .WithParameterName("dbContext");
     }
@@ -46,7 +46,7 @@ public partial class SqlMaintenanceServiceTests
         var (dbContext, mockLogger, connection) = CreateMocks();
 
         // Act
-        var service = new SqlMaintenanceService(dbContext, mockLogger.Object);
+        var service = new SqlMaintenanceService(dbContext, mockLogger);
 
         // Assert
         await Assert.That(service).IsNotNull();

@@ -5,21 +5,21 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public class CollectionServiceTests
 {
     private const string _testDatabaseKey = "test-db";
-    private readonly Mock<ICollectionRepository> _mockRepository;
+    private readonly ICollectionRepository _mockRepository;
     private SqliteConnection _connection = null!;
     private DbContextOptions<ClipMateDbContext> _contextOptions = null!;
-    private Mock<IDatabaseManager> _mockDatabaseManager = null!;
+    private IDatabaseManager _mockDatabaseManager = null!;
 
     public CollectionServiceTests()
     {
-        _mockRepository = new Mock<ICollectionRepository>();
+        _mockRepository = A.Fake<ICollectionRepository>();
     }
 
     /// <summary>
@@ -46,9 +46,9 @@ public class CollectionServiceTests
         }
 
         // Mock IDatabaseManager - interfaces don't need constructor arguments
-        _mockDatabaseManager = new Mock<IDatabaseManager>();
-        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(() => CreateContext());
+        _mockDatabaseManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => _mockDatabaseManager.CreateDatabaseContext(_testDatabaseKey))
+            .ReturnsLazily(() => CreateContext());
     }
 
     [After(Test)]
@@ -61,30 +61,30 @@ public class CollectionServiceTests
     private ICollectionService CreateCollectionService()
     {
         // Set up mock repository to query from the actual DbContext for GetByIdAsync
-        _mockRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid id, CancellationToken _) =>
+        A.CallTo(() => _mockRepository.GetByIdAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((Guid id, CancellationToken _) =>
             {
                 using var ctx = CreateContext();
                 return ctx.Collections.FirstOrDefault(c => c.Id == id);
             });
 
         // Set up GetAllAsync to return collections from DbContext
-        _mockRepository.Setup(p => p.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
+        A.CallTo(() => _mockRepository.GetAllAsync(A<CancellationToken>.Ignored))
+            .ReturnsLazily(() =>
             {
                 using var ctx = CreateContext();
                 return ctx.Collections.ToList();
             });
 
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        mockContextFactory.Setup(p => p.GetCollectionRepository(It.IsAny<string>()))
-            .Returns(_mockRepository.Object);
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => mockContextFactory.GetCollectionRepository(A<string>.Ignored))
+            .Returns(_mockRepository);
 
         // Set up CreateAllDatabaseContexts to return a new context each time
-        _mockDatabaseManager.Setup(p => p.CreateAllDatabaseContexts())
-            .Returns(() => [(_testDatabaseKey, CreateContext())]);
+        A.CallTo(() => _mockDatabaseManager.CreateAllDatabaseContexts())
+            .ReturnsLazily(() => [(_testDatabaseKey, CreateContext())]);
 
-        return new CollectionService(_mockDatabaseManager.Object, mockContextFactory.Object);
+        return new CollectionService(_mockDatabaseManager, mockContextFactory);
     }
 
     private Collection CreateTestCollection(Guid? id = null, string name = "Test Collection") =>
@@ -103,8 +103,8 @@ public class CollectionServiceTests
         const string name = "Test Collection";
         const string description = "Test Description";
 
-        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Collection c, CancellationToken _) => c);
+        A.CallTo(() => _mockRepository.CreateAsync(A<Collection>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((Collection c, CancellationToken _) => c);
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
@@ -126,7 +126,7 @@ public class CollectionServiceTests
         await Assert.That(result.Description).IsEqualTo(description);
         await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
         await Assert.That(result.CreatedAt).IsGreaterThan(DateTime.UtcNow.AddSeconds(-5));
-        _mockRepository.Verify(p => p.CreateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.CreateAsync(A<Collection>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -167,8 +167,8 @@ public class CollectionServiceTests
         var service = CreateCollectionService();
 
         // Setup mock AFTER CreateCollectionService to override the general setup
-        _mockRepository.Setup(p => p.GetByIdAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedCollection);
+        A.CallTo(() => _mockRepository.GetByIdAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns(expectedCollection);
 
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
 
@@ -185,8 +185,8 @@ public class CollectionServiceTests
     {
         // Arrange
         var collectionId = Guid.NewGuid();
-        _mockRepository.Setup(p => p.GetByIdAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Collection?)null);
+        A.CallTo(() => _mockRepository.GetByIdAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns((Collection?)null);
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
@@ -245,8 +245,8 @@ public class CollectionServiceTests
         var collection = CreateTestCollection();
         collection.Name = "Updated Name";
 
-        _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockRepository.UpdateAsync(A<Collection>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         // Add a dummy collection to the database so SetActiveAsync can find it
         var dummyCollection = CreateTestCollection();
@@ -265,7 +265,7 @@ public class CollectionServiceTests
         // Assert
         await Assert.That(collection.Name).IsEqualTo("Updated Name");
         await Assert.That(collection.ModifiedAt).IsNotNull();
-        _mockRepository.Verify(p => p.UpdateAsync(collection, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.UpdateAsync(collection, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -283,8 +283,8 @@ public class CollectionServiceTests
     {
         // Arrange
         var collection = CreateTestCollection();
-        _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Collection>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => _mockRepository.UpdateAsync(A<Collection>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(false);
 
         var service = CreateCollectionService();
 
@@ -303,8 +303,8 @@ public class CollectionServiceTests
             await setupContext.SaveChangesAsync();
         }
 
-        _mockRepository.Setup(p => p.DeleteAsync(dummyCollection.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockRepository.DeleteAsync(dummyCollection.Id, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(dummyCollection.Id, _testDatabaseKey);
@@ -313,7 +313,7 @@ public class CollectionServiceTests
         await service.DeleteAsync(dummyCollection.Id);
 
         // Assert
-        _mockRepository.Verify(p => p.DeleteAsync(dummyCollection.Id, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.DeleteAsync(dummyCollection.Id, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -321,8 +321,8 @@ public class CollectionServiceTests
     {
         // Arrange
         var collectionId = Guid.NewGuid();
-        _mockRepository.Setup(p => p.DeleteAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => _mockRepository.DeleteAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns(false);
 
         var service = CreateCollectionService();
 
@@ -414,8 +414,8 @@ public class CollectionServiceTests
             await setupContext.SaveChangesAsync();
         }
 
-        _mockRepository.Setup(p => p.DeleteAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockRepository.DeleteAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         var service = CreateCollectionService();
         await service.SetActiveAsync(collectionId, _testDatabaseKey);

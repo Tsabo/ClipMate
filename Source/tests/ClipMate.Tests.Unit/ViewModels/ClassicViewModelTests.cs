@@ -7,7 +7,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -17,59 +17,59 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class ClassicViewModelTests
 {
-    private readonly Mock<IMessenger> _mockMessenger;
+    private readonly IMessenger _mockMessenger;
     private readonly ClassicViewModel _viewModel;
 
     public ClassicViewModelTests()
     {
-        _mockMessenger = new Mock<IMessenger>();
+        _mockMessenger = A.Fake<IMessenger>();
 
         // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
-        var mockDatabaseManager = new Mock<IDatabaseManager>();
-        mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
-        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
-        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
-        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
-        var mockActiveWindowService = new Mock<IActiveWindowService>();
-        var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
-        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
+        var mockDatabaseManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDatabaseManager.GetLoadedDatabases()).Returns([]);
+        var mockUpdateCheckService = A.Fake<IUpdateCheckService>();
+        var mockAboutLogger = A.Fake<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService, mockAboutLogger);
+        var mockActiveWindowService = A.Fake<IActiveWindowService>();
+        var mockServiceProvider = A.Fake<IServiceProvider>();
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService);
 
         var mainMenuViewModel = new MainMenuViewModel(
-            _mockMessenger.Object,
-            new Mock<IUndoService>().Object,
-            new Mock<IClipViewerWindowManager>().Object,
-            new Mock<IClipboardService>().Object,
-            new Mock<IAutoAppendService>().Object,
-            new Mock<IPowerPasteService>().Object,
-            new Mock<IQuickPasteService>().Object,
-            mockServiceProvider.Object);
+            _mockMessenger,
+            A.Fake<IUndoService>(),
+            A.Fake<IClipViewerWindowManager>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<IAutoAppendService>(),
+            A.Fake<IPowerPasteService>(),
+            A.Fake<IQuickPasteService>(),
+            mockServiceProvider);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
-        var mockQuickPasteService = new Mock<IQuickPasteService>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockQuickPasteService = A.Fake<IQuickPasteService>();
+        var mockConfigService = A.Fake<IConfigurationService>();
         // Setup Configuration property to return a valid ClipMateConfiguration
-        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
         var quickPasteToolbar = new QuickPasteToolbarViewModel(
-            mockQuickPasteService.Object,
-            mockConfigService.Object,
-            _mockMessenger.Object,
+            mockQuickPasteService,
+            mockConfigService,
+            _mockMessenger,
             NullLogger<QuickPasteToolbarViewModel>.Instance);
 
         // Create ClipListViewModel with mocked dependencies
-        var mockCollectionService = new Mock<ICollectionService>();
-        var mockFolderService = new Mock<IFolderService>();
-        var mockClipService = new Mock<IClipService>();
-        var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
+        var mockCollectionService = A.Fake<ICollectionService>();
+        var mockFolderService = A.Fake<IFolderService>();
+        var mockClipService = A.Fake<IClipService>();
+        var mockQuickPasteServiceForClipList = A.Fake<IQuickPasteService>();
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
         var clipListViewModel = new ClipListViewModel(
-            mockCollectionService.Object,
-            mockFolderService.Object,
-            mockClipService.Object,
-            mockQuickPasteServiceForClipList.Object,
-            mockContextFactory.Object,
-            _mockMessenger.Object,
+            mockCollectionService,
+            mockFolderService,
+            mockClipService,
+            mockQuickPasteServiceForClipList,
+            mockContextFactory,
+            _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);
 
         _viewModel = new ClassicViewModel(
@@ -83,48 +83,48 @@ public class ClassicViewModelTests
     {
         // Arrange & Act
         // Create mock service provider that can resolve IDatabaseManager, AboutDialogViewModel, and IActiveWindowService
-        var mockDatabaseManager = new Mock<IDatabaseManager>();
-        mockDatabaseManager.Setup(p => p.GetLoadedDatabases()).Returns([]);
-        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
-        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
-        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
-        var mockActiveWindowService = new Mock<IActiveWindowService>();
-        var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(p => p.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager.Object);
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
-        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService.Object);
+        var mockDatabaseManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDatabaseManager.GetLoadedDatabases()).Returns([]);
+        var mockUpdateCheckService = A.Fake<IUpdateCheckService>();
+        var mockAboutLogger = A.Fake<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService, mockAboutLogger);
+        var mockActiveWindowService = A.Fake<IActiveWindowService>();
+        var mockServiceProvider = A.Fake<IServiceProvider>();
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService);
 
         var mainMenu = new MainMenuViewModel(
-            _mockMessenger.Object,
-            new Mock<IUndoService>().Object,
-            new Mock<IClipViewerWindowManager>().Object,
-            new Mock<IClipboardService>().Object,
-            new Mock<IAutoAppendService>().Object,
-            new Mock<IPowerPasteService>().Object,
-            new Mock<IQuickPasteService>().Object,
-            mockServiceProvider.Object);
+            _mockMessenger,
+            A.Fake<IUndoService>(),
+            A.Fake<IClipViewerWindowManager>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<IAutoAppendService>(),
+            A.Fake<IPowerPasteService>(),
+            A.Fake<IQuickPasteService>(),
+            mockServiceProvider);
 
-        var mockQuickPasteService = new Mock<IQuickPasteService>();
-        var mockConfigService = new Mock<IConfigurationService>();
-        mockConfigService.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        var mockQuickPasteService = A.Fake<IQuickPasteService>();
+        var mockConfigService = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
         var quickPasteToolbar = new QuickPasteToolbarViewModel(
-            mockQuickPasteService.Object,
-            mockConfigService.Object,
-            _mockMessenger.Object,
+            mockQuickPasteService,
+            mockConfigService,
+            _mockMessenger,
             NullLogger<QuickPasteToolbarViewModel>.Instance);
 
-        var mockCollectionService = new Mock<ICollectionService>();
-        var mockFolderService = new Mock<IFolderService>();
-        var mockClipService = new Mock<IClipService>();
-        var mockQuickPasteServiceForClipList = new Mock<IQuickPasteService>();
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
+        var mockCollectionService = A.Fake<ICollectionService>();
+        var mockFolderService = A.Fake<IFolderService>();
+        var mockClipService = A.Fake<IClipService>();
+        var mockQuickPasteServiceForClipList = A.Fake<IQuickPasteService>();
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
         var clipListViewModel = new ClipListViewModel(
-            mockCollectionService.Object,
-            mockFolderService.Object,
-            mockClipService.Object,
-            mockQuickPasteServiceForClipList.Object,
-            mockContextFactory.Object,
-            _mockMessenger.Object,
+            mockCollectionService,
+            mockFolderService,
+            mockClipService,
+            mockQuickPasteServiceForClipList,
+            mockContextFactory,
+            _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);
 
         var viewModel = new ClassicViewModel(

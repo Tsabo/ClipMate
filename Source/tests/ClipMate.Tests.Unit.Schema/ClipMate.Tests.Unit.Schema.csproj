@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
-    <PackageReference Include="Moq" />
+    <PackageReference Include="FakeItEasy" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

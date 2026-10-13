@@ -4,7 +4,7 @@ using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -35,10 +35,10 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
     public async Task Constructor_WithLogger_CreatesInstance()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<DatabaseSchemaMigrationService>>();
+        var mockLogger = A.Fake<ILogger<DatabaseSchemaMigrationService>>();
 
         // Act
-        var service = new DatabaseSchemaMigrationService(mockLogger.Object);
+        var service = new DatabaseSchemaMigrationService(mockLogger);
 
         // Assert
         await Assert.That(service).IsNotNull();
@@ -93,8 +93,8 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
     public async Task MigrateAsync_WithExistingSchema_NoChanges()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<DatabaseSchemaMigrationService>>();
-        var service = new DatabaseSchemaMigrationService(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<DatabaseSchemaMigrationService>>();
+        var service = new DatabaseSchemaMigrationService(mockLogger);
         var tempPath = Path.Combine(Path.GetTempPath(), $"schema_test_{Guid.NewGuid()}.db");
 
         try
@@ -115,14 +115,10 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
             }
 
             // Verify logging
-            mockLogger.Verify(
-                p => p.Log(
-                    LogLevel.Information,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("schema is up to date")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.Once);
+            A.CallTo(mockLogger).Where(call => call.Method.Name == "Log"
+                    && call.GetArgument<LogLevel>(0) == LogLevel.Information
+                    && call.GetArgument<object>(2)!.ToString()!.Contains("schema is up to date"))
+                .MustHaveHappenedOnceExactly();
 
             await connection.CloseAsync();
         }
@@ -196,8 +192,8 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
     public async Task MigrateAsync_WithInMemoryDatabase_SkipsMigration()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<DatabaseSchemaMigrationService>>();
-        var service = new DatabaseSchemaMigrationService(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<DatabaseSchemaMigrationService>>();
+        var service = new DatabaseSchemaMigrationService(mockLogger);
 
         await using var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
@@ -292,8 +288,8 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
     public async Task MigrateAsync_LogsSchemaChanges()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<DatabaseSchemaMigrationService>>();
-        var service = new DatabaseSchemaMigrationService(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<DatabaseSchemaMigrationService>>();
+        var service = new DatabaseSchemaMigrationService(mockLogger);
         var tempPath = Path.Combine(Path.GetTempPath(), $"logging_test_{Guid.NewGuid()}.db");
 
         try
@@ -312,14 +308,10 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
             }
 
             // Assert - Should log starting migration
-            mockLogger.Verify(
-                p => p.Log(
-                    LogLevel.Information,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Starting database schema migration")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.AtLeastOnce);
+            A.CallTo(mockLogger).Where(call => call.Method.Name == "Log"
+                    && call.GetArgument<LogLevel>(0) == LogLevel.Information
+                    && call.GetArgument<object>(2)!.ToString()!.Contains("Starting database schema migration"))
+                .MustHaveHappened();
 
             await connection.CloseAsync();
         }

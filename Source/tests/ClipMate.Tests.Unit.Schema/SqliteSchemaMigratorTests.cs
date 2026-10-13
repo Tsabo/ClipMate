@@ -2,7 +2,7 @@ using ClipMate.Data.Schema.Abstractions;
 using ClipMate.Data.Schema.Models;
 using ClipMate.Data.Schema.Sqlite;
 using Microsoft.Data.Sqlite;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Schema;
 
@@ -206,8 +206,8 @@ public class SqliteSchemaMigratorTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var mockHook = new Mock<IMigrationHook>();
-        var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
+        var mockHook = A.Fake<IMigrationHook>();
+        var migrator = new SqliteSchemaMigrator(connection, mockHook);
         var diff = new SchemaDiff
         {
             Operations =
@@ -225,7 +225,7 @@ public class SqliteSchemaMigratorTests
         await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(p => p.OnBeforeMigrationAsync(It.IsAny<MigrationContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => mockHook.OnBeforeMigrationAsync(A<MigrationContext>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -234,8 +234,8 @@ public class SqliteSchemaMigratorTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var mockHook = new Mock<IMigrationHook>();
-        var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
+        var mockHook = A.Fake<IMigrationHook>();
+        var migrator = new SqliteSchemaMigrator(connection, mockHook);
         var diff = new SchemaDiff
         {
             Operations =
@@ -253,11 +253,11 @@ public class SqliteSchemaMigratorTests
         await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(p => p.OnAfterMigrationAsync(
-                It.Is<MigrationContext>(ctx => !ctx.IsDryRun),
-                It.Is<MigrationResult>(r => r.Success),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        A.CallTo(() => mockHook.OnAfterMigrationAsync(
+                A<MigrationContext>.That.Matches(ctx => !ctx.IsDryRun),
+                A<MigrationResult>.That.Matches(r => r.Success),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -266,8 +266,8 @@ public class SqliteSchemaMigratorTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var mockHook = new Mock<IMigrationHook>();
-        var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
+        var mockHook = A.Fake<IMigrationHook>();
+        var migrator = new SqliteSchemaMigrator(connection, mockHook);
         var diff = new SchemaDiff
         {
             Operations =
@@ -285,11 +285,11 @@ public class SqliteSchemaMigratorTests
         await migrator.MigrateAsync(diff);
 
         // Assert
-        mockHook.Verify(p => p.OnAfterMigrationAsync(
-                It.IsAny<MigrationContext>(),
-                It.IsAny<MigrationResult>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
+        A.CallTo(() => mockHook.OnAfterMigrationAsync(
+                A<MigrationContext>.Ignored,
+                A<MigrationResult>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
     }
 
     [Test]
@@ -298,8 +298,8 @@ public class SqliteSchemaMigratorTests
         // Arrange
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        var mockHook = new Mock<IMigrationHook>();
-        var migrator = new SqliteSchemaMigrator(connection, mockHook.Object);
+        var mockHook = A.Fake<IMigrationHook>();
+        var migrator = new SqliteSchemaMigrator(connection, mockHook);
         var diff = new SchemaDiff
         {
             Operations =
@@ -317,16 +317,16 @@ public class SqliteSchemaMigratorTests
         await migrator.MigrateAsync(diff, true);
 
         // Assert
-        mockHook.Verify(p => p.OnBeforeMigrationAsync(
-                It.Is<MigrationContext>(ctx => ctx.IsDryRun),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        A.CallTo(() => mockHook.OnBeforeMigrationAsync(
+                A<MigrationContext>.That.Matches(ctx => ctx.IsDryRun),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
 
-        mockHook.Verify(p => p.OnAfterMigrationAsync(
-                It.Is<MigrationContext>(ctx => ctx.IsDryRun),
-                It.Is<MigrationResult>(r => r.Success),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        A.CallTo(() => mockHook.OnAfterMigrationAsync(
+                A<MigrationContext>.That.Matches(ctx => ctx.IsDryRun),
+                A<MigrationResult>.That.Matches(r => r.Success),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
     }
 
     // ===== Warning Tests =====

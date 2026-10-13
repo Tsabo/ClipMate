@@ -3,7 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,20 +15,20 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Unit")]
 public partial class MaintenanceSchedulerServiceTests
 {
-    private Mock<IConfigurationService> _mockConfigService = null!;
-    private Mock<IWin32IdleDetector> _mockIdleDetector = null!;
-    private Mock<ILogger<MaintenanceSchedulerService>> _mockLogger = null!;
-    private Mock<IDatabaseMaintenanceService> _mockMaintenanceService = null!;
-    private Mock<IRetentionEnforcementService> _mockRetentionService = null!;
+    private IConfigurationService _mockConfigService = null!;
+    private IWin32IdleDetector _mockIdleDetector = null!;
+    private ILogger<MaintenanceSchedulerService> _mockLogger = null!;
+    private IDatabaseMaintenanceService _mockMaintenanceService = null!;
+    private IRetentionEnforcementService _mockRetentionService = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockConfigService = new Mock<IConfigurationService>();
-        _mockMaintenanceService = new Mock<IDatabaseMaintenanceService>();
-        _mockRetentionService = new Mock<IRetentionEnforcementService>();
-        _mockIdleDetector = new Mock<IWin32IdleDetector>();
-        _mockLogger = new Mock<ILogger<MaintenanceSchedulerService>>();
+        _mockConfigService = A.Fake<IConfigurationService>();
+        _mockMaintenanceService = A.Fake<IDatabaseMaintenanceService>();
+        _mockRetentionService = A.Fake<IRetentionEnforcementService>();
+        _mockIdleDetector = A.Fake<IWin32IdleDetector>();
+        _mockLogger = A.Fake<ILogger<MaintenanceSchedulerService>>();
     }
 
     private MaintenanceSchedulerService CreateService(ClipMateConfiguration? config = null)
@@ -40,14 +40,14 @@ public partial class MaintenanceSchedulerServiceTests
             Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         return new MaintenanceSchedulerService(
-            _mockRetentionService.Object,
-            _mockMaintenanceService.Object,
-            _mockConfigService.Object,
-            _mockIdleDetector.Object,
-            _mockLogger.Object);
+            _mockRetentionService,
+            _mockMaintenanceService,
+            _mockConfigService,
+            _mockIdleDetector,
+            _mockLogger);
     }
 
     private static ClipMateConfiguration CreateConfigWithDatabase(string databaseKey = "test-db",

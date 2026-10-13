@@ -1,4 +1,4 @@
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,7 +15,7 @@ public partial class PowerPasteClipboardBridgeTests
         bridge.OnClipboardOwnershipLost();
 
         // Assert
-        _mockPowerPasteService.Verify(p => p.Stop(), Times.Once);
+        A.CallTo(() => _mockPowerPasteService.Stop()).MustHaveHappenedOnceExactly();
 
         return Task.CompletedTask;
     }

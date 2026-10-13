@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,8 +15,8 @@ public partial class ClipServiceTests
         // Arrange
         var clipId = Guid.NewGuid();
         var expectedClip = CreateTestClip(clipId);
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedClip);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(expectedClip);
 
         var service = CreateClipService();
 
@@ -34,8 +34,8 @@ public partial class ClipServiceTests
     {
         // Arrange
         var clipId = Guid.NewGuid();
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns((Clip?)null);
 
         var service = CreateClipService();
 

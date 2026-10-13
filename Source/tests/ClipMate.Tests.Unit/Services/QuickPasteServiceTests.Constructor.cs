@@ -16,13 +16,13 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 null!,
-                mockClipboard.Object,
-                mockConfig.Object,
-                mockMessenger.Object,
-                CreateMockMacroExecutionService().Object,
-                CreateMockTemplateService().Object,
-                CreateMockDialogService().Object,
-                mockLogger.Object))
+                mockClipboard,
+                mockConfig,
+                mockMessenger,
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
+                mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -37,14 +37,14 @@ public partial class QuickPasteServiceTests
 
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
-                mockWin32.Object,
+                mockWin32,
                 null!,
-                mockConfig.Object,
-                mockMessenger.Object,
-                CreateMockMacroExecutionService().Object,
-                CreateMockTemplateService().Object,
-                CreateMockDialogService().Object,
-                mockLogger.Object))
+                mockConfig,
+                mockMessenger,
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
+                mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -59,14 +59,14 @@ public partial class QuickPasteServiceTests
 
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
-                mockWin32.Object,
-                mockClipboard.Object,
+                mockWin32,
+                mockClipboard,
                 null!,
-                mockMessenger.Object,
-                CreateMockMacroExecutionService().Object,
-                CreateMockTemplateService().Object,
-                CreateMockDialogService().Object,
-                mockLogger.Object))
+                mockMessenger,
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
+                mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -81,14 +81,14 @@ public partial class QuickPasteServiceTests
 
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
-                mockWin32.Object,
-                mockClipboard.Object,
-                mockConfig.Object,
+                mockWin32,
+                mockClipboard,
+                mockConfig,
                 null!,
-                CreateMockMacroExecutionService().Object,
-                CreateMockTemplateService().Object,
-                CreateMockDialogService().Object,
-                mockLogger.Object))
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
+                mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -103,13 +103,13 @@ public partial class QuickPasteServiceTests
 
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
-                mockWin32.Object,
-                mockClipboard.Object,
-                mockConfig.Object,
-                mockMessenger.Object,
-                CreateMockMacroExecutionService().Object,
-                CreateMockTemplateService().Object,
-                CreateMockDialogService().Object,
+                mockWin32,
+                mockClipboard,
+                mockConfig,
+                mockMessenger,
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
                 null!))
             .Throws<ArgumentNullException>();
     }

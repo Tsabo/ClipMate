@@ -2,7 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,17 +11,17 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class PrintServiceTests
 {
-    private readonly Mock<IDecryptedBlobCacheService> _cacheService;
-    private readonly Mock<IClipService> _clipService;
-    private readonly Mock<ILogger<PrintService>> _logger;
+    private readonly IDecryptedBlobCacheService _cacheService;
+    private readonly IClipService _clipService;
+    private readonly ILogger<PrintService> _logger;
     private readonly PrintService _service;
 
     public PrintServiceTests()
     {
-        _clipService = new Mock<IClipService>();
-        _cacheService = new Mock<IDecryptedBlobCacheService>();
-        _logger = new Mock<ILogger<PrintService>>();
-        _service = new PrintService(_clipService.Object, _cacheService.Object, _logger.Object);
+        _clipService = A.Fake<IClipService>();
+        _cacheService = A.Fake<IDecryptedBlobCacheService>();
+        _logger = A.Fake<ILogger<PrintService>>();
+        _service = new PrintService(_clipService, _cacheService, _logger);
     }
 
     [Test]
@@ -29,7 +29,7 @@ public class PrintServiceTests
     {
         // Act & Assert
 #pragma warning disable CS8602 // ParamName should always be set for ArgumentNullException
-        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(null!, _cacheService.Object, _logger.Object)));
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(null!, _cacheService, _logger)));
         await Assert.That(ex.ParamName).IsEqualTo("clipService");
 #pragma warning restore CS8602
     }
@@ -39,7 +39,7 @@ public class PrintServiceTests
     {
         // Act & Assert
 #pragma warning disable CS8602 // ParamName should always be set for ArgumentNullException
-        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(_clipService.Object, null!, _logger.Object)));
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(_clipService, null!, _logger)));
         await Assert.That(ex.ParamName).IsEqualTo("cacheService");
 #pragma warning restore CS8602
     }
@@ -49,7 +49,7 @@ public class PrintServiceTests
     {
         // Act & Assert
 #pragma warning disable CS8602 // ParamName should always be set for ArgumentNullException
-        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(_clipService.Object, _cacheService.Object, null!)));
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new PrintService(_clipService, _cacheService, null!)));
         await Assert.That(ex.ParamName).IsEqualTo("logger");
 #pragma warning restore CS8602
     }
@@ -90,7 +90,7 @@ public class PrintServiceTests
         var clipId = Guid.NewGuid();
         var clipIds = new List<Guid> { clipId };
         const string databaseKey = "test-db";
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync((Clip?)null);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns((Clip?)null);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -117,7 +117,7 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -147,7 +147,7 @@ public class PrintServiceTests
             ImageData = imageData,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -178,8 +178,8 @@ public class PrintServiceTests
             [],
             []);
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
-        _cacheService.Setup(p => p.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
+        A.CallTo(() => _cacheService.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -187,7 +187,7 @@ public class PrintServiceTests
         // Assert
         await Assert.That(result.Count).IsEqualTo(1);
         await Assert.That(result[0].Content).IsEqualTo("Decrypted content");
-        _cacheService.Verify(p => p.GetDecryptedBlobs(clipId), Times.Once);
+        A.CallTo(() => _cacheService.GetDecryptedBlobs(clipId)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -204,8 +204,8 @@ public class PrintServiceTests
             Encrypted = true,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
-        _cacheService.Setup(p => p.GetDecryptedBlobs(clipId)).Returns((DecryptedBlobData?)null);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
+        A.CallTo(() => _cacheService.GetDecryptedBlobs(clipId)).Returns((DecryptedBlobData?)null);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -236,8 +236,8 @@ public class PrintServiceTests
             [],
             []);
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
-        _cacheService.Setup(p => p.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
+        A.CallTo(() => _cacheService.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -269,8 +269,8 @@ public class PrintServiceTests
             [new BlobPng { Data = imageData }],
             []);
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
-        _cacheService.Setup(p => p.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
+        A.CallTo(() => _cacheService.GetDecryptedBlobs(clipId)).Returns(cachedBlobs);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -305,8 +305,8 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId1)).ReturnsAsync(clip1);
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId2)).ReturnsAsync(clip2);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId1)).Returns(clip1);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId2)).Returns(clip2);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -342,9 +342,9 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId1)).ReturnsAsync(clip1);
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId2)).ReturnsAsync((Clip?)null);
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId3)).ReturnsAsync(clip3);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId1)).Returns(clip1);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId2)).Returns((Clip?)null);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId3)).Returns(clip3);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -370,7 +370,7 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
@@ -395,13 +395,13 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
 
         // Act
         await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);
 
         // Assert
-        _clipService.Verify(p => p.LoadBlobDataAsync(databaseKey, clip), Times.Once);
+        A.CallTo(() => _clipService.LoadBlobDataAsync(databaseKey, clip)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -423,7 +423,7 @@ public class PrintServiceTests
             Encrypted = false,
         };
 
-        _clipService.Setup(p => p.GetByIdAsync(databaseKey, clipId)).ReturnsAsync(clip);
+        A.CallTo(() => _clipService.GetByIdAsync(databaseKey, clipId)).Returns(clip);
 
         // Act
         var result = await _service.LoadClipDataForPrintingAsync(clipIds, databaseKey);

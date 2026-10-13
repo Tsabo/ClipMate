@@ -3,7 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -46,7 +46,7 @@ public partial class DatabaseContextFactoryTests
         var serviceProvider = serviceCollection.BuildServiceProvider();
 
         configService ??= CreateConfigService();
-        var logger = new Mock<ILogger<DatabaseContextFactory>>().Object;
+        var logger = A.Fake<ILogger<DatabaseContextFactory>>();
 
         return new DatabaseContextFactory(serviceProvider, configService, logger);
     }
@@ -62,8 +62,8 @@ public partial class DatabaseContextFactoryTests
             },
         };
 
-        var mockConfig = new Mock<IConfigurationService>();
-        mockConfig.Setup(p => p.Configuration).Returns(config);
-        return mockConfig.Object;
+        var mockConfig = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfig.Configuration).Returns(config);
+        return mockConfig;
     }
 }

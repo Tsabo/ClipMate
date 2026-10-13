@@ -1,7 +1,7 @@
 using ClipMate.App.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,7 +12,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class CollectionOperationsCoordinatorTests
 {
-    private static Mock<IMessenger> CreateDefaultMocks() => new();
+    private static IMessenger CreateDefaultMocks() => A.Fake<IMessenger>();
 
     // Constructor Tests
     [Test]
@@ -20,7 +20,7 @@ public class CollectionOperationsCoordinatorTests
     {
         // Arrange
         var messenger = CreateDefaultMocks();
-        var logger = new Mock<ILogger<CollectionOperationsCoordinator>>();
+        var logger = A.Fake<ILogger<CollectionOperationsCoordinator>>();
 
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
@@ -33,9 +33,9 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!,
                 null!,
-                messenger.Object,
+                messenger,
                 null!,
-                logger.Object))
+                logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -43,12 +43,12 @@ public class CollectionOperationsCoordinatorTests
     public async Task CollectionCoordinator_NullMessenger_ThrowsArgumentNullException()
     {
         // Arrange
-        var activeWindow = new Mock<IActiveWindowService>();
-        var logger = new Mock<ILogger<CollectionOperationsCoordinator>>();
+        var activeWindow = A.Fake<IActiveWindowService>();
+        var logger = A.Fake<ILogger<CollectionOperationsCoordinator>>();
 
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
-                activeWindow.Object,
+                activeWindow,
                 null!,
                 null!,
                 null!,
@@ -59,7 +59,7 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!, // messenger is null
                 null!,
-                logger.Object))
+                logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -67,12 +67,12 @@ public class CollectionOperationsCoordinatorTests
     public async Task CollectionCoordinator_NullLogger_ThrowsArgumentNullException()
     {
         // Arrange
-        var activeWindow = new Mock<IActiveWindowService>();
+        var activeWindow = A.Fake<IActiveWindowService>();
         var messenger = CreateDefaultMocks();
 
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
-                activeWindow.Object,
+                activeWindow,
                 null!,
                 null!,
                 null!,
@@ -81,7 +81,7 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!,
                 null!,
-                messenger.Object,
+                messenger,
                 null!,
                 null!)) // logger is null
             .Throws<ArgumentNullException>();

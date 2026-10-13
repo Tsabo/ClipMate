@@ -19,7 +19,7 @@ public partial class HotkeyManagerTests
         var mockInterop = CreateWin32HotkeyMock();
 
         // Act
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
 
         // Assert
         await Assert.That(manager).IsNotNull();

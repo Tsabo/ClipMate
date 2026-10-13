@@ -319,10 +319,10 @@ public partial class AboutDialogViewModel : ObservableObject
 
         Credits.Add(new CreditItem
         {
-            Name = "Moq",
+            Name = "FakeItEasy",
             Description = "Mocking framework for unit tests",
-            License = "BSD-3-Clause",
-            Url = "https://github.com/devlooped/moq",
+            License = "MIT",
+            Url = "https://github.com/FakeItEasy/FakeItEasy",
         });
 
         // Microsoft Libraries

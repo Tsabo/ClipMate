@@ -4,7 +4,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,11 +18,11 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = new Mock<IClipService>();
-        var filterServiceMock = new Mock<IApplicationFilterService>();
+        var clipServiceMock = A.Fake<IClipService>();
+        var filterServiceMock = A.Fake<IApplicationFilterService>();
 
-        filterServiceMock.Setup(p => p.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true); // Filter out the clip
+        A.CallTo(() => filterServiceMock.ShouldFilterAsync(A<string?>.Ignored, A<string?>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(true); // Filter out the clip
 
         var clip = new Clip
         {
@@ -35,12 +35,12 @@ public partial class ClipboardCoordinatorTests
         };
 
         var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var autoAppendService = new Mock<IAutoAppendService>().Object;
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var autoAppendService = A.Fake<IAutoAppendService>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock, filterService: filterServiceMock);
-        var messenger = new Mock<IMessenger>();
+        var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendService, serviceProvider, messenger.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -54,7 +54,7 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        clipServiceMock.Verify(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -62,7 +62,7 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = new Mock<IClipService>();
+        var clipServiceMock = A.Fake<IClipService>();
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -72,16 +72,16 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(clip);
 
         var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var autoAppendService = new Mock<IAutoAppendService>().Object;
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var autoAppendService = A.Fake<IAutoAppendService>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messengerMock = new Mock<IMessenger>();
+        var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendService, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -103,7 +103,7 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange
         var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = new Mock<IClipService>();
+        var clipServiceMock = A.Fake<IClipService>();
 
         var originalClip = new Clip
         {
@@ -123,16 +123,16 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow.AddMinutes(-1),
         };
 
-        clipServiceMock.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingClip); // Return existing clip to simulate duplicate detection
+        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(existingClip); // Return existing clip to simulate duplicate detection
 
         var configurationService = CreateMockConfigurationService();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        var autoAppendService = new Mock<IAutoAppendService>().Object;
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        var autoAppendService = A.Fake<IAutoAppendService>();
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messengerMock = new Mock<IMessenger>();
+        var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendService, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -164,24 +164,24 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        var clipRepositoryMock = new Mock<IClipRepository>();
-        clipRepositoryMock.Setup(p => p.GetByContentHashAsync(clip.ContentHash, It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
-        clipRepositoryMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>())).ReturnsAsync(clip);
+        var clipRepositoryMock = A.Fake<IClipRepository>();
+        A.CallTo(() => clipRepositoryMock.GetByContentHashAsync(clip.ContentHash, A<CancellationToken>.Ignored)).Returns((Clip?)null);
+        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
 
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        contextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(clipRepositoryMock.Object);
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
 
-        var clipAppendServiceMock = new Mock<IClipAppendService>();
+        var clipAppendServiceMock = A.Fake<IClipAppendService>();
 
-        var autoAppendServiceMock = new Mock<IAutoAppendService>();
-        autoAppendServiceMock.SetupGet(p => p.IsActive).Returns(true);
-        autoAppendServiceMock.SetupGet(p => p.GrowingClipId).Returns((Guid?)null);
+        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
+        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
+        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns((Guid?)null);
 
         var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = new Mock<IMessenger>();
+        var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendServiceMock.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -195,11 +195,11 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert - first capture since activation goes through the normal create path...
-        clipRepositoryMock.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Once);
-        clipAppendServiceMock.Verify(p => p.AppendCapturedTextAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(A<Guid>.Ignored, A<string>.Ignored, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
         // ...and is then marked as the growing clip for subsequent captures
-        autoAppendServiceMock.Verify(p => p.SetGrowingClip(clip.Id, "test-database"), Times.Once);
+        A.CallTo(() => autoAppendServiceMock.SetGrowingClip(clip.Id, "test-database")).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -227,29 +227,29 @@ public partial class ClipboardCoordinatorTests
             Size = 30,
         };
 
-        var clipRepositoryMock = new Mock<IClipRepository>();
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        contextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(clipRepositoryMock.Object);
+        var clipRepositoryMock = A.Fake<IClipRepository>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
 
-        var clipAppendServiceMock = new Mock<IClipAppendService>();
-        clipAppendServiceMock.Setup(p => p.AppendCapturedTextAsync(
+        var clipAppendServiceMock = A.Fake<IClipAppendService>();
+        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(
                 growingClipId,
                 capturedClip.TextContent!,
-                It.IsAny<string>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedClip);
+                A<string>.Ignored,
+                A<bool>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(updatedClip);
 
-        var autoAppendServiceMock = new Mock<IAutoAppendService>();
-        autoAppendServiceMock.SetupGet(p => p.IsActive).Returns(true);
-        autoAppendServiceMock.SetupGet(p => p.GrowingClipId).Returns(growingClipId);
-        autoAppendServiceMock.SetupGet(p => p.DatabaseKey).Returns("test-database");
+        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
+        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
+        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns(growingClipId);
+        A.CallTo(() => autoAppendServiceMock.DatabaseKey).Returns("test-database");
 
         var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = new Mock<IMessenger>();
+        var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendServiceMock.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -263,13 +263,13 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert - merged into the growing clip instead of creating a new one
-        clipAppendServiceMock.Verify(p => p.AppendCapturedTextAsync(
-            growingClipId, capturedClip.TextContent!, It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(
+            growingClipId, capturedClip.TextContent!, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
-        clipRepositoryMock.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
-        autoAppendServiceMock.Verify(p => p.SetGrowingClip(It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
+        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => autoAppendServiceMock.SetGrowingClip(A<Guid>.Ignored, A<string>.Ignored)).MustNotHaveHappened();
 
-        // Messenger sends (ClipContentUpdatedEvent) are tested via extension methods that Moq can't verify directly -
+        // Messenger sends (ClipContentUpdatedEvent) are tested via extension methods that FakeItEasy can't verify directly -
         // covered indirectly by ClipListViewModelTests for the receiving side.
     }
 
@@ -288,26 +288,26 @@ public partial class ClipboardCoordinatorTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        var clipRepositoryMock = new Mock<IClipRepository>();
-        clipRepositoryMock.Setup(p => p.GetByContentHashAsync(clip.ContentHash, It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
-        clipRepositoryMock.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>())).ReturnsAsync(clip);
+        var clipRepositoryMock = A.Fake<IClipRepository>();
+        A.CallTo(() => clipRepositoryMock.GetByContentHashAsync(clip.ContentHash, A<CancellationToken>.Ignored)).Returns((Clip?)null);
+        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
 
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        contextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(clipRepositoryMock.Object);
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
 
-        var clipAppendServiceMock = new Mock<IClipAppendService>();
+        var clipAppendServiceMock = A.Fake<IClipAppendService>();
 
         var growingClipId = Guid.NewGuid();
-        var autoAppendServiceMock = new Mock<IAutoAppendService>();
-        autoAppendServiceMock.SetupGet(p => p.IsActive).Returns(true);
-        autoAppendServiceMock.SetupGet(p => p.GrowingClipId).Returns(growingClipId);
-        autoAppendServiceMock.SetupGet(p => p.DatabaseKey).Returns("test-database");
+        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
+        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
+        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns(growingClipId);
+        A.CallTo(() => autoAppendServiceMock.DatabaseKey).Returns("test-database");
 
         var configurationService = CreateMockConfigurationService();
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = new Mock<IMessenger>();
+        var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService.Object, configurationService.Object, contextFactory.Object, autoAppendServiceMock.Object, serviceProvider, messengerMock.Object, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -321,7 +321,7 @@ public partial class ClipboardCoordinatorTests
         await coordinator.StopAsync(CancellationToken.None);
 
         // Assert - non-text captures are unaffected by Auto-Append mode
-        clipRepositoryMock.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Once);
-        clipAppendServiceMock.Verify(p => p.AppendCapturedTextAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(A<Guid>.Ignored, A<string>.Ignored, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 }

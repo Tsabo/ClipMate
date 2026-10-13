@@ -3,7 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -13,14 +13,14 @@ namespace ClipMate.Tests.Unit.Services;
 public class DecryptedBlobCacheServiceTests : IDisposable
 {
     private readonly IMemoryCache _cache;
-    private readonly Mock<ILogger<DecryptedBlobCacheService>> _logger;
+    private readonly ILogger<DecryptedBlobCacheService> _logger;
     private readonly DecryptedBlobCacheService _service;
 
     public DecryptedBlobCacheServiceTests()
     {
         _cache = new MemoryCache(new MemoryCacheOptions());
-        _logger = new Mock<ILogger<DecryptedBlobCacheService>>();
-        _service = new DecryptedBlobCacheService(_cache, _logger.Object);
+        _logger = A.Fake<ILogger<DecryptedBlobCacheService>>();
+        _service = new DecryptedBlobCacheService(_cache, _logger);
     }
 
     public void Dispose()
@@ -165,14 +165,10 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         await Assert.That(cached).IsNotNull();
 
         // Verify logging for "until shutdown"
-        _logger.Verify(
-            p => p.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("until shutdown")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        A.CallTo(_logger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Information
+                && call.GetArgument<object>(2)!.ToString()!.Contains("until shutdown"))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -323,14 +319,10 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         _service.GetDecryptedBlobs(clipId);
 
         // Assert - Should log debug message for cache hit
-        _logger.Verify(
-            p => p.Log(
-                LogLevel.Debug,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Cache hit")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        A.CallTo(_logger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Debug
+                && call.GetArgument<object>(2)!.ToString()!.Contains("Cache hit"))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -344,14 +336,10 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         _service.CacheDecryptedBlobs(clipId, blobs, TimeSpan.FromMinutes(30));
 
         // Assert - Should log the expiration time
-        _logger.Verify(
-            p => p.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("30")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        A.CallTo(_logger).Where(call => call.Method.Name == "Log"
+                && call.GetArgument<LogLevel>(0) == LogLevel.Information
+                && call.GetArgument<object>(2)!.ToString()!.Contains("30"))
+            .MustHaveHappenedOnceExactly();
     }
 
     private static DecryptedBlobData CreateTestBlobData()

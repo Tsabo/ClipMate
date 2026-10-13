@@ -3,7 +3,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,16 +12,16 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class SessionMonitorServiceTests : IDisposable
 {
-    private readonly Mock<IConfigurationService> _configService;
-    private readonly Mock<ILogger<SessionMonitorService>> _logger;
-    private readonly Mock<IMessenger> _messenger;
+    private readonly IConfigurationService _configService;
+    private readonly ILogger<SessionMonitorService> _logger;
+    private readonly IMessenger _messenger;
     private readonly SessionMonitorService _service;
 
     public SessionMonitorServiceTests()
     {
-        _configService = new Mock<IConfigurationService>();
-        _messenger = new Mock<IMessenger>();
-        _logger = new Mock<ILogger<SessionMonitorService>>();
+        _configService = A.Fake<IConfigurationService>();
+        _messenger = A.Fake<IMessenger>();
+        _logger = A.Fake<ILogger<SessionMonitorService>>();
 
         // Setup default configuration
         var config = new ClipMateConfiguration
@@ -32,9 +32,9 @@ public class SessionMonitorServiceTests : IDisposable
             },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
-        _service = new SessionMonitorService(_configService.Object, _messenger.Object, _logger.Object);
+        _service = new SessionMonitorService(_configService, _messenger, _logger);
     }
 
     public void Dispose()
@@ -46,7 +46,7 @@ public class SessionMonitorServiceTests : IDisposable
     public async Task Constructor_WithNullConfigurationService_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await Assert.That(() => new SessionMonitorService(null!, _messenger.Object, _logger.Object))
+        await Assert.That(() => new SessionMonitorService(null!, _messenger, _logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -54,7 +54,7 @@ public class SessionMonitorServiceTests : IDisposable
     public async Task Constructor_WithNullMessenger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        await Assert.That(() => new SessionMonitorService(_configService.Object, null!, _logger.Object))
+        await Assert.That(() => new SessionMonitorService(_configService, null!, _logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -62,7 +62,7 @@ public class SessionMonitorServiceTests : IDisposable
     public async Task Constructor_WithNullLogger_CreatesInstance()
     {
         // Act
-        var service = new SessionMonitorService(_configService.Object, _messenger.Object);
+        var service = new SessionMonitorService(_configService, _messenger);
 
         // Assert
         await Assert.That(service).IsNotNull();
@@ -134,13 +134,13 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = false },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         var result = _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
 
         // Assert - Should handle the message (returns true)
-        // Note: Can't verify messenger.Send() calls with Moq because Send() is an extension method
+        // Note: Can't verify messenger.Send() calls with FakeItEasy because Send() is an extension method
         // The configuration check behavior is tested indirectly through other tests
         await Assert.That(result).IsTrue();
     }
@@ -156,16 +156,16 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = true },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         var result = _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
 
         // Assert - Should handle the message (returns true)
-        // Note: Can't verify messenger.Send() calls with Moq because Send() is an extension method
+        // Note: Can't verify messenger.Send() calls with FakeItEasy because Send() is an extension method
         // Message delivery would be tested in integration tests
         await Assert.That(result).IsTrue();
-        _configService.Verify(p => p.Configuration, Times.AtLeastOnce);
+        A.CallTo(() => _configService.Configuration).MustHaveHappened();
     }
 
     [Test]
@@ -179,13 +179,13 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = true },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
 
         // Assert - Verify configuration was accessed
-        _configService.Verify(p => p.Configuration, Times.AtLeastOnce);
+        A.CallTo(() => _configService.Configuration).MustHaveHappened();
     }
 
     [Test]
@@ -199,7 +199,7 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = true },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         var result = _service.ProcessMessage(wmWtsSessionChange, wtsSessionUnlock, IntPtr.Zero);
@@ -219,7 +219,7 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = true },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         var result1 = _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
@@ -228,7 +228,7 @@ public class SessionMonitorServiceTests : IDisposable
         // Assert - Both should be processed
         await Assert.That(result1).IsTrue();
         await Assert.That(result2).IsTrue();
-        _configService.Verify(p => p.Configuration, Times.AtLeast(2));
+        A.CallTo(() => _configService.Configuration).MustHaveHappened(2, Times.OrMore);
     }
 
     [Test]
@@ -268,7 +268,7 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = true },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act
         _service.Dispose();
@@ -289,7 +289,7 @@ public class SessionMonitorServiceTests : IDisposable
             Encryption = new EncryptionConfiguration { LockOnScreenLock = false },
         };
 
-        _configService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _configService.Configuration).Returns(config);
 
         // Act - First call with disabled
         _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
@@ -301,6 +301,6 @@ public class SessionMonitorServiceTests : IDisposable
         _service.ProcessMessage(wmWtsSessionChange, wtsSessionLock, IntPtr.Zero);
 
         // Assert - Configuration should be checked each time
-        _configService.Verify(p => p.Configuration, Times.AtLeast(2));
+        A.CallTo(() => _configService.Configuration).MustHaveHappened(2, Times.OrMore);
     }
 }

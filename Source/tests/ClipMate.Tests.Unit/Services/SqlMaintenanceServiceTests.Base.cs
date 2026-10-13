@@ -3,13 +3,13 @@ using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public partial class SqlMaintenanceServiceTests
 {
-    private static (ClipMateDbContext, Mock<ILogger<SqlMaintenanceService>>, SqliteConnection) CreateMocks()
+    private static (ClipMateDbContext, ILogger<SqlMaintenanceService>, SqliteConnection) CreateMocks()
     {
         // Use actual SQLite database for relational features (transactions, connections)
         var connection = new SqliteConnection("DataSource=:memory:");
@@ -22,7 +22,7 @@ public partial class SqlMaintenanceServiceTests
         var dbContext = new ClipMateDbContext(options);
         dbContext.Database.EnsureCreated();
 
-        var mockLogger = new Mock<ILogger<SqlMaintenanceService>>();
+        var mockLogger = A.Fake<ILogger<SqlMaintenanceService>>();
         return (dbContext, mockLogger, connection);
     }
 
@@ -32,7 +32,7 @@ public partial class SqlMaintenanceServiceTests
     {
         var (ctx, mockLogger, _) = CreateMocks();
         dbContext ??= ctx;
-        logger ??= mockLogger.Object;
+        logger ??= mockLogger;
         return new SqlMaintenanceService(dbContext, logger, ownsContext);
     }
 }

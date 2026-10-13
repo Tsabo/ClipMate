@@ -1,7 +1,7 @@
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -14,8 +14,8 @@ public class SetupServiceIntegrationTests : IntegrationTestBase
 {
     private SetupService CreateService()
     {
-        var mockLogger = new Mock<ILogger<SetupService>>();
-        return new SetupService(mockLogger.Object);
+        var mockLogger = A.Fake<ILogger<SetupService>>();
+        return new SetupService(mockLogger);
     }
 
     [Test]

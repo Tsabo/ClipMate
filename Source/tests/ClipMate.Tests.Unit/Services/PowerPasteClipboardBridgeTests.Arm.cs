@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -17,7 +17,7 @@ public partial class PowerPasteClipboardBridgeTests
         bridge.Arm(clip);
 
         // Assert
-        _mockClipboardService.Verify(p => p.SetClipboardContentAsync(clip, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(clip, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         return Task.CompletedTask;
     }
@@ -34,7 +34,7 @@ public partial class PowerPasteClipboardBridgeTests
         bridge.Arm(clip);
 
         // Assert
-        _mockClipboardService.Verify(p => p.SetClipboardContentAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
         return Task.CompletedTask;
     }

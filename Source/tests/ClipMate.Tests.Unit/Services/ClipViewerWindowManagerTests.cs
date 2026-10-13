@@ -5,7 +5,7 @@ using ClipMate.Core.Models;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -13,13 +13,13 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Unit")]
 public class ClipViewerWindowManagerTests
 {
-    private readonly Mock<IMessenger> _mockMessenger = new();
+    private readonly IMessenger _mockMessenger = A.Fake<IMessenger>();
 
     private ClipViewerViewModel CreateMockViewModel()
     {
-        var databaseManager = new Mock<IDatabaseManager>();
-        var logger = new Mock<ILogger<ClipViewerViewModel>>();
-        return new ClipViewerViewModel(databaseManager.Object, logger.Object);
+        var databaseManager = A.Fake<IDatabaseManager>();
+        var logger = A.Fake<ILogger<ClipViewerViewModel>>();
+        return new ClipViewerViewModel(databaseManager, logger);
     }
 
     [Category("Constructor")]
@@ -29,7 +29,7 @@ public class ClipViewerWindowManagerTests
         public async Task WithNullViewModelFactory_ThrowsArgumentNullException()
         {
             // Act & Assert
-            await Assert.That((Action)(() => new ClipViewerWindowManager(null!, _mockMessenger.Object)))
+            await Assert.That((Action)(() => new ClipViewerWindowManager(null!, _mockMessenger)))
                 .Throws<ArgumentNullException>();
         }
 
@@ -51,7 +51,7 @@ public class ClipViewerWindowManagerTests
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
 
             // Act
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Assert
             await Assert.That(manager).IsNotNull();
@@ -84,7 +84,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act
             var isOpen = manager.IsOpen;
@@ -102,7 +102,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act & Assert - should not throw
             manager.CloseClipViewer();
@@ -113,7 +113,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clipId = Guid.NewGuid();
 
             // Act & Assert - test completed successfully without exceptions
@@ -137,7 +137,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act & Assert - should not throw
             manager.UpdateClipViewer(Guid.NewGuid(), "db_test");
@@ -148,7 +148,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act
             manager.UpdateClipViewer(Guid.NewGuid(), "db_test");
@@ -166,7 +166,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clipId = Guid.NewGuid();
 
             // Act & Assert - if we get here, method didn't throw ArgumentException or similar
@@ -193,7 +193,7 @@ public class ClipViewerWindowManagerTests
                 return CreateMockViewModel();
             });
 
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clipId1 = Guid.NewGuid();
             var clipId2 = Guid.NewGuid();
 
@@ -221,7 +221,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act & Assert - should not throw
             try
@@ -245,7 +245,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var message = new ClipSelectedEvent(null, "db_test");
 
             // Act & Assert - should not throw
@@ -257,7 +257,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clip = new Clip { Id = Guid.NewGuid(), Title = "Test Clip" };
             var message = new ClipSelectedEvent(clip, "db_test");
 
@@ -273,7 +273,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clipId = Guid.NewGuid();
             var clip = new Clip { Id = clipId, Title = "Test Clip" };
             var message = new ClipSelectedEvent(clip, "db_test");
@@ -300,7 +300,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
             var clip = new Clip { Id = Guid.NewGuid(), Title = "Test Clip" };
             var databaseKey = "db_custom_key";
             var message = new ClipSelectedEvent(clip, databaseKey);
@@ -317,7 +317,7 @@ public class ClipViewerWindowManagerTests
         {
             // Arrange
             var viewModelFactory = new Func<ClipViewerViewModel>(CreateMockViewModel);
-            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger.Object);
+            var manager = new ClipViewerWindowManager(viewModelFactory, _mockMessenger);
 
             // Act - simulate rapid selection changes
             for (var i = 0; i < 100; i++)

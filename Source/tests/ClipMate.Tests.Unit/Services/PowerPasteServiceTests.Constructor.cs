@@ -26,8 +26,8 @@ public partial class PowerPasteServiceTests
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new PowerPasteService(
             null!,
-            _mockSoundService.Object,
-            _mockLogger.Object));
+            _mockSoundService,
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("configurationService");
     }
@@ -38,9 +38,9 @@ public partial class PowerPasteServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new PowerPasteService(
-            _mockConfigService.Object,
+            _mockConfigService,
             null!,
-            _mockLogger.Object));
+            _mockLogger));
 
         await Assert.That(exception.ParamName).IsEqualTo("soundService");
     }
@@ -51,8 +51,8 @@ public partial class PowerPasteServiceTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new PowerPasteService(
-            _mockConfigService.Object,
-            _mockSoundService.Object,
+            _mockConfigService,
+            _mockSoundService,
             null!));
 
         await Assert.That(exception.ParamName).IsEqualTo("logger");

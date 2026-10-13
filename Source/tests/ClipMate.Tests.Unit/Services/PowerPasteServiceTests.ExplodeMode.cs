@@ -1,5 +1,6 @@
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -35,7 +36,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clip = CreateTestClip("Apple,Banana,Cherry");
@@ -61,7 +62,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clip = CreateTestClip("  Apple  ,  Banana  ,  Cherry  ");
@@ -88,7 +89,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clip = CreateTestClip("  Apple  ,  Banana  ");
@@ -115,7 +116,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clip = CreateTestClip("Apple,,,Banana");
@@ -141,7 +142,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clip = CreateTestClip("Column1\tColumn2\tColumn3");
@@ -183,7 +184,7 @@ public partial class PowerPasteServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clips = new[]

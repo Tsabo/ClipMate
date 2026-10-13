@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
-    <PackageReference Include="Moq" />
+    <PackageReference Include="FakeItEasy" />
     <PackageReference Include="TUnit" />
     <!-- Exclude to avoid IAsyncEnumerable conflict with .NET 9 System.Runtime -->
     <PackageReference Include="System.Interactive.Async" />

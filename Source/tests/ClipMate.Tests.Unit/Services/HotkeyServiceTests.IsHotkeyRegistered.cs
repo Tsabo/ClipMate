@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,10 +11,10 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        mockManager.Setup(p => p.RegisterHotkey(It.IsAny<ModifierKeys>(), It.IsAny<int>(), It.IsAny<Action>()))
+        A.CallTo(() => mockManager.RegisterHotkey(A<ModifierKeys>.Ignored, A<int>.Ignored, A<Action>.Ignored))
             .Returns(1);
 
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         var action = () => { };
         service.RegisterHotkey(100, ModifierKeys.Control, 0x56, action);
 
@@ -30,7 +30,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
 
         // Act
         var result = service.IsHotkeyRegistered(999);
@@ -44,7 +44,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         service.Dispose();
 
         // Act & Assert

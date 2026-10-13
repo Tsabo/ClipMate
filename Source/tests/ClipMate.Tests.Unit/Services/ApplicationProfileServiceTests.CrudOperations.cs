@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,14 +15,14 @@ public class ApplicationProfileServiceCrudOperationsTests : ApplicationProfileSe
     {
         // Arrange
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
-        MockStore.Setup(p => p.AddOrUpdateProfileAsync(profile, It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(profile, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await Service.UpdateProfileAsync(profile);
 
         // Assert
-        MockStore.Verify(p => p.AddOrUpdateProfileAsync(profile, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(profile, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -35,8 +35,8 @@ public class ApplicationProfileServiceCrudOperationsTests : ApplicationProfileSe
             ["CHROME"] = ApplicationProfileTestFixtures.GetChromeProfile(),
         };
 
-        MockStore.Setup(p => p.LoadProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profiles);
+        A.CallTo(() => MockStore.LoadProfilesAsync(A<CancellationToken>.Ignored))
+            .Returns(profiles);
 
         // Act
         var result = await Service.GetAllProfilesAsync();
@@ -51,41 +51,41 @@ public class ApplicationProfileServiceCrudOperationsTests : ApplicationProfileSe
     public async Task DeleteProfileAsync_CallsStore()
     {
         // Arrange
-        MockStore.Setup(p => p.DeleteProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.DeleteProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await Service.DeleteProfileAsync("notepad.exe");
 
         // Assert
-        MockStore.Verify(p => p.DeleteProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.DeleteProfileAsync("NOTEPAD", A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task DeleteProfileAsync_NormalizesApplicationName()
     {
         // Arrange
-        MockStore.Setup(p => p.DeleteProfileAsync("CHROME", It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.DeleteProfileAsync("CHROME", A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await Service.DeleteProfileAsync("chrome.exe");
 
         // Assert
-        MockStore.Verify(p => p.DeleteProfileAsync("CHROME", It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.DeleteProfileAsync("CHROME", A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task DeleteAllProfilesAsync_CallsStore()
     {
         // Arrange
-        MockStore.Setup(p => p.DeleteAllProfilesAsync(It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.DeleteAllProfilesAsync(A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await Service.DeleteAllProfilesAsync();
 
         // Assert
-        MockStore.Verify(p => p.DeleteAllProfilesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.DeleteAllProfilesAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

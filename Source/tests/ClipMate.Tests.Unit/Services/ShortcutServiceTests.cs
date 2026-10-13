@@ -4,7 +4,7 @@ using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -14,15 +14,15 @@ namespace ClipMate.Tests.Unit.Services;
 public class ShortcutServiceTests
 {
     private const string _testDatabaseKey = "test_db.db";
-    private readonly Mock<IDatabaseManager> _mockDatabaseManager;
-    private readonly Mock<ILogger<ShortcutService>> _mockLogger;
+    private readonly IDatabaseManager _mockDatabaseManager;
+    private readonly ILogger<ShortcutService> _mockLogger;
     private SqliteConnection _connection = null!;
     private DbContextOptions<ClipMateDbContext> _contextOptions = null!;
 
     public ShortcutServiceTests()
     {
-        _mockDatabaseManager = new Mock<IDatabaseManager>();
-        _mockLogger = new Mock<ILogger<ShortcutService>>();
+        _mockDatabaseManager = A.Fake<IDatabaseManager>();
+        _mockLogger = A.Fake<ILogger<ShortcutService>>();
     }
 
     /// <summary>
@@ -50,8 +50,8 @@ public class ShortcutServiceTests
 
         // Setup database manager to return a new context each time
         // This allows ShortcutService to dispose contexts without affecting other operations
-        _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(() => CreateContext());
+        A.CallTo(() => _mockDatabaseManager.CreateDatabaseContext(_testDatabaseKey))
+            .ReturnsLazily(() => CreateContext());
     }
 
     [After(Test)]
@@ -461,7 +461,7 @@ public class ShortcutServiceTests
         }
     }
 
-    private ShortcutService CreateService() => new(_mockDatabaseManager.Object, _mockLogger.Object);
+    private ShortcutService CreateService() => new(_mockDatabaseManager, _mockLogger);
 
     private static Clip CreateTestClip()
     {

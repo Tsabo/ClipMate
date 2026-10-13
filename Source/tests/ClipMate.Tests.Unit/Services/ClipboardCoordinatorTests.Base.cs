@@ -6,7 +6,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,22 +15,22 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class ClipboardCoordinatorTests : TestFixtureBase
 {
-    private Mock<IClipboardService> CreateMockClipboardService(out Channel<Clip> channel)
+    private IClipboardService CreateMockClipboardService(out Channel<Clip> channel)
     {
-        var mock = new Mock<IClipboardService>();
+        var mock = A.Fake<IClipboardService>();
         channel = Channel.CreateUnbounded<Clip>();
 
-        mock.Setup(p => p.ClipsChannel).Returns(channel.Reader);
-        mock.Setup(p => p.StartMonitoringAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        mock.Setup(p => p.StopMonitoringAsync()).Returns(Task.CompletedTask);
-        mock.Setup(p => p.GetCurrentClipboardContentAsync(It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
+        A.CallTo(() => mock.ClipsChannel).Returns(channel.Reader);
+        A.CallTo(() => mock.StartMonitoringAsync(A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
+        A.CallTo(() => mock.StopMonitoringAsync()).Returns(Task.CompletedTask);
+        A.CallTo(() => mock.GetCurrentClipboardContentAsync(A<CancellationToken>.Ignored)).Returns((Clip?)null);
 
         return mock;
     }
 
-    private Mock<IConfigurationService> CreateMockConfigurationService(bool enableAutoCapture = true)
+    private IConfigurationService CreateMockConfigurationService(bool enableAutoCapture = true)
     {
-        var mock = new Mock<IConfigurationService>();
+        var mock = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Preferences = new PreferencesConfiguration
@@ -40,17 +40,17 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
             },
         };
 
-        mock.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => mock.Configuration).Returns(config);
         return mock;
     }
 
-    private IServiceProvider CreateMockServiceProvider(Mock<IClipService>? clipService = null,
-        Mock<ICollectionService>? collectionService = null,
-        Mock<IFolderService>? folderService = null,
-        Mock<IApplicationFilterService>? filterService = null,
-        Mock<IDatabaseManager>? databaseManager = null,
-        Mock<IDatabaseContextFactory>? contextFactory = null,
-        Mock<IClipAppendService>? clipAppendService = null)
+    private IServiceProvider CreateMockServiceProvider(IClipService? clipService = null,
+        ICollectionService? collectionService = null,
+        IFolderService? folderService = null,
+        IApplicationFilterService? filterService = null,
+        IDatabaseManager? databaseManager = null,
+        IDatabaseContextFactory? contextFactory = null,
+        IClipAppendService? clipAppendService = null)
     {
         var clipServiceProvided = clipService != null;
         var collectionServiceProvided = collectionService != null;
@@ -58,25 +58,25 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         var filterServiceProvided = filterService != null;
         var databaseManagerProvided = databaseManager != null;
 
-        clipService ??= new Mock<IClipService>();
-        collectionService ??= new Mock<ICollectionService>();
-        folderService ??= new Mock<IFolderService>();
-        filterService ??= new Mock<IApplicationFilterService>();
-        databaseManager ??= new Mock<IDatabaseManager>();
-        contextFactory ??= new Mock<IDatabaseContextFactory>();
-        clipAppendService ??= new Mock<IClipAppendService>();
+        clipService ??= A.Fake<IClipService>();
+        collectionService ??= A.Fake<ICollectionService>();
+        folderService ??= A.Fake<IFolderService>();
+        filterService ??= A.Fake<IApplicationFilterService>();
+        databaseManager ??= A.Fake<IDatabaseManager>();
+        contextFactory ??= A.Fake<IDatabaseContextFactory>();
+        clipAppendService ??= A.Fake<IClipAppendService>();
 
         // Setup default behaviors only if not provided by caller
         if (!clipServiceProvided)
         {
-            clipService.Setup(p => p.CreateAsync(It.IsAny<string>(), It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((string dbKey, Clip clip, CancellationToken ct) => clip);
+            A.CallTo(() => clipService.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored))
+                .ReturnsLazily((string dbKey, Clip clip, CancellationToken ct) => clip);
         }
 
         if (!collectionServiceProvided)
         {
-            collectionService.Setup(p => p.GetActiveAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new Collection
+            A.CallTo(() => collectionService.GetActiveAsync(A<CancellationToken>.Ignored))
+                .Returns(new Collection
                 {
                     Id = Guid.NewGuid(),
                     ParentId = null,
@@ -86,14 +86,14 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                 });
 
             // Setup GetActiveDatabaseKey to return a test database key
-            collectionService.Setup(p => p.GetActiveDatabaseKey())
+            A.CallTo(() => collectionService.GetActiveDatabaseKey())
                 .Returns("test-database");
         }
 
         if (!folderServiceProvided)
         {
-            folderService.Setup(p => p.GetActiveAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new Folder
+            A.CallTo(() => folderService.GetActiveAsync(A<CancellationToken>.Ignored))
+                .Returns(new Folder
                 {
                     Id = Guid.NewGuid(),
                     Name = "Inbox",
@@ -103,8 +103,8 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
 
         if (!filterServiceProvided)
         {
-            filterService.Setup(p => p.ShouldFilterAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(false);
+            A.CallTo(() => filterService.ShouldFilterAsync(A<string?>.Ignored, A<string?>.Ignored, A<CancellationToken>.Ignored))
+                .Returns(false);
         }
 
         if (!databaseManagerProvided)
@@ -112,28 +112,28 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
             // Setup DatabaseManager to return a mock DbContext
             // For unit tests, we'll need to return null or a mock context
             // The actual implementation will handle the null case
-            databaseManager.Setup(p => p.CreateDatabaseContext(It.IsAny<string>()))
+            A.CallTo(() => databaseManager.CreateDatabaseContext(A<string>.Ignored))
                 .Returns((ClipMateDbContext?)null);
         }
 
         var services = new ServiceCollection();
-        services.AddTransient(_ => clipService.Object);
-        services.AddTransient(_ => collectionService.Object);
-        services.AddTransient(_ => folderService.Object);
-        services.AddTransient(_ => filterService.Object);
-        services.AddTransient(_ => databaseManager.Object);
-        services.AddTransient(_ => contextFactory.Object);
-        services.AddTransient(_ => clipAppendService.Object);
-        services.AddTransient(_ => new Mock<ISoundService>().Object);
+        services.AddTransient(_ => clipService);
+        services.AddTransient(_ => collectionService);
+        services.AddTransient(_ => folderService);
+        services.AddTransient(_ => filterService);
+        services.AddTransient(_ => databaseManager);
+        services.AddTransient(_ => contextFactory);
+        services.AddTransient(_ => clipAppendService);
+        services.AddTransient(_ => A.Fake<ISoundService>());
         services.AddLogging();
 
         return services.BuildServiceProvider();
     }
 
-    private Mock<ISoundService> CreateMockSoundService()
+    private ISoundService CreateMockSoundService()
     {
-        var mock = new Mock<ISoundService>();
-        mock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var mock = A.Fake<ISoundService>();
+        A.CallTo(() => mock.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
         return mock;
     }
 }

@@ -5,7 +5,7 @@ using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -94,26 +94,26 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     /// </summary>
     private IClipboardService CreateClipboardService()
     {
-        var logger = Mock.Of<ILogger<ClipboardService>>();
-        var win32Mock = new Mock<IWin32ClipboardInterop>();
+        var logger = A.Fake<ILogger<ClipboardService>>();
+        var win32Mock = A.Fake<IWin32ClipboardInterop>();
 
         // Mock IApplicationProfileService (disabled by default)
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
 
         // Mock IClipboardFormatEnumerator
-        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
-        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
+        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
+        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
 
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var soundService = A.Fake<ISoundService>();
+        A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         // Create configuration mock with default timing values
-        var configServiceMock = new Mock<IConfigurationService>();
+        var configServiceMock = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration();
-        configServiceMock.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
-        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, soundService.Object, blobCacheServiceMock.Object);
+        var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, soundService, blobCacheServiceMock);
     }
 }

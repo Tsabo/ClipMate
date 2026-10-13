@@ -9,7 +9,7 @@ using ClipMate.Platform.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Integration.Services;
@@ -195,19 +195,19 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
 
     private IClipService CreateClipServiceWithRealEncryption()
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
-        var clipLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipLogger = A.Fake<ILogger<ClipRepository>>();
         var clipRepository = new ClipRepository(DbContext, clipLogger);
-        contextFactory.Setup(p => p.GetClipRepository(TestDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(TestDatabaseKey))
             .Returns(clipRepository);
 
         var clipDataRepository = new ClipDataRepository(DbContext);
-        contextFactory.Setup(p => p.GetClipDataRepository(TestDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipDataRepository(TestDatabaseKey))
             .Returns(clipDataRepository);
 
         var blobRepository = new BlobRepository(DbContext);
-        contextFactory.Setup(p => p.GetBlobRepository(TestDatabaseKey))
+        A.CallTo(() => contextFactory.GetBlobRepository(TestDatabaseKey))
             .Returns(blobRepository);
 
         // Use real encryption service
@@ -216,20 +216,20 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
         // Use real decrypted blob cache service
 #pragma warning disable CA2000 // Dispose objects before losing scope - test objects don't require explicit disposal
         var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var cacheLogger = Mock.Of<ILogger<DecryptedBlobCacheService>>();
+        var cacheLogger = A.Fake<ILogger<DecryptedBlobCacheService>>();
         var decryptedBlobCacheService = new DecryptedBlobCacheService(memoryCache, cacheLogger);
 #pragma warning restore CA2000
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            Mock.Of<CommunityToolkit.Mvvm.Messaging.IMessenger>(),
+            A.Fake<CommunityToolkit.Mvvm.Messaging.IMessenger>(),
             serviceLogger);
     }
 }

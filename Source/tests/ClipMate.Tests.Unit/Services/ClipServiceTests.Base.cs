@@ -5,7 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,52 +18,52 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ClipServiceTests
 {
     protected const string TestDatabaseKey = "db_test0001";
-    protected Mock<IDecryptedBlobCacheService> MockBlobCacheService = null!;
-    protected Mock<IBlobRepository> MockBlobRepository = null!;
-    protected Mock<IClipDataRepository> MockClipDataRepository = null!;
-    protected Mock<IClipRepository> MockClipRepository = null!;
-    protected Mock<IConfigurationService> MockConfigService = null!;
-    protected Mock<IDatabaseContextFactory> MockContextFactory = null!;
-    protected Mock<IEncryptionService> MockEncryptionService = null!;
-    protected Mock<ILogger<ClipService>> MockLogger = null!;
+    protected IDecryptedBlobCacheService MockBlobCacheService = null!;
+    protected IBlobRepository MockBlobRepository = null!;
+    protected IClipDataRepository MockClipDataRepository = null!;
+    protected IClipRepository MockClipRepository = null!;
+    protected IConfigurationService MockConfigService = null!;
+    protected IDatabaseContextFactory MockContextFactory = null!;
+    protected IEncryptionService MockEncryptionService = null!;
+    protected ILogger<ClipService> MockLogger = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        MockClipRepository = new Mock<IClipRepository>();
-        MockClipDataRepository = new Mock<IClipDataRepository>();
-        MockBlobRepository = new Mock<IBlobRepository>();
-        MockEncryptionService = new Mock<IEncryptionService>();
-        MockBlobCacheService = new Mock<IDecryptedBlobCacheService>();
-        MockConfigService = new Mock<IConfigurationService>();
-        MockContextFactory = new Mock<IDatabaseContextFactory>();
-        MockLogger = new Mock<ILogger<ClipService>>();
+        MockClipRepository = A.Fake<IClipRepository>();
+        MockClipDataRepository = A.Fake<IClipDataRepository>();
+        MockBlobRepository = A.Fake<IBlobRepository>();
+        MockEncryptionService = A.Fake<IEncryptionService>();
+        MockBlobCacheService = A.Fake<IDecryptedBlobCacheService>();
+        MockConfigService = A.Fake<IConfigurationService>();
+        MockContextFactory = A.Fake<IDatabaseContextFactory>();
+        MockLogger = A.Fake<ILogger<ClipService>>();
 
         // Setup factory to return our mock repositories
-        MockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
-            .Returns(MockClipRepository.Object);
+        A.CallTo(() => MockContextFactory.GetClipRepository(A<string>.Ignored))
+            .Returns(MockClipRepository);
 
-        MockContextFactory.Setup(p => p.GetClipDataRepository(It.IsAny<string>()))
-            .Returns(MockClipDataRepository.Object);
+        A.CallTo(() => MockContextFactory.GetClipDataRepository(A<string>.Ignored))
+            .Returns(MockClipDataRepository);
 
-        MockContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<string>()))
-            .Returns(MockBlobRepository.Object);
+        A.CallTo(() => MockContextFactory.GetBlobRepository(A<string>.Ignored))
+            .Returns(MockBlobRepository);
 
         // Default mock for UpdateAsync - returns Task.CompletedTask
-        MockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => MockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(true);
     }
 
     protected IClipService CreateClipService() =>
         new ClipService(
-            MockContextFactory.Object,
-            MockConfigService.Object,
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
-            MockEncryptionService.Object,
-            MockBlobCacheService.Object,
-            Mock.Of<IMessenger>(),
-            MockLogger.Object);
+            MockContextFactory,
+            MockConfigService,
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
+            MockEncryptionService,
+            MockBlobCacheService,
+            A.Fake<IMessenger>(),
+            MockLogger);
 
     protected static Clip CreateTestClip(Guid? id = null,
         DateTime? capturedAt = null,

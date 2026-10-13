@@ -1,6 +1,6 @@
 using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit;
 
@@ -9,50 +9,35 @@ namespace ClipMate.Tests.Unit;
 /// </summary>
 public abstract class TestFixtureBase
 {
-    protected MockRepository MockRepository { get; }
-
-    protected TestFixtureBase()
-    {
-        MockRepository = new MockRepository(MockBehavior.Strict);
-    }
-
     /// <summary>
     /// Creates a mock ILogger{T} that can be used in tests without strict verification.
     /// </summary>
     protected ILogger<T> CreateLogger<T>()
     {
-        return new Mock<ILogger<T>>(MockBehavior.Loose).Object;
+        return A.Fake<ILogger<T>>();
     }
 
     /// <summary>
     /// Creates a mock IWin32ClipboardInterop for testing.
     /// </summary>
-    protected Mock<IWin32ClipboardInterop> CreateWin32ClipboardMock()
+    protected IWin32ClipboardInterop CreateWin32ClipboardMock()
     {
-        return MockRepository.Create<IWin32ClipboardInterop>();
+        return A.Fake<IWin32ClipboardInterop>(o => o.Strict());
     }
 
     /// <summary>
     /// Creates a mock IWin32HotkeyInterop for testing.
     /// </summary>
-    protected Mock<IWin32HotkeyInterop> CreateWin32HotkeyMock()
+    protected IWin32HotkeyInterop CreateWin32HotkeyMock()
     {
-        return MockRepository.Create<IWin32HotkeyInterop>();
+        return A.Fake<IWin32HotkeyInterop>(o => o.Strict());
     }
 
     /// <summary>
     /// Creates a mock IWin32InputInterop for testing.
     /// </summary>
-    protected Mock<IWin32InputInterop> CreateWin32InputMock()
+    protected IWin32InputInterop CreateWin32InputMock()
     {
-        return MockRepository.Create<IWin32InputInterop>();
-    }
-
-    /// <summary>
-    /// Verifies all mock expectations were met.
-    /// </summary>
-    protected void VerifyAll()
-    {
-        MockRepository.VerifyAll();
+        return A.Fake<IWin32InputInterop>(o => o.Strict());
     }
 }

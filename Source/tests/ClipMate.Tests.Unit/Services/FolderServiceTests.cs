@@ -3,27 +3,27 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
 public class FolderServiceTests
 {
-    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
-    private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IFolderRepository> _mockRepository;
+    private readonly IDatabaseContextFactory _mockContextFactory;
+    private readonly ICollectionService _mockCollectionService;
+    private readonly IFolderRepository _mockRepository;
 
     public FolderServiceTests()
     {
-        _mockRepository = new Mock<IFolderRepository>();
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
-        _mockCollectionService = new Mock<ICollectionService>();
+        _mockRepository = A.Fake<IFolderRepository>();
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        _mockCollectionService = A.Fake<ICollectionService>();
         
-        _mockContextFactory.Setup(f => f.GetFolderRepository(It.IsAny<string>())).Returns(_mockRepository.Object);
-        _mockCollectionService.Setup(c => c.GetActiveDatabaseKey()).Returns("test-db");
+        A.CallTo(() => _mockContextFactory.GetFolderRepository(A<string>.Ignored)).Returns(_mockRepository);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns("test-db");
     }
 
-    private IFolderService CreateFolderService() => new FolderService(_mockContextFactory.Object, _mockCollectionService.Object);
+    private IFolderService CreateFolderService() => new FolderService(_mockContextFactory, _mockCollectionService);
 
     private Folder CreateTestFolder(Guid? id = null, string name = "Test Folder", Guid? collectionId = null, Guid? parentFolderId = null) =>
         new()
@@ -43,8 +43,8 @@ public class FolderServiceTests
         const string name = "New Folder";
         var collectionId = Guid.NewGuid();
 
-        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Folder f, CancellationToken _) => f);
+        A.CallTo(() => _mockRepository.CreateAsync(A<Folder>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((Folder f, CancellationToken _) => f);
 
         var service = CreateFolderService();
 
@@ -57,7 +57,7 @@ public class FolderServiceTests
         await Assert.That(result.CollectionId).IsEqualTo(collectionId);
         await Assert.That(result.ParentFolderId).IsNull();
         await Assert.That(result.Id).IsNotEqualTo(Guid.Empty);
-        _mockRepository.Verify(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.CreateAsync(A<Folder>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -68,8 +68,8 @@ public class FolderServiceTests
         var collectionId = Guid.NewGuid();
         var parentFolderId = Guid.NewGuid();
 
-        _mockRepository.Setup(p => p.CreateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Folder f, CancellationToken _) => f);
+        A.CallTo(() => _mockRepository.CreateAsync(A<Folder>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((Folder f, CancellationToken _) => f);
 
         var service = CreateFolderService();
 
@@ -96,8 +96,8 @@ public class FolderServiceTests
         // Arrange
         var folderId = Guid.NewGuid();
         var expectedFolder = CreateTestFolder(folderId);
-        _mockRepository.Setup(p => p.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedFolder);
+        A.CallTo(() => _mockRepository.GetByIdAsync(folderId, A<CancellationToken>.Ignored))
+            .Returns(expectedFolder);
 
         var service = CreateFolderService();
 
@@ -114,8 +114,8 @@ public class FolderServiceTests
     {
         // Arrange
         var folderId = Guid.NewGuid();
-        _mockRepository.Setup(p => p.GetByIdAsync(folderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Folder?)null);
+        A.CallTo(() => _mockRepository.GetByIdAsync(folderId, A<CancellationToken>.Ignored))
+            .Returns((Folder?)null);
 
         var service = CreateFolderService();
 
@@ -138,8 +138,8 @@ public class FolderServiceTests
             CreateTestFolder(name: "Folder 3", collectionId: collectionId),
         };
 
-        _mockRepository.Setup(p => p.GetByCollectionAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(folders);
+        A.CallTo(() => _mockRepository.GetByCollectionAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns(folders);
 
         var service = CreateFolderService();
 
@@ -162,8 +162,8 @@ public class FolderServiceTests
             CreateTestFolder(name: "Root 2", collectionId: collectionId, parentFolderId: null),
         };
 
-        _mockRepository.Setup(p => p.GetRootFoldersAsync(collectionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(rootFolders);
+        A.CallTo(() => _mockRepository.GetRootFoldersAsync(collectionId, A<CancellationToken>.Ignored))
+            .Returns(rootFolders);
 
         var service = CreateFolderService();
 
@@ -186,8 +186,8 @@ public class FolderServiceTests
             CreateTestFolder(name: "Child 2", parentFolderId: parentFolderId),
         };
 
-        _mockRepository.Setup(p => p.GetChildFoldersAsync(parentFolderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(childFolders);
+        A.CallTo(() => _mockRepository.GetChildFoldersAsync(parentFolderId, A<CancellationToken>.Ignored))
+            .Returns(childFolders);
 
         var service = CreateFolderService();
 
@@ -206,8 +206,8 @@ public class FolderServiceTests
         var folder = CreateTestFolder();
         folder.Name = "Updated Name";
 
-        _mockRepository.Setup(p => p.UpdateAsync(It.IsAny<Folder>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockRepository.UpdateAsync(A<Folder>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         var service = CreateFolderService();
 
@@ -216,7 +216,7 @@ public class FolderServiceTests
 
         // Assert
         await Assert.That(folder.ModifiedAt).IsNotNull();
-        _mockRepository.Verify(p => p.UpdateAsync(folder, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.UpdateAsync(folder, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -234,8 +234,8 @@ public class FolderServiceTests
     {
         // Arrange
         var folderId = Guid.NewGuid();
-        _mockRepository.Setup(p => p.DeleteAsync(folderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockRepository.DeleteAsync(folderId, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         var service = CreateFolderService();
 
@@ -243,6 +243,6 @@ public class FolderServiceTests
         await service.DeleteAsync(folderId);
 
         // Assert
-        _mockRepository.Verify(p => p.DeleteAsync(folderId, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockRepository.DeleteAsync(folderId, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

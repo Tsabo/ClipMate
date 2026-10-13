@@ -62,7 +62,7 @@
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="TUnit" Version="1.65.0" />
-    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="WpfPilot" Version="2.1.1" />
     <!-- Exclude to avoid IAsyncEnumerable conflict with .NET 10 System.Runtime -->
     <PackageVersion Include="System.Interactive.Async" Version="7.0.1" />

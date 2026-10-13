@@ -1,7 +1,7 @@
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,10 +11,10 @@ public class SoundServiceTests
     public async Task Constructor_WithNullConfigurationService_ThrowsArgumentNullException()
     {
         // Arrange
-        var logger = new Mock<ILogger<SoundService>>();
+        var logger = A.Fake<ILogger<SoundService>>();
 
         // Act & Assert
-        await Assert.That(() => new SoundService(null!, logger.Object))
+        await Assert.That(() => new SoundService(null!, logger))
             .Throws<ArgumentNullException>()
             .WithParameterName("configurationService");
     }
@@ -23,10 +23,10 @@ public class SoundServiceTests
     public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
 
         // Act & Assert
-        await Assert.That(() => new SoundService(configService.Object, null!))
+        await Assert.That(() => new SoundService(configService, null!))
             .Throws<ArgumentNullException>()
             .WithParameterName("logger");
     }
@@ -35,11 +35,11 @@ public class SoundServiceTests
     public async Task Constructor_WithValidParameters_CreatesInstance()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
-        var logger = new Mock<ILogger<SoundService>>();
+        var configService = A.Fake<IConfigurationService>();
+        var logger = A.Fake<ILogger<SoundService>>();
 
         // Act
-        var service = new SoundService(configService.Object, logger.Object);
+        var service = new SoundService(configService, logger);
 
         // Assert
         await Assert.That(service).IsNotNull();

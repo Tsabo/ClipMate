@@ -3,7 +3,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,37 +11,37 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Unit")]
 public partial class PowerPasteClipboardBridgeTests
 {
-    private Mock<IClipboardService> _mockClipboardService = null!;
-    private Mock<IConfigurationService> _mockConfigService = null!;
-    private Mock<ILogger<PowerPasteClipboardBridge>> _mockLogger = null!;
-    private Mock<IPowerPasteService> _mockPowerPasteService = null!;
+    private IClipboardService _mockClipboardService = null!;
+    private IConfigurationService _mockConfigService = null!;
+    private ILogger<PowerPasteClipboardBridge> _mockLogger = null!;
+    private IPowerPasteService _mockPowerPasteService = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockPowerPasteService = new Mock<IPowerPasteService>();
-        _mockClipboardService = new Mock<IClipboardService>();
-        _mockLogger = new Mock<ILogger<PowerPasteClipboardBridge>>();
-        _mockConfigService = new Mock<IConfigurationService>();
+        _mockPowerPasteService = A.Fake<IPowerPasteService>();
+        _mockClipboardService = A.Fake<IClipboardService>();
+        _mockLogger = A.Fake<ILogger<PowerPasteClipboardBridge>>();
+        _mockConfigService = A.Fake<IConfigurationService>();
 
         var config = new ClipMateConfiguration
         {
             Preferences = new PreferencesConfiguration { PowerPasteDelay = 200 },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
-        _mockClipboardService.Setup(p => p.SetClipboardContentAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        _mockPowerPasteService.Setup(p => p.AdvanceToNextAsync()).Returns(Task.CompletedTask);
+        A.CallTo(() => _mockPowerPasteService.AdvanceToNextAsync()).Returns(Task.CompletedTask);
     }
 
     private PowerPasteClipboardBridge CreateBridge() => new(
-        _mockPowerPasteService.Object,
-        _mockClipboardService.Object,
-        _mockConfigService.Object,
-        _mockLogger.Object);
+        _mockPowerPasteService,
+        _mockClipboardService,
+        _mockConfigService,
+        _mockLogger);
 
     /// <summary>
     /// OnPasteDetected advances the sequence on a background Task.Run after a real-time debounce
@@ -53,7 +53,7 @@ public partial class PowerPasteClipboardBridgeTests
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
-            var actual = _mockPowerPasteService.Invocations.Count(i => i.Method.Name == nameof(IPowerPasteService.AdvanceToNextAsync));
+            var actual = Fake.GetCalls(_mockPowerPasteService).Count(i => i.Method.Name == nameof(IPowerPasteService.AdvanceToNextAsync));
             if (actual >= expectedCount)
                 return;
 

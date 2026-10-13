@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -21,7 +21,7 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
 
         // Assert
         await Assert.That(result).IsFalse();
-        MockStore.Verify(p => p.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => MockStore.GetProfileAsync(A<string>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -31,8 +31,8 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         Service.SetApplicationProfilesEnabled(true);
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
         profile.Enabled = false;
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profile);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns(profile);
 
         // Act
         var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "TEXT");
@@ -47,8 +47,8 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         // Arrange
         Service.SetApplicationProfilesEnabled(true);
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profile);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns(profile);
 
         // Act
         var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "TEXT");
@@ -63,8 +63,8 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         // Arrange
         Service.SetApplicationProfilesEnabled(true);
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profile);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns(profile);
 
         // Act
         var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "BITMAP");
@@ -79,8 +79,8 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
         // Arrange
         Service.SetApplicationProfilesEnabled(true);
         var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profile);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns(profile);
 
         // Act
         var result = await Service.ShouldCaptureFormatAsync("notepad.exe", "UnknownFormat");
@@ -94,10 +94,10 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
     {
         // Arrange
         Service.SetApplicationProfilesEnabled(true);
-        MockStore.Setup(p => p.GetProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationProfile?)null);
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
+            .Returns((ApplicationProfile?)null);
 
-        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -105,7 +105,7 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
 
         // Assert
         await Assert.That(result).IsTrue(); // CF_TEXT is in smart defaults
-        MockStore.Verify(p => p.AddOrUpdateProfileAsync(It.Is<ApplicationProfile>(p => p.ApplicationName == "NOTEPAD"), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.That.Matches(p => p.ApplicationName == "NOTEPAD"), A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -113,16 +113,16 @@ public class ApplicationProfileServiceShouldCaptureTests : ApplicationProfileSer
     {
         // Arrange
         Service.SetApplicationProfilesEnabled(true);
-        MockStore.Setup(p => p.GetProfileAsync("CHROME", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationProfile?)null);
+        A.CallTo(() => MockStore.GetProfileAsync("CHROME", A<CancellationToken>.Ignored))
+            .Returns((ApplicationProfile?)null);
 
-        MockStore.Setup(p => p.AddOrUpdateProfileAsync(It.IsAny<ApplicationProfile>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await Service.ShouldCaptureFormatAsync("chrome.exe", "TEXT");
 
         // Assert
-        MockStore.Verify(p => p.GetProfileAsync("CHROME", It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockStore.GetProfileAsync("CHROME", A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

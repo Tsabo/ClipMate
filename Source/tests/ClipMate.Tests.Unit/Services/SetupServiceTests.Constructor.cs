@@ -1,6 +1,6 @@
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -21,10 +21,10 @@ public partial class SetupServiceTests
     public async Task Constructor_WithValidParameters_CreatesInstance()
     {
         // Arrange
-        var mockLogger = new Mock<ILogger<SetupService>>();
+        var mockLogger = A.Fake<ILogger<SetupService>>();
 
         // Act
-        var service = new SetupService(mockLogger.Object);
+        var service = new SetupService(mockLogger);
 
         // Assert
         await Assert.That(service).IsNotNull();

@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.ValueObjects;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -46,8 +46,8 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns((Clip?)null);
 
         // Act
         var result = await service.DecryptClipsAsync(TestDatabaseKey, [clipId], key, true);
@@ -69,8 +69,8 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(clip);
 
         // Act
         var result = await service.DecryptClipsAsync(TestDatabaseKey, [clipId], key, true);
@@ -93,8 +93,8 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(clip);
 
         // Act
         var result = await service.DecryptClipsAsync(TestDatabaseKey, [clipId], key, true);
@@ -120,8 +120,8 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clip);
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(clip);
 
         // Act
         var result = await service.DecryptClipsAsync(TestDatabaseKey, [clipId], key, true);

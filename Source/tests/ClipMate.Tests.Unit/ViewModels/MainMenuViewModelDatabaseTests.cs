@@ -4,7 +4,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -13,31 +13,31 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class MainMenuViewModelDatabaseTests : TestFixtureBase
 {
-    private Mock<IMessenger> _messengerMock = null!;
+    private IMessenger _messengerMock = null!;
     private MainMenuViewModel _viewModel = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _messengerMock = new Mock<IMessenger>(MockBehavior.Loose);
+        _messengerMock = A.Fake<IMessenger>();
 
         // Create mock service provider with AboutDialogViewModel and IActiveWindowService
-        var mockUpdateCheckService = new Mock<IUpdateCheckService>();
-        var mockAboutLogger = new Mock<ILogger<AboutDialogViewModel>>();
-        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService.Object, mockAboutLogger.Object);
-        var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider.Setup(p => p.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
-        mockServiceProvider.Setup(p => p.GetService(typeof(IActiveWindowService))).Returns(new Mock<IActiveWindowService>().Object);
+        var mockUpdateCheckService = A.Fake<IUpdateCheckService>();
+        var mockAboutLogger = A.Fake<ILogger<AboutDialogViewModel>>();
+        var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService, mockAboutLogger);
+        var mockServiceProvider = A.Fake<IServiceProvider>();
+        A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(A.Fake<IActiveWindowService>());
 
         _viewModel = new MainMenuViewModel(
-            _messengerMock.Object,
-            new Mock<IUndoService>().Object,
-            new Mock<IClipViewerWindowManager>().Object,
-            new Mock<IClipboardService>().Object,
-            new Mock<IAutoAppendService>().Object,
-            new Mock<IPowerPasteService>().Object,
-            new Mock<IQuickPasteService>().Object,
-            mockServiceProvider.Object);
+            _messengerMock,
+            A.Fake<IUndoService>(),
+            A.Fake<IClipViewerWindowManager>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<IAutoAppendService>(),
+            A.Fake<IPowerPasteService>(),
+            A.Fake<IQuickPasteService>(),
+            mockServiceProvider);
     }
 
     [After(Test)]
@@ -132,10 +132,10 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
 
 internal static class MainMenuViewModelDatabaseTestsHelpers
 {
-    public static Mock<IConfigurationService> CreateConfigServiceMock()
+    public static IConfigurationService CreateConfigServiceMock()
     {
-        var mock = new Mock<IConfigurationService>();
-        mock.Setup(p => p.Configuration).Returns(new ClipMateConfiguration());
+        var mock = A.Fake<IConfigurationService>();
+        A.CallTo(() => mock.Configuration).Returns(new ClipMateConfiguration());
         return mock;
     }
 }

@@ -3,7 +3,7 @@ using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -42,13 +42,13 @@ public partial class SqlValidationServiceTests
     public async Task GetQueryPlanAsync_WithDatabaseNotLoaded_ReturnsErrorMessage()
     {
         // Arrange
-        var mockDbManager = new Mock<IDatabaseManager>();
-        mockDbManager.Setup(p => p.CreateDatabaseContext(It.IsAny<string>()))
+        var mockDbManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDbManager.CreateDatabaseContext(A<string>.Ignored))
             .Returns((ClipMateDbContext?)null);
 
         var service = new SqlValidationService(
-            mockDbManager.Object,
-            new Mock<ILogger<SqlValidationService>>().Object);
+            mockDbManager,
+            A.Fake<ILogger<SqlValidationService>>());
 
         // Act
         var result = await service.GetQueryPlanAsync("SELECT * FROM Clips", _testDatabaseKey);
@@ -77,9 +77,9 @@ public partial class SqlValidationServiceTests
             await context.Database.EnsureCreatedAsync();
         }
 
-        var mockDbManager = new Mock<IDatabaseManager>();
-        mockDbManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(() =>
+        var mockDbManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDbManager.CreateDatabaseContext(_testDatabaseKey))
+            .ReturnsLazily(() =>
             {
                 var ctx = new ClipMateDbContext(options);
                 ctx.Database.SetDbConnection(connection);
@@ -87,8 +87,8 @@ public partial class SqlValidationServiceTests
             });
 
         var service = new SqlValidationService(
-            mockDbManager.Object,
-            new Mock<ILogger<SqlValidationService>>().Object);
+            mockDbManager,
+            A.Fake<ILogger<SqlValidationService>>());
 
         // Act
         var result = await service.GetQueryPlanAsync("SELECT * FROM Clips", _testDatabaseKey);
@@ -120,9 +120,9 @@ public partial class SqlValidationServiceTests
             await context.Database.EnsureCreatedAsync();
         }
 
-        var mockDbManager = new Mock<IDatabaseManager>();
-        mockDbManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(() =>
+        var mockDbManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDbManager.CreateDatabaseContext(_testDatabaseKey))
+            .ReturnsLazily(() =>
             {
                 var ctx = new ClipMateDbContext(options);
                 ctx.Database.SetDbConnection(connection);
@@ -130,8 +130,8 @@ public partial class SqlValidationServiceTests
             });
 
         var service = new SqlValidationService(
-            mockDbManager.Object,
-            new Mock<ILogger<SqlValidationService>>().Object);
+            mockDbManager,
+            A.Fake<ILogger<SqlValidationService>>());
 
         // Act
         var result = await service.GetQueryPlanAsync("INVALID SQL QUERY", _testDatabaseKey);
@@ -162,9 +162,9 @@ public partial class SqlValidationServiceTests
             await context.Database.EnsureCreatedAsync();
         }
 
-        var mockDbManager = new Mock<IDatabaseManager>();
-        mockDbManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
-            .Returns(() =>
+        var mockDbManager = A.Fake<IDatabaseManager>();
+        A.CallTo(() => mockDbManager.CreateDatabaseContext(_testDatabaseKey))
+            .ReturnsLazily(() =>
             {
                 var ctx = new ClipMateDbContext(options);
                 ctx.Database.SetDbConnection(connection);
@@ -172,8 +172,8 @@ public partial class SqlValidationServiceTests
             });
 
         var service = new SqlValidationService(
-            mockDbManager.Object,
-            new Mock<ILogger<SqlValidationService>>().Object);
+            mockDbManager,
+            A.Fake<ILogger<SqlValidationService>>());
 
         // Act - Use CapturedAt instead of CreatedAt
         var result = await service.GetQueryPlanAsync(

@@ -4,7 +4,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -13,31 +13,31 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ClipAppendServiceTests
 {
     private const string _testDatabaseKey = "test-db";
-    private Mock<IClipService> _mockClipService = null!;
-    private Mock<ICollectionService> _mockCollectionService = null!;
-    private Mock<IDatabaseContextFactory> _mockContextFactory = null!;
-    private Mock<ILogger<ClipAppendService>> _mockLogger = null!;
-    private Mock<ISoundService> _mockSoundService = null!;
+    private IClipService _mockClipService = null!;
+    private ICollectionService _mockCollectionService = null!;
+    private IDatabaseContextFactory _mockContextFactory = null!;
+    private ILogger<ClipAppendService> _mockLogger = null!;
+    private ISoundService _mockSoundService = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockLogger = new Mock<ILogger<ClipAppendService>>();
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockClipService = new Mock<IClipService>();
-        _mockSoundService = new Mock<ISoundService>();
+        _mockLogger = A.Fake<ILogger<ClipAppendService>>();
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockClipService = A.Fake<IClipService>();
+        _mockSoundService = A.Fake<ISoundService>();
 
         // Default: return test database key
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(_testDatabaseKey);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(_testDatabaseKey);
     }
 
     private ClipAppendService CreateService() => new(
-        _mockContextFactory.Object,
-        _mockCollectionService.Object,
-        _mockClipService.Object,
-        _mockSoundService.Object,
-        _mockLogger.Object);
+        _mockContextFactory,
+        _mockCollectionService,
+        _mockClipService,
+        _mockSoundService,
+        _mockLogger);
 
     private static Clip CreateTestClip(string textContent, Guid? id = null, Guid? collectionId = null) => new()
     {

@@ -7,7 +7,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -21,60 +21,60 @@ public class ClipServiceExtendedTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
     private readonly ILogger<ClipService> _logger;
-    private readonly Mock<IClipDataRepository> _mockClipDataRepository;
-    private readonly Mock<IClipRepository> _mockClipRepository;
-    private readonly Mock<IDatabaseContextFactory> _mockDatabaseContextFactory;
-    private readonly Mock<IDatabaseManager> _mockDatabaseManager;
+    private readonly IClipDataRepository _mockClipDataRepository;
+    private readonly IClipRepository _mockClipRepository;
+    private readonly IDatabaseContextFactory _mockDatabaseContextFactory;
+    private readonly IDatabaseManager _mockDatabaseManager;
 
     public ClipServiceExtendedTests()
     {
         // Use loose mocks since not all methods require all dependencies to be called
-        _mockClipRepository = new Mock<IClipRepository>(MockBehavior.Loose);
-        _mockClipDataRepository = new Mock<IClipDataRepository>(MockBehavior.Loose);
-        var mockBlobRepository = new Mock<IBlobRepository>(MockBehavior.Loose);
-        _mockDatabaseContextFactory = new Mock<IDatabaseContextFactory>(MockBehavior.Loose);
-        _mockDatabaseManager = new Mock<IDatabaseManager>(MockBehavior.Loose);
+        _mockClipRepository = A.Fake<IClipRepository>();
+        _mockClipDataRepository = A.Fake<IClipDataRepository>();
+        var mockBlobRepository = A.Fake<IBlobRepository>();
+        _mockDatabaseContextFactory = A.Fake<IDatabaseContextFactory>();
+        _mockDatabaseManager = A.Fake<IDatabaseManager>();
         _logger = CreateLogger<ClipService>();
 
         // Setup scoped service provider for ClipData and Blob repositories
-        var mockServiceScope = new Mock<IServiceScope>(MockBehavior.Loose);
-        var mockServiceScopeFactory = new Mock<IServiceScopeFactory>(MockBehavior.Loose);
-        var mockServiceProvider = new Mock<IServiceProvider>(MockBehavior.Loose);
+        var mockServiceScope = A.Fake<IServiceScope>();
+        var mockServiceScopeFactory = A.Fake<IServiceScopeFactory>();
+        var mockServiceProvider = A.Fake<IServiceProvider>();
 
-        var scopeServiceProvider = new Mock<IServiceProvider>(MockBehavior.Loose);
-        scopeServiceProvider.Setup(p => p.GetService(typeof(IClipDataRepository)))
-            .Returns(_mockClipDataRepository.Object);
+        var scopeServiceProvider = A.Fake<IServiceProvider>();
+        A.CallTo(() => scopeServiceProvider.GetService(typeof(IClipDataRepository)))
+            .Returns(_mockClipDataRepository);
 
-        scopeServiceProvider.Setup(p => p.GetService(typeof(IBlobRepository)))
-            .Returns(mockBlobRepository.Object);
+        A.CallTo(() => scopeServiceProvider.GetService(typeof(IBlobRepository)))
+            .Returns(mockBlobRepository);
 
-        mockServiceScope.Setup(p => p.ServiceProvider).Returns(scopeServiceProvider.Object);
-        mockServiceScopeFactory.Setup(p => p.CreateScope()).Returns(mockServiceScope.Object);
+        A.CallTo(() => mockServiceScope.ServiceProvider).Returns(scopeServiceProvider);
+        A.CallTo(() => mockServiceScopeFactory.CreateScope()).Returns(mockServiceScope);
 
         // Setup main service provider to return the scope factory
-        mockServiceProvider.Setup(p => p.GetService(typeof(IServiceScopeFactory)))
-            .Returns(mockServiceScopeFactory.Object);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IServiceScopeFactory)))
+            .Returns(mockServiceScopeFactory);
 
         // Setup factory to return mock repository
-        _mockDatabaseContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
-            .Returns(_mockClipRepository.Object);
+        A.CallTo(() => _mockDatabaseContextFactory.GetClipRepository(A<string>.Ignored))
+            .Returns(_mockClipRepository);
 
         // Setup DatabaseContextFactory to return mock repositories
-        _mockDatabaseContextFactory.Setup(p => p.GetClipDataRepository(It.IsAny<string>()))
-            .Returns(_mockClipDataRepository.Object);
+        A.CallTo(() => _mockDatabaseContextFactory.GetClipDataRepository(A<string>.Ignored))
+            .Returns(_mockClipDataRepository);
 
-        _mockDatabaseContextFactory.Setup(p => p.GetBlobRepository(It.IsAny<string>()))
-            .Returns(mockBlobRepository.Object);
+        A.CallTo(() => _mockDatabaseContextFactory.GetBlobRepository(A<string>.Ignored))
+            .Returns(mockBlobRepository);
     }
 
     private ClipService CreateService() => new(
-        _mockDatabaseContextFactory.Object,
-        Mock.Of<IConfigurationService>(),
-        Mock.Of<IClipboardService>(),
-        Mock.Of<ITemplateService>(),
-        Mock.Of<IEncryptionService>(),
-        Mock.Of<IDecryptedBlobCacheService>(),
-        Mock.Of<IMessenger>(),
+        _mockDatabaseContextFactory,
+        A.Fake<IConfigurationService>(),
+        A.Fake<IClipboardService>(),
+        A.Fake<ITemplateService>(),
+        A.Fake<IEncryptionService>(),
+        A.Fake<IDecryptedBlobCacheService>(),
+        A.Fake<IMessenger>(),
         _logger);
 
     [Category("RenameClip")]
@@ -93,11 +93,11 @@ public class ClipServiceExtendedTests : TestFixtureBase
                 CapturedAt = DateTime.UtcNow,
             };
 
-            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(clip);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+                .Returns(clip);
 
-            _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
+            A.CallTo(() => _mockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+                .Returns(true);
 
             var service = CreateService();
 
@@ -107,15 +107,14 @@ public class ClipServiceExtendedTests : TestFixtureBase
             // Assert
             await Assert.That(result).IsTrue();
             await Assert.That(clip.Title).IsEqualTo("New Title");
-            VerifyAll();
         }
 
         [Test]
         public async Task WithNonExistentId_ReturnsFalse()
         {
             // Arrange
-            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Clip?)null);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored))
+                .Returns((Clip?)null);
 
             var service = CreateService();
 
@@ -124,7 +123,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
 
             // Assert
             await Assert.That(result).IsFalse();
-            VerifyAll();
         }
 
         [Test]
@@ -175,18 +173,18 @@ public class ClipServiceExtendedTests : TestFixtureBase
             dbContext.Database.OpenConnection();
             dbContext.Database.EnsureCreated();
 
-            _mockDatabaseManager.Setup(p => p.CreateDatabaseContext(_testDatabaseKey))
+            A.CallTo(() => _mockDatabaseManager.CreateDatabaseContext(_testDatabaseKey))
                 .Returns(dbContext);
 
-            _mockClipRepository.Setup(p => p.GetByIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(sourceClip);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(sourceClipId, A<CancellationToken>.Ignored))
+                .Returns(sourceClip);
 
-            _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(newClip);
+            A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+                .Returns(newClip);
 
             // Setup ClipDataRepository to return empty list (no formats to copy)
-            _mockClipDataRepository.Setup(p => p.GetByClipIdAsync(sourceClipId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<ClipData>());
+            A.CallTo(() => _mockClipDataRepository.GetByClipIdAsync(sourceClipId, A<CancellationToken>.Ignored))
+                .Returns(new List<ClipData>());
 
             var service = CreateService();
 
@@ -197,15 +195,14 @@ public class ClipServiceExtendedTests : TestFixtureBase
             await Assert.That(result).IsNotNull();
             await Assert.That(result.Id).IsNotEqualTo(sourceClipId);
             await Assert.That(result.CollectionId).IsEqualTo(targetCollectionId);
-            VerifyAll();
         }
 
         [Test]
         public async Task WithNonExistentId_ThrowsArgumentException()
         {
             // Arrange
-            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Clip?)null);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored))
+                .Returns((Clip?)null);
 
             var service = CreateService();
 
@@ -213,7 +210,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
             await Assert.That(async () => await service.CopyClipAsync(_testDatabaseKey, Guid.NewGuid(), Guid.NewGuid()))
                 .Throws<ArgumentException>();
 
-            VerifyAll();
         }
     }
 
@@ -237,11 +233,11 @@ public class ClipServiceExtendedTests : TestFixtureBase
                 CapturedAt = DateTime.UtcNow,
             };
 
-            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(clip);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+                .Returns(clip);
 
-            _mockClipRepository.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
+            A.CallTo(() => _mockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+                .Returns(true);
 
             var service = CreateService();
 
@@ -251,15 +247,14 @@ public class ClipServiceExtendedTests : TestFixtureBase
             // Assert
             await Assert.That(result).IsTrue();
             await Assert.That(clip.CollectionId).IsEqualTo(newCollectionId);
-            VerifyAll();
         }
 
         [Test]
         public async Task WithNonExistentId_ReturnsFalse()
         {
             // Arrange
-            _mockClipRepository.Setup(p => p.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((Clip?)null);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored))
+                .Returns((Clip?)null);
 
             var service = CreateService();
 
@@ -268,7 +263,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
 
             // Assert
             await Assert.That(result).IsFalse();
-            VerifyAll();
         }
 
         [Test]
@@ -286,8 +280,8 @@ public class ClipServiceExtendedTests : TestFixtureBase
                 CapturedAt = DateTime.UtcNow,
             };
 
-            _mockClipRepository.Setup(p => p.GetByIdAsync(clipId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(clip);
+            A.CallTo(() => _mockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
+                .Returns(clip);
 
             var service = CreateService();
 
@@ -296,8 +290,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
 
             // Assert - should return true but not call UpdateAsync since already in target collection
             await Assert.That(result).IsTrue();
-            _mockClipRepository.Verify(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Never);
-            VerifyAll();
+            A.CallTo(() => _mockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
         }
     }
 }

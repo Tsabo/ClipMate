@@ -2,7 +2,7 @@ using System.Text;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,7 +12,7 @@ public partial class ClipAppendServiceTests
     /// Sets up ClipData/BlobTxt mocks simulating an existing text blob for the given clip,
     /// mirroring how text content actually lives in the database (not on the Clip row itself).
     /// </summary>
-    private (Mock<IClipDataRepository> ClipDataRepo, Mock<IBlobRepository> BlobRepo, BlobTxt Blob) SetupExistingTextBlob(Guid clipId, string existingText)
+    private (IClipDataRepository ClipDataRepo, IBlobRepository BlobRepo, BlobTxt Blob) SetupExistingTextBlob(Guid clipId, string existingText)
     {
         var clipData = new ClipData
         {
@@ -25,19 +25,19 @@ public partial class ClipAppendServiceTests
 
         var blob = new BlobTxt { Id = Guid.NewGuid(), ClipDataId = clipData.Id, ClipId = clipId, Data = existingText };
 
-        var mockClipDataRepo = new Mock<IClipDataRepository>();
-        mockClipDataRepo.Setup(p => p.GetByClipIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ClipData> { clipData });
+        var mockClipDataRepo = A.Fake<IClipDataRepository>();
+        A.CallTo(() => mockClipDataRepo.GetByClipIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(new List<ClipData> { clipData });
 
-        var mockBlobRepo = new Mock<IBlobRepository>();
-        mockBlobRepo.Setup(p => p.GetTextByClipIdAsync(clipId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt> { blob });
+        var mockBlobRepo = A.Fake<IBlobRepository>();
+        A.CallTo(() => mockBlobRepo.GetTextByClipIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt> { blob });
 
-        mockBlobRepo.Setup(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => mockBlobRepo.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        _mockContextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey)).Returns(mockClipDataRepo.Object);
-        _mockContextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey)).Returns(mockBlobRepo.Object);
+        A.CallTo(() => _mockContextFactory.GetClipDataRepository(_testDatabaseKey)).Returns(mockClipDataRepo);
+        A.CallTo(() => _mockContextFactory.GetBlobRepository(_testDatabaseKey)).Returns(mockBlobRepo);
 
         return (mockClipDataRepo, mockBlobRepo, blob);
     }
@@ -48,18 +48,18 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var targetClip = CreateTestClip("First capture");
-        mockClipRepo.Setup(p => p.GetByIdAsync(targetClip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(targetClip);
+        A.CallTo(() => mockClipRepo.GetByIdAsync(targetClip.Id, A<CancellationToken>.Ignored)).Returns(targetClip);
 
         var (_, blobRepo, blob) = SetupExistingTextBlob(targetClip.Id, "First capture");
 
         Clip? updatedClip = null;
-        mockClipRepo.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => updatedClip = clip)
-            .ReturnsAsync(true);
+        A.CallTo(() => mockClipRepo.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => updatedClip = clip)
+            .Returns(true);
 
         // Act
         var result = await service.AppendCapturedTextAsync(targetClip.Id, "Second capture", "\\n", false);
@@ -69,9 +69,9 @@ public partial class ClipAppendServiceTests
         await Assert.That(blob.Data).IsEqualTo("First capture\nSecond capture");
         await Assert.That(updatedClip).IsNotNull();
         await Assert.That(updatedClip!.TextContent).IsEqualTo("First capture\nSecond capture");
-        blobRepo.Verify(p => p.UpdateTextAsync(It.Is<BlobTxt>(b => b.Id == blob.Id), It.IsAny<CancellationToken>()), Times.Once);
-        mockClipRepo.Verify(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Once);
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.Append, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => blobRepo.UpdateTextAsync(A<BlobTxt>.That.Matches(b => b.Id == blob.Id), A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => mockClipRepo.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.Append, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -80,12 +80,12 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var targetClip = CreateTestClip("First\r\n");
-        mockClipRepo.Setup(p => p.GetByIdAsync(targetClip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(targetClip);
-        mockClipRepo.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        A.CallTo(() => mockClipRepo.GetByIdAsync(targetClip.Id, A<CancellationToken>.Ignored)).Returns(targetClip);
+        A.CallTo(() => mockClipRepo.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
 
         SetupExistingTextBlob(targetClip.Id, "First\r\n");
 
@@ -102,13 +102,13 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var targetClip = CreateTestClip("First");
         var originalHash = targetClip.ContentHash;
-        mockClipRepo.Setup(p => p.GetByIdAsync(targetClip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(targetClip);
-        mockClipRepo.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        A.CallTo(() => mockClipRepo.GetByIdAsync(targetClip.Id, A<CancellationToken>.Ignored)).Returns(targetClip);
+        A.CallTo(() => mockClipRepo.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
 
         SetupExistingTextBlob(targetClip.Id, "First");
 
@@ -126,31 +126,31 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var targetClip = CreateTestClip(string.Empty);
-        mockClipRepo.Setup(p => p.GetByIdAsync(targetClip.Id, It.IsAny<CancellationToken>())).ReturnsAsync(targetClip);
-        mockClipRepo.Setup(p => p.UpdateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        A.CallTo(() => mockClipRepo.GetByIdAsync(targetClip.Id, A<CancellationToken>.Ignored)).Returns(targetClip);
+        A.CallTo(() => mockClipRepo.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
 
-        var mockClipDataRepo = new Mock<IClipDataRepository>();
-        mockClipDataRepo.Setup(p => p.GetByClipIdAsync(targetClip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ClipData>());
+        var mockClipDataRepo = A.Fake<IClipDataRepository>();
+        A.CallTo(() => mockClipDataRepo.GetByClipIdAsync(targetClip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<ClipData>());
 
-        mockClipDataRepo.Setup(p => p.CreateAsync(It.IsAny<ClipData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ClipData cd, CancellationToken _) => cd);
+        A.CallTo(() => mockClipDataRepo.CreateAsync(A<ClipData>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((ClipData cd, CancellationToken _) => cd);
 
-        var mockBlobRepo = new Mock<IBlobRepository>();
-        mockBlobRepo.Setup(p => p.GetTextByClipIdAsync(targetClip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        var mockBlobRepo = A.Fake<IBlobRepository>();
+        A.CallTo(() => mockBlobRepo.GetTextByClipIdAsync(targetClip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
         BlobTxt? createdBlob = null;
-        mockBlobRepo.Setup(p => p.CreateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()))
-            .Callback<BlobTxt, CancellationToken>((blob, _) => createdBlob = blob)
-            .ReturnsAsync((BlobTxt blob, CancellationToken _) => blob);
+        A.CallTo(() => mockBlobRepo.CreateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((BlobTxt blob, CancellationToken _) => createdBlob = blob)
+            .ReturnsLazily((BlobTxt blob, CancellationToken _) => blob);
 
-        _mockContextFactory.Setup(p => p.GetClipDataRepository(_testDatabaseKey)).Returns(mockClipDataRepo.Object);
-        _mockContextFactory.Setup(p => p.GetBlobRepository(_testDatabaseKey)).Returns(mockBlobRepo.Object);
+        A.CallTo(() => _mockContextFactory.GetClipDataRepository(_testDatabaseKey)).Returns(mockClipDataRepo);
+        A.CallTo(() => _mockContextFactory.GetBlobRepository(_testDatabaseKey)).Returns(mockBlobRepo);
 
         // Act
         var result = await service.AppendCapturedTextAsync(targetClip.Id, "First real capture", "", false);
@@ -159,7 +159,7 @@ public partial class ClipAppendServiceTests
         await Assert.That(result.TextContent).IsEqualTo("First real capture");
         await Assert.That(createdBlob).IsNotNull();
         await Assert.That(createdBlob!.Data).IsEqualTo("First real capture");
-        mockBlobRepo.Verify(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => mockBlobRepo.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -168,11 +168,11 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var missingClipId = Guid.NewGuid();
-        mockClipRepo.Setup(p => p.GetByIdAsync(missingClipId, It.IsAny<CancellationToken>())).ReturnsAsync((Clip?)null);
+        A.CallTo(() => mockClipRepo.GetByIdAsync(missingClipId, A<CancellationToken>.Ignored)).Returns((Clip?)null);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -185,7 +185,7 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>

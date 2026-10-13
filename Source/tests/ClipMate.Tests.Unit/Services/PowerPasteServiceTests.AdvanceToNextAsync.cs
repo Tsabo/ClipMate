@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -69,7 +69,7 @@ public partial class PowerPasteServiceTests
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.PowerPasteComplete, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.PowerPasteComplete, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -82,7 +82,7 @@ public partial class PowerPasteServiceTests
             Preferences = new PreferencesConfiguration { PowerPasteLoop = true },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second") };
@@ -95,7 +95,7 @@ public partial class PowerPasteServiceTests
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
         await Assert.That(service.CurrentPosition).IsEqualTo(0);
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.PowerPasteComplete, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.PowerPasteComplete, A<CancellationToken>.Ignored)).MustHaveHappened(2, Times.Exactly);
     }
 
     [Test]
@@ -113,7 +113,7 @@ public partial class PowerPasteServiceTests
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.PowerPasteComplete, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.PowerPasteComplete, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -126,7 +126,7 @@ public partial class PowerPasteServiceTests
             Preferences = new PreferencesConfiguration { PowerPasteLoop = true },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third") };

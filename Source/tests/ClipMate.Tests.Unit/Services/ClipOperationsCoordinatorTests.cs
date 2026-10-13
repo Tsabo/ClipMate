@@ -7,7 +7,7 @@ using ClipMate.Core.Services;
 using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -18,69 +18,69 @@ namespace ClipMate.Tests.Unit.Services;
 public class ClipOperationsCoordinatorTests : TestFixtureBase
 {
     private ClipOperationsCoordinator _coordinator = null!;
-    private Mock<IActiveWindowService> _mockActiveWindowService = null!;
-    private Mock<ClipListViewModel> _mockClipListViewModel = null!;
-    private Mock<IClipService> _mockClipService = null!;
-    private Mock<ICollectionService> _mockCollectionService = null!;
-    private Mock<CollectionTreeViewModel> _mockCollectionTreeViewModel = null!;
-    private Mock<IConfigurationService> _mockConfigurationService = null!;
-    private Mock<IMessenger> _mockMessenger = null!;
-    private Mock<IPowerPasteService> _mockPowerPasteService = null!;
-    private Mock<ISearchService> _mockSearchService = null!;
-    private Mock<IServiceProvider> _mockServiceProvider = null!;
+    private IActiveWindowService _mockActiveWindowService = null!;
+    private ClipListViewModel _mockClipListViewModel = null!;
+    private IClipService _mockClipService = null!;
+    private ICollectionService _mockCollectionService = null!;
+    private CollectionTreeViewModel _mockCollectionTreeViewModel = null!;
+    private IConfigurationService _mockConfigurationService = null!;
+    private IMessenger _mockMessenger = null!;
+    private IPowerPasteService _mockPowerPasteService = null!;
+    private ISearchService _mockSearchService = null!;
+    private IServiceProvider _mockServiceProvider = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockActiveWindowService = new Mock<IActiveWindowService>();
-        _mockClipService = new Mock<IClipService>();
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockConfigurationService = new Mock<IConfigurationService>();
-        _mockPowerPasteService = new Mock<IPowerPasteService>();
-        _mockSearchService = new Mock<ISearchService>();
-        _mockMessenger = new Mock<IMessenger>();
-        _mockServiceProvider = new Mock<IServiceProvider>();
+        _mockActiveWindowService = A.Fake<IActiveWindowService>();
+        _mockClipService = A.Fake<IClipService>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockPowerPasteService = A.Fake<IPowerPasteService>();
+        _mockSearchService = A.Fake<ISearchService>();
+        _mockMessenger = A.Fake<IMessenger>();
+        _mockServiceProvider = A.Fake<IServiceProvider>();
 
         // ClipListViewModel requires: ICollectionService, IFolderService, IClipService, 
         // IQuickPasteService, IDatabaseContextFactory, IMessenger, ILogger<ClipListViewModel>
-        _mockClipListViewModel = new Mock<ClipListViewModel>(
-            Mock.Of<ICollectionService>(),
-            Mock.Of<IFolderService>(),
-            Mock.Of<IClipService>(),
-            Mock.Of<IQuickPasteService>(),
-            Mock.Of<IDatabaseContextFactory>(),
-            Mock.Of<IMessenger>(),
-            Mock.Of<ILogger<ClipListViewModel>>());
+        _mockClipListViewModel = A.Fake<ClipListViewModel>(o => o.WithArgumentsForConstructor(() => new ClipListViewModel(
+            A.Fake<ICollectionService>(),
+            A.Fake<IFolderService>(),
+            A.Fake<IClipService>(),
+            A.Fake<IQuickPasteService>(),
+            A.Fake<IDatabaseContextFactory>(),
+            A.Fake<IMessenger>(),
+            A.Fake<ILogger<ClipListViewModel>>())));
 
         // CollectionTreeViewModel requires: ICollectionService, IFolderService, IClipService,
         // IConfigurationService, IMessenger, ICollectionTreeBuilder, ILogger<CollectionTreeViewModel>, SearchResultsCache
         // Note: SearchResultsCache is sealed, so we create a real instance
-        _mockCollectionTreeViewModel = new Mock<CollectionTreeViewModel>(
-            Mock.Of<ICollectionService>(),
-            Mock.Of<IFolderService>(),
-            Mock.Of<IClipService>(),
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IMessenger>(),
-            Mock.Of<ICollectionTreeBuilder>(),
-            Mock.Of<ILogger<CollectionTreeViewModel>>(),
-            new SearchResultsCache());
+        _mockCollectionTreeViewModel = A.Fake<CollectionTreeViewModel>(o => o.WithArgumentsForConstructor(() => new CollectionTreeViewModel(
+            A.Fake<ICollectionService>(),
+            A.Fake<IFolderService>(),
+            A.Fake<IClipService>(),
+            A.Fake<IConfigurationService>(),
+            A.Fake<IMessenger>(),
+            A.Fake<ICollectionTreeBuilder>(),
+            A.Fake<ILogger<CollectionTreeViewModel>>(),
+            new SearchResultsCache())));
 
         // Setup selected node to return a test database path (SelectedNode is not virtual, so use SetupGet with Object property)
-        _mockCollectionTreeViewModel.SetupGet(p => p.SelectedNode)
+        A.CallTo(() => _mockCollectionTreeViewModel.SelectedNode)
             .Returns(new DatabaseTreeNode("Test Database", "test-database-path"));
 
         _coordinator = new ClipOperationsCoordinator(
-            _mockActiveWindowService.Object,
-            _mockClipListViewModel.Object,
-            _mockCollectionTreeViewModel.Object,
-            _mockClipService.Object,
-            _mockCollectionService.Object,
-            _mockConfigurationService.Object,
-            _mockPowerPasteService.Object,
-            _mockSearchService.Object,
-            _mockMessenger.Object,
-            _mockServiceProvider.Object,
-            Mock.Of<ILogger<ClipOperationsCoordinator>>());
+            _mockActiveWindowService,
+            _mockClipListViewModel,
+            _mockCollectionTreeViewModel,
+            _mockClipService,
+            _mockCollectionService,
+            _mockConfigurationService,
+            _mockPowerPasteService,
+            _mockSearchService,
+            _mockMessenger,
+            _mockServiceProvider,
+            A.Fake<ILogger<ClipOperationsCoordinator>>());
 
         // Clear any cached keys
         EncryptionKeyDialogViewModel.ForgetKey();
@@ -90,6 +90,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     public void Cleanup()
     {
         EncryptionKeyDialogViewModel.ForgetKey();
+        _mockClipListViewModel.Dispose();
+        _mockCollectionTreeViewModel.Dispose();
     }
 
     [Test]
@@ -100,19 +102,18 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         var clipId2 = Guid.NewGuid();
         var clipIds = new List<Guid> { clipId1, clipId2 };
 
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), It.Is<IReadOnlyList<Guid>?>(ids => ids != null && ids.Count == 2), CancellationToken.None))
-            .ReturnsAsync(clipIds);
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, A<IReadOnlyList<Guid>?>.That.Matches(ids => ids != null && ids.Count == 2), CancellationToken.None))
+            .Returns(clipIds);
 
         // Cache keys for these clips
         var passphrase = CreateSecureString("test-password");
-        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm1.SetPassphrase(passphrase);
         vm1.RememberForMinutes = false;
         vm1.RememberUntilShutdown = true;
         vm1.CacheKey(clipId1);
 
-        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm2.SetPassphrase(passphrase);
         vm2.RememberForMinutes = false;
         vm2.RememberUntilShutdown = true;
@@ -139,17 +140,16 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         var clipId1 = Guid.NewGuid();
         var clipId2 = Guid.NewGuid();
 
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), null, CancellationToken.None))
-            .ReturnsAsync(new List<Guid> { clipId1, clipId2 });
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, null, CancellationToken.None))
+            .Returns(new List<Guid> { clipId1, clipId2 });
 
         // Cache keys
-        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm1.SetPassphrase(CreateSecureString("password-1"));
         vm1.RememberUntilShutdown = true;
         vm1.CacheKey(clipId1);
 
-        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm2.SetPassphrase(CreateSecureString("password-2"));
         vm2.RememberUntilShutdown = true;
         vm2.CacheKey(clipId2);
@@ -173,12 +173,11 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         var clipId = Guid.NewGuid();
 
         // Service returns empty list (no clips were actually locked)
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>?>(), CancellationToken.None))
-            .ReturnsAsync([]);
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, A<IReadOnlyList<Guid>?>.Ignored, CancellationToken.None))
+            .Returns([]);
 
         // Cache a key
-        var vm = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm.SetPassphrase(CreateSecureString("test-pass"));
         vm.RememberForMinutes = false;
         vm.RememberUntilShutdown = true;
@@ -206,9 +205,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         var clipId2 = Guid.NewGuid();
         var lockedIds = new List<Guid> { clipId1, clipId2 };
 
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>?>(), CancellationToken.None))
-            .ReturnsAsync(lockedIds);
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, A<IReadOnlyList<Guid>?>.Ignored, CancellationToken.None))
+            .Returns(lockedIds);
 
         var message = new LockClipsRequestedEvent(lockedIds);
 
@@ -219,11 +217,9 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         await Task.Delay(100);
 
         // Assert - Should call LockClipsAsync
-        _mockClipService.Verify(
-            p => p.LockClipsAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<Guid>?>(), CancellationToken.None),
-            Times.Once);
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, A<IReadOnlyList<Guid>?>.Ignored, CancellationToken.None)).MustHaveHappenedOnceExactly();
 
-        // Note: Can't verify messenger.Send() calls with Moq because Send<T>() is an extension method
+        // Note: Can't verify messenger.Send() calls with FakeItEasy because Send<T>() is an extension method
         // The important behavior (locking clips) is verified above
     }
 
@@ -232,7 +228,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     {
         // Arrange
         var clipId = Guid.NewGuid();
-        var vm = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm.SetPassphrase(CreateSecureString("cached-key"));
         vm.RememberForMinutes = false;
         vm.RememberUntilShutdown = true;
@@ -253,9 +249,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     public async Task EncryptionKeyExpiredEvent_LocksAllDecryptedClips()
     {
         // Arrange
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), null, CancellationToken.None))
-            .ReturnsAsync(new List<Guid> { Guid.NewGuid() });
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, null, CancellationToken.None))
+            .Returns(new List<Guid> { Guid.NewGuid() });
 
         var message = new EncryptionKeyExpiredEvent();
 
@@ -266,9 +261,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         await Task.Delay(100);
 
         // Assert - Should call LockClipsAsync with null (lock all)
-        _mockClipService.Verify(
-            p => p.LockClipsAsync(It.IsAny<string>(), null, CancellationToken.None),
-            Times.Once);
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, null, CancellationToken.None)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -280,21 +273,20 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
 
         // Both clips use same passphrase
         var passphrase = CreateSecureString("shared-password");
-        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm1 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm1.SetPassphrase(passphrase);
         vm1.RememberForMinutes = false;
         vm1.RememberUntilShutdown = true;
         vm1.CacheKey(clipIdToLock);
 
-        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger.Object);
+        var vm2 = new EncryptionKeyDialogViewModel(_mockMessenger);
         vm2.SetPassphrase(passphrase);
         vm2.RememberForMinutes = false;
         vm2.RememberUntilShutdown = true;
         vm2.CacheKey(clipIdToKeep);
 
-        _mockClipService
-            .Setup(p => p.LockClipsAsync(It.IsAny<string>(), It.Is<IReadOnlyList<Guid>?>(ids => ids != null && ids.Contains(clipIdToLock)), CancellationToken.None))
-            .ReturnsAsync(new List<Guid> { clipIdToLock });
+        A.CallTo(() => _mockClipService.LockClipsAsync(A<string>.Ignored, A<IReadOnlyList<Guid>?>.That.Matches(ids => ids != null && ids.Contains(clipIdToLock)), CancellationToken.None))
+            .Returns(new List<Guid> { clipIdToLock });
 
         var message = new LockClipsRequestedEvent([clipIdToLock]);
 

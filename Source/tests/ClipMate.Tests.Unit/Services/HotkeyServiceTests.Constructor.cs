@@ -19,7 +19,7 @@ public partial class HotkeyServiceTests
         var mockManager = CreateMockHotkeyManager();
 
         // Act
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
 
         // Assert
         await Assert.That(service).IsNotNull();

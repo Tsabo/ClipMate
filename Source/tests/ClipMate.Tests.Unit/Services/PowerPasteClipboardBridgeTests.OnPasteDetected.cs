@@ -1,4 +1,4 @@
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -16,7 +16,7 @@ public partial class PowerPasteClipboardBridgeTests
         await WaitForAdvanceCallsAsync(1, TimeSpan.FromSeconds(5)); // PowerPasteDelay is configured to 200ms in test setup
 
         // Assert
-        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
+        A.CallTo(() => _mockPowerPasteService.AdvanceToNextAsync()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -37,7 +37,7 @@ public partial class PowerPasteClipboardBridgeTests
         await WaitForAdvanceCallsAsync(1, TimeSpan.FromSeconds(5));
 
         // Assert
-        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Once);
+        A.CallTo(() => _mockPowerPasteService.AdvanceToNextAsync()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -55,6 +55,6 @@ public partial class PowerPasteClipboardBridgeTests
         await WaitForAdvanceCallsAsync(2, TimeSpan.FromSeconds(5));
 
         // Assert
-        _mockPowerPasteService.Verify(p => p.AdvanceToNextAsync(), Times.Exactly(2));
+        A.CallTo(() => _mockPowerPasteService.AdvanceToNextAsync()).MustHaveHappened(2, Times.Exactly);
     }
 }

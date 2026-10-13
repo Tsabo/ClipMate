@@ -5,7 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -17,30 +17,30 @@ namespace ClipMate.Tests.Unit.Services;
 public class CreateNewClipTests : TestFixtureBase
 {
     private const string _testDatabaseKey = "db_test0001";
-    private readonly Mock<IClipRepository> _mockClipRepository;
-    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
-    private readonly Mock<ILogger<ClipService>> _mockLogger;
+    private readonly IClipRepository _mockClipRepository;
+    private readonly IDatabaseContextFactory _mockContextFactory;
+    private readonly ILogger<ClipService> _mockLogger;
 
     public CreateNewClipTests()
     {
-        _mockClipRepository = MockRepository.Create<IClipRepository>();
-        _mockContextFactory = MockRepository.Create<IDatabaseContextFactory>();
-        _mockLogger = MockRepository.Create<ILogger<ClipService>>();
+        _mockClipRepository = A.Fake<IClipRepository>(o => o.Strict());
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>(o => o.Strict());
+        _mockLogger = A.Fake<ILogger<ClipService>>(o => o.Strict());
 
         // Setup factory to return mock repository
-        _mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>()))
-            .Returns(_mockClipRepository.Object);
+        A.CallTo(() => _mockContextFactory.GetClipRepository(A<string>.Ignored))
+            .Returns(_mockClipRepository);
     }
 
     private ClipService CreateService() => new(
-        _mockContextFactory.Object,
-        Mock.Of<IConfigurationService>(),
-        Mock.Of<IClipboardService>(),
-        Mock.Of<ITemplateService>(),
-        Mock.Of<IEncryptionService>(),
-        Mock.Of<IDecryptedBlobCacheService>(),
-        Mock.Of<IMessenger>(),
-        _mockLogger.Object);
+        _mockContextFactory,
+        A.Fake<IConfigurationService>(),
+        A.Fake<IClipboardService>(),
+        A.Fake<ITemplateService>(),
+        A.Fake<IEncryptionService>(),
+        A.Fake<IDecryptedBlobCacheService>(),
+        A.Fake<IMessenger>(),
+        _mockLogger);
 
     [Test]
     public async Task CreateAsync_WithNewClip_CreatesClipSuccessfully()
@@ -67,11 +67,11 @@ public class CreateNewClipTests : TestFixtureBase
         };
 
         // Mock duplicate check (no existing clip)
-        _mockClipRepository.Setup(p => p.GetByContentHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns((Clip?)null);
 
-        _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdClip);
+        A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(createdClip);
 
         var service = CreateService();
 
@@ -82,7 +82,7 @@ public class CreateNewClipTests : TestFixtureBase
         await Assert.That(result).IsNotNull();
         await Assert.That(result.Title).IsEqualTo("New Clip");
         await Assert.That(result.CollectionId).IsEqualTo(collectionId);
-        _mockClipRepository.Verify(p => p.CreateAsync(newClip, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockClipRepository.CreateAsync(newClip, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -110,11 +110,11 @@ public class CreateNewClipTests : TestFixtureBase
         };
 
         // Mock duplicate check (no existing clip)
-        _mockClipRepository.Setup(p => p.GetByContentHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns((Clip?)null);
 
-        _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdClip);
+        A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(createdClip);
 
         var service = CreateService();
 
@@ -124,7 +124,7 @@ public class CreateNewClipTests : TestFixtureBase
         // Assert
         await Assert.That(result).IsNotNull();
         await Assert.That(result.Title).IsEqualTo(string.Empty);
-        _mockClipRepository.Verify(p => p.CreateAsync(newClip, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockClipRepository.CreateAsync(newClip, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -153,11 +153,11 @@ public class CreateNewClipTests : TestFixtureBase
         };
 
         // Mock duplicate check (no existing clip)
-        _mockClipRepository.Setup(p => p.GetByContentHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Clip?)null);
+        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns((Clip?)null);
 
-        _mockClipRepository.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdClip);
+        A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(createdClip);
 
         var service = CreateService();
 
@@ -167,6 +167,6 @@ public class CreateNewClipTests : TestFixtureBase
         // Assert
         await Assert.That(result).IsNotNull();
         await Assert.That(result.TextContent).IsEqualTo(clipContent);
-        _mockClipRepository.Verify(p => p.CreateAsync(newClip, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockClipRepository.CreateAsync(newClip, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

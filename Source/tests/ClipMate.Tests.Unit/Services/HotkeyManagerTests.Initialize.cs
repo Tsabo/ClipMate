@@ -12,7 +12,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
 
         // Act & Assert
@@ -24,7 +24,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
 
         // Act & Assert
         await Assert.That(() => manager.Initialize(null!))
@@ -37,7 +37,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
         manager.Initialize(window);
 
@@ -52,7 +52,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         manager.Dispose();
         var window = new Window();
 

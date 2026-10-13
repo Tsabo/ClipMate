@@ -2,7 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Platform;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,15 +11,15 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class HotkeyServiceTests : IDisposable
 {
-    private readonly Mock<IHotkeyManager> _hotkeyManager;
-    private readonly Mock<ILogger<HotkeyService>> _logger;
+    private readonly IHotkeyManager _hotkeyManager;
+    private readonly ILogger<HotkeyService> _logger;
     private readonly HotkeyService _service;
 
     public HotkeyServiceTests()
     {
-        _logger = new Mock<ILogger<HotkeyService>>();
-        _hotkeyManager = new Mock<IHotkeyManager>();
-        _service = new HotkeyService(_logger.Object, _hotkeyManager.Object);
+        _logger = A.Fake<ILogger<HotkeyService>>();
+        _hotkeyManager = A.Fake<IHotkeyManager>();
+        _service = new HotkeyService(_logger, _hotkeyManager);
     }
 
     public void Dispose()
@@ -33,7 +33,7 @@ public partial class HotkeyServiceTests : IDisposable
     {
         // Act & Assert
 #pragma warning disable CS8602 // ParamName should always be set for ArgumentNullException
-        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new HotkeyService(null!, _hotkeyManager.Object)));
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new HotkeyService(null!, _hotkeyManager)));
         await Assert.That(ex.ParamName).IsEqualTo("logger");
 #pragma warning restore CS8602
     }
@@ -43,7 +43,7 @@ public partial class HotkeyServiceTests : IDisposable
     {
         // Act & Assert
 #pragma warning disable CS8602 // ParamName should always be set for ArgumentNullException
-        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new HotkeyService(_logger.Object, null!)));
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => Task.Run(() => new HotkeyService(_logger, null!)));
         await Assert.That(ex.ParamName).IsEqualTo("hotkeyManager");
 #pragma warning restore CS8602
     }
@@ -52,7 +52,7 @@ public partial class HotkeyServiceTests : IDisposable
     public async Task Constructor_WithOnlyHotkeyManager_Succeeds()
     {
         // Act
-        using var service = new HotkeyService(_hotkeyManager.Object);
+        using var service = new HotkeyService(_hotkeyManager);
 
         // Assert - Should create successfully
         await Assert.That(service).IsNotNull();
@@ -66,14 +66,14 @@ public partial class HotkeyServiceTests : IDisposable
         const ModifierKeys modifiers = ModifierKeys.Control;
         const int key = 0x43; // C key
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(modifiers, key, action)).Returns(100);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action)).Returns(100);
 
         // Act
         var result = _service.RegisterHotkey(hotkeyId, modifiers, key, action);
 
         // Assert
         await Assert.That(result).IsTrue();
-        _hotkeyManager.Verify(p => p.RegisterHotkey(modifiers, key, action), Times.Once);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -99,7 +99,7 @@ public partial class HotkeyServiceTests : IDisposable
         const ModifierKeys modifiers = ModifierKeys.Control;
         const int key = 0x43;
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(modifiers, key, action))
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action))
             .Throws(new InvalidOperationException("Hotkey already in use"));
 
         // Act
@@ -118,17 +118,17 @@ public partial class HotkeyServiceTests : IDisposable
         const int key = 0x43;
         var action1 = new Action(() => { });
         var action2 = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(modifiers, key, action1)).Returns(100);
-        _hotkeyManager.Setup(p => p.RegisterHotkey(modifiers, key, action2)).Returns(101);
-        _hotkeyManager.Setup(p => p.UnregisterHotkey(100)).Returns(true);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action1)).Returns(100);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action2)).Returns(101);
+        A.CallTo(() => _hotkeyManager.UnregisterHotkey(100)).Returns(true);
 
         // Act
         _service.RegisterHotkey(hotkeyId, modifiers, key, action1);
         _service.RegisterHotkey(hotkeyId, modifiers, key, action2);
 
         // Assert - Should unregister first before registering second
-        _hotkeyManager.Verify(p => p.UnregisterHotkey(100), Times.Once);
-        _hotkeyManager.Verify(p => p.RegisterHotkey(modifiers, key, action2), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterHotkey(100)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action2)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -139,8 +139,8 @@ public partial class HotkeyServiceTests : IDisposable
         const ModifierKeys modifiers = ModifierKeys.Control;
         const int key = 0x43;
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(modifiers, key, action)).Returns(100);
-        _hotkeyManager.Setup(p => p.UnregisterHotkey(100)).Returns(true);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(modifiers, key, action)).Returns(100);
+        A.CallTo(() => _hotkeyManager.UnregisterHotkey(100)).Returns(true);
         _service.RegisterHotkey(hotkeyId, modifiers, key, action);
 
         // Act
@@ -148,7 +148,7 @@ public partial class HotkeyServiceTests : IDisposable
 
         // Assert
         await Assert.That(result).IsTrue();
-        _hotkeyManager.Verify(p => p.UnregisterHotkey(100), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterHotkey(100)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -162,7 +162,7 @@ public partial class HotkeyServiceTests : IDisposable
 
         // Assert
         await Assert.That(result).IsFalse();
-        _hotkeyManager.Verify(p => p.UnregisterHotkey(It.IsAny<int>()), Times.Never);
+        A.CallTo(() => _hotkeyManager.UnregisterHotkey(A<int>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -170,9 +170,9 @@ public partial class HotkeyServiceTests : IDisposable
     {
         // Arrange
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
-        _hotkeyManager.Setup(p => p.RegisterHotkey(ModifierKeys.Alt, 0x56, action)).Returns(101);
-        _hotkeyManager.Setup(p => p.RegisterHotkey(ModifierKeys.Windows, 0x58, action)).Returns(102);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(ModifierKeys.Alt, 0x56, action)).Returns(101);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(ModifierKeys.Windows, 0x58, action)).Returns(102);
 
         _service.RegisterHotkey(1, ModifierKeys.Control, 0x43, action);
         _service.RegisterHotkey(2, ModifierKeys.Alt, 0x56, action);
@@ -182,7 +182,7 @@ public partial class HotkeyServiceTests : IDisposable
         _service.UnregisterAllHotkeys();
 
         // Assert - Should call UnregisterAll on the manager
-        _hotkeyManager.Verify(p => p.UnregisterAll(), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterAll()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -192,7 +192,7 @@ public partial class HotkeyServiceTests : IDisposable
         _service.UnregisterAllHotkeys();
 
         // Assert - Should call UnregisterAll even with no hotkeys
-        _hotkeyManager.Verify(p => p.UnregisterAll(), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterAll()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -200,15 +200,15 @@ public partial class HotkeyServiceTests : IDisposable
     {
         // Arrange
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
         _service.RegisterHotkey(1, ModifierKeys.Control, 0x43, action);
 
         // Act
         _service.Dispose();
 
         // Assert
-        _hotkeyManager.Verify(p => p.UnregisterAll(), Times.Once);
-        _hotkeyManager.Verify(p => p.Dispose(), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterAll()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _hotkeyManager.Dispose()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -216,7 +216,7 @@ public partial class HotkeyServiceTests : IDisposable
     {
         // Arrange
         var action = new Action(() => { });
-        _hotkeyManager.Setup(p => p.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
+        A.CallTo(() => _hotkeyManager.RegisterHotkey(ModifierKeys.Control, 0x43, action)).Returns(100);
         _service.RegisterHotkey(1, ModifierKeys.Control, 0x43, action);
 
         // Act
@@ -224,8 +224,8 @@ public partial class HotkeyServiceTests : IDisposable
         _service.Dispose();
 
         // Assert - Should only call UnregisterAll and Dispose once
-        _hotkeyManager.Verify(p => p.UnregisterAll(), Times.Once);
-        _hotkeyManager.Verify(p => p.Dispose(), Times.Once);
+        A.CallTo(() => _hotkeyManager.UnregisterAll()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _hotkeyManager.Dispose()).MustHaveHappenedOnceExactly();
     }
 
     [Test]

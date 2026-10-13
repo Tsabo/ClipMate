@@ -1,6 +1,6 @@
 using ClipMate.App.Services.Initialization;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services.Initialization;
 
@@ -10,7 +10,7 @@ public class StartupInitializationPipelineTests
 
     public StartupInitializationPipelineTests()
     {
-        _logger = new Mock<ILogger<StartupInitializationPipeline>>(MockBehavior.Loose).Object;
+        _logger = A.Fake<ILogger<StartupInitializationPipeline>>();
     }
 
     [Test]
@@ -19,29 +19,29 @@ public class StartupInitializationPipelineTests
         // Arrange
         var executionOrder = new List<string>();
 
-        var step1 = new Mock<IStartupInitializationStep>();
-        step1.Setup(p => p.Name).Returns("Step 1");
-        step1.Setup(p => p.Order).Returns(10);
-        step1.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask)
-            .Callback(() => executionOrder.Add("Step 1"));
+        var step1 = A.Fake<IStartupInitializationStep>();
+        A.CallTo(() => step1.Name).Returns("Step 1");
+        A.CallTo(() => step1.Order).Returns(10);
+        A.CallTo(() => step1.InitializeAsync(A<CancellationToken>.Ignored))
+            .Invokes(() => executionOrder.Add("Step 1"))
+            .Returns(Task.CompletedTask);
 
-        var step2 = new Mock<IStartupInitializationStep>();
-        step2.Setup(p => p.Name).Returns("Step 2");
-        step2.Setup(p => p.Order).Returns(20);
-        step2.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask)
-            .Callback(() => executionOrder.Add("Step 2"));
+        var step2 = A.Fake<IStartupInitializationStep>();
+        A.CallTo(() => step2.Name).Returns("Step 2");
+        A.CallTo(() => step2.Order).Returns(20);
+        A.CallTo(() => step2.InitializeAsync(A<CancellationToken>.Ignored))
+            .Invokes(() => executionOrder.Add("Step 2"))
+            .Returns(Task.CompletedTask);
 
-        var step3 = new Mock<IStartupInitializationStep>();
-        step3.Setup(p => p.Name).Returns("Step 3");
-        step3.Setup(p => p.Order).Returns(30);
-        step3.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask)
-            .Callback(() => executionOrder.Add("Step 3"));
+        var step3 = A.Fake<IStartupInitializationStep>();
+        A.CallTo(() => step3.Name).Returns("Step 3");
+        A.CallTo(() => step3.Order).Returns(30);
+        A.CallTo(() => step3.InitializeAsync(A<CancellationToken>.Ignored))
+            .Invokes(() => executionOrder.Add("Step 3"))
+            .Returns(Task.CompletedTask);
 
         // Register in wrong order to verify sorting
-        var steps = new[] { step3.Object, step1.Object, step2.Object };
+        var steps = new[] { step3, step1, step2 };
         var pipeline = new StartupInitializationPipeline(steps, _logger);
 
         // Act
@@ -55,13 +55,13 @@ public class StartupInitializationPipelineTests
     public async Task RunAsync_WhenStepFails_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var failingStep = new Mock<IStartupInitializationStep>();
-        failingStep.Setup(p => p.Name).Returns("Failing Step");
-        failingStep.Setup(p => p.Order).Returns(10);
-        failingStep.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
+        var failingStep = A.Fake<IStartupInitializationStep>();
+        A.CallTo(() => failingStep.Name).Returns("Failing Step");
+        A.CallTo(() => failingStep.Order).Returns(10);
+        A.CallTo(() => failingStep.InitializeAsync(A<CancellationToken>.Ignored))
             .ThrowsAsync(new InvalidOperationException("Step failed"));
 
-        var steps = new[] { failingStep.Object };
+        var steps = new[] { failingStep };
         var pipeline = new StartupInitializationPipeline(steps, _logger);
 
         // Act & Assert - should throw InvalidOperationException with step name in message
@@ -87,14 +87,14 @@ public class StartupInitializationPipelineTests
         using var cts = new CancellationTokenSource();
         var receivedToken = CancellationToken.None;
 
-        var step = new Mock<IStartupInitializationStep>();
-        step.Setup(p => p.Name).Returns("Test Step");
-        step.Setup(p => p.Order).Returns(10);
-        step.Setup(p => p.InitializeAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask)
-            .Callback<CancellationToken>(p => receivedToken = p);
+        var step = A.Fake<IStartupInitializationStep>();
+        A.CallTo(() => step.Name).Returns("Test Step");
+        A.CallTo(() => step.Order).Returns(10);
+        A.CallTo(() => step.InitializeAsync(A<CancellationToken>.Ignored))
+            .Invokes((CancellationToken p) => receivedToken = p)
+            .Returns(Task.CompletedTask);
 
-        var steps = new[] { step.Object };
+        var steps = new[] { step };
         var pipeline = new StartupInitializationPipeline(steps, _logger);
 
         // Act

@@ -1,7 +1,7 @@
 using Windows.Win32.Foundation;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -15,7 +15,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockConfig = CreateMockConfigurationService();
-        mockConfig.Setup(c => c.Configuration)
+        A.CallTo(() => mockConfig.Configuration)
             .Returns(new ClipMateConfiguration
             {
                 Preferences = new PreferencesConfiguration
@@ -31,24 +31,24 @@ public partial class QuickPasteServiceTests
             });
 
         var mockWin32 = CreateMockWin32();
-        mockWin32.Setup(p => p.GetForegroundWindow())
+        A.CallTo(() => mockWin32.GetForegroundWindow())
             .Returns(new HWND(12345));
 
         var service = new QuickPasteService(
-            mockWin32.Object,
-            CreateMockClipboardService().Object,
-            mockConfig.Object,
-            CreateMockMessenger().Object,
-            CreateMockMacroExecutionService().Object,
-            CreateMockTemplateService().Object,
-            CreateMockDialogService().Object,
-            CreateMockLogger().Object);
+            mockWin32,
+            CreateMockClipboardService(),
+            mockConfig,
+            CreateMockMessenger(),
+            CreateMockMacroExecutionService(),
+            CreateMockTemplateService(),
+            CreateMockDialogService(),
+            CreateMockLogger());
 
         // Act
         service.UpdateTarget();
 
         // Assert - GetForegroundWindow should NOT be called since auto-targeting is disabled
-        mockWin32.Verify(p => p.GetForegroundWindow(), Times.Never);
+        A.CallTo(() => mockWin32.GetForegroundWindow()).MustNotHaveHappened();
         await Assert.That(service.GetCurrentTarget()).IsNull();
     }
 
@@ -57,7 +57,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockConfig = CreateMockConfigurationService();
-        mockConfig.Setup(p => p.Configuration)
+        A.CallTo(() => mockConfig.Configuration)
             .Returns(new ClipMateConfiguration
             {
                 Preferences = new PreferencesConfiguration
@@ -75,24 +75,24 @@ public partial class QuickPasteServiceTests
         var mockWin32 = CreateMockWin32();
 
         // Return null HWND (no window) to keep test simple
-        mockWin32.Setup(p => p.GetForegroundWindow())
+        A.CallTo(() => mockWin32.GetForegroundWindow())
             .Returns(new HWND(nint.Zero));
 
         var service = new QuickPasteService(
-            mockWin32.Object,
-            CreateMockClipboardService().Object,
-            mockConfig.Object,
-            CreateMockMessenger().Object,
-            CreateMockMacroExecutionService().Object,
-            CreateMockTemplateService().Object,
-            CreateMockDialogService().Object,
-            CreateMockLogger().Object);
+            mockWin32,
+            CreateMockClipboardService(),
+            mockConfig,
+            CreateMockMessenger(),
+            CreateMockMacroExecutionService(),
+            CreateMockTemplateService(),
+            CreateMockDialogService(),
+            CreateMockLogger());
 
         // Act
         service.UpdateTarget();
 
         // Assert - GetForegroundWindow should be called when auto-targeting is enabled
-        mockWin32.Verify(p => p.GetForegroundWindow(), Times.Once);
+        A.CallTo(() => mockWin32.GetForegroundWindow()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -100,7 +100,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockConfig = CreateMockConfigurationService();
-        mockConfig.Setup(p => p.Configuration)
+        A.CallTo(() => mockConfig.Configuration)
             .Returns(new ClipMateConfiguration
             {
                 Preferences = new PreferencesConfiguration
@@ -117,14 +117,14 @@ public partial class QuickPasteServiceTests
 
         var mockWin32 = CreateMockWin32();
         var service = new QuickPasteService(
-            mockWin32.Object,
-            CreateMockClipboardService().Object,
-            mockConfig.Object,
-            CreateMockMessenger().Object,
-            CreateMockMacroExecutionService().Object,
-            CreateMockTemplateService().Object,
-            CreateMockDialogService().Object,
-            CreateMockLogger().Object);
+            mockWin32,
+            CreateMockClipboardService(),
+            mockConfig,
+            CreateMockMessenger(),
+            CreateMockMacroExecutionService(),
+            CreateMockTemplateService(),
+            CreateMockDialogService(),
+            CreateMockLogger());
 
         // Lock the target
         service.SetTargetLock(true);
@@ -133,6 +133,6 @@ public partial class QuickPasteServiceTests
         service.UpdateTarget();
 
         // Assert - GetForegroundWindow should NOT be called since target is locked
-        mockWin32.Verify(p => p.GetForegroundWindow(), Times.Never);
+        A.CallTo(() => mockWin32.GetForegroundWindow()).MustNotHaveHappened();
     }
 }

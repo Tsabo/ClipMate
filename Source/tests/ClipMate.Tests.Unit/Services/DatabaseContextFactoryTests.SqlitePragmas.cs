@@ -1,6 +1,6 @@
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -23,9 +23,9 @@ public partial class DatabaseContextFactoryTests
             },
         };
 
-        var mockConfig = new Mock<IConfigurationService>();
-        mockConfig.Setup(x => x.Configuration).Returns(config);
-        var factory = CreateFactory(mockConfig.Object);
+        var mockConfig = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfig.Configuration).Returns(config);
+        var factory = CreateFactory(mockConfig);
 
         // Act
         await using var context = factory.CreateContext(_testDbPath);
@@ -49,9 +49,9 @@ public partial class DatabaseContextFactoryTests
             },
         };
 
-        var mockConfig = new Mock<IConfigurationService>();
-        mockConfig.Setup(x => x.Configuration).Returns(config);
-        var factory = CreateFactory(mockConfig.Object);
+        var mockConfig = A.Fake<IConfigurationService>();
+        A.CallTo(() => mockConfig.Configuration).Returns(config);
+        var factory = CreateFactory(mockConfig);
 
         // Act
         await using var context = factory.CreateContext(_testDbPath);

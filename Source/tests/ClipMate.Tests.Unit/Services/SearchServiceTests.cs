@@ -7,7 +7,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -16,23 +16,23 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class SearchServiceTests
 {
-    private readonly Mock<IClipRepository> _mockClipRepository;
-    private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IConfigurationService> _mockConfigurationService;
-    private readonly Mock<IDatabaseContextFactory> _mockContextFactory;
-    private readonly Mock<ILogger<SearchService>> _mockLogger;
-    private readonly Mock<ISqlValidationService> _mockSqlValidationService;
+    private readonly IClipRepository _mockClipRepository;
+    private readonly ICollectionService _mockCollectionService;
+    private readonly IConfigurationService _mockConfigurationService;
+    private readonly IDatabaseContextFactory _mockContextFactory;
+    private readonly ILogger<SearchService> _mockLogger;
+    private readonly ISqlValidationService _mockSqlValidationService;
     private ClipMateDbContext _dbContext = null!;
     private SearchService _searchService = null!;
 
     public SearchServiceTests()
     {
-        _mockContextFactory = new Mock<IDatabaseContextFactory>();
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockClipRepository = new Mock<IClipRepository>();
-        _mockConfigurationService = new Mock<IConfigurationService>();
-        _mockSqlValidationService = new Mock<ISqlValidationService>();
-        _mockLogger = new Mock<ILogger<SearchService>>();
+        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockClipRepository = A.Fake<IClipRepository>();
+        _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockSqlValidationService = A.Fake<ISqlValidationService>();
+        _mockLogger = A.Fake<ILogger<SearchService>>();
     }
 
     [Before(Test)]
@@ -48,16 +48,16 @@ public class SearchServiceTests
         _dbContext.Database.EnsureCreated();
 
         var config = new ClipMateConfiguration();
-        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
-        _mockContextFactory.Setup(p => p.GetClipRepository(It.IsAny<string>())).Returns(_mockClipRepository.Object);
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
+        A.CallTo(() => _mockContextFactory.GetClipRepository(A<string>.Ignored)).Returns(_mockClipRepository);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns("test-db");
 
         _searchService = new SearchService(
-            _mockContextFactory.Object,
-            _mockCollectionService.Object,
-            _mockConfigurationService.Object,
-            _mockSqlValidationService.Object,
-            _mockLogger.Object);
+            _mockContextFactory,
+            _mockCollectionService,
+            _mockConfigurationService,
+            _mockSqlValidationService,
+            _mockLogger);
     }
 
     [After(Test)]
@@ -72,7 +72,7 @@ public class SearchServiceTests
     {
         // Act & Assert
         await Assert.That(() =>
-                new SearchService(_mockContextFactory.Object, _mockCollectionService.Object, null!, _mockSqlValidationService.Object, _mockLogger.Object))
+                new SearchService(_mockContextFactory, _mockCollectionService, null!, _mockSqlValidationService, _mockLogger))
             .Throws<ArgumentNullException>();
     }
 
@@ -98,9 +98,8 @@ public class SearchServiceTests
             },
         };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clips);
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(clips);
 
         // Act
         var results = await _searchService.SearchAsync(string.Empty);
@@ -123,9 +122,8 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Clip> { matchingClip });
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new List<Clip> { matchingClip });
 
         // Act
         var results = await _searchService.SearchAsync("World");
@@ -160,9 +158,8 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { CaseSensitive = true };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([clips[0]]);
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns([clips[0]]);
 
         // Act
         var results = await _searchService.SearchAsync("Hello", filters);
@@ -186,9 +183,8 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { ContentTypes = [ClipType.Text] };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([textClip]);
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns([textClip]);
 
         // Act
         var results = await _searchService.SearchAsync("", filters);
@@ -217,9 +213,8 @@ public class SearchServiceTests
             DateRange = new DateRange(now.AddDays(-7), now),
         };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([recentClip]);
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns([recentClip]);
 
         // Act
         var results = await _searchService.SearchAsync("", filters);
@@ -243,9 +238,8 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { IsRegex = true };
 
-        _mockClipRepository
-            .Setup(p => p.ExecuteSqlQueryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([emailClip]);
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns([emailClip]);
 
         // Act - Email regex pattern
         var results = await _searchService.SearchAsync(@"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", filters);
@@ -261,6 +255,12 @@ public class SearchServiceTests
         // Arrange
         var filters = new SearchFilters { IsRegex = true };
 
+        // Repository result is null (unconfigured), so clips.ToList() throws ArgumentNullException,
+        // which is an ArgumentException. This test does not exercise regex validation directly -
+        // SearchService/BuildSqlQuery has no regex-syntax check of its own.
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns((IReadOnlyList<Clip>)null!);
+
         // Act & Assert
         await Assert.That(async () =>
                 await _searchService.SearchAsync("[Invalid(Regex", filters))
@@ -272,8 +272,8 @@ public class SearchServiceTests
     {
         // Arrange
         var config = new ClipMateConfiguration();
-        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
-        _mockConfigurationService.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -285,7 +285,7 @@ public class SearchServiceTests
         await Assert.That(config.SavedSearchQueries[0].Query).IsEqualTo("test");
         await Assert.That(config.SavedSearchQueries[0].IsCaseSensitive).IsTrue();
         await Assert.That(config.SavedSearchQueries[0].IsRegex).IsFalse();
-        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -294,8 +294,8 @@ public class SearchServiceTests
         // Arrange
         var config = new ClipMateConfiguration();
         config.SavedSearchQueries.Add(new SavedSearchQuery { Name = "Test Query", Query = "test" });
-        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
-        _mockConfigurationService.Setup(p => p.SaveAsync(It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -303,7 +303,7 @@ public class SearchServiceTests
 
         // Assert
         await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(0);
-        _mockConfigurationService.Verify(p => p.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]

@@ -3,7 +3,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,14 +12,14 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public class TemplateServiceTests
 {
-    private readonly Mock<IConfigurationService> _mockConfigService;
-    private readonly Mock<ILogger<TemplateService>> _mockLogger;
+    private readonly IConfigurationService _mockConfigService;
+    private readonly ILogger<TemplateService> _mockLogger;
     private string _testTemplatesDir = null!;
 
     public TemplateServiceTests()
     {
-        _mockConfigService = new Mock<IConfigurationService>();
-        _mockLogger = new Mock<ILogger<TemplateService>>();
+        _mockConfigService = A.Fake<IConfigurationService>();
+        _mockLogger = A.Fake<ILogger<TemplateService>>();
     }
 
     [Before(Test)]
@@ -38,7 +38,7 @@ public class TemplateServiceTests
             },
         };
 
-        _mockConfigService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigService.Configuration).Returns(config);
     }
 
     [After(Test)]
@@ -53,7 +53,7 @@ public class TemplateServiceTests
     public async Task GetAllTemplatesAsync_EmptyDirectory_ReturnsEmptyList()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
 
         // Act
         var templates = await service.GetAllTemplatesAsync();
@@ -68,7 +68,7 @@ public class TemplateServiceTests
         // Arrange
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "template1.txt"), "Content 1");
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "template2.txt"), "Content 2");
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
 
         // Act
         var templates = await service.GetAllTemplatesAsync();
@@ -86,7 +86,7 @@ public class TemplateServiceTests
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "template1.txt"), "Content 1");
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "readme.md"), "Readme");
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "config.ini"), "Config");
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
 
         // Act
         var templates = await service.GetAllTemplatesAsync();
@@ -102,7 +102,7 @@ public class TemplateServiceTests
         // Arrange
         var content = "Test template content";
         await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "mytemplate.txt"), content);
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
 
         // Act
         var template = await service.GetTemplateByNameAsync("mytemplate");
@@ -117,7 +117,7 @@ public class TemplateServiceTests
     public async Task GetTemplateByNameAsync_NonExistingTemplate_ReturnsNull()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
 
         // Act
         var template = await service.GetTemplateByNameAsync("nonexistent");
@@ -130,7 +130,7 @@ public class TemplateServiceTests
     public async Task MergeClipWithTemplate_ReplacesSingleTag()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var template = new FileTemplate
         {
             Name = "test",
@@ -153,7 +153,7 @@ public class TemplateServiceTests
     public async Task MergeClipWithTemplate_ReplacesMultipleTags()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var template = new FileTemplate
         {
             Name = "test",
@@ -180,7 +180,7 @@ public class TemplateServiceTests
     public async Task MergeClipWithTemplate_ReplacesClipTag()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var template = new FileTemplate
         {
             Name = "test",
@@ -203,7 +203,7 @@ public class TemplateServiceTests
     public async Task MergeClipWithTemplate_ReplacesSequenceTag()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var template = new FileTemplate
         {
             Name = "test",
@@ -226,7 +226,7 @@ public class TemplateServiceTests
     public async Task MergeClipWithTemplate_ReplacesDateTimeTags()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var template = new FileTemplate
         {
             Name = "test",
@@ -251,7 +251,7 @@ public class TemplateServiceTests
     public async Task RefreshTemplatesAsync_ReloadsTemplates()
     {
         // Arrange
-        var service = new TemplateService(_mockConfigService.Object, _mockLogger.Object);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
         var templates1 = await service.GetAllTemplatesAsync();
         await Assert.That(templates1).IsEmpty();
 

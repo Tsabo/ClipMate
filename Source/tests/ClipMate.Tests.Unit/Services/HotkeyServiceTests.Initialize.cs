@@ -1,5 +1,5 @@
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 using System.Windows;
 using TUnit.Core.Executors;
 
@@ -13,14 +13,14 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         var window = new Window();
 
         // Act
         service.Initialize(window);
 
         // Assert
-        mockManager.Verify(p => p.Initialize(window), Times.Once);
+        A.CallTo(() => mockManager.Initialize(window)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -28,7 +28,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
 
         // Act & Assert
         await Assert.That(() => service.Initialize(null!))
@@ -41,7 +41,7 @@ public partial class HotkeyServiceTests
     {
         // Arrange
         var mockManager = CreateMockHotkeyManager();
-        var service = new HotkeyService(mockManager.Object);
+        var service = new HotkeyService(mockManager);
         service.Dispose();
         var window = new Window();
 

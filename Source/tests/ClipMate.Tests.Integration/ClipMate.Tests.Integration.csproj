@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Moq" />
+    <PackageReference Include="FakeItEasy" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

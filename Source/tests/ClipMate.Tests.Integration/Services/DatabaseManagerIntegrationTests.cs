@@ -6,7 +6,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 #pragma warning disable CA2000 // Dispose objects before losing scope - Test objects are disposed by test framework
 
@@ -53,7 +53,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task LoadAutoLoadDatabasesAsync_WithAutoLoadDatabases_LoadsThem()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
@@ -64,13 +64,13 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var count = await manager.LoadAutoLoadDatabasesAsync();
@@ -87,7 +87,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task LoadDatabaseAsync_WithValidDatabase_ReturnsTrue()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
@@ -96,13 +96,13 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var result = await manager.LoadDatabaseAsync("testdb");
@@ -117,19 +117,19 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task LoadDatabaseAsync_WithNonExistentDatabase_ReturnsFalse()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>(),
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Act
         var result = await manager.LoadDatabaseAsync("NonExistent");
@@ -142,7 +142,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task CreateAllDatabaseContexts_WithLoadedDatabases_ReturnsDatabaseKeys()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
@@ -152,13 +152,13 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         // Load the databases first
         await manager.LoadAutoLoadDatabasesAsync();
@@ -182,7 +182,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task CreateAllDatabaseContexts_ReturnsDatabaseKeysNotDisplayNames()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
@@ -192,13 +192,13 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         await manager.LoadAutoLoadDatabasesAsync();
 
@@ -216,7 +216,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
     public async Task UnloadDatabase_WithLoadedDatabase_UnloadsSuccessfully()
     {
         // Arrange
-        var configService = new Mock<IConfigurationService>();
+        var configService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Databases = new Dictionary<string, DatabaseConfiguration>
@@ -225,13 +225,13 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
             },
         };
 
-        configService.Setup(p => p.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(config);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored))
+            .Returns(config);
 
         var contextFactory = new TestDatabaseContextFactory();
-        var logger = new Mock<ILogger<DatabaseManager>>();
-        var messenger = new Mock<IMessenger>();
-        var manager = new DatabaseManager(configService.Object, contextFactory, logger.Object, messenger.Object);
+        var logger = A.Fake<ILogger<DatabaseManager>>();
+        var messenger = A.Fake<IMessenger>();
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
 
         await manager.LoadAutoLoadDatabasesAsync();
         

@@ -1,6 +1,6 @@
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -9,17 +9,17 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class SqlValidationServiceTests
 {
     private const string _testDatabaseKey = "test-db";
-    private Mock<IDatabaseManager> _mockDatabaseManager = null!;
-    private Mock<ILogger<SqlValidationService>> _mockLogger = null!;
+    private IDatabaseManager _mockDatabaseManager = null!;
+    private ILogger<SqlValidationService> _mockLogger = null!;
 
     [Before(Test)]
     public void Setup()
     {
-        _mockLogger = new Mock<ILogger<SqlValidationService>>();
-        _mockDatabaseManager = new Mock<IDatabaseManager>();
+        _mockLogger = A.Fake<ILogger<SqlValidationService>>();
+        _mockDatabaseManager = A.Fake<IDatabaseManager>();
     }
 
     private SqlValidationService CreateService() => new(
-        _mockDatabaseManager.Object,
-        _mockLogger.Object);
+        _mockDatabaseManager,
+        _mockLogger);
 }

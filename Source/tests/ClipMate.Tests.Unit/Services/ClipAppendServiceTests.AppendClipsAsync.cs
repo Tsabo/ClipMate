@@ -1,7 +1,7 @@
 using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -13,8 +13,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[]
@@ -25,9 +25,9 @@ public partial class ClipAppendServiceTests
         };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         var result = await service.AppendClipsAsync(clips, "", false);
@@ -39,8 +39,8 @@ public partial class ClipAppendServiceTests
         await Assert.That(capturedClip.Title).IsEqualTo("Appended (3 clips)");
         await Assert.That(capturedClip.Type).IsEqualTo(ClipType.Text);
         await Assert.That(capturedClip.CollectionId).IsEqualTo(collectionId);
-        mockClipRepo.Verify(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()), Times.Once);
-        _mockSoundService.Verify(p => p.PlaySoundAsync(SoundEvent.Append, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.Append, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -49,8 +49,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[]
@@ -60,9 +60,9 @@ public partial class ClipAppendServiceTests
         };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, " | ", false);
@@ -78,8 +78,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[]
@@ -89,9 +89,9 @@ public partial class ClipAppendServiceTests
         };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, "\\n", false);
@@ -107,8 +107,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[]
@@ -118,9 +118,9 @@ public partial class ClipAppendServiceTests
         };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, "", true);
@@ -149,7 +149,7 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         var clips = new[] { CreateTestClip("Test") };
 
@@ -164,8 +164,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clipId = Guid.NewGuid();
@@ -180,14 +180,14 @@ public partial class ClipAppendServiceTests
             Creator = "TestUser",
         };
 
-        _mockClipService.Setup(p => p.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, It.IsAny<CancellationToken>()))
-            .Callback<string, Clip, CancellationToken>((_, clip, _) => clip.TextContent = "Loaded text")
+        A.CallTo(() => _mockClipService.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, A<CancellationToken>.Ignored))
+            .Invokes((string _, Clip clip, CancellationToken _) => clip.TextContent = "Loaded text")
             .Returns(Task.CompletedTask);
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync([clipWithoutText], "", false);
@@ -195,7 +195,7 @@ public partial class ClipAppendServiceTests
         // Assert
         await Assert.That(capturedClip).IsNotNull();
         await Assert.That(capturedClip!.TextContent).IsEqualTo("Loaded text");
-        _mockClipService.Verify(p => p.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockClipService.LoadBlobDataAsync(_testDatabaseKey, clipWithoutText, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -204,8 +204,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var emptyClipId = Guid.NewGuid();
@@ -228,9 +228,9 @@ public partial class ClipAppendServiceTests
         // so the clip should be skipped.
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, " | ", false);
@@ -246,16 +246,16 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[] { CreateTestClip("Test", collectionId: collectionId) };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, "", false);
@@ -272,16 +272,16 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[] { CreateTestClip("Hash test", collectionId: collectionId) };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         await service.AppendClipsAsync(clips, "", false);
@@ -299,8 +299,8 @@ public partial class ClipAppendServiceTests
     {
         // Arrange
         var service = CreateService();
-        var mockClipRepo = new Mock<IClipRepository>();
-        _mockContextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo.Object);
+        var mockClipRepo = A.Fake<IClipRepository>();
+        A.CallTo(() => _mockContextFactory.GetClipRepository(_testDatabaseKey)).Returns(mockClipRepo);
 
         var collectionId = Guid.NewGuid();
         var clips = new[]
@@ -310,9 +310,9 @@ public partial class ClipAppendServiceTests
         };
 
         Clip? capturedClip = null;
-        mockClipRepo.Setup(p => p.CreateAsync(It.IsAny<Clip>(), It.IsAny<CancellationToken>()))
-            .Callback<Clip, CancellationToken>((clip, _) => capturedClip = clip)
-            .ReturnsAsync((Clip clip, CancellationToken _) => clip);
+        A.CallTo(() => mockClipRepo.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Clip clip, CancellationToken _) => capturedClip = clip)
+            .ReturnsLazily((Clip clip, CancellationToken _) => clip);
 
         // Act
         var before = DateTimeOffset.Now;

@@ -2,7 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
-using Moq;
+using FakeItEasy;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -27,7 +27,7 @@ public class ExportImportServiceConstructorTests : ExportImportServiceTestsBase
     public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         // Arrange
-        var clipService = Mock.Of<IClipService>();
+        var clipService = A.Fake<IClipService>();
         
         // Act & Assert
         await Assert.That(() => new ExportImportService(clipService, null!))

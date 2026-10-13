@@ -1,5 +1,5 @@
 using ClipMate.Platform;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -8,11 +8,11 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class HotkeyServiceTests : TestFixtureBase
 {
-    private Mock<IHotkeyManager> CreateMockHotkeyManager()
+    private IHotkeyManager CreateMockHotkeyManager()
     {
-        var mock = new Mock<IHotkeyManager>();
+        var mock = A.Fake<IHotkeyManager>();
         // Setup UnregisterHotkey to return true by default
-        mock.Setup(p => p.UnregisterHotkey(It.IsAny<int>())).Returns(true);
+        A.CallTo(() => mock.UnregisterHotkey(A<int>.Ignored)).Returns(true);
         return mock;
     }
 }

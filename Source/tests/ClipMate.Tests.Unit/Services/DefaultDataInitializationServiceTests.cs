@@ -3,7 +3,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -12,15 +12,15 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
     private const string _testDatabaseKey = "test-db";
     private const string _databasePath = ":memory:";
     private readonly ILogger<DefaultDataInitializationService> _logger;
-    private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IConfigurationService> _mockConfigurationService;
-    private readonly Mock<IServiceProvider> _mockServiceProvider;
+    private readonly ICollectionService _mockCollectionService;
+    private readonly IConfigurationService _mockConfigurationService;
+    private readonly IServiceProvider _mockServiceProvider;
 
     public DefaultDataInitializationServiceTests()
     {
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockConfigurationService = new Mock<IConfigurationService>();
-        _mockServiceProvider = new Mock<IServiceProvider>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockServiceProvider = A.Fake<IServiceProvider>();
         _logger = CreateLogger<DefaultDataInitializationService>();
 
         // Setup default configuration with test database
@@ -34,11 +34,11 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             },
         };
 
-        _mockConfigurationService.Setup(p => p.Configuration).Returns(config);
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
 
         // Services are singletons - resolve directly from service provider (no scopes)
-        _mockServiceProvider.Setup(p => p.GetService(typeof(ICollectionService))).Returns(_mockCollectionService.Object);
-        _mockServiceProvider.Setup(p => p.GetService(typeof(IConfigurationService))).Returns(_mockConfigurationService.Object);
+        A.CallTo(() => _mockServiceProvider.GetService(typeof(ICollectionService))).Returns(_mockCollectionService);
+        A.CallTo(() => _mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(_mockConfigurationService);
     }
 
     [Test]
@@ -54,16 +54,16 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             ModifiedAt = DateTime.UtcNow,
         };
 
-        _mockCollectionService.Setup(p => p.GetAllByDatabaseKeyAsync(_databasePath, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([inboxCollection]);
+        A.CallTo(() => _mockCollectionService.GetAllByDatabaseKeyAsync(_databasePath, A<CancellationToken>.Ignored))
+            .Returns([inboxCollection]);
 
-        var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
+        var service = new DefaultDataInitializationService(_mockServiceProvider, _logger);
 
         // Act
         await service.InitializeAsync();
 
         // Assert - database path is used as the key for SetActiveAsync
-        _mockCollectionService.Verify(p => p.SetActiveAsync(inboxCollection.Id, _databasePath, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(inboxCollection.Id, _databasePath, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -79,20 +79,20 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             ModifiedAt = DateTime.UtcNow,
         };
 
-        _mockCollectionService.Setup(p => p.GetAllByDatabaseKeyAsync(_databasePath, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([otherCollection]);
+        A.CallTo(() => _mockCollectionService.GetAllByDatabaseKeyAsync(_databasePath, A<CancellationToken>.Ignored))
+            .Returns([otherCollection]);
 
-        var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
+        var service = new DefaultDataInitializationService(_mockServiceProvider, _logger);
 
         // Act
         await service.InitializeAsync();
 
         // Assert - Service should log error and return without setting active
         // Database seeding (DatabaseSchemaInitializationStep) is responsible for creating Inbox
-        _mockCollectionService.Verify(p => p.SetActiveAsync(
-            It.IsAny<Guid>(),
-            It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(
+            A<Guid>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -127,17 +127,17 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             },
         };
 
-        _mockCollectionService.Setup(p => p.GetAllByDatabaseKeyAsync(_databasePath, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(collections);
+        A.CallTo(() => _mockCollectionService.GetAllByDatabaseKeyAsync(_databasePath, A<CancellationToken>.Ignored))
+            .Returns(collections);
 
-        var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
+        var service = new DefaultDataInitializationService(_mockServiceProvider, _logger);
 
         // Act
         await service.InitializeAsync();
 
         // Assert - should set the Inbox collection as active using database path
         var inboxId = collections[1].Id;
-        _mockCollectionService.Verify(p => p.SetActiveAsync(inboxId, _databasePath, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(inboxId, _databasePath, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -153,15 +153,15 @@ public class DefaultDataInitializationServiceTests : TestFixtureBase
             ModifiedAt = DateTime.UtcNow,
         };
 
-        _mockCollectionService.Setup(p => p.GetAllByDatabaseKeyAsync(_databasePath, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([inboxCollection]);
+        A.CallTo(() => _mockCollectionService.GetAllByDatabaseKeyAsync(_databasePath, A<CancellationToken>.Ignored))
+            .Returns([inboxCollection]);
 
-        var service = new DefaultDataInitializationService(_mockServiceProvider.Object, _logger);
+        var service = new DefaultDataInitializationService(_mockServiceProvider, _logger);
 
         // Act
         await service.InitializeAsync();
 
         // Assert - should still find and set it as active using database path
-        _mockCollectionService.Verify(p => p.SetActiveAsync(inboxCollection.Id, _databasePath, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(inboxCollection.Id, _databasePath, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

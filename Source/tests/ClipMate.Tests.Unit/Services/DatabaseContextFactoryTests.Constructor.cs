@@ -1,7 +1,7 @@
 using ClipMate.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -16,7 +16,7 @@ public partial class DatabaseContextFactoryTests
     {
         // Arrange
         var configService = CreateConfigService();
-        var logger = new Mock<ILogger<DatabaseContextFactory>>().Object;
+        var logger = A.Fake<ILogger<DatabaseContextFactory>>();
 
         // Act & Assert
         await Assert.That(() => new DatabaseContextFactory(null!, configService, logger))
@@ -29,7 +29,7 @@ public partial class DatabaseContextFactoryTests
     {
         // Arrange
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
-        var logger = new Mock<ILogger<DatabaseContextFactory>>().Object;
+        var logger = A.Fake<ILogger<DatabaseContextFactory>>();
 
         // Act & Assert
         await Assert.That(() => new DatabaseContextFactory(serviceProvider, null!, logger))

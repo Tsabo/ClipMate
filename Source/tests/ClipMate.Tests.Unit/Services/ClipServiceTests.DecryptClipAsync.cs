@@ -2,7 +2,7 @@ using System.Text;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -111,17 +111,17 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         // Act
         var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
@@ -151,17 +151,17 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test", 30);
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         // Act
         var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key);
@@ -189,29 +189,27 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test", 30);
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         // Act
         await service.DecryptClipAsync(TestDatabaseKey, clip, key);
 
         // Assert - Verify cache was called with correct parameters
-        MockBlobCacheService.Verify(
-            x => x.CacheDecryptedBlobs(
+        A.CallTo(() => MockBlobCacheService.CacheDecryptedBlobs(
                 clip.Id,
-                It.IsAny<DecryptedBlobData>(),
+                A<DecryptedBlobData>.Ignored,
                 TimeSpan.FromMinutes(30),
-                It.IsAny<Action<Guid>>()),
-            Times.Once);
+                A<Action<Guid>>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -236,23 +234,22 @@ public partial class ClipServiceTests
         var metadata = new EncryptionMetadata("salt123", "iv456", "AES-256", 0);
         var decryptedBytes = "Decrypted Text Content"u8.ToArray();
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt> { textBlob });
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt> { textBlob });
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -261,7 +258,7 @@ public partial class ClipServiceTests
         // Assert
         await Assert.That(result).IsTrue();
         await Assert.That(textBlob.Data).IsEqualTo("Decrypted Text Content");
-        MockBlobRepository.Verify(p => p.UpdateTextAsync(textBlob, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(textBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -285,23 +282,22 @@ public partial class ClipServiceTests
 
         var decryptedBytes = new byte[] { 10, 20, 30, 40 };
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg> { jpgBlob });
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg> { jpgBlob });
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdateJpgAsync(It.IsAny<BlobJpg>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(A<BlobJpg>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -310,7 +306,7 @@ public partial class ClipServiceTests
         // Assert
         await Assert.That(result).IsTrue();
         await Assert.That(jpgBlob.Data).IsEqualTo(decryptedBytes);
-        MockBlobRepository.Verify(p => p.UpdateJpgAsync(jpgBlob, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(jpgBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -334,23 +330,22 @@ public partial class ClipServiceTests
 
         var decryptedBytes = new byte[] { 10, 20, 30, 40 };
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng> { pngBlob });
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng> { pngBlob });
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdatePngAsync(It.IsAny<BlobPng>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(A<BlobPng>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -359,7 +354,7 @@ public partial class ClipServiceTests
         // Assert
         await Assert.That(result).IsTrue();
         await Assert.That(pngBlob.Data).IsEqualTo(decryptedBytes);
-        MockBlobRepository.Verify(p => p.UpdatePngAsync(pngBlob, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(pngBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -383,23 +378,22 @@ public partial class ClipServiceTests
 
         var decryptedBytes = new byte[] { 10, 20, 30, 40 };
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob> { binaryBlob });
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob> { binaryBlob });
 
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdateBlobAsync(It.IsAny<BlobBlob>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(A<BlobBlob>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -408,7 +402,7 @@ public partial class ClipServiceTests
         // Assert
         await Assert.That(result).IsTrue();
         await Assert.That(binaryBlob.Data).IsEqualTo(decryptedBytes);
-        MockBlobRepository.Verify(p => p.UpdateBlobAsync(binaryBlob, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(binaryBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -431,21 +425,20 @@ public partial class ClipServiceTests
 
         var decryptedTitleBytes = "Decrypted Title"u8.ToArray();
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedTitleBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedTitleBytes);
 
         // Act
         var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
@@ -473,17 +466,17 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         // Act
         var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
@@ -491,9 +484,7 @@ public partial class ClipServiceTests
         // Assert
         await Assert.That(result).IsTrue();
         await Assert.That(clip.Title).IsEqualTo("ShortTitle"); // Unchanged
-        MockEncryptionService.Verify(
-            p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000),
-            Times.Never);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000)).MustNotHaveHappened();
     }
 
     [Test]
@@ -514,17 +505,17 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt>());
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt>());
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         var originalTitle = clip.Title;
 
@@ -558,24 +549,23 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt> { textBlob1, textBlob2 });
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt> { textBlob1, textBlob2 });
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         var decryptedBytes = "Decrypted"u8.ToArray();
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -606,31 +596,30 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test", 30);
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt> { textBlob });
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt> { textBlob });
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg>());
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng>());
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob>());
 
         var decryptedBytes = "Decrypted"u8.ToArray();
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
         // Act
         await service.DecryptClipAsync(TestDatabaseKey, clip, key);
 
         // Assert - Blob update methods should NOT be called for temporary decryption
-        MockBlobRepository.Verify(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()), Times.Never);
-        MockBlobRepository.Verify(p => p.UpdateJpgAsync(It.IsAny<BlobJpg>(), It.IsAny<CancellationToken>()), Times.Never);
-        MockBlobRepository.Verify(p => p.UpdatePngAsync(It.IsAny<BlobPng>(), It.IsAny<CancellationToken>()), Times.Never);
-        MockBlobRepository.Verify(p => p.UpdateBlobAsync(It.IsAny<BlobBlob>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(A<BlobJpg>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(A<BlobPng>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(A<BlobBlob>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -661,42 +650,41 @@ public partial class ClipServiceTests
         var service = CreateClipService();
         using var key = EncryptionKey.FromPassphrase("test");
 
-        MockBlobRepository.Setup(p => p.GetTextByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobTxt> { textBlob });
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobTxt> { textBlob });
 
-        MockBlobRepository.Setup(p => p.GetJpgByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobJpg> { jpgBlob });
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobJpg> { jpgBlob });
 
-        MockBlobRepository.Setup(p => p.GetPngByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobPng> { pngBlob });
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobPng> { pngBlob });
 
-        MockBlobRepository.Setup(p => p.GetBlobByClipIdAsync(clip.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<BlobBlob> { binaryBlob });
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clip.Id, A<CancellationToken>.Ignored))
+            .Returns(new List<BlobBlob> { binaryBlob });
 
         var decryptedBytes = new byte[] { 10, 20, 30 };
-        MockEncryptionService
-            .Setup(p => p.DecryptAsync(It.IsAny<byte[]>(), It.IsAny<EncryptionMetadata>(), key, 600_000))
-            .ReturnsAsync(decryptedBytes);
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, key, 600_000))
+            .Returns(decryptedBytes);
 
-        MockBlobRepository.Setup(p => p.UpdateTextAsync(It.IsAny<BlobTxt>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        MockBlobRepository.Setup(p => p.UpdateJpgAsync(It.IsAny<BlobJpg>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(A<BlobJpg>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        MockBlobRepository.Setup(p => p.UpdatePngAsync(It.IsAny<BlobPng>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(A<BlobPng>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        MockBlobRepository.Setup(p => p.UpdateBlobAsync(It.IsAny<BlobBlob>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(A<BlobBlob>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
 
         // Assert - All BLOB update methods should be called
-        MockBlobRepository.Verify(p => p.UpdateTextAsync(textBlob, It.IsAny<CancellationToken>()), Times.Once);
-        MockBlobRepository.Verify(p => p.UpdateJpgAsync(jpgBlob, It.IsAny<CancellationToken>()), Times.Once);
-        MockBlobRepository.Verify(p => p.UpdatePngAsync(pngBlob, It.IsAny<CancellationToken>()), Times.Once);
-        MockBlobRepository.Verify(p => p.UpdateBlobAsync(binaryBlob, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(textBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(jpgBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(pngBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(binaryBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 }

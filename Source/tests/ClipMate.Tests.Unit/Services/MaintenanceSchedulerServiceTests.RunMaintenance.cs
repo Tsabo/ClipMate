@@ -1,7 +1,7 @@
 using System.Reflection;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Data.Services;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -22,7 +22,7 @@ public partial class MaintenanceSchedulerServiceTests
         var service = CreateService(config);
 
         // System is NOT idle
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(false);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(false);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -31,15 +31,9 @@ public partial class MaintenanceSchedulerServiceTests
         await service.StopAsync(CancellationToken.None);
 
         // Assert - No maintenance operations should be called
-        _mockRetentionService.Verify(
-            p => p.EnforceAllCollectionsAsync(It.IsAny<string>()),
-            Times.Never,
-            "Retention enforcement should be skipped when system is not idle");
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).MustNotHaveHappened(); // Retention enforcement should be skipped when system is not idle
 
-        _mockMaintenanceService.Verify(
-            p => p.RunCleanupAsync(It.IsAny<DatabaseConfiguration>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()),
-            Times.Never,
-            "Cleanup should be skipped when system is not idle");
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(A<DatabaseConfiguration>.Ignored, A<IProgress<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened(); // Cleanup should be skipped when system is not idle
 
         service.Dispose();
     }
@@ -54,12 +48,11 @@ public partial class MaintenanceSchedulerServiceTests
         var service = CreateService(config);
 
         // System IS idle
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
 
         // Retention service returns 5 clips processed
-        _mockRetentionService
-            .Setup(p => p.EnforceAllCollectionsAsync("test-db"))
-            .ReturnsAsync(5);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("test-db"))
+            .Returns(5);
 
         // Start service, trigger maintenance by invoking via reflection
         await service.StartAsync(CancellationToken.None);
@@ -75,10 +68,7 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Retention enforcement should be called exactly once
-        _mockRetentionService.Verify(
-            p => p.EnforceAllCollectionsAsync("test-db"),
-            Times.Once,
-            "Retention enforcement should be called once per database when system is idle");
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("test-db")).MustHaveHappenedOnceExactly(); // Retention enforcement should be called once per database when system is idle
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -93,14 +83,13 @@ public partial class MaintenanceSchedulerServiceTests
         var config = CreateConfigWithDatabase(cleanupMethod: CleanupMethod.AfterHourIdle);
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
-        _mockMaintenanceService
-            .Setup(p => p.RunCleanupAsync(
-                It.IsAny<DatabaseConfiguration>(),
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(3); // 3 clips purged
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(
+                A<DatabaseConfiguration>.Ignored,
+                A<IProgress<string>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(3); // 3 clips purged
 
         await service.StartAsync(CancellationToken.None);
 
@@ -113,13 +102,10 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Cleanup should be called when CleanupMethod is AfterHourIdle
-        _mockMaintenanceService.Verify(
-            p => p.RunCleanupAsync(
-                It.Is<DatabaseConfiguration>(db => db.Name == "Test Database"),
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once,
-            "Cleanup should be executed when CleanupMethod is AfterHourIdle");
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(
+                A<DatabaseConfiguration>.That.Matches(db => db.Name == "Test Database"),
+                A<IProgress<string>>.Ignored,
+                A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly(); // Cleanup should be executed when CleanupMethod is AfterHourIdle
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -134,8 +120,8 @@ public partial class MaintenanceSchedulerServiceTests
         var config = CreateConfigWithDatabase(cleanupMethod: CleanupMethod.Manual);
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -148,13 +134,10 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Cleanup should NOT be called when CleanupMethod is Manual
-        _mockMaintenanceService.Verify(
-            p => p.RunCleanupAsync(
-                It.IsAny<DatabaseConfiguration>(),
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never,
-            "Cleanup should be skipped when CleanupMethod is Manual");
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(
+                A<DatabaseConfiguration>.Ignored,
+                A<IProgress<string>>.Ignored,
+                A<CancellationToken>.Ignored)).MustNotHaveHappened(); // Cleanup should be skipped when CleanupMethod is Manual
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -169,8 +152,8 @@ public partial class MaintenanceSchedulerServiceTests
         var config = CreateConfigWithDatabase(cleanupMethod: CleanupMethod.Never);
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -183,13 +166,10 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Cleanup should NOT be called when CleanupMethod is Never
-        _mockMaintenanceService.Verify(
-            p => p.RunCleanupAsync(
-                It.IsAny<DatabaseConfiguration>(),
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never,
-            "Cleanup should be skipped when CleanupMethod is Never");
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(
+                A<DatabaseConfiguration>.Ignored,
+                A<IProgress<string>>.Ignored,
+                A<CancellationToken>.Ignored)).MustNotHaveHappened(); // Cleanup should be skipped when CleanupMethod is Never
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -214,8 +194,8 @@ public partial class MaintenanceSchedulerServiceTests
 
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -228,9 +208,9 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Retention enforcement should be called once per database
-        _mockRetentionService.Verify(p => p.EnforceAllCollectionsAsync("db1"), Times.Once);
-        _mockRetentionService.Verify(p => p.EnforceAllCollectionsAsync("db2"), Times.Once);
-        _mockRetentionService.Verify(p => p.EnforceAllCollectionsAsync("db3"), Times.Once);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("db1")).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("db2")).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("db3")).MustHaveHappenedOnceExactly();
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -245,11 +225,10 @@ public partial class MaintenanceSchedulerServiceTests
         var config = CreateConfigWithDatabase(backupDirectory: "C:\\Backups");
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
-        _mockMaintenanceService
-            .Setup(p => p.CleanupOldBackupsAsync(It.IsAny<string>(), It.IsAny<int>()))
-            .ReturnsAsync(2); // 2 old backups deleted
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync(A<string>.Ignored, A<int>.Ignored))
+            .Returns(2); // 2 old backups deleted
 
         await service.StartAsync(CancellationToken.None);
 
@@ -262,10 +241,7 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Backup cleanup should be called with expanded path
-        _mockMaintenanceService.Verify(
-            p => p.CleanupOldBackupsAsync("C:\\Backups", It.IsAny<int>()),
-            Times.Once,
-            "Old backup cleanup should be executed once per maintenance run");
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync("C:\\Backups", A<int>.Ignored)).MustHaveHappenedOnceExactly(); // Old backup cleanup should be executed once per maintenance run
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -290,9 +266,9 @@ public partial class MaintenanceSchedulerServiceTests
 
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
-        _mockMaintenanceService.Setup(p => p.CleanupOldBackupsAsync(It.IsAny<string>(), It.IsAny<int>())).ReturnsAsync(0);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync(A<string>.Ignored, A<int>.Ignored)).Returns(0);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -305,11 +281,11 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - Each unique backup directory should be cleaned exactly once
-        _mockMaintenanceService.Verify(p => p.CleanupOldBackupsAsync("C:\\BackupA", It.IsAny<int>()), Times.Once);
-        _mockMaintenanceService.Verify(p => p.CleanupOldBackupsAsync("C:\\BackupB", It.IsAny<int>()), Times.Once);
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync("C:\\BackupA", A<int>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync("C:\\BackupB", A<int>.Ignored)).MustHaveHappenedOnceExactly();
 
         // Total cleanup calls should be 2 (not 3)
-        _mockMaintenanceService.Verify(p => p.CleanupOldBackupsAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync(A<string>.Ignored, A<int>.Ignored)).MustHaveHappened(2, Times.Exactly);
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -333,8 +309,8 @@ public partial class MaintenanceSchedulerServiceTests
 
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
-        _mockRetentionService.Setup(p => p.EnforceAllCollectionsAsync(It.IsAny<string>())).ReturnsAsync(0);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).Returns(0);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -347,10 +323,7 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - No backup cleanup should be called for empty directories
-        _mockMaintenanceService.Verify(
-            p => p.CleanupOldBackupsAsync(It.IsAny<string>(), It.IsAny<int>()),
-            Times.Never,
-            "Backup cleanup should be skipped for empty/whitespace backup directories");
+        A.CallTo(() => _mockMaintenanceService.CleanupOldBackupsAsync(A<string>.Ignored, A<int>.Ignored)).MustNotHaveHappened(); // Backup cleanup should be skipped for empty/whitespace backup directories
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -374,17 +347,15 @@ public partial class MaintenanceSchedulerServiceTests
 
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
 
         // First database throws exception
-        _mockRetentionService
-            .Setup(p => p.EnforceAllCollectionsAsync("db1"))
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("db1"))
             .ThrowsAsync(new InvalidOperationException("Simulated retention failure"));
 
         // Second database succeeds
-        _mockRetentionService
-            .Setup(p => p.EnforceAllCollectionsAsync("db2"))
-            .ReturnsAsync(5);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync("db2"))
+            .Returns(5);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -399,10 +370,7 @@ public partial class MaintenanceSchedulerServiceTests
         // Assert - Both databases should be attempted despite first failure
         // Note: The error handling is in the outer try-catch, so both may not be called
         // This test verifies the service doesn't crash when exceptions occur
-        _mockRetentionService.Verify(
-            p => p.EnforceAllCollectionsAsync(It.IsAny<string>()),
-            Times.AtLeastOnce,
-            "Service should attempt maintenance despite errors");
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).MustHaveHappened(); // Service should attempt maintenance despite errors
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();
@@ -422,7 +390,7 @@ public partial class MaintenanceSchedulerServiceTests
 
         var service = CreateService(config);
 
-        _mockIdleDetector.Setup(p => p.IsIdle(It.IsAny<TimeSpan>())).Returns(true);
+        A.CallTo(() => _mockIdleDetector.IsIdle(A<TimeSpan>.Ignored)).Returns(true);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -436,8 +404,8 @@ public partial class MaintenanceSchedulerServiceTests
         await Task.Delay(100);
 
         // Assert - No database operations should be called
-        _mockRetentionService.Verify(p => p.EnforceAllCollectionsAsync(It.IsAny<string>()), Times.Never);
-        _mockMaintenanceService.Verify(p => p.RunCleanupAsync(It.IsAny<DatabaseConfiguration>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()), Times.Never);
+        A.CallTo(() => _mockRetentionService.EnforceAllCollectionsAsync(A<string>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => _mockMaintenanceService.RunCleanupAsync(A<DatabaseConfiguration>.Ignored, A<IProgress<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
         await service.StopAsync(CancellationToken.None);
         service.Dispose();

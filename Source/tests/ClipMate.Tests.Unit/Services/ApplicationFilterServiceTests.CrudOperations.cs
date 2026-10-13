@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -11,7 +11,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act
         var result = await service.GetAllFiltersAsync();
@@ -34,8 +34,8 @@ public partial class ApplicationFilterServiceTests
             CreateTestFilter("Filter3", isEnabled: false),
         };
 
-        _mockFilterRepository.Setup(applicationFilterRepository => applicationFilterRepository.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(filters);
+        A.CallTo(() => _mockFilterRepository.GetAllAsync(A<CancellationToken>.Ignored))
+            .Returns(filters);
 
         // Act
         var result = await service.GetAllFiltersAsync();
@@ -50,7 +50,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act
         var result = await service.GetEnabledFiltersAsync();
@@ -72,8 +72,8 @@ public partial class ApplicationFilterServiceTests
             CreateTestFilter("Filter2", isEnabled: true),
         };
 
-        _mockFilterRepository.Setup(p => p.GetEnabledAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(filters);
+        A.CallTo(() => _mockFilterRepository.GetEnabledAsync(A<CancellationToken>.Ignored))
+            .Returns(filters);
 
         // Act
         var result = await service.GetEnabledFiltersAsync();
@@ -89,9 +89,9 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         ApplicationFilter? capturedFilter = null;
-        _mockFilterRepository.Setup(p => p.CreateAsync(It.IsAny<ApplicationFilter>(), It.IsAny<CancellationToken>()))
-            .Callback<ApplicationFilter, CancellationToken>((f, _) => capturedFilter = f)
-            .ReturnsAsync((ApplicationFilter f, CancellationToken _) => f);
+        A.CallTo(() => _mockFilterRepository.CreateAsync(A<ApplicationFilter>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((ApplicationFilter f, CancellationToken _) => capturedFilter = f)
+            .ReturnsLazily((ApplicationFilter f, CancellationToken _) => f);
 
         // Act
         var result = await service.CreateFilterAsync("Test Filter", "notepad.exe", "*password*");
@@ -112,8 +112,8 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockFilterRepository.Setup(p => p.CreateAsync(It.IsAny<ApplicationFilter>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationFilter f, CancellationToken _) => f);
+        A.CallTo(() => _mockFilterRepository.CreateAsync(A<ApplicationFilter>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((ApplicationFilter f, CancellationToken _) => f);
 
         // Act
         var result = await service.CreateFilterAsync("Test", "notepad.exe", null);
@@ -130,8 +130,8 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockFilterRepository.Setup(p => p.CreateAsync(It.IsAny<ApplicationFilter>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationFilter f, CancellationToken _) => f);
+        A.CallTo(() => _mockFilterRepository.CreateAsync(A<ApplicationFilter>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((ApplicationFilter f, CancellationToken _) => f);
 
         // Act
         var result = await service.CreateFilterAsync("Test", null, "*password*");
@@ -184,7 +184,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -199,9 +199,9 @@ public partial class ApplicationFilterServiceTests
         var service = CreateService();
         var filter = CreateTestFilter("Test", "notepad.exe");
         ApplicationFilter? capturedFilter = null;
-        _mockFilterRepository.Setup(p => p.UpdateAsync(It.IsAny<ApplicationFilter>(), It.IsAny<CancellationToken>()))
-            .Callback<ApplicationFilter, CancellationToken>((f, _) => capturedFilter = f)
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockFilterRepository.UpdateAsync(A<ApplicationFilter>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((ApplicationFilter f, CancellationToken _) => capturedFilter = f)
+            .Returns(true);
 
         // Act
         await service.UpdateFilterAsync(filter);
@@ -209,7 +209,7 @@ public partial class ApplicationFilterServiceTests
         // Assert
         await Assert.That(capturedFilter).IsNotNull();
         await Assert.That(capturedFilter!.ModifiedAt).IsNotNull();
-        _mockFilterRepository.Verify(p => p.UpdateAsync(filter, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockFilterRepository.UpdateAsync(filter, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -230,7 +230,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
         var filter = CreateTestFilter("Test", "notepad.exe");
 
         // Act & Assert
@@ -245,14 +245,14 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filterId = Guid.NewGuid();
-        _mockFilterRepository.Setup(p => p.DeleteAsync(filterId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockFilterRepository.DeleteAsync(filterId, A<CancellationToken>.Ignored))
+            .Returns(true);
 
         // Act
         await service.DeleteFilterAsync(filterId);
 
         // Assert
-        _mockFilterRepository.Verify(p => p.DeleteAsync(filterId, It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockFilterRepository.DeleteAsync(filterId, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -261,7 +261,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -278,13 +278,13 @@ public partial class ApplicationFilterServiceTests
         var filter = CreateTestFilter("Test", "notepad.exe", id: filterId);
         filter.IsEnabled = false;
 
-        _mockFilterRepository.Setup(p => p.GetByIdAsync(filterId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(filter);
+        A.CallTo(() => _mockFilterRepository.GetByIdAsync(filterId, A<CancellationToken>.Ignored))
+            .Returns(filter);
 
         ApplicationFilter? capturedFilter = null;
-        _mockFilterRepository.Setup(p => p.UpdateAsync(It.IsAny<ApplicationFilter>(), It.IsAny<CancellationToken>()))
-            .Callback<ApplicationFilter, CancellationToken>((f, _) => capturedFilter = f)
-            .ReturnsAsync(true);
+        A.CallTo(() => _mockFilterRepository.UpdateAsync(A<ApplicationFilter>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((ApplicationFilter f, CancellationToken _) => capturedFilter = f)
+            .Returns(true);
 
         // Act
         await service.SetFilterEnabledAsync(filterId, true);
@@ -302,8 +302,8 @@ public partial class ApplicationFilterServiceTests
         // Arrange
         var service = CreateService();
         var filterId = Guid.NewGuid();
-        _mockFilterRepository.Setup(p => p.GetByIdAsync(filterId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApplicationFilter?)null);
+        A.CallTo(() => _mockFilterRepository.GetByIdAsync(filterId, A<CancellationToken>.Ignored))
+            .Returns((ApplicationFilter?)null);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -316,7 +316,7 @@ public partial class ApplicationFilterServiceTests
     {
         // Arrange
         var service = CreateService();
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns(string.Empty);
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(string.Empty);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

@@ -1,6 +1,6 @@
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -10,7 +10,7 @@ namespace ClipMate.Tests.Integration.Services;
 public class UpdateCheckServiceTests : IDisposable
 {
     private readonly HttpClient _httpClient = new();
-    private readonly Mock<ILogger<UpdateCheckService>> _logger = new();
+    private readonly ILogger<UpdateCheckService> _logger = A.Fake<ILogger<UpdateCheckService>>();
 
     public void Dispose()
     {
@@ -18,7 +18,7 @@ public class UpdateCheckServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private UpdateCheckService CreateService() => new(_httpClient, _logger.Object);
+    private UpdateCheckService CreateService() => new(_httpClient, _logger);
 
     /// <summary>
     /// UpdateCheckService swallows HTTP failures and returns null, so a null result can mean
@@ -26,7 +26,7 @@ public class UpdateCheckServiceTests : IDisposable
     /// CI runner IPs). The service logs an error only on the failure path.
     /// </summary>
     private bool LoggedApiFailure() =>
-        _logger.Invocations.Any(i =>
+        Fake.GetCalls(_logger).Any(i =>
             i.Method.Name == nameof(ILogger.Log) &&
             i.Arguments[0] is LogLevel.Error);
 

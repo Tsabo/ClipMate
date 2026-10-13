@@ -2,7 +2,7 @@ using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using CommunityToolkit.Mvvm.Messaging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -12,8 +12,8 @@ public class PreviewPaneViewModelTests
     public async Task Constructor_ShouldInitializeWithDefaults()
     {
         // Arrange & Act
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
 
         // Assert
         await Assert.That(viewModel.SelectedClip).IsNull();
@@ -29,8 +29,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithTextClip_ShouldSetPreviewText()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -54,8 +54,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithHtmlClip_ShouldSetPreviewHtml()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -80,8 +80,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithRichTextClip_ShouldSetPreviewText()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -104,8 +104,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithImageClip_ShouldSetImagePreview()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         // Note: Creating a valid image in memory is complex for unit tests
         // We test the logic path, but image loading may fail with invalid data
         var imageData = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG header bytes (not a complete image)
@@ -132,8 +132,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithNull_ShouldClearPreview()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -161,8 +161,8 @@ public class PreviewPaneViewModelTests
     public async Task SelectedClip_WhenSet_ShouldRaisePropertyChanged()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),
@@ -189,8 +189,8 @@ public class PreviewPaneViewModelTests
     public async Task Receive_WithNullClip_ShouldClearAllPreviewData()
     {
         // Arrange
-        var mockMessenger = new Mock<IMessenger>();
-        var viewModel = new PreviewPaneViewModel(mockMessenger.Object);
+        var mockMessenger = A.Fake<IMessenger>();
+        var viewModel = new PreviewPaneViewModel(mockMessenger);
         var clip = new Clip
         {
             Id = Guid.NewGuid(),

@@ -5,7 +5,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -14,29 +14,29 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class SearchViewModelTests
 {
-    private readonly Mock<IClipService> _mockClipService;
-    private readonly Mock<ICollectionService> _mockCollectionService;
-    private readonly Mock<IMessenger> _mockMessenger;
-    private readonly Mock<ISearchService> _mockSearchService;
+    private readonly IClipService _mockClipService;
+    private readonly ICollectionService _mockCollectionService;
+    private readonly IMessenger _mockMessenger;
+    private readonly ISearchService _mockSearchService;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly SearchViewModel _viewModel;
 
     public SearchViewModelTests()
     {
-        _mockSearchService = new Mock<ISearchService>();
-        _mockCollectionService = new Mock<ICollectionService>();
-        _mockClipService = new Mock<IClipService>();
-        _mockMessenger = new Mock<IMessenger>();
+        _mockSearchService = A.Fake<ISearchService>();
+        _mockCollectionService = A.Fake<ICollectionService>();
+        _mockClipService = A.Fake<IClipService>();
+        _mockMessenger = A.Fake<IMessenger>();
         _searchResultsCache = new SearchResultsCache();
 
         // Setup mock collection service to return a database key
-        _mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test_database");
+        A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns("test_database");
 
         _viewModel = new SearchViewModel(
-            _mockSearchService.Object,
-            _mockCollectionService.Object,
-            _mockClipService.Object,
-            _mockMessenger.Object,
+            _mockSearchService,
+            _mockCollectionService,
+            _mockClipService,
+            _mockMessenger,
             _searchResultsCache);
     }
 
@@ -46,9 +46,9 @@ public class SearchViewModelTests
         // Act & Assert
         await Assert.That(() => new SearchViewModel(
                 null!,
-                _mockCollectionService.Object,
-                _mockClipService.Object,
-                _mockMessenger.Object,
+                _mockCollectionService,
+                _mockClipService,
+                _mockMessenger,
                 _searchResultsCache))
             .Throws<ArgumentNullException>();
     }
@@ -94,9 +94,8 @@ public class SearchViewModelTests
             Query = "test",
         };
 
-        _mockSearchService
-            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(searchResults);
 
         _viewModel.SearchText = "test";
 
@@ -107,7 +106,7 @@ public class SearchViewModelTests
         await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(1);
         await Assert.That(_viewModel.TotalMatches).IsEqualTo(1);
         // ViewModel calls SearchAsync("", filters) where SearchText is in filters.TitleQuery
-        _mockSearchService.Verify(p => p.SearchAsync("", It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSearchService.SearchAsync("", A<SearchFilters>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -124,9 +123,8 @@ public class SearchViewModelTests
             Query = "",
         };
 
-        _mockSearchService
-            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(searchResults);
 
         // Act
         await _viewModel.SearchCommand.ExecuteAsync(null);
@@ -135,7 +133,7 @@ public class SearchViewModelTests
         await Assert.That(_viewModel.SearchResults.Count).IsEqualTo(0);
         await Assert.That(_viewModel.TotalMatches).IsEqualTo(0);
         // Even with empty text, SearchAsync is still called with empty filters
-        _mockSearchService.Verify(p => p.SearchAsync("", It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => _mockSearchService.SearchAsync("", A<SearchFilters>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -150,10 +148,9 @@ public class SearchViewModelTests
         };
 
         SearchFilters? capturedFilters = null;
-        _mockSearchService
-            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((string _, SearchFilters? f, CancellationToken _) => capturedFilters = f)
+            .Returns(searchResults);
 
         _viewModel.SearchText = "test";
         _viewModel.FilterByText = true;
@@ -184,10 +181,9 @@ public class SearchViewModelTests
         };
 
         SearchFilters? capturedFilters = null;
-        _mockSearchService
-            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((string _, SearchFilters? f, CancellationToken _) => capturedFilters = f)
+            .Returns(searchResults);
 
         _viewModel.SearchText = "test";
         _viewModel.CapturedAfterEnabled = true;
@@ -217,10 +213,9 @@ public class SearchViewModelTests
         };
 
         SearchFilters? capturedFilters = null;
-        _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((string _, SearchFilters? f, CancellationToken _) => capturedFilters = f)
+            .Returns(searchResults);
 
         _viewModel.SearchText = "Test";
         _viewModel.IsCaseSensitive = true;
@@ -245,10 +240,9 @@ public class SearchViewModelTests
         };
 
         SearchFilters? capturedFilters = null;
-        _mockSearchService
-            .Setup(s => s.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
-            .Callback<string, SearchFilters?, CancellationToken>((_, f, _) => capturedFilters = f)
-            .ReturnsAsync(searchResults);
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((string _, SearchFilters? f, CancellationToken _) => capturedFilters = f)
+            .Returns(searchResults);
 
         _viewModel.SearchText = "\\d+";
         _viewModel.IsRegex = true;
@@ -287,9 +281,8 @@ public class SearchViewModelTests
             new() { Name = "Query 3", Query = "query 3" },
         };
 
-        _mockSearchService
-            .Setup(p => p.GetSavedQueriesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(queries.AsReadOnly());
+        A.CallTo(() => _mockSearchService.GetSavedQueriesAsync(A<CancellationToken>.Ignored))
+            .Returns(queries.AsReadOnly());
 
         // Act
         await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
@@ -304,8 +297,7 @@ public class SearchViewModelTests
     {
         // Arrange
         var tcs = new TaskCompletionSource<SearchResults>();
-        _mockSearchService
-            .Setup(p => p.SearchAsync(It.IsAny<string>(), It.IsAny<SearchFilters>(), It.IsAny<CancellationToken>()))
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
             .Returns(tcs.Task);
 
         _viewModel.SearchText = "test";

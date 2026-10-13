@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -24,10 +24,10 @@ public class ClipboardDiagnosticsServiceTests
     public async Task Constructor_WithValidLogger_CreatesInstance()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
 
         // Act
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Assert
         await Assert.That(service).IsNotNull();
@@ -37,8 +37,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetDiagnostics_ReturnsClipboardDiagnosticInfo()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result = service.GetDiagnostics();
@@ -53,8 +53,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetOwnerProcessName_ReturnsString()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result = service.GetOwnerProcessName();
@@ -68,8 +68,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetSequenceNumber_ReturnsUInt()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result = service.GetSequenceNumber();
@@ -82,8 +82,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetFormatName_WithStandardFormat_ReturnsStandardName()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
         const uint cfText = 1; // CF_TEXT
 
         // Act
@@ -98,8 +98,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetFormatName_WithCustomFormat_ReturnsFallbackOrRegisteredName()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
         const uint customFormat = 49999; // Arbitrary custom format code
 
         // Act
@@ -114,8 +114,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetFormatName_WithZeroFormat_ReturnsFormatString()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result = service.GetFormatName(0);
@@ -128,8 +128,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetFormatName_CalledMultipleTimes_ReturnsConsistentResults()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
         const uint cfText = 1;
 
         // Act
@@ -144,8 +144,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetSequenceNumber_CalledMultipleTimes_MayReturnDifferentValues()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result1 = service.GetSequenceNumber();
@@ -160,8 +160,8 @@ public class ClipboardDiagnosticsServiceTests
     public async Task GetDiagnostics_ReturnsFormatsCollection()
     {
         // Arrange
-        var logger = new Mock<ILogger<ClipboardDiagnosticsService>>();
-        var service = new ClipboardDiagnosticsService(logger.Object);
+        var logger = A.Fake<ILogger<ClipboardDiagnosticsService>>();
+        var service = new ClipboardDiagnosticsService(logger);
 
         // Act
         var result = service.GetDiagnostics();

@@ -3,7 +3,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 using ClipMate.Core.Models;
 using ClipMate.Platform;
-using Moq;
+using FakeItEasy;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -16,13 +16,13 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        mockInterop.Setup(p => p.RegisterHotKey(It.IsAny<HWND>(), It.IsAny<int>(), It.IsAny<HOT_KEY_MODIFIERS>(), It.IsAny<uint>()))
+        A.CallTo(() => mockInterop.RegisterHotKey(A<HWND>.Ignored, A<int>.Ignored, A<HOT_KEY_MODIFIERS>.Ignored, A<uint>.Ignored))
             .Returns(true);
 
-        mockInterop.Setup(p => p.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()))
+        A.CallTo(() => mockInterop.UnregisterHotKey(A<HWND>.Ignored, A<int>.Ignored))
             .Returns(true);
 
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
         var window = new Window();
         manager.Initialize(window);
         var callback = () => { };
@@ -34,7 +34,7 @@ public partial class HotkeyManagerTests
         manager2.Dispose();
 
         // Assert
-        mockInterop.Verify(p => p.UnregisterHotKey(It.IsAny<HWND>(), It.IsAny<int>()), Times.AtLeast(2));
+        A.CallTo(() => mockInterop.UnregisterHotKey(A<HWND>.Ignored, A<int>.Ignored)).MustHaveHappened(2, Times.OrMore);
     }
 
     [Test]
@@ -42,7 +42,7 @@ public partial class HotkeyManagerTests
     {
         // Arrange
         var mockInterop = CreateWin32HotkeyMock();
-        var manager = new HotkeyManager(mockInterop.Object);
+        var manager = new HotkeyManager(mockInterop);
 
         // Act & Assert
         await Assert.That(() =>

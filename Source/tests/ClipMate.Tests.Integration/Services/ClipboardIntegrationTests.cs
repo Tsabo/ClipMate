@@ -11,7 +11,7 @@ using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 using CoreApplicationProfile = ClipMate.Core.Models.ApplicationProfile;
 
 namespace ClipMate.Tests.Integration.Services;
@@ -47,73 +47,73 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await SetupAsync();
 
         // Create real services using base DbContext
-        var clipboardLogger = Mock.Of<ILogger<ClipboardService>>();
-        var filterLogger = Mock.Of<ILogger<ApplicationFilterService>>();
-        var coordinatorLogger = Mock.Of<ILogger<ClipboardCoordinator>>();
-        var clipRepoLogger = Mock.Of<ILogger<ClipRepository>>();
+        var clipboardLogger = A.Fake<ILogger<ClipboardService>>();
+        var filterLogger = A.Fake<ILogger<ApplicationFilterService>>();
+        var coordinatorLogger = A.Fake<ILogger<ClipboardCoordinator>>();
+        var clipRepoLogger = A.Fake<ILogger<ClipRepository>>();
 
         _clipRepository = new ClipRepository(DbContext, clipRepoLogger);
 
         // Create repository factory for ClipService
-        var contextFactory = new Mock<IDatabaseContextFactory>();
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(_clipRepository);
 
         // Setup ClipboardService first (needed by ClipService)
-        var win32Mock = new Mock<IWin32ClipboardInterop>();
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
-        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
-        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
-        var clipboardSoundService = new Mock<ISoundService>();
-        clipboardSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+        var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
+        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
+        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
+        var clipboardSoundService = A.Fake<ISoundService>();
+        A.CallTo(() => clipboardSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Create configuration mock with default timing values
-        var configServiceMock = new Mock<IConfigurationService>();
+        var configServiceMock = A.Fake<IConfigurationService>();
         var clipboardConfig = new ClipMateConfiguration();
-        configServiceMock.Setup(p => p.Configuration).Returns(clipboardConfig);
+        A.CallTo(() => configServiceMock.Configuration).Returns(clipboardConfig);
 
-        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, configServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, clipboardSoundService.Object, blobCacheServiceMock.Object);
+        var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, clipboardSoundService, blobCacheServiceMock);
 
-        var clipServiceLogger = Mock.Of<ILogger<ClipService>>();
+        var clipServiceLogger = A.Fake<ILogger<ClipService>>();
 
         _clipService = new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
             _clipboardService,
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IEncryptionService>(),
-            Mock.Of<IDecryptedBlobCacheService>(),
-            Mock.Of<IMessenger>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IEncryptionService>(),
+            A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IMessenger>(),
             clipServiceLogger);
 
         var filterRepository = new ApplicationFilterRepository(DbContext);
-        var mockFilterContextFactory = new Mock<IDatabaseContextFactory>();
-        mockFilterContextFactory.Setup(p => p.GetApplicationFilterRepository(It.IsAny<string>()))
+        var mockFilterContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => mockFilterContextFactory.GetApplicationFilterRepository(A<string>.Ignored))
             .Returns(filterRepository);
 
-        var mockFilterCollectionService = new Mock<ICollectionService>();
-        mockFilterCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
-        var filterSoundService = new Mock<ISoundService>();
-        filterSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+        var mockFilterCollectionService = A.Fake<ICollectionService>();
+        A.CallTo(() => mockFilterCollectionService.GetActiveDatabaseKey()).Returns("test-db");
+        var filterSoundService = A.Fake<ISoundService>();
+        A.CallTo(() => filterSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         _filterService = new ApplicationFilterService(
-            mockFilterContextFactory.Object,
-            mockFilterCollectionService.Object,
-            filterSoundService.Object,
+            mockFilterContextFactory,
+            mockFilterCollectionService,
+            filterSoundService,
             filterLogger);
 
         var collectionRepository = new CollectionRepository(DbContext);
 
         var folderRepository = new FolderRepository(DbContext);
-        var mockFolderContextFactory = new Mock<IDatabaseContextFactory>();
-        mockFolderContextFactory.Setup(p => p.GetFolderRepository(It.IsAny<string>())).Returns(folderRepository);
-        var mockFolderCollectionService = new Mock<ICollectionService>();
-        mockFolderCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
-        var folderService = new FolderService(mockFolderContextFactory.Object, mockFolderCollectionService.Object);
+        var mockFolderContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => mockFolderContextFactory.GetFolderRepository(A<string>.Ignored)).Returns(folderRepository);
+        var mockFolderCollectionService = A.Fake<ICollectionService>();
+        A.CallTo(() => mockFolderCollectionService.GetActiveDatabaseKey()).Returns("test-db");
+        var folderService = new FolderService(mockFolderContextFactory, mockFolderCollectionService);
 
         // Setup DI container for ClipboardCoordinator (needs IServiceProvider for scoped services)
         var services = new ServiceCollection();
@@ -123,18 +123,18 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddTransient<IFolderService>(_ => folderService);
         services.AddTransient<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
-        services.AddSingleton(contextFactory.Object);
+        services.AddSingleton(contextFactory);
         services.AddSingleton<IAutoAppendService, AutoAppendService>();
 
         // Register sound service mock
-        var soundServiceMock = new Mock<ISoundService>();
-        soundServiceMock.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>()))
+        var soundServiceMock = A.Fake<ISoundService>();
+        A.CallTo(() => soundServiceMock.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
-        services.AddSingleton(soundServiceMock.Object);
+        services.AddSingleton(soundServiceMock);
 
         // Add mock IConfigurationService
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = A.Fake<IConfigurationService>();
         var config = new ClipMateConfiguration
         {
             Preferences = new PreferencesConfiguration
@@ -145,15 +145,15 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             },
         };
 
-        mockConfigService.Setup(p => p.Configuration).Returns(config);
-        services.AddSingleton(mockConfigService.Object);
+        A.CallTo(() => mockConfigService.Configuration).Returns(config);
+        services.AddSingleton(mockConfigService);
 
         _serviceProvider = services.BuildServiceProvider();
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
         var autoAppendService = _serviceProvider.GetRequiredService<IAutoAppendService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory.Object, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed
@@ -273,13 +273,13 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public Task ApplicationProfiles_WhenDisabled_ShouldCaptureAllFormats()
     {
         // Arrange - Mock with profiles disabled
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(false);
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        var formatEnumeratorMock = new Mock<IClipboardFormatEnumerator>();
-        formatEnumeratorMock.Setup(p => p.GetAllAvailableFormats())
+        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
+        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats())
             .Returns(new List<ClipboardFormatInfo>
             {
                 new("TEXT", 1),
@@ -287,23 +287,22 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
                 new("Rich Text Format", 49353),
             });
 
-        var win32Mock = new Mock<IWin32ClipboardInterop>();
-        var clipboardLogger = Mock.Of<ILogger<ClipboardService>>();
-        var testSoundService = new Mock<ISoundService>();
-        testSoundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        var clipboardLogger = A.Fake<ILogger<ClipboardService>>();
+        var testSoundService = A.Fake<ISoundService>();
+        A.CallTo(() => testSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         // Create configuration mock with default timing values
-        var testConfigServiceMock = new Mock<IConfigurationService>();
+        var testConfigServiceMock = A.Fake<IConfigurationService>();
         var testConfig = new ClipMateConfiguration();
-        testConfigServiceMock.Setup(p => p.Configuration).Returns(testConfig);
+        A.CallTo(() => testConfigServiceMock.Configuration).Returns(testConfig);
 
-        var blobCacheServiceMock = new Mock<IDecryptedBlobCacheService>();
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock.Object, testConfigServiceMock.Object, profileServiceMock.Object, formatEnumeratorMock.Object, testSoundService.Object, blobCacheServiceMock.Object);
+        var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
+        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock, testConfigServiceMock, profileServiceMock, formatEnumeratorMock, testSoundService, blobCacheServiceMock);
 
         // Act & Assert - Service should not filter formats when disabled
-        profileServiceMock.Verify(p => p.ShouldCaptureFormatAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(
+                A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
         return Task.CompletedTask;
     }
@@ -314,24 +313,24 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_WhenEnabled_ShouldFilterFormats()
     {
         // Arrange - Mock with profiles enabled and specific format rules
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(true);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
 
         // Chrome: TEXT=true, HTML=true, UNICODETEXT=false
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("CHROME", "TEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT", A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("CHROME", "HTML Format", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format", A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT", A<CancellationToken>.Ignored))
+            .Returns(false);
 
         // Act - Call methods to test filtering behavior
-        var isEnabled = profileServiceMock.Object.IsApplicationProfilesEnabled();
-        var shouldCaptureText = await profileServiceMock.Object.ShouldCaptureFormatAsync("CHROME", "TEXT");
-        var shouldCaptureHtml = await profileServiceMock.Object.ShouldCaptureFormatAsync("CHROME", "HTML Format");
-        var shouldCaptureUnicode = await profileServiceMock.Object.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT");
+        var isEnabled = profileServiceMock.IsApplicationProfilesEnabled();
+        var shouldCaptureText = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT");
+        var shouldCaptureHtml = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format");
+        var shouldCaptureUnicode = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT");
 
         // Assert
         await Assert.That(isEnabled).IsTrue();
@@ -346,8 +345,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_NewApplication_ShouldAutoCreateProfile()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(true);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
 
         var newAppProfile = new CoreApplicationProfile
         {
@@ -361,12 +360,12 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             },
         };
 
-        profileServiceMock.Setup(p => p.GetOrCreateProfileAsync("NEWAPP",
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(newAppProfile);
+        A.CallTo(() => profileServiceMock.GetOrCreateProfileAsync("NEWAPP",
+                A<CancellationToken>.Ignored))
+            .Returns(newAppProfile);
 
         // Act - Simulate clipboard capture from new application
-        var result = await profileServiceMock.Object.GetOrCreateProfileAsync("NEWAPP");
+        var result = await profileServiceMock.GetOrCreateProfileAsync("NEWAPP");
 
         // Assert
         await Assert.That(result.ApplicationName).IsEqualTo("NEWAPP");
@@ -381,7 +380,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_UpdateProfile_ShouldPersistChanges()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
         var profile = new CoreApplicationProfile
         {
             ApplicationName = "NOTEPAD",
@@ -393,20 +392,19 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             },
         };
 
-        profileServiceMock.Setup(p => p.UpdateProfileAsync(profile, It.IsAny<CancellationToken>()))
+        A.CallTo(() => profileServiceMock.UpdateProfileAsync(profile, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
         profile.Formats["CF_UNICODETEXT"] = true; // User enables UNICODETEXT
-        await profileServiceMock.Object.UpdateProfileAsync(profile);
+        await profileServiceMock.UpdateProfileAsync(profile);
 
         // Assert
-        profileServiceMock.Verify(p => p.UpdateProfileAsync(
-                It.Is<CoreApplicationProfile>(i =>
+        A.CallTo(() => profileServiceMock.UpdateProfileAsync(
+                A<CoreApplicationProfile>.That.Matches(i =>
                     i.ApplicationName == "NOTEPAD" &&
                     i.Formats["CF_UNICODETEXT"] == true),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+                A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -415,7 +413,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_GetAllProfiles_ShouldReturnAllStored()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
         var profiles = new Dictionary<string, CoreApplicationProfile>
         {
             ["NOTEPAD"] = new()
@@ -432,11 +430,11 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             },
         };
 
-        profileServiceMock.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(profiles);
+        A.CallTo(() => profileServiceMock.GetAllProfilesAsync(A<CancellationToken>.Ignored))
+            .Returns(profiles);
 
         // Act
-        var result = await profileServiceMock.Object.GetAllProfilesAsync();
+        var result = await profileServiceMock.GetAllProfilesAsync();
 
         // Assert
         await Assert.That(result.Count).IsEqualTo(2);
@@ -450,15 +448,15 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_DeleteProfile_ShouldRemoveFromStorage()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.DeleteProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()))
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.DeleteProfileAsync("NOTEPAD", A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
-        await profileServiceMock.Object.DeleteProfileAsync("NOTEPAD");
+        await profileServiceMock.DeleteProfileAsync("NOTEPAD");
 
         // Assert
-        profileServiceMock.Verify(p => p.DeleteProfileAsync("NOTEPAD", It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => profileServiceMock.DeleteProfileAsync("NOTEPAD", A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -467,15 +465,15 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_DeleteAllProfiles_ShouldClearStorage()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.DeleteAllProfilesAsync(It.IsAny<CancellationToken>()))
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.DeleteAllProfilesAsync(A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         // Act
-        await profileServiceMock.Object.DeleteAllProfilesAsync();
+        await profileServiceMock.DeleteAllProfilesAsync();
 
         // Assert
-        profileServiceMock.Verify(p => p.DeleteAllProfilesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        A.CallTo(() => profileServiceMock.DeleteAllProfilesAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -484,25 +482,25 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_EnabledStateToggle_ShouldAffectFilteringBehavior()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
         var isEnabled = false;
 
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled())
-            .Returns(() => isEnabled);
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled())
+            .ReturnsLazily(() => isEnabled);
 
-        profileServiceMock.Setup(p => p.SetApplicationProfilesEnabled(It.IsAny<bool>()))
-            .Callback<bool>(p => isEnabled = p);
+        A.CallTo(() => profileServiceMock.SetApplicationProfilesEnabled(A<bool>.Ignored))
+            .Invokes((bool p) => isEnabled = p);
 
         // Act & Assert - Initially disabled
-        await Assert.That(profileServiceMock.Object.IsApplicationProfilesEnabled()).IsFalse();
+        await Assert.That(profileServiceMock.IsApplicationProfilesEnabled()).IsFalse();
 
         // Enable profiles
-        profileServiceMock.Object.SetApplicationProfilesEnabled(true);
-        await Assert.That(profileServiceMock.Object.IsApplicationProfilesEnabled()).IsTrue();
+        profileServiceMock.SetApplicationProfilesEnabled(true);
+        await Assert.That(profileServiceMock.IsApplicationProfilesEnabled()).IsTrue();
 
         // Disable profiles
-        profileServiceMock.Object.SetApplicationProfilesEnabled(false);
-        await Assert.That(profileServiceMock.Object.IsApplicationProfilesEnabled()).IsFalse();
+        profileServiceMock.SetApplicationProfilesEnabled(false);
+        await Assert.That(profileServiceMock.IsApplicationProfilesEnabled()).IsFalse();
     }
 
     [Test]
@@ -511,21 +509,21 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_FormatFiltering_ShouldRespectProfileSettings()
     {
         // Arrange - Notepad profile: TEXT=true, UNICODETEXT=false
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(true);
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT", A<CancellationToken>.Ignored))
+            .Returns(false);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE", A<CancellationToken>.Ignored))
+            .Returns(false);
 
         // Act & Assert
-        var shouldCaptureText = await profileServiceMock.Object.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
-        var shouldCaptureUnicode = await profileServiceMock.Object.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT");
-        var shouldCaptureLocale = await profileServiceMock.Object.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE");
+        var shouldCaptureText = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
+        var shouldCaptureUnicode = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT");
+        var shouldCaptureLocale = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE");
 
         await Assert.That(shouldCaptureText).IsTrue();
         await Assert.That(shouldCaptureUnicode).IsFalse();
@@ -538,33 +536,33 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     public async Task ApplicationProfiles_MultipleApplications_ShouldMaintainSeparateProfiles()
     {
         // Arrange
-        var profileServiceMock = new Mock<IApplicationProfileService>();
-        profileServiceMock.Setup(p => p.IsApplicationProfilesEnabled()).Returns(true);
+        var profileServiceMock = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
 
         // Notepad: only TEXT
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format", A<CancellationToken>.Ignored))
+            .Returns(false);
 
         // Chrome: TEXT and HTML
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("CHROME", "TEXT", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT", A<CancellationToken>.Ignored))
+            .Returns(true);
 
-        profileServiceMock.Setup(p => p.ShouldCaptureFormatAsync("CHROME", "HTML Format", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format", A<CancellationToken>.Ignored))
+            .Returns(true);
 
         // Act & Assert - Notepad
-        var notepadText = await profileServiceMock.Object.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
-        var notepadHtml = await profileServiceMock.Object.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format");
+        var notepadText = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
+        var notepadHtml = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format");
 
         await Assert.That(notepadText).IsTrue();
         await Assert.That(notepadHtml).IsFalse();
 
         // Act & Assert - Chrome
-        var chromeText = await profileServiceMock.Object.ShouldCaptureFormatAsync("CHROME", "TEXT");
-        var chromeHtml = await profileServiceMock.Object.ShouldCaptureFormatAsync("CHROME", "HTML Format");
+        var chromeText = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT");
+        var chromeHtml = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format");
 
         await Assert.That(chromeText).IsTrue();
         await Assert.That(chromeHtml).IsTrue();

@@ -6,7 +6,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -189,24 +189,24 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipService()
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return a real repository for the test database
-        var logger = Mock.Of<ILogger<ClipRepository>>();
+        var logger = A.Fake<ILogger<ClipRepository>>();
         var repository = new ClipRepository(DbContext, logger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IEncryptionService>(),
-            Mock.Of<IDecryptedBlobCacheService>(),
-            Mock.Of<IMessenger>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IEncryptionService>(),
+            A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IMessenger>(),
             serviceLogger);
     }
 
@@ -215,24 +215,24 @@ public class ClipPersistenceTests : IntegrationTestBase
     /// </summary>
     private IClipService CreateClipServiceWithContext(ClipMateDbContext context)
     {
-        var contextFactory = new Mock<IDatabaseContextFactory>();
+        var contextFactory = A.Fake<IDatabaseContextFactory>();
 
         // Setup factory to return a real repository with the provided context
-        var logger = Mock.Of<ILogger<ClipRepository>>();
+        var logger = A.Fake<ILogger<ClipRepository>>();
         var repository = new ClipRepository(context, logger);
-        contextFactory.Setup(p => p.GetClipRepository(_testDatabaseKey))
+        A.CallTo(() => contextFactory.GetClipRepository(_testDatabaseKey))
             .Returns(repository);
 
-        var serviceLogger = Mock.Of<ILogger<ClipService>>();
+        var serviceLogger = A.Fake<ILogger<ClipService>>();
 
         return new ClipService(
-            contextFactory.Object,
-            Mock.Of<IConfigurationService>(),
-            Mock.Of<IClipboardService>(),
-            Mock.Of<ITemplateService>(),
-            Mock.Of<IEncryptionService>(),
-            Mock.Of<IDecryptedBlobCacheService>(),
-            Mock.Of<IMessenger>(),
+            contextFactory,
+            A.Fake<IConfigurationService>(),
+            A.Fake<IClipboardService>(),
+            A.Fake<ITemplateService>(),
+            A.Fake<IEncryptionService>(),
+            A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IMessenger>(),
             serviceLogger);
     }
 }

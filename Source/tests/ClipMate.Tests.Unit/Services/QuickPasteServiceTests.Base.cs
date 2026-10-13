@@ -5,7 +5,7 @@ using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -14,26 +14,26 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class QuickPasteServiceTests : TestFixtureBase
 {
-    private Mock<IClipboardService> _mockClipboardService = null!;
-    private Mock<IConfigurationService> _mockConfigurationService = null!;
-    private Mock<IDialogService> _mockDialogService = null!;
-    private Mock<ILogger<QuickPasteService>> _mockLogger = null!;
-    private Mock<IMacroExecutionService> _mockMacroExecutionService = null!;
-    private Mock<IMessenger> _mockMessenger = null!;
-    private Mock<ITemplateService> _mockTemplateService = null!;
-    private Mock<IWin32InputInterop> _mockWin32 = null!;
+    private IClipboardService _mockClipboardService = null!;
+    private IConfigurationService _mockConfigurationService = null!;
+    private IDialogService _mockDialogService = null!;
+    private ILogger<QuickPasteService> _mockLogger = null!;
+    private IMacroExecutionService _mockMacroExecutionService = null!;
+    private IMessenger _mockMessenger = null!;
+    private ITemplateService _mockTemplateService = null!;
+    private IWin32InputInterop _mockWin32 = null!;
     private ClipMateConfiguration _testConfiguration = null!;
 
     private QuickPasteService CreateService()
     {
-        _mockWin32 = new Mock<IWin32InputInterop>();
-        _mockClipboardService = new Mock<IClipboardService>();
-        _mockConfigurationService = new Mock<IConfigurationService>();
-        _mockMessenger = new Mock<IMessenger>();
-        _mockMacroExecutionService = new Mock<IMacroExecutionService>();
-        _mockTemplateService = new Mock<ITemplateService>();
-        _mockDialogService = new Mock<IDialogService>();
-        _mockLogger = new Mock<ILogger<QuickPasteService>>();
+        _mockWin32 = A.Fake<IWin32InputInterop>();
+        _mockClipboardService = A.Fake<IClipboardService>();
+        _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockMessenger = A.Fake<IMessenger>();
+        _mockMacroExecutionService = A.Fake<IMacroExecutionService>();
+        _mockTemplateService = A.Fake<ITemplateService>();
+        _mockDialogService = A.Fake<IDialogService>();
+        _mockLogger = A.Fake<ILogger<QuickPasteService>>();
 
         // Setup default test configuration
         _testConfiguration = new ClipMateConfiguration
@@ -85,17 +85,17 @@ public partial class QuickPasteServiceTests : TestFixtureBase
             },
         };
 
-        _mockConfigurationService.Setup(x => x.Configuration).Returns(_testConfiguration);
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(_testConfiguration);
 
         return new QuickPasteService(
-            _mockWin32.Object,
-            _mockClipboardService.Object,
-            _mockConfigurationService.Object,
-            _mockMessenger.Object,
-            _mockMacroExecutionService.Object,
-            _mockTemplateService.Object,
-            _mockDialogService.Object,
-            _mockLogger.Object);
+            _mockWin32,
+            _mockClipboardService,
+            _mockConfigurationService,
+            _mockMessenger,
+            _mockMacroExecutionService,
+            _mockTemplateService,
+            _mockDialogService,
+            _mockLogger);
     }
 
     private Clip CreateTestClip() =>
@@ -109,24 +109,24 @@ public partial class QuickPasteServiceTests : TestFixtureBase
             ContentHash = "TestHash",
         };
 
-    private Mock<IWin32InputInterop> CreateMockWin32() => new();
+    private IWin32InputInterop CreateMockWin32() => A.Fake<IWin32InputInterop>();
 
-    private Mock<IClipboardService> CreateMockClipboardService() => new();
+    private IClipboardService CreateMockClipboardService() => A.Fake<IClipboardService>();
 
-    private Mock<IMacroExecutionService> CreateMockMacroExecutionService() => new();
+    private IMacroExecutionService CreateMockMacroExecutionService() => A.Fake<IMacroExecutionService>();
 
-    private Mock<ITemplateService> CreateMockTemplateService() => new();
+    private ITemplateService CreateMockTemplateService() => A.Fake<ITemplateService>();
 
-    private Mock<IDialogService> CreateMockDialogService() => new();
+    private IDialogService CreateMockDialogService() => A.Fake<IDialogService>();
 
-    private Mock<IConfigurationService> CreateMockConfigurationService()
+    private IConfigurationService CreateMockConfigurationService()
     {
-        var mock = new Mock<IConfigurationService>();
-        mock.Setup(p => p.Configuration).Returns(_testConfiguration);
+        var mock = A.Fake<IConfigurationService>();
+        A.CallTo(() => mock.Configuration).Returns(_testConfiguration);
         return mock;
     }
 
-    private Mock<IMessenger> CreateMockMessenger() => new();
+    private IMessenger CreateMockMessenger() => A.Fake<IMessenger>();
 
-    private Mock<ILogger<QuickPasteService>> CreateMockLogger() => new();
+    private ILogger<QuickPasteService> CreateMockLogger() => A.Fake<ILogger<QuickPasteService>>();
 }

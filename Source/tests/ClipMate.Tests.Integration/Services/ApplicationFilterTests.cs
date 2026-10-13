@@ -5,7 +5,7 @@ using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -149,20 +149,20 @@ public class ApplicationFilterTests : IntegrationTestBase
     private IApplicationFilterService CreateApplicationFilterService()
     {
         var repository = new ApplicationFilterRepository(DbContext);
-        var mockContextFactory = new Mock<IDatabaseContextFactory>();
-        mockContextFactory.Setup(p => p.GetApplicationFilterRepository(It.IsAny<string>()))
+        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        A.CallTo(() => mockContextFactory.GetApplicationFilterRepository(A<string>.Ignored))
             .Returns(repository);
 
-        var mockCollectionService = new Mock<ICollectionService>();
-        mockCollectionService.Setup(p => p.GetActiveDatabaseKey()).Returns("test-db");
-        var logger = Mock.Of<ILogger<ApplicationFilterService>>();
-        var soundService = new Mock<ISoundService>();
-        soundService.Setup(p => p.PlaySoundAsync(It.IsAny<SoundEvent>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var mockCollectionService = A.Fake<ICollectionService>();
+        A.CallTo(() => mockCollectionService.GetActiveDatabaseKey()).Returns("test-db");
+        var logger = A.Fake<ILogger<ApplicationFilterService>>();
+        var soundService = A.Fake<ISoundService>();
+        A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         return new ApplicationFilterService(
-            mockContextFactory.Object,
-            mockCollectionService.Object,
-            soundService.Object,
+            mockContextFactory,
+            mockCollectionService,
+            soundService,
             logger);
     }
 }

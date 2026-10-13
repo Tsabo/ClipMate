@@ -2,7 +2,7 @@ using System.Net;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
-using Moq;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -143,9 +143,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupGitHubReleasesResponse("1.0.0");
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("2.0.0");
 
@@ -158,9 +158,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupGitHubReleasesResponse("2.0.0");
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0");
 
@@ -174,9 +174,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupGitHubReleasesResponseWithPrerelease("2.0.0");
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0");
 
@@ -189,9 +189,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupGitHubReleasesResponseWithPrerelease("2.0.0");
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0", true);
 
@@ -206,9 +206,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupHttpError();
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0");
 
@@ -221,9 +221,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupInvalidJson();
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0");
 
@@ -236,9 +236,9 @@ public class UpdateCheckServiceTests
         var mockHttp = new MockHttpMessageHandler();
         mockHttp.SetupMultipleReleases(["2.0.0", "1.5.0", "1.0.0"]);
 
-        var mockLogger = new Mock<ILogger<UpdateCheckService>>();
+        var mockLogger = A.Fake<ILogger<UpdateCheckService>>();
 
-        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger.Object);
+        var service = new UpdateCheckService(new HttpClient(mockHttp), mockLogger);
 
         var result = await service.CheckForUpdatesAsync("1.0.0");
 
