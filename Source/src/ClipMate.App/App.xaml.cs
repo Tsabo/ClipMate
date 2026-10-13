@@ -5,6 +5,7 @@ using ClipMate.App.Logging;
 using ClipMate.App.Services;
 using ClipMate.App.Views;
 using ClipMate.Core.DependencyInjection;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
@@ -368,12 +369,9 @@ public partial class App
 
         var configPath = Path.Join(appDataPath, "clipmate.toml");
         var tomlContent = File.ReadAllText(configPath);
-        var configuration = Toml.ToModel<ClipMateConfiguration>(tomlContent, options: new TomlModelOptions
-        {
-            IgnoreMissingProperties = true,
-        });
+        var configuration = TomlSerializer.Deserialize<ClipMateConfiguration>(tomlContent, TomlSerialization.Options);
 
-        return configuration;
+        return configuration ?? new ClipMateConfiguration();
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
-using ThrottleDebounce;
+using ThrottleDebounce.Retry;
 using Application = System.Windows.Application;
 using DataFormats = System.Windows.DataFormats;
 // Aliases to resolve WPF vs WinForms ambiguity
@@ -259,15 +259,18 @@ public class ClipboardService : IClipboardService, IDisposable
                     if (attempt > 0)
                         _logger.LogInformation("Clipboard operation succeeded after {Attempt} retries", attempt);
                 },
-                4, // 1 initial attempt + 3 retries
-                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
-                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
-                async () =>
+                new AsyncRetryOptions
                 {
-                    _logger.LogWarning("Clipboard locked, retrying...");
-                    await Task.CompletedTask;
-                },
-                cancellationToken);
+                    MaxAttempts = 4, // 1 initial attempt + 3 retries
+                    Delay = retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                    IsRetryAllowed = (ex, _) => Task.FromResult(ex is COMException { HResult: unchecked((int)0x800401D0) }), // CLIPBRD_E_CANT_OPEN
+                    BeforeRetry = (_, _) =>
+                    {
+                        _logger.LogWarning("Clipboard locked, retrying...");
+                        return Task.CompletedTask;
+                    },
+                    CancellationToken = cancellationToken,
+                });
         }
         catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
         {
@@ -747,10 +750,13 @@ public class ClipboardService : IClipboardService, IDisposable
 
                     return clip;
                 },
-                4, // 1 initial attempt + 3 retries
-                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
-                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
-                () => _logger.LogWarning("Clipboard locked during image extraction, retrying..."));
+                new RetryOptions
+                {
+                    MaxAttempts = 4, // 1 initial attempt + 3 retries
+                    Delay = retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                    IsRetryAllowed = (ex, _) => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
+                    BeforeRetry = (_, _) => _logger.LogWarning("Clipboard locked during image extraction, retrying..."),
+                });
         }
         catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
         {
@@ -829,9 +835,9 @@ public class ClipboardService : IClipboardService, IDisposable
                         Type = autoExpand
                             ? ClipType.Text
                             : ClipType.Files,
-                        FilePathsJson = autoExpand
-                            ? null
-                            : filePathsJson,
+                        // Keep FilePathsJson even when auto-expanded so the original HDROP data can still be
+                        // restored to the clipboard on paste, alongside the plain-text representation.
+                        FilePathsJson = filePathsJson,
                         TextContent = text, // For search, and as the primary content when auto-expanded
                         CapturedAt = DateTimeOffset.Now,
                         // Generate content hash from file paths
@@ -851,10 +857,13 @@ public class ClipboardService : IClipboardService, IDisposable
 
                     return clip;
                 },
-                4, // 1 initial attempt + 3 retries
-                retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
-                ex => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
-                () => _logger.LogWarning("Clipboard locked during file extraction, retrying..."));
+                new RetryOptions
+                {
+                    MaxAttempts = 4, // 1 initial attempt + 3 retries
+                    Delay = retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
+                    IsRetryAllowed = (ex, _) => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
+                    BeforeRetry = (_, _) => _logger.LogWarning("Clipboard locked during file extraction, retrying..."),
+                });
         }
         catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
         {
@@ -1096,6 +1105,19 @@ public class ClipboardService : IClipboardService, IDisposable
             // Set HTML if available
             if (!string.IsNullOrEmpty(htmlContent))
                 dataObject.SetData(DataFormats.Html, htmlContent);
+
+            // Auto-expanded HDROP clips still carry their file paths - restore the file-drop format
+            // too so pasting into Explorer works, in addition to pasting the readable text elsewhere.
+            if (!string.IsNullOrEmpty(clip.FilePathsJson))
+            {
+                var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
+                if (filePaths is { Count: > 0 })
+                {
+                    var fileDropList = new StringCollection();
+                    fileDropList.AddRange(filePaths.ToArray());
+                    dataObject.SetFileDropList(fileDropList);
+                }
+            }
 
             WpfClipboard.SetDataObject(dataObject, true);
         }

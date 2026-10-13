@@ -398,16 +398,14 @@ public class ClipService : IClipService
                 }
             }
 
-            // For files, load file paths from binary blobs
-            if (clip.Type == ClipType.Files)
-            {
-                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
-                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
-                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
+            // Load file paths from binary blobs whenever an HDROP entry exists, even for Text-type clips
+            // that were auto-expanded from HDROP - they still need the file drop restored on paste.
+            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+            var filePathBlob = binaryBlobs.FirstOrDefault(b =>
+                clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
 
-                if (filePathBlob != null)
-                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
-            }
+            if (filePathBlob != null)
+                clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
 
             // Apply template transformation if active
             var transformedClip = _templateService.TryApplyTemplate(clip);
@@ -484,16 +482,14 @@ public class ClipService : IClipService
                 }
             }
 
-            // For files, load file paths from binary blobs
-            if (clip.Type == ClipType.Files)
-            {
-                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
-                var filePathBlob = binaryBlobs.FirstOrDefault(b =>
-                    clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
+            // Load file paths from binary blobs whenever an HDROP entry exists, even for Text-type clips
+            // that were auto-expanded from HDROP - they still need the file drop restored on paste.
+            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+            var filePathBlob = binaryBlobs.FirstOrDefault(b =>
+                clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
 
-                if (filePathBlob != null)
-                    clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
-            }
+            if (filePathBlob != null)
+                clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
 
             _logger.LogDebug("Loaded blob data for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
         }

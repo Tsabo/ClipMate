@@ -39,10 +39,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
             }
 
             var tomlContent = await File.ReadAllTextAsync(_filePath, cancellationToken);
-            var tomlModel = Toml.ToModel(tomlContent, options: new TomlModelOptions
-            {
-                IgnoreMissingProperties = true,
-            });
+            var tomlModel = TomlSerializer.Deserialize<TomlTable>(tomlContent) ?? [];
 
             var profiles = new Dictionary<string, ApplicationProfile>();
 
@@ -110,7 +107,7 @@ public class ApplicationProfileStore : IApplicationProfileStore
             tomlModel["profiles"] = profilesTable;
 
             // Serialize to TOML
-            var tomlContent = Toml.FromModel(tomlModel);
+            var tomlContent = TomlSerializer.Serialize(tomlModel);
             await File.WriteAllTextAsync(_filePath, tomlContent, cancellationToken);
 
             _logger.LogInformation("Saved {Count} application profiles to {FilePath}", profiles.Count, _filePath);

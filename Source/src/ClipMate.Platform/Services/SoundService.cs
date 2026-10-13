@@ -55,7 +55,7 @@ public class SoundService : ISoundService
                 try
                 {
                     using var audioFile = new AudioFileReader(soundFilePath);
-                    using var outputDevice = new WaveOutEvent();
+                    using var outputDevice = new WaveOut();
                     outputDevice.Init(audioFile);
                     outputDevice.Play();
 
