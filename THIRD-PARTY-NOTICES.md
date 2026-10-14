@@ -9,6 +9,7 @@ ClipMate includes or makes use of certain third-party software components. The f
 - [Vendored Libraries](#vendored-libraries)
 - [NuGet Package Dependencies](#nuget-package-dependencies)
   - [UI Frameworks](#ui-frameworks)
+  - [Markdown & HTML Processing](#markdown--html-processing)
   - [Data & Configuration](#data--configuration)
   - [Logging](#logging)
   - [Build Tools](#build-tools)
@@ -144,7 +145,7 @@ limitations under the License.
 
 ---
 
-#### DevExpress WPF (v25.2.3)
+#### DevExpress WPF (v25.2.10)
 
 **License**: Commercial (Developer Express Inc.)  
 **Website**: https://www.devexpress.com/  
@@ -221,7 +222,7 @@ SOFTWARE.
 
 ---
 
-#### ThrottleDebounce (v2.0.2)
+#### ThrottleDebounce (v3.0.0)
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/Aldaviva/ThrottleDebounce  
@@ -232,9 +233,44 @@ SOFTWARE.
 
 ---
 
+### Markdown & HTML Processing
+
+#### ReverseMarkdown (v6.2.1)
+
+**License**: MIT  
+**Source**: https://github.com/mysticmind/reversemarkdown-net  
+**Copyright**: Babu Annamalai  
+**Used for**: Converting HTML and RTF clips to Markdown (GitHub, Slack, Telegram and other flavors) in the ClipViewer Markdown tab
+
+**License**: https://licenses.nuget.org/MIT
+
+---
+
+#### AngleSharp (v1.5.2)
+
+**License**: MIT  
+**Source**: https://github.com/AngleSharp/AngleSharp  
+**Copyright**: Copyright 2013-2026, AngleSharp  
+**Used for**: HTML parsing (dependency of ReverseMarkdown; also used directly to rewrite tables for Slack-flavored Markdown)
+
+**License**: https://github.com/AngleSharp/AngleSharp/blob/devel/LICENSE
+
+---
+
+#### Markdig (v1.4.0)
+
+**License**: BSD 2-Clause License  
+**Source**: https://github.com/xoofx/markdig  
+**Copyright**: Alexandre Mutel  
+**Used for**: Rendering the Markdown preview in the ClipViewer Markdown tab
+
+**License**: https://github.com/xoofx/markdig/blob/master/license.txt
+
+---
+
 ### Data & Configuration
 
-#### Tomlyn.Signed (v0.20.0)
+#### Tomlyn.Signed (v2.10.1)
 
 **License**: BSD 2-Clause License  
 **Source**: https://github.com/xoofx/Tomlyn  
@@ -273,7 +309,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-#### Dapper (v2.1.79)
+#### Dapper (v2.1.89)
 
 **License**: Apache License 2.0  
 **Source**: https://github.com/DapperLib/Dapper  
@@ -297,7 +333,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-#### NAudio (v2.3.0)
+#### NAudio (v3.1.0)
 
 **License**: MIT  
 **Source**: https://github.com/naudio/NAudio  
@@ -367,7 +403,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ### Testing
 
-#### TUnit (v1.65.0)
+#### TUnit (v1.75.0)
 
 **License**: MIT  
 **Source**: https://github.com/thomhurst/TUnit  
@@ -378,46 +414,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-#### Moq (v4.20.72)
+#### FakeItEasy (v9.0.1)
 
-**License**: BSD 3-Clause License  
-**Source**: https://github.com/devlooped/moq  
-**Copyright**: 2007-2024 Daniel Cazzulino  
+**License**: MIT  
+**Source**: https://github.com/FakeItEasy/FakeItEasy  
+**Copyright**: Copyright (c) FakeItEasy contributors  
 **Used for**: Mocking framework for unit tests
 
-**License**:
-```
-BSD 3-Clause License
-
-Copyright (c) 2007, Clarius Consulting, Manas Technology Solutions, InSTEDD,
-and Contributors. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the names of the copyright holders nor the names of its
-   contributors may be used to endorse or promote products derived from this
-   software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-THE POSSIBILITY OF SUCH DAMAGE.
-```
+**License**: https://github.com/FakeItEasy/FakeItEasy/blob/master/License.txt
 
 ---
 
@@ -436,11 +440,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 The following Microsoft libraries are used under the MIT License:
 
-- **Microsoft.EntityFrameworkCore.Sqlite** (v10.0.11) - Entity Framework Core SQLite provider
-- **Microsoft.Data.Sqlite** (v10.0.11) - SQLite ADO.NET provider
-- **Microsoft.Extensions.*** (v10.0.11) - Dependency injection, logging, hosting abstractions
-- **Microsoft.Windows.CsWin32** (v0.3.298) - Windows API source generator
-- **System.Security.Cryptography.Xml** (v10.0.11) - Pinned as a security override to avoid known high severity vulnerabilities in 8.0.2 (GHSA-37gx-xxp4-5rgx, GHSA-w3x6-4m5h-cxqf)
+- **Microsoft.EntityFrameworkCore.Sqlite** (v10.0.13) - Entity Framework Core SQLite provider
+- **Microsoft.Data.Sqlite** (v10.0.13) - SQLite ADO.NET provider
+- **Microsoft.Extensions.*** (v10.0.13) - Dependency injection, logging, hosting abstractions
+- **Microsoft.Windows.CsWin32** (v0.3.360) - Windows API source generator
+- **System.Security.Cryptography.Xml** (v10.0.13) - Pinned as a security override to avoid known high severity vulnerabilities in 8.0.2 (GHSA-37gx-xxp4-5rgx, GHSA-w3x6-4m5h-cxqf)
 
 **Copyright**: Microsoft Corporation  
 **License**: https://opensource.org/licenses/MIT
@@ -478,6 +482,9 @@ The use of DevExpress components is clearly separated in the codebase and can be
 | Monaco Editor | MIT | ✅ Yes | ✅ Yes |
 | HtmlRenderer.WPF | BSD-3-Clause | ✅ Yes | ✅ Yes |
 | ThrottleDebounce | Apache 2.0 | ✅ Yes | ✅ Yes |
+| ReverseMarkdown | MIT | ✅ Yes | ✅ Yes |
+| AngleSharp | MIT | ✅ Yes | ✅ Yes |
+| Markdig | BSD-2-Clause | ✅ Yes | ✅ Yes |
 | Tomlyn.Signed | BSD-2-Clause | ✅ Yes | ✅ Yes |
 | Dapper | Apache 2.0 | ✅ Yes | ✅ Yes |
 | Serilog | Apache 2.0 | ✅ Yes | ✅ Yes |
@@ -487,11 +494,11 @@ The use of DevExpress components is clearly separated in the codebase and can be
 | fonttools | MIT | ✅ Yes | ✅ Yes |
 | Ninja | Apache 2.0 | ✅ Yes | ✅ Yes |
 | TUnit | MIT | ✅ Yes | ✅ Yes |
-| Moq | BSD-3-Clause | ✅ Yes | ✅ Yes |
+| FakeItEasy | MIT | ✅ Yes | ✅ Yes |
 | Microsoft Libraries | MIT | ✅ Yes | ✅ Yes |
 
 ---
 
-**Last Updated**: August 22, 2026
+**Last Updated**: October 13, 2026
 
 For the most up-to-date license information, please refer to the individual package repositories and official license files.

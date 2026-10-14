@@ -80,6 +80,18 @@ public static partial class RegexPatterns
     public static partial Regex StartHtml();
 
     /// <summary>
+    /// Extracts EndFragment offset from HTML clipboard format header.
+    /// </summary>
+    [GeneratedRegex(@"EndFragment:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    public static partial Regex EndFragment();
+
+    /// <summary>
+    /// Extracts StartFragment offset from HTML clipboard format header.
+    /// </summary>
+    [GeneratedRegex(@"StartFragment:(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    public static partial Regex StartFragment();
+
+    /// <summary>
     /// Strips HTML tags from text.
     /// Used for converting HTML to plain text.
     /// </summary>

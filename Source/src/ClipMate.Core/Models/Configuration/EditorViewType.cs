@@ -38,5 +38,10 @@ public enum EditorViewType
     /// <summary>
     /// Binary/hex view.
     /// </summary>
-    Binary
+    Binary,
+
+    /// <summary>
+    /// Markdown view (converted from HTML or RTF).
+    /// </summary>
+    Markdown,
 }

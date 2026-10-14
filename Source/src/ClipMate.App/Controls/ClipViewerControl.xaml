@@ -131,6 +131,25 @@
             </Grid>
         </dx:DXTabItem>
 
+        <!-- Markdown Tab (converted from HTML or RTF) -->
+        <dx:DXTabItem x:Name="MarkdownTab" Header="📝 Markdown">
+            <dx:DXTabItem.HeaderTemplate>
+                <DataTemplate>
+                    <emoji:TextBlock Text="{Binding}" HorizontalAlignment="Center" />
+                </DataTemplate>
+            </dx:DXTabItem.HeaderTemplate>
+            <Grid>
+                <controls:MarkdownViewerControl x:Name="MarkdownViewer" />
+                <TextBlock x:Name="NoMarkdownMessage"
+                           Text="No HTML or RTF format available to convert"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           Foreground="Gray"
+                           Visibility="Collapsed" />
+            </Grid>
+        </dx:DXTabItem>
+
         <!-- Bitmap Tab (CF_BITMAP, CF_DIB) -->
         <dx:DXTabItem x:Name="BitmapTab" Header="🖼 Bitmap">
             <dx:DXTabItem.HeaderTemplate>

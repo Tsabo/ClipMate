@@ -16,6 +16,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="ReverseMarkdown" />
     <PackageReference Include="Tomlyn.Signed" />
   </ItemGroup>
 

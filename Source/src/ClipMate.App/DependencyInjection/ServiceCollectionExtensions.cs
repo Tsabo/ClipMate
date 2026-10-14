@@ -68,10 +68,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SearchViewModel>();
         services.AddSingleton<QuickPasteToolbarViewModel>();
         services.AddTransient<ClipViewerToolbarViewModel>();
+        services.AddTransient<MarkdownViewerViewModel>();
         services.AddTransient<ClipPropertiesViewModel>();
         services.AddTransient<RenameClipDialogViewModel>();
         services.AddTransient<ClipViewerViewModel>();
         services.AddTransient<EncryptionKeyDialogViewModel>();
+
+        // Register RTF to HTML converter (used by the Markdown viewer tab)
+        services.AddSingleton<IRtfToHtmlConverter, DevExpressRtfToHtmlConverter>();
 
         // Register Clip Viewer factory and manager
         services.AddSingleton<Func<ClipViewerViewModel>>(p => p.GetRequiredService<ClipViewerViewModel>);

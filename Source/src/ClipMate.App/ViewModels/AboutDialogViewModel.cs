@@ -249,6 +249,55 @@ public partial class AboutDialogViewModel : ObservableObject
             Url = "https://developer.microsoft.com/en-us/microsoft-edge/webview2/",
         });
 
+        Credits.Add(new CreditItem
+        {
+            Name = "HtmlRenderer.WPF",
+            Description = "Rendering HTML content in WPF controls",
+            License = "BSD-3-Clause",
+            Url = "https://github.com/ArthurHub/HTML-Renderer",
+        });
+
+        Credits.Add(new CreditItem
+        {
+            Name = "LinkingMountains.ImageZoom",
+            Description = "Image zoom and pan functionality",
+            License = "MIT",
+            Url = "https://github.com/LinkingMountains/ImageZoom",
+        });
+
+        Credits.Add(new CreditItem
+        {
+            Name = "ThrottleDebounce",
+            Description = "Debouncing auto-save operations in text editors",
+            License = "Apache 2.0",
+            Url = "https://github.com/Aldaviva/ThrottleDebounce",
+        });
+
+        // Markdown & HTML Processing
+        Credits.Add(new CreditItem
+        {
+            Name = "ReverseMarkdown",
+            Description = "Converting HTML and RTF clips to Markdown",
+            License = "MIT",
+            Url = "https://github.com/mysticmind/reversemarkdown-net",
+        });
+
+        Credits.Add(new CreditItem
+        {
+            Name = "AngleSharp",
+            Description = "HTML parsing for Markdown conversion",
+            License = "MIT",
+            Url = "https://github.com/AngleSharp/AngleSharp",
+        });
+
+        Credits.Add(new CreditItem
+        {
+            Name = "Markdig",
+            Description = "Rendering the Markdown preview",
+            License = "BSD-2-Clause",
+            Url = "https://github.com/xoofx/markdig",
+        });
+
         // Data & Configuration
         Credits.Add(new CreditItem
         {

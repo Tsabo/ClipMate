@@ -28,7 +28,7 @@ using MessageBox = System.Windows.MessageBox;
 namespace ClipMate.App.Controls;
 
 /// <summary>
-/// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Bitmap, Picture, and Binary formats.
+/// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Markdown, Bitmap, Picture, and Binary formats.
 /// Listens to ClipSelectedEvent, PreferencesChangedEvent, and ClipCacheExpiredMessage via MVVM Toolkit Messenger.
 /// </summary>
 public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>, IRecipient<ClipCacheExpiredMessage>
@@ -286,6 +286,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private Dictionary<Guid, BlobBlob> _binaryBlobs = [];
     private readonly Dictionary<string, byte[]> _binaryFormats = [];
 
+    // Raw HTML/RTF of the current clip, used as the source for the Markdown tab
+    private string? _currentRawHtml;
+    private string? _currentRawRtf;
+
     // Track which ClipData entries are being edited
     private Guid? _textFormatClipDataId;
 
@@ -439,6 +443,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             await LoadRtfFormatAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded RTF format");
+            LoadMarkdownFormat();
+            _logger.LogDebug("[ClipViewer] Loaded Markdown format");
             await LoadBitmapFormatsAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             _logger.LogDebug("[ClipViewer] Loaded bitmap formats");
@@ -588,6 +594,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             {
                 _logger.LogDebug("[ClipViewer] Starting HTML format load");
 
+                _currentRawHtml = blobData.Data;
+
                 // Make tab visible so content can be displayed
                 HtmlTab.Visibility = Visibility.Visible;
                 NoHtmlMessage.Visibility = Visibility.Collapsed;
@@ -602,15 +610,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 // Parse CF_HTML format to extract actual HTML content
                 var htmlContent = config.Preferences.HtmlUseAllHtmlInClip
                     ? blobData.Data
-                    : ParseCfHtmlFormat(blobData.Data);
+                    : CfHtmlParser.ParseCfHtmlFormat(blobData.Data);
 
                 // Extract source URL from HTML content (if present)
-                var sourceUrl = ExtractSourceUrl(htmlContent);
+                var sourceUrl = CfHtmlParser.ExtractSourceUrl(htmlContent);
                 HtmlSourceUrlEdit.EditValue = sourceUrl ?? "(No source URL found)";
 
                 // Strip scripts if DeleteScripts option is enabled
                 if (config.Preferences.HtmlDeleteScripts)
-                    htmlContent = StripScripts(htmlContent);
+                    htmlContent = CfHtmlParser.StripScripts(htmlContent);
 
                 // Display HTML content using HtmlRenderer.WPF (handles DPI automatically)
                 _logger.LogDebug("[ClipViewer] Rendering HTML content with HtmlRenderer.WPF");
@@ -638,107 +646,6 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         HtmlTab.Visibility = Visibility.Collapsed;
         _logger.LogDebug("[ClipViewer] No HTML format available");
         return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Parses CF_HTML clipboard format to extract actual HTML content.
-    /// CF_HTML format includes metadata headers like "Version:0.9 StartHTML:..." that need to be stripped.
-    /// Uses StartHTML/EndHTML offsets to preserve full document structure like ClipMate 7.5.
-    /// </summary>
-    private static string ParseCfHtmlFormat(string cfHtml)
-    {
-        if (string.IsNullOrWhiteSpace(cfHtml))
-            return string.Empty;
-
-        // Check if this is CF_HTML format (has Version: header)
-        if (!cfHtml.StartsWith("Version:", StringComparison.OrdinalIgnoreCase))
-            return cfHtml; // Already plain HTML
-
-        try
-        {
-            // Parse the StartHTML and EndHTML offsets to get the full HTML document
-            // (This preserves <html> and <body> tags with their styles, like ClipMate 7.5)
-            var startHtmlMatch = RegexPatterns.StartHtml().Match(cfHtml);
-            var endHtmlMatch = RegexPatterns.EndHtml().Match(cfHtml);
-
-            if (startHtmlMatch.Success && endHtmlMatch.Success)
-            {
-                var startHtml = int.Parse(startHtmlMatch.Groups[1].ValueSpan, null);
-                var endHtml = int.Parse(endHtmlMatch.Groups[1].ValueSpan, null);
-
-                // Extract the full HTML document between StartHTML and EndHTML
-                if (startHtml >= 0 && endHtml > startHtml && endHtml <= cfHtml.Length)
-                    return cfHtml.AsSpan(startHtml, endHtml - startHtml).Trim().ToString();
-            }
-
-            // Fallback: Find first line starting with '<' using span
-            var htmlSpan = cfHtml.AsSpan();
-            var lineStart = 0;
-
-            while (lineStart < htmlSpan.Length)
-            {
-                // Find end of current line
-                var lineEnd = htmlSpan[lineStart..].IndexOfAny('\r', '\n');
-                if (lineEnd == -1)
-                    lineEnd = htmlSpan.Length - lineStart;
-
-                var line = htmlSpan.Slice(lineStart, lineEnd).TrimStart();
-                if (line.Length > 0 && line[0] == '<')
-                {
-                    // Found HTML start - return from here to end
-                    return htmlSpan[lineStart..].Trim().ToString();
-                }
-
-                // Move to next line
-                lineStart += lineEnd;
-                while (lineStart < htmlSpan.Length && (htmlSpan[lineStart] == '\r' || htmlSpan[lineStart] == '\n'))
-                    lineStart++;
-            }
-
-            return cfHtml; // Return as-is if parsing fails
-        }
-        catch (Exception)
-        {
-            // If parsing fails, return the original content
-            return cfHtml;
-        }
-    }
-
-    /// <summary>
-    /// Strips script tags and inline event handlers from HTML content for security.
-    /// </summary>
-    private static string StripScripts(string htmlContent)
-    {
-        if (string.IsNullOrWhiteSpace(htmlContent))
-            return string.Empty;
-
-        // Remove <script> tags and their content
-        htmlContent = RegexPatterns.ScriptTag().Replace(htmlContent, "");
-
-        // Remove inline event handlers (onclick, onload, onerror, etc.)
-        htmlContent = RegexPatterns.InlineEventHandlerQuoted().Replace(htmlContent, "");
-        htmlContent = RegexPatterns.InlineEventHandlerUnquoted().Replace(htmlContent, "");
-
-        // Remove javascript: URLs
-        htmlContent = RegexPatterns.JavascriptUrl().Replace(htmlContent, "#");
-
-        return htmlContent;
-    }
-
-    /// <summary>
-    /// Extracts the source URL from HTML content.
-    /// Looks for <!--SourceURL: http://example.com--> comment pattern.
-    /// </summary>
-    private static string? ExtractSourceUrl(string htmlContent)
-    {
-        if (string.IsNullOrWhiteSpace(htmlContent))
-            return null;
-
-        var match = RegexPatterns.SourceUrl().Match(htmlContent);
-
-        return match.Success
-            ? match.Groups[1].Value.Trim()
-            : null;
     }
 
     /// <summary>
@@ -829,6 +736,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 return Task.CompletedTask;
             }
 
+            _currentRawRtf = blobData.Data;
+
             try
             {
                 // Load RTF content into DevExpress RichEditControl
@@ -851,6 +760,21 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         NoRtfMessage.Visibility = Visibility.Visible;
         RtfTab.Visibility = Visibility.Collapsed;
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Shows the Markdown tab when the clip has HTML or RTF content. Must run after the HTML and RTF loaders,
+    /// which capture the raw content. Conversion itself is deferred until the tab is displayed.
+    /// </summary>
+    private void LoadMarkdownFormat()
+    {
+        MarkdownViewer.ViewModel.SetSource(_currentRawHtml, _currentRawRtf, _currentDatabaseKey,
+            _currentClip?.CollectionId ?? Guid.Empty, _currentClip?.Title);
+
+        var hasSource = MarkdownViewer.ViewModel.HasSource;
+        MarkdownViewer.Visibility = hasSource ? Visibility.Visible : Visibility.Collapsed;
+        NoMarkdownMessage.Visibility = hasSource ? Visibility.Collapsed : Visibility.Visible;
+        MarkdownTab.Visibility = hasSource ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ReSharper disable once UnusedParameter.Local
@@ -1299,6 +1223,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         TextEditor.Text = string.Empty;
         // Don't reset HtmlPreview here - it will be initialized when HTML tab loads
         RtfViewer.CreateNewDocument();
+        _currentRawHtml = null;
+        _currentRawRtf = null;
+        MarkdownViewer.ViewModel.Clear();
         BitmapViewer.Source = null;
         PictureViewer.Source = null;
         HexViewer.Stream = null!;
@@ -1311,9 +1238,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         TextTab.Visibility = Visibility.Collapsed;
         HtmlTab.Visibility = Visibility.Collapsed;
         RtfTab.Visibility = Visibility.Collapsed;
+        MarkdownTab.Visibility = Visibility.Collapsed;
         BitmapTab.Visibility = Visibility.Collapsed;
         PictureTab.Visibility = Visibility.Collapsed;
         BinaryTab.Visibility = Visibility.Collapsed;
+        MarkdownViewer.ViewModel.Clear();
     }
 
     private Task ShowEncryptedPlaceholderAsync()
@@ -1358,6 +1287,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 if (RtfTab.Visibility == Visibility.Visible)
                 {
                     FormatTabControl.SelectedItem = RtfTab;
+                    return;
+                }
+
+                break;
+            case EditorViewType.Markdown:
+                if (MarkdownTab.Visibility == Visibility.Visible)
+                {
+                    FormatTabControl.SelectedItem = MarkdownTab;
                     return;
                 }
 
@@ -1415,8 +1352,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        // Push updated Monaco options (e.g. theme) to the already-open editor
+        // Push updated Monaco options (e.g. theme) to the already-open editors
         _ = TextEditor.UpdateOptionsAsync();
+        _ = MarkdownViewer.ApplyEditorSettingsAsync();
 
         _logger.LogDebug("[ClipViewer] Applied editor settings - BinaryTab visible: {BinaryVisible}",
             preferences.EnableBinaryView);

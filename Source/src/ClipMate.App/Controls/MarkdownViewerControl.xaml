@@ -1,0 +1,103 @@
+<UserControl x:Class="ClipMate.App.Controls.MarkdownViewerControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dxb="http://schemas.devexpress.com/winfx/2008/xaml/bars"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:controls="clr-namespace:ClipMate.App.Controls"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
+             xmlns:local="clr-namespace:ClipMate.App"
+             xmlns:htmlRenderer="clr-namespace:TheArtOfDev.HtmlRenderer.WPF;assembly=HtmlRenderer.WPF"
+             d:DataContext="{d:DesignInstance Type=vm:MarkdownViewerViewModel}"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="700">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <dxb:ToolBarControl Grid.Row="0"
+                            AllowQuickCustomization="False"
+                            AllowCustomizationMenu="False"
+                            UseWholeRow="True"
+                            AllowCollapse="False">
+
+            <!-- Flavor Selector -->
+            <dxb:BarStaticItem Content="Flavor:" />
+            <dxb:BarEditItem EditWidth="110"
+                             EditValue="{Binding SelectedFlavor, Mode=TwoWay}"
+                             ToolTip="Markdown dialect to generate">
+                <dxb:BarEditItem.EditSettings>
+                    <dxe:ComboBoxEditSettings ItemsSource="{Binding AvailableFlavors}"
+                                              IsTextEditable="False" />
+                </dxb:BarEditItem.EditSettings>
+            </dxb:BarEditItem>
+
+            <!-- Source Selector (only when the clip has both HTML and RTF) -->
+            <dxb:BarStaticItem Content="Source:"
+                               IsVisible="{Binding HasMultipleSources}" />
+            <dxb:BarEditItem EditWidth="70"
+                             EditValue="{Binding SelectedSource, Mode=TwoWay}"
+                             IsVisible="{Binding HasMultipleSources}"
+                             ToolTip="Clip format to convert from">
+                <dxb:BarEditItem.EditSettings>
+                    <dxe:ComboBoxEditSettings ItemsSource="{Binding AvailableSources}"
+                                              IsTextEditable="False" />
+                </dxb:BarEditItem.EditSettings>
+            </dxb:BarEditItem>
+
+            <!-- Conversion Options -->
+            <dxb:BarSubItem Content="Options"
+                            Glyph="{helpers:EmojiIconSource Emoji='⚙️'}">
+                <dxb:BarCheckItem Content="Remove HTML Comments"
+                                  IsChecked="{Binding RemoveComments, Mode=TwoWay}"
+                                  ToolTip="Drop &lt;!-- comments --&gt; from the output" />
+                <dxb:BarCheckItem Content="Smart Links"
+                                  IsChecked="{Binding SmartHref, Mode=TwoWay}"
+                                  ToolTip="Emit links whose text matches the URL as bare URLs" />
+            </dxb:BarSubItem>
+
+            <dxb:BarItemSeparator />
+
+            <!-- View Group -->
+            <dxb:BarCheckItem Content="Preview"
+                              IsChecked="{Binding IsPreviewMode, Mode=TwoWay}"
+                              Glyph="{helpers:EmojiIconSource Emoji='👁️'}"
+                              ToolTip="Show rendered Markdown preview (GitHub-style rendering; approximate for Slack and Telegram flavors)" />
+
+            <dxb:BarCheckItem IsChecked="{Binding IsWordWrapEnabled, Mode=TwoWay}"
+                              Glyph="{helpers:EmojiIconSource Emoji='↔️'}"
+                              ToolTip="Toggle Word Wrap" />
+
+            <dxb:BarItemSeparator />
+
+            <!-- Output Group -->
+            <dxb:BarButtonItem Content="Copy"
+                               Glyph="{helpers:CustomFontIconSource Glyph={x:Static local:Icons.Copy}}"
+                               Command="{Binding CopyCommand}"
+                               ToolTip="Copy selected Markdown (or all Markdown when nothing is selected) to the clipboard" />
+
+            <dxb:BarButtonItem Content="Save as New Clip"
+                               Glyph="{helpers:EmojiIconSource Emoji='💾'}"
+                               Command="{Binding SaveAsNewClipCommand}"
+                               ToolTip="Save the Markdown as a new text clip in the current collection" />
+        </dxb:ToolBarControl>
+
+        <controls:MonacoEditorControl x:Name="MarkdownEditor"
+                                      Grid.Row="1"
+                                      Language="markdown"
+                                      IsReadOnly="True"
+                                      Text="{Binding MarkdownText, Mode=OneWay}"
+                                      Visibility="{Binding IsPreviewMode, Converter={StaticResource InvertedBooleanToVisibilityConverter}}" />
+
+        <htmlRenderer:HtmlPanel x:Name="MarkdownPreview"
+                                Grid.Row="1"
+                                Background="White"
+                                IsSelectionEnabled="True"
+                                Text="{Binding PreviewHtml}"
+                                Visibility="{Binding IsPreviewMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+    </Grid>
+</UserControl>

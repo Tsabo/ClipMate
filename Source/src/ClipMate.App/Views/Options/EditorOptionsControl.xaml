@@ -157,6 +157,7 @@
                     <dxe:ComboBoxEditItem Content="Bitmap" Tag="{x:Static models:EditorViewType.Bitmap}" />
                     <dxe:ComboBoxEditItem Content="Picture" Tag="{x:Static models:EditorViewType.Picture}" />
                     <dxe:ComboBoxEditItem Content="HTML" Tag="{x:Static models:EditorViewType.Html}" />
+                    <dxe:ComboBoxEditItem Content="Markdown" Tag="{x:Static models:EditorViewType.Markdown}" />
                     <dxe:ComboBoxEditItem Content="Binary" Tag="{x:Static models:EditorViewType.Binary}" />
                 </dxe:ComboBoxEdit>
             </dxlc:LayoutItem>

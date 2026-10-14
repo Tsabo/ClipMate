@@ -519,4 +519,24 @@ public class PreferencesConfiguration
     /// Gets or sets whether to delete/strip scripts from HTML content for security.
     /// </summary>
     public bool HtmlDeleteScripts { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the Markdown flavor used by the Markdown viewer tab.
+    /// </summary>
+    public MarkdownFlavor MarkdownFlavor { get; set; } = MarkdownFlavor.GitHub;
+
+    /// <summary>
+    /// Gets or sets whether HTML comments are removed when converting to Markdown.
+    /// </summary>
+    public bool MarkdownRemoveComments { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether links whose text matches the URL are emitted as bare URLs in Markdown.
+    /// </summary>
+    public bool MarkdownSmartHref { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the Markdown viewer shows the rendered preview instead of the source.
+    /// </summary>
+    public bool MarkdownShowPreview { get; set; } = false;
 }

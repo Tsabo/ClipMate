@@ -235,6 +235,11 @@ ItemsSource="{Binding Credits}"
 ShowBorder="True"
 IsReadOnly="True"
 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <dxe:ListBoxEdit.ItemContainerStyle>
+                        <Style TargetType="dxe:ListBoxEditItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </dxe:ListBoxEdit.ItemContainerStyle>
                     <dxe:ListBoxEdit.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:CreditItem}">
                             <Grid Margin="5,8">
@@ -262,6 +267,7 @@ CommandParameter="{Binding Url}" />
 Text="{Binding License}"
 Foreground="Gray"
 FontSize="11"
+Margin="10,0,0,0"
 VerticalAlignment="Center" />
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"

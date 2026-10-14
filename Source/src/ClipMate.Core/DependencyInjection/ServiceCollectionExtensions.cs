@@ -27,6 +27,9 @@ public static class ServiceCollectionExtensions
         // Register text transform service as singleton
         services.AddSingleton<ITextTransformService, TextTransformService>();
 
+        // Register HTML to Markdown conversion service as singleton (stateless)
+        services.AddSingleton<IMarkdownConversionService, MarkdownConversionService>();
+
         // Register application profile services as singletons
         // These use TOML file storage, not EF Core, so they're stateless and thread-safe
         // Profiles are stored in LocalApplicationData (not roaming) as they're machine-specific

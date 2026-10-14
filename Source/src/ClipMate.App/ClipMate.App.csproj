@@ -46,6 +46,7 @@
     <PackageReference Include="DevExpress.Wpf.Themes.All" />
     <PackageReference Include="HtmlRenderer.WPF" />
     <PackageReference Include="LinkingMountains.ImageZoom" />
+    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
