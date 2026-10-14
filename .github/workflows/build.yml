@@ -34,6 +34,12 @@ jobs:
           if not exist "%DEST%" mkdir "%DEST%"
           echo "${{ secrets.DEVEXPRESS_LICENSE }}" > %APPDATA%\DevExpress\DevExpress_License.txt
 
+      - name: Add DevExpress NuGet source
+        shell: bash
+        run: dotnet nuget add source "https://nuget.devexpress.com/${DEVEXPRESS_FEED_AUTH_KEY}/api/v3/index.json" --name "DevExpress Online" --configfile Source/nuget.config
+        env:
+          DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
+
       - name: Generate graph
         uses: Tsabo/nugraph-action@master
         with:
