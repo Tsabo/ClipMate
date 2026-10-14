@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-beta.6] - 2026-10-13
+
 ### Added
 - **Import from ClipMate 7** - A new **Import ClipMate 7...** button on the Database options page brings clips, collections and shortcuts across from an original ClipMate 7.x database. You can import into a new database or merge into an existing one, and running it again skips clips that were already imported. The reader is built in, so nothing extra is needed. Clips encrypted in ClipMate 7 are skipped, and the import says how many.
 - **Markdown Tab in the Clip Viewer** - Clips copied from web pages, Word and other rich-text apps now get a **Markdown** tab showing the content converted to Markdown. Choose a flavor to match where you're pasting it: GitHub, Slack, Telegram, MultiMarkdown, Pandoc or Default. You can switch to a rendered preview, copy the Markdown, or save it as a new clip. When a clip has both HTML and RTF you can pick which one to convert. Your flavor and options are remembered, and Markdown can be set as the default viewer tab in Editor Options.
