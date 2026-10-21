@@ -152,6 +152,21 @@
                     </StackPanel>
                 </dxlc:LayoutItem>
 
+                <dxlc:LayoutItem Label="Shared with Peers:">
+                    <TextBlock Text="{Binding SharedDatabasesText}"
+                               TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SharesNothing}" Value="True">
+                                        <Setter Property="Foreground" Value="Gray" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </dxlc:LayoutItem>
+
             </dxlc:LayoutGroup>
 
             <!-- Discovered Devices Section -->
@@ -237,6 +252,7 @@
                                 <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="100"
                                                 CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
                                 <dxg:GridColumn FieldName="StatusText" Header="Status" Width="180" />
+                                <dxg:GridColumn FieldName="SharedDatabasesText" Header="Shares" Width="*" />
                                 <dxg:GridColumn Header="" Width="150" AllowSorting="False" AllowResizing="False">
                                     <dxg:GridColumn.CellTemplate>
                                         <DataTemplate>

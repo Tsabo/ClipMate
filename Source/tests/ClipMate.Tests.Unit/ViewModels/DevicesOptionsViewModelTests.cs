@@ -14,6 +14,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public partial class DevicesOptionsViewModelTests
 {
     private ClipMateConfiguration _configuration = null!;
+    private IConfigurationService _configurationService = null!;
     private IDeviceDiscoveryService _discovery = null!;
     private DeviceIdentity _identity = null!;
     private IDeviceIdentityService _identityService = null!;
@@ -29,7 +30,8 @@ public partial class DevicesOptionsViewModelTests
     public void Setup()
     {
         _configuration = new ClipMateConfiguration();
-        var configurationService = A.Fake<IConfigurationService>();
+        _configurationService = A.Fake<IConfigurationService>();
+        var configurationService = _configurationService;
         A.CallTo(() => configurationService.Configuration).Returns(_configuration);
 
         _identity = new DeviceIdentity(CreateCertificate());

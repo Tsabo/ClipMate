@@ -32,6 +32,7 @@ While networking is on and this computer is on a Public network, the Devices tab
 |---------|-------------|
 | **Device Name** | The name your other Devices see for this Device. Defaults to the computer name. |
 | **Device ID** | This Device's unique fingerprint, shown in groups of four characters. Use **Copy** or **QR Code** to give it to another Device when adding it manually. |
+| **Shared with Peers** | The Databases your Peers can browse. Shows **Nothing shared yet** until you tick **Share with Peers** in a Database's Properties; until then your Peers see no collections from this Device. |
 
 The Device ID never changes unless the identity file is deleted, in which case the Device gets a new Device ID and has to be paired again.
 
@@ -77,6 +78,8 @@ The **Peers** list shows the Devices you have paired with: the name you gave it 
 - **Online**: the Peer is reachable now.
 - **Offline (last seen ...)**: the Peer could not be reached; shows when it was last reached.
 - **Update required**: the Peer runs an incompatible version of ClipMate. Update ClipMate on both Devices.
+
+The **Shares** column lists the Databases the Peer shares with you (using any name you gave them), **Nothing shared** if it shares none, or **Not known yet** if the Peer has never been reached. A Peer that is online but shares nothing has no collections to show in the collection tree.
 
 While networking is on, ClipMate checks each Peer about every 30 seconds. Peers are saved in `clipmate.toml` and never expire.
 

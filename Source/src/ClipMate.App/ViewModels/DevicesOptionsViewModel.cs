@@ -61,6 +61,12 @@ public partial class DevicesOptionsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasPublicNetworkWarning))]
     private string? _publicNetworkWarning;
 
+    [ObservableProperty]
+    private string _sharedDatabasesText = string.Empty;
+
+    [ObservableProperty]
+    private bool _sharesNothing = true;
+
     private static readonly TimeSpan _networkWarningInterval = TimeSpan.FromSeconds(5);
     private System.Threading.Timer? _networkWarningTimer;
 
@@ -128,6 +134,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
 #pragma warning restore MVVMTK0034
         OnPropertyChanged(nameof(EnableNetworking));
         RefreshNetworkWarning();
+        RefreshSharedDatabases();
 
         _deviceIdTask = null;
         await LoadDeviceIdAsync(false);
@@ -162,6 +169,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _discovery.DiscoveredDevicesChanged += OnListsChanged;
         _peerStore.PeersChanged += OnListsChanged;
         _peerStatus.StatusChanged += OnListsChanged;
+        _configurationService.Saved += OnListsChanged;
         RefreshLists();
 
         // Windows raises no event ClipMate can use when a network's profile changes, so check while the page is open
@@ -176,6 +184,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _discovery.DiscoveredDevicesChanged -= OnListsChanged;
         _peerStore.PeersChanged -= OnListsChanged;
         _peerStatus.StatusChanged -= OnListsChanged;
+        _configurationService.Saved -= OnListsChanged;
         _networkWarningTimer?.Dispose();
         _networkWarningTimer = null;
     }
@@ -202,6 +211,26 @@ public partial class DevicesOptionsViewModel : ObservableObject
     {
         RefreshPeers();
         RefreshDiscoveredDevices();
+        RefreshSharedDatabases();
+    }
+
+    /// <summary>
+    /// Describes which of this Device's Databases its Peers can browse, or how to share one when none are.
+    /// Reads the saved configuration, so changes made on the Databases page show once Options is saved.
+    /// </summary>
+    private void RefreshSharedDatabases()
+    {
+        var shared = _configurationService.Configuration.Databases.Values
+            .Where(p => p.ShareWithPeers)
+            .Select(p => p.Name)
+            .OrderBy(p => p, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        SharesNothing = shared.Count == 0;
+        SharedDatabasesText = SharesNothing
+            ? "Nothing shared yet, so your Peers see no collections from this Device. To let them browse a Database, open its " +
+              "Properties (right-click it in the collection tree, or Options > Databases > Edit) and tick Share with Peers."
+            : $"Your Peers can browse: {string.Join(", ", shared)}.";
     }
 
     private void RefreshPeers()
