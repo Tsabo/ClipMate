@@ -140,6 +140,7 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRemoteTarget))]
     [NotifyPropertyChangedFor(nameof(IsSqlAvailable))]
+    [NotifyPropertyChangedFor(nameof(CanSearchDeletedAndShortcuts))]
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     private SearchTarget? _target;
 
@@ -169,7 +170,8 @@ public partial class SearchViewModel : ObservableObject
         {
             if (e.PropertyName != nameof(SqlQuery) && e.PropertyName != nameof(IsSearching) &&
                 e.PropertyName != nameof(TotalMatches) && e.PropertyName != nameof(IsRemoteTarget) &&
-                e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(TargetDescription) && e.PropertyName != null)
+                e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(TargetDescription) &&
+                e.PropertyName != nameof(CanSearchDeletedAndShortcuts) && e.PropertyName != null)
                 UpdateSqlQuery();
         };
 
@@ -211,6 +213,12 @@ public partial class SearchViewModel : ObservableObject
     /// Gets whether the SQL panel is shown. No SQL is ever sent to a Peer, so it is hidden for Remote Databases.
     /// </summary>
     public bool IsSqlAvailable => !IsRemoteTarget;
+
+    /// <summary>
+    /// Gets whether the deleted-clips and shortcut filters apply. Peers never serve deleted clips or shortcuts, so they
+    /// are disabled for Remote Databases.
+    /// </summary>
+    public bool CanSearchDeletedAndShortcuts => !IsRemoteTarget;
 
     /// <summary>
     /// Gets the name of the Database the dialog searches, for display.
