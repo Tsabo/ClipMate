@@ -109,6 +109,12 @@ Selecting or copying a remote clip puts it on the clipboard, ready to paste, but
 
 Encrypted clips arrive from the Peer still encrypted and look just like your own encrypted clips. Enter your passphrase to view one; it is decrypted on this Device, never by the Peer.
 
-Remote Databases are read-only. You can't edit, delete, move, rename, encrypt or drag their clips, or decrypt them in place; ClipMate shows "Remote Databases are read-only." instead.
+Remote Databases are read-only. You can't edit, delete, move, rename or encrypt their clips, or decrypt them in place; ClipMate shows "Remote Databases are read-only." instead.
 
 If the Peer goes offline or takes too long to answer, the list or viewer says so instead of holding up ClipMate. Select the collection again to retry.
+
+### Copy to local
+
+To keep a remote clip, right-click it and choose **Copy to local...** (or **Copy Item To Collection**), then pick one of your own collections. You can also drag remote clips onto one of your collections in the tree; this always copies, never moves.
+
+The copy is a new clip in your database, with all its formats and its title, capture time, creator, source URL and source application. It doesn't depend on the Peer: changes the Peer makes later, or the Peer going offline, don't affect it. An encrypted clip is copied still encrypted and opens with the same passphrase.
