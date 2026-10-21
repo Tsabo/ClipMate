@@ -100,6 +100,28 @@ public class PairingTests
         // Assert
         await Assert.That(laptopToDesktop.DeviceName).IsEqualTo("DESKTOP");
         await Assert.That(desktopToLaptop.DeviceName).IsEqualTo("LAPTOP");
+        await Assert.That(laptopToDesktop.ProtocolMajor).IsEqualTo(PeerProtocol.Major);
+        await Assert.That(laptopToDesktop.Capabilities).Contains("pairing");
+    }
+
+    [Test]
+    public async Task PeerProbe_AfterPairing_ReportsThePeerAsReachable()
+    {
+        // Arrange
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        await using (var session = _laptop.PairingClient.Start(_desktop.AsTarget()))
+            await session.AcceptAsync(null);
+        var probe = new GrpcPeerProbe(_laptop.ConfigurationService, NullLogger<GrpcPeerProbe>.Instance);
+
+        // Act
+        var reply = await probe.ProbeAsync(_laptop.Identity, _desktop.DeviceId, _desktop.Address, CancellationToken.None);
+        var reverse = await probe.ProbeAsync(_desktop.Identity, _laptop.DeviceId, _laptop.Address, CancellationToken.None);
+
+        // Assert
+        await Assert.That(reply).IsNotNull();
+        await Assert.That(reply!.DeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(reply.ProtocolMajor).IsEqualTo(PeerProtocol.Major);
+        await Assert.That(reverse).IsNotNull(); // both sides recorded each other
     }
 
     [Test]

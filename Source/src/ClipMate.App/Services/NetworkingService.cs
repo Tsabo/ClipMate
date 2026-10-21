@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.App.Services;
 
 /// <summary>
-/// Starts and stops the Peer host and LAN discovery to follow the <c>Enable networking</c> setting.
+/// Starts and stops the Peer host, LAN discovery and Peer status checks to follow the <c>Enable networking</c> setting.
 /// While networking is off nothing is created, so no port is opened, no announcement is sent and the networking stack is never loaded.
 /// </summary>
 public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, ILocalDevice, IDisposable
@@ -21,6 +21,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
     private readonly IDeviceIdentityService _identityService;
     private readonly ILogger<NetworkingService> _logger;
     private readonly IMessenger _messenger;
+    private readonly IPeerStatusService _peerStatus;
     private bool _disposed;
     private IPeerHost? _host;
     private DeviceIdentity? _identity;
@@ -31,6 +32,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         IFirewallRuleService firewallRuleService,
         IPeerHostFactory hostFactory,
         IDeviceDiscoveryService discovery,
+        IPeerStatusService peerStatus,
         IMessenger messenger,
         ILogger<NetworkingService> logger)
     {
@@ -39,6 +41,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _firewallRuleService = firewallRuleService ?? throw new ArgumentNullException(nameof(firewallRuleService));
         _hostFactory = hostFactory ?? throw new ArgumentNullException(nameof(hostFactory));
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
+        _peerStatus = peerStatus ?? throw new ArgumentNullException(nameof(peerStatus));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -70,6 +73,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         {
             Task.Run(async () =>
             {
+                await _peerStatus.StopAsync();
                 await _discovery.StopAsync();
                 await host.DisposeAsync();
             }).GetAwaiter().GetResult(); // off the UI thread's context
@@ -173,6 +177,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _logger.LogInformation("Networking enabled on port {Port}", port);
 
         await StartDiscoveryAsync(host.ListeningPort ?? port, cancellationToken);
+        await _peerStatus.StartAsync(_identity, cancellationToken);
     }
 
     private async Task StopHostAsync()
@@ -180,6 +185,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         if (_host == null)
             return;
 
+        await _peerStatus.StopAsync();
         await _discovery.StopAsync();
 
         var host = _host;

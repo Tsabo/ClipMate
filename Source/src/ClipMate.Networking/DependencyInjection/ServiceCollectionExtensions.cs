@@ -25,6 +25,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IPairingApprovalHandler, DeclineAllPairingApprovalHandler>();
         services.AddSingleton<IPeerHostFactory, KestrelPeerHostFactory>();
         services.AddSingleton<IPairingClient, PeerPairingClient>();
+        services.AddSingleton<IPeerProbe, GrpcPeerProbe>();
+        services.AddSingleton<IPeerStatusService, PeerStatusMonitor>();
 
         // LAN discovery opens no socket until networking starts it.
         services.AddSingleton<IDiscoveryTransportFactory, UdpDiscoveryTransportFactory>();

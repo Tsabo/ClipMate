@@ -20,6 +20,7 @@ public class NetworkingServiceTests
     private IPeerHostFactory _hostFactory = null!;
     private IDeviceIdentityService _identityService = null!;
     private IMessenger _messenger = null!;
+    private IPeerStatusService _peerStatus = null!;
     private NetworkingService _service = null!;
 
     [Before(Test)]
@@ -40,8 +41,9 @@ public class NetworkingServiceTests
         A.CallTo(() => _hostFactory.Create()).Returns(_host);
 
         _discovery = A.Fake<IDeviceDiscoveryService>();
+        _peerStatus = A.Fake<IPeerStatusService>();
         _messenger = new StrongReferenceMessenger();
-        _service = new NetworkingService(configurationService, _identityService, _firewall, _hostFactory, _discovery, _messenger,
+        _service = new NetworkingService(configurationService, _identityService, _firewall, _hostFactory, _discovery, _peerStatus, _messenger,
             A.Fake<ILogger<NetworkingService>>());
     }
 
@@ -182,6 +184,23 @@ public class NetworkingServiceTests
 
         // Assert
         A.CallTo(() => _discovery.StopAsync(A<CancellationToken>._)).MustHaveHappened();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_TurnedOnThenOff_StartsAndStopsPeerStatusChecks()
+    {
+        // Arrange
+        _configuration.Networking.Enabled = true;
+
+        // Act / Assert
+        await _service.ApplyConfigurationAsync();
+        A.CallTo(() => _peerStatus.StartAsync(A<DeviceIdentity>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        await Assert.That(_service.Identity).IsNotNull();
+
+        _configuration.Networking.Enabled = false;
+        await _service.ApplyConfigurationAsync();
+        A.CallTo(() => _peerStatus.StopAsync(A<CancellationToken>._)).MustHaveHappened();
+        await Assert.That(_service.Identity).IsNull();
     }
 
     [Test]
