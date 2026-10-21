@@ -22,6 +22,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     private ICollectionService _collectionService = null!;
     private StrongReferenceMessenger _messenger = null!;
     private List<RemoteDatabase> _remoteDatabases = null!;
+    private IPeerDialogService _peerDialogs = null!;
+    private IRemoteDatabaseService _remoteDatabaseService = null!;
     private IRemoteDatabaseTreeBuilder _remoteTreeBuilder = null!;
     private CollectionTreeViewModel _viewModel = null!;
 
@@ -42,9 +44,12 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         var configurationService = A.Fake<IConfigurationService>();
         A.CallTo(() => configurationService.Configuration).Returns(new ClipMateConfiguration());
 
+        _remoteDatabaseService = remoteDatabaseService;
+        _peerDialogs = A.Fake<IPeerDialogService>();
+
         _viewModel = new CollectionTreeViewModel(_collectionService, A.Fake<IFolderService>(), A.Fake<IClipService>(), configurationService,
             _messenger, localTree, NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(), A.Fake<IDatabaseIdService>(),
-            remoteDatabaseService, _remoteTreeBuilder, A.Fake<ISharedDatabaseService>());
+            remoteDatabaseService, _remoteTreeBuilder, A.Fake<ISharedDatabaseService>(), _peerDialogs);
     }
 
     [After(Test)]
@@ -196,6 +201,96 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         _viewModel.SelectedNode = all.OfType<RemoteCollectionTreeNode>().First();
         await Assert.That(_viewModel.MoveUpCommand.CanExecute(null)).IsFalse();
         await Assert.That(_viewModel.ShowAllClipsInChildrenCommand.CanExecute(null)).IsFalse();
+    }
+
+    [Test]
+    public async Task RenameRemoteDatabaseCommand_AliasEntered_SetsTheRemoteDatabaseAlias()
+    {
+        // Arrange: renaming works while the Peer is offline, as the alias is local
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Offline, DateTime.Now));
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        _viewModel.SelectedNode = _viewModel.RootNodes.Single();
+        A.CallTo(() => _peerDialogs.AskRemoteDatabaseAlias(A<RemoteDatabase>.That.Matches(p => p.Address == _work))).Returns("Office clips");
+
+        // Act
+        await Assert.That(_viewModel.RenameRemoteDatabaseCommand.CanExecute(null)).IsTrue();
+        await _viewModel.RenameRemoteDatabaseCommand.ExecuteAsync(null);
+
+        // Assert
+        A.CallTo(() => _remoteDatabaseService.SetAliasAsync(_work, "Office clips", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RenameRemoteDatabaseCommand_Blank_ClearsTheAlias()
+    {
+        // Arrange
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Online) with { Alias = "Office clips" });
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        _viewModel.SelectedNode = _viewModel.RootNodes.Single();
+        A.CallTo(() => _peerDialogs.AskRemoteDatabaseAlias(A<RemoteDatabase>._)).Returns("");
+
+        // Act
+        await _viewModel.RenameRemoteDatabaseCommand.ExecuteAsync(null);
+
+        // Assert
+        A.CallTo(() => _remoteDatabaseService.SetAliasAsync(_work, "", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RenameRemoteDatabaseCommand_Cancelled_ChangesNothing()
+    {
+        // Arrange
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        _viewModel.SelectedNode = _viewModel.RootNodes.Single();
+        A.CallTo(() => _peerDialogs.AskRemoteDatabaseAlias(A<RemoteDatabase>._)).Returns(null);
+
+        // Act
+        await _viewModel.RenameRemoteDatabaseCommand.ExecuteAsync(null);
+
+        // Assert
+        A.CallTo(() => _remoteDatabaseService.SetAliasAsync(A<RemoteDatabaseAddress>._, A<string?>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RenameRemoteDatabaseCommand_OnlyForRemoteDatabaseNodes()
+    {
+        // Arrange
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
+        var inbox = new RemoteCollectionTreeNode(new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10));
+        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).Returns([inbox]);
+        await _viewModel.LoadAsync();
+        await _viewModel.RefreshRemoteDatabasesAsync();
+
+        // Act / Assert
+        _viewModel.SelectedNode = _viewModel.RootNodes.OfType<DatabaseTreeNode>().Single();
+        await Assert.That(_viewModel.RenameRemoteDatabaseCommand.CanExecute(null)).IsFalse();
+        _viewModel.SelectedNode = inbox;
+        await Assert.That(_viewModel.RenameRemoteDatabaseCommand.CanExecute(null)).IsFalse();
+        _viewModel.SelectedNode = null;
+        await Assert.That(_viewModel.RenameRemoteDatabaseCommand.CanExecute(null)).IsFalse();
+    }
+
+    [Test]
+    public async Task RefreshRemoteDatabasesAsync_AliasSetOrCleared_RelabelsTheNode()
+    {
+        // Arrange
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        var node = (RemoteDatabaseTreeNode)_viewModel.RootNodes.Single();
+
+        // Act / Assert
+        _remoteDatabases[0] = Remote(PeerConnectionStatus.Online) with { Alias = "Office clips" };
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        await Assert.That(node.Name).IsEqualTo("Office clips — LAPTOP");
+
+        _remoteDatabases[0] = Remote(PeerConnectionStatus.Offline, DateTime.Now.AddHours(-2)) with { Alias = "Office clips" };
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        await Assert.That(node.Name).IsEqualTo("Office clips — LAPTOP (offline · last seen 2 h ago)");
+
+        _remoteDatabases[0] = new RemoteDatabase(_work, "Work 2026", "LAPTOP", PeerConnectionStatus.Online, null);
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        await Assert.That(node.Name).IsEqualTo("Work 2026 — LAPTOP");
     }
 
     private static RemoteDatabase Remote(PeerConnectionStatus status, DateTime? lastSeen = null) =>

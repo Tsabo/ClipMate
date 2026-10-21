@@ -26,6 +26,16 @@ public sealed record Peer(
     public IReadOnlyList<SharedDatabase> SharedDatabases { get; init; } = [];
 
     /// <summary>
+    /// The Remote Database Aliases this Device gives the Peer's Databases, by Database ID. Local only; the Peer never sees them.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, string> DatabaseAliases { get; init; } = new Dictionary<Guid, string>();
+
+    /// <summary>
+    /// Gets the Remote Database Alias for the Peer's Database <paramref name="databaseId" />, or <c>null</c> if it has none.
+    /// </summary>
+    public string? GetDatabaseAlias(Guid databaseId) => DatabaseAliases.GetValueOrDefault(databaseId);
+
+    /// <summary>
     /// When Pairing with the Peer completed on this Device (local time), or <c>null</c> if unknown.
     /// </summary>
     public DateTime? PairedAt { get; init; }

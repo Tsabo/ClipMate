@@ -62,6 +62,15 @@
         <!-- Context Menu -->
         <dxg:TreeViewControl.ContextMenu>
             <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <!-- Remote Database: set or clear its Remote Database Alias (shown only on a Remote Database node) -->
+                <MenuItem Header="Rename…"
+                          Command="{Binding RenameRemoteDatabaseCommand}"
+                          Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <MenuItem.Icon>
+                        <emoji:TextBlock Text="✏️" FontSize="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+
                 <!-- Move Up/Down -->
                 <MenuItem Header="Move Up In Sort Order"
                           InputGestureText="(+)"
