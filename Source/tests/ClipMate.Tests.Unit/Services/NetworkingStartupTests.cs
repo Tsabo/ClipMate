@@ -35,7 +35,8 @@ public class NetworkingStartupTests
         services.AddSingleton(A.Fake<ISharedDatabaseChangeFeed>());
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
         services.AddSingleton<NetworkingService>();
-        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());
+        services.AddSingleton<LocalDevice>();
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<LocalDevice>());
         services.AddClipMateNetworking();
         await using var provider = services.BuildServiceProvider();
 

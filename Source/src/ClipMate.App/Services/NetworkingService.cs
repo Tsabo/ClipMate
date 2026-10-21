@@ -11,7 +11,7 @@ namespace ClipMate.App.Services;
 /// Starts and stops the Peer host, LAN discovery and Peer status checks to follow the <c>Enable networking</c> setting.
 /// While networking is off nothing is created, so no port is opened, no announcement is sent and the networking stack is never loaded.
 /// </summary>
-public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, ILocalDevice, IDisposable
+public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, IDisposable
 {
     private readonly IConfigurationService _configurationService;
     private readonly IDeviceDiscoveryService _discovery;
@@ -19,6 +19,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly IPeerHostFactory _hostFactory;
     private readonly IDeviceIdentityService _identityService;
+    private readonly LocalDevice _localDevice;
     private readonly ILogger<NetworkingService> _logger;
     private readonly IMessenger _messenger;
     private readonly IPeerStatusService _peerStatus;
@@ -33,10 +34,12 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         IPeerHostFactory hostFactory,
         IDeviceDiscoveryService discovery,
         IPeerStatusService peerStatus,
+        LocalDevice localDevice,
         IMessenger messenger,
         ILogger<NetworkingService> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _localDevice = localDevice ?? throw new ArgumentNullException(nameof(localDevice));
         _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         _firewallRuleService = firewallRuleService ?? throw new ArgumentNullException(nameof(firewallRuleService));
         _hostFactory = hostFactory ?? throw new ArgumentNullException(nameof(hostFactory));
@@ -50,15 +53,6 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
     /// Gets whether the Peer host is currently listening.
     /// </summary>
     public bool IsListening => _host != null;
-
-    /// <inheritdoc />
-    public DeviceIdentity? Identity => _host != null ? _identity : null;
-
-    /// <inheritdoc />
-    public string DeviceName => _configurationService.Configuration.Networking.DeviceName;
-
-    /// <inheritdoc />
-    public int? ListeningPort => _host?.ListeningPort;
 
     /// <inheritdoc />
     public void Dispose()
@@ -79,6 +73,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
             }).GetAwaiter().GetResult(); // off the UI thread's context
         }
         _host = null;
+        _localDevice.SetStopped();
         _identity?.Dispose();
         _identity = null;
         _gate.Dispose();
@@ -174,6 +169,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
 
         _host = host;
         _port = port;
+        _localDevice.SetListening(_identity, host.ListeningPort);
         _logger.LogInformation("Networking enabled on port {Port}", port);
 
         await StartDiscoveryAsync(host.ListeningPort ?? port, cancellationToken);
@@ -190,6 +186,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
 
         var host = _host;
         _host = null;
+        _localDevice.SetStopped();
         await host.DisposeAsync();
         _logger.LogInformation("Networking disabled");
     }

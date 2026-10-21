@@ -35,7 +35,10 @@ public static class ServiceCollectionExtensions
         // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
         services.AddSingleton<NetworkingService>();
         services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
-        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());
+        // This Device's networking state lives apart from NetworkingService: Remote Databases and Pairing read it, and the
+        // Peer host NetworkingService owns reaches those services, so depending on NetworkingService would be a cycle.
+        services.AddSingleton<LocalDevice>();
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<LocalDevice>());
 
         // Pairing: the approval prompt (tray notification and dialog) and the requesting side's dialog.
         // Registered after the networking default, so the prompt replaces the decline-all handler.
