@@ -1,4 +1,6 @@
 using System.Text;
+using System.Threading.Channels;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Search;
@@ -15,12 +17,14 @@ namespace ClipMate.Networking.SharedDatabases;
 /// </summary>
 internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDatabaseAccessBase
 {
+    private readonly ISharedDatabaseChangeFeed _changeFeed;
     private readonly PeerHostOptions _options;
     private readonly ISharedDatabaseService _sharedDatabases;
 
-    public SharedDatabaseGrpcService(ISharedDatabaseService sharedDatabases, PeerHostOptions options)
+    public SharedDatabaseGrpcService(ISharedDatabaseService sharedDatabases, ISharedDatabaseChangeFeed changeFeed, PeerHostOptions options)
     {
         _sharedDatabases = sharedDatabases ?? throw new ArgumentNullException(nameof(sharedDatabases));
+        _changeFeed = changeFeed ?? throw new ArgumentNullException(nameof(changeFeed));
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
@@ -105,6 +109,56 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     }
 
     /// <inheritdoc />
+    public override async Task WatchChanges(WatchChangesRequest request, IServerStreamWriter<ChangeNotice> responseStream,
+        ServerCallContext context)
+    {
+        // null stands for "the list of Shared Databases changed"
+        var changes = Channel.CreateUnbounded<SharedCollectionChange?>(new UnboundedChannelOptions { SingleReader = true });
+        void OnCollectionChanged(object? sender, SharedCollectionChangedEventArgs e) => changes.Writer.TryWrite(e.Change);
+        void OnSharedDatabasesChanged(object? sender, EventArgs e) => changes.Writer.TryWrite(null);
+
+        // Unpairing closes this Device's connections (PeerConnectionTracker), which cancels the call and ends the loop
+        var cancellationToken = context.CancellationToken;
+        _changeFeed.CollectionChanged += OnCollectionChanged;
+        _changeFeed.SharedDatabasesChanged += OnSharedDatabasesChanged;
+        try
+        {
+            // Tells the caller it is listening, before the first change
+            await context.WriteResponseHeadersAsync(new Metadata());
+
+            var batch = new List<SharedCollectionChange?>();
+            while (await changes.Reader.WaitToReadAsync(cancellationToken))
+            {
+                // A capture writes several times in quick succession: send each changed collection once
+                await Task.Delay(CoalesceDelay, cancellationToken);
+                batch.Clear();
+                while (changes.Reader.TryRead(out var item))
+                {
+                    if (!batch.Contains(item))
+                        batch.Add(item);
+                }
+
+                foreach (var item in batch)
+                {
+                    var notice = item == null
+                        ? new ChangeNotice { SharedDatabasesChanged = new SharedDatabasesChanged() }
+                        : SharedDatabaseMessages.ToMessage(item);
+                    await responseStream.WriteAsync(notice, cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller stopped watching, or its connection was closed
+        }
+        finally
+        {
+            _changeFeed.CollectionChanged -= OnCollectionChanged;
+            _changeFeed.SharedDatabasesChanged -= OnSharedDatabasesChanged;
+        }
+    }
+
+    /// <inheritdoc />
     public override async Task SearchClips(SearchClipsRequest request, IServerStreamWriter<SearchClipsPage> responseStream, ServerCallContext context)
     {
         var databaseId = ParseId(request.DatabaseId, "Database ID");
@@ -155,6 +209,11 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     /// The most search results sent in one page.
     /// </summary>
     internal const int SearchPageSize = 200;
+
+    /// <summary>
+    /// How long changes are gathered before they are sent, so a burst of writes becomes one notice per collection.
+    /// </summary>
+    internal static readonly TimeSpan CoalesceDelay = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
     /// The most clips served in one page.

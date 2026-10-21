@@ -32,6 +32,7 @@ public class SharedDatabaseTransportTests
     private PeerStore _desktopStore = null!;
     private PeerStore _laptopStore = null!;
     private ISharedDatabaseService _sharedDatabases = null!;
+    private ISharedDatabaseChangeFeed _changeFeed = null!;
 
     [Before(Class)]
     public static async Task CreateIdentities()
@@ -58,10 +59,11 @@ public class SharedDatabaseTransportTests
         _desktopStore = new PeerStore(CreateConfigurationService("DESKTOP"), NullLogger<PeerStore>.Instance);
         _laptopStore = new PeerStore(CreateConfigurationService("LAPTOP"), NullLogger<PeerStore>.Instance);
         _sharedDatabases = A.Fake<ISharedDatabaseService>();
+        _changeFeed = A.Fake<ISharedDatabaseChangeFeed>();
 
         // Loopback only, so the test run never triggers a Windows Firewall prompt.
         _desktopHost = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(_desktopStore), _desktopStore, A.Fake<IPairingApprovalHandler>(),
-            CreateConfigurationService("DESKTOP"), _sharedDatabases, NullLoggerFactory.Instance,
+            CreateConfigurationService("DESKTOP"), _sharedDatabases, _changeFeed, NullLoggerFactory.Instance,
             new PeerHostOptions { ListenAddress = IPAddress.Loopback }).Create();
         await _desktopHost.StartAsync(_desktopIdentity!, 0);
 
@@ -321,6 +323,146 @@ public class SharedDatabaseTransportTests
     }
 
     [Test]
+    public async Task WatchChangesAsync_ACollectionChangesOnThePeer_DeliversOnlyWhichCollectionChanged()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var collectionId = Guid.NewGuid();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var notices = _client.WatchChangesAsync(_laptopIdentity!, desktop, stop.Token).GetAsyncEnumerator(stop.Token);
+        var next = notices.MoveNextAsync().AsTask();
+        await WaitForSubscriberAsync();
+
+        // Act
+        _changeFeed.CollectionChanged += Raise.With(new SharedCollectionChangedEventArgs(new SharedCollectionChange(_workId, collectionId)));
+
+        // Assert
+        await Assert.That(await next).IsTrue();
+        await Assert.That(notices.Current).IsEqualTo(new CollectionChangedNotice(new SharedCollectionChange(_workId, collectionId)));
+    }
+
+    [Test]
+    public async Task WatchChangesAsync_ABurstOfChangesToOneCollection_ArrivesAsOneNotice()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var collectionId = Guid.NewGuid();
+        var otherId = Guid.NewGuid();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var notices = _client.WatchChangesAsync(_laptopIdentity!, desktop, stop.Token).GetAsyncEnumerator(stop.Token);
+        var next = notices.MoveNextAsync().AsTask();
+        await WaitForSubscriberAsync();
+
+        // Act
+        for (var item = 0; item < 5; item++)
+            _changeFeed.CollectionChanged += Raise.With(new SharedCollectionChangedEventArgs(new SharedCollectionChange(_workId, collectionId)));
+        _changeFeed.CollectionChanged += Raise.With(new SharedCollectionChangedEventArgs(new SharedCollectionChange(_workId, otherId)));
+
+        // Assert
+        var received = new List<PeerChangeNotice>();
+        await Assert.That(await next).IsTrue();
+        received.Add(notices.Current);
+        await Assert.That(await notices.MoveNextAsync()).IsTrue();
+        received.Add(notices.Current);
+        await Assert.That(received).IsEquivalentTo(new PeerChangeNotice[]
+        {
+            new CollectionChangedNotice(new SharedCollectionChange(_workId, collectionId)),
+            new CollectionChangedNotice(new SharedCollectionChange(_workId, otherId)),
+        });
+    }
+
+    [Test]
+    public async Task WatchChangesAsync_ThePeerSharesOrUnsharesADatabase_DeliversSharedDatabasesChanged()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var notices = _client.WatchChangesAsync(_laptopIdentity!, desktop, stop.Token).GetAsyncEnumerator(stop.Token);
+        var next = notices.MoveNextAsync().AsTask();
+        await WaitForSubscriberAsync();
+
+        // Act
+        _changeFeed.SharedDatabasesChanged += Raise.WithEmpty();
+
+        // Assert
+        await Assert.That(await next).IsTrue();
+        await Assert.That(notices.Current).IsTypeOf<SharedDatabasesChangedNotice>();
+    }
+
+    [Test]
+    public async Task WatchChangesAsync_ThePeerUnpairsThisDevice_EndsTheStreamAndStopsListening()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var notices = _client.WatchChangesAsync(_laptopIdentity!, desktop, stop.Token).GetAsyncEnumerator(stop.Token);
+        var next = notices.MoveNextAsync().AsTask();
+        await WaitForSubscriberAsync();
+
+        // Act
+        await _desktopStore.RemoveAsync(_laptopIdentity!.DeviceId);
+
+        // Assert
+        await Assert.That(async () => await next).Throws<RemoteDatabaseUnavailableException>();
+        await WaitForUnsubscribeAsync();
+    }
+
+    [Test]
+    public async Task WatchChangesAsync_FromADeviceThatIsNotAPeer_IsRefused()
+    {
+        // Arrange: the laptop knows the desktop, but the desktop never paired with the laptop.
+        await _laptopStore.SavePairedAsync(_desktopIdentity!.DeviceId, "DESKTOP", null, DesktopAddress);
+        var desktop = _laptopStore.Find(_desktopIdentity.DeviceId)!;
+
+        // Act / Assert
+        await Assert.That(async () =>
+        {
+            await foreach (var item in _client.WatchChangesAsync(_laptopIdentity!, desktop))
+            {
+            }
+        }).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(Fake.GetCalls(_changeFeed).Any(p => p.Method.Name.StartsWith("add_", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    public async Task WatchChangesAsync_Cancelled_StopsListeningOnThePeer()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var notices = _client.WatchChangesAsync(_laptopIdentity!, desktop, stop.Token).GetAsyncEnumerator(stop.Token);
+        var next = notices.MoveNextAsync().AsTask();
+        await WaitForSubscriberAsync();
+
+        // Act
+        await stop.CancelAsync();
+
+        // Assert
+        await Assert.That(async () => await next).Throws<OperationCanceledException>();
+        await notices.DisposeAsync();
+        await WaitForUnsubscribeAsync();
+    }
+
+    private async Task WaitForSubscriberAsync()
+    {
+        await WaitForCallsAsync("add_", 2);
+
+        // The call is recorded just before the handler is attached
+        await Task.Delay(50);
+    }
+
+    private async Task WaitForUnsubscribeAsync() => await WaitForCallsAsync("remove_", 2);
+
+    private async Task WaitForCallsAsync(string prefix, int count)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (Fake.GetCalls(_changeFeed).Count(p => p.Method.Name.StartsWith(prefix, StringComparison.Ordinal)) < count && DateTime.UtcNow < deadline)
+            await Task.Delay(20);
+
+        await Assert.That(Fake.GetCalls(_changeFeed).Count(p => p.Method.Name.StartsWith(prefix, StringComparison.Ordinal))).IsGreaterThanOrEqualTo(count);
+    }
+
+    [Test]
     public async Task SearchAsync_FromAPeer_SendsTheCriteriaAndReceivesTheMatchesInPagesWithTheTotal()
     {
         // Arrange
@@ -406,8 +548,8 @@ public class SharedDatabaseTransportTests
     {
         // Arrange: a Peer whose search time limit is short, so the test does not wait 15 seconds
         await using var impatientHost = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(_desktopStore), _desktopStore,
-            A.Fake<IPairingApprovalHandler>(), CreateConfigurationService("DESKTOP"), _sharedDatabases, NullLoggerFactory.Instance,
-            new PeerHostOptions { ListenAddress = IPAddress.Loopback, SearchTimeout = TimeSpan.FromMilliseconds(300) }).Create();
+            A.Fake<IPairingApprovalHandler>(), CreateConfigurationService("DESKTOP"), _sharedDatabases, _changeFeed,
+            NullLoggerFactory.Instance, new PeerHostOptions { ListenAddress = IPAddress.Loopback, SearchTimeout = TimeSpan.FromMilliseconds(300) }).Create();
         await impatientHost.StartAsync(_desktopIdentity!, 0);
         await _desktopStore.SavePairedAsync(_laptopIdentity!.DeviceId, "LAPTOP", null, null);
         await _laptopStore.SavePairedAsync(_desktopIdentity!.DeviceId, "DESKTOP", null,

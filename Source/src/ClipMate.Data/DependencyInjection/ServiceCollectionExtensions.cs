@@ -49,6 +49,12 @@ public static class ServiceCollectionExtensions
         services.AddTransient<DatabaseSchemaMigrationService>();
         services.AddTransient<IDatabaseIdService, DatabaseIdService>();
         services.AddTransient<ISharedDatabaseService, SharedDatabaseService>();
+
+        // Live change notifications: every write through the factory's contexts is seen by the change monitor, and the
+        // feed reports those in Shared Databases (only while a Peer is watching)
+        services.AddSingleton<DatabaseChangeMonitor>();
+        services.AddSingleton<SharedDatabaseChangeFeed>();
+        services.AddSingleton<ISharedDatabaseChangeFeed>(p => p.GetRequiredService<SharedDatabaseChangeFeed>());
         services.AddTransient<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
         services.AddTransient<IClipMate7ImportService, ClipMate7ImportService>();
         services.AddTransient<IRetentionEnforcementService, RetentionEnforcementService>();

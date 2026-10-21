@@ -317,6 +317,160 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
+    public async Task<Clip> CopyToLocalAsync(string sourceDatabaseKey,
+        Guid sourceClipId,
+        string targetDatabaseKey,
+        Guid targetCollectionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceDatabaseKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetDatabaseKey);
+
+        if (RemoteDatabaseKey.IsRemote(targetDatabaseKey))
+            throw new InvalidOperationException("Copy to local cannot copy into a Remote Database: Remote Databases are read-only.");
+
+        // Read everything first (a Remote Database is read from its Peer), so a failed read writes nothing locally
+        var content = await _clipContentService.GetClipContentAsync(sourceDatabaseKey, sourceClipId, cancellationToken)
+                      ?? throw new InvalidOperationException($"Clip {sourceClipId} no longer exists in its Database.");
+
+        var copy = CreateLocalCopy(content.Clip, targetCollectionId);
+
+        var clipRepository = GetRepository(targetDatabaseKey);
+        var clipDataRepository = _databaseContextFactory.GetClipDataRepository(targetDatabaseKey);
+        var blobRepository = _databaseContextFactory.GetBlobRepository(targetDatabaseKey);
+
+        await clipRepository.CreateAsync(copy, cancellationToken);
+
+        try
+        {
+            // Every format and blob gets a new ID, so the same clip can be copied more than once
+            var formatIds = new Dictionary<Guid, Guid>();
+            foreach (var item in content.Formats)
+            {
+                var format = new ClipData
+                {
+                    Id = Guid.NewGuid(),
+                    ClipId = copy.Id,
+                    FormatName = item.FormatName,
+                    Format = item.Format,
+                    Size = item.Size,
+                    StorageType = item.StorageType,
+                };
+
+                await clipDataRepository.CreateAsync(format, cancellationToken);
+                formatIds[item.Id] = format.Id;
+            }
+
+            // Blob content is copied exactly as stored: an encrypted clip stays encrypted
+            foreach (var item in content.TextBlobs.Where(p => formatIds.ContainsKey(p.ClipDataId)))
+            {
+                await blobRepository.CreateTextAsync(new BlobTxt
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = formatIds[item.ClipDataId],
+                    ClipId = copy.Id,
+                    Data = item.Data,
+                }, cancellationToken);
+            }
+
+            foreach (var item in content.JpgBlobs.Where(p => formatIds.ContainsKey(p.ClipDataId)))
+            {
+                await blobRepository.CreateJpgAsync(new BlobJpg
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = formatIds[item.ClipDataId],
+                    ClipId = copy.Id,
+                    Data = item.Data,
+                }, cancellationToken);
+            }
+
+            foreach (var item in content.PngBlobs.Where(p => formatIds.ContainsKey(p.ClipDataId)))
+            {
+                await blobRepository.CreatePngAsync(new BlobPng
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = formatIds[item.ClipDataId],
+                    ClipId = copy.Id,
+                    Data = item.Data,
+                }, cancellationToken);
+            }
+
+            foreach (var item in content.BinaryBlobs.Where(p => formatIds.ContainsKey(p.ClipDataId)))
+            {
+                await blobRepository.CreateBlobAsync(new BlobBlob
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = formatIds[item.ClipDataId],
+                    ClipId = copy.Id,
+                    Data = item.Data,
+                }, cancellationToken);
+            }
+        }
+        catch
+        {
+            // Never leave a half-copied clip behind
+            await DeletePartialCopyAsync(targetDatabaseKey, copy.Id);
+            throw;
+        }
+
+        _logger.LogInformation("Copied clip {SourceClipId} from {SourceDatabaseKey} to local clip {ClipId} in {TargetDatabaseKey}",
+            sourceClipId, sourceDatabaseKey, copy.Id, targetDatabaseKey);
+
+        return await clipRepository.GetByIdAsync(copy.Id, cancellationToken) ?? copy;
+    }
+
+    /// <summary>
+    /// Builds the new local clip for Copy to local: every stored field of the original, including the encryption
+    /// fields (salt, IV, method) that keep an encrypted clip decryptable, but with a new ID, the target collection
+    /// and no folder. The title is copied as stored, since an encrypted title is ciphertext.
+    /// </summary>
+    private static Clip CreateLocalCopy(Clip source, Guid targetCollectionId) => new()
+    {
+        Id = Guid.NewGuid(),
+        CollectionId = targetCollectionId,
+        FolderId = null,
+        UserId = source.UserId,
+        Title = source.Title,
+        Creator = source.Creator,
+        CapturedAt = source.CapturedAt,
+        SourceUrl = source.SourceUrl,
+        CustomTitle = source.CustomTitle,
+        Locale = source.Locale,
+        WrapCheck = source.WrapCheck,
+        Encrypted = source.Encrypted,
+        EncryptionSalt = source.EncryptionSalt,
+        EncryptionIv = source.EncryptionIv,
+        EncryptionMethod = source.EncryptionMethod,
+        Icons = source.Icons,
+        Size = source.Size,
+        Checksum = source.Checksum,
+        ViewTab = source.ViewTab,
+        Macro = source.Macro,
+        LastModified = source.LastModified,
+        ContentHash = source.ContentHash,
+        SourceApplicationName = source.SourceApplicationName,
+        SourceApplicationTitle = source.SourceApplicationTitle,
+        PasteCount = source.PasteCount,
+        IsFavorite = source.IsFavorite,
+        Label = source.Label,
+        Type = source.Type,
+    };
+
+    private async Task DeletePartialCopyAsync(string databaseKey, Guid clipId)
+    {
+        try
+        {
+            await _databaseContextFactory.GetBlobRepository(databaseKey).DeleteByClipIdAsync(clipId);
+            await _databaseContextFactory.GetClipDataRepository(databaseKey).DeleteByClipIdAsync(clipId);
+            await GetRepository(databaseKey).DeleteAsync(clipId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not remove the partial copy {ClipId} from {DatabaseKey}", clipId, databaseKey);
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<Clip> MoveClipCrossDatabaseAsync(string sourceDatabaseKey,
         Guid sourceClipId,
         string targetDatabaseKey,

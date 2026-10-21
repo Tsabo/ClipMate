@@ -118,7 +118,7 @@ public class KestrelPeerHostTests
     {
         // Loopback only, so the test run never triggers a Windows Firewall prompt.
         var options = new PeerHostOptions { ListenAddress = System.Net.IPAddress.Loopback };
-        _host = new KestrelPeerHostFactory(validator, A.Fake<IPeerStore>(), A.Fake<IPairingApprovalHandler>(), _configurationService, A.Fake<ISharedDatabaseService>(),
+        _host = new KestrelPeerHostFactory(validator, A.Fake<IPeerStore>(), A.Fake<IPairingApprovalHandler>(), _configurationService, A.Fake<ISharedDatabaseService>(), A.Fake<ISharedDatabaseChangeFeed>(),
             NullLoggerFactory.Instance, options).Create();
         await _host.StartAsync(_hostIdentity!, 0);
         await Assert.That(_host.IsRunning).IsTrue();

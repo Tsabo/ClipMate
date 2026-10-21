@@ -32,6 +32,13 @@ service SharedDatabaseAccess {
   // Encrypted clips are streamed as stored (ciphertext); the Peer never decrypts. Capability "remote-clips".
   rpc ReadClipContent (ReadClipContentRequest) returns (stream ClipContentChunk);
 
+  // Streams lightweight change notices for the Peer's Shared Databases for as long as the call stays open: which
+  // collection changed (a clip captured, deleted, moved or edited, or the collection itself changed), and when the
+  // list of Shared Databases changed. Notices carry IDs only, never clip data; the requesting Device re-fetches what it
+  // shows. Databases that are not shared produce no notices. The Peer sends the response headers as soon as it is
+  // listening. Capability "change-notifications".
+  rpc WatchChanges (WatchChangesRequest) returns (stream ChangeNotice);
+
   // Remote Search: runs structured search criteria (never SQL) on a Shared Database. The Peer builds and runs the
   // parameterized query itself, stops it after about 15 seconds or when the caller cancels, keeps nothing afterwards,
   // and streams at most 1,000 matches (newest first) in pages, each carrying the total number of matches. NOT_FOUND if
@@ -209,4 +216,26 @@ message SearchClipsPage {
   int32 offset = 2;
   // How many clips matched in all, including any beyond the 1,000 returned.
   int32 total_matches = 3;
+}
+
+message WatchChangesRequest {
+}
+
+message ChangeNotice {
+  oneof change {
+    CollectionChanged collection_changed = 1;
+    SharedDatabasesChanged shared_databases_changed = 2;
+  }
+}
+
+// A collection or folder of a Shared Database changed.
+message CollectionChanged {
+  // GUID, "D" format.
+  string database_id = 1;
+  // GUID, "D" format.
+  string collection_id = 2;
+}
+
+// A Database was shared or unshared, or a Shared Database was renamed: ask ListSharedDatabases again.
+message SharedDatabasesChanged {
 }

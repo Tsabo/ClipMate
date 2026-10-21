@@ -32,6 +32,7 @@ public class NetworkingStartupTests
         services.AddSingleton(A.Fake<IFirewallRuleService>());
         services.AddSingleton(A.Fake<IPeerStore>());
         services.AddSingleton(A.Fake<ISharedDatabaseService>());
+        services.AddSingleton(A.Fake<ISharedDatabaseChangeFeed>());
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
         services.AddSingleton<NetworkingService>();
         services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());

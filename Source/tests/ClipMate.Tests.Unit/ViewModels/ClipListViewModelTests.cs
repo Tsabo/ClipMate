@@ -153,6 +153,113 @@ public class ClipListViewModelTests
         await Assert.That(viewModel.RemoteStatusMessage).IsNull();
     }
 
+    [Test]
+    public async Task RemoteCollectionChanged_ForTheOpenRemoteCollection_ReFetchesItAndKeepsTheSelection()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var collectionId = Guid.NewGuid();
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        var captured = new Clip { Id = Guid.NewGuid() };
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
+            .Returns(new ClipPage([first, second], 0, 2)).Once()
+            .Then.Returns(new ClipPage([captured, first, second], 0, 3));
+        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+        viewModel.SelectedClip = viewModel.Clips[1];
+
+        // Act: the Peer captured a clip into that collection
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, collectionId));
+        await WaitUntilAsync(() => viewModel.Clips.Count == 3 && !viewModel.IsLoading);
+
+        // Assert
+        await Assert.That(viewModel.Clips.Select(p => p.Id)).IsEquivalentTo([captured.Id, first.Id, second.Id]);
+        await Assert.That(viewModel.SelectedClip?.Id).IsEqualTo(second.Id);
+    }
+
+    [Test]
+    public async Task RemoteCollectionChanged_ForTheOpenRemoteFolder_ReFetchesIt()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var collectionId = Guid.NewGuid();
+        var folderId = Guid.NewGuid();
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, folderId, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
+            .Returns(new ClipPage([], 0, 0));
+        await viewModel.LoadRemoteClipsAsync(address, collectionId, folderId);
+
+        // Act
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, folderId));
+        await WaitUntilAsync(() => !viewModel.IsLoading);
+
+        // Assert
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, folderId, 0, A<int>._, A<CancellationToken>._))
+            .MustHaveHappenedTwiceExactly();
+    }
+
+    [Test]
+    public async Task RemoteCollectionChanged_ForAnotherCollectionOrDatabase_DoesNotReFetch()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var otherDatabase = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var collectionId = Guid.NewGuid();
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Returns(new ClipPage([], 0, 0));
+        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+
+        // Act
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, Guid.NewGuid()));
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(otherDatabase, collectionId));
+        await Task.Delay(50);
+
+        // Assert
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RemoteCollectionChanged_WhileALocalCollectionIsShown_DoesNothing()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var collectionId = Guid.NewGuid();
+        viewModel.CurrentDatabaseKey = "db_local";
+        viewModel.CurrentCollectionId = collectionId;
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+
+        // Act
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, collectionId));
+        await Task.Delay(50);
+
+        // Assert
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task Dispose_StopsListeningForRemoteChanges()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Dispose();
+
+        // Assert
+        A.CallTo(_mockRemoteDatabases).Where(p => p.Method.Name == "remove_RemoteCollectionChanged").MustHaveHappenedOnceExactly();
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition() && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+    }
+
     private ClipListViewModel CreateViewModel() => new(
         _mockCollectionService,
         _mockFolderService,

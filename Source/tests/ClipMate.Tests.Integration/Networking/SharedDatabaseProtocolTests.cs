@@ -37,6 +37,7 @@ public class SharedDatabaseProtocolTests
             "SharedDatabaseAccess.GetClipPage",
             "SharedDatabaseAccess.GetClipFormats",
             "SharedDatabaseAccess.ReadClipContent",
+            "SharedDatabaseAccess.WatchChanges",
             "SharedDatabaseAccess.SearchClips",
         ]);
     }
@@ -170,6 +171,60 @@ public class SharedDatabaseProtocolTests
         await Assert.That(clip.Title).IsEqualTo("Hello world");
         await Assert.That(clip.SourceApplicationName!.Length).IsEqualTo(2048);
         await Assert.That(clip.Size).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task PeerProtocol_AdvertisesChangeNotifications()
+    {
+        // Assert
+        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.ChangeNotificationsCapability);
+    }
+
+    [Test]
+    public async Task ChangeNotice_CarriesOnlyIds_NeverClipData()
+    {
+        // Act: every field reachable from a change notice
+        var fields = new List<string>();
+        var pending = new Queue<Google.Protobuf.Reflection.MessageDescriptor>([ChangeNotice.Descriptor]);
+        while (pending.TryDequeue(out var message))
+        {
+            foreach (var item in message.Fields.InDeclarationOrder())
+            {
+                if (item.FieldType == Google.Protobuf.Reflection.FieldType.Message)
+                    pending.Enqueue(item.MessageType);
+                else
+                    fields.Add(item.Name);
+            }
+        }
+
+        // Assert
+        await Assert.That(fields).IsEquivalentTo(["database_id", "collection_id"]);
+    }
+
+    [Test]
+    public async Task FromMessage_ChangeNotice_DropsNoticesWithInvalidIds()
+    {
+        // Arrange
+        var databaseId = Guid.NewGuid();
+        var collectionId = Guid.NewGuid();
+
+        // Act
+        var valid = SharedDatabaseMessages.FromMessage(new ChangeNotice
+        {
+            CollectionChanged = new CollectionChanged { DatabaseId = databaseId.ToString(), CollectionId = collectionId.ToString() },
+        });
+        var invalid = SharedDatabaseMessages.FromMessage(new ChangeNotice
+        {
+            CollectionChanged = new CollectionChanged { DatabaseId = "not a guid", CollectionId = collectionId.ToString() },
+        });
+        var shareList = SharedDatabaseMessages.FromMessage(new ChangeNotice { SharedDatabasesChanged = new SharedDatabasesChanged() });
+        var empty = SharedDatabaseMessages.FromMessage(new ChangeNotice());
+
+        // Assert
+        await Assert.That(valid).IsEqualTo(new CollectionChangedNotice(new SharedCollectionChange(databaseId, collectionId)));
+        await Assert.That(invalid).IsNull();
+        await Assert.That(shareList).IsTypeOf<SharedDatabasesChangedNotice>();
+        await Assert.That(empty).IsNull();
     }
 
     private static IEnumerable<FieldDescriptor> AllFields(MessageDescriptor message, HashSet<string> visited)

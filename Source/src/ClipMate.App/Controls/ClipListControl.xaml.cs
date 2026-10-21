@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
+using ClipMate.App.Models;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
@@ -543,18 +544,20 @@ public partial class ClipListControl
     /// </summary>
     private void TableView_StartRecordDrag(object sender, StartRecordDragEventArgs e)
     {
-        // Clips of a Remote Database cannot be moved
-        var viewModel = DataContext switch
-        {
-            ClipListViewModel clipListVm => clipListVm,
-            ExplorerWindowViewModel explorerVm => explorerVm.PrimaryClipList,
-            var _ => null,
-        };
-
+        // Clips of a Remote Database are never moved: dropping them on a local collection is Copy to local, so they
+        // are offered only as RemoteClipDragData (never as Clip[], which collections treat as a move)
+        var viewModel = GetClipListViewModel();
         if (viewModel?.IsRemoteDatabase == true)
         {
-            e.Handled = true;
-            e.AllowDrag = false;
+            var remoteClipIds = e.Records.OfType<Clip>().Select(p => p.Id).ToList();
+            if (remoteClipIds.Count == 0 || !RemoteDatabaseKey.IsRemote(viewModel.CurrentDatabaseKey))
+            {
+                e.Handled = true;
+                e.AllowDrag = false;
+                return;
+            }
+
+            e.Data.SetData(typeof(RemoteClipDragData), new RemoteClipDragData(viewModel.CurrentDatabaseKey, remoteClipIds));
             return;
         }
 
@@ -1074,4 +1077,30 @@ public partial class ClipListControl
         var clipIds = SelectedItems.Select(p => p.Id).ToList();
         _messenger.Send(new LockClipsRequestedEvent(clipIds));
     }
+
+    private void CopyToLocal_Click(object sender, RoutedEventArgs e)
+    {
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
+        _messenger.Send(new CopyToLocalRequestedEvent(clipIds, GetClipListViewModel()?.CurrentDatabaseKey));
+    }
+
+    /// <summary>
+    /// Shows Copy to local only while the list shows a Remote Database.
+    /// </summary>
+    private void ClipContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ContextMenu menu)
+            return;
+
+        var isRemote = GetClipListViewModel()?.IsRemoteDatabase == true;
+        foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "CopyToLocal")))
+            item.Visibility = isRemote ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private ClipListViewModel? GetClipListViewModel() => DataContext switch
+    {
+        ClipListViewModel clipListVm => clipListVm,
+        ExplorerWindowViewModel explorerVm => explorerVm.PrimaryClipList,
+        var _ => null,
+    };
 }

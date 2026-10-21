@@ -40,7 +40,14 @@
 
                     <!-- Context Menu (same as ClipDataGrid) -->
                     <dxg:GridControl.ContextMenu>
-                        <ContextMenu>
+                        <ContextMenu Opened="ClipContextMenu_Opened">
+                            <MenuItem Header="Copy to local..." Tag="CopyToLocal" Visibility="Collapsed"
+                                      Click="CopyToLocal_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📥" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator Tag="CopyToLocal" Visibility="Collapsed" />
                             <MenuItem Header="Clip Properties" InputGestureText="Alt+Enter"
                                       Click="ClipProperties_Click">
                                 <MenuItem.Icon>
@@ -273,7 +280,14 @@
 
                     <!-- Context Menu -->
                     <dxg:GridControl.ContextMenu>
-                        <ContextMenu>
+                        <ContextMenu Opened="ClipContextMenu_Opened">
+                            <MenuItem Header="Copy to local..." Tag="CopyToLocal" Visibility="Collapsed"
+                                      Click="CopyToLocal_Click">
+                                <MenuItem.Icon>
+                                    <emoji:TextBlock Text="📥" FontSize="14" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator Tag="CopyToLocal" Visibility="Collapsed" />
                             <MenuItem Header="Clip Properties" InputGestureText="Alt+Enter"
                                       Click="ClipProperties_Click">
                                 <MenuItem.Icon>

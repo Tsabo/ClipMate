@@ -48,8 +48,9 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
         IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
         ISharedDatabaseService sharedDatabases,
+        ISharedDatabaseChangeFeed changeFeed,
         ILoggerFactory loggerFactory)
-        : this(validator, peerStore, approvalHandler, configurationService, sharedDatabases, loggerFactory, new PeerHostOptions())
+        : this(validator, peerStore, approvalHandler, configurationService, sharedDatabases, changeFeed, loggerFactory, new PeerHostOptions())
     {
     }
 
@@ -61,6 +62,7 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
         IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
         ISharedDatabaseService sharedDatabases,
+        ISharedDatabaseChangeFeed changeFeed,
         ILoggerFactory loggerFactory,
         PeerHostOptions options)
     {
@@ -70,6 +72,7 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
             approvalHandler ?? throw new ArgumentNullException(nameof(approvalHandler)),
             configurationService ?? throw new ArgumentNullException(nameof(configurationService)),
             sharedDatabases ?? throw new ArgumentNullException(nameof(sharedDatabases)),
+            changeFeed ?? throw new ArgumentNullException(nameof(changeFeed)),
             loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)),
             options ?? throw new ArgumentNullException(nameof(options)),
             new PairingRequestTracker(TimeProvider.System));
@@ -88,6 +91,7 @@ internal sealed record PeerHostServices(
     IPairingApprovalHandler ApprovalHandler,
     IConfigurationService ConfigurationService,
     ISharedDatabaseService SharedDatabases,
+    ISharedDatabaseChangeFeed ChangeFeed,
     ILoggerFactory LoggerFactory,
     PeerHostOptions Options,
     PairingRequestTracker Tracker);
@@ -144,6 +148,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         builder.Services.AddSingleton(_services.ApprovalHandler);
         builder.Services.AddSingleton(_services.Tracker);
         builder.Services.AddSingleton(_services.SharedDatabases);
+        builder.Services.AddSingleton(_services.ChangeFeed);
         builder.Services.AddSingleton(_services.Options);
         builder.Services.AddSingleton(_connections);
         builder.Services.AddGrpc(grpc => grpc.Interceptors.Add<PairedPeerGate>());

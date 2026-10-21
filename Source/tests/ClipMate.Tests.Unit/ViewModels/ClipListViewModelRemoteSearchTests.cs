@@ -43,7 +43,7 @@ public class ClipListViewModelRemoteSearchTests
         await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteDatabaseKey.From(_work));
         await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("Showing 1,000 of 4,212 matches");
         A.CallTo(() => _collectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
-        A.CallTo(_remoteDatabases).MustNotHaveHappened();
+        A.CallTo(_remoteDatabases).Where(p => p.Method.Name.EndsWith("Async", StringComparison.Ordinal)).MustNotHaveHappened();
     }
 
     [Test]
