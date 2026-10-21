@@ -1,3 +1,4 @@
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -109,8 +110,7 @@ public class SetupService : ISetupService
     /// <inheritdoc />
     public string GetDefaultDatabasePath()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var clipMateDataPath = Path.Combine(appDataPath, "ClipMate", "Databases");
+        var clipMateDataPath = Path.Combine(ClipMatePaths.DataDirectory, "Databases");
         var defaultDbPath = Path.Combine(clipMateDataPath, "ClipMate.db");
 
         _logger.LogDebug("Default database path: {DefaultDbPath}", defaultDbPath);

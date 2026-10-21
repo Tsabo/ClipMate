@@ -282,34 +282,5 @@ public class SetupServiceIntegrationTests : IntegrationTestBase
         }
     }
 
-    private static void CleanupDatabase(string path)
-    {
-        if (!File.Exists(path))
-            return;
-
-        // Clear all SQLite connection pools first
-        SqliteConnection.ClearAllPools();
-
-        // Try multiple times to handle file locks
-        for (int i = 0; i < 10; i++)
-        {
-            try
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-                Thread.Sleep(200);
-
-                File.Delete(path);
-                return;
-            }
-            catch (IOException)
-            {
-                if (i == 9)
-                    throw; // Fail on last attempt
-
-                Thread.Sleep(500 * (i + 1)); // Exponential backoff
-            }
-        }
-    }
+    private static void CleanupDatabase(string path) => DatabaseFileCleanup.Delete(path);
 }

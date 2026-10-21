@@ -18,6 +18,9 @@
     <PackageVersion Include="ReverseMarkdown" Version="6.2.1" />
     <PackageVersion Include="ThrottleDebounce" Version="3.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Code Analysis">
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.3.0" />
+  </ItemGroup>
   <ItemGroup Label="Build Tools">
     <PackageVersion Include="JeremyAnsel.HLSL.Targets" Version="2.0.35" />
     <PackageVersion Include="Microsoft.Web.LibraryManager.Build" Version="3.0.114" />

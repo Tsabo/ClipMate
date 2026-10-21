@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -19,10 +20,7 @@ public class FileLoggingService : IFileLoggingService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Initialize log directory
-        LogDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "Logs");
+        LogDirectory = ClipMatePaths.LogDirectory;
 
         try
         {

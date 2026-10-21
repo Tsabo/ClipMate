@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using ClipMate.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;
 
@@ -9,11 +12,16 @@ namespace ClipMate.App.Services;
 /// </summary>
 public sealed class SingleInstanceManager : IDisposable
 {
-    private const string MutexName = "Global\\ClipMate_SingleInstance_Mutex";
+    private const string DefaultMutexName = "Global\\ClipMate_SingleInstance_Mutex";
 
     private readonly ILogger<SingleInstanceManager> _logger;
     private bool _isOwner;
     private Mutex? _mutex;
+
+    // One instance per data folder: a copy started with --data-dir runs beside the user's own ClipMate
+    private static string MutexName => ClipMatePaths.IsDataDirectoryOverridden
+        ? $"{DefaultMutexName}_{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ClipMatePaths.DataDirectory.ToUpperInvariant())))[..16]}"
+        : DefaultMutexName;
 
     public SingleInstanceManager(ILogger<SingleInstanceManager> logger)
     {

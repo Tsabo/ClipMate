@@ -1,4 +1,6 @@
 using System.IO;
+using ClipMate.App.Services;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
@@ -26,9 +28,7 @@ public partial class SetupWizard
         _setupService = setupService ?? throw new ArgumentNullException(nameof(setupService));
 
         // Default configuration directory
-        _configurationDirectory = configurationDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        _configurationDirectory = configurationDirectory ?? ClipMatePaths.DataDirectory;
 
         // Default path
         DatabasePath = _setupService.GetDefaultDatabasePath();
@@ -179,35 +179,7 @@ public partial class SetupWizard
                 builder.SetMinimumLevel(LogLevel.Information);
             });
 
-            var configLogger = loggerFactory.CreateLogger<ConfigurationService>();
-            var configService = new ConfigurationService(_configurationDirectory, configLogger);
-
-            // Load or create configuration
-            _logger.LogDebug("Loading existing configuration or creating new...");
-            var config = await configService.LoadAsync();
-
-            // Add database configuration
-            var dbConfig = new DatabaseConfiguration
-            {
-                Name = databaseName,
-                FilePath = Path.Combine(databaseDirectory, "clipmate.db"),
-                AutoLoad = true,
-                AllowBackup = true,
-                ReadOnly = false,
-                CleanupMethod = CleanupMethod.AtStartup,
-                PurgeDays = 7,
-            };
-
-            // Generate a unique GUID-based key for the database (same pattern as DatabaseOptionsViewModel)
-            var guid = Guid.NewGuid().ToString("N");
-            var databaseKey = $"db_{guid[..8]}";
-            config.Databases[databaseKey] = dbConfig;
-            config.DefaultDatabase = databaseKey;
-
-            _logger.LogDebug("Saving configuration to disk with database key: {DatabaseKey}...", databaseKey);
-
-            // Save configuration
-            await configService.SaveAsync(config);
+            await FirstRunSetup.SaveDatabaseConfigurationAsync(_configurationDirectory, databaseName, databaseDirectory, loggerFactory);
 
             _logger.LogInformation("Configuration saved successfully to: {ConfigDirectory}", _configurationDirectory);
         }

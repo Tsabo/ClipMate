@@ -334,32 +334,5 @@ public class DatabaseSchemaMigrationServiceTests : IntegrationTestBase
         return tables;
     }
 
-    private static void CleanupDatabase(string path)
-    {
-        if (!File.Exists(path))
-            return;
-
-        // Clear all SQLite connection pools and force GC
-        SqliteConnection.ClearAllPools();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        for (int i = 0; i < 20; i++)
-        {
-            try
-            {
-                Thread.Sleep(100 * (i + 1));
-                File.Delete(path);
-                return;
-            }
-            catch (IOException)
-            {
-                if (i == 19)
-                    throw;
-
-                SqliteConnection.ClearAllPools();
-            }
-        }
-    }
+    private static void CleanupDatabase(string path) => DatabaseFileCleanup.Delete(path);
 }

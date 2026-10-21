@@ -1,0 +1,2 @@
+M:System.Threading.Thread.Sleep(System.Int32);Tests wait on a signal or advance a fake TimeProvider (ManualTimeProvider) instead of sleeping on the wall clock
+M:System.Threading.Thread.Sleep(System.TimeSpan);Tests wait on a signal or advance a fake TimeProvider (ManualTimeProvider) instead of sleeping on the wall clock

@@ -88,6 +88,18 @@ Permanently deletes clips from the Trashcan after the retention period (default:
 
 Configure cleanup timing in [Database Properties](../options/databases.md).
 
+## Where ClipMate Keeps Its Data
+
+ClipMate keeps its settings (`clipmate.toml`), databases, logs and Device identity in `%LOCALAPPDATA%\ClipMate`.
+
+To run a separate copy that shares none of that, for example to try something out or to run two Devices on one computer, start ClipMate with `--data-dir` and a folder:
+
+```
+ClipMate.App.exe --data-dir "C:\Temp\ClipMate Test"
+```
+
+The first time it runs with an empty folder, ClipMate creates a default "My Clips" database there without showing the setup wizard. A copy started with `--data-dir` runs alongside your normal ClipMate. Give two copies different folders, and different networking ports in Options, to pair them with each other.
+
 ## See Also
 
 - [Database Options](../options/databases.md)

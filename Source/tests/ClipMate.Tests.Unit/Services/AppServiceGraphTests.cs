@@ -1,6 +1,7 @@
 using ClipMate.App.DependencyInjection;
 using ClipMate.App.Services;
 using ClipMate.Core.DependencyInjection;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.DependencyInjection;
@@ -21,6 +22,19 @@ namespace ClipMate.Tests.Unit.Services;
 public class AppServiceGraphTests
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(15);
+    private string? _savedDataDirectory;
+
+    // Services that touch the data folder (configuration, Device identity) never see the user's own
+    [Before(Test)]
+    public void UseIsolatedDataDirectory()
+    {
+        _savedDataDirectory = Environment.GetEnvironmentVariable(ClipMatePaths.DataDirectoryVariable);
+        Environment.SetEnvironmentVariable(ClipMatePaths.DataDirectoryVariable,
+            Path.Join(Path.GetTempPath(), $"clipmate-graph-{Guid.NewGuid():N}"));
+    }
+
+    [After(Test)]
+    public void RestoreDataDirectory() => Environment.SetEnvironmentVariable(ClipMatePaths.DataDirectoryVariable, _savedDataDirectory);
 
     [Test]
     [Arguments(typeof(IRemoteDatabaseService))]
@@ -45,10 +59,56 @@ public class AppServiceGraphTests
         await Assert.That(await resolve).IsNotNull();
     }
 
+    [Test]
+    public async Task ResolveEveryService_FromTheApplicationRegistrations_CompletesWithoutACycle()
+    {
+        // Arrange: every closed service type except WPF objects (windows, controls), which need the UI thread
+        var services = CreateApplicationServices();
+        var serviceTypes = services
+            .Where(p => !p.ServiceType.ContainsGenericParameters && !IsWpfObject(p))
+            .Select(p => p.ServiceType)
+            .Distinct()
+            .ToList();
+
+        await using var provider = services.BuildServiceProvider();
+        var failures = new List<string>();
+
+        // Act: off the test thread, so a deadlock shows up as a timeout instead of hanging the run
+        var resolveAll = Task.Run(() =>
+        {
+            foreach (var item in serviceTypes)
+            {
+                try
+                {
+                    _ = provider.GetServices(item).ToList();
+                }
+                catch (Exception ex)
+                {
+                    failures.Add($"{item.FullName}: {ex.GetBaseException().Message}");
+                }
+            }
+        });
+
+        var completed = await Task.WhenAny(resolveAll, Task.Delay(_timeout * 2));
+
+        // Assert
+        await Assert.That(completed).IsSameReferenceAs(resolveAll);
+        await Assert.That(failures).IsEmpty();
+    }
+
+    // Windows and controls need the UI thread; IWindow is registered through a factory, so its type isn't visible
+    private static bool IsWpfObject(ServiceDescriptor descriptor)
+    {
+        var type = descriptor.ImplementationType ?? descriptor.ServiceType;
+        return typeof(System.Windows.DependencyObject).IsAssignableFrom(type) || typeof(IWindow).IsAssignableFrom(descriptor.ServiceType);
+    }
+
     /// <summary>
     /// The registrations App.CreateHostBuilder makes, with configuration that touches no real user files.
     /// </summary>
-    private static ServiceProvider BuildApplicationServices()
+    private static ServiceProvider BuildApplicationServices() => CreateApplicationServices().BuildServiceProvider();
+
+    private static ServiceCollection CreateApplicationServices()
     {
         var configurationService = A.Fake<IConfigurationService>();
         A.CallTo(() => configurationService.Configuration).Returns(new ClipMateConfiguration());
@@ -63,6 +123,6 @@ public class AppServiceGraphTests
         services.AddClipMateNetworking();
         services.AddClipMateApp();
         services.AddSingleton(configurationService);
-        return services.BuildServiceProvider();
+        return services;
     }
 }

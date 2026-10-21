@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
@@ -80,9 +81,7 @@ public static class ServiceCollectionExtensions
 
         // Register configuration service
         // Configuration is always stored in the AppData\ClipMate directory, not in the database directory
-        var configDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        var configDirectory = ClipMatePaths.DataDirectory;
 
         services.AddSingleton<IConfigurationService>(sp =>
             new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));

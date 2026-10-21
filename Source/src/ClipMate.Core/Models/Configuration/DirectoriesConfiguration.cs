@@ -1,3 +1,5 @@
+using ClipMate.Core.Helpers;
+
 namespace ClipMate.Core.Models.Configuration;
 
 /// <summary>
@@ -61,7 +63,7 @@ public class DirectoriesConfiguration
     /// </summary>
     public string GetLogDirectory() =>
         ResolveDirectory(LogDirectory,
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "Logs"));
+            ClipMatePaths.LogDirectory);
 
     /// <summary>
     /// Gets the resolved temp directory path.
@@ -75,7 +77,7 @@ public class DirectoriesConfiguration
     /// </summary>
     public string GetTemplatesDirectory() =>
         ResolveDirectory(TemplatesDirectory,
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClipMate", "Templates"));
+            ClipMatePaths.DefaultTemplatesDirectory);
 
     /// <summary>
     /// Gets the resolved export directory path.

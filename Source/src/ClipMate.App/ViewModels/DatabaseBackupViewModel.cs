@@ -100,25 +100,9 @@ public class DatabaseBackupViewModel : ObservableObject
 
     public DatabaseConfiguration ToConfiguration()
     {
-        // Create a copy of the original configuration with updated backup settings
-        return new DatabaseConfiguration
-        {
-            Name = _originalConfig.Name,
-            FilePath = _originalConfig.FilePath,
-            AutoLoad = _originalConfig.AutoLoad,
-            MultiUser = _originalConfig.MultiUser,
-            UserName = _originalConfig.UserName,
-            AllowBackup = _originalConfig.AllowBackup,
-            ReadOnly = _originalConfig.ReadOnly,
-            PurgeDays = _originalConfig.PurgeDays,
-            CleanupMethod = _originalConfig.CleanupMethod,
-            TempFileLocation = _originalConfig.TempFileLocation,
-            RemoteHost = _originalConfig.RemoteHost,
-            RemoteUserId = _originalConfig.RemoteUserId,
-            RemotePassword = _originalConfig.RemotePassword,
-            SetOfflineDailyAt = _originalConfig.SetOfflineDailyAt,
-            LastBackupDate = _originalConfig.LastBackupDate,
-            BackupDirectory = BackupDirectory,
-        };
+        // Every setting of the original, with only the backup folder updated
+        var configuration = _originalConfig.Clone();
+        configuration.BackupDirectory = BackupDirectory;
+        return configuration;
     }
 }

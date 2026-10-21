@@ -62,7 +62,7 @@ public partial class MonacoEditorControl
         try
         {
             // Initialize WebView2 with shared user data folder for better performance
-            var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "WebView2");
+            var userDataFolder = Path.Combine(ClipMatePaths.DataDirectory, "WebView2");
             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
 
             try
