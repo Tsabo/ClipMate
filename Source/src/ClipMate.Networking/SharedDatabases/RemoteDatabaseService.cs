@@ -1,5 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -115,6 +116,15 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     {
         var (identity, peer) = GetReachablePeer(address.DeviceId);
         return await _client.GetClipContentAsync(identity, peer, address.DatabaseId, clipId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<SearchMatches> SearchAsync(RemoteDatabaseAddress address, SearchFilters filters, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+        var (identity, peer) = GetReachablePeer(address.DeviceId);
+        return await _client.SearchAsync(identity, peer, address.DatabaseId, filters, cancellationToken)
+               ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
     }
 
     /// <inheritdoc />

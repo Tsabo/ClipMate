@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Networking.SharedDatabases;
 using FakeItEasy;
@@ -406,6 +407,48 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task SearchAsync_OnlinePeer_ReturnsTheMatchesFromThePeer()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        var filters = new SearchFilters { TitleQuery = "report" };
+        var matches = new SearchMatches([new Clip { Id = Guid.NewGuid() }], 4212);
+        A.CallTo(() => _client.SearchAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, filters, A<CancellationToken>._))
+            .Returns(matches);
+
+        // Act
+        var result = await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), filters);
+
+        // Assert
+        await Assert.That(result).IsSameReferenceAs(matches);
+    }
+
+    [Test]
+    public async Task SearchAsync_PeerOffline_ThrowsWithoutContactingIt()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Offline);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
+            .Throws<RemoteDatabaseUnavailableException>();
+        A.CallTo(_client).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task SearchAsync_NoLongerShared_Throws()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+            .Returns((SearchMatches?)null);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
             .Throws<RemoteDatabaseUnavailableException>();
     }
 

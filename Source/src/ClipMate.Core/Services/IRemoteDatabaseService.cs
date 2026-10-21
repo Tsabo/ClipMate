@@ -1,5 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 
 namespace ClipMate.Core.Services;
 
@@ -70,6 +71,19 @@ public interface IRemoteDatabaseService
     /// The Peer cannot be reached or did not answer in time, or no longer shares that Database.
     /// </exception>
     Task<ClipContent?> GetClipContentAsync(RemoteDatabaseAddress address, Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs a Remote Search on a Remote Database: the criteria go to the Peer (never SQL), which runs the search itself
+    /// and returns at most <see cref="RemoteSearchLimits.MaxResults" /> matches, newest first, with the total match count.
+    /// </summary>
+    /// <param name="address">The Remote Database.</param>
+    /// <param name="filters">What to search for; a scope's collection or folder must be one of that Remote Database.</param>
+    /// <param name="cancellationToken">Cancellation token; also stops the search on the Peer.</param>
+    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// The Peer cannot be reached, stopped the search because it took too long, or no longer shares that Database,
+    /// collection or folder.
+    /// </exception>
+    Task<SearchMatches> SearchAsync(RemoteDatabaseAddress address, SearchFilters filters, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
