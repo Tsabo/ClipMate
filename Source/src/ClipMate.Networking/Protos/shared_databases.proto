@@ -18,6 +18,19 @@ service SharedDatabaseAccess {
 
   // Returns the collection and folder tree of one Shared Database. NOT_FOUND if the Peer does not share it.
   rpc GetCollectionTree (GetCollectionTreeRequest) returns (GetCollectionTreeReply);
+
+  // Returns one page of the clips (metadata only) of a collection or folder of a Shared Database. Smart and SQL-based
+  // collections are evaluated on the Peer with its own stored SQL. NOT_FOUND if the Peer does not share the Database
+  // or it has no such collection or folder. Capability "remote-clips".
+  rpc GetClipPage (GetClipPageRequest) returns (GetClipPageReply);
+
+  // Returns a clip's metadata and its formats (no content). NOT_FOUND if the Peer does not share the Database or it
+  // has no such clip. Capability "remote-clips".
+  rpc GetClipFormats (GetClipFormatsRequest) returns (GetClipFormatsReply);
+
+  // Streams the stored content of every format of a clip in chunks, so a large image never needs one huge message.
+  // Encrypted clips are streamed as stored (ciphertext); the Peer never decrypts. Capability "remote-clips".
+  rpc ReadClipContent (ReadClipContentRequest) returns (stream ClipContentChunk);
 }
 
 message ListSharedDatabasesRequest {
@@ -58,4 +71,93 @@ message CollectionEntry {
   string title = 3;
   CollectionKind kind = 4;
   int32 sort_key = 5;
+}
+
+message GetClipPageRequest {
+  string database_id = 1;
+  string collection_id = 2;
+  // Empty for the collection itself.
+  string folder_id = 3;
+  int32 offset = 4;
+  // The Peer serves at most its own page size limit.
+  int32 count = 5;
+}
+
+message GetClipPageReply {
+  repeated ClipSummary clips = 1;
+  int32 offset = 2;
+  int32 total_count = 3;
+}
+
+enum ClipKind {
+  CLIP_KIND_UNSPECIFIED = 0;
+  CLIP_KIND_TEXT = 1;
+  CLIP_KIND_IMAGE = 2;
+  CLIP_KIND_FILES = 3;
+  CLIP_KIND_RICH_TEXT = 4;
+  CLIP_KIND_HTML = 5;
+  CLIP_KIND_CUSTOM = 6;
+}
+
+// A clip's metadata, as shown in a clip list. Carries no content.
+message ClipSummary {
+  string id = 1;
+  string title = 2;
+  // Capture time in Unix milliseconds (UTC), and the UTC offset in minutes it was captured with.
+  int64 captured_at_unix_ms = 3;
+  int32 captured_at_offset_minutes = 4;
+  int32 size = 5;
+  ClipKind kind = 6;
+  bool has_text = 7;
+  bool has_rtf = 8;
+  bool has_html = 9;
+  bool has_bitmap = 10;
+  bool has_files = 11;
+  string source_application_name = 12;
+  string source_application_title = 13;
+  string source_url = 14;
+  string creator = 15;
+  bool custom_title = 16;
+  bool macro = 17;
+  int32 sort_key = 18;
+  // Encryption metadata (never a key): encrypted clips are decrypted only by the requesting Device.
+  bool encrypted = 19;
+  string encryption_salt = 20;
+  string encryption_iv = 21;
+  string encryption_method = 22;
+  string collection_id = 23;
+  string folder_id = 24;
+}
+
+message GetClipFormatsRequest {
+  string database_id = 1;
+  string clip_id = 2;
+}
+
+message GetClipFormatsReply {
+  ClipSummary clip = 1;
+  repeated ClipFormat formats = 2;
+}
+
+message ClipFormat {
+  string id = 1;
+  int32 format = 2;
+  string format_name = 3;
+  // Which store holds the content: 1 text, 2 JPEG, 3 PNG, 4 binary.
+  int32 storage_type = 4;
+  int32 size = 5;
+}
+
+message ReadClipContentRequest {
+  string database_id = 1;
+  string clip_id = 2;
+}
+
+// One piece of one format's stored content. The pieces of a format arrive in order and together; text is UTF-8.
+message ClipContentChunk {
+  string format_id = 1;
+  int32 storage_type = 2;
+  bytes data = 3;
+  // The total length of this format's content, so the receiver can allocate once and check it.
+  int64 total_length = 4;
 }

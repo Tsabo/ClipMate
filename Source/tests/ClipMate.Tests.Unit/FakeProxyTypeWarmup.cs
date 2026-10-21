@@ -47,6 +47,7 @@ public static class FakeProxyTypeWarmup
         typeof(IClipDataRepository),
         typeof(IClipRepository),
         typeof(IClipService),
+        typeof(IClipContentService),
         typeof(IClipViewerWindowManager),
         typeof(IClipboardFormatEnumerator),
         typeof(IClipboardService),

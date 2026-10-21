@@ -48,6 +48,26 @@ public interface IClipRepository
     Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves one page of the clips of a collection, in the same order as <see cref="GetByCollectionAsync" />,
+    /// with format flags but no content.
+    /// </summary>
+    /// <param name="collectionId">The collection's unique identifier.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves one page of the clips of a folder, in the same order as <see cref="GetByFolderAsync" />,
+    /// with format flags but no content.
+    /// </summary>
+    /// <param name="folderId">The folder's unique identifier.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves favorite clips.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>

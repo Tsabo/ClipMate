@@ -13,7 +13,7 @@ public static class PeerProtocol
     /// <summary>
     /// Backward-compatible additions bump the minor version.
     /// </summary>
-    public const uint Minor = 1;
+    public const uint Minor = 2;
 
     /// <summary>
     /// The capability of serving Shared Databases (<c>Protos/shared_databases.proto</c>), added in minor version 1.
@@ -21,7 +21,13 @@ public static class PeerProtocol
     public const string SharedDatabasesCapability = "shared-databases";
 
     /// <summary>
+    /// The capability of serving the clips of Shared Databases (paged clip lists, formats and streamed content),
+    /// added in minor version 2.
+    /// </summary>
+    public const string RemoteClipsCapability = "remote-clips";
+
+    /// <summary>
     /// The optional features this Device supports, exchanged in Hello. New features are added here as capabilities.
     /// </summary>
-    public static IReadOnlyList<string> Capabilities { get; } = ["pairing", SharedDatabasesCapability];
+    public static IReadOnlyList<string> Capabilities { get; } = ["pairing", SharedDatabasesCapability, RemoteClipsCapability];
 }

@@ -206,6 +206,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
@@ -232,6 +233,7 @@ public class ClipPersistenceTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             serviceLogger);
     }

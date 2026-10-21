@@ -1,4 +1,6 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,9 +16,11 @@ public partial class ClipViewerViewModel : ObservableObject
     #region Constructor
 
     public ClipViewerViewModel(IDatabaseManager databaseManager,
+        IClipContentService clipContentService,
         ILogger<ClipViewerViewModel> logger)
     {
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
+        _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -24,6 +28,7 @@ public partial class ClipViewerViewModel : ObservableObject
 
     #region Fields
 
+    private readonly IClipContentService _clipContentService;
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ClipViewerViewModel> _logger;
     private string? _currentDatabaseKey;
@@ -75,8 +80,12 @@ public partial class ClipViewerViewModel : ObservableObject
         {
             Clip? clip = null;
 
+            // A Remote Database is read from its Peer
+            if (RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
+                clip = (await _clipContentService.GetClipContentAsync(_currentDatabaseKey, args.ClipId))?.Clip;
+
             // Try to load from specified database first
-            if (!string.IsNullOrEmpty(_currentDatabaseKey))
+            else if (!string.IsNullOrEmpty(_currentDatabaseKey))
             {
                 await using var context = _databaseManager.CreateDatabaseContext(_currentDatabaseKey);
                 if (context != null)
@@ -84,7 +93,7 @@ public partial class ClipViewerViewModel : ObservableObject
             }
 
             // If no database key provided, try all loaded databases
-            if (clip == null)
+            if (clip == null && !RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
             {
                 foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
                 {

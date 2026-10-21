@@ -39,6 +39,7 @@ public class CreateNewClipTests : TestFixtureBase
         A.Fake<ITemplateService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),
+        A.Fake<IClipContentService>(),
         A.Fake<IMessenger>(),
         _mockLogger);
 

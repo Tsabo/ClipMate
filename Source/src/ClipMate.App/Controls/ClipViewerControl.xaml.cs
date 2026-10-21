@@ -11,6 +11,7 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data;
@@ -50,6 +51,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
         _blobCacheService = serviceProvider.GetRequiredService<IDecryptedBlobCacheService>();
+        _clipContentService = serviceProvider.GetRequiredService<IClipContentService>();
 
         // Initialize toolbar ViewModel
         _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
@@ -275,6 +277,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
     private readonly IDecryptedBlobCacheService _blobCacheService;
+    private readonly IClipContentService _clipContentService;
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
     private CancellationTokenSource? _loadCancellationTokenSource;
@@ -352,17 +355,18 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             if (string.IsNullOrEmpty(_currentDatabaseKey))
                 throw new InvalidOperationException("No database configured");
 
-            // Get repositories - each creates its own fresh context internally
-            var clipRepository = _databaseContextFactory.GetClipRepository(_currentDatabaseKey);
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(_currentDatabaseKey);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(_currentDatabaseKey);
-            var monacoStateRepository = _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+            // Read the clip, its formats and their content from its Database. A Remote Database is read from its
+            // Peer (large content arrives in chunks) and is read-only, so it has no saved editor state.
+            var isRemote = RemoteDatabaseKey.IsRemote(_currentDatabaseKey);
+            var monacoStateRepository = isRemote ? null : _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+            var content = await _clipContentService.GetClipContentAsync(_currentDatabaseKey, clipId, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // Load the Clip object to check encryption status
-            _currentClip = await clipRepository.GetByIdAsync(clipId, cancellationToken);
+            // The Clip object tells whether the content is encrypted
+            _currentClip = content?.Clip;
 
-            // Load all ClipData entries for this clip
-            _currentClipData = (await clipDataRepository.GetByClipIdAsync(clipId, cancellationToken))
+            // All ClipData entries for this clip
+            _currentClipData = (content?.Formats ?? [])
                 .OrderBy(p => p.FormatName)
                 .ToList();
 
@@ -412,18 +416,14 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             }
             else
             {
-                // Load from database (not encrypted)
-                _logger.LogInformation("[ClipViewer] Loading BLOBs from database for clip {ClipId}", clipId);
-                var textBlobs = await blobRepository.GetTextByClipIdAsync(clipId, cancellationToken);
-                var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clipId, cancellationToken);
-                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clipId, cancellationToken);
-                var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clipId, cancellationToken);
+                // Stored content (not encrypted), already read above
+                _logger.LogInformation("[ClipViewer] Using stored BLOBs for clip {ClipId}", clipId);
 
                 // Create lookup dictionaries by ClipDataId
-                _textBlobs = textBlobs.ToDictionary(p => p.ClipDataId);
-                _jpgBlobs = jpgBlobs.ToDictionary(p => p.ClipDataId);
-                _pngBlobs = pngBlobs.ToDictionary(p => p.ClipDataId);
-                _binaryBlobs = binaryBlobs.ToDictionary(p => p.ClipDataId);
+                _textBlobs = content!.TextBlobs.ToDictionary(p => p.ClipDataId);
+                _jpgBlobs = content.JpgBlobs.ToDictionary(p => p.ClipDataId);
+                _pngBlobs = content.PngBlobs.ToDictionary(p => p.ClipDataId);
+                _binaryBlobs = content.BinaryBlobs.ToDictionary(p => p.ClipDataId);
             }
 
             _logger.LogInformation("[ClipViewer] Loaded blobs - Text: {TextCount}, JPG: {JpgCount}, PNG: {PngCount}, Binary: {BinaryCount}",
@@ -464,6 +464,13 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             _logger.LogDebug("Load clip data cancelled for ClipId: {ClipId}", clipId);
         }
+        catch (RemoteDatabaseUnavailableException ex)
+        {
+            // An offline or slow Peer: say so without a modal error on every selection
+            _logger.LogInformation("Could not load remote clip {ClipId}: {Reason}", clipId, ex.Message);
+            HideAllTabs();
+            _messenger.Send(new StatusUpdateEvent(ex.Message, true));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clip data for ClipId: {ClipId}", clipId);
@@ -472,7 +479,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         }
     }
 
-    private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository monacoStateRepository, CancellationToken cancellationToken = default)
+    private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository? monacoStateRepository, CancellationToken cancellationToken = default)
     {
         // Debug log all ClipData entries
         foreach (var item in _currentClipData)
@@ -531,20 +538,24 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             cancellationToken.ThrowIfCancellationRequested();
 
             // Load saved language and view state from MonacoEditorState
-            var editorState = await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id, cancellationToken);
+            var editorState = monacoStateRepository == null
+                ? null
+                : await monacoStateRepository.GetByClipDataIdAsync(textFormat.Id, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             var savedLanguage = editorState?.Language ?? "plaintext";
 
             // Load everything in one atomic operation
             await TextEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
 
-            TextEditor.IsReadOnly = false; // Allow editing
+            // A Remote Database is read-only: its clips can be viewed and copied, never edited
+            var isRemote = RemoteDatabaseKey.IsRemote(_currentDatabaseKey);
+            TextEditor.IsReadOnly = isRemote;
             TextEditor.Visibility = Visibility.Visible;
             NoTextMessage.Visibility = Visibility.Collapsed;
             TextTab.Visibility = Visibility.Visible;
 
-            // Track the ClipData ID for saving changes
-            _textFormatClipDataId = textFormat.Id;
+            // Track the ClipData ID for saving changes (never for a remote clip)
+            _textFormatClipDataId = isRemote ? null : textFormat.Id;
             return;
         }
 
@@ -1011,6 +1022,10 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             _logger.LogWarning("Cannot save text editor - no ClipData ID tracked");
             return;
         }
+
+        // A Remote Database is read-only
+        if (RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
+            return;
 
         try
         {

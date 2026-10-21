@@ -3,6 +3,7 @@ using System.Text;
 using ClipMate.Core.Events;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
@@ -20,6 +21,7 @@ public class ClipService : IClipService
 {
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IClipboardService _clipboardService;
+    private readonly IClipContentService _clipContentService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IEncryptionService _encryptionService;
@@ -33,6 +35,7 @@ public class ClipService : IClipService
         ITemplateService templateService,
         IEncryptionService encryptionService,
         IDecryptedBlobCacheService blobCacheService,
+        IClipContentService clipContentService,
         IMessenger messenger,
         ILogger<ClipService> logger)
     {
@@ -42,6 +45,7 @@ public class ClipService : IClipService
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
+        _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -345,67 +349,22 @@ public class ClipService : IClipService
     {
         try
         {
-            // Get the clip
-            var repository = GetRepository(databaseKey);
-            var clip = await repository.GetByIdAsync(clipId, cancellationToken);
-            if (clip == null)
+            // Read the clip and its content from its Database (a Remote Database is read from its Peer)
+            var content = await _clipContentService.GetClipContentAsync(databaseKey, clipId, cancellationToken);
+            if (content == null)
             {
                 _logger.LogWarning("Clip {ClipId} not found in database {DatabaseKey}", clipId, databaseKey);
                 return;
             }
 
-            // Create repositories to load full clip content
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(databaseKey);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
-
-            // Load ClipData for this clip
-            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id, cancellationToken);
-            if (clipDataList.Count == 0)
+            if (content.Formats.Count == 0)
             {
-                _logger.LogWarning("No ClipData found for clip: {ClipId}", clip.Id);
+                _logger.LogWarning("No ClipData found for clip: {ClipId}", clipId);
                 return;
             }
 
-            // Load text blobs and populate content properties
-            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
-            var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
-
-            foreach (var item in clipDataList)
-            {
-                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
-                    continue;
-
-                // Determine content type based on format
-                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
-                    clip.TextContent = textBlob.Data;
-                else if (item.Format == Formats.RichText.Code)
-                    clip.RtfContent = textBlob.Data;
-                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
-                    clip.HtmlContent = textBlob.Data;
-            }
-
-            // For images, load image data
-            if (clip.Type == ClipType.Image)
-            {
-                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
-                if (pngBlobs.Count > 0)
-                    clip.ImageData = pngBlobs[0].Data;
-                else
-                {
-                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
-                    if (jpgBlobs.Count > 0)
-                        clip.ImageData = jpgBlobs[0].Data;
-                }
-            }
-
-            // Load file paths from binary blobs whenever an HDROP entry exists, even for Text-type clips
-            // that were auto-expanded from HDROP - they still need the file drop restored on paste.
-            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
-            var filePathBlob = binaryBlobs.FirstOrDefault(b =>
-                clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
-
-            if (filePathBlob != null)
-                clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+            var clip = content.Clip;
+            content.PopulateContent(clip);
 
             // Apply template transformation if active
             var transformedClip = _templateService.TryApplyTemplate(clip);
@@ -438,58 +397,15 @@ public class ClipService : IClipService
     {
         try
         {
-            // Create repositories to load full clip content
-            var clipDataRepository = _databaseContextFactory.GetClipDataRepository(databaseKey);
-            var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
-
-            // Load ClipData for this clip
-            var clipDataList = await clipDataRepository.GetByClipIdAsync(clip.Id, cancellationToken);
-            if (clipDataList.Count == 0)
+            // Read the content from the clip's Database (a Remote Database is read from its Peer)
+            var content = await _clipContentService.GetClipContentAsync(databaseKey, clip.Id, cancellationToken);
+            if (content == null || content.Formats.Count == 0)
             {
                 _logger.LogDebug("No ClipData found for clip: {ClipId}", clip.Id);
                 return;
             }
 
-            // Load text blobs and populate content properties
-            var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
-            var textBlobsDict = textBlobs.ToDictionary(p => p.ClipDataId);
-
-            foreach (var item in clipDataList)
-            {
-                if (!textBlobsDict.TryGetValue(item.Id, out var textBlob))
-                    continue;
-
-                // Determine content type based on format
-                if (item.Format == Formats.Text.Code || item.Format == Formats.UnicodeText.Code)
-                    clip.TextContent = textBlob.Data;
-                else if (item.Format == Formats.RichText.Code)
-                    clip.RtfContent = textBlob.Data;
-                else if (item.Format == Formats.Html.Code || item.Format == Formats.HtmlAlt.Code)
-                    clip.HtmlContent = textBlob.Data;
-            }
-
-            // For images, load image data
-            if (clip.Type == ClipType.Image)
-            {
-                var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
-                if (pngBlobs.Count > 0)
-                    clip.ImageData = pngBlobs[0].Data;
-                else
-                {
-                    var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
-                    if (jpgBlobs.Count > 0)
-                        clip.ImageData = jpgBlobs[0].Data;
-                }
-            }
-
-            // Load file paths from binary blobs whenever an HDROP entry exists, even for Text-type clips
-            // that were auto-expanded from HDROP - they still need the file drop restored on paste.
-            var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
-            var filePathBlob = binaryBlobs.FirstOrDefault(b =>
-                clipDataList.Any(p => p.Id == b.ClipDataId && p.Format == Formats.HDrop.Code));
-
-            if (filePathBlob != null)
-                clip.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+            content.PopulateContent(clip);
 
             _logger.LogDebug("Loaded blob data for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
         }
@@ -1089,6 +1005,10 @@ public class ClipService : IClipService
             return false;
         }
 
+        // A Remote Database is read-only: its clips can be decrypted for viewing here, never decrypted in place
+        if (isPermanent && RemoteDatabaseKey.IsRemote(databaseKey))
+            throw new InvalidOperationException("A clip in a Remote Database cannot be decrypted permanently: Remote Databases are read-only.");
+
         var metadata = new EncryptionMetadata(
             clip.EncryptionSalt,
             clip.EncryptionIv,
@@ -1106,14 +1026,31 @@ public class ClipService : IClipService
             clip.EncryptionMethod = null;
         }
 
-        var clipRepository = GetRepository(databaseKey);
-        var blobRepository = _databaseContextFactory.GetBlobRepository(databaseKey);
+        // Permanent decryption writes back to the local Database; decryption for viewing only reads the stored
+        // ciphertext, which for a Remote Database comes from its Peer
+        var clipRepository = isPermanent ? GetRepository(databaseKey) : null;
+        var blobRepository = isPermanent ? _databaseContextFactory.GetBlobRepository(databaseKey) : null;
 
         // Get all BLOBs for this clip
-        var textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
-        var jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
-        var pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
-        var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+        IReadOnlyList<BlobTxt> textBlobs;
+        IReadOnlyList<BlobJpg> jpgBlobs;
+        IReadOnlyList<BlobPng> pngBlobs;
+        IReadOnlyList<BlobBlob> binaryBlobs;
+        if (blobRepository != null)
+        {
+            textBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id, cancellationToken);
+            jpgBlobs = await blobRepository.GetJpgByClipIdAsync(clip.Id, cancellationToken);
+            pngBlobs = await blobRepository.GetPngByClipIdAsync(clip.Id, cancellationToken);
+            binaryBlobs = await blobRepository.GetBlobByClipIdAsync(clip.Id, cancellationToken);
+        }
+        else
+        {
+            var content = await _clipContentService.GetClipContentAsync(databaseKey, clip.Id, cancellationToken);
+            textBlobs = content?.TextBlobs ?? [];
+            jpgBlobs = content?.JpgBlobs ?? [];
+            pngBlobs = content?.PngBlobs ?? [];
+            binaryBlobs = content?.BinaryBlobs ?? [];
+        }
 
         // For temporary decryption, we need to work with detached copies to prevent auto-save
         // Clone the BLOB objects so modifications don't affect tracked entities
@@ -1173,7 +1110,7 @@ public class ClipService : IClipService
 
                 // Only persist if permanent decryption
                 if (isPermanent)
-                    await blobRepository.UpdateTextAsync(item, cancellationToken);
+                    await blobRepository!.UpdateTextAsync(item, cancellationToken);
 
                 _logger.LogDebug("Decrypted TEXT BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
             }
@@ -1199,7 +1136,7 @@ public class ClipService : IClipService
 
                 // Only persist if permanent decryption
                 if (isPermanent)
-                    await blobRepository.UpdateJpgAsync(item, cancellationToken);
+                    await blobRepository!.UpdateJpgAsync(item, cancellationToken);
 
                 _logger.LogDebug("Decrypted JPG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
             }
@@ -1220,7 +1157,7 @@ public class ClipService : IClipService
 
                 // Only persist if permanent decryption
                 if (isPermanent)
-                    await blobRepository.UpdatePngAsync(item, cancellationToken);
+                    await blobRepository!.UpdatePngAsync(item, cancellationToken);
 
                 _logger.LogDebug("Decrypted PNG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
             }
@@ -1241,7 +1178,7 @@ public class ClipService : IClipService
 
                 // Only persist if permanent decryption
                 if (isPermanent)
-                    await blobRepository.UpdateBlobAsync(item, cancellationToken);
+                    await blobRepository!.UpdateBlobAsync(item, cancellationToken);
 
                 _logger.LogDebug("Decrypted binary BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
             }
@@ -1317,7 +1254,7 @@ public class ClipService : IClipService
         {
             // For permanent decryption, flags were already cleared before BLOB decryption
             // Now just need to save Title changes
-            await clipRepository.UpdateAsync(clip, cancellationToken);
+            await clipRepository!.UpdateAsync(clip, cancellationToken);
             _logger.LogInformation("Permanently decrypted clip {ClipId} - cleared encryption flags and saved decrypted title", clip.Id);
         }
 

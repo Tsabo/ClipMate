@@ -328,6 +328,7 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
             templateService,
             encryptionService,
             blobCacheService!,
+            new ClipContentService(mockFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             logger);
     }

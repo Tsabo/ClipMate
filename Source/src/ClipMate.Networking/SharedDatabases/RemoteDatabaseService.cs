@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
@@ -98,6 +99,22 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         var (identity, peer) = GetReachablePeer(address.DeviceId);
         return await _client.GetCollectionTreeAsync(identity, peer, address.DatabaseId, cancellationToken)
                ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database.");
+    }
+
+    /// <inheritdoc />
+    public async Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
+        CancellationToken cancellationToken = default)
+    {
+        var (identity, peer) = GetReachablePeer(address.DeviceId);
+        return await _client.GetClipPageAsync(identity, peer, address.DatabaseId, collectionId, folderId, offset, count, cancellationToken)
+               ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this collection.");
+    }
+
+    /// <inheritdoc />
+    public async Task<ClipContent?> GetClipContentAsync(RemoteDatabaseAddress address, Guid clipId, CancellationToken cancellationToken = default)
+    {
+        var (identity, peer) = GetReachablePeer(address.DeviceId);
+        return await _client.GetClipContentAsync(identity, peer, address.DatabaseId, clipId, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -3,6 +3,8 @@ using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
@@ -49,6 +51,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             A.Fake<IClipService>(),
             A.Fake<IQuickPasteService>(),
             A.Fake<IDatabaseContextFactory>(),
+            A.Fake<IRemoteDatabaseService>(),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipListViewModel>>())));
 
@@ -304,6 +307,37 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         // Assert - Key should still be cached for clipIdToKeep
         await Assert.That(EncryptionKeyDialogViewModel.HasCachedKey).IsTrue();
     }
+
+    #region Remote Databases are read-only
+
+    [Test]
+    public async Task ModifyingRequests_WhileShowingARemoteDatabase_NeverChangeAnyClip()
+    {
+        // Arrange
+        var clip = new Clip { Id = Guid.NewGuid(), Title = "Remote", Type = ClipType.Files };
+        _mockClipListViewModel.IsRemoteDatabase = true;
+        _mockClipListViewModel.CurrentDatabaseKey =
+            RemoteDatabaseKey.From(new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([5]), Guid.NewGuid()));
+        _mockClipListViewModel.Clips.Add(clip);
+        _mockClipListViewModel.SelectedClips.Add(clip);
+        IReadOnlyList<Guid> ids = [clip.Id];
+
+        // Act
+        _coordinator.Receive(new DeleteClipsRequestedEvent(ids));
+        _coordinator.Receive(new RenameClipRequestedEvent(clip.Id, "Remote"));
+        _coordinator.Receive(new MoveToCollectionRequestedEvent(ids));
+        _coordinator.Receive(new CopyToCollectionRequestedEvent(ids));
+        _coordinator.Receive(new EncryptClipsRequestedEvent(ids));
+        _coordinator.Receive(new DecryptClipsRequestedEvent(ids));
+        _coordinator.Receive(new ConvertFilePointerRequestedEvent());
+        _coordinator.Receive(new MoveClipSortOrderRequestedEvent(true));
+        await Task.Delay(100);
+
+        // Assert
+        A.CallTo(_mockClipService).Where(p => p.Method.Name != nameof(IClipService.GetByIdAsync)).MustNotHaveHappened();
+    }
+
+    #endregion
 
     #region Helper Methods
 

@@ -29,7 +29,52 @@ public class SharedDatabaseProtocolTests
             "PeerService.CheckPairing",
             "SharedDatabaseAccess.ListSharedDatabases",
             "SharedDatabaseAccess.GetCollectionTree",
+            "SharedDatabaseAccess.GetClipPage",
+            "SharedDatabaseAccess.GetClipFormats",
+            "SharedDatabaseAccess.ReadClipContent",
         ]);
+    }
+
+    [Test]
+    public async Task PeerProtocol_NoRequestCarriesSql()
+    {
+        // ADR 0001: SQL never crosses the wire; Smart and SQL-based collections run the Peer's own stored SQL.
+        // Act
+        var requestFields = SharedDatabaseAccess.Descriptor.Methods
+            .SelectMany(p => p.InputType.Fields.InDeclarationOrder())
+            .Select(p => p.Name)
+            .ToList();
+
+        // Assert
+        await Assert.That(requestFields.Any(p => p.Contains("sql", StringComparison.OrdinalIgnoreCase) ||
+                                                 p.Contains("query", StringComparison.OrdinalIgnoreCase))).IsFalse();
+    }
+
+    [Test]
+    public async Task PeerProtocol_AdvertisesRemoteClips()
+    {
+        // Assert
+        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.RemoteClipsCapability);
+    }
+
+    [Test]
+    public async Task FromMessage_ClipPage_DropsClipsWithInvalidIdsAndCleansText()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var reply = new GetClipPageReply { Offset = 0, TotalCount = 2 };
+        reply.Clips.Add(new ClipSummary { Id = id.ToString(), Title = "Hello\u0000 world\u001b", SourceApplicationName = new string('x', 5000), Size = -5 });
+        reply.Clips.Add(new ClipSummary { Id = "not a guid", Title = "Broken" });
+
+        // Act
+        var page = SharedDatabaseMessages.FromMessage(reply);
+
+        // Assert
+        var clip = page.Clips.Single();
+        await Assert.That(clip.Id).IsEqualTo(id);
+        await Assert.That(clip.Title).IsEqualTo("Hello world");
+        await Assert.That(clip.SourceApplicationName!.Length).IsEqualTo(2048);
+        await Assert.That(clip.Size).IsEqualTo(0);
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -39,6 +40,8 @@ public partial class ClipListViewModel : ObservableObject,
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IQuickPasteService _quickPasteService;
+    private readonly IRemoteDatabaseService _remoteDatabaseService;
+    private CancellationTokenSource? _remoteLoadCts;
 
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
@@ -68,6 +71,20 @@ public partial class ClipListViewModel : ObservableObject,
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>
+    /// Whether the list shows clips of a Remote Database. Remote Databases are read-only: nothing in this view may
+    /// modify, move, rename or delete their clips, and they never receive captures.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isRemoteDatabase;
+
+    /// <summary>
+    /// Progress while a Remote Database's clips load page by page, or why they could not be loaded (Peer offline,
+    /// timeout); <c>null</c> when there is nothing to report.
+    /// </summary>
+    [ObservableProperty]
+    private string? _remoteStatusMessage;
+
     private Clip? _previousSelectedClip; // Track previous clip to reset IsDecrypted flag
 
     [ObservableProperty]
@@ -95,6 +112,7 @@ public partial class ClipListViewModel : ObservableObject,
         IClipService clipService,
         IQuickPasteService quickPasteService,
         IDatabaseContextFactory databaseContextFactory,
+        IRemoteDatabaseService remoteDatabaseService,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
     {
@@ -103,6 +121,7 @@ public partial class ClipListViewModel : ObservableObject,
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -137,6 +156,7 @@ public partial class ClipListViewModel : ObservableObject,
     {
         _messenger.UnregisterAll(this);
         _debouncedClipSelection?.Dispose();
+        _remoteLoadCts?.Cancel();
     }
 
     /// <summary>
@@ -277,22 +297,133 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Receives RemoteDatabaseNodeSelectedEvent when a node in a Remote Database is selected. Shows an empty, read-only
-    /// list and leaves the active collection alone, so the Remote Database never becomes the capture target.
+    /// The most clips asked for in one page from a Peer.
     /// </summary>
-    public void Receive(RemoteDatabaseNodeSelectedEvent message)
+    public const int RemotePageSize = 200;
+
+    /// <summary>
+    /// Receives RemoteDatabaseNodeSelectedEvent when a node in a Remote Database is selected: loads the clips of the
+    /// selected collection or folder from the Peer, page by page, as a read-only list. Leaves the active collection
+    /// alone, so the Remote Database never becomes the capture target.
+    /// </summary>
+    public async void Receive(RemoteDatabaseNodeSelectedEvent message)
     {
         _logger.LogInformation("RemoteDatabaseNodeSelectedEvent received: RemoteDatabase={RemoteDatabase}, CollectionId={CollectionId}",
             message.Address, message.CollectionId);
 
-        // Remote clip lists are not loaded yet; never show the previous local clips as if they were the Peer's
+        try
+        {
+            if (message.CollectionId is { } collectionId)
+                await LoadRemoteClipsAsync(message.Address, collectionId, message.FolderId);
+            else
+            {
+                // The Remote Database node itself lists no clips
+                CancelRemoteLoad();
+                BeginRemoteView(message.Address, null, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to show Remote Database {RemoteDatabase}", message.Address);
+        }
+    }
+
+    /// <summary>
+    /// Shows the clips of a collection or folder of a Remote Database, fetched from its Peer page by page: the first
+    /// page appears as soon as it arrives and the rest are appended while the user works. Selecting another node
+    /// cancels the load. A Peer that is offline or too slow ends the load with <see cref="RemoteStatusMessage" /> set,
+    /// never a hang. Must be called on the UI thread.
+    /// </summary>
+    public async Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId,
+        CancellationToken cancellationToken = default)
+    {
+        CancelRemoteLoad();
+        BeginRemoteView(address, collectionId, folderId);
+        using var load = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _remoteLoadCts = load;
+        var token = load.Token;
+
+        IsLoading = true;
+        try
+        {
+            var offset = 0;
+            while (true)
+            {
+                var page = await _remoteDatabaseService.GetClipPageAsync(address, collectionId, folderId, offset, RemotePageSize, token);
+                token.ThrowIfCancellationRequested();
+
+                foreach (var item in page.Clips)
+                    Clips.Add(item);
+
+                if (offset == 0)
+                    SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
+
+                offset += page.Clips.Count;
+                if (!page.HasMore)
+                    break;
+
+                RemoteStatusMessage = $"Loading clips… {offset:N0} of {page.TotalCount:N0}";
+            }
+
+            RemoteStatusMessage = null;
+            _logger.LogInformation("Loaded {Count} clips from Remote Database {RemoteDatabase}", Clips.Count, address);
+        }
+        catch (OperationCanceledException)
+        {
+            // Another node was selected, or the view went away
+        }
+        catch (RemoteDatabaseUnavailableException ex)
+        {
+            if (!token.IsCancellationRequested)
+                RemoteStatusMessage = ex.Message;
+
+            _logger.LogInformation("Could not load the clips of Remote Database {RemoteDatabase}: {Reason}", address, ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_remoteLoadCts, load))
+            {
+                IsLoading = false;
+                _remoteLoadCts = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Switches the list to a read-only view of a Remote Database, never showing the previous clips as if they were the Peer's.
+    /// </summary>
+    private void BeginRemoteView(RemoteDatabaseAddress address, Guid? collectionId, Guid? folderId)
+    {
+        IsRemoteDatabase = true;
         AcceptsNewClips = false;
-        CurrentDatabaseKey = null;
-        CurrentCollectionId = null;
-        CurrentFolderId = null;
+        RemoteStatusMessage = null;
+        CurrentDatabaseKey = RemoteDatabaseKey.From(address);
+        CurrentCollectionId = collectionId;
+        CurrentFolderId = folderId;
         SelectedClip = null;
         SelectedClips.Clear();
         Clips.Clear();
+    }
+
+    /// <summary>
+    /// Leaves a Remote Database view when a local node is selected.
+    /// </summary>
+    private void EndRemoteView()
+    {
+        CancelRemoteLoad();
+        IsRemoteDatabase = false;
+        RemoteStatusMessage = null;
+    }
+
+    private void CancelRemoteLoad()
+    {
+        var previous = _remoteLoadCts;
+        if (previous == null)
+            return;
+
+        _remoteLoadCts = null;
+        previous.Cancel();
+        IsLoading = false;
     }
 
     /// <summary>
@@ -303,6 +434,8 @@ public partial class ClipListViewModel : ObservableObject,
     {
         _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
             message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
+
+        EndRemoteView();
 
         // Store the current database key
         CurrentDatabaseKey = message.DatabaseKey;
@@ -371,6 +504,8 @@ public partial class ClipListViewModel : ObservableObject,
             message.DatabaseKey, message.Query, message.ClipIds.Count);
 
         _logger.LogInformation("Clip IDs to load: {ClipIds}", string.Join(", ", message.ClipIds.Take(10)));
+
+        EndRemoteView();
 
         // Store the current database key
         CurrentDatabaseKey = message.DatabaseKey;
@@ -446,6 +581,8 @@ public partial class ClipListViewModel : ObservableObject,
     {
         _logger.LogInformation("ShowAllClipsInChildrenRequestedEvent received: CollectionId={CollectionId}, DatabaseKey={DatabaseKey}",
             message.CollectionId, message.DatabaseKey);
+
+        EndRemoteView();
 
         // Store the current database key and collection ID
         CurrentDatabaseKey = message.DatabaseKey;
@@ -918,6 +1055,14 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public async Task RefreshAsync()
     {
+        if (IsRemoteDatabase)
+        {
+            if (RemoteDatabaseKey.TryParse(CurrentDatabaseKey, out var address) && CurrentCollectionId.HasValue)
+                await LoadRemoteClipsAsync(address, CurrentCollectionId.Value, CurrentFolderId);
+
+            return;
+        }
+
         if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
             await LoadClipsByFolderAsync(CurrentCollectionId.Value, CurrentFolderId.Value);
         else if (CurrentCollectionId.HasValue)

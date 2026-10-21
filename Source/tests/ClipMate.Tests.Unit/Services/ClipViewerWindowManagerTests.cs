@@ -2,6 +2,7 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,7 @@ public class ClipViewerWindowManagerTests
     {
         var databaseManager = A.Fake<IDatabaseManager>();
         var logger = A.Fake<ILogger<ClipViewerViewModel>>();
-        return new ClipViewerViewModel(databaseManager, logger);
+        return new ClipViewerViewModel(databaseManager, A.Fake<IClipContentService>(), logger);
     }
 
     [Category("Constructor")]

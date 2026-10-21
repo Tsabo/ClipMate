@@ -1,4 +1,6 @@
 using System.Globalization;
+using ClipMate.Core.Constants;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Networking.Protocol;
 
@@ -11,6 +13,8 @@ namespace ClipMate.Networking.SharedDatabases;
 internal static class SharedDatabaseMessages
 {
     private const int _maxNameLength = 128;
+    private const int _maxTextLength = 2048;
+    private const int _maxTitleLength = 4096;
 
     public static SharedDatabaseInfo ToMessage(SharedDatabase database) => new()
     {
@@ -66,6 +70,144 @@ internal static class SharedDatabaseMessages
         }
 
         return result;
+    }
+
+    public static ClipSummary ToMessage(Clip clip) => new()
+    {
+        Id = clip.Id.ToString("D", CultureInfo.InvariantCulture),
+        Title = clip.Title ?? string.Empty,
+        CapturedAtUnixMs = clip.CapturedAt.ToUnixTimeMilliseconds(),
+        CapturedAtOffsetMinutes = (int)clip.CapturedAt.Offset.TotalMinutes,
+        Size = clip.Size,
+        Kind = clip.Type switch
+        {
+            ClipType.RichText => ClipKind.RichText,
+            ClipType.Html => ClipKind.Html,
+            ClipType.Image => ClipKind.Image,
+            ClipType.Files => ClipKind.Files,
+            ClipType.Custom => ClipKind.Custom,
+            var _ => ClipKind.Text,
+        },
+        HasText = clip.HasText,
+        HasRtf = clip.HasRtf,
+        HasHtml = clip.HasHtml,
+        HasBitmap = clip.HasBitmap,
+        HasFiles = clip.HasFiles,
+        SourceApplicationName = clip.SourceApplicationName ?? string.Empty,
+        SourceApplicationTitle = clip.SourceApplicationTitle ?? string.Empty,
+        SourceUrl = clip.SourceUrl ?? string.Empty,
+        Creator = clip.Creator ?? string.Empty,
+        CustomTitle = clip.CustomTitle,
+        Macro = clip.Macro,
+        SortKey = clip.SortKey,
+        Encrypted = clip.Encrypted,
+        EncryptionSalt = clip.EncryptionSalt ?? string.Empty,
+        EncryptionIv = clip.EncryptionIv ?? string.Empty,
+        EncryptionMethod = clip.EncryptionMethod ?? string.Empty,
+        CollectionId = clip.CollectionId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty,
+        FolderId = clip.FolderId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty,
+    };
+
+    /// <summary>
+    /// Reads a clip summary from a Peer, or <c>null</c> if it is unusable (an invalid ID).
+    /// </summary>
+    public static Clip? FromMessage(ClipSummary summary)
+    {
+        if (!Guid.TryParse(summary.Id, out var id))
+            return null;
+
+        DateTimeOffset capturedAt;
+        try
+        {
+            var offset = TimeSpan.FromMinutes(Math.Clamp(summary.CapturedAtOffsetMinutes, -14 * 60, 14 * 60));
+            capturedAt = DateTimeOffset.FromUnixTimeMilliseconds(summary.CapturedAtUnixMs).ToOffset(offset);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            capturedAt = DateTimeOffset.UnixEpoch;
+        }
+
+        var clip = new Clip
+        {
+            Id = id,
+            Title = CleanOptional(summary.Title, _maxTitleLength),
+            CapturedAt = capturedAt,
+            Size = Math.Max(0, summary.Size),
+            Type = summary.Kind switch
+            {
+                ClipKind.RichText => ClipType.RichText,
+                ClipKind.Html => ClipType.Html,
+                ClipKind.Image => ClipType.Image,
+                ClipKind.Files => ClipType.Files,
+                ClipKind.Custom => ClipType.Custom,
+                var _ => ClipType.Text,
+            },
+            HasText = summary.HasText,
+            HasRtf = summary.HasRtf,
+            HasHtml = summary.HasHtml,
+            HasBitmap = summary.HasBitmap,
+            HasFiles = summary.HasFiles,
+            SourceApplicationName = CleanOptional(summary.SourceApplicationName, _maxTextLength),
+            SourceApplicationTitle = CleanOptional(summary.SourceApplicationTitle, _maxTextLength),
+            SourceUrl = CleanOptional(summary.SourceUrl, _maxTextLength),
+            Creator = CleanOptional(summary.Creator, _maxNameLength),
+            CustomTitle = summary.CustomTitle,
+            Macro = summary.Macro,
+            SortKey = summary.SortKey,
+            Encrypted = summary.Encrypted,
+            EncryptionSalt = CleanOptional(summary.EncryptionSalt, _maxTextLength),
+            EncryptionIv = CleanOptional(summary.EncryptionIv, _maxTextLength),
+            EncryptionMethod = CleanOptional(summary.EncryptionMethod, _maxNameLength),
+            CollectionId = Guid.TryParse(summary.CollectionId, out var collectionId) ? collectionId : null,
+            FolderId = Guid.TryParse(summary.FolderId, out var folderId) ? folderId : null,
+        };
+
+        clip.RefreshIconGlyph();
+        return clip;
+    }
+
+    public static ClipPage FromMessage(GetClipPageReply reply)
+    {
+        var clips = reply.Clips.Select(FromMessage).OfType<Clip>().ToList();
+        var offset = Math.Max(0, reply.Offset);
+        return new ClipPage(clips, offset, Math.Max(reply.TotalCount, offset + clips.Count));
+    }
+
+    public static ClipFormat ToMessage(ClipData format) => new()
+    {
+        Id = format.Id.ToString("D", CultureInfo.InvariantCulture),
+        Format = format.Format,
+        FormatName = format.FormatName,
+        StorageType = format.StorageType,
+        Size = format.Size,
+    };
+
+    /// <summary>
+    /// Reads a clip format from a Peer, or <c>null</c> if it is unusable (an invalid ID or unknown storage type).
+    /// </summary>
+    public static ClipData? FromMessage(ClipFormat format, Guid clipId)
+    {
+        if (!Guid.TryParse(format.Id, out var id) || format.StorageType is < StorageType.Text or > StorageType.Binary)
+            return null;
+
+        return new ClipData
+        {
+            Id = id,
+            ClipId = clipId,
+            Format = format.Format,
+            FormatName = CleanName(format.FormatName, "Unknown"),
+            StorageType = format.StorageType,
+            Size = Math.Max(0, format.Size),
+        };
+    }
+
+    private static string? CleanOptional(string text, int maxLength)
+    {
+        var clean = new string(text.Where(p => !char.IsControl(p)).ToArray()).Trim();
+        if (clean.Length > maxLength)
+            clean = clean[..maxLength];
+
+        return clean.Length == 0 ? null : clean;
     }
 
     private static string CleanName(string name, string fallback)
