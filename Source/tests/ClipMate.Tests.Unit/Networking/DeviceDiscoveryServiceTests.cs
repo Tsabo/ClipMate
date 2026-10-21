@@ -60,12 +60,19 @@ public class DeviceDiscoveryServiceTests
     {
         // Arrange
         var (laptop, identity) = CreateDevice("Laptop", _laptopAddress);
-
-        // Act
         await laptop.StartAsync(identity, 47823);
+        var sentAtStart = _network.Sent.Count;
+        await WaitForTimersAsync(1);
+
+        // Act: just short of the interval, then the rest of it
+        _clock.Advance(TestOptions.AnnouncementInterval - TimeSpan.FromSeconds(1));
+        var sentBeforeTheInterval = _network.Sent.Count;
+        _clock.Advance(TimeSpan.FromSeconds(1));
 
         // Assert
-        await WaitUntilAsync(() => _network.Sent.Count >= 3);
+        await Assert.That(sentAtStart).IsEqualTo(1); // announced right away
+        await Assert.That(sentBeforeTheInterval).IsEqualTo(1);
+        await WaitUntilAsync(() => _network.Sent.Count == 2);
     }
 
     [Test]
@@ -78,6 +85,8 @@ public class DeviceDiscoveryServiceTests
         // Act
         await laptop.StartAsync(laptopIdentity, 47823);
         await desktop.StartAsync(desktopIdentity, 50000);
+        await WaitForTimersAsync(2);
+        _clock.Advance(TestOptions.AnnouncementInterval); // the laptop's next announcement reaches the desktop, which started later
         await WaitUntilAsync(() => laptop.DiscoveredDevices.Count == 1 && desktop.DiscoveredDevices.Count == 1);
 
         // Assert
@@ -134,11 +143,12 @@ public class DeviceDiscoveryServiceTests
         await desktop.StartAsync(desktopIdentity, 47823);
         await WaitUntilAsync(() => laptop.DiscoveredDevices.Count == 1);
         await desktop.StopAsync();
+        await WaitForTimersAsync(1); // the laptop's announcement and sweep timers
 
         var changed = 0;
         laptop.DiscoveredDevicesChanged += (_, _) => Interlocked.Increment(ref changed);
 
-        // Act
+        // Act: no time passes on its own, so the desktop sent nothing after its first announcement
         _clock.Advance(TestOptions.ExpiryTime + TimeSpan.FromSeconds(1));
 
         // Assert
@@ -155,11 +165,12 @@ public class DeviceDiscoveryServiceTests
         await laptop.StartAsync(laptopIdentity, 47823);
         await desktop.StartAsync(desktopIdentity, 47823);
         await WaitUntilAsync(() => laptop.DiscoveredDevices.Count == 1);
+        await WaitForTimersAsync(2);
 
-        // Act: time passes, and the desktop announces again
+        // Act: time passes, the desktop announces again, and more time passes than since its first announcement
         _clock.Advance(TestOptions.ExpiryTime - TimeSpan.FromSeconds(1));
-        var sentBefore = _network.Sent.Count;
-        await WaitUntilAsync(() => _network.Sent.Count > sentBefore + 2);
+        var announcedAt = _clock.GetUtcNow();
+        await WaitUntilAsync(() => laptop.DiscoveredDevices.SingleOrDefault()?.LastSeen == announcedAt);
         _clock.Advance(TimeSpan.FromSeconds(2));
 
         // Assert
@@ -179,7 +190,7 @@ public class DeviceDiscoveryServiceTests
         // Act
         await laptop.StopAsync();
         var sentAfterStop = _network.Sent.Count(p => p.Source.Address.Equals(_laptopAddress));
-        await Task.Delay(TestOptions.AnnouncementInterval * 4);
+        _clock.Advance(TestOptions.AnnouncementInterval * 4);
 
         // Assert
         await Assert.That(laptop.IsRunning).IsFalse();
@@ -205,12 +216,8 @@ public class DeviceDiscoveryServiceTests
         A.CallTo(() => factory.Create(49999)).MustHaveHappenedOnceExactly();
     }
 
-    private static DeviceDiscoveryOptions TestOptions { get; } = new()
-    {
-        AnnouncementInterval = TimeSpan.FromMilliseconds(30),
-        ExpiryTime = TimeSpan.FromSeconds(95),
-        SweepInterval = TimeSpan.FromMilliseconds(20),
-    };
+    // The real intervals: every timer runs on the test's clock, which only moves when a test advances it
+    private static DeviceDiscoveryOptions TestOptions { get; } = new();
 
     private (DeviceDiscoveryService Service, DeviceIdentity Identity) CreateDevice(string deviceName, IPAddress address)
     {
@@ -237,6 +244,12 @@ public class DeviceDiscoveryServiceTests
         _identities.Add(identity);
         return identity;
     }
+
+    /// <summary>
+    /// Waits until the announcement and sweep loops of <paramref name="runningDevices" /> started Devices are all waiting
+    /// on the test's clock, so advancing it fires them.
+    /// </summary>
+    private async Task WaitForTimersAsync(int runningDevices) => await WaitUntilAsync(() => _clock.PendingTimers >= runningDevices * 2);
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {

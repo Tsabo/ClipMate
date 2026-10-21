@@ -73,24 +73,3 @@ internal sealed class InMemoryDiscoveryNetwork
             await Inbox.Reader.ReadAsync(cancellationToken);
     }
 }
-
-/// <summary>
-/// A clock tests can move forward by hand. Timers still run in real time.
-/// </summary>
-internal sealed class ManualTimeProvider : TimeProvider
-{
-    private readonly Lock _lock = new();
-    private DateTimeOffset _now = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
-
-    public void Advance(TimeSpan by)
-    {
-        lock (_lock)
-            _now += by;
-    }
-
-    public override DateTimeOffset GetUtcNow()
-    {
-        lock (_lock)
-            return _now;
-    }
-}
