@@ -16,7 +16,7 @@ When you turn it on and click **OK**, ClipMate:
 - creates this Device's identity the first time (a private key and certificate, stored encrypted for your Windows account in the ClipMate data folder, never in `clipmate.toml`);
 - starts listening for your other Devices on the configured **Port** (default 47823);
 - announces this Device on the local network about every 30 seconds (UDP port 47824), so your other Devices can find it;
-- adds a Windows Firewall rule for ClipMate. Windows asks for administrator permission to add it.
+- adds a Windows Firewall rule for ClipMate. Windows asks for administrator permission to add it. Uninstalling ClipMate offers to remove the rule again (Windows asks for permission once more).
 
 Only Devices you have paired with can connect. Turning networking off stops the listener and the announcements.
 
