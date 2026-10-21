@@ -138,6 +138,7 @@ public class OptionsViewModelTests
             A.Fake<ClipMate.App.Services.IPairingDialogService>(),
             A.Fake<ClipMate.App.Services.IPeerDialogService>(),
             A.Fake<IUnpairingService>(),
+            A.Fake<INetworkProfileService>(),
             A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 

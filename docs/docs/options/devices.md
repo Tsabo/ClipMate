@@ -20,6 +20,12 @@ When you turn it on and click **OK**, ClipMate:
 
 Only Devices you have paired with can connect. Turning networking off stops the listener and the announcements.
 
+### Public networks
+
+The firewall rule only allows connections on networks Windows treats as **Private** or **Domain**. On a **Public** network (a café, a hotel, or a home network Windows was never told to trust), your other Devices can't connect to this one and show it as offline, although this Device can still connect to them.
+
+While networking is on and this computer is on a Public network, the Devices tab shows a warning naming the network. If you trust the network, click **Open network settings** (or go to **Settings > Network & internet**), choose your Wi-Fi or Ethernet connection and set **Network profile type** to **Private**. The warning clears by itself within a few seconds.
+
 ## This Device
 
 | Setting | Description |

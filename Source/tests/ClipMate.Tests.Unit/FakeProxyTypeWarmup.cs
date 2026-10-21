@@ -68,6 +68,7 @@ public static class FakeProxyTypeWarmup
         typeof(IHotkeyService),
         typeof(IDeviceIdentityService),
         typeof(IFirewallRuleService),
+        typeof(INetworkProfileService),
         typeof(INetshRunner),
         typeof(IPeerHost),
         typeof(IPeerHostFactory),

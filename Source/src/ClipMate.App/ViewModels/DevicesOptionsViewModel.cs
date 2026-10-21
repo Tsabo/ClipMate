@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Net;
 using ClipMate.App.Services;
 using ClipMate.Core.Models.Networking;
@@ -20,6 +21,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
     private readonly IDeviceDiscoveryService _discovery;
     private readonly IDeviceIdentityService _identityService;
     private readonly ILogger<DevicesOptionsViewModel> _logger;
+    private readonly INetworkProfileService _networkProfiles;
     private readonly IPairingDialogService _pairingDialogs;
     private readonly IPeerDialogService _peerDialogs;
     private readonly IPeerStatusService _peerStatus;
@@ -56,6 +58,13 @@ public partial class DevicesOptionsViewModel : ObservableObject
     private int _port;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPublicNetworkWarning))]
+    private string? _publicNetworkWarning;
+
+    private static readonly TimeSpan _networkWarningInterval = TimeSpan.FromSeconds(5);
+    private System.Threading.Timer? _networkWarningTimer;
+
+    [ObservableProperty]
     private bool _showQrCode;
 
     private SynchronizationContext? _uiContext;
@@ -68,8 +77,10 @@ public partial class DevicesOptionsViewModel : ObservableObject
         IPairingDialogService pairingDialogs,
         IPeerDialogService peerDialogs,
         IUnpairingService unpairing,
+        INetworkProfileService networkProfiles,
         ILogger<DevicesOptionsViewModel> logger)
     {
+        _networkProfiles = networkProfiles ?? throw new ArgumentNullException(nameof(networkProfiles));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
@@ -85,6 +96,11 @@ public partial class DevicesOptionsViewModel : ObservableObject
     /// Gets whether this Device has an identity yet (it is created the first time networking is enabled).
     /// </summary>
     public bool HasDeviceId => DeviceId != null;
+
+    /// <summary>
+    /// Gets whether <see cref="PublicNetworkWarning" /> should be shown.
+    /// </summary>
+    public bool HasPublicNetworkWarning => PublicNetworkWarning != null;
 
     /// <summary>
     /// Gets the Devices currently announcing themselves on the LAN. Seeing a Device here does not pair with it.
@@ -111,6 +127,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _enableNetworking = networking.Enabled;
 #pragma warning restore MVVMTK0034
         OnPropertyChanged(nameof(EnableNetworking));
+        RefreshNetworkWarning();
 
         _deviceIdTask = null;
         await LoadDeviceIdAsync(false);
@@ -146,6 +163,9 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _peerStore.PeersChanged += OnListsChanged;
         _peerStatus.StatusChanged += OnListsChanged;
         RefreshLists();
+
+        // Windows raises no event ClipMate can use when a network's profile changes, so check while the page is open
+        _networkWarningTimer = new System.Threading.Timer(_ => OnNetworkCheckDue(), null, _networkWarningInterval, _networkWarningInterval);
     }
 
     /// <summary>
@@ -156,6 +176,17 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _discovery.DiscoveredDevicesChanged -= OnListsChanged;
         _peerStore.PeersChanged -= OnListsChanged;
         _peerStatus.StatusChanged -= OnListsChanged;
+        _networkWarningTimer?.Dispose();
+        _networkWarningTimer = null;
+    }
+
+    private void OnNetworkCheckDue()
+    {
+        var context = _uiContext;
+        if (context == null)
+            RefreshNetworkWarning();
+        else
+            context.Post(_ => RefreshNetworkWarning(), null);
     }
 
     private void OnListsChanged(object? sender, EventArgs e)
@@ -280,6 +311,41 @@ public partial class DevicesOptionsViewModel : ObservableObject
     {
         if (value)
             _ = EnsureDeviceIdAsync();
+
+        RefreshNetworkWarning();
+    }
+
+    /// <summary>
+    /// Shows or clears the warning that Peers cannot connect because this computer is on a Public network.
+    /// Only relevant while networking is on.
+    /// </summary>
+    public void RefreshNetworkWarning()
+    {
+        var names = EnableNetworking ? _networkProfiles.GetPublicNetworkNames() : [];
+        PublicNetworkWarning = names.Count == 0 ? null : BuildPublicNetworkWarning(names);
+    }
+
+    private static string BuildPublicNetworkWarning(IReadOnlyList<string> names)
+    {
+        var quoted = string.Join(" and ", names.Select(p => $"\"{p}\""));
+        var network = names.Count == 1 ? "network" : "networks";
+        return $"Your other Devices can't connect to this Device: Windows treats {quoted} as a Public {network}, and ClipMate only accepts " +
+               "Peer connections on Private and Domain networks. This Device can still connect to its Peers. " +
+               "If you trust this network, set it to Private in Windows Settings: Network & internet > your Wi-Fi or Ethernet " +
+               "connection > Network profile type > Private.";
+    }
+
+    [RelayCommand]
+    private void OpenNetworkSettings()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("ms-settings:network-status") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not open the Windows network settings");
+        }
     }
 
     private async Task LoadDeviceIdAsync(bool create)

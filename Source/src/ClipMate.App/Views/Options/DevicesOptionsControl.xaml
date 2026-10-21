@@ -38,6 +38,29 @@
                     </StackPanel>
                 </dxlc:LayoutItem>
 
+                <!-- Public network warning: Windows Firewall blocks incoming Peer connections on Public networks -->
+                <dxlc:LayoutItem Visibility="{Binding HasPublicNetworkWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Border Background="#33FFA500"
+                            BorderBrush="#FFFFA500"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="10,8">
+                        <StackPanel>
+                            <TextBlock Text="Other Devices can't connect to this Device"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding PublicNetworkWarning}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap" />
+                            <Button Content="Open network settings"
+                                    Command="{Binding OpenNetworkSettingsCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,8,0,0"
+                                    Padding="10,2"
+                                    ToolTip="Opens Windows Settings, where you can change this network's profile type to Private" />
+                        </StackPanel>
+                    </Border>
+                </dxlc:LayoutItem>
+
                 <dxlc:LayoutItem Label="Port:">
                     <StackPanel>
                         <dxe:SpinEdit Value="{Binding Port}"

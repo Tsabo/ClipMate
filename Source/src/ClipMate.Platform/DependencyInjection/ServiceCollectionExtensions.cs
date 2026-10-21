@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDeviceIdentityService>(sp =>
             new DeviceIdentityService(dataDirectory, sp.GetRequiredService<ILogger<DeviceIdentityService>>()));
         services.AddSingleton<IFirewallRuleService, WindowsFirewallRuleService>();
+        services.AddSingleton<INetworkProfileService, WindowsNetworkProfileService>();
 
         // Register PasteService for PowerPaste functionality
         services.AddSingleton<IPasteService, PasteService>();
