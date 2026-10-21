@@ -1,0 +1,61 @@
+// Read access to a Peer's Shared Databases (ADR 0001: a read-only live proxy).
+//
+// Every call is coarse and service-level: the requesting Device names what it wants (a Database ID, a collection ID)
+// and the Peer runs it against its own Database. No SQL ever crosses the wire, in either direction: Smart and
+// SQL-based collections are listed by kind only and their contents are evaluated on the Peer.
+//
+// Served only to Peers (PairedPeerGate), and only from Databases whose Share with Peers setting is on. Templates,
+// shortcuts, application profiles, users, settings and editor state are never served.
+syntax = "proto3";
+
+package clipmate.peer.v1;
+
+option csharp_namespace = "ClipMate.Networking.Protocol";
+
+service SharedDatabaseAccess {
+  // Lists the Peer's Shared Databases.
+  rpc ListSharedDatabases (ListSharedDatabasesRequest) returns (ListSharedDatabasesReply);
+
+  // Returns the collection and folder tree of one Shared Database. NOT_FOUND if the Peer does not share it.
+  rpc GetCollectionTree (GetCollectionTreeRequest) returns (GetCollectionTreeReply);
+}
+
+message ListSharedDatabasesRequest {
+}
+
+message ListSharedDatabasesReply {
+  repeated SharedDatabaseInfo databases = 1;
+}
+
+message SharedDatabaseInfo {
+  // The permanent Database ID (GUID, "D" format).
+  string database_id = 1;
+  string name = 2;
+}
+
+message GetCollectionTreeRequest {
+  string database_id = 1;
+}
+
+message GetCollectionTreeReply {
+  // Flat list; the tree is given by parent_id.
+  repeated CollectionEntry collections = 1;
+}
+
+enum CollectionKind {
+  COLLECTION_KIND_UNSPECIFIED = 0;
+  COLLECTION_KIND_COLLECTION = 1;
+  COLLECTION_KIND_FOLDER = 2;
+  COLLECTION_KIND_SMART = 3;
+  COLLECTION_KIND_SQL_BASED = 4;
+}
+
+message CollectionEntry {
+  // GUID, "D" format.
+  string id = 1;
+  // GUID of the collection or folder this entry belongs to; empty for a top-level entry.
+  string parent_id = 2;
+  string title = 3;
+  CollectionKind kind = 4;
+  int32 sort_key = 5;
+}

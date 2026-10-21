@@ -68,6 +68,28 @@ public sealed class GrpcPeerProbe : IPeerProbe
 }
 
 /// <summary>
+/// Where to try to reach a Peer.
+/// </summary>
+internal static class PeerAddresses
+{
+    /// <summary>
+    /// The address the Peer currently announces on the LAN, then its last known addresses (most recent first).
+    /// </summary>
+    public static IEnumerable<string> GetCandidates(Peer peer, IDeviceDiscoveryService discovery)
+    {
+        var announced = discovery.DiscoveredDevices.FirstOrDefault(p => p.DeviceId == peer.DeviceId)?.Endpoint.ToString();
+        if (announced != null)
+            yield return announced;
+
+        foreach (var item in peer.Addresses)
+        {
+            if (!string.Equals(item, announced, StringComparison.OrdinalIgnoreCase))
+                yield return item;
+        }
+    }
+}
+
+/// <summary>
 /// Checks every Peer at start, every 30 seconds and whenever the Peers or Discovered Devices change. A Peer is tried at
 /// the address it currently announces on the LAN, then at its last known addresses.
 /// </summary>
@@ -216,7 +238,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 
     private async Task CheckAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken)
     {
-        foreach (var address in GetAddresses(peer))
+        foreach (var address in PeerAddresses.GetCandidates(peer, _discovery))
         {
             var reply = await _probe.ProbeAsync(identity, peer.DeviceId, address, cancellationToken);
             if (reply == null)
@@ -234,18 +256,6 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         SetStatus(peer.DeviceId, PeerConnectionStatus.Offline);
     }
 
-    private IEnumerable<string> GetAddresses(Peer peer)
-    {
-        var announced = _discovery.DiscoveredDevices.FirstOrDefault(p => p.DeviceId == peer.DeviceId)?.Endpoint.ToString();
-        if (announced != null)
-            yield return announced;
-
-        foreach (var item in peer.Addresses)
-        {
-            if (!string.Equals(item, announced, StringComparison.OrdinalIgnoreCase))
-                yield return item;
-        }
-    }
 
     private static bool NeedsRecording(Peer peer, string deviceName, string address) =>
         peer.DeviceName != deviceName

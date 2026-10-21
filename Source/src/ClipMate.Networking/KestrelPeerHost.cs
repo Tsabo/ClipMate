@@ -3,6 +3,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
+using ClipMate.Networking.SharedDatabases;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -39,8 +40,9 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
         IPeerStore peerStore,
         IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
+        ISharedDatabaseService sharedDatabases,
         ILoggerFactory loggerFactory)
-        : this(validator, peerStore, approvalHandler, configurationService, loggerFactory, new PeerHostOptions())
+        : this(validator, peerStore, approvalHandler, configurationService, sharedDatabases, loggerFactory, new PeerHostOptions())
     {
     }
 
@@ -51,6 +53,7 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
         IPeerStore peerStore,
         IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
+        ISharedDatabaseService sharedDatabases,
         ILoggerFactory loggerFactory,
         PeerHostOptions options)
     {
@@ -59,6 +62,7 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
             peerStore ?? throw new ArgumentNullException(nameof(peerStore)),
             approvalHandler ?? throw new ArgumentNullException(nameof(approvalHandler)),
             configurationService ?? throw new ArgumentNullException(nameof(configurationService)),
+            sharedDatabases ?? throw new ArgumentNullException(nameof(sharedDatabases)),
             loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)),
             options ?? throw new ArgumentNullException(nameof(options)),
             new PairingRequestTracker(TimeProvider.System));
@@ -76,6 +80,7 @@ internal sealed record PeerHostServices(
     IPeerStore PeerStore,
     IPairingApprovalHandler ApprovalHandler,
     IConfigurationService ConfigurationService,
+    ISharedDatabaseService SharedDatabases,
     ILoggerFactory LoggerFactory,
     PeerHostOptions Options,
     PairingRequestTracker Tracker);
@@ -130,6 +135,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         builder.Services.AddSingleton(_services.PeerStore);
         builder.Services.AddSingleton(_services.ApprovalHandler);
         builder.Services.AddSingleton(_services.Tracker);
+        builder.Services.AddSingleton(_services.SharedDatabases);
         builder.Services.AddGrpc(grpc => grpc.Interceptors.Add<PairedPeerGate>());
 
         builder.WebHost.UseKestrelHttpsConfiguration();
@@ -148,6 +154,7 @@ internal sealed class KestrelPeerHost : IPeerHost
 
         var app = builder.Build();
         app.MapGrpcService<PeerGrpcService>();
+        app.MapGrpcService<SharedDatabaseGrpcService>();
 
         try
         {

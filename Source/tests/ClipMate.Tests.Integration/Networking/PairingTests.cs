@@ -307,7 +307,7 @@ public class PairingTests
             // Loopback only, so the test run never triggers a Windows Firewall prompt.
             var options = new PeerHostOptions { ListenAddress = IPAddress.Loopback };
             device._host = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(device.Store), device.Store, device.User,
-                device.ConfigurationService, NullLoggerFactory.Instance, options).Create();
+                device.ConfigurationService, A.Fake<ISharedDatabaseService>(), NullLoggerFactory.Instance, options).Create();
             await device._host.StartAsync(identity, 0);
             return device;
         }
