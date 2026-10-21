@@ -93,6 +93,44 @@ public class ClipRepositorySqlQueryTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task ExecuteSqlPageAsync_StoredCollectionSql_ReturnsOnlyThatPageNewestFirstWithTheTotal()
+    {
+        // Arrange: written like the default SQL-based collections, with its own ORDER BY, a join and a trailing semicolon
+        await AddClipsAsync(7);
+        var repository = CreateRepository();
+        const string sql = """
+                           select Clips.*, ShortCut.Nickname
+                           from Clips left outer join ShortCut on ShortCut.ClipId = Clips.ID
+                           where Del = false and Probe(Clips.ID)
+                           order by ID;
+                           """;
+
+        // Act
+        var page = await repository.ExecuteSqlPageAsync(sql, 2, 3);
+
+        // Assert
+        await Assert.That(page.Offset).IsEqualTo(2);
+        await Assert.That(page.TotalCount).IsEqualTo(7);
+        await Assert.That(string.Join(", ", page.Clips.Select(p => p.Title))).IsEqualTo("clip 5, clip 4, clip 3");
+        await Assert.That(_probeCalls).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task ExecuteSqlPageAsync_OffsetPastTheLastClip_ReturnsAnEmptyPageWithTheTotal()
+    {
+        // Arrange
+        await AddClipsAsync(3);
+        var repository = CreateRepository();
+
+        // Act
+        var page = await repository.ExecuteSqlPageAsync("select Clips.* from Clips", 10, 5);
+
+        // Assert
+        await Assert.That(page.Clips).IsEmpty();
+        await Assert.That(page.TotalCount).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task ExecuteSearchQueryAsync_WithoutALimit_ReturnsEveryMatch()
     {
         // Arrange

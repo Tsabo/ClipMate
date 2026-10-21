@@ -206,7 +206,7 @@ public partial class SharedDatabaseServiceTests
     }
 
     [Test]
-    public async Task GetClipPageAsync_SqlBasedCollection_RunsThePeersOwnStoredSqlAndPagesTheResult()
+    public async Task GetClipPageAsync_SqlBasedCollection_RunsThePeersOwnStoredSqlForJustThatPage()
     {
         // Arrange
         AddDatabase("db_work", "Work", _workId, true);
@@ -214,17 +214,16 @@ public partial class SharedDatabaseServiceTests
         {
             Id = Guid.NewGuid(), Title = "Bitmaps", ListType = CollectionListType.SqlBased, Sql = "SELECT * FROM Clips WHERE Type = 2", RetentionLimit = 200,
         });
-        var clips = Enumerable.Range(1, 5).Select(p => new Clip { Id = Guid.NewGuid(), Title = $"Clip {p}" }).ToList();
-        A.CallTo(() => _clipService.ExecuteSqlQueryAsync("db_work", "SELECT * FROM Clips WHERE Type = 2", 200, A<CancellationToken>._)).Returns(clips);
+        var page = new ClipPage([new Clip { Id = Guid.NewGuid(), Title = "Clip 3" }, new Clip { Id = Guid.NewGuid(), Title = "Clip 4" }], 2, 5);
+        A.CallTo(() => _clipService.ExecuteSqlQueryPageAsync("db_work", "SELECT * FROM Clips WHERE Type = 2", 200, 2, 2, A<CancellationToken>._))
+            .Returns(page);
 
         // Act
         var result = await _service.GetClipPageAsync(_workId, bitmaps.Id, null, 2, 2);
 
         // Assert
-        await Assert.That(result).IsNotNull();
-        await Assert.That(result!.TotalCount).IsEqualTo(5);
-        await Assert.That(result.Offset).IsEqualTo(2);
-        await Assert.That(result.Clips.Select(p => p.Id)).IsEquivalentTo([clips[2].Id, clips[3].Id]);
+        await Assert.That(result).IsSameReferenceAs(page);
+        A.CallTo(() => _clipService.ExecuteSqlQueryAsync(A<string>._, A<string>._, A<int>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -239,7 +238,8 @@ public partial class SharedDatabaseServiceTests
         // Assert
         await Assert.That(result).IsNull();
         A.CallTo(() => _databaseContextFactory.GetClipRepository(A<string>._)).MustNotHaveHappened();
-        A.CallTo(() => _clipService.ExecuteSqlQueryAsync(A<string>._, A<string>._, A<int>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => _clipService.ExecuteSqlQueryPageAsync(A<string>._, A<string>._, A<int>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
     }
 
     [Test]

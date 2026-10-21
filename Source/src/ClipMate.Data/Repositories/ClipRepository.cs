@@ -593,6 +593,34 @@ public class ClipRepository : IClipRepository
         }
     }
 
+    /// <inheritdoc />
+    public async Task<ClipPage> ExecuteSqlPageAsync(string sqlQuery, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlQuery);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        _logger.LogInformation("Executing collection SQL query: {SqlQuery}", sqlQuery);
+
+        var connection = _context.Database.GetDbConnection();
+        var opened = connection.State != ConnectionState.Open;
+        if (opened)
+            await _context.Database.OpenConnectionAsync(cancellationToken);
+
+        try
+        {
+            var (clips, total) = await QueryPageAsync(connection, sqlQuery.Trim().TrimEnd(';'), new DynamicParameters(), offset, count,
+                cancellationToken);
+
+            return new ClipPage(clips, offset, total);
+        }
+        finally
+        {
+            if (opened)
+                await _context.Database.CloseConnectionAsync();
+        }
+    }
+
     /// <summary>
     /// Runs <paramref name="query" /> (a single SELECT) once, as a subquery ordered newest first (SortKey descending, then
     /// ID), and returns the rows from <paramref name="offset" />, at most <paramref name="limit" /> of them (all if

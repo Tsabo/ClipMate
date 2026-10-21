@@ -85,12 +85,9 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
             return await _databaseContextFactory.GetClipRepository(databaseKey).GetPageByFolderAsync(folderId.Value, offset, count, cancellationToken);
         }
 
-        // Smart and SQL-based collections run their own stored SQL, exactly as they do locally
+        // Smart and SQL-based collections run their own stored SQL, as they do locally, but only for the page asked for
         if (collection.IsVirtual && !string.IsNullOrWhiteSpace(collection.Sql))
-        {
-            var clips = await _clipService.ExecuteSqlQueryAsync(databaseKey, collection.Sql, collection.RetentionLimit, cancellationToken);
-            return new ClipPage(clips.Skip(offset).Take(count).ToList(), offset, clips.Count);
-        }
+            return await _clipService.ExecuteSqlQueryPageAsync(databaseKey, collection.Sql, collection.RetentionLimit, offset, count, cancellationToken);
 
         return await _databaseContextFactory.GetClipRepository(databaseKey).GetPageByCollectionAsync(collectionId, offset, count, cancellationToken);
     }

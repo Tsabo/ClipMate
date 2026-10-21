@@ -599,6 +599,30 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
+    public async Task<ClipPage> ExecuteSqlQueryPageAsync(string databaseKey, string sqlQuery, int retentionLimit, int offset, int count,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sqlQuery))
+            throw new ArgumentException("SQL query cannot be null or empty.", nameof(sqlQuery));
+
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        var processedQuery = ReplaceSqlPlaceholders(sqlQuery, retentionLimit);
+        _logger.LogDebug("Executing virtual collection SQL query for clips {Offset} to {Last}: {Query}", offset, offset + count - 1, processedQuery);
+
+        try
+        {
+            return await GetRepository(databaseKey).ExecuteSqlPageAsync(processedQuery, offset, count, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to execute virtual collection SQL query: {Query}", processedQuery);
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Getting clips recursively for collection {CollectionId} in database {DatabaseKey}", collectionId, databaseKey);

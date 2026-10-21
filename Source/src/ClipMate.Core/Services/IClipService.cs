@@ -239,6 +239,20 @@ public interface IClipService
     Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a virtual/smart collection's SQL query for one page of its clips, newest first, with the total number of
+    /// clips it returns. Replaces placeholders exactly as <see cref="ExecuteSqlQueryAsync" /> does, then pages the query in
+    /// SQL so only that page is read.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="sqlQuery">The SQL query with placeholders.</param>
+    /// <param name="retentionLimit">The retention limit for #DATEMINUSLIMIT# calculations (in days).</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> ExecuteSqlQueryPageAsync(string databaseKey, string sqlQuery, int retentionLimit, int offset, int count,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets clips in a collection and all child folders recursively from the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>
