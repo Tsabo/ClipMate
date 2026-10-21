@@ -135,6 +135,8 @@ public class OptionsViewModelTests
             A.Fake<IPeerStore>(),
             A.Fake<IPeerStatusService>(),
             A.Fake<ClipMate.App.Services.IPairingDialogService>(),
+            A.Fake<ClipMate.App.Services.IPeerDialogService>(),
+            A.Fake<IUnpairingService>(),
             A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 

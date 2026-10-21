@@ -156,6 +156,30 @@ public static class PeerAddress
     }
 
     /// <summary>
+    /// Gets the addresses to try to reach <paramref name="peer" /> at: the address it currently announces on the LAN
+    /// (if it is among <paramref name="discoveredDevices" />), then its last known addresses.
+    /// </summary>
+    public static IEnumerable<string> GetAddressesToTry(Peer peer, IReadOnlyList<DiscoveredDevice> discoveredDevices)
+    {
+        ArgumentNullException.ThrowIfNull(peer);
+        ArgumentNullException.ThrowIfNull(discoveredDevices);
+        return GetAddressesToTryIterator(peer, discoveredDevices);
+    }
+
+    private static IEnumerable<string> GetAddressesToTryIterator(Peer peer, IReadOnlyList<DiscoveredDevice> discoveredDevices)
+    {
+        var announced = discoveredDevices.FirstOrDefault(p => p.DeviceId == peer.DeviceId)?.Endpoint.ToString();
+        if (announced != null)
+            yield return announced;
+
+        foreach (var item in peer.Addresses)
+        {
+            if (!string.Equals(item, announced, StringComparison.OrdinalIgnoreCase))
+                yield return item;
+        }
+    }
+
+    /// <summary>
     /// Gets the port of an endpoint returned by <see cref="Parse" />.
     /// </summary>
     public static int GetPort(EndPoint endPoint) => endPoint switch

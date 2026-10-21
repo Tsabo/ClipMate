@@ -73,3 +73,19 @@ The **Peers** list shows the Devices you have paired with: the name you gave it 
 While networking is on, ClipMate checks each Peer about every 30 seconds. Peers are saved in `clipmate.toml` and never expire.
 
 Only Peers can connect to this Device. Any other Device is refused while the encrypted connection is being set up, even if it knows the right address and port. The only thing it can do is send a pairing request, which you have to accept.
+
+### Renaming a Peer
+
+Click **Rename...** next to a Peer to change the name this Device shows for it (its Peer Alias). The alias is only stored on this Device: the Peer never sees it, and two Peers may share the same alias. Leave the name blank to go back to showing the Peer's own Device Name, which then follows any change the Peer makes to its Device Name.
+
+### Unpairing
+
+Click **Unpair** next to a Peer and confirm to end the Pairing. Either Device can unpair, and it takes effect for both straight away:
+
+- the Peer leaves this Device's Peers list and can no longer connect; any open connection between the two Devices drops;
+- if the Peer is reachable, it is told and removes this Device from its own Peers list too;
+- if the Peer is offline, it is refused when it next tries to connect, and removes this Device from its Peers list then.
+
+To pair again, send a new pairing request: both Devices have to accept it again.
+
+If a pairing was interrupted so that only one of the two Devices finished it, that Device removes the other from its Peers list the next time it reaches it. Pair again to fix it.

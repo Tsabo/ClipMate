@@ -19,4 +19,9 @@ public sealed record Peer(
     /// The name to show for the Peer: its Peer Alias, or its Device Name if there is no alias.
     /// </summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Alias) ? DeviceName : Alias;
+
+    /// <summary>
+    /// When Pairing with the Peer completed on this Device (local time), or <c>null</c> if unknown.
+    /// </summary>
+    public DateTime? PairedAt { get; init; }
 }

@@ -18,8 +18,10 @@ public partial class DevicesOptionsViewModelTests
     private DeviceIdentity _identity = null!;
     private IDeviceIdentityService _identityService = null!;
     private IPairingDialogService _pairingDialogs = null!;
+    private IPeerDialogService _peerDialogs = null!;
     private IPeerStatusService _peerStatus = null!;
     private IPeerStore _peerStore = null!;
+    private IUnpairingService _unpairing = null!;
     private DevicesOptionsViewModel _viewModel = null!;
 
     [Before(Test)]
@@ -41,9 +43,11 @@ public partial class DevicesOptionsViewModelTests
         A.CallTo(() => _peerStore.GetPeers()).Returns([]);
         _peerStatus = A.Fake<IPeerStatusService>();
         _pairingDialogs = A.Fake<IPairingDialogService>();
+        _peerDialogs = A.Fake<IPeerDialogService>();
+        _unpairing = A.Fake<IUnpairingService>();
 
         _viewModel = new DevicesOptionsViewModel(configurationService, _identityService, _discovery, _peerStore, _peerStatus, _pairingDialogs,
-            A.Fake<ILogger<DevicesOptionsViewModel>>());
+            _peerDialogs, _unpairing, A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 
     [After(Test)]

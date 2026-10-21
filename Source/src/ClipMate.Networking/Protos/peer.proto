@@ -20,6 +20,14 @@ service PeerService {
   // Sent by the requesting Device once its own user has accepted too. Completes Pairing on the
   // approving Device only if its user accepted this same Device's request.
   rpc ConfirmPairing (ConfirmPairRequest) returns (ConfirmPairReply);
+
+  // Tells the Peer that the calling Device has unpaired it, so it unpairs too. Peers only.
+  rpc Unpair (UnpairRequest) returns (UnpairReply);
+
+  // Asks whether the calling Device is still a Peer of this Device. Any Device may call this: a Device that was
+  // unpaired while it could not be reached (or whose Pairing never completed here) is refused on Peer
+  // connections, and learns from this call that it should unpair too.
+  rpc CheckPairing (CheckPairingRequest) returns (CheckPairingReply);
 }
 
 message HelloRequest {
@@ -64,5 +72,18 @@ message ConfirmPairRequest {
 }
 
 message ConfirmPairReply {
+  bool paired = 1;
+}
+
+message UnpairRequest {
+}
+
+message UnpairReply {
+}
+
+message CheckPairingRequest {
+}
+
+message CheckPairingReply {
   bool paired = 1;
 }

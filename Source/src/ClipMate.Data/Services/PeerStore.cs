@@ -26,6 +26,9 @@ public sealed class PeerStore : IPeerStore
     public event EventHandler? PeersChanged;
 
     /// <inheritdoc />
+    public event EventHandler<PeerRemovedEventArgs>? PeerRemoved;
+
+    /// <inheritdoc />
     public IReadOnlyList<Peer> GetPeers()
     {
         var records = Records;
@@ -100,6 +103,48 @@ public sealed class PeerStore : IPeerStore
         PeersChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <inheritdoc />
+    public async Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            var existing = FindRecord(Records, deviceId);
+            if (existing == null)
+                return;
+
+            Replace(deviceId, new PeerConfiguration
+            {
+                DeviceId = existing.DeviceId,
+                DeviceName = existing.DeviceName,
+                Alias = string.IsNullOrWhiteSpace(alias) ? null : alias.Trim(),
+                Addresses = existing.Addresses.ToList(),
+                LastSeen = existing.LastSeen,
+                PairedAt = existing.PairedAt,
+            });
+        }
+
+        await _configurationService.SaveAsync(cancellationToken);
+        PeersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RemoveAsync(DeviceId deviceId, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            if (FindRecord(Records, deviceId) == null)
+                return false;
+
+            _configurationService.Configuration.Peers = Records.Where(p => !Matches(p, deviceId)).ToList();
+        }
+
+        _logger.LogInformation("Unpaired Device {DeviceId}", deviceId.ToDisplayString());
+        PeerRemoved?.Invoke(this, new PeerRemovedEventArgs(deviceId));
+        PeersChanged?.Invoke(this, EventArgs.Empty);
+        await _configurationService.SaveAsync(cancellationToken);
+        return true;
+    }
+
     private List<PeerConfiguration> Records => _configurationService.Configuration.Peers;
 
     private void Replace(DeviceId deviceId, PeerConfiguration record)
@@ -142,6 +187,9 @@ public sealed class PeerStore : IPeerStore
         }
 
         return new Peer(deviceId.Value, record.DeviceName, string.IsNullOrWhiteSpace(record.Alias) ? null : record.Alias,
-            record.Addresses.ToList(), record.LastSeen);
+            record.Addresses.ToList(), record.LastSeen)
+        {
+            PairedAt = record.PairedAt == default ? null : record.PairedAt,
+        };
     }
 }

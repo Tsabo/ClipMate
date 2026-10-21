@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IPairingApprovalHandler, DeclineAllPairingApprovalHandler>();
         services.AddSingleton<IPeerHostFactory, KestrelPeerHostFactory>();
         services.AddSingleton<IPairingClient, PeerPairingClient>();
+        services.AddSingleton<IUnpairingService, PeerUnpairingService>();
         services.AddSingleton<IPeerProbe, GrpcPeerProbe>();
         services.AddSingleton<IPeerStatusService, PeerStatusMonitor>();
 
