@@ -226,18 +226,14 @@ public partial class SearchViewModel : ObservableObject
     public string TargetDescription => Target?.DatabaseName ?? "Active database";
 
     /// <summary>
-    /// Takes the target from the current selection in the collection tree, and defaults the scope to the selected
-    /// folder, else the selected collection, else all collections. Call when the dialog opens.
+    /// Takes the target (the Database selected in the collection tree, local or remote) from the current selection, and
+    /// starts the scope at all collections of it, as searches did before the scope list existed. The selected collection
+    /// and folder are offered as narrower scopes. Call when the dialog opens.
     /// </summary>
     public void RefreshTarget()
     {
         Target = _searchTargetSource.GetSearchTarget();
-        SearchScope = Target switch
-        {
-            { FolderId: not null } => SearchScope.SpecificFolder,
-            { CollectionId: not null } => SearchScope.CurrentCollection,
-            var _ => SearchScope.AllCollections,
-        };
+        SearchScope = SearchScope.AllCollections;
     }
 
     /// <summary>

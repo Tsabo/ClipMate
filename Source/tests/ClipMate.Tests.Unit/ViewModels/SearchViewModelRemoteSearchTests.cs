@@ -43,8 +43,11 @@ public class SearchViewModelRemoteSearchTests
     }
 
     [Test]
-    public async Task RefreshTarget_FolderSelected_OffersAllThreeScopesAndDefaultsToTheFolder()
+    public async Task RefreshTarget_FolderSelected_OffersAllThreeScopesAndDefaultsToAllCollections()
     {
+        // Arrange: a scope picked the last time the dialog was open
+        _viewModel.SearchScope = SearchScope.SpecificFolder;
+
         // Act
         Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox", FolderId = Guid.NewGuid(), FolderName = "Projects" });
 
@@ -52,18 +55,35 @@ public class SearchViewModelRemoteSearchTests
         await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope))
             .IsEquivalentTo([SearchScope.AllCollections, SearchScope.CurrentCollection, SearchScope.SpecificFolder]);
         await Assert.That(_viewModel.AvailableScopes.Select(p => p.Label)).Contains("Folder: Projects");
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.SpecificFolder);
+        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
     }
 
     [Test]
-    public async Task RefreshTarget_CollectionSelected_DefaultsToTheCurrentCollection()
+    public async Task RefreshTarget_RemoteCollectionSelected_OffersItAndDefaultsToAllCollections()
     {
         // Act
         Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
 
         // Assert
         await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope)).IsEquivalentTo([SearchScope.AllCollections, SearchScope.CurrentCollection]);
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.CurrentCollection);
+        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
+    }
+
+    [Test]
+    public async Task SearchCommand_LocalTargetWithTheDefaultScope_SearchesAllCollectionsOfTheSelectedDatabase()
+    {
+        // Arrange
+        Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
+        A.CallTo(() => _searchService.SearchDatabaseAsync("db_work", A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
+            .Returns(new SearchMatches([], 0));
+
+        // Act
+        await _viewModel.SearchCommand.ExecuteAsync(null);
+
+        // Assert
+        A.CallTo(() => _searchService.SearchDatabaseAsync("db_work",
+            A<SearchFilters>.That.Matches(p => p.Scope == SearchScope.AllCollections && p.CollectionId == null && p.FolderId == null), null,
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -99,6 +119,7 @@ public class SearchViewModelRemoteSearchTests
         // Arrange
         var inboxId = Guid.NewGuid();
         Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { CollectionId = inboxId, CollectionName = "Inbox" });
+        _viewModel.SearchScope = SearchScope.CurrentCollection;
         var clips = new List<Clip> { new() { Id = Guid.NewGuid(), Title = "report 1" }, new() { Id = Guid.NewGuid(), Title = "report 2" } };
         A.CallTo(() => _remoteDatabaseService.SearchAsync(_work, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches(clips, 4212));
         _viewModel.SearchText = "report";
@@ -184,6 +205,7 @@ public class SearchViewModelRemoteSearchTests
         // Arrange
         var folderId = Guid.NewGuid();
         Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox", FolderId = folderId, FolderName = "Projects" });
+        _viewModel.SearchScope = SearchScope.SpecificFolder;
         A.CallTo(() => _searchService.SearchDatabaseAsync("db_work", A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
             .Returns(new SearchMatches([new Clip { Id = Guid.NewGuid() }], 1));
 
