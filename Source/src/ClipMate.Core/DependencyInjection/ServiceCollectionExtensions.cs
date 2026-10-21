@@ -46,6 +46,9 @@ public static class ServiceCollectionExtensions
         // Register SearchResultsCache as singleton (maintains per-database search result cache)
         services.AddSingleton<SearchResultsCache>();
 
+        // Remote Search results live on the requesting Device only, keyed by (Device ID, Database ID)
+        services.AddSingleton<RemoteSearchResultsCache>();
+
         // Note: Service implementations are registered in ClipMate.Data
         // via AddClipMateData() extension method
 

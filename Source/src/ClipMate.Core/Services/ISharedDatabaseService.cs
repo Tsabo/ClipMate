@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 
 namespace ClipMate.Core.Services;
 
@@ -42,6 +43,21 @@ public interface ISharedDatabaseService
     /// </summary>
     /// <returns>The clip, or <c>null</c> if no Shared Database has that Database ID or it has no such (undeleted) clip.</returns>
     Task<ClipContent?> GetClipContentAsync(Guid databaseId, Guid clipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs a Remote Search on a Shared Database: the Peer builds and runs parameterized SQL from
+    /// <paramref name="filters" /> itself (no SQL is accepted from the caller) and returns the newest
+    /// <see cref="RemoteSearchLimits.MaxResults" /> matches at most, with the total number of matches. Deleted clips and
+    /// shortcuts are never served, whatever the filters ask for. Nothing about the search is kept afterwards.
+    /// </summary>
+    /// <param name="databaseId">The Shared Database.</param>
+    /// <param name="filters">What to search for; the collection or folder of a scope must belong to that Database.</param>
+    /// <param name="cancellationToken">Cancellation token; stops the query.</param>
+    /// <returns>
+    /// The matches, or <c>null</c> if no Shared Database has that Database ID or it has no such collection or folder.
+    /// </returns>
+    /// <exception cref="ArgumentException">The scope needs a collection or folder ID that <paramref name="filters" /> lacks.</exception>
+    Task<SearchMatches?> SearchAsync(Guid databaseId, SearchFilters filters, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Finds a Shared Database among <paramref name="otherDatabases" /> whose Database ID is the same as the one stored

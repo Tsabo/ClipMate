@@ -145,6 +145,7 @@ public static class FakeProxyTypeWarmup
         typeof(IQuickPasteService),
         typeof(IRetentionEnforcementService),
         typeof(ISearchService),
+        typeof(ISearchTargetSource),
         typeof(IServiceProvider),
         typeof(IServiceScope),
         typeof(IServiceScopeFactory),

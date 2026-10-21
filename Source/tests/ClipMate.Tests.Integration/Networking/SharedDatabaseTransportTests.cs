@@ -3,6 +3,7 @@ using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using ClipMate.Networking;
@@ -459,6 +460,137 @@ public class SharedDatabaseTransportTests
             await Task.Delay(20);
 
         await Assert.That(Fake.GetCalls(_changeFeed).Count(p => p.Method.Name.StartsWith(prefix, StringComparison.Ordinal))).IsGreaterThanOrEqualTo(count);
+    }
+
+    [Test]
+    public async Task SearchAsync_FromAPeer_SendsTheCriteriaAndReceivesTheMatchesInPagesWithTheTotal()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var collectionId = Guid.NewGuid();
+        var clips = Enumerable.Range(0, 450).Select(p => new Clip { Id = Guid.NewGuid(), Title = $"report {p}", SortKey = 1000 - p }).ToList();
+        SearchFilters? received = null;
+        A.CallTo(() => _sharedDatabases.SearchAsync(_workId, A<SearchFilters>._, A<CancellationToken>._))
+            .ReturnsLazily(call =>
+            {
+                received = call.GetArgument<SearchFilters>(1);
+                return Task.FromResult<SearchMatches?>(new SearchMatches(clips, 4212));
+            });
+
+        // Act
+        var matches = await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters
+        {
+            TitleQuery = "report", CreatorQuery = "jeremy", ContentTypes = [ClipType.Text], Scope = SearchScope.CurrentCollection,
+            CollectionId = collectionId, EncryptedOnly = true,
+        });
+
+        // Assert
+        await Assert.That(matches).IsNotNull();
+        await Assert.That(matches!.TotalMatches).IsEqualTo(4212);
+        await Assert.That(matches.Clips.Select(p => p.Id)).IsEquivalentTo(clips.Select(p => p.Id));
+        await Assert.That(matches.Clips[0].Title).IsEqualTo("report 0");
+        await Assert.That(received!.TitleQuery).IsEqualTo("report");
+        await Assert.That(received.CreatorQuery).IsEqualTo("jeremy");
+        await Assert.That(received.ContentTypes!).IsEquivalentTo([ClipType.Text]);
+        await Assert.That(received.Scope).IsEqualTo(SearchScope.CurrentCollection);
+        await Assert.That(received.CollectionId).IsEqualTo(collectionId);
+        await Assert.That(received.EncryptedOnly == true).IsTrue();
+    }
+
+    [Test]
+    public async Task SearchAsync_MoreThanTheCapMatch_ReturnsAtMost1000AndTheTotal()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var clips = Enumerable.Range(0, 1500).Select(_ => new Clip { Id = Guid.NewGuid(), Title = "report" }).ToList();
+        A.CallTo(() => _sharedDatabases.SearchAsync(_workId, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches(clips, 1500));
+
+        // Act
+        var matches = await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "report" });
+
+        // Assert
+        await Assert.That(matches!.Clips.Count).IsEqualTo(1000);
+        await Assert.That(matches.TotalMatches).IsEqualTo(1500);
+        await Assert.That(matches.IsTruncated).IsTrue();
+    }
+
+    [Test]
+    public async Task SearchAsync_NoMatches_ReturnsEmptyResults()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.SearchAsync(_workId, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches([], 0));
+
+        // Act
+        var matches = await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "nothing" });
+
+        // Assert
+        await Assert.That(matches!.Clips).IsEmpty();
+        await Assert.That(matches.TotalMatches).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SearchAsync_DatabaseNotShared_ReturnsNull()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.SearchAsync(A<Guid>._, A<SearchFilters>._, A<CancellationToken>._)).Returns((SearchMatches?)null);
+
+        // Act
+        var matches = await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "report" });
+
+        // Assert
+        await Assert.That(matches).IsNull();
+    }
+
+    [Test]
+    public async Task SearchAsync_SearchRunsPastThePeersTimeout_IsStoppedOnThePeerAndReportedAsUnavailable()
+    {
+        // Arrange: a Peer whose search time limit is short, so the test does not wait 15 seconds
+        await using var impatientHost = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(_desktopStore), _desktopStore,
+            A.Fake<IPairingApprovalHandler>(), CreateConfigurationService("DESKTOP"), _sharedDatabases, _changeFeed,
+            NullLoggerFactory.Instance, new PeerHostOptions { ListenAddress = IPAddress.Loopback, SearchTimeout = TimeSpan.FromMilliseconds(300) }).Create();
+        await impatientHost.StartAsync(_desktopIdentity!, 0);
+        await _desktopStore.SavePairedAsync(_laptopIdentity!.DeviceId, "LAPTOP", null, null);
+        await _laptopStore.SavePairedAsync(_desktopIdentity!.DeviceId, "DESKTOP", null,
+            new IPEndPoint(IPAddress.Loopback, impatientHost.ListeningPort!.Value).ToString());
+        var desktop = _laptopStore.Find(_desktopIdentity.DeviceId)!;
+        var peerCancelled = WhenPeerSearchIsCancelled();
+
+        // Act / Assert
+        var exception = await Assert.That(async () => await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "slow" }))
+            .Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(exception!.Message).Contains("too long");
+        await peerCancelled.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task SearchAsync_RequesterCancels_StopsTheSearchOnThePeer()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var peerCancelled = WhenPeerSearchIsCancelled();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "slow" }, cancellation.Token))
+            .Throws<OperationCanceledException>();
+        await peerCancelled.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    private Task WhenPeerSearchIsCancelled()
+    {
+        var peerCancelled = new TaskCompletionSource();
+        A.CallTo(() => _sharedDatabases.SearchAsync(A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+            .ReturnsLazily(async call =>
+            {
+                var token = call.GetArgument<CancellationToken>(2);
+                token.Register(() => peerCancelled.TrySetResult());
+                await Task.Delay(Timeout.Infinite, token);
+                return (SearchMatches?)null;
+            });
+
+        return peerCancelled.Task;
     }
 
     private async Task<Peer> PairAsync()

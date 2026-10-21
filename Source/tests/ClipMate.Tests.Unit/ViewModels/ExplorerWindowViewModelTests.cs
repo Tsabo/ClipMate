@@ -61,7 +61,10 @@ public class ExplorerWindowViewModelTests
             mockCollectionService,
             mockClipService,
             mockMessenger,
-            new SearchResultsCache());
+            new SearchResultsCache(),
+            A.Fake<IRemoteDatabaseService>(),
+            new RemoteSearchResultsCache(),
+            A.Fake<ISearchTargetSource>());
 
         // Create QuickPasteToolbarViewModel mock
         var mockQuickPasteServiceForToolbar = A.Fake<IQuickPasteService>();

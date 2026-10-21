@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using Google.Protobuf;
 using ClipMate.Networking.Protocol;
@@ -17,12 +18,14 @@ namespace ClipMate.Networking.SharedDatabases;
 internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDatabaseAccessBase
 {
     private readonly ISharedDatabaseChangeFeed _changeFeed;
+    private readonly PeerHostOptions _options;
     private readonly ISharedDatabaseService _sharedDatabases;
 
-    public SharedDatabaseGrpcService(ISharedDatabaseService sharedDatabases, ISharedDatabaseChangeFeed changeFeed)
+    public SharedDatabaseGrpcService(ISharedDatabaseService sharedDatabases, ISharedDatabaseChangeFeed changeFeed, PeerHostOptions options)
     {
         _sharedDatabases = sharedDatabases ?? throw new ArgumentNullException(nameof(sharedDatabases));
         _changeFeed = changeFeed ?? throw new ArgumentNullException(nameof(changeFeed));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     /// <inheritdoc />
@@ -154,6 +157,58 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
             _changeFeed.SharedDatabasesChanged -= OnSharedDatabasesChanged;
         }
     }
+
+    /// <inheritdoc />
+    public override async Task SearchClips(SearchClipsRequest request, IServerStreamWriter<SearchClipsPage> responseStream, ServerCallContext context)
+    {
+        var databaseId = ParseId(request.DatabaseId, "Database ID");
+        SearchFilters filters;
+        try
+        {
+            filters = SharedDatabaseMessages.FromMessage(request.Criteria ?? new SearchCriteria());
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+
+        // The search stops at the time limit or as soon as the caller cancels, whichever comes first
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
+        limit.CancelAfter(_options.SearchTimeout);
+
+        SearchMatches matches;
+        try
+        {
+            matches = await _sharedDatabases.SearchAsync(databaseId, filters, limit.Token)
+                      ?? throw new RpcException(new Status(StatusCode.NotFound, "This Database, collection or folder is not shared."));
+        }
+        catch (OperationCanceledException) when (limit.IsCancellationRequested && !context.CancellationToken.IsCancellationRequested)
+        {
+            // Not DEADLINE_EXCEEDED, which the caller reads as "Peer not reachable at this address"
+            throw new RpcException(new Status(StatusCode.ResourceExhausted, "The search took too long."));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+
+        // Never more than the cap, whatever the search returned; every page carries the total
+        var clips = matches.Clips.Take(RemoteSearchLimits.MaxResults).ToList();
+        var offset = 0;
+        do
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var page = new SearchClipsPage { Offset = offset, TotalMatches = Math.Max(matches.TotalMatches, clips.Count) };
+            page.Clips.AddRange(clips.Skip(offset).Take(SearchPageSize).Select(SharedDatabaseMessages.ToMessage));
+            await responseStream.WriteAsync(page, context.CancellationToken);
+            offset += SearchPageSize;
+        } while (offset < clips.Count);
+    }
+
+    /// <summary>
+    /// The most search results sent in one page.
+    /// </summary>
+    internal const int SearchPageSize = 200;
 
     /// <summary>
     /// How long changes are gathered before they are sent, so a burst of writes becomes one notice per collection.

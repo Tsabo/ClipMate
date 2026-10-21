@@ -69,6 +69,19 @@ public partial class SearchService : ISearchService
         };
     }
 
+    /// <inheritdoc />
+    public async Task<SearchMatches> SearchDatabaseAsync(string databaseKey, SearchFilters filters, int? maxResults = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
+        ArgumentNullException.ThrowIfNull(filters);
+
+        // Build parameterized SQL from filters; filter values never enter the SQL text
+        var sqlQuery = BuildParameterizedSqlQuery(string.Empty, filters);
+        var clipRepository = _contextFactory.GetClipRepository(databaseKey);
+        return await clipRepository.ExecuteSearchQueryAsync(sqlQuery.Sql, sqlQuery.Parameters, maxResults, cancellationToken);
+    }
+
     public string BuildSqlQuery(string query, SearchFilters? filters = null)
     {
         var sqlQuery = BuildParameterizedSqlQuery(query, filters);

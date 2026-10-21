@@ -32,6 +32,20 @@
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
+        <!-- Search In: the Database (local or remote) selected in the collection tree, and the scope within it -->
+        <dxlc:LayoutGroup Orientation="Horizontal">
+            <dxlc:LayoutItem Label="Search in:" HorizontalAlignment="Left" MinWidth="150">
+                <TextBlock Text="{Binding TargetDescription}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem HorizontalAlignment="Stretch">
+                <dxe:ComboBoxEdit ItemsSource="{Binding AvailableScopes}"
+                                  DisplayMember="Label"
+                                  ValueMember="Scope"
+                                  EditValue="{Binding SearchScope}"
+                                  IsTextEditable="False" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
         <!-- Clips Containing Section -->
         <dxlc:LayoutGroup Header="🔍 Clips Containing..." View="GroupBox" Orientation="Vertical" IsCollapsible="True">
             <dxlc:LayoutGroup.HeaderTemplate>
@@ -134,14 +148,17 @@
 
             <dxlc:LayoutGroup Orientation="Horizontal">
                 <CheckBox Content="Encrypted" IsChecked="{Binding EncryptedOnly}" Margin="0,0,20,0" />
-                <CheckBox Content="Has Shortcut" IsChecked="{Binding HasShortcutOnly}" Margin="0,0,20,0" />
-                <CheckBox Content="Included Deleted Clips" IsChecked="{Binding IncludeDeletedClips}" />
+                <CheckBox Content="Has Shortcut" IsChecked="{Binding HasShortcutOnly}" Margin="0,0,20,0"
+                          IsEnabled="{Binding CanSearchDeletedAndShortcuts}" />
+                <CheckBox Content="Included Deleted Clips" IsChecked="{Binding IncludeDeletedClips}"
+                          IsEnabled="{Binding CanSearchDeletedAndShortcuts}" />
             </dxlc:LayoutGroup>
         </dxlc:LayoutGroup>
 
-        <!-- SQL Section -->
+        <!-- SQL Section: hidden for Remote Databases, since no SQL is ever sent to a Peer -->
         <dxlc:LayoutGroup Header="🔍 SQL" View="GroupBox" Orientation="Vertical" IsCollapsible="True"
-                          IsCollapsed="True">
+                          IsCollapsed="True"
+                          Visibility="{Binding IsSqlAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">
             <dxlc:LayoutGroup.HeaderTemplate>
                 <DataTemplate>
                     <emoji:TextBlock Text="{Binding}" />

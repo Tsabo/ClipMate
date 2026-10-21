@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
@@ -37,7 +38,10 @@ public class SearchViewModelTests
             _mockCollectionService,
             _mockClipService,
             _mockMessenger,
-            _searchResultsCache);
+            _searchResultsCache,
+            A.Fake<IRemoteDatabaseService>(),
+            new RemoteSearchResultsCache(),
+            A.Fake<ISearchTargetSource>());
     }
 
     [Test]
@@ -49,7 +53,10 @@ public class SearchViewModelTests
                 _mockCollectionService,
                 _mockClipService,
                 _mockMessenger,
-                _searchResultsCache))
+                _searchResultsCache,
+                A.Fake<IRemoteDatabaseService>(),
+                new RemoteSearchResultsCache(),
+                A.Fake<ISearchTargetSource>()))
             .Throws<ArgumentNullException>();
     }
 

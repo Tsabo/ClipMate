@@ -13,7 +13,7 @@ public static class PeerProtocol
     /// <summary>
     /// Backward-compatible additions bump the minor version.
     /// </summary>
-    public const uint Minor = 3;
+    public const uint Minor = 4;
 
     /// <summary>
     /// The capability of serving Shared Databases (<c>Protos/shared_databases.proto</c>), added in minor version 1.
@@ -33,7 +33,14 @@ public static class PeerProtocol
     public const string ChangeNotificationsCapability = "change-notifications";
 
     /// <summary>
+    /// The capability of running Remote Search on Shared Databases (<c>SearchClips</c>: structured criteria, never
+    /// SQL), added in minor version 4.
+    /// </summary>
+    public const string RemoteSearchCapability = "remote-search";
+
+    /// <summary>
     /// The optional features this Device supports, exchanged in Hello. New features are added here as capabilities.
     /// </summary>
-    public static IReadOnlyList<string> Capabilities { get; } = ["pairing", SharedDatabasesCapability, RemoteClipsCapability, ChangeNotificationsCapability];
+    public static IReadOnlyList<string> Capabilities { get; } =
+        ["pairing", SharedDatabasesCapability, RemoteClipsCapability, ChangeNotificationsCapability, RemoteSearchCapability];
 }

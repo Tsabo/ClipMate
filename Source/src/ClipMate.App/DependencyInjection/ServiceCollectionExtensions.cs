@@ -74,6 +74,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel
         services.AddSingleton<ExplorerWindowViewModel>();
         services.AddSingleton<CollectionTreeViewModel>();
+        services.AddSingleton<ISearchTargetSource>(p => p.GetRequiredService<CollectionTreeViewModel>());
         services.AddSingleton<ClipListViewModel>();
         services.AddSingleton<PreviewPaneViewModel>();
         services.AddSingleton<SearchViewModel>();

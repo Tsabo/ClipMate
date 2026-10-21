@@ -120,3 +120,16 @@ While you're connected, the list keeps itself up to date: when the Peer captures
 To keep a remote clip, right-click it and choose **Copy to local...** (or **Copy Item To Collection**), then pick one of your own collections. You can also drag remote clips onto one of your collections in the tree; this always copies, never moves.
 
 The copy is a new clip in your database, with all its formats and its title, capture time, creator, source URL and source application. It doesn't depend on the Peer: changes the Peer makes later, or the Peer going offline, don't affect it. An encrypted clip is copied still encrypted and opens with the same passphrase.
+
+### Searching a Remote Database
+
+Select a Remote Database, or one of its collections or folders, and open the Search dialog. **Search in** shows the Remote Database, and the scope list offers **All collections**, the selected **Collection** or the selected **Folder**.
+
+The Peer runs the search itself from your criteria; no SQL is ever sent to it. It sends back up to 1,000 of the newest matching clips, and the results appear in the Remote Database's **Search Results** node. When more clips match, the list says how many, for example "Showing 1,000 of 4,212 matches"; narrow your criteria to see the rest. The results are kept on this Device only.
+
+A few things differ from searching your own databases:
+
+- The SQL panel is hidden, and saved searches written as SQL aren't offered.
+- Deleted clips and shortcuts are never shared, so **Has Shortcut** and **Included Deleted Clips** are turned off.
+- Encrypted clips match only on what isn't encrypted: creator, source URL, capture date and a title you gave the clip yourself.
+- The Peer stops a search that runs for more than about 15 seconds. Closing the Search dialog stops a search that is still running.

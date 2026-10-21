@@ -2,6 +2,7 @@ using System.Globalization;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Networking.Protocol;
 
 namespace ClipMate.Networking.SharedDatabases;
@@ -221,6 +222,130 @@ internal static class SharedDatabaseMessages
         ChangeNotice.ChangeOneofCase.SharedDatabasesChanged => new SharedDatabasesChangedNotice(),
         var _ => null,
     };
+
+    /// <summary>
+    /// The longest search text accepted in one criterion.
+    /// </summary>
+    internal const int MaxSearchTextLength = 1024;
+
+    private const string _dateFormat = "yyyy-MM-dd";
+
+    /// <summary>
+    /// The search criteria sent for Remote Search: only what Remote Search supports (no deleted clips, no shortcuts,
+    /// never SQL).
+    /// </summary>
+    public static SearchCriteria ToMessage(SearchFilters filters)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+        var criteria = new SearchCriteria
+        {
+            TitleContains = filters.TitleQuery ?? string.Empty,
+            TextContains = filters.TextContentQuery ?? string.Empty,
+            CreatorContains = filters.CreatorQuery ?? string.Empty,
+            SourceUrlContains = filters.SourceUrlQuery ?? string.Empty,
+            CapturedAfter = filters.DateRange?.From?.ToString(_dateFormat, CultureInfo.InvariantCulture) ?? string.Empty,
+            CapturedBefore = filters.DateRange?.To?.ToString(_dateFormat, CultureInfo.InvariantCulture) ?? string.Empty,
+            Format = filters.Format ?? string.Empty,
+            EncryptedOnly = filters.EncryptedOnly == true,
+        };
+
+        switch (filters.Scope)
+        {
+            case SearchScope.CurrentCollection:
+                criteria.Scope = SearchScopeKind.Collection;
+                criteria.ScopeId = filters.CollectionId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty;
+                break;
+            case SearchScope.SpecificFolder:
+                criteria.Scope = SearchScopeKind.Folder;
+                criteria.ScopeId = filters.FolderId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty;
+                break;
+        }
+
+        if (filters.ContentTypes != null)
+            criteria.ContentKinds.AddRange(filters.ContentTypes.Distinct().Select(ToKind));
+
+        return criteria;
+    }
+
+    /// <summary>
+    /// Reads search criteria from a Peer. Untrusted: anything unusable is rejected rather than guessed at.
+    /// </summary>
+    /// <exception cref="ArgumentException">A value is invalid: a malformed ID or date, overlong text, an unknown kind or scope.</exception>
+    public static SearchFilters FromMessage(SearchCriteria criteria)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+
+        var scope = criteria.Scope switch
+        {
+            SearchScopeKind.AllCollections => SearchScope.AllCollections,
+            SearchScopeKind.Collection => SearchScope.CurrentCollection,
+            SearchScopeKind.Folder => SearchScope.SpecificFolder,
+            var _ => throw new ArgumentException("Unknown search scope.", nameof(criteria)),
+        };
+
+        Guid? scopeId = scope == SearchScope.AllCollections
+            ? null
+            : Guid.TryParse(criteria.ScopeId, out var id)
+                ? id
+                : throw new ArgumentException("Invalid collection or folder ID.", nameof(criteria));
+
+        var kinds = criteria.ContentKinds.Select(p => p switch
+        {
+            ClipKind.Text => ClipType.Text,
+            ClipKind.RichText => ClipType.RichText,
+            ClipKind.Html => ClipType.Html,
+            ClipKind.Image => ClipType.Image,
+            ClipKind.Files => ClipType.Files,
+            ClipKind.Custom => ClipType.Custom,
+            var _ => throw new ArgumentException("Unknown clip kind.", nameof(criteria)),
+        }).Distinct().ToList();
+
+        var after = ReadDate(criteria.CapturedAfter);
+        var before = ReadDate(criteria.CapturedBefore);
+
+        return new SearchFilters
+        {
+            TitleQuery = ReadSearchText(criteria.TitleContains),
+            TextContentQuery = ReadSearchText(criteria.TextContains),
+            CreatorQuery = ReadSearchText(criteria.CreatorContains),
+            SourceUrlQuery = ReadSearchText(criteria.SourceUrlContains),
+            ContentTypes = kinds.Count > 0 ? kinds : null,
+            DateRange = after != null || before != null ? new DateRange(after, before) : null,
+            Scope = scope,
+            CollectionId = scope == SearchScope.CurrentCollection ? scopeId : null,
+            FolderId = scope == SearchScope.SpecificFolder ? scopeId : null,
+            Format = ReadSearchText(criteria.Format),
+            EncryptedOnly = criteria.EncryptedOnly ? true : null,
+        };
+    }
+
+    private static ClipKind ToKind(ClipType type) => type switch
+    {
+        ClipType.RichText => ClipKind.RichText,
+        ClipType.Html => ClipKind.Html,
+        ClipType.Image => ClipKind.Image,
+        ClipType.Files => ClipKind.Files,
+        ClipType.Custom => ClipKind.Custom,
+        var _ => ClipKind.Text,
+    };
+
+    private static string? ReadSearchText(string text)
+    {
+        if (text.Length > MaxSearchTextLength)
+            throw new ArgumentException("Search text is too long.", nameof(text));
+
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static DateTime? ReadDate(string text)
+    {
+        if (text.Length == 0)
+            return null;
+
+        return DateTime.TryParseExact(text, _dateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date
+            : throw new ArgumentException("Invalid date.", nameof(text));
+    }
 
     private static string? CleanOptional(string text, int maxLength)
     {

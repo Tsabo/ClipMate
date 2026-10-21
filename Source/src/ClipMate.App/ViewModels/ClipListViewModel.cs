@@ -24,6 +24,7 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<ClipCacheExpiredMessage>,
     IRecipient<CollectionNodeSelectedEvent>,
     IRecipient<RemoteDatabaseNodeSelectedEvent>,
+    IRecipient<RemoteSearchResultsSelectedEvent>,
     IRecipient<SearchResultsSelectedEvent>,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
@@ -141,6 +142,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<ClipCacheExpiredMessage>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
         _messenger.Register<RemoteDatabaseNodeSelectedEvent>(this);
+        _messenger.Register<RemoteSearchResultsSelectedEvent>(this);
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
@@ -330,6 +332,27 @@ public partial class ClipListViewModel : ObservableObject,
         {
             _logger.LogError(ex, "Failed to show Remote Database {RemoteDatabase}", message.Address);
         }
+    }
+
+    /// <summary>
+    /// Receives RemoteSearchResultsSelectedEvent when a Remote Database's Search Results node is selected: shows the
+    /// Remote Search results cached on this Device, read-only, and how many of the matches the Peer returned. Leaves the
+    /// active collection alone.
+    /// </summary>
+    public void Receive(RemoteSearchResultsSelectedEvent message)
+    {
+        _logger.LogInformation("RemoteSearchResultsSelectedEvent received: RemoteDatabase={RemoteDatabase}, Count={Count}, TotalMatches={TotalMatches}",
+            message.Address, message.Result.Clips.Count, message.Result.TotalMatches);
+
+        CancelRemoteLoad();
+        BeginRemoteView(message.Address, null, null);
+        foreach (var item in message.Result.Clips)
+            Clips.Add(item);
+
+        SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
+        RemoteStatusMessage = message.Result.IsTruncated
+            ? $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches"
+            : null;
     }
 
     /// <summary>

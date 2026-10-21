@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Models;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
@@ -18,7 +19,8 @@ namespace ClipMate.App.ViewModels;
 /// Supports hierarchical structure: Database -> Collections -> Folders, plus Virtual Collections.
 /// Sends CollectionNodeSelectedEvent via messenger when selection changes.
 /// </summary>
-public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>, IRecipient<RefreshCollectionTreeRequestedEvent>, IDisposable
+public partial class CollectionTreeViewModel : ObservableObject, IRecipient<SearchExecutedEvent>, IRecipient<RefreshCollectionTreeRequestedEvent>,
+    ISearchTargetSource, IDisposable
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
@@ -32,6 +34,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly Dictionary<RemoteDatabaseAddress, RemoteDatabaseTreeNode> _remoteDatabaseNodes = [];
     private readonly IRemoteDatabaseService _remoteDatabaseService;
     private readonly IRemoteDatabaseTreeBuilder _remoteDatabaseTreeBuilder;
+    private readonly RemoteSearchResultsCache _remoteSearchResultsCache;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISharedDatabaseService _sharedDatabaseService;
     private int _loadVersion;
@@ -48,7 +51,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         IRemoteDatabaseService remoteDatabaseService,
         IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder,
         ISharedDatabaseService sharedDatabaseService,
-        IPeerDialogService peerDialogs)
+        IPeerDialogService peerDialogs,
+        RemoteSearchResultsCache? remoteSearchResultsCache = null)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -63,6 +67,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _remoteDatabaseTreeBuilder = remoteDatabaseTreeBuilder ?? throw new ArgumentNullException(nameof(remoteDatabaseTreeBuilder));
         _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
         _peerDialogs = peerDialogs ?? throw new ArgumentNullException(nameof(peerDialogs));
+        _remoteSearchResultsCache = remoteSearchResultsCache ?? new RemoteSearchResultsCache();
 
         // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
         _messenger.Register<SearchExecutedEvent>(this);
@@ -100,6 +105,18 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     {
         _logger.LogInformation("Received SearchExecutedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
             message.DatabaseKey, message.Query, message.ClipIds.Count);
+
+        // A Remote Search: its results are cached on this Device and shown under the Remote Database
+        if (RemoteDatabaseKey.TryParse(message.DatabaseKey, out var remoteAddress))
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null)
+                ShowRemoteSearchResults(remoteAddress);
+            else
+                dispatcher.InvokeAsync(() => ShowRemoteSearchResults(remoteAddress));
+
+            return;
+        }
 
         // Find the database node for this search
         var databaseNode = RootNodes.OfType<DatabaseTreeNode>()
@@ -194,6 +211,16 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
 
         // A Remote Database is read-only: selecting it must never make it the active collection (the capture target)
+        if (value is RemoteSearchResultsTreeNode remoteSearchNode)
+        {
+            if (remoteSearchNode.Result is { } result)
+                _messenger.Send(new RemoteSearchResultsSelectedEvent(remoteSearchNode.Address, result));
+            else
+                _messenger.Send(new ShowSearchWindowEvent());
+
+            return;
+        }
+
         if (FindRemoteDatabaseNode(value) is { } remoteDatabaseNode)
         {
             var (collectionId, folderId) = GetRemoteSelection(value!);
@@ -330,6 +357,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
             RootNodes.Remove(item);
             _remoteDatabaseNodes.Remove(item.Address);
+
+            // Unshared, or its Peer was unpaired: its search results go too
+            _remoteSearchResultsCache.ClearResults(item.Address);
         }
 
         var toLoad = new List<RemoteDatabaseTreeNode>();
@@ -369,6 +399,12 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             node.Children.Clear();
             foreach (var item in children)
                 node.Children.Add(item);
+
+            node.Children.Add(new RemoteSearchResultsTreeNode(node.Address, _remoteSearchResultsCache.GetResults(node.Address))
+            {
+                Parent = node,
+                IsUnavailable = node.IsUnavailable,
+            });
         }
         catch (Exception ex) when (ex is RemoteDatabaseUnavailableException or OperationCanceledException)
         {
@@ -380,6 +416,87 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             node.ChildrenLoaded = false;
             _logger.LogWarning(ex, "Failed to load Remote Database {RemoteDatabase}", node.Address);
         }
+    }
+
+    /// <summary>
+    /// Shows the cached Remote Search results of a Remote Database in its Search Results node and selects it, so the
+    /// clip list shows them. Must run on the UI thread.
+    /// </summary>
+    private void ShowRemoteSearchResults(RemoteDatabaseAddress address)
+    {
+        var result = _remoteSearchResultsCache.GetResults(address);
+        if (result == null || !_remoteDatabaseNodes.TryGetValue(address, out var databaseNode))
+        {
+            _logger.LogWarning("No Search Results node or results for Remote Database {RemoteDatabase}", address);
+            return;
+        }
+
+        var searchNode = databaseNode.Children.OfType<RemoteSearchResultsTreeNode>().FirstOrDefault();
+        if (searchNode == null)
+            return;
+
+        searchNode.Result = result;
+        databaseNode.IsExpanded = true;
+
+        if (SelectedNode == searchNode)
+            _messenger.Send(new RemoteSearchResultsSelectedEvent(address, result));
+        else
+            SelectedNode = searchNode;
+    }
+
+    /// <inheritdoc />
+    public SearchTarget? GetSearchTarget()
+    {
+        var node = SelectedNode;
+        if (node == null)
+            return null;
+
+        if (FindRemoteDatabaseNode(node) is { } remoteDatabaseNode)
+        {
+            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName);
+            return node switch
+            {
+                // Smart and SQL-based collections have no clips of their own to search within
+                RemoteCollectionTreeNode { Collection.Kind: SharedCollectionKind.Collection or SharedCollectionKind.Folder } collection =>
+                    target with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
+                RemoteFolderTreeNode folder => folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
+                    ? target with { CollectionId = parent.Collection.Id, CollectionName = parent.Name, FolderId = folder.Folder.Id, FolderName = folder.Name }
+                    : target with { FolderId = folder.Folder.Id, FolderName = folder.Name },
+                var _ => target,
+            };
+        }
+
+        if (FindAncestor<DatabaseTreeNode>(node) is not { } databaseNode)
+            return null;
+
+        var local = new SearchTarget(databaseNode.DatabasePath, databaseNode.Name);
+        return node switch
+        {
+            CollectionTreeNode { Collection.IsVirtual: false } collection =>
+                local with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
+            FolderTreeNode folder => local with
+            {
+                CollectionId = folder.Folder.CollectionId,
+                CollectionName = FindAncestor<CollectionTreeNode>(folder)?.Name,
+                FolderId = folder.Folder.Id,
+                FolderName = folder.Name,
+            },
+            var _ => local,
+        };
+    }
+
+    /// <summary>
+    /// Returns <paramref name="node" /> or its nearest ancestor of type <typeparamref name="T" />.
+    /// </summary>
+    private static T? FindAncestor<T>(TreeNodeBase node) where T : TreeNodeBase
+    {
+        for (var current = node; current != null; current = current.Parent)
+        {
+            if (current is T match)
+                return match;
+        }
+
+        return null;
     }
 
     private void OnRemoteDatabasesChanged(object? sender, EventArgs e)

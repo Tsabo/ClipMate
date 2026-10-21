@@ -30,7 +30,12 @@ public partial class SearchDialog
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
+        // Search what is selected in the collection tree: a local or Remote Database, collection or folder
+        _viewModel.RefreshTarget();
         DataContext = _viewModel;
+
+        // Closing the dialog stops a search that is still running (on the Peer too, for a Remote Database)
+        Closed += (_, _) => _viewModel.CancelSearch();
 
         var app = (App)Application.Current;
         var configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
@@ -66,6 +71,12 @@ public partial class SearchDialog
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_viewModel.IsRemoteTarget)
+        {
+            await SearchRemoteDatabaseAsync();
+            return;
+        }
+
         // Validate SQL query if user has modified it
         // Get active database key for validation
         var databaseKey = _collectionService.GetActiveDatabaseKey();
@@ -111,6 +122,35 @@ public partial class SearchDialog
                 "Search Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Runs a Remote Search. There is no SQL to validate: the Peer builds the query from the filters.
+    /// </summary>
+    private async Task SearchRemoteDatabaseAsync()
+    {
+        if (!_viewModel.SearchCommand.CanExecute(null))
+            return;
+
+        try
+        {
+            await _viewModel.SearchCommand.ExecuteAsync(null);
+            DialogResult = true;
+            Close();
+        }
+        catch (OperationCanceledException)
+        {
+            // The dialog was closed while searching
+        }
+        catch (RemoteDatabaseUnavailableException ex)
+        {
+            DXMessageBox.Show(ex.Message, "Remote Search", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Remote Search failed");
+            DXMessageBox.Show($"Search execution failed:\n\n{ex.Message}", "Search Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 
 namespace ClipMate.Core.Repositories;
 
@@ -105,6 +106,18 @@ public interface IClipRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of clips matching the SQL query.</returns>
     Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a parameterized search query (a single SELECT of <c>Clips.*</c>) and returns its newest matches first,
+    /// at most <paramref name="maxResults" /> of them, with the total number of matches. Cancelling
+    /// <paramref name="cancellationToken" /> interrupts the query inside SQLite.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query, referencing parameters as <c>@Name</c>.</param>
+    /// <param name="parameters">Parameter values keyed by name (without the <c>@</c> prefix).</param>
+    /// <param name="maxResults">The most clips to return, or <c>null</c> for all of them.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<SearchMatches> ExecuteSearchQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, int? maxResults,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a new clip in the data store.
