@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
@@ -12,8 +13,20 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class ConfigurationService : IConfigurationService
 {
-    private readonly SemaphoreSlim _fileLock = new(1, 1);
+    // About 1.5 s in total: long enough to outlast an antivirus/indexer scan of a just-written file
+    private static readonly TimeSpan[] _defaultReplaceRetryDelays =
+        [
+            TimeSpan.FromMilliseconds(25), TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(400), TimeSpan.FromMilliseconds(800),
+        ];
+
+    // One lock per configuration file shared by every instance in the process (App startup creates its own
+    // instance beside the DI singleton), so saves never interleave on the shared .tmp file
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly SemaphoreSlim _fileLock;
     private readonly ILogger<ConfigurationService> _logger;
+    private readonly IReadOnlyList<TimeSpan> _replaceRetryDelays;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfigurationService" /> class.
@@ -21,7 +34,17 @@ public class ConfigurationService : IConfigurationService
     /// <param name="configurationDirectory">Directory where configuration file is stored.</param>
     /// <param name="logger">Logger instance.</param>
     public ConfigurationService(string configurationDirectory, ILogger<ConfigurationService> logger)
+        : this(configurationDirectory, logger, _defaultReplaceRetryDelays)
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance with explicit back-off delays between attempts to replace a locked file.
+    /// </summary>
+    internal ConfigurationService(string configurationDirectory, ILogger<ConfigurationService> logger,
+        IReadOnlyList<TimeSpan> replaceRetryDelays)
+    {
+        _replaceRetryDelays = replaceRetryDelays ?? throw new ArgumentNullException(nameof(replaceRetryDelays));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         if (string.IsNullOrWhiteSpace(configurationDirectory))
@@ -31,6 +54,7 @@ public class ConfigurationService : IConfigurationService
         Directory.CreateDirectory(configurationDirectory);
 
         ConfigurationFilePath = Path.Join(configurationDirectory, "clipmate.toml");
+        _fileLock = _fileLocks.GetOrAdd(Path.GetFullPath(ConfigurationFilePath), _ => new SemaphoreSlim(1, 1));
         Configuration = CreateDefaultConfiguration();
     }
 
@@ -196,7 +220,7 @@ public class ConfigurationService : IConfigurationService
             }
 
             // Replace with new file
-            File.Move(tempPath, ConfigurationFilePath, true);
+            await ReplaceWithRetryAsync(tempPath, cancellationToken);
 
             _logger.LogInformation("Configuration saved successfully");
         }
@@ -205,6 +229,31 @@ public class ConfigurationService : IConfigurationService
             _logger.LogError(ex, "Failed to save configuration file");
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Moves the freshly written temp file over clipmate.toml. Another process (antivirus, search indexer,
+    /// backup or sync tool) often opens a just-written file for a few milliseconds without delete sharing,
+    /// which makes the replace fail with <see cref="UnauthorizedAccessException" /> or <see cref="IOException" />;
+    /// those are retried with a short backoff before giving up.
+    /// </summary>
+    private async Task ReplaceWithRetryAsync(string tempPath, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0;; attempt++)
+        {
+            try
+            {
+                File.Move(tempPath, ConfigurationFilePath, true);
+                return;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or (IOException and not FileNotFoundException) && attempt < _replaceRetryDelays.Count)
+            {
+                _logger.LogWarning("Configuration file is locked ({Message}); retrying save in {Delay} ms",
+                    ex.Message, _replaceRetryDelays[attempt].TotalMilliseconds);
+
+                await Task.Delay(_replaceRetryDelays[attempt], cancellationToken);
+            }
         }
     }
 
