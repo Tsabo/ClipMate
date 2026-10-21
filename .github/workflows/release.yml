@@ -165,12 +165,12 @@ jobs:
 
         **Installer (Recommended):**
         - **Target OS:** Windows 11 or Windows 10 version 1809+
-        - **Auto-installs if needed:** .NET 10 Desktop Runtime, WebView2 Runtime
+        - **Auto-installs if needed:** .NET 10 Desktop Runtime, ASP.NET Core 10 Runtime, WebView2 Runtime
         - Simply download and run - dependencies handled automatically
 
         **Portable:**
         - Extract ZIP and run `ClipMate.exe`
-        - Requires [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) pre-installed
+        - Requires [.NET 10 Desktop Runtime and ASP.NET Core 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) pre-installed
         - Requires [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 11)
         
         ### Security

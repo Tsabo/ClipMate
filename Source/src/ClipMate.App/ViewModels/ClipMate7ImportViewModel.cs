@@ -1,4 +1,5 @@
 using System.IO;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Models.Import;
@@ -67,8 +68,7 @@ public partial class ClipMate7ImportViewModel : ObservableObject
         Targets = targets.ToList();
         SelectedTarget = Targets.FirstOrDefault();
 
-        _newDatabaseFilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "ClipMate7 Import", "clipmate.db");
+        _newDatabaseFilePath = Path.Combine(ClipMatePaths.DataDirectory, "ClipMate7 Import", "clipmate.db");
     }
 
     /// <summary>

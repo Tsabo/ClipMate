@@ -241,6 +241,7 @@ public class ClipFilePointerAndSortOrderTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             serviceLogger);
     }

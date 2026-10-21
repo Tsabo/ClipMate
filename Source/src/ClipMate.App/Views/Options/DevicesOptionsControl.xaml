@@ -1,0 +1,287 @@
+<UserControl x:Class="ClipMate.App.Views.Options.DevicesOptionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
+             xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+             xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:DevicesOptionsViewModel}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <dxlc:LayoutControl Orientation="Vertical" Padding="20">
+
+            <!-- Networking Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Networking" Orientation="Vertical">
+
+                <dxlc:LayoutItem>
+                    <StackPanel>
+                        <dxe:ToggleSwitch IsChecked="{Binding EnableNetworking}"
+                                          Content="Enable networking"
+                                          CheckedStateContent="On"
+                                          UncheckedStateContent="Off"
+                                          ContentPlacement="Far"
+                                          HorizontalAlignment="Left"
+                                          ToolTip="Let this Device pair with your other ClipMate Devices" />
+                        <TextBlock Text="When on, ClipMate listens for your paired Devices and adds a Windows Firewall rule (Windows asks for permission). Takes effect when you click OK."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+                <!-- Public network warning: Windows Firewall blocks incoming Peer connections on Public networks -->
+                <dxlc:LayoutItem Visibility="{Binding HasPublicNetworkWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Border Background="#33FFA500"
+                            BorderBrush="#FFFFA500"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="10,8">
+                        <StackPanel>
+                            <TextBlock Text="Other Devices can't connect to this Device"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding PublicNetworkWarning}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap" />
+                            <Button Content="Open network settings"
+                                    Command="{Binding OpenNetworkSettingsCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,8,0,0"
+                                    Padding="10,2"
+                                    ToolTip="Opens Windows Settings, where you can change this network's profile type to Private" />
+                        </StackPanel>
+                    </Border>
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem Label="Port:">
+                    <StackPanel>
+                        <dxe:SpinEdit Value="{Binding Port}"
+                                      MinValue="1"
+                                      MaxValue="65535"
+                                      Increment="1"
+                                      IsFloatValue="False"
+                                      Width="120"
+                                      HorizontalAlignment="Left"
+                                      ToolTip="TCP port your Peers connect to" />
+                        <TextBlock Text="TCP port your Peers connect to. Default: 47823"
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- This Device Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="This Device" Orientation="Vertical">
+
+                <dxlc:LayoutItem Label="Device Name:">
+                    <StackPanel>
+                        <dxe:TextEdit EditValue="{Binding DeviceName, UpdateSourceTrigger=PropertyChanged}"
+                                      Width="300"
+                                      HorizontalAlignment="Left"
+                                      ToolTip="The name your other Devices see for this Device" />
+                        <TextBlock Text="The name your other Devices see for this Device."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem Label="Device ID:">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding HasDeviceId, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBox Text="{Binding DeviceId, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     FontFamily="Consolas"
+                                     VerticalAlignment="Center" />
+                            <dx:SimpleButton Content="Copy"
+                                             Command="{Binding CopyDeviceIdCommand}"
+                                             Margin="10,0,0,0"
+                                             ToolTip="Copy the Device ID to the clipboard" />
+                            <dx:SimpleButton Content="QR Code"
+                                             Command="{Binding ToggleQrCodeCommand}"
+                                             Margin="5,0,0,0"
+                                             ToolTip="Show or hide the Device ID as a QR code" />
+                        </StackPanel>
+                        <TextBlock Text="Turn on networking to create this Device's identity and Device ID."
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDeviceId}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <dxe:BarCodeEdit EditValue="{Binding DeviceIdQrText, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         ShowText="False"
+                                         Width="180"
+                                         Height="180"
+                                         Margin="0,10,0,0"
+                                         HorizontalAlignment="Left"
+                                         Visibility="{Binding ShowQrCode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <dxe:BarCodeEdit.StyleSettings>
+                                <dxe:QRCodeStyleSettings />
+                            </dxe:BarCodeEdit.StyleSettings>
+                        </dxe:BarCodeEdit>
+                        <TextBlock Text="Give this Device ID to another of your Devices to add this Device manually. Only Devices you have paired with can connect."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+                <dxlc:LayoutItem Label="Shared with Peers:">
+                    <TextBlock Text="{Binding SharedDatabasesText}"
+                               TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SharesNothing}" Value="True">
+                                        <Setter Property="Foreground" Value="Gray" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- Discovered Devices Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Discovered Devices" Orientation="Vertical">
+
+                <dxlc:LayoutItem>
+                    <StackPanel>
+                        <dxg:GridControl ItemsSource="{Binding DiscoveredDevices}"
+                                         Height="150"
+                                         Visibility="{Binding HasDiscoveredDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <dxg:GridControl.View>
+                                <dxg:TableView ShowGroupPanel="False"
+                                               AllowEditing="False"
+                                               NavigationStyle="Row"
+                                               ShowIndicator="False" />
+                            </dxg:GridControl.View>
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="DeviceName" Header="Device Name" Width="*" />
+                                <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="120"
+                                                CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
+                                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="110" />
+                                <dxg:GridColumn Header="" Width="80" AllowSorting="False" AllowResizing="False">
+                                    <dxg:GridColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <dx:SimpleButton Content="Pair..."
+                                                             Margin="2"
+                                                             IsEnabled="{Binding RowData.Row.CanPair}"
+                                                             Command="{Binding DataContext.PairCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                             CommandParameter="{Binding RowData.Row}"
+                                                             ToolTip="Send a pairing request to this Device" />
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellTemplate>
+                                </dxg:GridColumn>
+                            </dxg:GridControl.Columns>
+                        </dxg:GridControl>
+                        <TextBlock Text="{Binding DiscoveryStatusText}"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDiscoveredDevices}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="Other ClipMate Devices on this network that have networking turned on. Seeing a Device here does not let it connect; only Devices you pair with can. Pairing completes once both Devices accept."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                        <dx:SimpleButton Content="Add Device manually..."
+                                         Command="{Binding AddDeviceManuallyCommand}"
+                                         HorizontalAlignment="Left"
+                                         Margin="0,8,0,0"
+                                         ToolTip="Pair with a Device on another network, through a VPN or over the internet, using its address and Device ID" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- Peers Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Peers" Orientation="Vertical">
+
+                <dxlc:LayoutItem>
+                    <StackPanel>
+                        <dxg:GridControl ItemsSource="{Binding Peers}"
+                                         Height="150"
+                                         Visibility="{Binding HasPeers, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <dxg:GridControl.View>
+                                <dxg:TableView ShowGroupPanel="False"
+                                               AllowEditing="False"
+                                               NavigationStyle="Row"
+                                               ShowIndicator="False" />
+                            </dxg:GridControl.View>
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="DisplayName" Header="Name" Width="*" />
+                                <dxg:GridColumn FieldName="DeviceName" Header="Device Name" Width="*" />
+                                <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="100"
+                                                CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
+                                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="180" />
+                                <dxg:GridColumn FieldName="SharedDatabasesText" Header="Shares" Width="*" />
+                                <dxg:GridColumn Header="" Width="150" AllowSorting="False" AllowResizing="False">
+                                    <dxg:GridColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <dx:SimpleButton Content="Rename..."
+                                                                 Margin="2"
+                                                                 Command="{Binding DataContext.RenamePeerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 CommandParameter="{Binding RowData.Row}"
+                                                                 ToolTip="Change the name this Device shows for the Peer (its Peer Alias)" />
+                                                <dx:SimpleButton Content="Unpair"
+                                                                 Margin="2"
+                                                                 Command="{Binding DataContext.UnpairCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 CommandParameter="{Binding RowData.Row}"
+                                                                 ToolTip="End the Pairing on both Devices" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellTemplate>
+                                </dxg:GridColumn>
+                            </dxg:GridControl.Columns>
+                        </dxg:GridControl>
+                        <TextBlock Text="Devices you have paired with appear here. Peers stay until you unpair them. Rename changes only the name you see; unpairing ends the Pairing on both Devices, and pairing again needs approval on both."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutControl>    </ScrollViewer>
+</UserControl>

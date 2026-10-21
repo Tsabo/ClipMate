@@ -26,6 +26,12 @@ public class DatabaseConfiguration
     public bool AllowBackup { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether this Database is a Shared Database: served (read-only) to paired Devices while networking is on.
+    /// Off by default.
+    /// </summary>
+    public bool ShareWithPeers { get; set; }
+
+    /// <summary>
     /// Gets or sets whether this database is read-only.
     /// </summary>
     public bool ReadOnly { get; set; } = false;
@@ -51,7 +57,8 @@ public class DatabaseConfiguration
     public bool IsRemote { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets whether this database supports multi-user access.
+    /// Gets or sets the ClipMate 7 "Multi-User, Networked Database" setting. Not used and not shown: it is kept only so
+    /// existing configuration files keep loading. Other Devices see a database through Share with Peers instead.
     /// </summary>
     public bool MultiUser { get; set; } = false;
 
@@ -111,4 +118,10 @@ public class DatabaseConfiguration
     /// Gets or sets the remote password for authentication (future use for PostgreSQL/SQL Server).
     /// </summary>
     public string? RemotePassword { get; set; }
+
+    /// <summary>
+    /// Copies every setting into a new configuration. Use this rather than copying settings one by one, which silently
+    /// drops settings added later.
+    /// </summary>
+    public DatabaseConfiguration Clone() => (DatabaseConfiguration)MemberwiseClone();
 }

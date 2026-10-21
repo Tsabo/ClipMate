@@ -190,6 +190,22 @@ public interface IClipService
     Task<Clip> CopyClipCrossDatabaseAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetCollectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Copy to local: stores a clip from any Database (usually a Remote Database) as a new, independent clip in a
+    /// local collection, with all its formats and metadata. The copy gets a new ID and nothing links it to the
+    /// original, so later changes on the Peer never affect it. An encrypted clip is copied as stored (still
+    /// encrypted), so it decrypts locally with the same passphrase.
+    /// </summary>
+    /// <param name="sourceDatabaseKey">The database key of the clip's Database, or the routing key of a Remote Database.</param>
+    /// <param name="sourceClipId">The clip to copy.</param>
+    /// <param name="targetDatabaseKey">The database key of the local Database to copy into. Never a Remote Database.</param>
+    /// <param name="targetCollectionId">The local collection to copy into.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The new local clip.</returns>
+    /// <exception cref="InvalidOperationException">The target is a Remote Database, or the source clip no longer exists.</exception>
+    /// <exception cref="RemoteDatabaseUnavailableException">The Remote Database cannot be read right now.</exception>
+    Task<Clip> CopyToLocalAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetCollectionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Moves a clip from one database to another database.
     /// Creates a copy in the target database and deletes the original.
     /// </summary>
@@ -221,6 +237,20 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of clips matching the query.</returns>
     Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string databaseKey, string sqlQuery, int retentionLimit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a virtual/smart collection's SQL query for one page of its clips, newest first, with the total number of
+    /// clips it returns. Replaces placeholders exactly as <see cref="ExecuteSqlQueryAsync" /> does, then pages the query in
+    /// SQL so only that page is read.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="sqlQuery">The SQL query with placeholders.</param>
+    /// <param name="retentionLimit">The retention limit for #DATEMINUSLIMIT# calculations (in days).</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> ExecuteSqlQueryPageAsync(string databaseKey, string sqlQuery, int retentionLimit, int offset, int count,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets clips in a collection and all child folders recursively from the specified database.

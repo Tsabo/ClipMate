@@ -455,6 +455,15 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
             if (string.IsNullOrEmpty(sourceDatabaseKey))
                 return;
 
+            // Copying clips of a Remote Database is Copy to local
+            if (_viewModel.ClipListViewModel.IsRemoteDatabase)
+            {
+                _messenger.Send(new CopyToLocalRequestedEvent(selectedClips.Select(p => p.Id).ToList(), sourceDatabaseKey,
+                    targetDatabaseKey, collectionId));
+
+                return;
+            }
+
             var clipService = _serviceProvider.GetRequiredService<IClipService>();
 
             foreach (var item in selectedClips)
@@ -496,6 +505,13 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
             var sourceDatabaseKey = _viewModel.ClipListViewModel.CurrentDatabaseKey;
             if (string.IsNullOrEmpty(sourceDatabaseKey))
                 return;
+
+            // Remote Databases are read-only: their clips can be copied to local, never moved
+            if (_viewModel.ClipListViewModel.IsRemoteDatabase)
+            {
+                _messenger.Send(new StatusUpdateEvent("Remote Databases are read-only.", true));
+                return;
+            }
 
             var clipService = _serviceProvider.GetRequiredService<IClipService>();
 

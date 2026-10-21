@@ -38,7 +38,12 @@ public class ExplorerWindowViewModelTests
             mockMessenger,
             mockCollectionTreeBuilder,
             mockTreeLogger,
-            new SearchResultsCache());
+            new SearchResultsCache(),
+            A.Fake<IDatabaseIdService>(),
+            A.Fake<IRemoteDatabaseService>(),
+            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<ISharedDatabaseService>(),
+            A.Fake<ClipMate.App.Services.IPeerDialogService>());
 
         var clipListVm = new ClipListViewModel(
             mockCollectionService,
@@ -46,6 +51,7 @@ public class ExplorerWindowViewModelTests
             mockClipService,
             mockQuickPasteService,
             mockContextFactory,
+            A.Fake<IRemoteDatabaseService>(),
             mockMessenger,
             mockLogger);
 
@@ -55,7 +61,10 @@ public class ExplorerWindowViewModelTests
             mockCollectionService,
             mockClipService,
             mockMessenger,
-            new SearchResultsCache());
+            new SearchResultsCache(),
+            A.Fake<IRemoteDatabaseService>(),
+            new RemoteSearchResultsCache(),
+            A.Fake<ISearchTargetSource>());
 
         // Create QuickPasteToolbarViewModel mock
         var mockQuickPasteServiceForToolbar = A.Fake<IQuickPasteService>();

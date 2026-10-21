@@ -155,6 +155,27 @@ public partial class Clip
     public string IconGlyph { get; set; } = "❓";
 
     /// <summary>
+    /// Sets <see cref="IconGlyph" /> from the format flags, the macro flag and the encryption state, the same way the
+    /// clip repository does when it loads format flags. Used for clips whose flags arrive from elsewhere (a Peer).
+    /// </summary>
+    public void RefreshIconGlyph()
+    {
+        var icons = string.Concat(
+            Macro ? "⌨" : string.Empty,
+            HasBitmap ? "🖼" : string.Empty,
+            HasRtf ? "🅰" : string.Empty,
+            HasHtml ? "🌐" : string.Empty,
+            HasFiles ? "📁" : string.Empty,
+            HasText ? "📄" : string.Empty);
+
+        var lockIcon = Encrypted
+            ? IsDecrypted ? "🔓" : "🔒"
+            : string.Empty;
+
+        IconGlyph = lockIcon + (icons.Length > 0 ? icons : "❓");
+    }
+
+    /// <summary>
     /// Gets the CapturedAt timestamp formatted for display based on user preferences.
     /// By default, shows the time in the viewer's local timezone.
     /// Can be configured to show original captured timezone via ShowTimestampsInLocalTime setting.

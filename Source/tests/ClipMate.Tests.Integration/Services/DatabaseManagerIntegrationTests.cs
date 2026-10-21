@@ -70,7 +70,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var count = await manager.LoadAutoLoadDatabasesAsync();
@@ -102,7 +102,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var result = await manager.LoadDatabaseAsync("testdb");
@@ -129,7 +129,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var result = await manager.LoadDatabaseAsync("NonExistent");
@@ -158,7 +158,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Load the databases first
         await manager.LoadAutoLoadDatabasesAsync();
@@ -198,7 +198,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         await manager.LoadAutoLoadDatabasesAsync();
 
@@ -231,7 +231,7 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         var contextFactory = new TestDatabaseContextFactory();
         var logger = A.Fake<ILogger<DatabaseManager>>();
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         await manager.LoadAutoLoadDatabasesAsync();
         

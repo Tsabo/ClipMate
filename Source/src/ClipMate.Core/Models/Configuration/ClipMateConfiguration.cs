@@ -77,4 +77,14 @@ public class ClipMateConfiguration
     /// Gets or sets the appearance/theming configuration.
     /// </summary>
     public AppearanceConfiguration Appearance { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the Peer networking configuration.
+    /// </summary>
+    public NetworkingConfiguration Networking { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the Peer records (Devices this Device has completed Pairing with). Use <see cref="Services.IPeerStore" />.
+    /// </summary>
+    public List<PeerConfiguration> Peers { get; set; } = [];
 }

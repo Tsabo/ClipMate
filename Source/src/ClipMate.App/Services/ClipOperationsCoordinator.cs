@@ -6,6 +6,7 @@ using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
 using CommunityToolkit.Mvvm.Messaging;
@@ -25,6 +26,7 @@ public class ClipOperationsCoordinator :
     IRecipient<DeleteClipsRequestedEvent>,
     IRecipient<RenameClipRequestedEvent>,
     IRecipient<CopyToCollectionRequestedEvent>,
+    IRecipient<CopyToLocalRequestedEvent>,
     IRecipient<MoveToCollectionRequestedEvent>,
     IRecipient<CreateNewClipRequestedEvent>,
     IRecipient<ExportToXmlRequestedEvent>,
@@ -95,6 +97,7 @@ public class ClipOperationsCoordinator :
         _messenger.Register<DeleteClipsRequestedEvent>(this);
         _messenger.Register<RenameClipRequestedEvent>(this);
         _messenger.Register<CopyToCollectionRequestedEvent>(this);
+        _messenger.Register<CopyToLocalRequestedEvent>(this);
         _messenger.Register<MoveToCollectionRequestedEvent>(this);
         _messenger.Register<CreateNewClipRequestedEvent>(this);
         _messenger.Register<ExportToXmlRequestedEvent>(this);
@@ -126,6 +129,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(CaseConversionRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -144,6 +150,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(CleanUpTextRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -301,6 +310,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(ConvertFilePointerRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClips = _clipListViewModel.SelectedClips.Where(p => p.Type == ClipType.Files).ToList();
 
         if (selectedClips.Count == 0)
@@ -345,6 +357,13 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(CopyToCollectionRequestedEvent message)
     {
+        // Copying a remote clip to a collection is Copy to local
+        if (IsShowingRemoteDatabase())
+        {
+            await CopyToLocalAsync(new CopyToLocalRequestedEvent(message.ClipIds));
+            return;
+        }
+
         var selectedClips = _clipListViewModel.SelectedClips;
 
         if (selectedClips.Count == 0)
@@ -424,6 +443,86 @@ public class ClipOperationsCoordinator :
     }
 
     /// <summary>
+    /// Handles CopyToLocalRequestedEvent: stores clips of a Remote Database as new clips in a local collection.
+    /// </summary>
+    public async void Receive(CopyToLocalRequestedEvent message) => await CopyToLocalAsync(message);
+
+    /// <summary>
+    /// Copy to local. Asks for the local collection unless the request names one, then copies each clip (never moves:
+    /// the Remote Database is read-only).
+    /// </summary>
+    private async Task CopyToLocalAsync(CopyToLocalRequestedEvent message)
+    {
+        try
+        {
+            var sourceDatabaseKey = message.SourceDatabaseKey ?? _clipListViewModel.CurrentDatabaseKey;
+            if (!RemoteDatabaseKey.IsRemote(sourceDatabaseKey))
+            {
+                SendStatus("Copy to local copies clips from a Remote Database.", true);
+                return;
+            }
+
+            var clipIds = message.ClipIds.Count > 0
+                ? message.ClipIds
+                : _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
+
+            if (clipIds.Count == 0)
+            {
+                SendStatus("No clips selected");
+                return;
+            }
+
+            var targetDatabaseKey = message.TargetDatabaseKey;
+            var targetCollectionId = message.TargetCollectionId;
+            if (string.IsNullOrEmpty(targetDatabaseKey) || targetCollectionId is null)
+            {
+                // The picker lists local collections only
+                var dialog = new CollectionPickerDialog(_serviceProvider)
+                {
+                    Message = $"Select a local collection to copy {clipIds.Count} clip(s) to:",
+                    Owner = _activeWindowService.DialogOwner,
+                };
+
+                await dialog.LoadCollectionsAsync();
+
+                if (dialog.ShowDialog() != true || dialog.SelectedCollectionId is null || string.IsNullOrEmpty(dialog.SelectedDatabaseKey))
+                {
+                    SendStatus("Copy to local cancelled");
+                    return;
+                }
+
+                targetDatabaseKey = dialog.SelectedDatabaseKey;
+                targetCollectionId = dialog.SelectedCollectionId;
+            }
+
+            var copiedCount = 0;
+            try
+            {
+                foreach (var item in clipIds)
+                {
+                    await _clipService.CopyToLocalAsync(sourceDatabaseKey, item, targetDatabaseKey, targetCollectionId.Value);
+                    copiedCount++;
+                }
+            }
+            catch (RemoteDatabaseUnavailableException ex)
+            {
+                _logger.LogInformation("Copy to local stopped after {Count} clip(s): {Reason}", copiedCount, ex.Message);
+                SendStatus($"Copied {copiedCount} of {clipIds.Count} clip(s) to local: the Remote Database is unavailable", true);
+                return;
+            }
+
+            SendStatus($"Copied {copiedCount} clip(s) to local");
+            _logger.LogInformation("Copied {Count} clip(s) to local collection {CollectionId} in {DatabaseKey}",
+                copiedCount, targetCollectionId.Value, targetDatabaseKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Copy to local failed");
+            SendStatus("Error copying clips to local", true);
+        }
+    }
+
+    /// <summary>
     /// Handles CreateNewClipRequestedEvent to create a new empty clip.
     /// </summary>
     public async void Receive(CreateNewClipRequestedEvent message)
@@ -477,6 +576,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(DecryptClipsRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var clipIds = message.ClipIds.Any()
             ? message.ClipIds
             : _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
@@ -535,6 +637,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(DeleteClipsRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClips = _clipListViewModel.SelectedClips;
 
         if (selectedClips.Count == 0)
@@ -594,6 +699,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(EncryptClipsRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var clipIds = message.ClipIds.Any()
             ? message.ClipIds
             : _clipListViewModel.SelectedClips.Select(p => p.Id).ToList();
@@ -828,6 +936,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(MoveClipSortOrderRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -867,6 +978,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(MoveToCollectionRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClips = _clipListViewModel.SelectedClips;
 
         if (selectedClips.Count == 0)
@@ -1116,6 +1230,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(RemoveLineBreaksRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -1133,6 +1250,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(RenameClipRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -1285,6 +1405,9 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(StripNonTextRequestedEvent message)
     {
+        if (RejectIfRemoteDatabase())
+            return;
+
         var selectedClip = _clipListViewModel.SelectedClip;
 
         if (selectedClip == null)
@@ -1341,5 +1464,22 @@ public class ClipOperationsCoordinator :
     /// </summary>
     /// <param name="message">The status message.</param>
     /// <param name="isError">Whether this is an error message.</param>
+    /// <summary>
+    /// Remote Databases are read-only: refuses any request that would change, move, rename, delete, encrypt or decrypt
+    /// clips while the clip list shows a Remote Database.
+    /// </summary>
+    /// <returns><c>true</c> if the request was refused.</returns>
+    private bool RejectIfRemoteDatabase()
+    {
+        if (!IsShowingRemoteDatabase())
+            return false;
+
+        SendStatus("Remote Databases are read-only.", true);
+        return true;
+    }
+
+    private bool IsShowingRemoteDatabase() =>
+        _clipListViewModel.IsRemoteDatabase || RemoteDatabaseKey.IsRemote(_clipListViewModel.CurrentDatabaseKey);
+
     private void SendStatus(string message, bool isError = false) => _messenger.Send(new StatusUpdateEvent(message, isError));
 }

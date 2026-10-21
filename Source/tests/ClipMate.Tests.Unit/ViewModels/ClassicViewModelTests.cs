@@ -69,6 +69,7 @@ public class ClassicViewModelTests
             mockClipService,
             mockQuickPasteServiceForClipList,
             mockContextFactory,
+            A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);
 
@@ -124,6 +125,7 @@ public class ClassicViewModelTests
             mockClipService,
             mockQuickPasteServiceForClipList,
             mockContextFactory,
+            A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);
 

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Peer networking: the in-process gRPC host (Kestrel, mutual TLS) and its client channel.
+    Everything ASP.NET Core lives here so it is only loaded once networking is enabled.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ClipMate.Tests.Unit" />
+    <InternalsVisibleTo Include="ClipMate.Tests.Integration" />
+  </ItemGroup>
+
+  <ItemGroup Label="Framework References">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\ClipMate.Core\ClipMate.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Package References">
+    <PackageReference Include="Grpc.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup Label="Protocol">
+    <Protobuf Include="Protos\peer.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\shared_databases.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\discovery.proto" GrpcServices="None" />
+  </ItemGroup>
+
+</Project>

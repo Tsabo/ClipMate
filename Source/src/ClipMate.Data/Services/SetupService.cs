@@ -1,3 +1,4 @@
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,10 @@ public class SetupService : ISetupService
 
             if (created)
             {
+                await context.Database.OpenConnectionAsync(cancellationToken);
+                await DatabaseIdStore.EnsureDatabaseIdAsync(context.Database.GetDbConnection(), cancellationToken);
+                await context.Database.CloseConnectionAsync();
+
                 _logger.LogInformation("Database created successfully at: {DatabasePath}", databasePath);
                 return true;
             }
@@ -105,8 +110,7 @@ public class SetupService : ISetupService
     /// <inheritdoc />
     public string GetDefaultDatabasePath()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var clipMateDataPath = Path.Combine(appDataPath, "ClipMate", "Databases");
+        var clipMateDataPath = Path.Combine(ClipMatePaths.DataDirectory, "Databases");
         var defaultDbPath = Path.Combine(clipMateDataPath, "ClipMate.db");
 
         _logger.LogDebug("Default database path: {DefaultDbPath}", defaultDbPath);

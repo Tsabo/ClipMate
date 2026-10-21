@@ -53,6 +53,26 @@ jobs:
             Microsoft.*
             System.*
 
+  installer-script:
+    name: Compile Installer Script
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      # The release build packages the real app; here a stand-in file is enough to check that the script compiles
+      - name: Compile ClipMate.iss with a stand-in payload
+        shell: pwsh
+        run: |
+          $payload = Join-Path $env:RUNNER_TEMP 'installer-payload'
+          New-Item -ItemType Directory -Force -Path $payload | Out-Null
+          Set-Content -Path (Join-Path $payload 'ClipMate.App.exe') -Value 'stand-in'
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DSourcePath=$payload" '/DMyAppVersion=0.0.0-ci' '/DOutputFilename=ClipMate-Setup-ci' "/O$env:RUNNER_TEMP" build/installer/ClipMate.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
   build:
     name: Build and Test
     runs-on: windows-latest

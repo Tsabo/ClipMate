@@ -35,13 +35,11 @@ public partial class DatabaseConfigurationViewModel : ObservableObject
 
     public bool ReadOnly => Configuration.ReadOnly;
 
-    public bool MultiUser => Configuration.MultiUser;
+    public bool ShareWithPeers => Configuration.ShareWithPeers;
 
     public string UserName => Configuration.UserName;
 
     public int PurgeDays => Configuration.PurgeDays;
-
-    public string? RemoteHost => Configuration.RemoteHost;
 
     public void UpdateStatus()
     {

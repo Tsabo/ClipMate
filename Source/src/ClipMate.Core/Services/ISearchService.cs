@@ -18,12 +18,38 @@ public interface ISearchService
     Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Builds a SQL query from search filters without executing it.
+    /// Searches one Database with parameterized SQL built from <paramref name="filters" />, returning the newest
+    /// matches first, at most <paramref name="maxResults" /> of them, and the total number of matches. Does not touch the
+    /// search history. Cancelling <paramref name="cancellationToken" /> interrupts the running query.
+    /// </summary>
+    /// <param name="databaseKey">The Database to search.</param>
+    /// <param name="filters">What to search for.</param>
+    /// <param name="maxResults">The most clips to return, or <c>null</c> for all of them.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="ArgumentException">The scope needs a collection or folder ID that <paramref name="filters" /> lacks.</exception>
+    Task<SearchMatches> SearchDatabaseAsync(string databaseKey, SearchFilters filters, int? maxResults = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Builds a readable SQL rendering of the search, with filter values inlined as escaped literals.
+    /// Intended for display only; searches execute <see cref="BuildParameterizedSqlQuery" /> instead.
     /// </summary>
     /// <param name="query">The search query text.</param>
     /// <param name="filters">Optional search filters.</param>
     /// <returns>The generated SQL query string.</returns>
     string BuildSqlQuery(string query, SearchFilters? filters = null);
+
+    /// <summary>
+    /// Builds the parameterized SQL that a search executes. Every filter value is passed as a parameter.
+    /// </summary>
+    /// <param name="query">The search query text (matched against clip text).</param>
+    /// <param name="filters">Optional search filters.</param>
+    /// <returns>The SQL text and its parameter values.</returns>
+    /// <exception cref="ArgumentException">
+    /// The scope is <see cref="Models.SearchScope.CurrentCollection" /> without a collection ID, or
+    /// <see cref="Models.SearchScope.SpecificFolder" /> without a folder ID.
+    /// </exception>
+    SearchSqlQuery BuildParameterizedSqlQuery(string query, SearchFilters? filters = null);
 
     /// <summary>
     /// Validates a SQL query for security and syntax.

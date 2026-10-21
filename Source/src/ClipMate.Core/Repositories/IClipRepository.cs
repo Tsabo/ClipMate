@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 
 namespace ClipMate.Core.Repositories;
 
@@ -48,6 +49,26 @@ public interface IClipRepository
     Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves one page of the clips of a collection, in the same order as <see cref="GetByCollectionAsync" />,
+    /// with format flags but no content.
+    /// </summary>
+    /// <param name="collectionId">The collection's unique identifier.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves one page of the clips of a folder, in the same order as <see cref="GetByFolderAsync" />,
+    /// with format flags but no content.
+    /// </summary>
+    /// <param name="folderId">The folder's unique identifier.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves favorite clips.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -76,6 +97,38 @@ public interface IClipRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of clips matching the SQL query.</returns>
     Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a parameterized SQL query and returns matching clips.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query to execute, referencing parameters as <c>@Name</c>.</param>
+    /// <param name="parameters">Parameter values keyed by name (without the <c>@</c> prefix).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clips matching the SQL query.</returns>
+    Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a parameterized search query (a single SELECT of <c>Clips.*</c>) and returns its newest matches first,
+    /// at most <paramref name="maxResults" /> of them, with the total number of matches. Cancelling
+    /// <paramref name="cancellationToken" /> interrupts the query inside SQLite.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query, referencing parameters as <c>@Name</c>.</param>
+    /// <param name="parameters">Parameter values keyed by name (without the <c>@</c> prefix).</param>
+    /// <param name="maxResults">The most clips to return, or <c>null</c> for all of them.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<SearchMatches> ExecuteSearchQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, int? maxResults,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a SQL query (a single SELECT of <c>Clips.*</c>, such as a SQL-based collection's) for one page of its
+    /// clips, newest first (SortKey descending, then ID), with the total number of clips it returns. Only that page is
+    /// read: the query is paged in SQL, not in memory.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query, with no placeholders left.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> ExecuteSqlPageAsync(string sqlQuery, int offset, int count, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a new clip in the data store.

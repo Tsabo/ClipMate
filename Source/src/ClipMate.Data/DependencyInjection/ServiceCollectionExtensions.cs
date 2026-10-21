@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,9 @@ public static class ServiceCollectionExtensions
         // Stateless services that coordinate repository operations - registered as Transient
         // They get scoped contexts via repository factories, so no need to be Singleton
         services.AddTransient<IClipService, ClipService>();
+
+        // Reads a clip's formats and content from a local Database or a Remote Database (its Peer)
+        services.AddTransient<IClipContentService, ClipContentService>();
         services.AddTransient<IShortcutService, ShortcutService>();
         services.AddTransient<IApplicationFilterService, ApplicationFilterService>();
         services.AddTransient<IFolderService, FolderService>();
@@ -44,6 +48,14 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISearchService, SearchService>();
         services.AddTransient<IClipAppendService, ClipAppendService>();
         services.AddTransient<DatabaseSchemaMigrationService>();
+        services.AddSingleton<IDatabaseIdService, DatabaseIdService>(); // remembers Database IDs; see DatabaseIdService
+        services.AddTransient<ISharedDatabaseService, SharedDatabaseService>();
+
+        // Live change notifications: every write through the factory's contexts is seen by the change monitor, and the
+        // feed reports those in Shared Databases (only while a Peer is watching)
+        services.AddSingleton<DatabaseChangeMonitor>();
+        services.AddSingleton<SharedDatabaseChangeFeed>();
+        services.AddSingleton<ISharedDatabaseChangeFeed>(p => p.GetRequiredService<SharedDatabaseChangeFeed>());
         services.AddTransient<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
         services.AddTransient<IClipMate7ImportService, ClipMate7ImportService>();
         services.AddTransient<IRetentionEnforcementService, RetentionEnforcementService>();
@@ -69,12 +81,13 @@ public static class ServiceCollectionExtensions
 
         // Register configuration service
         // Configuration is always stored in the AppData\ClipMate directory, not in the database directory
-        var configDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        var configDirectory = ClipMatePaths.DataDirectory;
 
         services.AddSingleton<IConfigurationService>(sp =>
             new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
+
+        // Peer records (clipmate.toml): the single source of truth for which Devices are trusted
+        services.AddSingleton<IPeerStore, PeerStore>();
 
         // Register multi-database management
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();

@@ -1,5 +1,6 @@
 using System.IO;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using DevExpress.Xpf.Dialogs;
 using DXMessageBox = DevExpress.Xpf.Core.DXMessageBox;
@@ -16,22 +17,30 @@ public partial class DatabaseEditDialog
     /// <summary>
     /// Initializes a new instance for creating a new database.
     /// </summary>
-    public DatabaseEditDialog()
+    /// <param name="sharing">Checks that the Database can be shared with Peers; null to skip the check.</param>
+    public DatabaseEditDialog(DatabaseSharingContext? sharing = null)
     {
         InitializeComponent();
         _viewModel = new DatabaseEditViewModel();
         DataContext = _viewModel;
         Loaded += OnLoaded;
+        if (sharing != null)
+            _viewModel.UseSharingChecks(sharing);
     }
 
     /// <summary>
     /// Initializes a new instance for editing an existing database.
     /// </summary>
     /// <param name="config">The database configuration to edit.</param>
-    public DatabaseEditDialog(DatabaseConfiguration config)
+    /// <param name="databaseId">The Database ID stored in the database file, or null if it has none yet.</param>
+    /// <param name="sharing">Checks that the Database can be shared with Peers; null to skip the check.</param>
+    public DatabaseEditDialog(DatabaseConfiguration config, Guid? databaseId, DatabaseSharingContext? sharing = null)
         : this()
     {
         _viewModel.LoadFrom(config);
+        _viewModel.SetDatabaseId(databaseId);
+        if (sharing != null)
+            _viewModel.UseSharingChecks(sharing);
     }
 
     /// <summary>
@@ -50,6 +59,17 @@ public partial class DatabaseEditDialog
                 MessageBoxButton.OK, MessageBoxImage.Warning);
 
             TitleTextBox.Focus();
+            return;
+        }
+
+        if (!_viewModel.CanAccept)
+        {
+            DXMessageBox.Show(this,
+                _viewModel.ShareConflictMessage ?? "Please wait while ClipMate checks whether this Database can be shared.",
+                "Cannot Share This Database",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
             return;
         }
 
@@ -149,7 +169,7 @@ public partial class DatabaseEditDialog
             : $"{sanitizedName}.db";
 
         saveDialog.InitialDirectory = string.IsNullOrWhiteSpace(_viewModel.DatabaseFilePath)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate")
+            ? ClipMatePaths.DataDirectory
             : Path.GetDirectoryName(Environment.ExpandEnvironmentVariables(_viewModel.DatabaseFilePath));
 
         if (saveDialog.ShowDialog() == true)

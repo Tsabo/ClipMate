@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,11 +33,8 @@ public static class ServiceCollectionExtensions
 
         // Register application profile services as singletons
         // These use TOML file storage, not EF Core, so they're stateless and thread-safe
-        // Profiles are stored in LocalApplicationData (not roaming) as they're machine-specific
-        var profilesPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "application-profiles.toml");
+        // Profiles are stored in the local data folder (not roaming) as they're machine-specific
+        var profilesPath = Path.Combine(ClipMatePaths.DataDirectory, "application-profiles.toml");
 
         services.AddSingleton<IApplicationProfileStore>(p =>
             new ApplicationProfileStore(profilesPath, p.GetRequiredService<ILogger<ApplicationProfileStore>>()));
@@ -45,6 +43,9 @@ public static class ServiceCollectionExtensions
 
         // Register SearchResultsCache as singleton (maintains per-database search result cache)
         services.AddSingleton<SearchResultsCache>();
+
+        // Remote Search results live on the requesting Device only, keyed by (Device ID, Database ID)
+        services.AddSingleton<RemoteSearchResultsCache>();
 
         // Note: Service implementations are registered in ClipMate.Data
         // via AddClipMateData() extension method

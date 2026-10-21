@@ -8,6 +8,11 @@ namespace ClipMate.Core.Services;
 public interface IConfigurationService
 {
     /// <summary>
+    /// Raised after the configuration has been saved to disk (by any of the save methods).
+    /// </summary>
+    event EventHandler? Saved;
+
+    /// <summary>
     /// Gets the current configuration.
     /// </summary>
     ClipMateConfiguration Configuration { get; }

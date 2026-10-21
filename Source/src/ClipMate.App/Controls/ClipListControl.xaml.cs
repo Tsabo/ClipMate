@@ -3,12 +3,14 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Windows.Data;
 using System.Windows.Input;
+using ClipMate.App.Models;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
@@ -542,6 +544,23 @@ public partial class ClipListControl
     /// </summary>
     private void TableView_StartRecordDrag(object sender, StartRecordDragEventArgs e)
     {
+        // Clips of a Remote Database are never moved: dropping them on a local collection is Copy to local, so they
+        // are offered only as RemoteClipDragData (never as Clip[], which collections treat as a move)
+        var viewModel = GetClipListViewModel();
+        if (viewModel?.IsRemoteDatabase == true)
+        {
+            var remoteClipIds = e.Records.OfType<Clip>().Select(p => p.Id).ToList();
+            if (remoteClipIds.Count == 0 || !RemoteDatabaseKey.IsRemote(viewModel.CurrentDatabaseKey))
+            {
+                e.Handled = true;
+                e.AllowDrag = false;
+                return;
+            }
+
+            e.Data.SetData(typeof(RemoteClipDragData), new RemoteClipDragData(viewModel.CurrentDatabaseKey, remoteClipIds));
+            return;
+        }
+
         // Get the dragged clips
         var draggedClips = e.Records.OfType<Clip>().ToList();
         if (draggedClips.Count != 0)
@@ -659,6 +678,13 @@ public partial class ClipListControl
         {
             databaseKey = _currentDatabaseKey ?? string.Empty;
             _logger.LogDebug("Fell back to _currentDatabaseKey: '{DatabaseKey}'", databaseKey);
+        }
+
+        // A Remote Database is read-only: its clips cannot be renamed
+        if (clipListViewModel?.IsRemoteDatabase == true || RemoteDatabaseKey.IsRemote(databaseKey))
+        {
+            _messenger.Send(new StatusUpdateEvent("Remote Databases are read-only.", true));
+            return;
         }
 
         if (string.IsNullOrEmpty(databaseKey))
@@ -1051,4 +1077,30 @@ public partial class ClipListControl
         var clipIds = SelectedItems.Select(p => p.Id).ToList();
         _messenger.Send(new LockClipsRequestedEvent(clipIds));
     }
+
+    private void CopyToLocal_Click(object sender, RoutedEventArgs e)
+    {
+        var clipIds = SelectedItems.Select(p => p.Id).ToList();
+        _messenger.Send(new CopyToLocalRequestedEvent(clipIds, GetClipListViewModel()?.CurrentDatabaseKey));
+    }
+
+    /// <summary>
+    /// Shows Copy to local only while the list shows a Remote Database.
+    /// </summary>
+    private void ClipContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ContextMenu menu)
+            return;
+
+        var isRemote = GetClipListViewModel()?.IsRemoteDatabase == true;
+        foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "CopyToLocal")))
+            item.Visibility = isRemote ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private ClipListViewModel? GetClipListViewModel() => DataContext switch
+    {
+        ClipListViewModel clipListVm => clipListVm,
+        ExplorerWindowViewModel explorerVm => explorerVm.PrimaryClipList,
+        var _ => null,
+    };
 }

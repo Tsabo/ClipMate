@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Windows.Controls;
+using ClipMate.App.Models;
+using ClipMate.App.Services;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
@@ -28,8 +31,12 @@ public partial class SearchViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IMessenger _messenger;
+    private readonly IRemoteDatabaseService _remoteDatabaseService;
+    private readonly RemoteSearchResultsCache _remoteSearchResultsCache;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
+    private readonly ISearchTargetSource _searchTargetSource;
+    private CancellationTokenSource? _searchCts;
 
     // Filtering Criteria - Captured After
     [ObservableProperty]
@@ -126,6 +133,17 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     private string _sqlQuery = "Select Clip.* from Clip\nWhere Clip.Del = False\nOrder By Clip.ID;";
 
+    /// <summary>
+    /// What the dialog searches: the Database (local or remote), collection and folder selected in the collection tree.
+    /// <c>null</c> searches the active Database.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRemoteTarget))]
+    [NotifyPropertyChangedFor(nameof(IsSqlAvailable))]
+    [NotifyPropertyChangedFor(nameof(CanSearchDeletedAndShortcuts))]
+    [NotifyPropertyChangedFor(nameof(TargetDescription))]
+    private SearchTarget? _target;
+
     [ObservableProperty]
     private int _totalMatches;
 
@@ -133,19 +151,27 @@ public partial class SearchViewModel : ObservableObject
         ICollectionService collectionService,
         IClipService clipService,
         IMessenger messenger,
-        SearchResultsCache searchResultsCache)
+        SearchResultsCache searchResultsCache,
+        IRemoteDatabaseService remoteDatabaseService,
+        RemoteSearchResultsCache remoteSearchResultsCache,
+        ISearchTargetSource searchTargetSource)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
+        _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
+        _remoteSearchResultsCache = remoteSearchResultsCache ?? throw new ArgumentNullException(nameof(remoteSearchResultsCache));
+        _searchTargetSource = searchTargetSource ?? throw new ArgumentNullException(nameof(searchTargetSource));
 
         // Subscribe to property changes to regenerate SQL
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(SqlQuery) && e.PropertyName != nameof(IsSearching) &&
-                e.PropertyName != nameof(TotalMatches) && e.PropertyName != null)
+                e.PropertyName != nameof(TotalMatches) && e.PropertyName != nameof(IsRemoteTarget) &&
+                e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(TargetDescription) &&
+                e.PropertyName != nameof(CanSearchDeletedAndShortcuts) && e.PropertyName != null)
                 UpdateSqlQuery();
         };
 
@@ -172,6 +198,75 @@ public partial class SearchViewModel : ObservableObject
     /// Collection of available collections for filtering.
     /// </summary>
     public ObservableCollection<string> AvailableCollections { get; } = [];
+
+    /// <summary>
+    /// The scopes the target allows: all collections, plus the selected collection and folder when there are.
+    /// </summary>
+    public ObservableCollection<SearchScopeOption> AvailableScopes { get; } = [new(SearchScope.AllCollections, "All collections")];
+
+    /// <summary>
+    /// Gets whether the target is a Remote Database, searched by its Peer.
+    /// </summary>
+    public bool IsRemoteTarget => Target?.IsRemote == true;
+
+    /// <summary>
+    /// Gets whether the SQL panel is shown. No SQL is ever sent to a Peer, so it is hidden for Remote Databases.
+    /// </summary>
+    public bool IsSqlAvailable => !IsRemoteTarget;
+
+    /// <summary>
+    /// Gets whether the deleted-clips and shortcut filters apply. Peers never serve deleted clips or shortcuts, so they
+    /// are disabled for Remote Databases.
+    /// </summary>
+    public bool CanSearchDeletedAndShortcuts => !IsRemoteTarget;
+
+    /// <summary>
+    /// Gets the name of the Database the dialog searches, for display.
+    /// </summary>
+    public string TargetDescription => Target?.DatabaseName ?? "Active database";
+
+    /// <summary>
+    /// Takes the target (the Database selected in the collection tree, local or remote) from the current selection, and
+    /// starts the scope at all collections of it, as searches did before the scope list existed. The selected collection
+    /// and folder are offered as narrower scopes. Call when the dialog opens.
+    /// </summary>
+    public void RefreshTarget()
+    {
+        Target = _searchTargetSource.GetSearchTarget();
+        SearchScope = SearchScope.AllCollections;
+    }
+
+    /// <summary>
+    /// Cancels a search that is running; a Remote Search stops on the Peer too.
+    /// </summary>
+    public void CancelSearch() => _searchCts?.Cancel();
+
+    /// <summary>
+    /// Gets whether a saved search relies on hand-written SQL (a stored query that is a SELECT statement rather than
+    /// filters). No SQL is ever sent to a Peer, so such searches cannot run against a Remote Database.
+    /// </summary>
+    public static bool DependsOnSql(SavedSearchQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        return string.IsNullOrWhiteSpace(query.FiltersJson) && query.Query.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    partial void OnTargetChanged(SearchTarget? value)
+    {
+        AvailableScopes.Clear();
+        AvailableScopes.Add(new SearchScopeOption(SearchScope.AllCollections, "All collections"));
+        if (value?.CollectionId != null)
+            AvailableScopes.Add(new SearchScopeOption(SearchScope.CurrentCollection, $"Collection: {value.CollectionName}"));
+
+        if (value?.FolderId != null)
+            AvailableScopes.Add(new SearchScopeOption(SearchScope.SpecificFolder, $"Folder: {value.FolderName}"));
+    }
+
+    /// <summary>
+    /// The scope actually searched: one the target cannot offer (no collection or folder selected) falls back to all
+    /// collections.
+    /// </summary>
+    private SearchScope EffectiveScope => AvailableScopes.Any(p => p.Scope == SearchScope) ? SearchScope : SearchScope.AllCollections;
 
     /// <summary>
     /// Called when SelectedSavedQuery changes. Loads the saved filters into the search form.
@@ -314,8 +409,8 @@ public partial class SearchViewModel : ObservableObject
         HasShortcutOnly = filters.HasShortcutOnly == true;
         IncludeDeletedClips = filters.IncludeDeleted;
 
-        // Search scope and collection
-        SearchScope = filters.Scope;
+        // Search scope: the collection or folder it means comes from the current selection, not the saved IDs
+        SearchScope = AvailableScopes.Any(p => p.Scope == filters.Scope) ? filters.Scope : SearchScope.AllCollections;
     }
 
     private void UpdateSqlQuery()
@@ -331,20 +426,14 @@ public partial class SearchViewModel : ObservableObject
     [RelayCommand]
     private async Task SearchAsync()
     {
+        _searchCts?.Cancel();
+        using var search = new CancellationTokenSource();
+        _searchCts = search;
         try
         {
             IsSearching = true;
 
             var filters = BuildSearchFilters();
-            // Pass empty string for query parameter since all search criteria are in filters
-            SearchResults results = await _searchService.SearchAsync("", filters);
-            string? databaseKey = _collectionService.GetActiveDatabaseKey();
-
-            SearchResults.Clear();
-            foreach (var item in results.Clips)
-                SearchResults.Add(item);
-
-            TotalMatches = results.TotalMatches;
 
             // Use a descriptive query string - check all text search fields
             var queryDescription = !string.IsNullOrWhiteSpace(SearchText) ? SearchText :
@@ -353,13 +442,41 @@ public partial class SearchViewModel : ObservableObject
                 !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
                 "(filtered search)";
 
+            if (Target is { } remoteTarget && RemoteDatabaseKey.TryParse(remoteTarget.DatabaseKey, out var address))
+            {
+                await SearchRemoteDatabaseAsync(address, remoteTarget.DatabaseKey, filters, queryDescription, search.Token);
+                return;
+            }
+
+            IReadOnlyList<Clip> clips;
+            string? databaseKey;
+            if (Target is { } localTarget)
+            {
+                var matches = await _searchService.SearchDatabaseAsync(localTarget.DatabaseKey, filters, cancellationToken: search.Token);
+                clips = matches.Clips;
+                TotalMatches = matches.TotalMatches;
+                databaseKey = localTarget.DatabaseKey;
+            }
+            else
+            {
+                // Pass empty string for query parameter since all search criteria are in filters
+                var results = await _searchService.SearchAsync("", filters, search.Token);
+                clips = results.Clips;
+                TotalMatches = results.TotalMatches;
+                databaseKey = _collectionService.GetActiveDatabaseKey();
+            }
+
+            SearchResults.Clear();
+            foreach (var item in clips)
+                SearchResults.Add(item);
+
             // Send messenger event with search results
             _messenger.Send(new SearchResultsChangedEvent(queryDescription, SearchResults.ToList()));
 
             // Update SearchResultsCache and send SearchExecutedEvent if we have a database key
             if (!string.IsNullOrEmpty(databaseKey))
             {
-                var clipIds = results.Clips.Select(p => p.Id).ToList();
+                var clipIds = clips.Select(p => p.Id).ToList();
                 var searchResult = new SearchResult(queryDescription, clipIds);
                 _searchResultsCache.SetResults(databaseKey, searchResult);
 
@@ -368,8 +485,33 @@ public partial class SearchViewModel : ObservableObject
         }
         finally
         {
-            IsSearching = false;
+            if (ReferenceEquals(_searchCts, search))
+            {
+                _searchCts = null;
+                IsSearching = false;
+            }
         }
+    }
+
+    /// <summary>
+    /// Runs a Remote Search: the Peer searches with the filters (never SQL) and returns at most 1,000 matches and the
+    /// total; the results are kept on this Device only and shown in the Remote Database's Search Results node.
+    /// </summary>
+    private async Task SearchRemoteDatabaseAsync(RemoteDatabaseAddress address, string databaseKey, SearchFilters filters, string queryDescription,
+        CancellationToken cancellationToken)
+    {
+        var matches = await _remoteDatabaseService.SearchAsync(address, filters, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        SearchResults.Clear();
+        foreach (var item in matches.Clips)
+            SearchResults.Add(item);
+
+        TotalMatches = matches.TotalMatches;
+        _messenger.Send(new SearchResultsChangedEvent(queryDescription, SearchResults.ToList()));
+
+        _remoteSearchResultsCache.SetResults(address, new RemoteSearchResult(queryDescription, matches.Clips, matches.TotalMatches));
+        _messenger.Send(new SearchExecutedEvent(databaseKey, queryDescription, matches.Clips.Select(p => p.Id).ToList()));
     }
 
     /// <summary>
@@ -398,8 +540,9 @@ public partial class SearchViewModel : ObservableObject
         {
             var queries = await _searchService.GetSavedQueriesAsync();
 
+            // A saved search that relies on SQL cannot run against a Remote Database
             SavedQueries.Clear();
-            foreach (var item in queries)
+            foreach (var item in queries.Where(p => !IsRemoteTarget || !DependsOnSql(p)))
                 SavedQueries.Add(item);
         }
         catch (Exception)
@@ -651,13 +794,18 @@ public partial class SearchViewModel : ObservableObject
                     : null);
         }
 
+        var scope = EffectiveScope;
+        var remote = IsRemoteTarget;
         return new SearchFilters
         {
-            ContentTypes = contentTypes.Count > 0
+            // All boxes checked (or none) means no type restriction, so rich text, HTML and custom clips still match
+            ContentTypes = contentTypes.Count is > 0 and < 3
                 ? contentTypes
                 : null,
             DateRange = dateRange,
-            Scope = SearchScope,
+            Scope = scope,
+            CollectionId = scope == SearchScope.CurrentCollection ? Target?.CollectionId : null,
+            FolderId = scope == SearchScope.SpecificFolder ? Target?.FolderId : null,
             CaseSensitive = IsCaseSensitive,
             IsRegex = IsRegex,
             TitleQuery = SearchTitleEnabled && !string.IsNullOrWhiteSpace(SearchText)
@@ -678,10 +826,11 @@ public partial class SearchViewModel : ObservableObject
             EncryptedOnly = EncryptedOnly
                 ? true
                 : null,
-            HasShortcutOnly = HasShortcutOnly
+            // Peers never serve deleted clips or shortcuts
+            HasShortcutOnly = HasShortcutOnly && !remote
                 ? true
                 : null,
-            IncludeDeleted = IncludeDeletedClips,
+            IncludeDeleted = IncludeDeletedClips && !remote,
         };
     }
 }

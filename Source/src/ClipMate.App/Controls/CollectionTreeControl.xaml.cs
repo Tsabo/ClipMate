@@ -1,8 +1,10 @@
 using System.Windows.Input;
+using ClipMate.App.Models;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
@@ -73,6 +75,17 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
         if (targetNode?.Content is not TreeNodeBase targetTreeNode)
         {
             e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        // Clips dragged out of a Remote Database: Copy to local onto a local collection, never a move
+        if (e.Data.GetDataPresent(typeof(RemoteClipDragData)))
+        {
+            e.Effects = GetCopyToLocalTarget(targetTreeNode) != null
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+
             e.Handled = true;
             return;
         }
@@ -160,6 +173,20 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
     /// </summary>
     private async void TreeView_DropRecord(object sender, DropRecordEventArgs e)
     {
+        // Dropping Remote Database clips on a local collection is Copy to local
+        if (e.Data.GetData(typeof(RemoteClipDragData)) is RemoteClipDragData remoteClips)
+        {
+            var target = GetCopyToLocalTarget(TreeView.GetNodeByRowHandle(e.TargetRowHandle)?.Content as TreeNodeBase);
+            if (target is var (databaseKey, collectionId) && remoteClips.ClipIds.Count > 0)
+            {
+                _messenger.Send(new CopyToLocalRequestedEvent(remoteClips.ClipIds, remoteClips.SourceDatabaseKey,
+                    databaseKey, collectionId));
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (DataContext is not CollectionTreeViewModel viewModel)
             return;
 
@@ -233,6 +260,29 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
         }
 
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// The local Database and collection that Copy to local copies into when remote clips are dropped on
+    /// <paramref name="node" />: a local, writable, non-virtual collection. <c>null</c> for anything else, including
+    /// every node of a Remote Database.
+    /// </summary>
+    private static (string DatabaseKey, Guid CollectionId)? GetCopyToLocalTarget(TreeNodeBase? node)
+    {
+        if (node is not CollectionTreeNode { Collection: { ReadOnly: false, IsVirtual: false } collection })
+            return null;
+
+        for (var current = node.Parent; current != null; current = current.Parent)
+        {
+            if (current is DatabaseTreeNode databaseNode)
+            {
+                return string.IsNullOrEmpty(databaseNode.DatabasePath) || RemoteDatabaseKey.IsRemote(databaseNode.DatabasePath)
+                    ? null
+                    : (databaseNode.DatabasePath, collection.Id);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Data;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Data.Repositories;
@@ -23,15 +24,25 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     private readonly Lock _lock = new();
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly DatabaseChangeMonitor? _changeMonitor;
     private bool _disposed;
 
+    /// <summary>
+    /// Creates the factory.
+    /// </summary>
+    /// <param name="serviceProvider">Builds repositories.</param>
+    /// <param name="configurationService">Resolves database keys to files.</param>
+    /// <param name="logger">Logger.</param>
+    /// <param name="changeMonitor">Sees every write made through the contexts this factory creates (live change notifications).</param>
     public DatabaseContextFactory(IServiceProvider serviceProvider,
         IConfigurationService configurationService,
-        ILogger<DatabaseContextFactory> logger)
+        ILogger<DatabaseContextFactory> logger,
+        DatabaseChangeMonitor? changeMonitor = null)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _changeMonitor = changeMonitor;
         _loadedDatabases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -49,6 +60,7 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         if (string.IsNullOrWhiteSpace(databasePath))
             throw new ArgumentException("Database path cannot be null or empty.", nameof(databasePath));
 
+        ThrowIfRemote(databasePath);
         var normalizedPath = Path.GetFullPath(databasePath);
 
         lock (_lock)
@@ -60,6 +72,8 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
         optionsBuilder.UseSqlite($"Data Source={normalizedPath}");
+        if (_changeMonitor != null)
+            optionsBuilder.AddInterceptors(_changeMonitor);
 
         var context = new ClipMateDbContext(optionsBuilder.Options);
 
@@ -305,6 +319,8 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     /// </summary>
     private string ResolveDatabaseKeyToPath(string databaseKeyOrPath)
     {
+        ThrowIfRemote(databaseKeyOrPath);
+
         // If it looks like a file path (contains directory separators), return as-is
         if (databaseKeyOrPath.Contains(Path.DirectorySeparatorChar) ||
             databaseKeyOrPath.Contains(Path.AltDirectorySeparatorChar))
@@ -317,6 +333,16 @@ public class DatabaseContextFactory : IDatabaseContextFactory
         // If not found in configuration, assume it's a path anyway
         _logger.LogWarning("Database key '{DatabaseKey}' not found in configuration, treating as file path", databaseKeyOrPath);
         return databaseKeyOrPath;
+    }
+
+    /// <summary>
+    /// Remote Databases have no local file and are read-only: their contents are read from the Peer, never through a
+    /// local context or repository. Refusing the routing key here also stops it being taken for a file path.
+    /// </summary>
+    private static void ThrowIfRemote(string databaseKeyOrPath)
+    {
+        if (RemoteDatabaseKey.IsRemote(databaseKeyOrPath))
+            throw new InvalidOperationException("A Remote Database is read-only and has no local database file.");
     }
 
     /// <summary>

@@ -1,5 +1,5 @@
 ; ClipMate Framework-Dependent Installer Script
-; Requires .NET 10 Desktop Runtime and WebView2 (downloaded automatically via InnoDependencyInstaller)
+; Requires .NET 10 Desktop Runtime, ASP.NET Core 10 Runtime and WebView2 (downloaded automatically via InnoDependencyInstaller)
 
 ; Include InnoDependencyInstaller for automatic dependency management
 #include "CodeDependencies.iss"
@@ -66,13 +66,16 @@ LicenseFile=..\..\LICENSE
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nInstaller size: ~50MB%n%nThis installer will automatically download and install required dependencies:%n• .NET 10 Desktop Runtime (if not installed)%n• Microsoft Edge WebView2 Runtime (if not installed)%n%nAn internet connection is required for dependency installation.%n%nIt is recommended that you close all other applications before continuing.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nInstaller size: ~50MB%n%nThis installer will automatically download and install required dependencies:%n• .NET 10 Desktop Runtime (if not installed)%n• ASP.NET Core 10 Runtime (if not installed)%n• Microsoft Edge WebView2 Runtime (if not installed)%n%nAn internet connection is required for dependency installation.%n%nIt is recommended that you close all other applications before continuing.
 
 [Code]
 function InitializeSetup(): Boolean;
 begin
   // Add .NET 10 Desktop Runtime dependency
   Dependency_AddDotNet100Desktop;
+
+  // Add ASP.NET Core 10 Runtime dependency (hosts the peer networking gRPC server)
+  Dependency_AddDotNet100Asp;
   
   // Add WebView2 Runtime dependency
   Dependency_AddWebView2;

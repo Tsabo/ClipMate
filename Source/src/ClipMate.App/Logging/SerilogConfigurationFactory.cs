@@ -1,5 +1,6 @@
 using System.IO;
 using ClipMate.App.Services;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -80,10 +81,7 @@ public static class SerilogConfigurationFactory
     /// <returns>Tuple of (logDirectory, logFilePath).</returns>
     private static (string logDirectory, string logFilePath) GetLogPaths()
     {
-        var logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate",
-            "Logs");
+        var logDirectory = ClipMatePaths.LogDirectory;
 
         try
         {

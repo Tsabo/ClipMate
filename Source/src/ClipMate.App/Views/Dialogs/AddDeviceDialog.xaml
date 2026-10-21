@@ -1,0 +1,74 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.AddDeviceDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 d:DataContext="{d:DesignInstance Type=vm:AddDeviceDialogViewModel}"
+                 mc:Ignorable="d"
+                 Title="Add Device Manually"
+                 Width="480"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 SizeToContent="Height">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+
+        <TextBlock Text="Enter the other Device's address and its Device ID (shown on that Device's Devices page). Use this to reach a Device on another network, through a VPN, or over the internet."
+                   Foreground="Gray"
+                   TextWrapping="Wrap" />
+
+        <dxlc:LayoutItem Label="Address:">
+            <dxe:TextEdit x:Name="AddressTextEdit"
+                          EditValue="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                          NullText="Host name or IP address"
+                          ToolTip="The other Device's host name or IP address, e.g. 192.168.1.20 or office-pc.example.com" />
+        </dxlc:LayoutItem>
+
+        <dxlc:LayoutItem Label="Port:">
+            <dxe:SpinEdit Value="{Binding Port}"
+                          MinValue="1"
+                          MaxValue="65535"
+                          Increment="1"
+                          IsFloatValue="False"
+                          Width="120"
+                          HorizontalAlignment="Left"
+                          ToolTip="The port the other Device listens on (its Devices page). Default: 47823" />
+        </dxlc:LayoutItem>
+
+        <dxlc:LayoutItem Label="Device ID:">
+            <dxe:TextEdit EditValue="{Binding DeviceId, UpdateSourceTrigger=PropertyChanged}"
+                          FontFamily="Consolas"
+                          TextWrapping="Wrap"
+                          NullText="XXXX-XXXX-..."
+                          ToolTip="The other Device's Device ID. ClipMate only connects if the Device at the address has exactly this Device ID." />
+        </dxlc:LayoutItem>
+
+        <TextBlock Text="{Binding ErrorText}"
+                   Foreground="Firebrick"
+                   TextWrapping="Wrap"
+                   Margin="0,4,0,0"
+                   Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <dx:SimpleButton Content="Pair..."
+                             Command="{Binding PairCommand}"
+                             IsDefault="True"
+                             MinWidth="90"
+                             ToolTip="Connect to the Device and send it a pairing request" />
+            <dx:SimpleButton Content="Cancel"
+                             Command="{Binding CancelCommand}"
+                             IsCancel="True"
+                             MinWidth="90"
+                             Margin="8,0,0,0" />
+        </StackPanel>
+
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

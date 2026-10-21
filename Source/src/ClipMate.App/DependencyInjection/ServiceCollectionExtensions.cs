@@ -32,6 +32,19 @@ public static class ServiceCollectionExtensions
 
         // Register Update Checker as hosted service
         services.AddHostedService<UpdateCheckerService>();
+        // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
+        services.AddSingleton<NetworkingService>();
+        services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
+        // This Device's networking state lives apart from NetworkingService: Remote Databases and Pairing read it, and the
+        // Peer host NetworkingService owns reaches those services, so depending on NetworkingService would be a cycle.
+        services.AddSingleton<LocalDevice>();
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<LocalDevice>());
+
+        // Pairing: the approval prompt (tray notification and dialog) and the requesting side's dialog.
+        // Registered after the networking default, so the prompt replaces the decline-all handler.
+        services.AddSingleton<IPairingApprovalHandler, PairingApprovalService>();
+        services.AddSingleton<IPairingDialogService, PairingDialogService>();
+        services.AddSingleton<IPeerDialogService, PeerDialogService>();
 
         // Register MVVM Toolkit Messenger as singleton
         // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly
@@ -58,11 +71,13 @@ public static class ServiceCollectionExtensions
 
         // Register Collection Tree Builder
         services.AddTransient<ICollectionTreeBuilder, CollectionTreeBuilder>();
+        services.AddTransient<IRemoteDatabaseTreeBuilder, RemoteDatabaseTreeBuilder>();
 
         // Register ViewModels
         services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel
         services.AddSingleton<ExplorerWindowViewModel>();
         services.AddSingleton<CollectionTreeViewModel>();
+        services.AddSingleton<ISearchTargetSource>(p => p.GetRequiredService<CollectionTreeViewModel>());
         services.AddSingleton<ClipListViewModel>();
         services.AddSingleton<PreviewPaneViewModel>();
         services.AddSingleton<SearchViewModel>();
@@ -113,6 +128,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<PrintOptionsViewModel>();
         services.AddTransient<PrintPreviewViewModel>();
         services.AddTransient<AdvancedOptionsViewModel>();
+        services.AddTransient<DevicesOptionsViewModel>();
         services.AddTransient<OptionsViewModel>();
         services.AddTransient<OptionsDialog>();
 

@@ -36,6 +36,7 @@ public class OptionsViewModelTests
     private IStartupManager _mockStartupManager = null!;
     private PowerPasteOptionsViewModel _powerPasteViewModel = null!;
     private PrintOptionsViewModel _printOptionsViewModel = null!;
+    private DevicesOptionsViewModel _devicesViewModel = null!;
     private QuickPasteOptionsViewModel _quickPasteViewModel = null!;
     private SoundsOptionsViewModel _soundsViewModel = null!;
 
@@ -114,7 +115,9 @@ public class OptionsViewModelTests
             A.Fake<IClipMate7ImportService>(),
             A.Fake<IDatabaseManager>(),
             A.Fake<IMessenger>(),
-            A.Fake<ILogger<DatabaseOptionsViewModel>>());
+            A.Fake<ILogger<DatabaseOptionsViewModel>>(),
+            A.Fake<IDatabaseIdService>(),
+            A.Fake<ISharedDatabaseService>());
 
         _advancedViewModel = new AdvancedOptionsViewModel(
             _mockConfigurationService,
@@ -125,6 +128,18 @@ public class OptionsViewModelTests
 
         _printOptionsViewModel = new PrintOptionsViewModel(
             _mockConfigurationService);
+
+        _devicesViewModel = new DevicesOptionsViewModel(
+            _mockConfigurationService,
+            A.Fake<IDeviceIdentityService>(),
+            A.Fake<IDeviceDiscoveryService>(),
+            A.Fake<IPeerStore>(),
+            A.Fake<IPeerStatusService>(),
+            A.Fake<ClipMate.App.Services.IPairingDialogService>(),
+            A.Fake<ClipMate.App.Services.IPeerDialogService>(),
+            A.Fake<IUnpairingService>(),
+            A.Fake<INetworkProfileService>(),
+            A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 
     private OptionsViewModel CreateViewModel() =>
@@ -144,7 +159,8 @@ public class OptionsViewModelTests
             _databaseViewModel,
             _advancedViewModel,
             _encryptionViewModel,
-            _printOptionsViewModel);
+            _printOptionsViewModel,
+            _devicesViewModel);
 
     [Test]
     public async Task Constructor_WithoutProfileService_ShouldInitializeWithoutProfiles()
@@ -170,7 +186,8 @@ public class OptionsViewModelTests
             _databaseViewModel,
             _advancedViewModel,
             _encryptionViewModel,
-            _printOptionsViewModel);
+            _printOptionsViewModel,
+            _devicesViewModel);
 
         // Assert
         await Assert.That(viewModel).IsNotNull();

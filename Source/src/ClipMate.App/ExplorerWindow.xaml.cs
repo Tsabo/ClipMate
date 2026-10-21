@@ -604,6 +604,15 @@ public partial class ExplorerWindow : IWindow,
                 return;
             }
 
+            // Copying clips of a Remote Database is Copy to local
+            if (_viewModel.PrimaryClipList is { IsRemoteDatabase: true, CurrentDatabaseKey: { } remoteDatabaseKey })
+            {
+                _messenger.Send(new CopyToLocalRequestedEvent(selectedClips.Select(p => p.Id).ToList(), remoteDatabaseKey,
+                    targetDatabaseKey, collectionId));
+
+                return;
+            }
+
             // Get database key from currently selected tree node
             var sourceDatabaseKey = GetDatabaseKeyForNode(_viewModel.CollectionTree.SelectedNode);
             if (string.IsNullOrEmpty(sourceDatabaseKey))
@@ -656,6 +665,13 @@ public partial class ExplorerWindow : IWindow,
             if (selectedClips.Count == 0)
             {
                 _viewModel.SetStatus("No clips selected");
+                return;
+            }
+
+            // Remote Databases are read-only: their clips can be copied to local, never moved
+            if (_viewModel.PrimaryClipList.IsRemoteDatabase)
+            {
+                _viewModel.SetStatus("Remote Databases are read-only.");
                 return;
             }
 
