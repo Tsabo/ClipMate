@@ -3,8 +3,12 @@ using ClipMate.Networking;
 using ClipMate.Networking.Protocol;
 using ClipMate.Networking.SharedDatabases;
 
-namespace ClipMate.Tests.Unit.Networking;
+namespace ClipMate.Tests.Integration.Networking;
 
+/// <summary>
+/// The Shared Database wire protocol. Lives here rather than in the unit tests because it loads the gRPC assemblies,
+/// which the unit tests' NetworkingStartupTests requires to stay unloaded.
+/// </summary>
 public class SharedDatabaseProtocolTests
 {
     [Test]

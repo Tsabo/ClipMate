@@ -31,8 +31,10 @@ public class NetworkingStartupTests
         services.AddSingleton(A.Fake<IDeviceIdentityService>());
         services.AddSingleton(A.Fake<IFirewallRuleService>());
         services.AddSingleton(A.Fake<IPeerStore>());
+        services.AddSingleton(A.Fake<ISharedDatabaseService>());
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
         services.AddSingleton<NetworkingService>();
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());
         services.AddClipMateNetworking();
         await using var provider = services.BuildServiceProvider();
 
@@ -40,6 +42,11 @@ public class NetworkingStartupTests
         var networking = provider.GetRequiredService<NetworkingService>();
         await networking.StartAsync(CancellationToken.None);
         await networking.ApplyConfigurationAsync();
+
+        // The collection tree asks for Remote Databases at startup
+        var remoteDatabases = provider.GetRequiredService<IRemoteDatabaseService>();
+        await remoteDatabases.RefreshAsync();
+        await Assert.That(remoteDatabases.GetRemoteDatabases()).IsEmpty();
 
         // Assert
         var loaded = AppDomain.CurrentDomain.GetAssemblies()
