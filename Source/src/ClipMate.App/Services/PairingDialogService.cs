@@ -53,7 +53,7 @@ public sealed class PairingDialogService : IPairingDialogService
             dialog.ShowDialog();
 
             if (viewModel.Status == PairingStatus.Paired)
-                _messenger.Send(new StatusUpdateEvent($"Paired with {target.DeviceName}", false));
+                _messenger.Send(new StatusUpdateEvent($"Paired with {viewModel.OtherDeviceName}", false));
         }
     }
 }
