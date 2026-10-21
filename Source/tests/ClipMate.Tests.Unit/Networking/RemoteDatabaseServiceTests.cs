@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Channels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
@@ -420,6 +421,226 @@ public class RemoteDatabaseServiceTests
         await Assert.That(async () => await _service.GetClipContentAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid()))
             .Throws<RemoteDatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task StatusChanged_PeerComesOnline_WatchesItAndReportsWhichCollectionChanged()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var watch = WatchesOnLaptop();
+        var collectionId = Guid.NewGuid();
+        var changed = new TaskCompletionSource<RemoteCollectionChangedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.RemoteCollectionChanged += (_, e) => changed.TrySetResult(e);
+        await BringLaptopOnlineAsync();
+
+        // Act
+        await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+        watch.Notices.Writer.TryWrite(new CollectionChangedNotice(new SharedCollectionChange(_work.DatabaseId, collectionId)));
+
+        // Assert
+        var change = await changed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(change.Address).IsEqualTo(new RemoteDatabaseAddress(_laptop, _work.DatabaseId));
+        await Assert.That(change.CollectionId).IsEqualTo(collectionId);
+    }
+
+    [Test]
+    public async Task CollectionChangedNotice_ForADatabaseThePeerDoesNotShare_IsIgnored()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var watch = WatchesOnLaptop();
+        var changes = new List<RemoteCollectionChangedEventArgs>();
+        var last = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var collectionId = Guid.NewGuid();
+        _service.RemoteCollectionChanged += (_, e) =>
+        {
+            lock (changes)
+                changes.Add(e);
+
+            if (e.CollectionId == collectionId)
+                last.TrySetResult();
+        };
+        await BringLaptopOnlineAsync();
+        await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Act
+        watch.Notices.Writer.TryWrite(new CollectionChangedNotice(new SharedCollectionChange(_home.DatabaseId, Guid.NewGuid())));
+        watch.Notices.Writer.TryWrite(new CollectionChangedNotice(new SharedCollectionChange(_work.DatabaseId, collectionId)));
+        await last.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        List<Guid> received;
+        lock (changes)
+            received = changes.Select(p => p.Address.DatabaseId).ToList();
+
+        await Assert.That(received).IsEquivalentTo([_work.DatabaseId]);
+    }
+
+    [Test]
+    public async Task SharedDatabasesChangedNotice_PeerUnsharesADatabase_RemovesItWithoutWaitingForThePoll()
+    {
+        // Arrange
+        SharesOnLaptop(_work, _home);
+        var watch = WatchesOnLaptop();
+        await BringLaptopOnlineAsync();
+        await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+        var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.RemoteDatabasesChanged += (_, _) => raised.TrySetResult();
+        SharesOnLaptop(_home);
+
+        // Act
+        watch.Notices.Writer.TryWrite(new SharedDatabasesChangedNotice());
+        await raised.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases().Select(p => p.DatabaseName)).IsEquivalentTo(["Home"]);
+    }
+
+    [Test]
+    public async Task PeerUnpaired_StopsWatchingIt()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var watch = WatchesOnLaptop();
+        await BringLaptopOnlineAsync();
+        var token = await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Act
+        _store.Remove(_laptop);
+
+        // Assert
+        await WaitUntilAsync(() => token.IsCancellationRequested);
+        await Assert.That(token.IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task NetworkingTurnedOff_StopsWatching()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var watch = WatchesOnLaptop();
+        await BringLaptopOnlineAsync();
+        var token = await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Act: turning networking off stops the status monitor, which forgets every status
+        _configuration.Networking.Enabled = false;
+        SetStatus(PeerConnectionStatus.Unknown);
+        _status.StatusChanged += Raise.WithEmpty();
+
+        // Assert
+        await WaitUntilAsync(() => token.IsCancellationRequested);
+        await Assert.That(token.IsCancellationRequested).IsTrue();
+    }
+
+    [Test]
+    public async Task PeerGoesOfflineAndComesBack_StopsWatchingThenWatchesAgain()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var watch = WatchesOnLaptop();
+        await BringLaptopOnlineAsync();
+        var first = await watch.Started.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Act
+        SetStatus(PeerConnectionStatus.Offline);
+        _status.StatusChanged += Raise.WithEmpty();
+        await WaitUntilAsync(() => first.IsCancellationRequested);
+        var again = watch.Restart();
+        SetStatus(PeerConnectionStatus.Online);
+        _status.StatusChanged += Raise.WithEmpty();
+
+        // Assert
+        var second = await again.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(first.IsCancellationRequested).IsTrue();
+        await Assert.That(second.IsCancellationRequested).IsFalse();
+    }
+
+    [Test]
+    public async Task PeerWithoutChangeNotifications_KeepsWorkingAndIsNotAskedAgainWhileOnline()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var asked = 0;
+        A.CallTo(() => _client.WatchChangesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                Interlocked.Increment(ref asked);
+                return ThrowsAsync(new NotSupportedException("Too old."));
+            });
+        await BringLaptopOnlineAsync();
+        await WaitUntilAsync(() => Volatile.Read(ref asked) == 1);
+
+        // Act
+        _status.StatusChanged += Raise.WithEmpty();
+        await _service.RefreshAsync();
+        await Task.Delay(100);
+
+        // Assert
+        await Assert.That(Volatile.Read(ref asked)).IsEqualTo(1);
+        await Assert.That(_service.GetRemoteDatabases().Single().IsAvailable).IsTrue();
+    }
+
+    private async Task BringLaptopOnlineAsync()
+    {
+        var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged(object? sender, EventArgs e) => raised.TrySetResult();
+        _service.RemoteDatabasesChanged += OnChanged;
+        SetStatus(PeerConnectionStatus.Online);
+        _status.StatusChanged += Raise.WithEmpty();
+        await raised.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        _service.RemoteDatabasesChanged -= OnChanged;
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!condition() && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+    }
+
+    private static async IAsyncEnumerable<PeerChangeNotice> ThrowsAsync(Exception exception)
+    {
+        await Task.Yield();
+        if (exception != null)
+            throw exception;
+
+        yield break;
+    }
+
+    private WatchStream WatchesOnLaptop()
+    {
+        var watch = new WatchStream();
+        A.CallTo(() => _client.WatchChangesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
+            .ReturnsLazily((DeviceIdentity _, Peer _, CancellationToken token) => watch.Open(token));
+        return watch;
+    }
+
+    /// <summary>
+    /// A Peer's change stream that the test writes to.
+    /// </summary>
+    private sealed class WatchStream
+    {
+        private TaskCompletionSource<CancellationToken> _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Channel<PeerChangeNotice> Notices { get; } = Channel.CreateUnbounded<PeerChangeNotice>();
+
+        /// <summary>
+        /// Completes with the token of the latest watch when it starts.
+        /// </summary>
+        public Task<CancellationToken> Started => _started.Task;
+
+        public Task<CancellationToken> Restart()
+        {
+            _started = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return _started.Task;
+        }
+
+        public IAsyncEnumerable<PeerChangeNotice> Open(CancellationToken token)
+        {
+            _started.TrySetResult(token);
+            return Notices.Reader.ReadAllAsync(token);
+        }
     }
 
     private void SetStatus(PeerConnectionStatus status) => A.CallTo(() => _status.GetStatus(_laptop)).Returns(status);

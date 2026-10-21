@@ -12,10 +12,20 @@ namespace ClipMate.Networking.SharedDatabases;
 /// its Peer record, so its Remote Databases stay listed (as unavailable) while it is offline, even after a restart.
 /// Nothing here ever becomes a database configuration entry.
 /// </para>
+/// <para>
+/// While a Peer is online (and networking is on) its change notices are watched: a changed collection raises
+/// <see cref="RemoteCollectionChanged" />, and a changed share list is fetched at once rather than at the next poll (the
+/// poll stays as the fallback, and is all a Peer without change notifications gets). Watching stops when the Peer goes
+/// offline or is unpaired, or networking is turned off, and starts again when it comes back.
+/// </para>
 /// </summary>
 public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
 {
     private static readonly TimeSpan _refreshInterval = TimeSpan.FromSeconds(30);
+
+    // A broken change stream to a Peer that is still online is reopened after this, doubling up to the maximum.
+    private static readonly TimeSpan _rewatchDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _maxRewatchDelay = TimeSpan.FromSeconds(30);
     private readonly ISharedDatabaseClient _client;
     private readonly IConfigurationService _configurationService;
     private readonly ILocalDevice _localDevice;
@@ -25,6 +35,10 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     private readonly Lock _snapshotLock = new();
     private readonly IPeerStatusService _status;
     private readonly ITimer _timer;
+    private readonly TimeProvider _timeProvider;
+    private readonly HashSet<DeviceId> _unsupported = [];
+    private readonly Dictionary<DeviceId, CancellationTokenSource> _watches = [];
+    private readonly Lock _watchLock = new();
     private bool _disposed;
     private IReadOnlyList<RemoteDatabase> _snapshot = [];
 
@@ -42,11 +56,12 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        ArgumentNullException.ThrowIfNull(timeProvider);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _snapshot = BuildSnapshot();
         _peerStore.PeersChanged += OnPeersChanged;
         _status.StatusChanged += OnStatusChanged;
+        _peerStore.PeerRemoved += OnPeerRemoved;
 
         // Does nothing while networking is off or no Peer is online.
         _timer = timeProvider.CreateTimer(_ => _ = RefreshSafelyAsync(), null, _refreshInterval, _refreshInterval);
@@ -54,6 +69,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
 
     /// <inheritdoc />
     public event EventHandler? RemoteDatabasesChanged;
+
+    /// <inheritdoc />
+    public event EventHandler<RemoteCollectionChangedEventArgs>? RemoteCollectionChanged;
 
     /// <inheritdoc />
     public IReadOnlyList<RemoteDatabase> GetRemoteDatabases()
@@ -126,7 +144,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         _disposed = true;
         _peerStore.PeersChanged -= OnPeersChanged;
         _status.StatusChanged -= OnStatusChanged;
+        _peerStore.PeerRemoved -= OnPeerRemoved;
         _timer.Dispose();
+        UpdateWatches();
     }
 
     private (DeviceIdentity Identity, Peer Peer) GetReachablePeer(DeviceId deviceId)
@@ -157,9 +177,140 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         }
     }
 
-    private void OnPeersChanged(object? sender, EventArgs e) => _ = Task.Run(PublishIfChanged);
+    private void OnPeersChanged(object? sender, EventArgs e)
+    {
+        UpdateWatches();
+        _ = Task.Run(PublishIfChanged);
+    }
 
-    private void OnStatusChanged(object? sender, EventArgs e) => _ = RefreshSafelyAsync();
+    private void OnStatusChanged(object? sender, EventArgs e)
+    {
+        UpdateWatches();
+        _ = RefreshSafelyAsync();
+    }
+
+    private void OnPeerRemoved(object? sender, PeerRemovedEventArgs e) => UpdateWatches();
+
+    /// <summary>
+    /// Watches every online Peer's change notices and stops watching every other Peer: offline, unpaired, or all of them
+    /// while networking is off.
+    /// </summary>
+    private void UpdateWatches()
+    {
+        var identity = _localDevice.Identity;
+        var online = !_disposed && identity != null && _configurationService.Configuration.Networking.Enabled
+            ? _peerStore.GetPeers().Where(p => _status.GetStatus(p.DeviceId) == PeerConnectionStatus.Online).Select(p => p.DeviceId).ToHashSet()
+            : [];
+
+        lock (_watchLock)
+        {
+            foreach (var item in _watches.Where(p => !online.Contains(p.Key)).ToList())
+            {
+                _watches.Remove(item.Key);
+                item.Value.Cancel();
+            }
+
+            // A Peer too old to send change notices is asked again only after it was away (it may have been updated).
+            _unsupported.IntersectWith(online);
+
+            foreach (var item in online)
+            {
+                if (_watches.ContainsKey(item) || _unsupported.Contains(item))
+                    continue;
+
+                var watch = new CancellationTokenSource();
+                _watches.Add(item, watch);
+                _ = WatchAsync(identity!, item, watch);
+            }
+        }
+    }
+
+    private async Task WatchAsync(DeviceIdentity identity, DeviceId deviceId, CancellationTokenSource watch)
+    {
+        var cancellationToken = watch.Token;
+        var delay = _rewatchDelay;
+        try
+        {
+            await Task.Yield();
+            while (!cancellationToken.IsCancellationRequested && _peerStore.Find(deviceId) is { } peer)
+            {
+                try
+                {
+                    await foreach (var item in _client.WatchChangesAsync(identity, peer, cancellationToken))
+                    {
+                        delay = _rewatchDelay;
+                        await HandleNoticeAsync(identity, deviceId, item, cancellationToken);
+                    }
+                }
+                catch (Exception ex) when (ex is not (OperationCanceledException or NotSupportedException))
+                {
+                    _logger.LogDebug(ex, "Change notices from Peer {DeviceId} stopped", deviceId.ToShortDisplayString());
+                }
+
+                // The Peer ended the stream or it broke while the Peer still looks online; the status monitor stops
+                // this watch if it has gone away, otherwise reopen it.
+                await Task.Delay(delay, _timeProvider, cancellationToken);
+                delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, _maxRewatchDelay.Ticks));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Offline, unpaired, networking off, or disposed
+        }
+        catch (NotSupportedException ex)
+        {
+            _logger.LogInformation("Peer {DeviceId} does not send change notices; its Remote Databases are refreshed by polling: {Reason}",
+                deviceId.ToShortDisplayString(), ex.Message);
+            lock (_watchLock)
+            {
+                if (_watches.TryGetValue(deviceId, out var current) && ReferenceEquals(current, watch))
+                {
+                    _watches.Remove(deviceId);
+                    _unsupported.Add(deviceId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Stopped watching Peer {DeviceId} for changes", deviceId.ToShortDisplayString());
+        }
+    }
+
+    private async Task HandleNoticeAsync(DeviceIdentity identity, DeviceId deviceId, PeerChangeNotice notice, CancellationToken cancellationToken)
+    {
+        switch (notice)
+        {
+            case CollectionChangedNotice { Change: var change }:
+                var address = new RemoteDatabaseAddress(deviceId, change.DatabaseId);
+
+                // Only for a Database the Peer is known to share
+                if (GetRemoteDatabases().Any(p => p.Address == address))
+                    RemoteCollectionChanged?.Invoke(this, new RemoteCollectionChangedEventArgs(address, change.CollectionId));
+                break;
+            case SharedDatabasesChangedNotice:
+                await RefreshPeerNowAsync(identity, deviceId, cancellationToken);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Fetches one Peer's share list now (its Peer said it changed), so unsharing reaches this Device without waiting for the poll.
+    /// </summary>
+    private async Task RefreshPeerNowAsync(DeviceIdentity identity, DeviceId deviceId, CancellationToken cancellationToken)
+    {
+        await _refreshGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_peerStore.Find(deviceId) is { } peer)
+                await RefreshPeerAsync(identity, peer, cancellationToken);
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+
+        PublishIfChanged();
+    }
 
     private async Task RefreshSafelyAsync()
     {

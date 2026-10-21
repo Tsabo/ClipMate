@@ -21,6 +21,12 @@ public interface IRemoteDatabaseService
     event EventHandler? RemoteDatabasesChanged;
 
     /// <summary>
+    /// Raised (on a background thread) when a Peer reports that a collection or folder of one of its Remote Databases
+    /// changed, so any open view of it can re-fetch. Notices arrive while the Peer is online and paired and networking is on.
+    /// </summary>
+    event EventHandler<RemoteCollectionChangedEventArgs>? RemoteCollectionChanged;
+
+    /// <summary>
     /// Gets the Remote Databases, ordered by Peer name and then Database name. Never contacts a Peer.
     /// </summary>
     IReadOnlyList<RemoteDatabase> GetRemoteDatabases();
