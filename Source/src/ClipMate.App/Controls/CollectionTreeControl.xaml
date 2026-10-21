@@ -42,6 +42,11 @@
                                              Value="True">
                                     <Setter Property="Foreground" Value="Maroon" />
                                 </DataTrigger>
+                                <!-- Unavailable nodes, e.g. a Remote Database whose Peer is offline: greyed out -->
+                                <DataTrigger Binding="{Binding Row.IsUnavailable, FallbackValue=False}"
+                                             Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
+                                </DataTrigger>
                                 <!-- Safe collections (PurgePolicy=Never): Underline (only for CollectionTreeNode) -->
                                 <DataTrigger Binding="{Binding Row.Collection.PurgePolicy, FallbackValue=KeepLast}"
                                              Value="Never">

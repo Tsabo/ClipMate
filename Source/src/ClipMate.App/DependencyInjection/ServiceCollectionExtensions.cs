@@ -67,6 +67,7 @@ public static class ServiceCollectionExtensions
 
         // Register Collection Tree Builder
         services.AddTransient<ICollectionTreeBuilder, CollectionTreeBuilder>();
+        services.AddTransient<IRemoteDatabaseTreeBuilder, RemoteDatabaseTreeBuilder>();
 
         // Register ViewModels
         services.AddSingleton<MainMenuViewModel>(); // Shared menu ViewModel

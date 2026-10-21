@@ -17,6 +17,12 @@ public abstract partial class TreeNodeBase : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>
+    /// True when the node cannot be used right now, e.g. a Remote Database whose Peer is offline (shown greyed out).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isUnavailable;
+
     [ObservableProperty]
     private TreeNodeBase? _parent;
 

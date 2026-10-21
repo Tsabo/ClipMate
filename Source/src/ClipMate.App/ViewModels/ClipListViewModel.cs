@@ -22,6 +22,7 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<ClipContentUpdatedEvent>,
     IRecipient<ClipCacheExpiredMessage>,
     IRecipient<CollectionNodeSelectedEvent>,
+    IRecipient<RemoteDatabaseNodeSelectedEvent>,
     IRecipient<SearchResultsSelectedEvent>,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
@@ -120,6 +121,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<ClipContentUpdatedEvent>(this);
         _messenger.Register<ClipCacheExpiredMessage>(this);
         _messenger.Register<CollectionNodeSelectedEvent>(this);
+        _messenger.Register<RemoteDatabaseNodeSelectedEvent>(this);
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
@@ -272,6 +274,25 @@ public partial class ClipListViewModel : ObservableObject,
 
             _logger.LogInformation("Removed {Count} clip(s) from UI collection", message.DeletedClipIds.Count);
         });
+    }
+
+    /// <summary>
+    /// Receives RemoteDatabaseNodeSelectedEvent when a node in a Remote Database is selected. Shows an empty, read-only
+    /// list and leaves the active collection alone, so the Remote Database never becomes the capture target.
+    /// </summary>
+    public void Receive(RemoteDatabaseNodeSelectedEvent message)
+    {
+        _logger.LogInformation("RemoteDatabaseNodeSelectedEvent received: RemoteDatabase={RemoteDatabase}, CollectionId={CollectionId}",
+            message.Address, message.CollectionId);
+
+        // Remote clip lists are not loaded yet; never show the previous local clips as if they were the Peer's
+        AcceptsNewClips = false;
+        CurrentDatabaseKey = null;
+        CurrentCollectionId = null;
+        CurrentFolderId = null;
+        SelectedClip = null;
+        SelectedClips.Clear();
+        Clips.Clear();
     }
 
     /// <summary>

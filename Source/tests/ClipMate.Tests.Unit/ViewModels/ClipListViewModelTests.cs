@@ -1,4 +1,7 @@
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Events;
+using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Data;
 using CommunityToolkit.Mvvm.Messaging;
@@ -56,6 +59,33 @@ public class ClipListViewModelTests
             _mockLogger);
 
         await Assert.That(viewModel.IsGridView).IsFalse();
+    }
+
+    [Test]
+    public async Task Receive_RemoteDatabaseNodeSelected_ClearsTheListWithoutChangingTheCaptureTarget()
+    {
+        // Arrange
+        var viewModel = new ClipListViewModel(
+            _mockCollectionService,
+            _mockFolderService,
+            _mockClipService,
+            _mockQuickPasteService,
+            _mockContextFactory,
+            _mockMessenger,
+            _mockLogger);
+        viewModel.CurrentDatabaseKey = "db_local";
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+
+        // Act
+        viewModel.Receive(new RemoteDatabaseNodeSelectedEvent(address, Guid.NewGuid(), null));
+
+        // Assert
+        await Assert.That(viewModel.Clips).IsEmpty();
+        await Assert.That(viewModel.AcceptsNewClips).IsFalse();
+        await Assert.That(viewModel.CurrentDatabaseKey).IsNull();
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => _mockFolderService.SetActiveAsync(A<Guid?>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
