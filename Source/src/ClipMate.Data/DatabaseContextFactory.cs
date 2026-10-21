@@ -24,15 +24,25 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     private readonly Lock _lock = new();
     private readonly ILogger<DatabaseContextFactory> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly DatabaseChangeMonitor? _changeMonitor;
     private bool _disposed;
 
+    /// <summary>
+    /// Creates the factory.
+    /// </summary>
+    /// <param name="serviceProvider">Builds repositories.</param>
+    /// <param name="configurationService">Resolves database keys to files.</param>
+    /// <param name="logger">Logger.</param>
+    /// <param name="changeMonitor">Sees every write made through the contexts this factory creates (live change notifications).</param>
     public DatabaseContextFactory(IServiceProvider serviceProvider,
         IConfigurationService configurationService,
-        ILogger<DatabaseContextFactory> logger)
+        ILogger<DatabaseContextFactory> logger,
+        DatabaseChangeMonitor? changeMonitor = null)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _changeMonitor = changeMonitor;
         _loadedDatabases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -62,6 +72,8 @@ public class DatabaseContextFactory : IDatabaseContextFactory
 
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
         optionsBuilder.UseSqlite($"Data Source={normalizedPath}");
+        if (_changeMonitor != null)
+            optionsBuilder.AddInterceptors(_changeMonitor);
 
         var context = new ClipMateDbContext(optionsBuilder.Options);
 

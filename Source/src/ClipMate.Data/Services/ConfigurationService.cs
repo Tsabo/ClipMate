@@ -103,7 +103,12 @@ public class ConfigurationService : IConfigurationService
         {
             _fileLock.Release();
         }
+
+        Saved?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <inheritdoc />
+    public event EventHandler? Saved;
 
     /// <inheritdoc />
     public async Task SaveAsync(ClipMateConfiguration configuration, CancellationToken cancellationToken = default)
