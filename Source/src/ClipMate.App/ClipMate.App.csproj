@@ -37,6 +37,7 @@
     <ProjectReference Include="..\ClipMate.EmojiWpf\ClipMate.EmojiWpf.csproj" />
     <ProjectReference Include="..\ClipMate.Platform\ClipMate.Platform.csproj" />
     <ProjectReference Include="..\ClipMate.WpfHexEditor\ClipMate.WpfHexEditor.csproj" />
+    <ProjectReference Include="..\ClipMate.Networking\ClipMate.Networking.csproj" />
   </ItemGroup>
 
   <ItemGroup Label="Package References">

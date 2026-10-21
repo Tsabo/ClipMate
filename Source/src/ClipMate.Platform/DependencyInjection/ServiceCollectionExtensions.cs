@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Net.Http;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Interop;
@@ -38,6 +39,12 @@ public static class ServiceCollectionExtensions
 
         // Register HotkeyService as singleton for global hotkey management
         services.AddSingleton<IHotkeyService, HotkeyService>();
+
+        // Device identity (DPAPI-protected, in the ClipMate data folder next to clipmate.toml) and firewall rule
+        var dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate");
+        services.AddSingleton<IDeviceIdentityService>(sp =>
+            new DeviceIdentityService(dataDirectory, sp.GetRequiredService<ILogger<DeviceIdentityService>>()));
+        services.AddSingleton<IFirewallRuleService, WindowsFirewallRuleService>();
 
         // Register PasteService for PowerPaste functionality
         services.AddSingleton<IPasteService, PasteService>();
