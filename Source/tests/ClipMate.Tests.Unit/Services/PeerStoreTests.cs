@@ -42,6 +42,52 @@ public class PeerStoreTests
     }
 
     [Test]
+    public async Task RecordSharedDatabasesAsync_PersistsThePeersShareListAcrossRestarts()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, "192.168.1.20:47823");
+        var work = new SharedDatabase(Guid.NewGuid(), "Work");
+
+        // Act
+        await store.RecordSharedDatabasesAsync(_laptop, [work]);
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        await Assert.That(reloaded.Find(_laptop)!.SharedDatabases).IsEquivalentTo([work]);
+    }
+
+    [Test]
+    public async Task RecordSeenAsync_AfterRecordingSharedDatabases_KeepsThem()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var work = new SharedDatabase(Guid.NewGuid(), "Work");
+        await store.RecordSharedDatabasesAsync(_laptop, [work]);
+
+        // Act
+        await store.RecordSeenAsync(_laptop, "LAPTOP-02", "192.168.1.21:47823", DateTime.Now);
+        await store.SavePairedAsync(_laptop, "LAPTOP-02", "Laptop", null);
+
+        // Assert
+        await Assert.That(store.Find(_laptop)!.SharedDatabases).IsEquivalentTo([work]);
+    }
+
+    [Test]
+    public async Task RecordSharedDatabasesAsync_DeviceNotPaired_RecordsNothing()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+
+        // Act
+        await store.RecordSharedDatabasesAsync(_laptop, [new SharedDatabase(Guid.NewGuid(), "Work")]);
+
+        // Assert
+        await Assert.That(store.GetPeers()).IsEmpty();
+    }
+
+    [Test]
     public async Task IsPaired_UnknownDevice_IsFalse()
     {
         // Arrange

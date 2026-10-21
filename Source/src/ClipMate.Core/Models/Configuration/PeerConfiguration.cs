@@ -35,4 +35,26 @@ public class PeerConfiguration
     /// Gets or sets when Pairing with the Peer completed (local time).
     /// </summary>
     public DateTime PairedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Peer's Shared Databases as last reported by the Peer, so its Remote Databases can be shown
+    /// (as offline) while it cannot be reached.
+    /// </summary>
+    public List<PeerSharedDatabaseConfiguration> SharedDatabases { get; set; } = [];
+}
+
+/// <summary>
+/// A Peer's Shared Database as last reported by the Peer.
+/// </summary>
+public class PeerSharedDatabaseConfiguration
+{
+    /// <summary>
+    /// Gets or sets the Database ID on the Peer ("D" format).
+    /// </summary>
+    public string DatabaseId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Database's name on the Peer.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 }

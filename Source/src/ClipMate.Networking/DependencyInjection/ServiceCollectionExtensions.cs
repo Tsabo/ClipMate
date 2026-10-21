@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Networking.Discovery;
+using ClipMate.Networking.SharedDatabases;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -27,6 +28,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPairingClient, PeerPairingClient>();
         services.AddSingleton<IPeerProbe, GrpcPeerProbe>();
         services.AddSingleton<IPeerStatusService, PeerStatusMonitor>();
+
+        // Remote Databases: Peers' Shared Databases, built at runtime (never database configuration entries).
+        services.AddSingleton<ISharedDatabaseClient, GrpcSharedDatabaseClient>();
+        services.AddSingleton<IRemoteDatabaseService>(p => ActivatorUtilities.CreateInstance<RemoteDatabaseService>(p, TimeProvider.System));
 
         // LAN discovery opens no socket until networking starts it.
         services.AddSingleton<IDiscoveryTransportFactory, UdpDiscoveryTransportFactory>();

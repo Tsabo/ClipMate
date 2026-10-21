@@ -1,0 +1,332 @@
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Services;
+using ClipMate.Networking.SharedDatabases;
+using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace ClipMate.Tests.Unit.Networking;
+
+public class RemoteDatabaseServiceTests
+{
+    private static readonly DeviceId _laptop = DeviceId.FromCertificateBytes([1]);
+    private static readonly SharedDatabase _work = new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "Work");
+    private static readonly SharedDatabase _home = new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Home");
+    private ISharedDatabaseClient _client = null!;
+    private ClipMateConfiguration _configuration = null!;
+    private DeviceIdentity _identity = null!;
+    private RemoteDatabaseService _service = null!;
+    private IPeerStatusService _status = null!;
+    private InMemoryPeerStore _store = null!;
+
+    [Before(Test)]
+    public void Setup()
+    {
+        _configuration = new ClipMateConfiguration { Networking = { Enabled = true } };
+        var configurationService = A.Fake<IConfigurationService>();
+        A.CallTo(() => configurationService.Configuration).Returns(_configuration);
+
+        _identity = new DeviceIdentity(CreateCertificate());
+        var localDevice = A.Fake<ILocalDevice>();
+        A.CallTo(() => localDevice.Identity).Returns(_identity);
+
+        _store = new InMemoryPeerStore();
+        _store.Add(new Peer(_laptop, "LAPTOP", null, ["192.168.1.20:47823"], new DateTime(2026, 10, 20, 9, 0, 0)));
+        _status = A.Fake<IPeerStatusService>();
+        _client = A.Fake<ISharedDatabaseClient>();
+        _service = new RemoteDatabaseService(_store, _status, localDevice, configurationService, _client, new NoTimers(),
+            NullLogger<RemoteDatabaseService>.Instance);
+    }
+
+    [After(Test)]
+    public void Cleanup()
+    {
+        _service.Dispose();
+        _identity.Dispose();
+    }
+
+    [Test]
+    public async Task RefreshAsync_OnlinePeer_ListsEachSharedDatabaseAsAnAvailableRemoteDatabase()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work, _home);
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        var remote = _service.GetRemoteDatabases();
+        await Assert.That(remote.Select(p => p.DisplayName)).IsEquivalentTo(["Home — LAPTOP", "Work — LAPTOP"]);
+        await Assert.That(remote.All(p => p.IsAvailable)).IsTrue();
+        await Assert.That(remote.Select(p => p.Address)).Contains(new RemoteDatabaseAddress(_laptop, _work.DatabaseId));
+    }
+
+    [Test]
+    public async Task GetRemoteDatabases_PeerWithAlias_LabelsWithTheAlias()
+    {
+        // Arrange
+        _store.Replace(_store.Find(_laptop)! with { Alias = "Travel laptop" });
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases().Single().DisplayName).IsEqualTo("Work — Travel laptop");
+    }
+
+    [Test]
+    public async Task GetRemoteDatabases_PeerOffline_KeepsItsLastKnownDatabasesAsUnavailableWithoutContactingIt()
+    {
+        // Arrange: shared while online, then the laptop went away.
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        SetStatus(PeerConnectionStatus.Offline);
+        Fake.ClearRecordedCalls(_client);
+
+        // Act
+        await _service.RefreshAsync();
+        var remote = _service.GetRemoteDatabases().Single();
+
+        // Assert
+        await Assert.That(remote.IsAvailable).IsFalse();
+        await Assert.That(remote.Status).IsEqualTo(PeerConnectionStatus.Offline);
+        await Assert.That(remote.LastSeen).IsEqualTo(new DateTime(2026, 10, 20, 9, 0, 0));
+        A.CallTo(_client).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RefreshAsync_PeerStopsSharingADatabase_RemovesItAndRaisesRemoteDatabasesChanged()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work, _home);
+        await _service.RefreshAsync();
+        var raised = 0;
+        _service.RemoteDatabasesChanged += (_, _) => raised++;
+        SharesOnLaptop(_home);
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases().Select(p => p.DatabaseName)).IsEquivalentTo(["Home"]);
+        await Assert.That(raised).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RefreshAsync_NothingChanged_DoesNotRaiseRemoteDatabasesChanged()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        var raised = 0;
+        _service.RemoteDatabasesChanged += (_, _) => raised++;
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        await Assert.That(raised).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task PeersChanged_PeerUnpaired_RemovesItsRemoteDatabasesAndRaisesRemoteDatabasesChanged()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.RemoteDatabasesChanged += (_, _) => raised.TrySetResult();
+
+        // Act
+        _store.Remove(_laptop);
+        await raised.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases()).IsEmpty();
+    }
+
+    [Test]
+    public async Task StatusChanged_PeerComesOnline_FetchesItsSharedDatabases()
+    {
+        // Arrange
+        SharesOnLaptop(_work);
+        var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _service.RemoteDatabasesChanged += (_, _) => raised.TrySetResult();
+
+        // Act
+        SetStatus(PeerConnectionStatus.Online);
+        _status.StatusChanged += Raise.WithEmpty();
+        await raised.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases().Single().Address).IsEqualTo(new RemoteDatabaseAddress(_laptop, _work.DatabaseId));
+    }
+
+    [Test]
+    public async Task GetRemoteDatabases_NetworkingOff_IsEmpty()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+
+        // Act
+        _configuration.Networking.Enabled = false;
+        await _service.RefreshAsync();
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases()).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetRemoteDatabases_NeverAppearInTheDatabaseConfiguration()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases()).IsNotEmpty();
+        await Assert.That(_configuration.Databases).IsEmpty();
+    }
+
+    [Test]
+    public async Task GetCollectionTreeAsync_OnlinePeer_ReturnsTheTreeFromThePeer()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        var tree = new[] { new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10) };
+        A.CallTo(() => _client.GetCollectionTreeAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, A<CancellationToken>._))
+            .Returns(tree);
+
+        // Act
+        var result = await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId));
+
+        // Assert
+        await Assert.That(result).IsEquivalentTo(tree);
+    }
+
+    [Test]
+    public async Task GetCollectionTreeAsync_PeerOffline_ThrowsWithoutContactingIt()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Offline);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId)))
+            .Throws<RemoteDatabaseUnavailableException>();
+        A.CallTo(_client).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task GetCollectionTreeAsync_DatabaseNoLongerShared_Throws()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        A.CallTo(() => _client.GetCollectionTreeAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<CancellationToken>._))
+            .Returns((IReadOnlyList<SharedCollection>?)null);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId)))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    private void SetStatus(PeerConnectionStatus status) => A.CallTo(() => _status.GetStatus(_laptop)).Returns(status);
+
+    private void SharesOnLaptop(params SharedDatabase[] databases) =>
+        A.CallTo(() => _client.ListSharedDatabasesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
+            .Returns(databases);
+
+    private static X509Certificate2 CreateCertificate()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var request = new CertificateRequest("CN=ClipMate Test", key, HashAlgorithmName.SHA256);
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+    }
+
+    /// <summary>
+    /// Timers that never fire, so only the test decides when to refresh.
+    /// </summary>
+    private sealed class NoTimers : TimeProvider
+    {
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) => new NullTimer();
+
+        private sealed class NullTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// A Peer store that can also unpair (ticket 07 adds that to the real store).
+    /// </summary>
+    private sealed class InMemoryPeerStore : IPeerStore
+    {
+        private readonly Lock _lock = new();
+        private List<Peer> _peers = [];
+
+        public event EventHandler? PeersChanged;
+
+        public IReadOnlyList<Peer> GetPeers()
+        {
+            lock (_lock)
+                return _peers.ToList();
+        }
+
+        public Peer? Find(DeviceId deviceId) => GetPeers().FirstOrDefault(p => p.DeviceId == deviceId);
+
+        public bool IsPaired(DeviceId deviceId) => Find(deviceId) != null;
+
+        public Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RecordSeenAsync(DeviceId deviceId, string deviceName, string? address, DateTime seenAt, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RecordSharedDatabasesAsync(DeviceId deviceId, IReadOnlyList<SharedDatabase> sharedDatabases, CancellationToken cancellationToken = default)
+        {
+            if (Find(deviceId) is { } peer)
+                Replace(peer with { SharedDatabases = sharedDatabases });
+
+            return Task.CompletedTask;
+        }
+
+        public void Add(Peer peer)
+        {
+            lock (_lock)
+                _peers = [.. _peers, peer];
+        }
+
+        public void Replace(Peer peer)
+        {
+            lock (_lock)
+                _peers = [.. _peers.Where(p => p.DeviceId != peer.DeviceId), peer];
+        }
+
+        public void Remove(DeviceId deviceId)
+        {
+            lock (_lock)
+                _peers = [.. _peers.Where(p => p.DeviceId != deviceId)];
+
+            PeersChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+}

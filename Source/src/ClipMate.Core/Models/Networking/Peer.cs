@@ -19,4 +19,9 @@ public sealed record Peer(
     /// The name to show for the Peer: its Peer Alias, or its Device Name if there is no alias.
     /// </summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Alias) ? DeviceName : Alias;
+
+    /// <summary>
+    /// The Peer's Shared Databases as last reported by the Peer.
+    /// </summary>
+    public IReadOnlyList<SharedDatabase> SharedDatabases { get; init; } = [];
 }

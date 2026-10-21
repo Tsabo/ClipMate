@@ -44,4 +44,10 @@ public interface IPeerStore
     /// Does nothing if the Device is not a Peer.
     /// </summary>
     Task RecordSeenAsync(DeviceId deviceId, string deviceName, string? address, DateTime seenAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Records the Shared Databases a Peer reported. Does nothing if the Device is not a Peer. Does not raise
+    /// <see cref="PeersChanged" />: who the Peers are has not changed.
+    /// </summary>
+    Task RecordSharedDatabasesAsync(DeviceId deviceId, IReadOnlyList<SharedDatabase> sharedDatabases, CancellationToken cancellationToken = default);
 }

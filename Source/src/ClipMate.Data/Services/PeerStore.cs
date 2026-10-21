@@ -66,6 +66,7 @@ public sealed class PeerStore : IPeerStore
                 Addresses = WithAddress(existing?.Addresses ?? [], address),
                 LastSeen = existing?.LastSeen,
                 PairedAt = DateTime.Now,
+                SharedDatabases = existing?.SharedDatabases ?? [],
             };
             Replace(deviceId, record);
         }
@@ -93,11 +94,40 @@ public sealed class PeerStore : IPeerStore
                 Addresses = WithAddress(existing.Addresses, address),
                 LastSeen = seenAt,
                 PairedAt = existing.PairedAt,
+                SharedDatabases = existing.SharedDatabases,
             });
         }
 
         await _configurationService.SaveAsync(cancellationToken);
         PeersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <inheritdoc />
+    public async Task RecordSharedDatabasesAsync(DeviceId deviceId, IReadOnlyList<SharedDatabase> sharedDatabases,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sharedDatabases);
+        lock (_lock)
+        {
+            var existing = FindRecord(Records, deviceId);
+            if (existing == null)
+                return;
+
+            Replace(deviceId, new PeerConfiguration
+            {
+                DeviceId = existing.DeviceId,
+                DeviceName = existing.DeviceName,
+                Alias = existing.Alias,
+                Addresses = existing.Addresses,
+                LastSeen = existing.LastSeen,
+                PairedAt = existing.PairedAt,
+                SharedDatabases = sharedDatabases
+                    .Select(p => new PeerSharedDatabaseConfiguration { DatabaseId = p.DatabaseId.ToString("D"), Name = p.Name })
+                    .ToList(),
+            });
+        }
+
+        await _configurationService.SaveAsync(cancellationToken);
     }
 
     private List<PeerConfiguration> Records => _configurationService.Configuration.Peers;
@@ -141,7 +171,15 @@ public sealed class PeerStore : IPeerStore
             return null;
         }
 
+        var sharedDatabases = record.SharedDatabases
+            .Where(p => Guid.TryParse(p.DatabaseId, out _))
+            .Select(p => new SharedDatabase(Guid.Parse(p.DatabaseId), p.Name))
+            .ToList();
+
         return new Peer(deviceId.Value, record.DeviceName, string.IsNullOrWhiteSpace(record.Alias) ? null : record.Alias,
-            record.Addresses.ToList(), record.LastSeen);
+            record.Addresses.ToList(), record.LastSeen)
+        {
+            SharedDatabases = sharedDatabases,
+        };
     }
 }
