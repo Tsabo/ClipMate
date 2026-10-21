@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Net;
+using ClipMate.App.Services;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,7 +12,7 @@ namespace ClipMate.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the Devices options page: the Enable networking switch, this Device's Device Name and Device ID,
-/// and the Discovered Devices on the LAN.
+/// the Discovered Devices on the LAN (with <b>Pair</b>) and the Peers with their status.
 /// </summary>
 public partial class DevicesOptionsViewModel : ObservableObject
 {
@@ -18,6 +20,9 @@ public partial class DevicesOptionsViewModel : ObservableObject
     private readonly IDeviceDiscoveryService _discovery;
     private readonly IDeviceIdentityService _identityService;
     private readonly ILogger<DevicesOptionsViewModel> _logger;
+    private readonly IPairingDialogService _pairingDialogs;
+    private readonly IPeerStatusService _peerStatus;
+    private readonly IPeerStore _peerStore;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDeviceId))]
@@ -43,6 +48,9 @@ public partial class DevicesOptionsViewModel : ObservableObject
     private bool _hasDiscoveredDevices;
 
     [ObservableProperty]
+    private bool _hasPeers;
+
+    [ObservableProperty]
     private int _port;
 
     [ObservableProperty]
@@ -53,11 +61,17 @@ public partial class DevicesOptionsViewModel : ObservableObject
     public DevicesOptionsViewModel(IConfigurationService configurationService,
         IDeviceIdentityService identityService,
         IDeviceDiscoveryService discovery,
+        IPeerStore peerStore,
+        IPeerStatusService peerStatus,
+        IPairingDialogService pairingDialogs,
         ILogger<DevicesOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
+        _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
+        _peerStatus = peerStatus ?? throw new ArgumentNullException(nameof(peerStatus));
+        _pairingDialogs = pairingDialogs ?? throw new ArgumentNullException(nameof(pairingDialogs));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -70,6 +84,11 @@ public partial class DevicesOptionsViewModel : ObservableObject
     /// Gets the Devices currently announcing themselves on the LAN. Seeing a Device here does not pair with it.
     /// </summary>
     public ObservableCollection<DiscoveredDeviceItem> DiscoveredDevices { get; } = [];
+
+    /// <summary>
+    /// Gets the Peers with their Peer Alias, Device Name, short Device ID and status.
+    /// </summary>
+    public ObservableCollection<PeerItem> Peers { get; } = [];
 
     /// <summary>
     /// Loads the networking settings and, if one exists, the Device ID. Never creates an identity.
@@ -110,41 +129,92 @@ public partial class DevicesOptionsViewModel : ObservableObject
     public Task EnsureDeviceIdAsync() => HasDeviceId ? Task.CompletedTask : _deviceIdTask ??= LoadDeviceIdAsync(true);
 
     /// <summary>
-    /// Shows the Discovered Devices and keeps the list current until <see cref="StopWatchingDiscoveredDevices" />.
+    /// Shows the Discovered Devices and the Peers and keeps both lists current until <see cref="StopWatching" />.
     /// Call on the UI thread; updates are posted back to it.
     /// </summary>
-    public void StartWatchingDiscoveredDevices()
+    public void StartWatching()
     {
         _uiContext = SynchronizationContext.Current;
-        _discovery.DiscoveredDevicesChanged -= OnDiscoveredDevicesChanged;
-        _discovery.DiscoveredDevicesChanged += OnDiscoveredDevicesChanged;
-        RefreshDiscoveredDevices();
+        StopWatching();
+        _discovery.DiscoveredDevicesChanged += OnListsChanged;
+        _peerStore.PeersChanged += OnListsChanged;
+        _peerStatus.StatusChanged += OnListsChanged;
+        RefreshLists();
     }
 
     /// <summary>
-    /// Stops following changes to the Discovered Devices.
+    /// Stops following changes to the Discovered Devices and Peers.
     /// </summary>
-    public void StopWatchingDiscoveredDevices() => _discovery.DiscoveredDevicesChanged -= OnDiscoveredDevicesChanged;
+    public void StopWatching()
+    {
+        _discovery.DiscoveredDevicesChanged -= OnListsChanged;
+        _peerStore.PeersChanged -= OnListsChanged;
+        _peerStatus.StatusChanged -= OnListsChanged;
+    }
 
-    private void OnDiscoveredDevicesChanged(object? sender, EventArgs e)
+    private void OnListsChanged(object? sender, EventArgs e)
     {
         var context = _uiContext;
         if (context == null)
-            RefreshDiscoveredDevices();
+            RefreshLists();
         else
-            context.Post(_ => RefreshDiscoveredDevices(), null);
+            context.Post(_ => RefreshLists(), null);
+    }
+
+    private void RefreshLists()
+    {
+        RefreshPeers();
+        RefreshDiscoveredDevices();
+    }
+
+    private void RefreshPeers()
+    {
+        var now = DateTime.Now;
+        Peers.Clear();
+        foreach (var item in _peerStore.GetPeers().OrderBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase))
+            Peers.Add(PeerItem.From(item, _peerStatus.GetStatus(item.DeviceId), now));
+
+        HasPeers = Peers.Count > 0;
     }
 
     private void RefreshDiscoveredDevices()
     {
         DiscoveredDevices.Clear();
         foreach (var item in _discovery.DiscoveredDevices)
-            DiscoveredDevices.Add(new DiscoveredDeviceItem(item.DeviceName, item.DeviceId.ToShortDisplayString(), item.DeviceId.ToDisplayString()));
+            DiscoveredDevices.Add(ToItem(item));
 
         HasDiscoveredDevices = DiscoveredDevices.Count > 0;
         DiscoveryStatusText = _discovery.IsRunning
             ? "Looking for your other Devices on this network..."
             : "Turn on networking to find your other Devices on this network.";
+    }
+
+    private DiscoveredDeviceItem ToItem(DiscoveredDevice device)
+    {
+        var paired = _peerStore.IsPaired(device.DeviceId);
+        var compatible = device.ProtocolMajor == Networking.PeerProtocol.Major;
+        var status = paired ? "Paired" : compatible ? string.Empty : "Update required";
+        return new DiscoveredDeviceItem(device.DeviceName, device.DeviceId.ToShortDisplayString(), device.DeviceId.ToDisplayString(), status,
+            !paired && compatible && _discovery.IsRunning, device);
+    }
+
+    [RelayCommand]
+    private async Task PairAsync(DiscoveredDeviceItem? item)
+    {
+        if (item is not { CanPair: true })
+            return;
+
+        try
+        {
+            var device = item.Device;
+            await _pairingDialogs.PairAsync(new PairingTarget(device.DeviceId, device.DeviceName, device.Endpoint.ToString()));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Pairing with {DeviceName} failed", item.DeviceName);
+        }
+
+        RefreshLists();
     }
 
     partial void OnEnableNetworkingChanged(bool value)

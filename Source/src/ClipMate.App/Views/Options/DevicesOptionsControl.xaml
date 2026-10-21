@@ -149,6 +149,19 @@
                                 <dxg:GridColumn FieldName="DeviceName" Header="Device Name" Width="*" />
                                 <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="120"
                                                 CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
+                                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="110" />
+                                <dxg:GridColumn Header="" Width="80" AllowSorting="False" AllowResizing="False">
+                                    <dxg:GridColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <dx:SimpleButton Content="Pair..."
+                                                             Margin="2"
+                                                             IsEnabled="{Binding RowData.Row.CanPair}"
+                                                             Command="{Binding DataContext.PairCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                             CommandParameter="{Binding RowData.Row}"
+                                                             ToolTip="Send a pairing request to this Device" />
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellTemplate>
+                                </dxg:GridColumn>
                             </dxg:GridControl.Columns>
                         </dxg:GridControl>
                         <TextBlock Text="{Binding DiscoveryStatusText}"
@@ -166,7 +179,39 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="Other ClipMate Devices on this network that have networking turned on. Seeing a Device here does not let it connect; only Devices you pair with can."
+                        <TextBlock Text="Other ClipMate Devices on this network that have networking turned on. Seeing a Device here does not let it connect; only Devices you pair with can. Pairing completes once both Devices accept."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+            <!-- Peers Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Peers" Orientation="Vertical">
+
+                <dxlc:LayoutItem>
+                    <StackPanel>
+                        <dxg:GridControl ItemsSource="{Binding Peers}"
+                                         Height="150"
+                                         Visibility="{Binding HasPeers, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <dxg:GridControl.View>
+                                <dxg:TableView ShowGroupPanel="False"
+                                               AllowEditing="False"
+                                               NavigationStyle="Row"
+                                               ShowIndicator="False" />
+                            </dxg:GridControl.View>
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="DisplayName" Header="Name" Width="*" />
+                                <dxg:GridColumn FieldName="DeviceName" Header="Device Name" Width="*" />
+                                <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="100"
+                                                CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
+                                <dxg:GridColumn FieldName="StatusText" Header="Status" Width="180" />
+                            </dxg:GridControl.Columns>
+                        </dxg:GridControl>
+                        <TextBlock Text="Devices you have paired with appear here. Peers stay until you unpair them."
                                    Margin="0,5,0,0"
                                    Foreground="Gray"
                                    FontSize="11"

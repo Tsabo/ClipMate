@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
@@ -10,12 +11,15 @@ using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
-public class DevicesOptionsViewModelTests
+public partial class DevicesOptionsViewModelTests
 {
     private ClipMateConfiguration _configuration = null!;
     private IDeviceDiscoveryService _discovery = null!;
     private DeviceIdentity _identity = null!;
     private IDeviceIdentityService _identityService = null!;
+    private IPairingDialogService _pairingDialogs = null!;
+    private IPeerStatusService _peerStatus = null!;
+    private IPeerStore _peerStore = null!;
     private DevicesOptionsViewModel _viewModel = null!;
 
     [Before(Test)]
@@ -33,7 +37,13 @@ public class DevicesOptionsViewModelTests
         _discovery = A.Fake<IDeviceDiscoveryService>();
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
 
-        _viewModel = new DevicesOptionsViewModel(configurationService, _identityService, _discovery, A.Fake<ILogger<DevicesOptionsViewModel>>());
+        _peerStore = A.Fake<IPeerStore>();
+        A.CallTo(() => _peerStore.GetPeers()).Returns([]);
+        _peerStatus = A.Fake<IPeerStatusService>();
+        _pairingDialogs = A.Fake<IPairingDialogService>();
+
+        _viewModel = new DevicesOptionsViewModel(configurationService, _identityService, _discovery, _peerStore, _peerStatus, _pairingDialogs,
+            A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 
     [After(Test)]
@@ -131,14 +141,14 @@ public class DevicesOptionsViewModelTests
     }
 
     [Test]
-    public async Task StartWatchingDiscoveredDevices_ListsDeviceNameAndShortDeviceId()
+    public async Task StartWatching_ListsDeviceNameAndShortDeviceId()
     {
         // Arrange
         var desktop = CreateDiscoveredDevice("Desktop");
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([desktop]);
 
         // Act
-        _viewModel.StartWatchingDiscoveredDevices();
+        _viewModel.StartWatching();
 
         // Assert
         var item = _viewModel.DiscoveredDevices.Single();
@@ -152,7 +162,7 @@ public class DevicesOptionsViewModelTests
     {
         // Arrange
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([CreateDiscoveredDevice("Desktop")]);
-        _viewModel.StartWatchingDiscoveredDevices();
+        _viewModel.StartWatching();
 
         // Act: the desktop stops announcing and drops off
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
@@ -163,13 +173,13 @@ public class DevicesOptionsViewModelTests
     }
 
     [Test]
-    public async Task StopWatchingDiscoveredDevices_IgnoresLaterChanges()
+    public async Task StopWatching_IgnoresLaterChanges()
     {
         // Arrange
-        _viewModel.StartWatchingDiscoveredDevices();
+        _viewModel.StartWatching();
 
         // Act
-        _viewModel.StopWatchingDiscoveredDevices();
+        _viewModel.StopWatching();
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([CreateDiscoveredDevice("Desktop")]);
         _discovery.DiscoveredDevicesChanged += Raise.WithEmpty();
 
@@ -180,13 +190,13 @@ public class DevicesOptionsViewModelTests
     [Test]
     [Arguments(false, "Turn on networking to find your other Devices on this network.")]
     [Arguments(true, "Looking for your other Devices on this network...")]
-    public async Task StartWatchingDiscoveredDevices_NoneFound_ExplainsWhy(bool discovering, string expected)
+    public async Task StartWatching_NoneFound_ExplainsWhy(bool discovering, string expected)
     {
         // Arrange
         A.CallTo(() => _discovery.IsRunning).Returns(discovering);
 
         // Act
-        _viewModel.StartWatchingDiscoveredDevices();
+        _viewModel.StartWatching();
 
         // Assert
         await Assert.That(_viewModel.HasDiscoveredDevices).IsFalse();

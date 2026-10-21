@@ -132,6 +132,9 @@ public class OptionsViewModelTests
             _mockConfigurationService,
             A.Fake<IDeviceIdentityService>(),
             A.Fake<IDeviceDiscoveryService>(),
+            A.Fake<IPeerStore>(),
+            A.Fake<IPeerStatusService>(),
+            A.Fake<ClipMate.App.Services.IPairingDialogService>(),
             A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 
