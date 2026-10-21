@@ -195,6 +195,29 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task CopyToLocalAsync_ClipOfAUserOnThePeer_IsStoredWithoutAUserLikeACapturedClip()
+    {
+        // Arrange: a user ID only means something in the Peer's own database
+        var source = await _peerClipService.CreateAsync(_peerDatabaseKey, new Clip
+        {
+            Type = ClipType.Text,
+            Title = "From another user",
+            TextContent = "Hello",
+            ContentHash = "hash-user",
+            CapturedAt = DateTimeOffset.UtcNow,
+            CollectionId = _peerCollectionId,
+            UserId = 7,
+        });
+
+        // Act
+        var copy = await _localClipService.CopyToLocalAsync(_remoteDatabaseKey, source.Id, _localDatabaseKey, _localCollectionId);
+
+        // Assert
+        var stored = await _localClipService.GetByIdAsync(_localDatabaseKey, copy.Id);
+        await Assert.That(stored!.UserId).IsNull();
+    }
+
+    [Test]
     public async Task CopyToLocalAsync_SameClipTwice_CreatesTwoIndependentClips()
     {
         // Arrange

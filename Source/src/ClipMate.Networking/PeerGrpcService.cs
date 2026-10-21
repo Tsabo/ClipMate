@@ -68,9 +68,10 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
             return Reply(PairResult.UpdateRequired);
         }
 
-        if (!_tracker.TryBeginWaiting(caller))
+        if (!_tracker.TryBeginWaiting(caller, PeerCallContext.GetRemoteAddress(context)))
             return Reply(PairResult.Busy);
 
+        var accepted = false;
         try
         {
             var deviceName = CleanDeviceName(request.DeviceName, caller);
@@ -97,11 +98,12 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
             }
 
             _tracker.Accept(caller, deviceName, decision.Alias, GetCallerAddress(context, request.ListeningPort));
+            accepted = true;
             return Reply(PairResult.Accepted);
         }
         finally
         {
-            _tracker.EndWaiting(caller);
+            _tracker.EndWaiting(caller, accepted);
         }
     }
 

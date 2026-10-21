@@ -323,6 +323,96 @@ public class SharedDatabaseTransportTests
     }
 
     [Test]
+    [Arguments(StatusCode.ResourceExhausted)]
+    [Arguments(StatusCode.InvalidArgument)]
+    [Arguments(StatusCode.Internal)]
+    [Arguments(StatusCode.Unknown)]
+    [Arguments(StatusCode.FailedPrecondition)]
+    [Arguments(StatusCode.Unauthenticated)]
+    public async Task GetClipPageAsync_PeerAnswersWithAnUnexpectedError_ThrowsRemoteDatabaseUnavailable(StatusCode status)
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Throws(new RpcException(new Status(status, "Something went wrong.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_PeerFailsWhileAnswering_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange: an unexpected exception on the Peer reaches this Device as status Unknown.
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Throws(new InvalidOperationException("Database is locked."));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_PeerAnswersWithAnError_DoesNotTryItsOtherAddresses()
+    {
+        // Arrange: the Peer is announced at one address and remembered at another that reaches the same listener.
+        await _desktopStore.SavePairedAsync(_laptopIdentity!.DeviceId, "LAPTOP", null, null);
+        await _laptopStore.SavePairedAsync(_desktopIdentity!.DeviceId, "DESKTOP", null, $"localhost:{_desktopHost.ListeningPort}");
+        var desktop = _laptopStore.Find(_desktopIdentity.DeviceId)!;
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([
+            new DiscoveredDevice(_desktopIdentity.DeviceId, "DESKTOP", new IPEndPoint(IPAddress.Loopback, _desktopHost.ListeningPort!.Value), PeerProtocol.Major, 0,
+                DateTimeOffset.UtcNow),
+        ]);
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Throws(new RpcException(new Status(StatusCode.Internal, "Something went wrong.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ListSharedDatabasesAsync_PeerAnswersWithAnUnexpectedError_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetSharedDatabasesAsync(A<CancellationToken>._))
+            .Throws(new RpcException(new Status(StatusCode.ResourceExhausted, "Too busy.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetCollectionTreeAsync_PeerAnswersWithAnUnexpectedError_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetCollectionTreeAsync(A<Guid>._, A<CancellationToken>._))
+            .Throws(new RpcException(new Status(StatusCode.Internal, "Something went wrong.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetCollectionTreeAsync(_laptopIdentity!, desktop, _workId)).Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_PeerAnswersWithAnUnexpectedError_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetClipContentAsync(A<Guid>._, A<Guid>._, A<CancellationToken>._))
+            .Throws(new RpcException(new Status(StatusCode.ResourceExhausted, "Too busy.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetClipContentAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid()))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
     public async Task WatchChangesAsync_ACollectionChangesOnThePeer_DeliversOnlyWhichCollectionChanged()
     {
         // Arrange
@@ -562,6 +652,19 @@ public class SharedDatabaseTransportTests
             .Throws<RemoteDatabaseUnavailableException>();
         await Assert.That(exception!.Message).Contains("too long");
         await peerCancelled.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task SearchAsync_PeerFailsWhileSearching_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.SearchAsync(_workId, A<SearchFilters>._, A<CancellationToken>._))
+            .Throws(new RpcException(new Status(StatusCode.Internal, "Something went wrong.")));
+
+        // Act / Assert
+        await Assert.That(async () => await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "x" }))
+            .Throws<RemoteDatabaseUnavailableException>();
     }
 
     [Test]

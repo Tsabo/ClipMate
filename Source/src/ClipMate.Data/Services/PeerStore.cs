@@ -54,7 +54,12 @@ public sealed class PeerStore : IPeerStore
     public bool IsPaired(DeviceId deviceId) => FindRecord(Records, deviceId) != null;
 
     /// <inheritdoc />
-    public async Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address,
+    public Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address,
+        CancellationToken cancellationToken = default) =>
+        SavePairedAsync(deviceId, deviceName, alias, address, false, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, bool pinAddress,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(deviceName);
@@ -67,6 +72,9 @@ public sealed class PeerStore : IPeerStore
                 DeviceName = deviceName,
                 Alias = string.IsNullOrWhiteSpace(alias) ? null : alias.Trim(),
                 Addresses = WithAddress(existing?.Addresses ?? [], address),
+                ManualAddresses = pinAddress && !string.IsNullOrWhiteSpace(address)
+                    ? WithManualAddress(existing?.ManualAddresses ?? [], address)
+                    : existing?.ManualAddresses ?? [],
                 LastSeen = existing?.LastSeen,
                 PairedAt = DateTime.Now,
                 SharedDatabases = existing?.SharedDatabases ?? [],
@@ -96,6 +104,7 @@ public sealed class PeerStore : IPeerStore
                 DeviceName = string.IsNullOrWhiteSpace(deviceName) ? existing.DeviceName : deviceName,
                 Alias = existing.Alias,
                 Addresses = WithAddress(existing.Addresses, address),
+                ManualAddresses = existing.ManualAddresses,
                 LastSeen = seenAt,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = existing.SharedDatabases,
@@ -122,6 +131,7 @@ public sealed class PeerStore : IPeerStore
                 DeviceName = existing.DeviceName,
                 Alias = string.IsNullOrWhiteSpace(alias) ? null : alias.Trim(),
                 Addresses = existing.Addresses.ToList(),
+                ManualAddresses = existing.ManualAddresses,
                 LastSeen = existing.LastSeen,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = existing.SharedDatabases,
@@ -150,6 +160,7 @@ public sealed class PeerStore : IPeerStore
                 DeviceName = existing.DeviceName,
                 Alias = existing.Alias,
                 Addresses = existing.Addresses.ToList(),
+                ManualAddresses = existing.ManualAddresses,
                 LastSeen = existing.LastSeen,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = sharedDatabases
@@ -187,6 +198,7 @@ public sealed class PeerStore : IPeerStore
                 DeviceName = existing.DeviceName,
                 Alias = existing.Alias,
                 Addresses = existing.Addresses.ToList(),
+                ManualAddresses = existing.ManualAddresses,
                 LastSeen = existing.LastSeen,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = existing.SharedDatabases,
@@ -249,6 +261,30 @@ public sealed class PeerStore : IPeerStore
         return result;
     }
 
+    private static List<string> WithManualAddress(IEnumerable<string> addresses, string address)
+    {
+        var result = addresses.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (!result.Contains(address, StringComparer.OrdinalIgnoreCase))
+            result.Add(address);
+
+        return result;
+    }
+
+    /// <summary>
+    /// The addresses to try for a Peer: its most recent ones, then any entered address that is not among them.
+    /// </summary>
+    private static List<string> GetAddresses(PeerConfiguration record)
+    {
+        var result = record.Addresses.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        foreach (var item in record.ManualAddresses)
+        {
+            if (!string.IsNullOrWhiteSpace(item) && !result.Contains(item, StringComparer.OrdinalIgnoreCase))
+                result.Add(item);
+        }
+
+        return result;
+    }
+
     private Peer? ToPeer(PeerConfiguration record)
     {
         if (!DeviceId.TryParse(record.DeviceId, out var deviceId))
@@ -263,7 +299,7 @@ public sealed class PeerStore : IPeerStore
             .ToList();
 
         return new Peer(deviceId.Value, record.DeviceName, string.IsNullOrWhiteSpace(record.Alias) ? null : record.Alias,
-            record.Addresses.ToList(), record.LastSeen)
+            GetAddresses(record), record.LastSeen)
         {
             PairedAt = record.PairedAt == default ? null : record.PairedAt,
             SharedDatabases = sharedDatabases,

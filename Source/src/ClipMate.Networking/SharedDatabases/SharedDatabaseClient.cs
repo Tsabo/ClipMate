@@ -84,6 +84,12 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// </summary>
     private const long _maxContentLength = 512L * 1024 * 1024;
 
+    // The error statuses each call handles itself; CallAsync turns any other into RemoteDatabaseUnavailableException.
+    private static readonly StatusCode[] _notFoundOrUnimplemented = [StatusCode.NotFound, StatusCode.Unimplemented];
+    private static readonly StatusCode[] _searchStatuses =
+        [StatusCode.NotFound, StatusCode.ResourceExhausted, StatusCode.InvalidArgument, StatusCode.Unimplemented];
+    private static readonly StatusCode[] _unimplemented = [StatusCode.Unimplemented];
+
     private readonly TimeSpan _contentTimeout;
     private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<GrpcSharedDatabaseClient> _logger;
@@ -133,7 +139,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
 
             var reply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetClipPageAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                cancellationToken);
+                _notFoundOrUnimplemented, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
@@ -155,7 +161,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var formatsRequest = new GetClipFormatsRequest { DatabaseId = databaseId.ToString("D"), ClipId = clipId.ToString("D") };
             var formatsReply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetClipFormatsAsync(formatsRequest, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                cancellationToken);
+                _notFoundOrUnimplemented, cancellationToken);
 
             var clip = SharedDatabaseMessages.FromMessage(formatsReply.Clip ?? new ClipSummary());
             if (clip == null || clip.Id != clipId)
@@ -168,7 +174,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var content = await CallAsync(identity, peer, _contentTimeout,
                 (client, deadline) => ReadContentAsync(client.ReadClipContent(contentRequest, deadline: deadline, cancellationToken: cancellationToken),
                     formats, peer, cancellationToken),
-                cancellationToken);
+                _notFoundOrUnimplemented, cancellationToken);
 
             return BuildContent(clip, formats, content);
         }
@@ -251,7 +257,8 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
                         throw new NotSupportedException($"{peer.DisplayName} needs a newer version of ClipMate to send changes.", ex);
                     case RpcException { StatusCode: StatusCode.PermissionDenied }:
                         throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
-                    case RpcException { StatusCode: StatusCode.Unavailable or StatusCode.DeadlineExceeded } or TimeoutException or FormatException:
+                    case RpcException rpc when PeerCallFailure.IsNoReply(rpc):
+                    case TimeoutException or FormatException:
                         lastError = ex;
                         _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.DeviceId.ToShortDisplayString(), address);
                         break;
@@ -276,7 +283,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
             return await CallAsync(identity, peer, _searchTimeout,
                 (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
-                cancellationToken);
+                _searchStatuses, cancellationToken);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
@@ -402,7 +409,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         {
             var reply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.ListSharedDatabasesAsync(new ListSharedDatabasesRequest(), deadline: deadline,
-                    cancellationToken: cancellationToken).ResponseAsync, cancellationToken);
+                    cancellationToken: cancellationToken).ResponseAsync, _unimplemented, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
@@ -420,7 +427,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var request = new GetCollectionTreeRequest { DatabaseId = databaseId.ToString("D") };
             var reply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetCollectionTreeAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                cancellationToken);
+                _notFoundOrUnimplemented, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.NotFound or StatusCode.Unimplemented)
@@ -431,10 +438,13 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
 
     /// <summary>
     /// Makes the call at each of the Peer's addresses until one answers. Any reply from the Peer, including an error
-    /// status, ends the search; only failing to reach it moves on to the next address.
+    /// status, ends the search; only failing to reach it moves on to the next address. An error status in
+    /// <paramref name="callerHandles" /> is rethrown for the caller to handle; any other becomes a
+    /// <see cref="RemoteDatabaseUnavailableException" />, so a raw <see cref="RpcException" /> never escapes this client.
     /// </summary>
     private async Task<TReply> CallAsync<TReply>(DeviceIdentity identity, Peer peer, TimeSpan timeout,
-        Func<SharedDatabaseAccess.SharedDatabaseAccessClient, DateTime, Task<TReply>> call, CancellationToken cancellationToken)
+        Func<SharedDatabaseAccess.SharedDatabaseAccessClient, DateTime, Task<TReply>> call, IReadOnlyCollection<StatusCode> callerHandles,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(peer);
@@ -452,7 +462,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             {
                 throw new OperationCanceledException("The call was cancelled.", ex, cancellationToken);
             }
-            catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+            catch (RpcException ex) when (PeerCallFailure.IsNoReply(ex))
             {
                 lastError = ex;
                 _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.DeviceId.ToShortDisplayString(), address);
@@ -460,6 +470,11 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
             {
                 throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
+            }
+            catch (RpcException ex) when (!callerHandles.Contains(ex.StatusCode))
+            {
+                _logger.LogDebug(ex, "Peer {DeviceId} answered with {Status}", peer.DeviceId.ToShortDisplayString(), ex.StatusCode);
+                throw new RemoteDatabaseUnavailableException(PeerCallFailure.Describe(ex, peer.DisplayName), ex);
             }
             catch (FormatException ex)
             {

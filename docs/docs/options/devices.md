@@ -48,6 +48,8 @@ Pairing makes two of your Devices trust each other. It completes only once **bot
 
 Declining on either Device, or not answering within two minutes, leaves both Devices unpaired.
 
+To keep another computer from flooding you with pairing requests, a Device answers only one request at a time from each network address, and after a request from an address is declined or goes unanswered, requests from that address are turned away for 30 seconds. The requesting Device is told the other Device is busy; wait a moment and try again.
+
 ### Add Device manually
 
 To pair with a Device that is not on your local network (on another subnet, through a VPN, or over the internet), click **Add Device manually...** under **Discovered Devices** and enter:
@@ -60,7 +62,7 @@ An address alone is never enough: ClipMate connects only if the Device at that a
 
 Click **Pair...** and the same pairing dialog opens as for a Discovered Device, with the same Verification Code check on both Devices. Until the other Device answers, the dialog names it by its address; once it accepts, **Show as** is filled in with its Device Name. Networking must already be turned on (click **OK** after turning it on) before you add a Device.
 
-The address you entered is remembered as one of the Peer's known addresses, so ClipMate can reach the Peer there again later.
+The address you entered is remembered as one of the Peer's known addresses, so ClipMate can reach the Peer there again later. It is kept for good: addresses the Peer is later found at on your local network never push it out, and ClipMate always tries it when it can't reach the Peer elsewhere.
 
 ## Peers
 

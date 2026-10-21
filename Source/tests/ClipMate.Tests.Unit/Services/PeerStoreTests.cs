@@ -153,6 +153,58 @@ public class PeerStoreTests
     }
 
     [Test]
+    public async Task RecordSeenAsync_ManyDiscoveredAddresses_NeverEvictTheManuallyEnteredAddress()
+    {
+        // Arrange: paired by an address the user typed in (Add Device manually)
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, "office-pc.example.com:47823", true);
+
+        // Act: the Peer is then seen at many other addresses
+        for (var i = 1; i <= 6; i++)
+            await store.RecordSeenAsync(_laptop, "LAPTOP-01", $"10.0.0.{i}:47823", DateTime.Now);
+
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        var peer = reloaded.Find(_laptop)!;
+        await Assert.That(peer.Addresses).Contains("office-pc.example.com:47823");
+        await Assert.That(peer.Addresses[0]).IsEqualTo("10.0.0.6:47823");
+    }
+
+    [Test]
+    public async Task RecordSeenAsync_ManyDiscoveredAddresses_EvictsTheOldestDiscoveredOne()
+    {
+        // Arrange: paired by a discovered address
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, "192.168.1.20:47823");
+
+        // Act
+        for (var i = 1; i <= 6; i++)
+            await store.RecordSeenAsync(_laptop, "LAPTOP-01", $"10.0.0.{i}:47823", DateTime.Now);
+
+        // Assert
+        await Assert.That(store.Find(_laptop)!.Addresses).DoesNotContain("192.168.1.20:47823");
+    }
+
+    [Test]
+    public async Task SetAliasAsync_KeepsTheManuallyEnteredAddressPinned()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, "office-pc.example.com:47823", true);
+        await store.SetAliasAsync(_laptop, "Office");
+        await store.RecordSharedDatabasesAsync(_laptop, []);
+        await store.SetDatabaseAliasAsync(_laptop, Guid.NewGuid(), "Work");
+
+        // Act
+        for (var i = 1; i <= 6; i++)
+            await store.RecordSeenAsync(_laptop, "LAPTOP-01", $"10.0.0.{i}:47823", DateTime.Now);
+
+        // Assert
+        await Assert.That(store.Find(_laptop)!.Addresses).Contains("office-pc.example.com:47823");
+    }
+
+    [Test]
     public async Task RecordSeenAsync_UnpairedDevice_DoesNotAddIt()
     {
         // Arrange

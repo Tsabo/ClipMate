@@ -1,3 +1,4 @@
+using System.Net;
 using ClipMate.Core.Models.Networking;
 
 namespace ClipMate.Networking;
@@ -7,6 +8,11 @@ namespace ClipMate.Networking;
 /// user accepted and are waiting for the requesting Device to confirm. Nothing here grants trust; a Device only
 /// becomes a Peer when its confirmation is matched to an acceptance and recorded in the Peer store.
 /// </summary>
+/// <remarks>
+/// A Device ID costs nothing to mint, so requests are also limited by the address they come from: one waiting request
+/// per address, and none for a short while after a request from that address was declined or went unanswered. That
+/// keeps one unpaired Device on the LAN from filling the waiting slots or prompting this Device's user over and over.
+/// </remarks>
 internal sealed class PairingRequestTracker
 {
     /// <summary>
@@ -19,37 +25,60 @@ internal sealed class PairingRequestTracker
     /// </summary>
     public static readonly TimeSpan ConfirmationTimeout = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// How long requests from an address are refused after a request from it was declined or went unanswered.
+    /// </summary>
+    public static readonly TimeSpan DeclinedCoolDown = TimeSpan.FromSeconds(30);
+
     private const int _maxWaiting = 3;
     private readonly Dictionary<DeviceId, Acceptance> _accepted = [];
+    private readonly Dictionary<IPAddress, DateTimeOffset> _coolDowns = [];
     private readonly Lock _lock = new();
     private readonly TimeProvider _timeProvider;
-    private readonly HashSet<DeviceId> _waiting = [];
+    private readonly Dictionary<DeviceId, IPAddress?> _waiting = [];
 
-    public PairingRequestTracker(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    public PairingRequestTracker(TimeProvider timeProvider) =>
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     /// <summary>
-    /// Starts waiting for the user's answer to <paramref name="deviceId" />'s request. Returns <c>false</c> if that Device
-    /// already has a request waiting, or too many requests are waiting.
+    /// Starts waiting for the user's answer to <paramref name="deviceId" />'s request, made from <paramref name="remoteAddress" />.
+    /// Returns <c>false</c> if that Device or another Device at that address already has a request waiting, a request from
+    /// that address was declined moments ago, or too many requests are waiting.
     /// </summary>
-    public bool TryBeginWaiting(DeviceId deviceId)
+    public bool TryBeginWaiting(DeviceId deviceId, IPAddress? remoteAddress)
     {
+        var address = Normalize(remoteAddress);
         lock (_lock)
         {
-            if (_waiting.Count >= _maxWaiting)
+            var now = _timeProvider.GetUtcNow();
+            foreach (var item in _coolDowns.Where(p => p.Value <= now).Select(p => p.Key).ToList())
+                _coolDowns.Remove(item);
+
+            if (_waiting.Count >= _maxWaiting || _waiting.ContainsKey(deviceId))
                 return false;
 
+            if (address != null && (_coolDowns.ContainsKey(address) || _waiting.ContainsValue(address)))
+                return false;
+
+            _waiting.Add(deviceId, address);
+
+            // Only a request that actually begins replaces an earlier acceptance; a refused duplicate must not destroy it.
             _accepted.Remove(deviceId);
-            return _waiting.Add(deviceId);
+            return true;
         }
     }
 
     /// <summary>
-    /// Stops waiting for the user's answer to <paramref name="deviceId" />'s request.
+    /// Stops waiting for the user's answer to <paramref name="deviceId" />'s request. Unless the user accepted it, requests
+    /// from the same address are refused for <see cref="DeclinedCoolDown" />.
     /// </summary>
-    public void EndWaiting(DeviceId deviceId)
+    public void EndWaiting(DeviceId deviceId, bool accepted)
     {
         lock (_lock)
-            _waiting.Remove(deviceId);
+        {
+            if (_waiting.Remove(deviceId, out var address) && !accepted && address != null)
+                _coolDowns[address] = _timeProvider.GetUtcNow() + DeclinedCoolDown;
+        }
     }
 
     /// <summary>
@@ -75,6 +104,9 @@ internal sealed class PairingRequestTracker
             return false;
         }
     }
+
+    private static IPAddress? Normalize(IPAddress? address) =>
+        address is { IsIPv4MappedToIPv6: true } ? address.MapToIPv4() : address;
 
     /// <summary>
     /// The user's acceptance of a pairing request.

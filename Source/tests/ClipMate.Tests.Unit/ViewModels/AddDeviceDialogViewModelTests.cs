@@ -62,7 +62,7 @@ public class AddDeviceDialogViewModelTests
 
         // Assert
         await Assert.That(_viewModel.ErrorText).IsNull();
-        await Assert.That(_viewModel.Target).IsEqualTo(new PairingTarget(_desktop, string.Empty, expectedAddress));
+        await Assert.That(_viewModel.Target).IsEqualTo(new PairingTarget(_desktop, string.Empty, expectedAddress, true));
         await Assert.That(closed).IsTrue();
     }
 

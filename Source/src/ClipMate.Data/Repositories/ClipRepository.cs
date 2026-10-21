@@ -565,8 +565,6 @@ public class ClipRepository : IClipRepository
         foreach (var item in parameters)
             dynamicParameters.Add(item.Key, item.Value);
 
-        dynamicParameters.Add("ResultLimit", maxResults ?? -1); // SQLite: a negative LIMIT means no limit
-
         var connection = _context.Database.GetDbConnection();
         var opened = connection.State != ConnectionState.Open;
         if (opened)
@@ -581,17 +579,8 @@ public class ClipRepository : IClipRepository
                     SQLitePCL.raw.sqlite3_interrupt(handle);
             });
 
-            var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                $"Select COUNT(*) from ({search})", dynamicParameters, cancellationToken: cancellationToken));
-
-            var clips = (await connection.QueryAsync<Clip>(new CommandDefinition(
-                $"Select Matches.* from ({search}) as Matches\nOrder By Matches.SortKey Desc, Matches.ID\nLimit @ResultLimit",
-                dynamicParameters, cancellationToken: cancellationToken))).ToList();
-
-            if (clips.Count > 0)
-                await LoadFormatFlagsAsync(clips, cancellationToken);
-
-            return new SearchMatches(clips, Math.Max(total, clips.Count));
+            var (clips, total) = await QueryPageAsync(connection, search, dynamicParameters, 0, maxResults, cancellationToken);
+            return new SearchMatches(clips, total);
         }
         catch (SqliteException ex) when (cancellationToken.IsCancellationRequested)
         {
@@ -602,6 +591,67 @@ public class ClipRepository : IClipRepository
             if (opened)
                 await _context.Database.CloseConnectionAsync();
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<ClipPage> ExecuteSqlPageAsync(string sqlQuery, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlQuery);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        _logger.LogInformation("Executing collection SQL query: {SqlQuery}", sqlQuery);
+
+        var connection = _context.Database.GetDbConnection();
+        var opened = connection.State != ConnectionState.Open;
+        if (opened)
+            await _context.Database.OpenConnectionAsync(cancellationToken);
+
+        try
+        {
+            var (clips, total) = await QueryPageAsync(connection, sqlQuery.Trim().TrimEnd(';'), new DynamicParameters(), offset, count,
+                cancellationToken);
+
+            return new ClipPage(clips, offset, total);
+        }
+        finally
+        {
+            if (opened)
+                await _context.Database.CloseConnectionAsync();
+        }
+    }
+
+    /// <summary>
+    /// Runs <paramref name="query" /> (a single SELECT) once, as a subquery ordered newest first (SortKey descending, then
+    /// ID), and returns the rows from <paramref name="offset" />, at most <paramref name="limit" /> of them (all if
+    /// <c>null</c>), with the total row count counted in the same pass. Only when that page is empty although rows may
+    /// exist (an offset past the first row, or a limit of zero) is the query counted separately.
+    /// </summary>
+    private async Task<(List<Clip> Clips, int Total)> QueryPageAsync(IDbConnection connection, string query, DynamicParameters parameters,
+        int offset, int? limit, CancellationToken cancellationToken)
+    {
+        parameters.Add("PageOffset", offset);
+        parameters.Add("PageLimit", limit ?? -1); // SQLite: a negative LIMIT means no limit
+
+        long total = 0;
+        var clips = (await connection.QueryAsync<Clip, long, Clip>(new CommandDefinition(
+                $"Select Matches.*, COUNT(*) Over () as MatchCount from ({query}\n) as Matches\nOrder By Matches.SortKey Desc, Matches.ID\nLimit @PageLimit Offset @PageOffset",
+                parameters, cancellationToken: cancellationToken),
+            (clip, count) =>
+            {
+                total = count;
+                return clip;
+            },
+            "MatchCount")).ToList();
+
+        if (clips.Count == 0 && (offset > 0 || limit == 0))
+            total = await connection.ExecuteScalarAsync<long>(new CommandDefinition($"Select COUNT(*) from ({query}\n)", parameters,
+                cancellationToken: cancellationToken));
+
+        if (clips.Count > 0)
+            await LoadFormatFlagsAsync(clips, cancellationToken);
+
+        return (clips, (int)Math.Min(total, int.MaxValue));
     }
 
     private async Task<IReadOnlyList<Clip>> QueryClipsAsync(string sqlQuery, DynamicParameters? parameters, CancellationToken cancellationToken)

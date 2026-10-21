@@ -258,7 +258,7 @@ public partial class PairingTests
         // Arrange: added manually, so only the address and Device ID are known (no Device Name yet).
         _desktop.User.Answer = PairingDecision.Accept(null);
         var address = $"localhost:{_desktop.ListeningPort}";
-        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address));
+        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address, true));
 
         // Act
         var response = await session.PeerResponse;
@@ -280,6 +280,44 @@ public partial class PairingTests
         var probe = new GrpcPeerProbe(_laptop.ConfigurationService, NullLogger<GrpcPeerProbe>.Instance);
         var reply = await probe.ProbeAsync(_laptop.Identity, _desktop.DeviceId, desktopOnLaptop.Addresses[0], CancellationToken.None);
         await Assert.That(reply).IsNotNull();
+    }
+
+    [Test]
+    public async Task ManualPairing_PeerLaterSeenAtManyOtherAddresses_StillRemembersTheEnteredAddress()
+    {
+        // Arrange
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        var address = $"localhost:{_desktop.ListeningPort}";
+        await using (var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address, true)))
+            await session.AcceptAsync(null);
+
+        // Act: discovered on the LAN at a series of other addresses
+        for (var i = 1; i <= 6; i++)
+            await _laptop.Store.RecordSeenAsync(_desktop.DeviceId, "DESKTOP", $"10.0.0.{i}:47823", DateTime.Now);
+
+        // Assert
+        await Assert.That(_laptop.Store.Find(_desktop.DeviceId)!.Addresses).Contains(address);
+    }
+
+    [Test]
+    public async Task RequestPairing_AnotherDeviceAtTheSameAddressWhileOneIsWaiting_IsBusyAndAsksNoOne()
+    {
+        // Arrange: the laptop's request waits for the desktop's user, who has not answered yet; then another Device ID
+        // (as an unpaired Device minting fresh certificates would) asks from the same address.
+        using var other = await new DeviceIdentityService(Path.Combine(_identityDirectory!, $"other_{Guid.NewGuid():N}"),
+            NullLogger<DeviceIdentityService>.Instance).GetOrCreateAsync();
+        await using var session = _laptop.PairingClient.Start(_desktop.AsTarget());
+        await _desktop.User.Asked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        using var channel = PeerChannelFactory.CreateForPairing(_desktop.Address, other, _desktop.DeviceId);
+        var client = new PeerService.PeerServiceClient(channel);
+
+        // Act
+        var reply = await client.RequestPairingAsync(new PairRequest { DeviceName = "OTHER", ProtocolMajor = PeerProtocol.Major },
+            deadline: DateTime.UtcNow.AddSeconds(10));
+
+        // Assert
+        await Assert.That(reply.Result).IsEqualTo(PairResult.Busy);
+        await Assert.That(_desktop.User.Requests.Count).IsEqualTo(1);
     }
 
     /// <summary>

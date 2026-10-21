@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using ClipMate.Core.Services;
 using Microsoft.Data.Sqlite;
 
@@ -6,13 +7,24 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Reads the Database ID straight from the database file without creating it, and replaces it on request.
 /// </summary>
-internal class DatabaseIdService : IDatabaseIdService
+/// <remarks>
+/// A configured Database's ID is remembered per database key and file path, so serving Peers does not reopen every
+/// Shared Database's file on every call. The remembered IDs are forgotten whenever the configuration is saved (a
+/// Database added, moved or removed) and whenever this service gives a file a new Database ID. "No Database ID yet" is
+/// never remembered, because opening the Database gives it one.
+/// </remarks>
+internal sealed class DatabaseIdService : IDatabaseIdService
 {
+    private readonly ConcurrentDictionary<(string DatabaseKey, string FilePath), Guid> _cache = new();
     private readonly IConfigurationService _configurationService;
+    private int _generation;
 
     public DatabaseIdService(IConfigurationService configurationService)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+
+        // A singleton, like the configuration service, so the subscription lasts as long as both
+        _configurationService.Saved += OnConfigurationSaved;
     }
 
     /// <inheritdoc />
@@ -20,10 +32,21 @@ internal class DatabaseIdService : IDatabaseIdService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
 
-        if (!_configurationService.Configuration.Databases.TryGetValue(databaseKey, out var databaseConfig))
+        if (!_configurationService.Configuration.Databases.TryGetValue(databaseKey, out var databaseConfig) ||
+            string.IsNullOrWhiteSpace(databaseConfig.FilePath))
             return null;
 
-        return await GetDatabaseIdForFileAsync(databaseConfig.FilePath, cancellationToken);
+        var key = (databaseKey, databaseConfig.FilePath);
+        if (_cache.TryGetValue(key, out var cached))
+            return cached;
+
+        // Forgetting while the file was being read must win over remembering what was read
+        var generation = Volatile.Read(ref _generation);
+        var databaseId = await GetDatabaseIdForFileAsync(databaseConfig.FilePath, cancellationToken);
+        if (databaseId is { } id && generation == Volatile.Read(ref _generation))
+            _cache[key] = id;
+
+        return databaseId;
     }
 
     /// <inheritdoc />
@@ -61,11 +84,26 @@ internal class DatabaseIdService : IDatabaseIdService
         if (!File.Exists(path))
             throw new FileNotFoundException("The database file does not exist.", path);
 
-        // ReadWrite (not ReadWriteCreate), so a file deleted meanwhile is never recreated empty
-        await using var connection = new SqliteConnection(CreateConnectionString(path, SqliteOpenMode.ReadWrite));
-        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            // ReadWrite (not ReadWriteCreate), so a file deleted meanwhile is never recreated empty
+            await using var connection = new SqliteConnection(CreateConnectionString(path, SqliteOpenMode.ReadWrite));
+            await connection.OpenAsync(cancellationToken);
 
-        return await DatabaseIdStore.ReplaceDatabaseIdAsync(connection, cancellationToken);
+            return await DatabaseIdStore.ReplaceDatabaseIdAsync(connection, cancellationToken);
+        }
+        finally
+        {
+            Forget();
+        }
+    }
+
+    private void OnConfigurationSaved(object? sender, EventArgs e) => Forget();
+
+    private void Forget()
+    {
+        Interlocked.Increment(ref _generation);
+        _cache.Clear();
     }
 
     private static string CreateConnectionString(string path, SqliteOpenMode mode) => new SqliteConnectionStringBuilder

@@ -34,7 +34,7 @@ You can save queries for reuse, and advanced users can write custom SQL queries.
 
 ## What Gets Searched
 
-**Search in** at the top of the dialog shows the database being searched: the one selected in the collection tree. The scope list next to it offers **All collections**, the selected **Collection** or the selected **Folder**, and starts with the narrowest one available.
+**Search in** at the top of the dialog shows the database being searched: the one selected in the collection tree. The scope list next to it offers **All collections**, the selected **Collection** or the selected **Folder**. It starts at **All collections** each time the dialog opens; pick the collection or folder to search only there.
 
 You can also search a database shared by one of your paired Devices; see [Searching a Remote Database](../../options/devices.md#searching-a-remote-database).
 

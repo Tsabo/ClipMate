@@ -108,7 +108,7 @@ internal sealed class PairingSession : IPairingSession
         }
 
         var deviceName = PeerDeviceName ?? (string.IsNullOrWhiteSpace(Target.DeviceName) ? Target.Address : Target.DeviceName);
-        await _peerStore.SavePairedAsync(Target.DeviceId, deviceName, alias, Target.Address, CancellationToken.None);
+        await _peerStore.SavePairedAsync(Target.DeviceId, deviceName, alias, Target.Address, Target.AddressEnteredManually, CancellationToken.None);
         return PairingStatus.Paired;
     }
 

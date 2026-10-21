@@ -95,7 +95,7 @@ public partial class AddDeviceDialogViewModel : ObservableObject
         if (_peerStore.IsPaired(deviceId.Value))
             return "You are already paired with that Device.";
 
-        target = new PairingTarget(deviceId.Value, string.Empty, address!);
+        target = new PairingTarget(deviceId.Value, string.Empty, address!, true);
         return null;
     }
 

@@ -768,6 +768,10 @@ public class RemoteDatabaseServiceTests
         public Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, bool pinAddress,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task RecordSeenAsync(DeviceId deviceId, string deviceName, string? address, DateTime seenAt, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 

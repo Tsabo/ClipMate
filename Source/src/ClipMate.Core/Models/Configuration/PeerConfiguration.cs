@@ -27,6 +27,12 @@ public class PeerConfiguration
     public List<string> Addresses { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the addresses (<c>host:port</c>) the user entered for the Peer (Add Device manually). Unlike
+    /// <see cref="Addresses" />, which keeps only the few most recent, these are never dropped and are always tried.
+    /// </summary>
+    public List<string> ManualAddresses { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets when this Device last reached the Peer (local time), or <c>null</c> if never.
     /// </summary>
     public DateTime? LastSeen { get; set; }

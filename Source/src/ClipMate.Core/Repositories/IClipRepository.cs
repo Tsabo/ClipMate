@@ -120,6 +120,17 @@ public interface IClipRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a SQL query (a single SELECT of <c>Clips.*</c>, such as a SQL-based collection's) for one page of its
+    /// clips, newest first (SortKey descending, then ID), with the total number of clips it returns. Only that page is
+    /// read: the query is paged in SQL, not in memory.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query, with no placeholders left.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> ExecuteSqlPageAsync(string sqlQuery, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new clip in the data store.
     /// </summary>
     /// <param name="clip">The clip to create.</param>
