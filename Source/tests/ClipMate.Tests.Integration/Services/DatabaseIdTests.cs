@@ -117,6 +117,21 @@ public class DatabaseIdTests
     }
 
     [Test]
+    public async Task CreateDatabaseAsync_NewDatabase_StoresDatabaseId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "setup.db");
+        var setupService = new SetupService(A.Fake<ILogger<SetupService>>());
+        var service = new DatabaseIdService(CreateConfigurationService(("db_setup", path, true)));
+
+        // Act
+        await setupService.CreateDatabaseAsync(path);
+
+        // Assert
+        await Assert.That(await service.GetDatabaseIdAsync("db_setup")).IsNotNull();
+    }
+
+    [Test]
     public async Task LoadDatabaseAsync_DatabaseCreatedBeforeDatabaseIdExisted_AssignsDatabaseId()
     {
         // Arrange

@@ -45,6 +45,10 @@ public class SetupService : ISetupService
 
             if (created)
             {
+                await context.Database.OpenConnectionAsync(cancellationToken);
+                await DatabaseIdStore.EnsureDatabaseIdAsync(context.Database.GetDbConnection(), cancellationToken);
+                await context.Database.CloseConnectionAsync();
+
                 _logger.LogInformation("Database created successfully at: {DatabasePath}", databasePath);
                 return true;
             }
