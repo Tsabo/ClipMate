@@ -653,7 +653,8 @@ public partial class SearchViewModel : ObservableObject
 
         return new SearchFilters
         {
-            ContentTypes = contentTypes.Count > 0
+            // All boxes checked (or none) means no type restriction, so rich text, HTML and custom clips still match
+            ContentTypes = contentTypes.Count is > 0 and < 3
                 ? contentTypes
                 : null,
             DateRange = dateRange,

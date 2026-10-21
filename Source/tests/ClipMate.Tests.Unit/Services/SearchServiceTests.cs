@@ -98,7 +98,7 @@ public class SearchServiceTests
             },
         };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns(clips);
 
         // Act
@@ -122,7 +122,7 @@ public class SearchServiceTests
             CapturedAt = DateTime.UtcNow,
         };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new List<Clip> { matchingClip });
 
         // Act
@@ -158,7 +158,7 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { CaseSensitive = true };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns([clips[0]]);
 
         // Act
@@ -183,7 +183,7 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { ContentTypes = [ClipType.Text] };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns([textClip]);
 
         // Act
@@ -213,7 +213,7 @@ public class SearchServiceTests
             DateRange = new DateRange(now.AddDays(-7), now),
         };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns([recentClip]);
 
         // Act
@@ -238,7 +238,7 @@ public class SearchServiceTests
 
         var filters = new SearchFilters { IsRegex = true };
 
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns([emailClip]);
 
         // Act - Email regex pattern
@@ -258,7 +258,7 @@ public class SearchServiceTests
         // Repository result is null (unconfigured), so clips.ToList() throws ArgumentNullException,
         // which is an ArgumentException. This test does not exercise regex validation directly -
         // SearchService/BuildSqlQuery has no regex-syntax check of its own.
-        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipRepository.ExecuteSqlQueryAsync(A<string>.Ignored, A<IReadOnlyDictionary<string, object?>>.Ignored, A<CancellationToken>.Ignored))
             .Returns((IReadOnlyList<Clip>)null!);
 
         // Act & Assert

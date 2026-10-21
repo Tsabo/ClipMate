@@ -167,6 +167,28 @@ public class SearchViewModelTests
     }
 
     [Test]
+    public async Task SearchCommand_WithAllContentTypesChecked_PassesNoContentTypeFilter()
+    {
+        // Arrange - the dialog has no type checkboxes, so all three stay checked; that must not
+        // exclude rich text, HTML or custom clips now that the search service filters on type
+        SearchFilters? capturedFilters = null;
+        A.CallTo(() => _mockSearchService.SearchAsync(A<string>.Ignored, A<SearchFilters>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((string _, SearchFilters? f, CancellationToken _) => capturedFilters = f)
+            .Returns(new SearchResults { Clips = [], TotalMatches = 0, Query = "" });
+
+        _viewModel.FilterByText = true;
+        _viewModel.FilterByImage = true;
+        _viewModel.FilterByFiles = true;
+
+        // Act
+        await _viewModel.SearchCommand.ExecuteAsync(null);
+
+        // Assert
+        await Assert.That(capturedFilters).IsNotNull();
+        await Assert.That(capturedFilters!.ContentTypes).IsNull();
+    }
+
+    [Test]
     public async Task SearchCommand_WithDateRangeFilter_ShouldPassDateRange()
     {
         // Arrange
