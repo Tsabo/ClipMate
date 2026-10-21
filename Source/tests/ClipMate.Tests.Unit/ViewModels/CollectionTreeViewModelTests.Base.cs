@@ -61,6 +61,7 @@ public class CollectionTreeViewModelTests
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
             A.Fake<IRemoteDatabaseTreeBuilder>(),
-            A.Fake<ISharedDatabaseService>());
+            A.Fake<ISharedDatabaseService>(),
+            A.Fake<ClipMate.App.Services.IPeerDialogService>());
     }
 }

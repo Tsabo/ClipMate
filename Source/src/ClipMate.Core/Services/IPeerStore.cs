@@ -64,6 +64,14 @@ public interface IPeerStore
     Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Sets the Remote Database Alias for the Peer's Database <paramref name="databaseId" />: a local label the Peer never
+    /// sees; blank clears it, so the Peer's own Database name is shown. The alias is kept when the Peer renames, unshares
+    /// or reshares the Database, and removed with the Peer record. Raises <see cref="PeersChanged" />.
+    /// Does nothing if the Device is not a Peer.
+    /// </summary>
+    Task SetDatabaseAliasAsync(DeviceId deviceId, Guid databaseId, string? alias, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Removes the Peer record, so the Device is no longer trusted. Raises <see cref="PeerRemoved" />.
     /// Use <see cref="IUnpairingService" /> to unpair, which also tells the Peer.
     /// </summary>

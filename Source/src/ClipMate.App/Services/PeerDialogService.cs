@@ -9,7 +9,7 @@ using DialogResult = ClipMate.Core.Models.DialogResult;
 namespace ClipMate.App.Services;
 
 /// <summary>
-/// Shows the Rename and Unpair prompts for a Peer.
+/// Shows the Rename and Unpair prompts for a Peer, and the Rename prompt for a Remote Database.
 /// </summary>
 public sealed class PeerDialogService : IPeerDialogService
 {
@@ -22,7 +22,17 @@ public sealed class PeerDialogService : IPeerDialogService
     public string? AskPeerAlias(Peer peer)
     {
         ArgumentNullException.ThrowIfNull(peer);
-        var dialog = new PeerAliasDialog(peer) { Owner = Application.Current.GetDialogOwner() };
+        var dialog = AliasDialog.ForPeer(peer);
+        dialog.Owner = Application.Current.GetDialogOwner();
+        return dialog.ShowDialog() == true ? dialog.Alias : null;
+    }
+
+    /// <inheritdoc />
+    public string? AskRemoteDatabaseAlias(RemoteDatabase database)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        var dialog = AliasDialog.ForRemoteDatabase(database);
+        dialog.Owner = Application.Current.GetDialogOwner();
         return dialog.ShowDialog() == true ? dialog.Alias : null;
     }
 

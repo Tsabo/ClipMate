@@ -80,6 +80,104 @@ public class RemoteDatabaseServiceTests
     }
 
     [Test]
+    public async Task SetAliasAsync_LabelsTheRemoteDatabaseWithItsAliasAndRaisesRemoteDatabasesChanged()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work, _home);
+        await _service.RefreshAsync();
+        var raised = 0;
+        _service.RemoteDatabasesChanged += (_, _) => raised++;
+
+        // Act
+        await _service.SetAliasAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), "Office clips");
+
+        // Assert
+        var work = _service.GetRemoteDatabases().Single(p => p.Address.DatabaseId == _work.DatabaseId);
+        await Assert.That(work.DisplayName).IsEqualTo("Office clips — LAPTOP");
+        await Assert.That(work.DatabaseName).IsEqualTo("Work");
+        await Assert.That(work.Alias).IsEqualTo("Office clips");
+        await Assert.That(_service.GetRemoteDatabases().Single(p => p.Address.DatabaseId == _home.DatabaseId).DisplayName)
+            .IsEqualTo("Home — LAPTOP");
+        await Assert.That(raised).IsGreaterThanOrEqualTo(1);
+    }
+
+    [Test]
+    public async Task SetAliasAsync_PeerAliasSet_UsesBothAliases()
+    {
+        // Arrange
+        _store.Replace(_store.Find(_laptop)! with { Alias = "Travel laptop" });
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+
+        // Act
+        await _service.SetAliasAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), "Office clips");
+
+        // Assert
+        await Assert.That(_service.GetRemoteDatabases().Single().DisplayName).IsEqualTo("Office clips — Travel laptop");
+    }
+
+    [Test]
+    public async Task RefreshAsync_PeerRenamesAnAliasedDatabase_KeepsTheAlias()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        await _service.SetAliasAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), "Office clips");
+        SharesOnLaptop(_work with { Name = "Work 2026" });
+
+        // Act
+        await _service.RefreshAsync();
+
+        // Assert
+        var remote = _service.GetRemoteDatabases().Single();
+        await Assert.That(remote.DisplayName).IsEqualTo("Office clips — LAPTOP");
+        await Assert.That(remote.DatabaseName).IsEqualTo("Work 2026");
+    }
+
+    [Test]
+    public async Task SetAliasAsync_Blank_ShowsThePeersCurrentDatabaseName()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        var address = new RemoteDatabaseAddress(_laptop, _work.DatabaseId);
+        await _service.SetAliasAsync(address, "Office clips");
+        SharesOnLaptop(_work with { Name = "Work 2026" });
+        await _service.RefreshAsync();
+
+        // Act
+        await _service.SetAliasAsync(address, "");
+
+        // Assert
+        var remote = _service.GetRemoteDatabases().Single();
+        await Assert.That(remote.DisplayName).IsEqualTo("Work 2026 — LAPTOP");
+        await Assert.That(remote.Alias).IsNull();
+    }
+
+    [Test]
+    public async Task GetRemoteDatabases_PeerWithAnAliasedDatabaseGoesOfflineAndBack_KeepsTheAlias()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        SharesOnLaptop(_work);
+        await _service.RefreshAsync();
+        await _service.SetAliasAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), "Office clips");
+
+        // Act / Assert
+        SetStatus(PeerConnectionStatus.Offline);
+        await _service.RefreshAsync();
+        await Assert.That(_service.GetRemoteDatabases().Single().DisplayName).IsEqualTo("Office clips — LAPTOP");
+
+        SetStatus(PeerConnectionStatus.Online);
+        await _service.RefreshAsync();
+        await Assert.That(_service.GetRemoteDatabases().Single().DisplayName).IsEqualTo("Office clips — LAPTOP");
+    }
+
+    [Test]
     public async Task GetRemoteDatabases_PeerOffline_KeepsItsLastKnownDatabasesAsUnavailableWithoutContactingIt()
     {
         // Arrange: shared while online, then the laptop went away.
@@ -314,6 +412,21 @@ public class RemoteDatabaseServiceTests
 
         public Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task SetDatabaseAliasAsync(DeviceId deviceId, Guid databaseId, string? alias, CancellationToken cancellationToken = default)
+        {
+            if (Find(deviceId) is { } peer)
+            {
+                var aliases = peer.DatabaseAliases.Where(p => p.Key != databaseId).ToDictionary();
+                if (!string.IsNullOrWhiteSpace(alias))
+                    aliases[databaseId] = alias;
+
+                Replace(peer with { DatabaseAliases = aliases });
+            }
+
+            PeersChanged?.Invoke(this, EventArgs.Empty);
+            return Task.CompletedTask;
+        }
 
         public Task<bool> RemoveAsync(DeviceId deviceId, CancellationToken cancellationToken = default)
         {

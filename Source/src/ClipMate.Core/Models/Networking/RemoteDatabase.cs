@@ -36,7 +36,17 @@ public sealed record RemoteDatabase(
     public bool IsAvailable => Status == PeerConnectionStatus.Online;
 
     /// <summary>
-    /// The label shown in the collection tree: "Database — Device".
+    /// Gets the Remote Database Alias this Device gives the Database, or <c>null</c> to show its name on the Peer.
     /// </summary>
-    public string DisplayName => $"{DatabaseName} — {PeerName}";
+    public string? Alias { get; init; }
+
+    /// <summary>
+    /// The Database half of the label: the Remote Database Alias, or the Database's name on the Peer.
+    /// </summary>
+    public string Name => string.IsNullOrWhiteSpace(Alias) ? DatabaseName : Alias;
+
+    /// <summary>
+    /// The label shown in the collection tree: "Database — Device", each half using its alias if one is set.
+    /// </summary>
+    public string DisplayName => $"{Name} — {PeerName}";
 }

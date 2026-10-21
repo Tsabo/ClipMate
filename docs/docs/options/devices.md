@@ -95,6 +95,8 @@ To let your Peers browse a database, turn on **Share with Peers** in its [Databa
 
 Each database a Peer shares with you appears at the bottom of the collection tree as a **Remote Database**, labelled "*Database* — *Device*" (the Device part uses the name you gave the Peer in **Show as**). Under it are the Peer's collections and folders, and a **Virtual** folder with its Smart and SQL-based collections, which are always worked out on the Peer.
 
+To give a Remote Database your own name, right-click it and choose **Rename...**. The name replaces the *Database* part of the label on this Device only; the Peer never sees it, and it doesn't have to be unique. It stays when the Peer renames the database or goes offline. Leave it blank to go back to the Peer's own name for the database. Unpairing the Peer removes the names you gave its databases.
+
 When the Peer can't be reached, its Remote Databases stay in the tree, greyed out and marked "offline · last seen ...". When the Peer stops sharing a database, or you unpair it, the database leaves the tree. ClipMate checks for changes about every 30 seconds.
 
 A Remote Database is never where new clips are captured, and it isn't part of your database list, backups, maintenance or purging.

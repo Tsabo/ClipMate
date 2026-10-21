@@ -1,10 +1,10 @@
-<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.PeerAliasDialog"
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.AliasDialog"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
                  xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
-                 Title="Rename Peer"
+                 Title="Rename"
                  Width="420"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="NoResize"
@@ -23,8 +23,7 @@
     <dxlc:LayoutControl Orientation="Vertical" Padding="16">
         <dxlc:LayoutItem Label="Show as:">
             <dxe:TextEdit x:Name="AliasTextEdit"
-                          MaxLength="64"
-                          ToolTip="The name this Device shows for the Peer (its Peer Alias). Only you see it." />
+                          MaxLength="64" />
         </dxlc:LayoutItem>
         <TextBlock x:Name="HintText"
                    Foreground="Gray"

@@ -70,6 +70,7 @@ public sealed class PeerStore : IPeerStore
                 LastSeen = existing?.LastSeen,
                 PairedAt = DateTime.Now,
                 SharedDatabases = existing?.SharedDatabases ?? [],
+                DatabaseAliases = existing?.DatabaseAliases ?? [],
             };
             Replace(deviceId, record);
         }
@@ -98,6 +99,7 @@ public sealed class PeerStore : IPeerStore
                 LastSeen = seenAt,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = existing.SharedDatabases,
+                DatabaseAliases = existing.DatabaseAliases,
             });
         }
 
@@ -123,6 +125,7 @@ public sealed class PeerStore : IPeerStore
                 LastSeen = existing.LastSeen,
                 PairedAt = existing.PairedAt,
                 SharedDatabases = existing.SharedDatabases,
+                DatabaseAliases = existing.DatabaseAliases,
             });
         }
 
@@ -152,10 +155,47 @@ public sealed class PeerStore : IPeerStore
                 SharedDatabases = sharedDatabases
                     .Select(p => new PeerSharedDatabaseConfiguration { DatabaseId = p.DatabaseId.ToString("D"), Name = p.Name })
                     .ToList(),
+
+                // Keyed by Database ID apart from the share list, so the Peer's report never drops them
+                DatabaseAliases = existing.DatabaseAliases,
             });
         }
 
         await _configurationService.SaveAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task SetDatabaseAliasAsync(DeviceId deviceId, Guid databaseId, string? alias,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            var existing = FindRecord(Records, deviceId);
+            if (existing == null)
+                return;
+
+            var key = databaseId.ToString("D");
+            var aliases = existing.DatabaseAliases
+                .Where(p => !Guid.TryParse(p.DatabaseId, out var id) || id != databaseId)
+                .ToList();
+            if (!string.IsNullOrWhiteSpace(alias))
+                aliases.Add(new PeerDatabaseAliasConfiguration { DatabaseId = key, Alias = alias.Trim() });
+
+            Replace(deviceId, new PeerConfiguration
+            {
+                DeviceId = existing.DeviceId,
+                DeviceName = existing.DeviceName,
+                Alias = existing.Alias,
+                Addresses = existing.Addresses.ToList(),
+                LastSeen = existing.LastSeen,
+                PairedAt = existing.PairedAt,
+                SharedDatabases = existing.SharedDatabases,
+                DatabaseAliases = aliases,
+            });
+        }
+
+        await _configurationService.SaveAsync(cancellationToken);
+        PeersChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <inheritdoc />
@@ -227,6 +267,19 @@ public sealed class PeerStore : IPeerStore
         {
             PairedAt = record.PairedAt == default ? null : record.PairedAt,
             SharedDatabases = sharedDatabases,
+            DatabaseAliases = ToDatabaseAliases(record.DatabaseAliases),
         };
+    }
+
+    private static Dictionary<Guid, string> ToDatabaseAliases(IEnumerable<PeerDatabaseAliasConfiguration> records)
+    {
+        var aliases = new Dictionary<Guid, string>();
+        foreach (var item in records)
+        {
+            if (Guid.TryParse(item.DatabaseId, out var databaseId) && !string.IsNullOrWhiteSpace(item.Alias))
+                aliases[databaseId] = item.Alias;
+        }
+
+        return aliases;
     }
 }
