@@ -92,6 +92,11 @@ public class ClipMateDbContext : DbContext
     public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
 
     /// <summary>
+    /// Gets the single-row table that holds this database's permanent Database ID.
+    /// </summary>
+    public DbSet<DatabaseInfo> DatabaseInfo => Set<DatabaseInfo>();
+
+    /// <summary>
     /// Registers the TextSearch custom SQLite function that handles ClipMate search syntax.
     /// Supports: whole keywords, comma-separated OR logic, * wildcard, % wildcard
     /// </summary>
@@ -155,6 +160,19 @@ public class ClipMateDbContext : DbContext
         ConfigureSearchQuery(modelBuilder);
         ConfigureApplicationFilter(modelBuilder);
         ConfigureMonacoEditorState(modelBuilder);
+        ConfigureDatabaseInfo(modelBuilder);
+    }
+
+    private static void ConfigureDatabaseInfo(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DatabaseInfo>(entity =>
+        {
+            entity.ToTable("DatabaseInfo");
+
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Id).ValueGeneratedNever();
+            entity.Property(p => p.DatabaseId).IsRequired();
+        });
     }
 
     private static void ConfigureClip(ModelBuilder modelBuilder)
