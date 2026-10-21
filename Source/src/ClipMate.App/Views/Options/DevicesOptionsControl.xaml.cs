@@ -12,7 +12,7 @@ public partial class DevicesOptionsControl
         InitializeComponent();
 
         // Follow the Discovered Devices only while the page is shown, so a closed Options dialog is not kept alive.
-        Loaded += (_, _) => (DataContext as DevicesOptionsViewModel)?.StartWatchingDiscoveredDevices();
-        Unloaded += (_, _) => (DataContext as DevicesOptionsViewModel)?.StopWatchingDiscoveredDevices();
+        Loaded += (_, _) => (DataContext as DevicesOptionsViewModel)?.StartWatching();
+        Unloaded += (_, _) => (DataContext as DevicesOptionsViewModel)?.StopWatching();
     }
 }

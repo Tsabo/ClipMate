@@ -35,6 +35,12 @@ public static class ServiceCollectionExtensions
         // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
         services.AddSingleton<NetworkingService>();
         services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());
+
+        // Pairing: the approval prompt (tray notification and dialog) and the requesting side's dialog.
+        // Registered after the networking default, so the prompt replaces the decline-all handler.
+        services.AddSingleton<IPairingApprovalHandler, PairingApprovalService>();
+        services.AddSingleton<IPairingDialogService, PairingDialogService>();
 
         // Register MVVM Toolkit Messenger as singleton
         // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly

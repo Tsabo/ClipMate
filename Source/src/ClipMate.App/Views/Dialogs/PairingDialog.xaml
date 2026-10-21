@@ -1,0 +1,69 @@
+<dx:ThemedWindow x:Class="ClipMate.App.Views.Dialogs.PairingDialog"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                 d:DataContext="{d:DesignInstance Type=vm:PairingDialogViewModel}"
+                 mc:Ignorable="d"
+                 Title="Pairing"
+                 Width="480"
+                 WindowStartupLocation="CenterOwner"
+                 ResizeMode="NoResize"
+                 SizeToContent="Height"
+                 Topmost="True">
+
+    <dxlc:LayoutControl Orientation="Vertical" Padding="16">
+
+        <TextBlock Text="{Binding Heading}"
+                   FontSize="15"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap" />
+
+        <dxlc:LayoutItem Label="Device ID:">
+            <TextBox Text="{Binding OtherDeviceId, Mode=OneWay}"
+                     IsReadOnly="True"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     FontFamily="Consolas"
+                     TextWrapping="Wrap" />
+        </dxlc:LayoutItem>
+
+        <dxlc:LayoutItem Label="Verification Code:">
+            <TextBlock Text="{Binding VerificationCode}"
+                       FontFamily="Consolas"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       ToolTip="Both Devices show this code. Pair only if they match." />
+        </dxlc:LayoutItem>
+
+        <dxlc:LayoutItem Label="Show as:">
+            <dxe:TextEdit x:Name="ShowAsTextEdit"
+                          EditValue="{Binding ShowAs, UpdateSourceTrigger=PropertyChanged}"
+                          MaxLength="64"
+                          IsReadOnly="{Binding IsFinished}"
+                          ToolTip="The name this Device shows for the other Device (its Peer Alias). Only you see it." />
+        </dxlc:LayoutItem>
+
+        <TextBlock Text="{Binding StatusText}"
+                   Foreground="Gray"
+                   TextWrapping="Wrap"
+                   Margin="0,4,0,0" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <dx:SimpleButton Content="Accept"
+                             Command="{Binding AcceptCommand}"
+                             IsDefault="True"
+                             MinWidth="90" />
+            <dx:SimpleButton Content="{Binding DeclineText}"
+                             Command="{Binding DeclineCommand}"
+                             IsCancel="True"
+                             MinWidth="90"
+                             Margin="8,0,0,0" />
+        </StackPanel>
+
+    </dxlc:LayoutControl>
+</dx:ThemedWindow>

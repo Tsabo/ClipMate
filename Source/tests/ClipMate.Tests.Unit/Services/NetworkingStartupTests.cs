@@ -30,6 +30,7 @@ public class NetworkingStartupTests
         services.AddSingleton(configurationService);
         services.AddSingleton(A.Fake<IDeviceIdentityService>());
         services.AddSingleton(A.Fake<IFirewallRuleService>());
+        services.AddSingleton(A.Fake<IPeerStore>());
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
         services.AddSingleton<NetworkingService>();
         services.AddClipMateNetworking();
