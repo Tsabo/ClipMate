@@ -55,6 +55,9 @@
     <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
+  <ItemGroup Label="Peer Networking">
+    <PackageVersion Include="Grpc.AspNetCore" Version="2.83.0" />
+  </ItemGroup>
   <ItemGroup Label="Windows Platform">
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.360" />
   </ItemGroup>
