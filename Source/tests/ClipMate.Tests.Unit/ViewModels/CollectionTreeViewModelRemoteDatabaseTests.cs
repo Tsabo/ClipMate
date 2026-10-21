@@ -73,7 +73,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         var remote = (RemoteDatabaseTreeNode)_viewModel.RootNodes[1];
         await Assert.That(remote.Name).IsEqualTo("Work — LAPTOP");
         await Assert.That(remote.IsUnavailable).IsFalse();
-        await Assert.That(remote.Children.Single()).IsSameReferenceAs(inbox);
+        await Assert.That(remote.Children.OfType<RemoteCollectionTreeNode>().Single()).IsSameReferenceAs(inbox);
     }
 
     [Test]
@@ -157,7 +157,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
             .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [inbox, projects], false)));
         await _viewModel.RefreshRemoteDatabasesAsync();
         var remote = _viewModel.RootNodes.Single();
-        var folderNode = remote.Children.Single().Children.Single();
+        var folderNode = remote.Children.OfType<RemoteCollectionTreeNode>().Single().Children.Single();
 
         var remoteSelections = new List<RemoteDatabaseNodeSelectedEvent>();
         var localSelections = new List<CollectionNodeSelectedEvent>();
@@ -165,7 +165,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         _messenger.Register<CollectionNodeSelectedEvent>(this, (_, m) => localSelections.Add(m));
 
         // Act
-        _viewModel.SelectedNode = remote.Children.Single();
+        _viewModel.SelectedNode = remote.Children.OfType<RemoteCollectionTreeNode>().Single();
         _viewModel.SelectedNode = folderNode;
         _viewModel.SelectedNode = remote;
 
