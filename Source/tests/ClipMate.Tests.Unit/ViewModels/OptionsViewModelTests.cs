@@ -114,7 +114,8 @@ public class OptionsViewModelTests
             A.Fake<IClipMate7ImportService>(),
             A.Fake<IDatabaseManager>(),
             A.Fake<IMessenger>(),
-            A.Fake<ILogger<DatabaseOptionsViewModel>>());
+            A.Fake<ILogger<DatabaseOptionsViewModel>>(),
+            A.Fake<IDatabaseIdService>());
 
         _advancedViewModel = new AdvancedOptionsViewModel(
             _mockConfigurationService,

@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISearchService, SearchService>();
         services.AddTransient<IClipAppendService, ClipAppendService>();
         services.AddTransient<DatabaseSchemaMigrationService>();
+        services.AddTransient<IDatabaseIdService, DatabaseIdService>();
         services.AddTransient<IDatabaseMaintenanceService, DatabaseMaintenanceService>();
         services.AddTransient<IClipMate7ImportService, ClipMate7ImportService>();
         services.AddTransient<IRetentionEnforcementService, RetentionEnforcementService>();

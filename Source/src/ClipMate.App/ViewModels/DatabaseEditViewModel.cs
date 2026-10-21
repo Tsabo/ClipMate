@@ -8,6 +8,14 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class DatabaseEditViewModel : ObservableObject
 {
+    private const string _databaseIdNotAssignedText = "Assigned when the database is opened";
+
+    /// <summary>
+    /// Read-only display of the permanent Database ID stored in the database file.
+    /// </summary>
+    [ObservableProperty]
+    private string _databaseIdText = _databaseIdNotAssignedText;
+
     [ObservableProperty]
     private string _databaseName = "My Clips";
 
@@ -37,6 +45,12 @@ public partial class DatabaseEditViewModel : ObservableObject
 
     [ObservableProperty]
     private TempFileLocation _tempFileLocation = TempFileLocation.DatabaseDirectory;
+
+    /// <summary>
+    /// Sets the Database ID shown in the dialog; null when the database does not have one yet.
+    /// </summary>
+    public void SetDatabaseId(Guid? databaseId) =>
+        DatabaseIdText = databaseId?.ToString("D") ?? _databaseIdNotAssignedText;
 
     public void LoadFrom(DatabaseConfiguration config)
     {

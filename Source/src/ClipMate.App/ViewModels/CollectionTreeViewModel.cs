@@ -26,6 +26,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IDatabaseIdService _databaseIdService;
     private readonly SearchResultsCache _searchResultsCache;
     private int _loadVersion;
 
@@ -36,7 +37,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         IMessenger messenger,
         ICollectionTreeBuilder collectionTreeBuilder,
         ILogger<CollectionTreeViewModel> logger,
-        SearchResultsCache searchResultsCache)
+        SearchResultsCache searchResultsCache,
+        IDatabaseIdService databaseIdService)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -46,6 +48,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
+        _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
 
         // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
         _messenger.Register<SearchExecutedEvent>(this);
@@ -328,7 +331,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         switch (SelectedNode)
         {
             case DatabaseTreeNode databaseNode:
-                ShowDatabaseProperties(databaseNode);
+                await ShowDatabasePropertiesAsync(databaseNode);
                 break;
 
             case CollectionTreeNode collectionNode:
@@ -391,7 +394,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     /// <summary>
     /// Shows the database properties dialog for editing database configuration.
     /// </summary>
-    private void ShowDatabaseProperties(DatabaseTreeNode databaseNode)
+    private async Task ShowDatabasePropertiesAsync(DatabaseTreeNode databaseNode)
     {
         // Get the database configuration using the database key
         var databaseKey = databaseNode.DatabasePath;
@@ -403,8 +406,10 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return;
         }
 
+        var databaseId = await _databaseIdService.GetDatabaseIdAsync(databaseKey);
+
         // Show the database edit dialog
-        var dialog = new DatabaseEditDialog(databaseConfig)
+        var dialog = new DatabaseEditDialog(databaseConfig, databaseId)
         {
             Owner = Application.Current.GetDialogOwner(),
         };

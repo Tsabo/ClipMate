@@ -21,7 +21,8 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
     {
         _configServiceMock = A.Fake<IConfigurationService>(o => o.Strict());
         var logger = CreateLogger<DatabaseOptionsViewModel>();
-        _viewModel = new DatabaseOptionsViewModel(_configServiceMock, A.Fake<IClipMate7ImportService>(), A.Fake<IDatabaseManager>(), A.Fake<IMessenger>(), logger);
+        _viewModel = new DatabaseOptionsViewModel(_configServiceMock, A.Fake<IClipMate7ImportService>(), A.Fake<IDatabaseManager>(), A.Fake<IMessenger>(), logger,
+            A.Fake<IDatabaseIdService>());
     }
 
     [Test]
@@ -136,7 +137,7 @@ public class DatabaseOptionsViewModelTests : TestFixtureBase
 
         var databaseManager = A.Fake<IDatabaseManager>();
         var viewModel = new DatabaseOptionsViewModel(_configServiceMock, A.Fake<IClipMate7ImportService>(), databaseManager, messenger,
-            CreateLogger<DatabaseOptionsViewModel>());
+            CreateLogger<DatabaseOptionsViewModel>(), A.Fake<IDatabaseIdService>());
 
         await viewModel.LoadAsync();
 

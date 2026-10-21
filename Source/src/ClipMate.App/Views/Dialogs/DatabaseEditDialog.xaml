@@ -10,7 +10,7 @@
                  mc:Ignorable="d"
                  Title="Database Properties"
                  Width="600"
-                 Height="600"
+                 Height="650"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False">
@@ -64,6 +64,14 @@
                             Margin="5,0,0,0"
                             ToolTip="Expand environment variables in path" />
                 </Grid>
+            </dxlc:LayoutItem>
+
+            <!-- Database ID (read-only, stored in the database file) -->
+            <dxlc:LayoutItem Label="Database ID:" LabelPosition="Top">
+                <dxe:TextEdit x:Name="DatabaseIdTextBox"
+                              EditValue="{Binding DatabaseIdText, Mode=OneWay}"
+                              IsReadOnly="True"
+                              ToolTip="Permanent identifier stored inside the database file. It never changes, even if the database is renamed or its file is copied." />
             </dxlc:LayoutItem>
 
             <!-- Auto Load and Multi-User -->
