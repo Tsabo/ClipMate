@@ -71,6 +71,12 @@ public readonly record struct DeviceId
     /// </summary>
     public string ToDisplayString() => string.Join('-', Value.Chunk(_groupSize).Select(p => new string(p)));
 
+    /// <summary>
+    /// The short form shown in lists: the first two groups of the display form (e.g. <c>K7QM-2XPA</c>).
+    /// Enough to tell Devices apart at a glance, not to identify one securely.
+    /// </summary>
+    public string ToShortDisplayString() => $"{Value[.._groupSize]}-{Value[_groupSize..(_groupSize * 2)]}";
+
     /// <inheritdoc />
     public override string ToString() => Value;
 

@@ -32,6 +32,19 @@ public class DeviceIdTests
     }
 
     [Test]
+    public async Task ToShortDisplayString_ShowsFirstTwoGroups()
+    {
+        // Arrange
+        var deviceId = DeviceId.FromCertificateBytes([]);
+
+        // Act
+        var display = deviceId.ToShortDisplayString();
+
+        // Assert
+        await Assert.That(display).IsEqualTo("4OYM-IQUY");
+    }
+
+    [Test]
     public async Task TryParse_AcceptsDisplayFormInAnyCase()
     {
         // Act
