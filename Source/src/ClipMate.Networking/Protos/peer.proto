@@ -1,5 +1,8 @@
 // The Peer wire protocol (ADR 0002). Changes must stay backward compatible within a protocol
 // major version; new features are added as negotiated capabilities.
+//
+// Hello and the pairing calls are how Devices of different versions find out they are incompatible,
+// so their messages must never change incompatibly, even across major versions.
 syntax = "proto3";
 
 package clipmate.peer.v1;
@@ -7,14 +10,23 @@ package clipmate.peer.v1;
 option csharp_namespace = "ClipMate.Networking.Protocol";
 
 service PeerService {
-  // Exchanges protocol version, capabilities and identity right after connecting.
+  // Exchanges protocol version, capabilities and identity right after connecting. Peers only.
   rpc Hello (HelloRequest) returns (HelloReply);
+
+  // Asks the other Device's user to approve Pairing. Any Device may call this (it is how an unpaired
+  // Device becomes a Peer); the reply arrives once that user accepts or declines, or the request times out.
+  rpc RequestPairing (PairRequest) returns (PairReply);
+
+  // Sent by the requesting Device once its own user has accepted too. Completes Pairing on the
+  // approving Device only if its user accepted this same Device's request.
+  rpc ConfirmPairing (ConfirmPairRequest) returns (ConfirmPairReply);
 }
 
 message HelloRequest {
   uint32 protocol_major = 1;
   uint32 protocol_minor = 2;
   repeated string capabilities = 3;
+  string device_name = 4;
 }
 
 message HelloReply {
@@ -23,4 +35,34 @@ message HelloReply {
   uint32 protocol_major = 3;
   uint32 protocol_minor = 4;
   repeated string capabilities = 5;
+}
+
+message PairRequest {
+  string device_name = 1;
+  uint32 protocol_major = 2;
+  uint32 protocol_minor = 3;
+  // The requesting Device's Peer listener port, so the approving Device can reach it later.
+  uint32 listening_port = 4;
+}
+
+enum PairResult {
+  PAIR_RESULT_UNSPECIFIED = 0;
+  PAIR_RESULT_ACCEPTED = 1;
+  PAIR_RESULT_DECLINED = 2;
+  PAIR_RESULT_UPDATE_REQUIRED = 3;
+  PAIR_RESULT_BUSY = 4;
+}
+
+message PairReply {
+  PairResult result = 1;
+  string device_name = 2;
+  uint32 protocol_major = 3;
+  uint32 protocol_minor = 4;
+}
+
+message ConfirmPairRequest {
+}
+
+message ConfirmPairReply {
+  bool paired = 1;
 }

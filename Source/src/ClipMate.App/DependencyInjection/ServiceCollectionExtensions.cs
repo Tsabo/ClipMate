@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
         // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
         services.AddSingleton<NetworkingService>();
         services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
+        services.AddSingleton<ILocalDevice>(p => p.GetRequiredService<NetworkingService>());
 
         // Register MVVM Toolkit Messenger as singleton
         // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly

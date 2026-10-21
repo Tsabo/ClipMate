@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
@@ -29,18 +30,17 @@ public sealed class PeerHostOptions
 /// </summary>
 public sealed class KestrelPeerHostFactory : IPeerHostFactory
 {
-    private readonly IConfigurationService _configurationService;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly PeerHostOptions _options;
-    private readonly IPeerCertificateValidator _validator;
+    private readonly PeerHostServices _services;
 
     /// <summary>
     /// Creates a factory for hosts that listen on all interfaces.
     /// </summary>
     public KestrelPeerHostFactory(IPeerCertificateValidator validator,
+        IPeerStore peerStore,
+        IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
         ILoggerFactory loggerFactory)
-        : this(validator, configurationService, loggerFactory, new PeerHostOptions())
+        : this(validator, peerStore, approvalHandler, configurationService, loggerFactory, new PeerHostOptions())
     {
     }
 
@@ -48,43 +48,57 @@ public sealed class KestrelPeerHostFactory : IPeerHostFactory
     /// Creates a factory with explicit listener options.
     /// </summary>
     public KestrelPeerHostFactory(IPeerCertificateValidator validator,
+        IPeerStore peerStore,
+        IPairingApprovalHandler approvalHandler,
         IConfigurationService configurationService,
         ILoggerFactory loggerFactory,
         PeerHostOptions options)
     {
-        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _services = new PeerHostServices(
+            validator ?? throw new ArgumentNullException(nameof(validator)),
+            peerStore ?? throw new ArgumentNullException(nameof(peerStore)),
+            approvalHandler ?? throw new ArgumentNullException(nameof(approvalHandler)),
+            configurationService ?? throw new ArgumentNullException(nameof(configurationService)),
+            loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)),
+            options ?? throw new ArgumentNullException(nameof(options)),
+            new PairingRequestTracker(TimeProvider.System));
     }
 
     /// <inheritdoc />
-    public IPeerHost Create() => new KestrelPeerHost(_validator, _configurationService, _loggerFactory, _options);
+    public IPeerHost Create() => new KestrelPeerHost(_services);
 }
 
 /// <summary>
-/// The Peer listener: a gRPC server on Kestrel that requires TLS client certificates (mutual TLS)
-/// and accepts only Devices that <see cref="IPeerCertificateValidator" /> trusts.
+/// What a <see cref="KestrelPeerHost" /> needs from the application.
+/// </summary>
+internal sealed record PeerHostServices(
+    IPeerCertificateValidator Validator,
+    IPeerStore PeerStore,
+    IPairingApprovalHandler ApprovalHandler,
+    IConfigurationService ConfigurationService,
+    ILoggerFactory LoggerFactory,
+    PeerHostOptions Options,
+    PairingRequestTracker Tracker);
+
+/// <summary>
+/// The Peer listener: a gRPC server on Kestrel that requires TLS client certificates (mutual TLS).
+/// <para>
+/// A connection between Peers (any TLS server name other than <see cref="PeerTlsServerNames.Pairing" />) completes the
+/// TLS handshake only if <see cref="IPeerCertificateValidator" /> trusts the client certificate. A connection made for
+/// Pairing accepts any client certificate, so the caller's Device ID is known and the Verification Code can be derived;
+/// on it, <see cref="PairedPeerGate" /> serves an unpaired Device nothing but the pairing calls.
+/// </para>
 /// </summary>
 internal sealed class KestrelPeerHost : IPeerHost
 {
-    private readonly IConfigurationService _configurationService;
     private readonly ILogger<KestrelPeerHost> _logger;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly PeerHostOptions _options;
-    private readonly IPeerCertificateValidator _validator;
+    private readonly PeerHostServices _services;
     private WebApplication? _app;
 
-    public KestrelPeerHost(IPeerCertificateValidator validator,
-        IConfigurationService configurationService,
-        ILoggerFactory loggerFactory,
-        PeerHostOptions options)
+    public KestrelPeerHost(PeerHostServices services)
     {
-        _validator = validator;
-        _configurationService = configurationService;
-        _loggerFactory = loggerFactory;
-        _options = options;
-        _logger = loggerFactory.CreateLogger<KestrelPeerHost>();
+        _services = services;
+        _logger = services.LoggerFactory.CreateLogger<KestrelPeerHost>();
     }
 
     /// <inheritdoc />
@@ -109,24 +123,25 @@ internal sealed class KestrelPeerHost : IPeerHost
         });
 
         builder.Logging.ClearProviders();
-        builder.Services.AddSingleton(_loggerFactory);
+        builder.Services.AddSingleton(_services.LoggerFactory);
         builder.Services.AddSingleton(identity);
-        builder.Services.AddSingleton(_configurationService);
-        builder.Services.AddGrpc();
+        builder.Services.AddSingleton(_services.ConfigurationService);
+        builder.Services.AddSingleton(_services.Validator);
+        builder.Services.AddSingleton(_services.PeerStore);
+        builder.Services.AddSingleton(_services.ApprovalHandler);
+        builder.Services.AddSingleton(_services.Tracker);
+        builder.Services.AddGrpc(grpc => grpc.Interceptors.Add<PairedPeerGate>());
 
         builder.WebHost.UseKestrelHttpsConfiguration();
         builder.WebHost.ConfigureKestrel(kestrel =>
         {
             kestrel.AddServerHeader = false;
-            kestrel.Listen(_options.ListenAddress, port, listen =>
+            kestrel.Listen(_services.Options.ListenAddress, port, listen =>
             {
                 listen.Protocols = HttpProtocols.Http2;
-                listen.UseHttps(https =>
+                listen.UseHttps(new TlsHandshakeCallbackOptions
                 {
-                    https.ServerCertificate = identity.Certificate;
-                    https.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
-                    https.CheckCertificateRevocation = false; // self-signed: nothing to check, and no network traffic
-                    https.ClientCertificateValidation = (certificate, _, _) => IsTrusted(certificate);
+                    OnConnection = context => ValueTask.FromResult(CreateTlsOptions(identity, context.ClientHelloInfo.ServerName)),
                 });
             });
         });
@@ -172,12 +187,25 @@ internal sealed class KestrelPeerHost : IPeerHost
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await StopAsync();
 
-    private bool IsTrusted(X509Certificate2 certificate)
+    private SslServerAuthenticationOptions CreateTlsOptions(DeviceIdentity identity, string? serverName)
     {
-        var deviceId = DeviceId.FromCertificate(certificate);
-        var trusted = _validator.IsTrusted(deviceId);
+        var forPairing = string.Equals(serverName, PeerTlsServerNames.Pairing, StringComparison.OrdinalIgnoreCase);
+        return new SslServerAuthenticationOptions
+        {
+            ServerCertificate = identity.Certificate,
+            ClientCertificateRequired = true,
+            CertificateRevocationCheckMode = X509RevocationMode.NoCheck, // self-signed: nothing to check, and no network traffic
+            ApplicationProtocols = [SslApplicationProtocol.Http2],
+            RemoteCertificateValidationCallback = (_, certificate, _, _) => certificate != null && (forPairing || IsTrusted(certificate)),
+        };
+    }
+
+    private bool IsTrusted(X509Certificate certificate)
+    {
+        var deviceId = DeviceId.FromCertificateBytes(certificate.GetRawCertData());
+        var trusted = _services.Validator.IsTrusted(deviceId);
         if (!trusted)
-            _logger.LogWarning("Rejected connection from untrusted Device {DeviceId}", deviceId.ToDisplayString());
+            _logger.LogWarning("Rejected connection from Device {DeviceId}, which is not a Peer", deviceId.ToDisplayString());
 
         return trusted;
     }

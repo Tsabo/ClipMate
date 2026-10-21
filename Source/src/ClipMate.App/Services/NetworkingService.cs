@@ -11,7 +11,7 @@ namespace ClipMate.App.Services;
 /// Starts and stops the Peer host and LAN discovery to follow the <c>Enable networking</c> setting.
 /// While networking is off nothing is created, so no port is opened, no announcement is sent and the networking stack is never loaded.
 /// </summary>
-public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, IDisposable
+public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, ILocalDevice, IDisposable
 {
     private readonly IConfigurationService _configurationService;
     private readonly IDeviceDiscoveryService _discovery;
@@ -47,6 +47,15 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
     /// Gets whether the Peer host is currently listening.
     /// </summary>
     public bool IsListening => _host != null;
+
+    /// <inheritdoc />
+    public DeviceIdentity? Identity => _host != null ? _identity : null;
+
+    /// <inheritdoc />
+    public string DeviceName => _configurationService.Configuration.Networking.DeviceName;
+
+    /// <inheritdoc />
+    public int? ListeningPort => _host?.ListeningPort;
 
     /// <inheritdoc />
     public void Dispose()

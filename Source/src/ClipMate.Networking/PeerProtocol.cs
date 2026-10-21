@@ -14,4 +14,9 @@ public static class PeerProtocol
     /// Backward-compatible additions bump the minor version.
     /// </summary>
     public const uint Minor = 0;
+
+    /// <summary>
+    /// The optional features this Device supports, exchanged in Hello. New features are added here as capabilities.
+    /// </summary>
+    public static IReadOnlyList<string> Capabilities { get; } = ["pairing"];
 }

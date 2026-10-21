@@ -70,6 +70,7 @@ public static class FakeProxyTypeWarmup
         typeof(INetshRunner),
         typeof(IPeerHost),
         typeof(IPeerHostFactory),
+        typeof(IPeerStore),
         typeof(IDeviceDiscoveryService),
         typeof(ClipMate.Networking.Discovery.IDiscoveryTransportFactory),
         typeof(ILogger<NetworkingService>),
