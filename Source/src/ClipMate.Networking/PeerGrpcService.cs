@@ -15,6 +15,7 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
     private const int _maxDeviceNameLength = 64;
     private readonly IPairingApprovalHandler _approvalHandler;
     private readonly IConfigurationService _configurationService;
+    private readonly PeerConnectionTracker _connections;
     private readonly DeviceIdentity _identity;
     private readonly ILogger<PeerGrpcService> _logger;
     private readonly IPeerStore _peerStore;
@@ -25,6 +26,7 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
         IPeerStore peerStore,
         IPairingApprovalHandler approvalHandler,
         PairingRequestTracker tracker,
+        PeerConnectionTracker connections,
         ILogger<PeerGrpcService> logger)
     {
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
@@ -32,6 +34,7 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
         _approvalHandler = approvalHandler ?? throw new ArgumentNullException(nameof(approvalHandler));
         _tracker = tracker ?? throw new ArgumentNullException(nameof(tracker));
+        _connections = connections ?? throw new ArgumentNullException(nameof(connections));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -117,14 +120,15 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
     }
 
     /// <inheritdoc />
-    public override Task<UnpairReply> Unpair(UnpairRequest request, ServerCallContext context)
+    public override async Task<UnpairReply> Unpair(UnpairRequest request, ServerCallContext context)
     {
         var caller = PeerCallContext.GetCallerDeviceId(context);
         _logger.LogInformation("Device {DeviceId} unpaired this Device", caller.ToDisplayString());
 
-        // Unpair once the reply is sent: removing the Peer drops its connections, including the one carrying this call.
-        context.GetHttpContext().Response.OnCompleted(() => _peerStore.RemoveAsync(caller));
-        return Task.FromResult(new UnpairReply());
+        // Removing the Peer drops its connections; let the reply on this one still reach it.
+        _connections.CloseGracefullyOnDrop(context.GetHttpContext().Connection.Id);
+        await _peerStore.RemoveAsync(caller, context.CancellationToken);
+        return new UnpairReply();
     }
 
     /// <inheritdoc />

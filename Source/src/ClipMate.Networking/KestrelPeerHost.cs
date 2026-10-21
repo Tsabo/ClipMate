@@ -131,6 +131,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         builder.Services.AddSingleton(_services.PeerStore);
         builder.Services.AddSingleton(_services.ApprovalHandler);
         builder.Services.AddSingleton(_services.Tracker);
+        builder.Services.AddSingleton(_connections);
         builder.Services.AddGrpc(grpc => grpc.Interceptors.Add<PairedPeerGate>());
 
         builder.WebHost.UseKestrelHttpsConfiguration();

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using ClipMate.Core.Models.Networking;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
 
 namespace ClipMate.Networking;
@@ -13,6 +14,7 @@ namespace ClipMate.Networking;
 internal sealed class PeerConnectionTracker
 {
     private readonly ConcurrentDictionary<ConnectionContext, DeviceId> _connections = new();
+    private readonly ConcurrentDictionary<string, byte> _closeGracefully = new();
 
     /// <summary>
     /// Connection middleware (after TLS): records the connection for the Device that presented the client certificate
@@ -35,8 +37,15 @@ internal sealed class PeerConnectionTracker
         finally
         {
             _connections.TryRemove(context, out _);
+            _closeGracefully.TryRemove(context.ConnectionId, out _);
         }
     };
+
+    /// <summary>
+    /// Makes <see cref="Drop" /> close the connection with <paramref name="connectionId" /> gracefully, letting its calls
+    /// finish: used for the connection on which the Peer itself says it unpaired this Device, so its reply still arrives.
+    /// </summary>
+    public void CloseGracefullyOnDrop(string connectionId) => _closeGracefully[connectionId] = 0;
 
     /// <summary>
     /// Closes every open connection from the Device with <paramref name="deviceId" />, ending its calls.
@@ -50,7 +59,12 @@ internal sealed class PeerConnectionTracker
             if (item.Value != deviceId)
                 continue;
 
-            item.Key.Abort(new ConnectionAbortedException("The Device was unpaired."));
+            // The calls on a connection closed gracefully still pass PairedPeerGate one by one, so a new call is refused.
+            if (_closeGracefully.ContainsKey(item.Key.ConnectionId))
+                item.Key.Features.Get<IConnectionLifetimeNotificationFeature>()?.RequestClose();
+            else
+                item.Key.Abort(new ConnectionAbortedException("The Device was unpaired."));
+
             dropped++;
         }
 
