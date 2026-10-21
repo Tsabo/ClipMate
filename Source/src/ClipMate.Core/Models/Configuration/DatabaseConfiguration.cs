@@ -57,7 +57,8 @@ public class DatabaseConfiguration
     public bool IsRemote { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets whether this database supports multi-user access.
+    /// Gets or sets the ClipMate 7 "Multi-User, Networked Database" setting. Not used and not shown: it is kept only so
+    /// existing configuration files keep loading. Other Devices see a database through Share with Peers instead.
     /// </summary>
     public bool MultiUser { get; set; } = false;
 

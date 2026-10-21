@@ -35,7 +35,7 @@ public partial class DatabaseConfigurationViewModel : ObservableObject
 
     public bool ReadOnly => Configuration.ReadOnly;
 
-    public bool MultiUser => Configuration.MultiUser;
+    public bool ShareWithPeers => Configuration.ShareWithPeers;
 
     public string UserName => Configuration.UserName;
 

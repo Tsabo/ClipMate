@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Public Network Warning** - The Devices tab warns when networking is on and this computer is connected to a network Windows treats as **Public**. ClipMate's firewall rule only allows Peer connections on Private and Domain networks, so on a Public network your other Devices can't connect to this one (they show it as offline), although this Device can still connect to them. The warning names the network, explains how to set it to Private, and has an **Open network settings** button. It clears by itself when the network becomes Private.
 - **Rename Remote Databases** - **Rename...** on a Remote Database in the collection tree gives it a name only this Device shows, in place of the Peer's own name for the database. The name stays when the Peer renames the database or goes offline; leave it blank to follow the Peer's name again. Unpairing the Peer removes these names.
 
+### Changed
+- **Multi-User Setting Removed** - The **Multi-User, Networked Database?** checkbox, carried over from ClipMate 7, has been removed from database Properties. It never did anything in this version, and opening one database file from several computers over a network isn't safe. The Databases list now shows a **Shared** column instead, for databases your paired Devices can browse. Existing settings files still load.
+
 ### Fixed
 - **Search Date Filters** - Searching with **Captured After** or **Captured Before** turned on failed with a database error instead of returning clips. Both date filters now work.
 

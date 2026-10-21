@@ -98,19 +98,12 @@
                 </StackPanel>
             </dxlc:LayoutItem>
 
-            <!-- Auto Load and Multi-User -->
+            <!-- Auto Load -->
             <dxlc:LayoutItem>
-                <StackPanel Orientation="Vertical">
-                    <dxe:CheckEdit x:Name="AutoLoadCheckBox"
-                                   Content="Auto Load Data Source At Startup?"
-                                   IsChecked="{Binding AutoLoad, Mode=TwoWay}"
-                                   Margin="0,0,0,5"
-                                   ToolTip="Automatically load this database when ClipMate starts" />
-                    <dxe:CheckEdit x:Name="MultiUserCheckBox"
-                                   Content="Multi-User, Networked Database?"
-                                   IsChecked="{Binding MultiUser, Mode=TwoWay}"
-                                   ToolTip="Enable if multiple users will access this database simultaneously" />
-                </StackPanel>
+                <dxe:CheckEdit x:Name="AutoLoadCheckBox"
+                               Content="Auto Load Data Source At Startup?"
+                               IsChecked="{Binding AutoLoad, Mode=TwoWay}"
+                               ToolTip="Automatically load this database when ClipMate starts" />
             </dxlc:LayoutItem>
 
             <!-- Username -->
@@ -127,7 +120,7 @@
                                    Content="Allow this user to backup the database?"
                                    IsChecked="{Binding AllowBackup, Mode=TwoWay}"
                                    Margin="0,0,0,5"
-                                   ToolTip="Enable backup prompts for this database (turn off for multi-user scenarios where only one user should backup)" />
+                                   ToolTip="Enable backup prompts for this database" />
                     <dxe:CheckEdit x:Name="ReadOnlyCheckBox"
                                    Content="Read Only?"
                                    IsChecked="{Binding ReadOnly, Mode=TwoWay}"

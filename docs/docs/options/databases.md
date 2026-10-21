@@ -12,7 +12,7 @@ ClipMate uses a robust database system to store your clips. By default, every in
 ## Database Definitions
 
 You can define multiple databases for:
-- Multi-user sharing on a network
+- Sharing with your other Devices (see [Devices](devices.md))
 - Secondary data sources on removable drives
 - Keeping old databases available for occasional use
 
@@ -51,7 +51,6 @@ ClipMate uses .DAT, .IDX, and .BLB files (about 22-24 files total). Files ending
 | **Directory** | Path to database (local or mapped network drive) |
 | **Database ID** | Permanent identifier stored inside the database file (read-only). It stays the same if you rename the database or copy its file. A database created by an earlier version gets one the next time it's opened. |
 | **Auto Load at Startup** | Whether to load when ClipMate starts |
-| **Multi-User** | Enable if others update this database simultaneously |
 | **Read-Only** | Prevents writing (must have at least one read/write database) |
 | **Share with Peers** | Lets your paired Devices browse this database, read-only, while networking is on (see [Devices](devices.md)). Off by default. A database whose file was copied from another shared database has the same Database ID; click **Give this Database a new ID** to share both. |
 
@@ -91,12 +90,6 @@ Enable "auto-OK" option with a 2-3 second countdown to run automatically while s
 :::tip Backup Strategy
 Back up to a different hard disk if possible. Transfer backup files to CD, USB drive, or cloud storage periodically.
 :::
-
-### Multi-User Backups
-
-- Don't backup databases being actively written to by multiple users
-- Designate ONE user to run backups
-- Turn off backup prompts for other users
 
 ## Database Restore
 
