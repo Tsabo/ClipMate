@@ -32,6 +32,12 @@ ClipMate's SQL-based search engine can find clips based on:
 
 You can save queries for reuse, and advanced users can write custom SQL queries.
 
+## What Gets Searched
+
+**Search in** at the top of the dialog shows the database being searched: the one selected in the collection tree. The scope list next to it offers **All collections**, the selected **Collection** or the selected **Folder**, and starts with the narrowest one available.
+
+You can also search a database shared by one of your paired Devices; see [Searching a Remote Database](../../options/devices.md#searching-a-remote-database).
+
 ## Quick Search Tips
 
 | Search Type | Syntax | Example |

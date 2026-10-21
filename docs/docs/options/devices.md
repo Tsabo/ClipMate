@@ -112,3 +112,16 @@ Encrypted clips arrive from the Peer still encrypted and look just like your own
 Remote Databases are read-only. You can't edit, delete, move, rename, encrypt or drag their clips, or decrypt them in place; ClipMate shows "Remote Databases are read-only." instead.
 
 If the Peer goes offline or takes too long to answer, the list or viewer says so instead of holding up ClipMate. Select the collection again to retry.
+
+### Searching a Remote Database
+
+Select a Remote Database, or one of its collections or folders, and open the Search dialog. **Search in** shows the Remote Database, and the scope list offers **All collections**, the selected **Collection** or the selected **Folder**.
+
+The Peer runs the search itself from your criteria; no SQL is ever sent to it. It sends back up to 1,000 of the newest matching clips, and the results appear in the Remote Database's **Search Results** node. When more clips match, the list says how many, for example "Showing 1,000 of 4,212 matches"; narrow your criteria to see the rest. The results are kept on this Device only.
+
+A few things differ from searching your own databases:
+
+- The SQL panel is hidden, and saved searches written as SQL aren't offered.
+- Deleted clips and shortcuts are never shared, so **Has Shortcut** and **Included Deleted Clips** are turned off.
+- Encrypted clips match only on what isn't encrypted: creator, source URL, capture date and a title you gave the clip yourself.
+- The Peer stops a search that runs for more than about 15 seconds. Closing the Search dialog stops a search that is still running.
