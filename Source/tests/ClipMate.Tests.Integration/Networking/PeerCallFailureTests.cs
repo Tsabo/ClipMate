@@ -2,7 +2,7 @@ using System.Security.Authentication;
 using ClipMate.Networking.SharedDatabases;
 using Grpc.Core;
 
-namespace ClipMate.Tests.Unit.Networking;
+namespace ClipMate.Tests.Integration.Networking;
 
 public class PeerCallFailureTests
 {
