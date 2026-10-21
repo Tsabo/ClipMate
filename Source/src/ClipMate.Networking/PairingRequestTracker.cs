@@ -35,11 +35,12 @@ internal sealed class PairingRequestTracker
     {
         lock (_lock)
         {
-            if (_waiting.Count >= _maxWaiting)
+            if (_waiting.Count >= _maxWaiting || !_waiting.Add(deviceId))
                 return false;
 
+            // Only a request that actually begins replaces an earlier acceptance; a refused duplicate must not destroy it.
             _accepted.Remove(deviceId);
-            return _waiting.Add(deviceId);
+            return true;
         }
     }
 
