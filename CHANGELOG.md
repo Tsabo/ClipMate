@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Database ID** - Every database now has a permanent Database ID, stored inside the database file and shown (read-only) in Database Properties. It never changes, even if you rename the database or copy its file. Existing databases get one automatically the first time they're opened.
+
 ## [0.1.0-beta.6] - 2026-10-13
 
 ### Added

@@ -36,15 +36,17 @@ internal class DatabaseIdService : IDatabaseIdService
         }.ToString();
 
         await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
 
         try
         {
+            await connection.OpenAsync(cancellationToken);
+
             return await DatabaseIdStore.ReadDatabaseIdAsync(connection, cancellationToken);
         }
         catch (SqliteException)
         {
-            // The DatabaseInfo table does not exist until the Database is opened by this version
+            // Not a readable ClipMate database, or the DatabaseInfo table does not exist until the Database is
+            // opened by this version
             return null;
         }
     }

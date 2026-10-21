@@ -28,10 +28,12 @@ public partial class DatabaseEditDialog
     /// Initializes a new instance for editing an existing database.
     /// </summary>
     /// <param name="config">The database configuration to edit.</param>
-    public DatabaseEditDialog(DatabaseConfiguration config)
+    /// <param name="databaseId">The Database ID stored in the database file, or null if it has none yet.</param>
+    public DatabaseEditDialog(DatabaseConfiguration config, Guid? databaseId)
         : this()
     {
         _viewModel.LoadFrom(config);
+        _viewModel.SetDatabaseId(databaseId);
     }
 
     /// <summary>
