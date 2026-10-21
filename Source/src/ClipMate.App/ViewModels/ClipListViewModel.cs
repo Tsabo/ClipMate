@@ -147,6 +147,9 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<SearchResultsSelectedEvent>(this);
         _messenger.Register<ShowAllClipsInChildrenRequestedEvent>(this);
         _messenger.Register<ClipsDeletedEvent>(this);
+
+        // The Peer of an open Remote Database view says when that collection changed
+        _remoteDatabaseService.RemoteCollectionChanged += OnRemoteCollectionChanged;
     }
 
     /// <summary>
@@ -155,6 +158,7 @@ public partial class ClipListViewModel : ObservableObject,
     public void Dispose()
     {
         _messenger.UnregisterAll(this);
+        _remoteDatabaseService.RemoteCollectionChanged -= OnRemoteCollectionChanged;
         _debouncedClipSelection?.Dispose();
         _remoteLoadCts?.Cancel();
     }
@@ -334,7 +338,41 @@ public partial class ClipListViewModel : ObservableObject,
     /// cancels the load. A Peer that is offline or too slow ends the load with <see cref="RemoteStatusMessage" /> set,
     /// never a hang. Must be called on the UI thread.
     /// </summary>
-    public async Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId,
+    public Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId,
+        CancellationToken cancellationToken = default) =>
+        LoadRemoteClipsAsync(address, collectionId, folderId, null, cancellationToken);
+
+    /// <summary>
+    /// Re-fetches the open Remote Database view when its Peer reports that the collection or folder it shows changed
+    /// (live change notifications). Raised on a background thread.
+    /// </summary>
+    private void OnRemoteCollectionChanged(object? sender, RemoteCollectionChangedEventArgs e)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+            _ = ReloadChangedRemoteViewAsync(e);
+        else
+            dispatcher.InvokeAsync(() => ReloadChangedRemoteViewAsync(e));
+    }
+
+    private async Task ReloadChangedRemoteViewAsync(RemoteCollectionChangedEventArgs change)
+    {
+        try
+        {
+            if (!IsRemoteDatabase || CurrentCollectionId is not { } collectionId || !RemoteDatabaseKey.TryParse(CurrentDatabaseKey, out var address) ||
+                address != change.Address || change.CollectionId != (CurrentFolderId ?? collectionId))
+                return;
+
+            _logger.LogDebug("Remote collection {CollectionId} of {RemoteDatabase} changed; re-fetching", change.CollectionId, address);
+            await LoadRemoteClipsAsync(address, collectionId, CurrentFolderId, SelectedClip?.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to re-fetch changed Remote Database collection {CollectionId}", change.CollectionId);
+        }
+    }
+
+    private async Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, Guid? reselectClipId,
         CancellationToken cancellationToken = default)
     {
         CancelRemoteLoad();
@@ -355,7 +393,13 @@ public partial class ClipListViewModel : ObservableObject,
                 foreach (var item in page.Clips)
                     Clips.Add(item);
 
-                if (offset == 0)
+                // A re-fetch keeps the clip that was selected, wherever it now is
+                if (reselectClipId is { } clipId && page.Clips.FirstOrDefault(p => p.Id == clipId) is { } reselect)
+                {
+                    SetSelectedClipWithoutClipboardOperation(reselect);
+                    reselectClipId = null;
+                }
+                else if (offset == 0 && reselectClipId == null)
                     SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
 
                 offset += page.Clips.Count;
@@ -364,6 +408,9 @@ public partial class ClipListViewModel : ObservableObject,
 
                 RemoteStatusMessage = $"Loading clips… {offset:N0} of {page.TotalCount:N0}";
             }
+
+            if (reselectClipId != null)
+                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
 
             RemoteStatusMessage = null;
             _logger.LogInformation("Loaded {Count} clips from Remote Database {RemoteDatabase}", Clips.Count, address);
