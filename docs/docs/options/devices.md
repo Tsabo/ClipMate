@@ -59,3 +59,13 @@ The **Peers** list shows the Devices you have paired with: the name you gave it 
 While networking is on, ClipMate checks each Peer about every 30 seconds. Peers are saved in `clipmate.toml` and never expire.
 
 Only Peers can connect to this Device. Any other Device is refused while the encrypted connection is being set up, even if it knows the right address and port. The only thing it can do is send a pairing request, which you have to accept.
+
+## Shared and Remote Databases
+
+To let your Peers browse a database, turn on **Share with Peers** in its [Database Properties](databases.md). Peers can only read it. Nothing else is shared: not your other databases, templates, shortcuts, application profiles or settings.
+
+Each database a Peer shares with you appears at the bottom of the collection tree as a **Remote Database**, labelled "*Database* — *Device*" (the Device part uses the name you gave the Peer in **Show as**). Under it are the Peer's collections and folders, and a **Virtual** folder with its Smart and SQL-based collections, which are always worked out on the Peer.
+
+When the Peer can't be reached, its Remote Databases stay in the tree, greyed out and marked "offline · last seen ...". When the Peer stops sharing a database, or you unpair it, the database leaves the tree. ClipMate checks for changes about every 30 seconds.
+
+A Remote Database is never where new clips are captured, and it isn't part of your database list, backups, maintenance or purging.

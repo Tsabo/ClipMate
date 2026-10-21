@@ -53,6 +53,7 @@ ClipMate uses .DAT, .IDX, and .BLB files (about 22-24 files total). Files ending
 | **Auto Load at Startup** | Whether to load when ClipMate starts |
 | **Multi-User** | Enable if others update this database simultaneously |
 | **Read-Only** | Prevents writing (must have at least one read/write database) |
+| **Share with Peers** | Lets your paired Devices browse this database, read-only, while networking is on (see [Devices](devices.md)). Off by default. A database whose file was copied from another shared database has the same Database ID; click **Give this Database a new ID** to share both. |
 
 ### Maintenance Settings
 
