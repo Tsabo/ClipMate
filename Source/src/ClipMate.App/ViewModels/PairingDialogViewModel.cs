@@ -13,7 +13,11 @@ namespace ClipMate.App.ViewModels;
 public partial class PairingDialogViewModel : ObservableObject
 {
     private readonly TaskCompletionSource<PairingDecision> _decision = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly string? _address;
     private readonly IPairingSession? _session;
+
+    [ObservableProperty]
+    private string _heading;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AcceptCommand))]
@@ -25,6 +29,9 @@ public partial class PairingDialogViewModel : ObservableObject
     private bool _isWaiting;
 
     [ObservableProperty]
+    private string _otherDeviceName;
+
+    [ObservableProperty]
     private string _showAs;
 
     [ObservableProperty]
@@ -33,16 +40,17 @@ public partial class PairingDialogViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText;
 
-    private PairingDialogViewModel(string heading, DeviceId otherDeviceId, string otherDeviceName, string verificationCode, string statusText,
-        IPairingSession? session)
+    private PairingDialogViewModel(string heading, DeviceId otherDeviceId, string otherDeviceName, string showAs, string verificationCode,
+        string statusText, IPairingSession? session)
     {
-        Heading = heading;
+        _heading = heading;
         OtherDeviceId = otherDeviceId.ToDisplayString();
-        OtherDeviceName = otherDeviceName;
+        _otherDeviceName = otherDeviceName;
         VerificationCode = verificationCode;
-        _showAs = otherDeviceName;
+        _showAs = showAs;
         _statusText = statusText;
         _session = session;
+        _address = session?.Target.Address;
         WhenPeerResponded = session == null ? Task.CompletedTask : ObservePeerResponseAsync(session);
     }
 
@@ -50,16 +58,6 @@ public partial class PairingDialogViewModel : ObservableObject
     /// Raised when the dialog should close.
     /// </summary>
     public event EventHandler? CloseRequested;
-
-    /// <summary>
-    /// Gets the dialog's heading.
-    /// </summary>
-    public string Heading { get; }
-
-    /// <summary>
-    /// Gets the other Device's Device Name.
-    /// </summary>
-    public string OtherDeviceName { get; }
 
     /// <summary>
     /// Gets the other Device's full Device ID in grouped form.
@@ -93,19 +91,22 @@ public partial class PairingDialogViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(request);
         return new PairingDialogViewModel($"{request.DeviceName} wants to pair with this Device", request.DeviceId, request.DeviceName,
-            request.VerificationCode,
+            request.DeviceName, request.VerificationCode,
             "Accept only if the other Device shows the same Verification Code. Once paired, it can see the Databases you share.",
             null);
     }
 
     /// <summary>
-    /// Creates the dialog for an outgoing pairing request that has been sent.
+    /// Creates the dialog for an outgoing pairing request that has been sent. A Device added manually has no Device Name
+    /// yet: it is named by its address until it answers, and its Device Name then pre-fills "Show as".
     /// </summary>
     public static PairingDialogViewModel ForRequest(IPairingSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        var name = session.Target.DeviceName;
-        return new PairingDialogViewModel($"Pair with {name}", session.Target.DeviceId, name, session.VerificationCode,
+        var target = session.Target;
+        var knownName = string.IsNullOrWhiteSpace(target.DeviceName) ? null : target.DeviceName;
+        var name = knownName ?? $"the Device at {target.Address}";
+        return new PairingDialogViewModel($"Pair with {name}", target.DeviceId, name, knownName ?? string.Empty, session.VerificationCode,
             $"Waiting for {name} to accept. Check that both Devices show the same Verification Code.", session);
     }
 
@@ -167,6 +168,7 @@ public partial class PairingDialogViewModel : ObservableObject
     private async Task ObservePeerResponseAsync(IPairingSession session)
     {
         var response = await session.PeerResponse;
+        UseReportedDeviceName(session.PeerDeviceName);
         if (IsFinished || IsWaiting)
             return;
 
@@ -178,6 +180,18 @@ public partial class PairingDialogViewModel : ObservableObject
 
         StatusText = Describe(response);
         Finish(PairingDecision.Declined, response);
+    }
+
+    private void UseReportedDeviceName(string? reportedName)
+    {
+        if (string.IsNullOrWhiteSpace(reportedName) || reportedName == OtherDeviceName)
+            return;
+
+        var showAsUntouched = string.IsNullOrWhiteSpace(ShowAs) || ShowAs == OtherDeviceName;
+        OtherDeviceName = reportedName;
+        Heading = $"Pair with {reportedName}";
+        if (showAsUntouched)
+            ShowAs = reportedName;
     }
 
     private void Finish(PairingDecision decision, PairingStatus status)
@@ -200,7 +214,9 @@ public partial class PairingDialogViewModel : ObservableObject
         PairingStatus.Declined => $"{OtherDeviceName} declined the pairing request.",
         PairingStatus.UpdateRequired => $"{OtherDeviceName} runs an incompatible version of ClipMate. Update ClipMate on both Devices, then try again.",
         PairingStatus.Busy => $"{OtherDeviceName} is busy with other pairing requests. Try again in a moment.",
-        PairingStatus.Unreachable => $"Could not reach {OtherDeviceName}, or it is not the Device with this Device ID.",
+        PairingStatus.Unreachable => $"Could not reach {OtherDeviceName}. Check that it is turned on, networking is enabled on it, and the address is right.",
+        PairingStatus.WrongDevice =>
+            $"The Device at {_address} does not have the Device ID you entered, so the connection was refused. Check the address and the Device ID.",
         PairingStatus.TimedOut => "The pairing request expired. Try again.",
         PairingStatus.Cancelled => "Pairing cancelled.",
         var _ => $"Pairing with {OtherDeviceName} failed.",

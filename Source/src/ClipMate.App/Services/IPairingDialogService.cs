@@ -12,4 +12,10 @@ public interface IPairingDialogService
     /// until Pairing completes, fails or the user cancels. Call on the UI thread.
     /// </summary>
     Task PairAsync(PairingTarget target);
+
+    /// <summary>
+    /// Asks for another Device's address and Device ID (<b>Add Device manually</b>) and, if the user goes ahead,
+    /// pairs with it exactly as with a Discovered Device. Call on the UI thread.
+    /// </summary>
+    Task AddDeviceManuallyAsync();
 }

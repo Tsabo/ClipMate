@@ -216,7 +216,7 @@ public class PairingTests
     }
 
     [Test]
-    public async Task Pairing_WithTheWrongDeviceId_IsUnreachableAndAsksNoOne()
+    public async Task Pairing_WithTheWrongDeviceId_IsRefusedAsTheWrongDeviceAndAsksNoOne()
     {
         // Arrange: the laptop expects some other Device at the desktop's address.
         var target = _desktop.AsTarget() with { DeviceId = DeviceId.FromCertificateBytes([42]) };
@@ -226,8 +226,60 @@ public class PairingTests
         var status = await session.AcceptAsync(null);
 
         // Assert
-        await Assert.That(status).IsEqualTo(PairingStatus.Unreachable);
+        await Assert.That(status).IsEqualTo(PairingStatus.WrongDevice);
         await Assert.That(_desktop.User.Requests).IsEmpty();
+        await Assert.That(_laptop.Store.GetPeers()).IsEmpty();
+    }
+
+    [Test]
+    public async Task Pairing_WithNothingListeningAtTheAddress_IsUnreachable()
+    {
+        // Arrange: an address where no Device listens.
+        int port;
+        using (var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0))
+        {
+            listener.Start();
+            port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+
+        var target = new PairingTarget(_desktop.DeviceId, string.Empty, $"127.0.0.1:{port}");
+        await using var session = _laptop.PairingClient.Start(target);
+
+        // Act
+        var status = await session.AcceptAsync(null);
+
+        // Assert
+        await Assert.That(status).IsEqualTo(PairingStatus.Unreachable);
+    }
+
+    [Test]
+    public async Task ManualPairing_ByHostNameAndDeviceId_RecordsTheSamePeerAndRemembersTheEnteredAddress()
+    {
+        // Arrange: added manually, so only the address and Device ID are known (no Device Name yet).
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        var address = $"localhost:{_desktop.ListeningPort}";
+        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address));
+
+        // Act
+        var response = await session.PeerResponse;
+        var status = await session.AcceptAsync(null);
+
+        // Assert
+        await Assert.That(response).IsEqualTo(PairingStatus.Accepted);
+        await Assert.That(session.PeerDeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(status).IsEqualTo(PairingStatus.Paired);
+        await Assert.That(_desktop.User.Requests.Single().VerificationCode).IsEqualTo(session.VerificationCode);
+
+        var desktopOnLaptop = _laptop.Store.Find(_desktop.DeviceId);
+        await Assert.That(desktopOnLaptop).IsNotNull();
+        await Assert.That(desktopOnLaptop!.DeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(desktopOnLaptop.Addresses).IsEquivalentTo([address]);
+        await Assert.That(_desktop.Store.IsPaired(_laptop.DeviceId)).IsTrue();
+
+        // The remembered address reaches the Peer again.
+        var probe = new GrpcPeerProbe(_laptop.ConfigurationService, NullLogger<GrpcPeerProbe>.Instance);
+        var reply = await probe.ProbeAsync(_laptop.Identity, _desktop.DeviceId, desktopOnLaptop.Addresses[0], CancellationToken.None);
+        await Assert.That(reply).IsNotNull();
     }
 
     /// <summary>

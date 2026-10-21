@@ -217,6 +217,21 @@ public partial class DevicesOptionsViewModel : ObservableObject
         RefreshLists();
     }
 
+    [RelayCommand]
+    private async Task AddDeviceManuallyAsync()
+    {
+        try
+        {
+            await _pairingDialogs.AddDeviceManuallyAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Adding a Device manually failed");
+        }
+
+        RefreshLists();
+    }
+
     partial void OnEnableNetworkingChanged(bool value)
     {
         if (value)
