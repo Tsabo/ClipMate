@@ -77,6 +77,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConfigurationService>(sp =>
             new ConfigurationService(configDirectory, sp.GetRequiredService<ILogger<ConfigurationService>>()));
 
+        // Peer records (clipmate.toml): the single source of truth for which Devices are trusted
+        services.AddSingleton<IPeerStore, PeerStore>();
+
         // Register multi-database management
         services.AddSingleton<IDatabaseContextFactory, DatabaseContextFactory>();
         services.AddSingleton<IDatabaseManager, DatabaseManager>();
