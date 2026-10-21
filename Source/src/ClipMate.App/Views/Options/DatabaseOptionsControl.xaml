@@ -40,13 +40,12 @@
                             </dxg:GridColumn.CellTemplate>
                         </dxg:GridColumn>
                         <dxg:GridColumn FieldName="Name" Header="Name" Width="120" />
-                        <dxg:GridColumn FieldName="FilePath" Header="File Path" Width="200" />
+                        <dxg:GridColumn FieldName="FilePath" Header="File Path" Width="*" />
                         <dxg:GridColumn FieldName="ReadOnly" Header="Read Only" Width="80" />
                         <dxg:GridColumn FieldName="ShareWithPeers" Header="Shared" Width="70"
                                         HeaderToolTip="Whether your paired Devices can browse this database (Share with Peers in its Properties)" />
                         <dxg:GridColumn FieldName="UserName" Header="Username" Width="100" />
                         <dxg:GridColumn FieldName="PurgeDays" Header="Purge Days" Width="80" />
-                        <dxg:GridColumn FieldName="RemoteHost" Header="Remote Host" Width="*" />
                     </dxg:GridControl.Columns>
                 </dxg:GridControl>
             </dxlc:LayoutItem>

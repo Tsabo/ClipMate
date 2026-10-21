@@ -41,8 +41,6 @@ public partial class DatabaseConfigurationViewModel : ObservableObject
 
     public int PurgeDays => Configuration.PurgeDays;
 
-    public string? RemoteHost => Configuration.RemoteHost;
-
     public void UpdateStatus()
     {
         if (string.IsNullOrEmpty(Configuration.FilePath))
