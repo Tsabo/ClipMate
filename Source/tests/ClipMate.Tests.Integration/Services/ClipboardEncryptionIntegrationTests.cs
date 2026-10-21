@@ -229,6 +229,7 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<CommunityToolkit.Mvvm.Messaging.IMessenger>(),
             serviceLogger);
     }

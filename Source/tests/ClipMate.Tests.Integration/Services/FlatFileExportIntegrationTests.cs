@@ -436,6 +436,7 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
@@ -467,6 +468,7 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
+            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
