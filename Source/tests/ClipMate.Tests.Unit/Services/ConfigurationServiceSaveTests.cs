@@ -52,9 +52,47 @@ public class ConfigurationServiceSaveTests
         await Assert.That(reloaded.Configuration.Databases.ContainsKey("held")).IsTrue();
     }
 
-    private ConfigurationService CreateService()
+    [Test]
+    public async Task SaveAsync_DestinationHeldOpenThroughEveryRetry_ThrowsAndKeepsThePreviousFile()
     {
-        var service = new ConfigurationService(_directory, NullLogger<ConfigurationService>.Instance);
+        // Arrange
+        var service = CreateService([TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1)]);
+        await service.SaveAsync();
+        var before = await File.ReadAllTextAsync(service.ConfigurationFilePath);
+        service.Configuration.Databases["held"] = new DatabaseConfiguration { Name = "Held", FilePath = "held.db" };
+
+        // Act / Assert
+        await using (new FileStream(service.ConfigurationFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            await Assert.That(() => service.SaveAsync()).Throws<UnauthorizedAccessException>();
+
+        await Assert.That(await File.ReadAllTextAsync(service.ConfigurationFilePath)).IsEqualTo(before);
+    }
+
+    [Test]
+    public async Task SaveAsync_TwoServicesOnTheSameFileSavingConcurrently_AllSavesSucceed()
+    {
+        // Arrange: e.g. the startup ConfigurationService in App.xaml.cs and the DI singleton share clipmate.toml
+        var first = CreateService();
+        var second = CreateService();
+
+        // Act
+        var saves = Enumerable.Range(0, 25)
+            .SelectMany(_ => new[] { Task.Run(() => first.SaveAsync()), Task.Run(() => second.SaveAsync()) })
+            .ToList();
+        await Task.WhenAll(saves);
+
+        // Assert
+        var reloaded = new ConfigurationService(_directory, NullLogger<ConfigurationService>.Instance);
+        await reloaded.LoadAsync();
+        await Assert.That(reloaded.Configuration.Databases.ContainsKey("db_test")).IsTrue();
+        await Assert.That(File.Exists(reloaded.ConfigurationFilePath + ".tmp")).IsFalse();
+    }
+
+    private ConfigurationService CreateService(IReadOnlyList<TimeSpan>? replaceRetryDelays = null)
+    {
+        var service = replaceRetryDelays == null
+            ? new ConfigurationService(_directory, NullLogger<ConfigurationService>.Instance)
+            : new ConfigurationService(_directory, NullLogger<ConfigurationService>.Instance, replaceRetryDelays);
         service.Configuration.Databases["db_test"] = new DatabaseConfiguration { Name = "Test", FilePath = "test.db" };
         service.Configuration.DefaultDatabase = "db_test";
         return service;

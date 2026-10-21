@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
@@ -19,7 +20,11 @@ public class ConfigurationService : IConfigurationService
             TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(400), TimeSpan.FromMilliseconds(800),
         ];
 
-    private readonly SemaphoreSlim _fileLock = new(1, 1);
+    // One lock per configuration file shared by every instance in the process (App startup creates its own
+    // instance beside the DI singleton), so saves never interleave on the shared .tmp file
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly SemaphoreSlim _fileLock;
     private readonly ILogger<ConfigurationService> _logger;
     private readonly IReadOnlyList<TimeSpan> _replaceRetryDelays;
 
@@ -49,6 +54,7 @@ public class ConfigurationService : IConfigurationService
         Directory.CreateDirectory(configurationDirectory);
 
         ConfigurationFilePath = Path.Join(configurationDirectory, "clipmate.toml");
+        _fileLock = _fileLocks.GetOrAdd(Path.GetFullPath(ConfigurationFilePath), _ => new SemaphoreSlim(1, 1));
         Configuration = CreateDefaultConfiguration();
     }
 
