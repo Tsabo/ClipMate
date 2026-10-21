@@ -12,7 +12,7 @@ namespace ClipMate.App.ViewModels;
 
 /// <summary>
 /// ViewModel for the Devices options page: the Enable networking switch, this Device's Device Name and Device ID,
-/// the Discovered Devices on the LAN (with <b>Pair</b>) and the Peers with their status.
+/// the Discovered Devices on the LAN (with <b>Pair</b>) and the Peers with their status (with <b>Rename…</b> and <b>Unpair</b>).
 /// </summary>
 public partial class DevicesOptionsViewModel : ObservableObject
 {
@@ -21,8 +21,10 @@ public partial class DevicesOptionsViewModel : ObservableObject
     private readonly IDeviceIdentityService _identityService;
     private readonly ILogger<DevicesOptionsViewModel> _logger;
     private readonly IPairingDialogService _pairingDialogs;
+    private readonly IPeerDialogService _peerDialogs;
     private readonly IPeerStatusService _peerStatus;
     private readonly IPeerStore _peerStore;
+    private readonly IUnpairingService _unpairing;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDeviceId))]
@@ -64,6 +66,8 @@ public partial class DevicesOptionsViewModel : ObservableObject
         IPeerStore peerStore,
         IPeerStatusService peerStatus,
         IPairingDialogService pairingDialogs,
+        IPeerDialogService peerDialogs,
+        IUnpairingService unpairing,
         ILogger<DevicesOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -72,6 +76,8 @@ public partial class DevicesOptionsViewModel : ObservableObject
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
         _peerStatus = peerStatus ?? throw new ArgumentNullException(nameof(peerStatus));
         _pairingDialogs = pairingDialogs ?? throw new ArgumentNullException(nameof(pairingDialogs));
+        _peerDialogs = peerDialogs ?? throw new ArgumentNullException(nameof(peerDialogs));
+        _unpairing = unpairing ?? throw new ArgumentNullException(nameof(unpairing));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -212,6 +218,59 @@ public partial class DevicesOptionsViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Pairing with {DeviceName} failed", item.DeviceName);
+        }
+
+        RefreshLists();
+    }
+
+    [RelayCommand]
+    private async Task RenamePeerAsync(PeerItem? item)
+    {
+        if (item == null)
+            return;
+
+        var alias = _peerDialogs.AskPeerAlias(item.Peer);
+        if (alias == null)
+            return;
+
+        try
+        {
+            await _peerStore.SetAliasAsync(item.Peer.DeviceId, alias);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Renaming Peer {DeviceName} failed", item.DeviceName);
+        }
+    }
+
+    [RelayCommand]
+    private async Task UnpairAsync(PeerItem? item)
+    {
+        if (item == null || !_peerDialogs.ConfirmUnpair(item.Peer))
+            return;
+
+        try
+        {
+            await _unpairing.UnpairAsync(item.Peer.DeviceId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unpairing {DeviceName} failed", item.DeviceName);
+        }
+
+        RefreshLists();
+    }
+
+    [RelayCommand]
+    private async Task AddDeviceManuallyAsync()
+    {
+        try
+        {
+            await _pairingDialogs.AddDeviceManuallyAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Adding a Device manually failed");
         }
 
         RefreshLists();

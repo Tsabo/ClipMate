@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
+using System.Net.Sockets;
 using ClipMate.Networking.Protocol;
+using Grpc.Core;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Networking;
@@ -16,18 +18,44 @@ namespace ClipMate.Networking;
 public sealed record PeerProbeReply(string DeviceName, uint ProtocolMajor, uint ProtocolMinor, IReadOnlyList<string> Capabilities);
 
 /// <summary>
+/// The outcome of probing a Peer at one address.
+/// </summary>
+/// <param name="Reply">What the Peer reported in Hello, or <c>null</c> if it did not answer.</param>
+/// <param name="Unpaired">
+/// <c>true</c> if the Device answered that this Device is not its Peer (it unpaired this Device, or its Pairing never completed there).
+/// </param>
+public sealed record PeerProbeResult(PeerProbeReply? Reply, bool Unpaired)
+{
+    /// <summary>
+    /// The Peer could not be reached there (or is not that Device).
+    /// </summary>
+    public static PeerProbeResult Unreachable { get; } = new(null, false);
+
+    /// <summary>
+    /// The Device is no longer paired with this Device.
+    /// </summary>
+    public static PeerProbeResult NotPaired { get; } = new(null, true);
+
+    /// <summary>
+    /// The Peer answered Hello with <paramref name="reply" />.
+    /// </summary>
+    public static PeerProbeResult Reached(PeerProbeReply reply) => new(reply, false);
+}
+
+/// <summary>
 /// Connects to a Peer at one address and exchanges Hello.
 /// </summary>
 public interface IPeerProbe
 {
     /// <summary>
-    /// Returns what the Peer reported, or <c>null</c> if it could not be reached there (or is not that Peer).
+    /// Returns what the Peer reported; if it refused this Device, whether that is because this Device is no longer its Peer.
     /// </summary>
-    Task<PeerProbeReply?> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken);
+    Task<PeerProbeResult> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// <see cref="IPeerProbe" /> over a Peer connection (<see cref="PeerChannelFactory.CreateForPeer" />).
+/// <see cref="IPeerProbe" /> over a Peer connection (<see cref="PeerChannelFactory.CreateForPeer" />). If the Device is
+/// reached but refuses the Peer connection, asks it over a pairing connection whether this Device is still its Peer.
 /// </summary>
 public sealed class GrpcPeerProbe : IPeerProbe
 {
@@ -42,7 +70,7 @@ public sealed class GrpcPeerProbe : IPeerProbe
     }
 
     /// <inheritdoc />
-    public async Task<PeerProbeReply?> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken)
+    public async Task<PeerProbeResult> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken)
     {
         try
         {
@@ -57,35 +85,49 @@ public sealed class GrpcPeerProbe : IPeerProbe
             request.Capabilities.AddRange(PeerProtocol.Capabilities);
 
             var reply = await client.HelloAsync(request, deadline: DateTime.UtcNow + _timeout, cancellationToken: cancellationToken);
-            return new PeerProbeReply(reply.DeviceName, reply.ProtocolMajor, reply.ProtocolMinor, reply.Capabilities.ToList());
+            return PeerProbeResult.Reached(new PeerProbeReply(reply.DeviceName, reply.ProtocolMajor, reply.ProtocolMinor, reply.Capabilities.ToList()));
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.ToShortDisplayString(), address);
-            return null;
+            if (IsConnectFailure(ex))
+                return PeerProbeResult.Unreachable;
+        }
+
+        return await CheckPairingAsync(identity, peer, address, cancellationToken);
+    }
+
+    private async Task<PeerProbeResult> CheckPairingAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // A pairing connection checks that the other end is this Peer, so only the Peer itself can say it unpaired.
+            using var channel = PeerChannelFactory.CreateForPairing(address, identity, peer);
+            var client = new PeerService.PeerServiceClient(channel);
+            var reply = await client.CheckPairingAsync(new CheckPairingRequest(), deadline: DateTime.UtcNow + _timeout,
+                cancellationToken: cancellationToken);
+            return reply.Paired ? PeerProbeResult.Unreachable : PeerProbeResult.NotPaired;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug(ex, "Could not check Pairing with Peer {DeviceId} at {Address}", peer.ToShortDisplayString(), address);
+            return PeerProbeResult.Unreachable;
         }
     }
-}
 
-/// <summary>
-/// Where to try to reach a Peer.
-/// </summary>
-internal static class PeerAddresses
-{
-    /// <summary>
-    /// The address the Peer currently announces on the LAN, then its last known addresses (most recent first).
-    /// </summary>
-    public static IEnumerable<string> GetCandidates(Peer peer, IDeviceDiscoveryService discovery)
+    // Nothing answered at the address (as opposed to a Device that answered but refused the connection).
+    private static bool IsConnectFailure(Exception exception)
     {
-        var announced = discovery.DiscoveredDevices.FirstOrDefault(p => p.DeviceId == peer.DeviceId)?.Endpoint.ToString();
-        if (announced != null)
-            yield return announced;
+        if (exception is RpcException { StatusCode: StatusCode.DeadlineExceeded })
+            return true;
 
-        foreach (var item in peer.Addresses)
+        for (var item = exception; item != null; item = item.InnerException)
         {
-            if (!string.Equals(item, announced, StringComparison.OrdinalIgnoreCase))
-                yield return item;
+            if (item is SocketException or TimeoutException)
+                return true;
         }
+
+        return exception is RpcException { Status.DebugException: { } debug } && IsConnectFailure(debug);
     }
 }
 
@@ -96,6 +138,10 @@ internal static class PeerAddresses
 public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 {
     private static readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
+
+    // Pairing completes on the approving Device a moment before the requesting Device, which refuses it until then;
+    // a Peer this new is not unpaired for saying this Device is not its Peer yet.
+    private static readonly TimeSpan _pairingGracePeriod = TimeSpan.FromMinutes(1);
 
     // While a Peer stays online, its last seen time is written to clipmate.toml at most this often.
     private static readonly TimeSpan _lastSeenPersistInterval = TimeSpan.FromMinutes(10);
@@ -134,6 +180,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         _identity = identity;
         _cancellation = new CancellationTokenSource();
         _peerStore.PeersChanged += OnChanged;
+        _peerStore.PeerRemoved += OnPeerRemoved;
         _discovery.DiscoveredDevicesChanged += OnChanged;
         _loop = RunAsync(_cancellation.Token);
         return Task.CompletedTask;
@@ -147,6 +194,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
             return;
 
         _peerStore.PeersChanged -= OnChanged;
+        _peerStore.PeerRemoved -= OnPeerRemoved;
         _discovery.DiscoveredDevicesChanged -= OnChanged;
         await cancellation.CancelAsync();
         try
@@ -224,6 +272,8 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 
     private void OnChanged(object? sender, EventArgs e) => _ = RefreshSafelyAsync();
 
+    private void OnPeerRemoved(object? sender, PeerRemovedEventArgs e) => _statuses.TryRemove(e.DeviceId, out _);
+
     private async Task RefreshSafelyAsync()
     {
         try
@@ -238,9 +288,17 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 
     private async Task CheckAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken)
     {
-        foreach (var address in PeerAddresses.GetCandidates(peer, _discovery))
+        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
         {
-            var reply = await _probe.ProbeAsync(identity, peer.DeviceId, address, cancellationToken);
+            var result = await _probe.ProbeAsync(identity, peer.DeviceId, address, cancellationToken);
+            if (result.Unpaired && !IsCompletingPairing(peer))
+            {
+                _logger.LogInformation("Peer {DeviceId} no longer has this Device as a Peer; unpairing it here too", peer.DeviceId.ToDisplayString());
+                await _peerStore.RemoveAsync(peer.DeviceId, cancellationToken);
+                return;
+            }
+
+            var reply = result.Reply;
             if (reply == null)
                 continue;
 
@@ -256,6 +314,8 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         SetStatus(peer.DeviceId, PeerConnectionStatus.Offline);
     }
 
+    private static bool IsCompletingPairing(Peer peer) =>
+        peer.PairedAt is { } pairedAt && DateTime.Now - pairedAt < _pairingGracePeriod;
 
     private static bool NeedsRecording(Peer peer, string deviceName, string address) =>
         peer.DeviceName != deviceName

@@ -11,14 +11,15 @@ namespace ClipMate.App.ViewModels;
 /// <param name="ShortDeviceId">The short form of its Device ID.</param>
 /// <param name="DeviceId">The full, grouped Device ID (shown as a tooltip).</param>
 /// <param name="StatusText">Online, offline ("last seen ...") or "Update required".</param>
-public sealed record PeerItem(string DisplayName, string DeviceName, string ShortDeviceId, string DeviceId, string StatusText)
+/// <param name="Peer">The Peer itself.</param>
+public sealed record PeerItem(string DisplayName, string DeviceName, string ShortDeviceId, string DeviceId, string StatusText, Peer Peer)
 {
     /// <summary>
     /// Creates the list item for <paramref name="peer" />.
     /// </summary>
     public static PeerItem From(Peer peer, PeerConnectionStatus status, DateTime now) =>
         new(peer.DisplayName, peer.DeviceName, peer.DeviceId.ToShortDisplayString(), peer.DeviceId.ToDisplayString(),
-            FormatStatus(status, peer.LastSeen, now));
+            FormatStatus(status, peer.LastSeen, now), peer);
 
     /// <summary>
     /// Describes a Peer's status, e.g. "Online", "Offline (last seen 2 h ago)" or "Update required".

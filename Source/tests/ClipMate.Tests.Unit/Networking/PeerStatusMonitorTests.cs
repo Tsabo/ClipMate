@@ -14,6 +14,7 @@ namespace ClipMate.Tests.Unit.Networking;
 public class PeerStatusMonitorTests
 {
     private static readonly DeviceId _laptop = DeviceId.FromCertificateBytes([1]);
+    private ClipMateConfiguration _configuration = null!;
     private IDeviceDiscoveryService _discovery = null!;
     private DeviceIdentity _identity = null!;
     private PeerStatusMonitor _monitor = null!;
@@ -24,7 +25,8 @@ public class PeerStatusMonitorTests
     public async Task Setup()
     {
         var configurationService = A.Fake<IConfigurationService>();
-        A.CallTo(() => configurationService.Configuration).Returns(new ClipMateConfiguration());
+        _configuration = new ClipMateConfiguration();
+        A.CallTo(() => configurationService.Configuration).Returns(_configuration);
         _store = new PeerStore(configurationService, NullLogger<PeerStore>.Instance);
         await _store.SavePairedAsync(_laptop, "LAPTOP", null, "192.168.1.20:47823");
 
@@ -105,6 +107,39 @@ public class PeerStatusMonitorTests
     }
 
     [Test]
+    public async Task RefreshAsync_PeerSaysThisDeviceIsNotItsPeer_UnpairsItHere()
+    {
+        // Arrange
+        _probe.NotPairedAt.Add("192.168.1.20:47823");
+        _configuration.Peers.Single().PairedAt = DateTime.Now.AddHours(-1);
+        var removed = new List<DeviceId>();
+        _store.PeerRemoved += (_, e) => removed.Add(e.DeviceId);
+        await _monitor.StartAsync(_identity);
+
+        // Act
+        await _monitor.RefreshAsync();
+
+        // Assert
+        await Assert.That(_store.IsPaired(_laptop)).IsFalse();
+        await Assert.That(removed).IsEquivalentTo([_laptop]);
+        await Assert.That(_monitor.GetStatus(_laptop)).IsEqualTo(PeerConnectionStatus.Unknown);
+    }
+
+    [Test]
+    public async Task RefreshAsync_JustPairedPeerSaysThisDeviceIsNotItsPeerYet_StaysPaired()
+    {
+        // Arrange: the Peer is still completing Pairing on its side.
+        _probe.NotPairedAt.Add("192.168.1.20:47823");
+        await _monitor.StartAsync(_identity);
+
+        // Act
+        await _monitor.RefreshAsync();
+
+        // Assert
+        await Assert.That(_store.IsPaired(_laptop)).IsTrue();
+    }
+
+    [Test]
     public async Task StopAsync_ForgetsStatuses()
     {
         // Arrange
@@ -146,7 +181,11 @@ public class PeerStatusMonitorTests
     {
         public Dictionary<string, PeerProbeReply> Replies { get; } = [];
 
-        public Task<PeerProbeReply?> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken) =>
-            Task.FromResult(Replies.GetValueOrDefault(address));
+        public HashSet<string> NotPairedAt { get; } = [];
+
+        public Task<PeerProbeResult> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken) =>
+            Task.FromResult(NotPairedAt.Contains(address) ? PeerProbeResult.NotPaired
+                : Replies.TryGetValue(address, out var reply) ? PeerProbeResult.Reached(reply)
+                : PeerProbeResult.Unreachable);
     }
 }

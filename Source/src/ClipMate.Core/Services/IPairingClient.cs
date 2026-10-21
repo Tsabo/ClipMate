@@ -44,6 +44,11 @@ public interface IPairingSession : IAsyncDisposable
     string VerificationCode { get; }
 
     /// <summary>
+    /// Gets the Device Name the other Device reported in its answer, or <c>null</c> until it has answered.
+    /// </summary>
+    string? PeerDeviceName { get; }
+
+    /// <summary>
     /// Completes with the other Device's answer: <see cref="PairingStatus.Accepted" /> or why it did not accept.
     /// </summary>
     Task<PairingStatus> PeerResponse { get; }

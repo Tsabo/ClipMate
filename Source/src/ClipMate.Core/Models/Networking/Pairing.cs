@@ -30,7 +30,7 @@ public sealed record PairingDecision(bool Accepted, string? Alias)
 /// The Device this Device asks to pair with.
 /// </summary>
 /// <param name="DeviceId">The Device ID it must prove with its certificate.</param>
-/// <param name="DeviceName">Its Device Name (e.g. from its discovery announcement).</param>
+/// <param name="DeviceName">Its Device Name (e.g. from its discovery announcement), or empty if not known yet (added manually).</param>
 /// <param name="Address">Where its Peer listener is (<c>host:port</c>).</param>
 public sealed record PairingTarget(DeviceId DeviceId, string DeviceName, string Address);
 
@@ -54,7 +54,7 @@ public enum PairingStatus
     /// <summary>The other Device is already handling other pairing requests.</summary>
     Busy,
 
-    /// <summary>The other Device could not be reached, or it is not the Device with the expected Device ID.</summary>
+    /// <summary>The other Device could not be reached.</summary>
     Unreachable,
 
     /// <summary>The request expired before both users accepted.</summary>
@@ -65,4 +65,9 @@ public enum PairingStatus
 
     /// <summary>Pairing failed for another reason.</summary>
     Failed,
+
+    /// <summary>
+    /// The Device at the address presented a certificate that does not match the expected Device ID, so the connection was refused.
+    /// </summary>
+    WrongDevice,
 }

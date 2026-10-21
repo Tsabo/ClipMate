@@ -25,6 +25,8 @@ public class SharedDatabaseProtocolTests
             "PeerService.Hello",
             "PeerService.RequestPairing",
             "PeerService.ConfirmPairing",
+            "PeerService.Unpair",
+            "PeerService.CheckPairing",
             "SharedDatabaseAccess.ListSharedDatabases",
             "SharedDatabaseAccess.GetCollectionTree",
         ]);

@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         // Registered after the networking default, so the prompt replaces the decline-all handler.
         services.AddSingleton<IPairingApprovalHandler, PairingApprovalService>();
         services.AddSingleton<IPairingDialogService, PairingDialogService>();
+        services.AddSingleton<IPeerDialogService, PeerDialogService>();
 
         // Register MVVM Toolkit Messenger as singleton
         // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly

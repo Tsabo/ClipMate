@@ -50,6 +50,7 @@ internal sealed class PairingSession : IPairingSession
     private readonly IPeerStore _peerStore;
     private int _accepted;
     private string? _peerDeviceName;
+    private int _wrongDevice;
 
     public PairingSession(DeviceIdentity identity, string deviceName, int listeningPort, PairingTarget target, IPeerStore peerStore,
         ILogger<PairingSession> logger)
@@ -58,7 +59,7 @@ internal sealed class PairingSession : IPairingSession
         _peerStore = peerStore;
         _logger = logger;
         VerificationCode = Core.Models.Networking.VerificationCode.Derive(identity.DeviceId, target.DeviceId);
-        _channel = PeerChannelFactory.CreateForPairing(target.Address, identity, target.DeviceId);
+        _channel = PeerChannelFactory.CreateForPairing(target.Address, identity, target.DeviceId, OnWrongDevice);
         _client = new PeerService.PeerServiceClient(_channel);
         PeerResponse = RequestAsync(deviceName, listeningPort);
     }
@@ -68,6 +69,9 @@ internal sealed class PairingSession : IPairingSession
 
     /// <inheritdoc />
     public string VerificationCode { get; }
+
+    /// <inheritdoc />
+    public string? PeerDeviceName => Volatile.Read(ref _peerDeviceName);
 
     /// <inheritdoc />
     public Task<PairingStatus> PeerResponse { get; }
@@ -103,7 +107,8 @@ internal sealed class PairingSession : IPairingSession
             return ToStatus(ex);
         }
 
-        await _peerStore.SavePairedAsync(Target.DeviceId, _peerDeviceName ?? Target.DeviceName, alias, Target.Address, CancellationToken.None);
+        var deviceName = PeerDeviceName ?? (string.IsNullOrWhiteSpace(Target.DeviceName) ? Target.Address : Target.DeviceName);
+        await _peerStore.SavePairedAsync(Target.DeviceId, deviceName, alias, Target.Address, CancellationToken.None);
         return PairingStatus.Paired;
     }
 
@@ -148,7 +153,7 @@ internal sealed class PairingSession : IPairingSession
                 ListeningPort = (uint)Math.Max(0, listeningPort),
             }, deadline: DateTime.UtcNow + _requestTimeout, cancellationToken: _cancellation.Token);
 
-            _peerDeviceName = string.IsNullOrWhiteSpace(reply.DeviceName) ? null : reply.DeviceName.Trim();
+            Volatile.Write(ref _peerDeviceName, string.IsNullOrWhiteSpace(reply.DeviceName) ? null : reply.DeviceName.Trim());
             return reply.Result switch
             {
                 PairResult.Accepted => PairingStatus.Accepted,
@@ -165,7 +170,7 @@ internal sealed class PairingSession : IPairingSession
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Pairing request to {Address} failed", Target.Address);
-            return PairingStatus.Unreachable;
+            return IsWrongDevice ? PairingStatus.WrongDevice : PairingStatus.Unreachable;
         }
         catch (OperationCanceledException)
         {
@@ -173,10 +178,24 @@ internal sealed class PairingSession : IPairingSession
         }
     }
 
+    private bool IsWrongDevice => Volatile.Read(ref _wrongDevice) != 0;
+
+    private void OnWrongDevice(DeviceId presented)
+    {
+        if (Interlocked.Exchange(ref _wrongDevice, 1) == 0)
+        {
+            _logger.LogWarning("The Device at {Address} has Device ID {PresentedDeviceId}, not {ExpectedDeviceId}; connection refused",
+                Target.Address, presented.ToDisplayString(), Target.DeviceId.ToDisplayString());
+        }
+    }
+
     private PairingStatus ToStatus(RpcException exception)
     {
         if (_cancellation.IsCancellationRequested || exception.StatusCode == StatusCode.Cancelled)
             return PairingStatus.Cancelled;
+
+        if (IsWrongDevice)
+            return PairingStatus.WrongDevice;
 
         _logger.LogWarning("Pairing with {Address} failed: {Status}", Target.Address, exception.Status);
         return exception.StatusCode switch

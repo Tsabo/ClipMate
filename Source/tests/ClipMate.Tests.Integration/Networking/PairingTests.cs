@@ -17,7 +17,7 @@ namespace ClipMate.Tests.Integration.Networking;
 /// Peer records and (scripted) user.
 /// </summary>
 [NotInParallel]
-public class PairingTests
+public partial class PairingTests
 {
     private static string? _identityDirectory;
     private static DeviceIdentity? _laptopIdentity;
@@ -118,10 +118,10 @@ public class PairingTests
         var reverse = await probe.ProbeAsync(_desktop.Identity, _laptop.DeviceId, _laptop.Address, CancellationToken.None);
 
         // Assert
-        await Assert.That(reply).IsNotNull();
-        await Assert.That(reply!.DeviceName).IsEqualTo("DESKTOP");
-        await Assert.That(reply.ProtocolMajor).IsEqualTo(PeerProtocol.Major);
-        await Assert.That(reverse).IsNotNull(); // both sides recorded each other
+        await Assert.That(reply.Reply).IsNotNull();
+        await Assert.That(reply.Reply!.DeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(reply.Reply.ProtocolMajor).IsEqualTo(PeerProtocol.Major);
+        await Assert.That(reverse.Reply).IsNotNull(); // both sides recorded each other
     }
 
     [Test]
@@ -216,7 +216,7 @@ public class PairingTests
     }
 
     [Test]
-    public async Task Pairing_WithTheWrongDeviceId_IsUnreachableAndAsksNoOne()
+    public async Task Pairing_WithTheWrongDeviceId_IsRefusedAsTheWrongDeviceAndAsksNoOne()
     {
         // Arrange: the laptop expects some other Device at the desktop's address.
         var target = _desktop.AsTarget() with { DeviceId = DeviceId.FromCertificateBytes([42]) };
@@ -226,8 +226,60 @@ public class PairingTests
         var status = await session.AcceptAsync(null);
 
         // Assert
-        await Assert.That(status).IsEqualTo(PairingStatus.Unreachable);
+        await Assert.That(status).IsEqualTo(PairingStatus.WrongDevice);
         await Assert.That(_desktop.User.Requests).IsEmpty();
+        await Assert.That(_laptop.Store.GetPeers()).IsEmpty();
+    }
+
+    [Test]
+    public async Task Pairing_WithNothingListeningAtTheAddress_IsUnreachable()
+    {
+        // Arrange: an address where no Device listens.
+        int port;
+        using (var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0))
+        {
+            listener.Start();
+            port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+
+        var target = new PairingTarget(_desktop.DeviceId, string.Empty, $"127.0.0.1:{port}");
+        await using var session = _laptop.PairingClient.Start(target);
+
+        // Act
+        var status = await session.AcceptAsync(null);
+
+        // Assert
+        await Assert.That(status).IsEqualTo(PairingStatus.Unreachable);
+    }
+
+    [Test]
+    public async Task ManualPairing_ByHostNameAndDeviceId_RecordsTheSamePeerAndRemembersTheEnteredAddress()
+    {
+        // Arrange: added manually, so only the address and Device ID are known (no Device Name yet).
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        var address = $"localhost:{_desktop.ListeningPort}";
+        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address));
+
+        // Act
+        var response = await session.PeerResponse;
+        var status = await session.AcceptAsync(null);
+
+        // Assert
+        await Assert.That(response).IsEqualTo(PairingStatus.Accepted);
+        await Assert.That(session.PeerDeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(status).IsEqualTo(PairingStatus.Paired);
+        await Assert.That(_desktop.User.Requests.Single().VerificationCode).IsEqualTo(session.VerificationCode);
+
+        var desktopOnLaptop = _laptop.Store.Find(_desktop.DeviceId);
+        await Assert.That(desktopOnLaptop).IsNotNull();
+        await Assert.That(desktopOnLaptop!.DeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(desktopOnLaptop.Addresses).IsEquivalentTo([address]);
+        await Assert.That(_desktop.Store.IsPaired(_laptop.DeviceId)).IsTrue();
+
+        // The remembered address reaches the Peer again.
+        var probe = new GrpcPeerProbe(_laptop.ConfigurationService, NullLogger<GrpcPeerProbe>.Instance);
+        var reply = await probe.ProbeAsync(_laptop.Identity, _desktop.DeviceId, desktopOnLaptop.Addresses[0], CancellationToken.None);
+        await Assert.That(reply).IsNotNull();
     }
 
     /// <summary>
@@ -265,7 +317,8 @@ public class PairingTests
 
     private sealed class TestDevice : IAsyncDisposable, ILocalDevice
     {
-        private IPeerHost _host = null!;
+        private IPeerHost? _host;
+        private bool _monitorStarted;
 
         private TestDevice(DeviceIdentity identity, string deviceName)
         {
@@ -276,6 +329,11 @@ public class PairingTests
             A.CallTo(() => ConfigurationService.Configuration).Returns(configuration);
             Store = new PeerStore(ConfigurationService, NullLogger<PeerStore>.Instance);
             PairingClient = new PeerPairingClient(this, Store, NullLoggerFactory.Instance);
+            var discovery = A.Fake<IDeviceDiscoveryService>();
+            A.CallTo(() => discovery.DiscoveredDevices).Returns([]);
+            Unpairing = new PeerUnpairingService(this, Store, discovery, NullLogger<PeerUnpairingService>.Instance);
+            Monitor = new PeerStatusMonitor(Store, discovery, new GrpcPeerProbe(ConfigurationService, NullLogger<GrpcPeerProbe>.Instance),
+                NullLogger<PeerStatusMonitor>.Instance);
         }
 
         public DeviceIdentity Identity { get; }
@@ -284,7 +342,7 @@ public class PairingTests
 
         public string DeviceName { get; }
 
-        public int? ListeningPort => _host.ListeningPort;
+        public int? ListeningPort => _host?.ListeningPort;
 
         DeviceIdentity? ILocalDevice.Identity => Identity;
 
@@ -298,21 +356,79 @@ public class PairingTests
 
         public IPairingClient PairingClient { get; }
 
-        public async ValueTask DisposeAsync() => await _host.DisposeAsync();
+        public IUnpairingService Unpairing { get; }
+
+        public PeerStatusMonitor Monitor { get; }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Monitor.DisposeAsync();
+            await StopHostAsync();
+        }
 
         public static async Task<TestDevice> StartAsync(DeviceIdentity identity, string deviceName)
         {
             var device = new TestDevice(identity, deviceName);
-
-            // Loopback only, so the test run never triggers a Windows Firewall prompt.
-            var options = new PeerHostOptions { ListenAddress = IPAddress.Loopback };
-            device._host = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(device.Store), device.Store, device.User,
-                device.ConfigurationService, A.Fake<ISharedDatabaseService>(), NullLoggerFactory.Instance, options).Create();
-            await device._host.StartAsync(identity, 0);
+            await device.StartHostAsync();
             return device;
         }
 
+        /// <summary>
+        /// Starts the Peer listener on a new loopback port.
+        /// </summary>
+        public async Task StartHostAsync()
+        {
+            // Loopback only, so the test run never triggers a Windows Firewall prompt.
+            var options = new PeerHostOptions { ListenAddress = IPAddress.Loopback };
+            _host = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(Store), Store, User,
+                ConfigurationService, A.Fake<ISharedDatabaseService>(), NullLoggerFactory.Instance, options).Create();
+            await _host.StartAsync(Identity, 0);
+        }
+
+        /// <summary>
+        /// Stops the Peer listener, as if the Device went offline.
+        /// </summary>
+        public async Task StopHostAsync()
+        {
+            if (_host != null)
+                await _host.DisposeAsync();
+
+            _host = null;
+        }
+
+        /// <summary>
+        /// Checks every Peer once, as the Peer status monitor does in the background.
+        /// </summary>
+        public async Task CheckPeersAsync()
+        {
+            if (!_monitorStarted)
+            {
+                await Monitor.StartAsync(Identity);
+                _monitorStarted = true;
+            }
+
+            await Monitor.RefreshAsync();
+        }
+
+        /// <summary>
+        /// Moves every Pairing on this Device an hour into the past, so it is no longer completing.
+        /// </summary>
+        public void PretendPairedLongAgo()
+        {
+            foreach (var item in ConfigurationService.Configuration.Peers)
+                item.PairedAt = DateTime.Now.AddHours(-1);
+        }
+
         public PairingTarget AsTarget() => new(DeviceId, DeviceName, Address);
+
+        public async Task PairWithAsync(TestDevice other)
+        {
+            other.User.Answer = PairingDecision.Accept(null);
+            await using var session = PairingClient.Start(other.AsTarget());
+            var status = await session.AcceptAsync(null);
+            if (status != PairingStatus.Paired)
+                throw new InvalidOperationException($"Pairing failed: {status}");
+        }
 
         public async Task<HelloReply> HelloAsync(TestDevice other)
         {

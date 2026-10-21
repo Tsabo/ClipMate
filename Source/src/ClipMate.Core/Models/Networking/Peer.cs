@@ -24,4 +24,9 @@ public sealed record Peer(
     /// The Peer's Shared Databases as last reported by the Peer.
     /// </summary>
     public IReadOnlyList<SharedDatabase> SharedDatabases { get; init; } = [];
+
+    /// <summary>
+    /// When Pairing with the Peer completed on this Device (local time), or <c>null</c> if unknown.
+    /// </summary>
+    public DateTime? PairedAt { get; init; }
 }

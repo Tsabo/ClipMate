@@ -155,6 +155,31 @@ public class RemoteDatabaseServiceTests
     }
 
     [Test]
+    public async Task PeerStoreRemoveAsync_Unpairing_RemovesThePeersRemoteDatabases()
+    {
+        // Arrange: the real Peer store, as unpairing (IUnpairingService) uses it.
+        var configurationService = A.Fake<IConfigurationService>();
+        A.CallTo(() => configurationService.Configuration).Returns(_configuration);
+        var store = new ClipMate.Data.Services.PeerStore(configurationService, NullLogger<ClipMate.Data.Services.PeerStore>.Instance);
+        await store.SavePairedAsync(_laptop, "LAPTOP", null, null);
+        await store.RecordSharedDatabasesAsync(_laptop, [_work]);
+        var localDevice = A.Fake<ILocalDevice>();
+        A.CallTo(() => localDevice.Identity).Returns(_identity);
+        using var service = new RemoteDatabaseService(store, _status, localDevice, configurationService, _client, new NoTimers(),
+            NullLogger<RemoteDatabaseService>.Instance);
+        await Assert.That(service.GetRemoteDatabases()).IsNotEmpty();
+        var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.RemoteDatabasesChanged += (_, _) => raised.TrySetResult();
+
+        // Act
+        await store.RemoveAsync(_laptop);
+        await raised.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(service.GetRemoteDatabases()).IsEmpty();
+    }
+
+    [Test]
     public async Task StatusChanged_PeerComesOnline_FetchesItsSharedDatabases()
     {
         // Arrange
@@ -285,6 +310,18 @@ public class RemoteDatabaseServiceTests
 
         public event EventHandler? PeersChanged;
 
+        public event EventHandler<PeerRemovedEventArgs>? PeerRemoved;
+
+        public Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> RemoveAsync(DeviceId deviceId, CancellationToken cancellationToken = default)
+        {
+            var paired = IsPaired(deviceId);
+            Remove(deviceId);
+            return Task.FromResult(paired);
+        }
+
         public IReadOnlyList<Peer> GetPeers()
         {
             lock (_lock)
@@ -326,6 +363,7 @@ public class RemoteDatabaseServiceTests
             lock (_lock)
                 _peers = [.. _peers.Where(p => p.DeviceId != deviceId)];
 
+            PeerRemoved?.Invoke(this, new PeerRemovedEventArgs(deviceId));
             PeersChanged?.Invoke(this, EventArgs.Empty);
         }
     }

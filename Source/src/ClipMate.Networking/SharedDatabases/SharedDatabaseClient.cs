@@ -89,7 +89,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         ArgumentNullException.ThrowIfNull(peer);
 
         Exception? lastError = null;
-        foreach (var address in PeerAddresses.GetCandidates(peer, _discovery))
+        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
         {
             cancellationToken.ThrowIfCancellationRequested();
             try

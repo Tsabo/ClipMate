@@ -69,6 +69,7 @@ public class PeerStoreTests
         // Act
         await store.RecordSeenAsync(_laptop, "LAPTOP-02", "192.168.1.21:47823", DateTime.Now);
         await store.SavePairedAsync(_laptop, "LAPTOP-02", "Laptop", null);
+        await store.SetAliasAsync(_laptop, "Travel laptop");
 
         // Assert
         await Assert.That(store.Find(_laptop)!.SharedDatabases).IsEquivalentTo([work]);
@@ -163,6 +164,142 @@ public class PeerStoreTests
         // Assert
         await Assert.That(store.IsPaired(_desktop)).IsFalse();
         await Assert.That(store.GetPeers()).IsEmpty();
+    }
+
+    [Test]
+    public async Task SetAliasAsync_ChangesOnlyTheLocalLabelAndPersists()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, "192.168.1.20:47823");
+
+        // Act
+        await store.SetAliasAsync(_laptop, "  Travel laptop ");
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        var peer = reloaded.Find(_laptop)!;
+        await Assert.That(peer.Alias).IsEqualTo("Travel laptop");
+        await Assert.That(peer.DisplayName).IsEqualTo("Travel laptop");
+        await Assert.That(peer.DeviceName).IsEqualTo("LAPTOP-01");
+        await Assert.That(peer.Addresses).IsEquivalentTo(["192.168.1.20:47823"]);
+    }
+
+    [Test]
+    public async Task SetAliasAsync_Blank_ClearsTheAliasAndFollowsTheLiveDeviceName()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", "Travel laptop", null);
+
+        // Act
+        await store.SetAliasAsync(_laptop, " ");
+        await store.RecordSeenAsync(_laptop, "LAPTOP-RENAMED", null, DateTime.Now);
+
+        // Assert
+        var peer = store.Find(_laptop)!;
+        await Assert.That(peer.Alias).IsNull();
+        await Assert.That(peer.DisplayName).IsEqualTo("LAPTOP-RENAMED");
+    }
+
+    [Test]
+    public async Task SetAliasAsync_AliasesNeedNotBeUnique()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        await store.SavePairedAsync(_desktop, "DESKTOP", null, null);
+
+        // Act
+        await store.SetAliasAsync(_laptop, "Work");
+        await store.SetAliasAsync(_desktop, "Work");
+
+        // Assert
+        await Assert.That(store.GetPeers().Select(p => p.DisplayName)).IsEquivalentTo(["Work", "Work"]);
+    }
+
+    [Test]
+    public async Task SetAliasAsync_RaisesPeersChanged()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var raised = 0;
+        store.PeersChanged += (_, _) => raised++;
+
+        // Act
+        await store.SetAliasAsync(_laptop, "Travel laptop");
+
+        // Assert
+        await Assert.That(raised).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SetAliasAsync_UnpairedDevice_DoesNotAddIt()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+
+        // Act
+        await store.SetAliasAsync(_desktop, "Desk");
+
+        // Assert
+        await Assert.That(store.GetPeers()).IsEmpty();
+    }
+
+    [Test]
+    public async Task RemoveAsync_UnpairsTheDeviceAcrossRestarts()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        await store.SavePairedAsync(_desktop, "DESKTOP", null, null);
+
+        // Act
+        var removed = await store.RemoveAsync(_laptop);
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        await Assert.That(removed).IsTrue();
+        await Assert.That(store.IsPaired(_laptop)).IsFalse();
+        await Assert.That(reloaded.IsPaired(_laptop)).IsFalse();
+        await Assert.That(reloaded.GetPeers().Select(p => p.DeviceId)).IsEquivalentTo([_desktop]);
+    }
+
+    [Test]
+    public async Task RemoveAsync_RaisesPeerRemovedAndPeersChanged()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        DeviceId? removedId = null;
+        var changed = 0;
+        store.PeerRemoved += (_, e) => removedId = e.DeviceId;
+        store.PeersChanged += (_, _) => changed++;
+
+        // Act
+        await store.RemoveAsync(_laptop);
+
+        // Assert
+        await Assert.That(removedId).IsEqualTo(_laptop);
+        await Assert.That(changed).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RemoveAsync_UnpairedDevice_ReturnsFalseAndRaisesNothing()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        var raised = 0;
+        store.PeerRemoved += (_, _) => raised++;
+        store.PeersChanged += (_, _) => raised++;
+
+        // Act
+        var removed = await store.RemoveAsync(_laptop);
+
+        // Assert
+        await Assert.That(removed).IsFalse();
+        await Assert.That(raised).IsEqualTo(0);
     }
 
     private async Task<PeerStore> CreateStoreAsync()
