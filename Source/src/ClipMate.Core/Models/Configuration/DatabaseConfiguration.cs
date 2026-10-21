@@ -118,4 +118,10 @@ public class DatabaseConfiguration
     /// Gets or sets the remote password for authentication (future use for PostgreSQL/SQL Server).
     /// </summary>
     public string? RemotePassword { get; set; }
+
+    /// <summary>
+    /// Copies every setting into a new configuration. Use this rather than copying settings one by one, which silently
+    /// drops settings added later.
+    /// </summary>
+    public DatabaseConfiguration Clone() => (DatabaseConfiguration)MemberwiseClone();
 }

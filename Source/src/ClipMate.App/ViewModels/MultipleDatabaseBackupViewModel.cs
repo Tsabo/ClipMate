@@ -119,26 +119,15 @@ public class MultipleDatabaseBackupViewModel : ObservableObject
     {
         return DatabaseItems
             .Where(p => p.IsSelected)
-            .Select(p => new DatabaseConfiguration
-            {
-                Name = p.OriginalConfig.Name,
-                FilePath = p.OriginalConfig.FilePath,
-                AutoLoad = p.OriginalConfig.AutoLoad,
-                MultiUser = p.OriginalConfig.MultiUser,
-                UserName = p.OriginalConfig.UserName,
-                AllowBackup = p.OriginalConfig.AllowBackup,
-                ReadOnly = p.OriginalConfig.ReadOnly,
-                PurgeDays = p.OriginalConfig.PurgeDays,
-                CleanupMethod = p.OriginalConfig.CleanupMethod,
-                TempFileLocation = p.OriginalConfig.TempFileLocation,
-                RemoteHost = p.OriginalConfig.RemoteHost,
-                RemoteUserId = p.OriginalConfig.RemoteUserId,
-                RemotePassword = p.OriginalConfig.RemotePassword,
-                SetOfflineDailyAt = p.OriginalConfig.SetOfflineDailyAt,
-                LastBackupDate = p.OriginalConfig.LastBackupDate,
-                BackupDirectory = SharedBackupDirectory,
-            })
+            .Select(p => WithBackupDirectory(p.OriginalConfig.Clone(), SharedBackupDirectory))
             .ToList();
+    }
+
+    // Every setting of the original, with only the backup folder updated
+    private static DatabaseConfiguration WithBackupDirectory(DatabaseConfiguration configuration, string backupDirectory)
+    {
+        configuration.BackupDirectory = backupDirectory;
+        return configuration;
     }
 }
 
