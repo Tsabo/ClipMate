@@ -41,7 +41,8 @@ public class ExplorerWindowViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>());
+            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<ISharedDatabaseService>());
 
         var clipListVm = new ClipListViewModel(
             mockCollectionService,

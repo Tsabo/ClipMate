@@ -60,6 +60,7 @@ public class CollectionTreeViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>());
+            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<ISharedDatabaseService>());
     }
 }

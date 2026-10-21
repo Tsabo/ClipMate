@@ -116,7 +116,8 @@ public class OptionsViewModelTests
             A.Fake<IDatabaseManager>(),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<DatabaseOptionsViewModel>>(),
-            A.Fake<IDatabaseIdService>());
+            A.Fake<IDatabaseIdService>(),
+            A.Fake<ISharedDatabaseService>());
 
         _advancedViewModel = new AdvancedOptionsViewModel(
             _mockConfigurationService,

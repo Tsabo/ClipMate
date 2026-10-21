@@ -25,6 +25,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<DatabaseOptionsViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly ISharedDatabaseService _sharedDatabaseService;
 
     /// <summary>
     /// The database definitions as they were when the configuration was loaded or last saved.
@@ -51,7 +52,8 @@ public partial class DatabaseOptionsViewModel : ObservableObject
         IDatabaseManager databaseManager,
         IMessenger messenger,
         ILogger<DatabaseOptionsViewModel> logger,
-        IDatabaseIdService databaseIdService)
+        IDatabaseIdService databaseIdService,
+        ISharedDatabaseService sharedDatabaseService)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _clipMate7ImportService = clipMate7ImportService ?? throw new ArgumentNullException(nameof(clipMate7ImportService));
@@ -59,6 +61,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
+        _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
     }
 
     /// <summary>
@@ -139,7 +142,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     [RelayCommand]
     private void AddDatabase()
     {
-        var dialog = new DatabaseEditDialog
+        var dialog = new DatabaseEditDialog(CreateSharingContext(null))
         {
             Owner = Application.Current.GetDialogOwner(),
         };
@@ -183,6 +186,14 @@ public partial class DatabaseOptionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The sharing check for the Database with <paramref name="databaseKey" /> (null for a new one), against the other
+    /// Databases as currently edited.
+    /// </summary>
+    private DatabaseSharingContext CreateSharingContext(string? databaseKey) =>
+        new(_sharedDatabaseService, _databaseIdService,
+            Databases.Where(p => p.DatabaseKey != databaseKey).Select(p => p.Configuration).ToList());
+
     private string AddDatabaseConfiguration(DatabaseConfiguration configuration)
     {
         // Generate a unique GUID-based key for the new database
@@ -206,7 +217,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
 
         var databaseId = await _databaseIdService.GetDatabaseIdAsync(SelectedDatabase.DatabaseKey);
 
-        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration, databaseId)
+        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration, databaseId, CreateSharingContext(SelectedDatabase.DatabaseKey))
         {
             Owner = Application.Current.GetDialogOwner(),
         };

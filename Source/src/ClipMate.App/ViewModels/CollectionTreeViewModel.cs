@@ -32,6 +32,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly IRemoteDatabaseService _remoteDatabaseService;
     private readonly IRemoteDatabaseTreeBuilder _remoteDatabaseTreeBuilder;
     private readonly SearchResultsCache _searchResultsCache;
+    private readonly ISharedDatabaseService _sharedDatabaseService;
     private int _loadVersion;
 
     public CollectionTreeViewModel(ICollectionService collectionService,
@@ -44,7 +45,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         SearchResultsCache searchResultsCache,
         IDatabaseIdService databaseIdService,
         IRemoteDatabaseService remoteDatabaseService,
-        IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder)
+        IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder,
+        ISharedDatabaseService sharedDatabaseService)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -57,6 +59,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _remoteDatabaseTreeBuilder = remoteDatabaseTreeBuilder ?? throw new ArgumentNullException(nameof(remoteDatabaseTreeBuilder));
+        _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
 
         // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
         _messenger.Register<SearchExecutedEvent>(this);
@@ -552,8 +555,11 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         var databaseId = await _databaseIdService.GetDatabaseIdAsync(databaseKey);
 
+        var otherDatabases = config.Databases.Where(p => p.Key != databaseKey).Select(p => p.Value).ToList();
+        var sharing = new DatabaseSharingContext(_sharedDatabaseService, _databaseIdService, otherDatabases);
+
         // Show the database edit dialog
-        var dialog = new DatabaseEditDialog(databaseConfig, databaseId)
+        var dialog = new DatabaseEditDialog(databaseConfig, databaseId, sharing)
         {
             Owner = Application.Current.GetDialogOwner(),
         };
@@ -565,6 +571,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         config.Databases[databaseKey] = dialog.DatabaseConfig;
 
         _logger.LogInformation("Updated database configuration: {DatabaseName}", dialog.DatabaseConfig.Name);
+
+        // Persist at once: sharing takes effect for Peers immediately and must survive a restart
+        await _configurationService.SaveAsync();
 
         // Reload the tree to reflect the changes
         _ = LoadAsync();

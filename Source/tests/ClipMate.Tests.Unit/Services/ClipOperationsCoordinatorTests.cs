@@ -66,7 +66,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>())));
+            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<ISharedDatabaseService>())));
 
         // Setup selected node to return a test database path (SelectedNode is not virtual, so use SetupGet with Object property)
         A.CallTo(() => _mockCollectionTreeViewModel.SelectedNode)

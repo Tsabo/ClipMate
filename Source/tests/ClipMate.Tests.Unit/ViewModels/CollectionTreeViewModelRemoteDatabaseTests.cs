@@ -44,7 +44,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
 
         _viewModel = new CollectionTreeViewModel(_collectionService, A.Fake<IFolderService>(), A.Fake<IClipService>(), configurationService,
             _messenger, localTree, NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(), A.Fake<IDatabaseIdService>(),
-            remoteDatabaseService, _remoteTreeBuilder);
+            remoteDatabaseService, _remoteTreeBuilder, A.Fake<ISharedDatabaseService>());
     }
 
     [After(Test)]
