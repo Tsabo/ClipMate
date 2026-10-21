@@ -100,3 +100,15 @@ To give a Remote Database your own name, right-click it and choose **Rename...**
 When the Peer can't be reached, its Remote Databases stay in the tree, greyed out and marked "offline · last seen ...". When the Peer stops sharing a database, or you unpair it, the database leaves the tree. ClipMate checks for changes about every 30 seconds.
 
 A Remote Database is never where new clips are captured, and it isn't part of your database list, backups, maintenance or purging.
+
+### Browsing remote clips
+
+Select a collection or folder of a Remote Database to list its clips. They load from the Peer in pages: the first clips appear straight away and the rest follow, with progress shown above the list. Select a clip to see all its formats in the viewer; large images arrive in pieces in the background.
+
+Selecting or copying a remote clip puts it on the clipboard, ready to paste, but doesn't add it to any of your own databases.
+
+Encrypted clips arrive from the Peer still encrypted and look just like your own encrypted clips. Enter your passphrase to view one; it is decrypted on this Device, never by the Peer.
+
+Remote Databases are read-only. You can't edit, delete, move, rename, encrypt or drag their clips, or decrypt them in place; ClipMate shows "Remote Databases are read-only." instead.
+
+If the Peer goes offline or takes too long to answer, the list or viewer says so instead of holding up ClipMate. Select the collection again to retry.
