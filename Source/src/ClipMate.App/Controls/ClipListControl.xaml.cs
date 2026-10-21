@@ -9,6 +9,7 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
@@ -542,6 +543,21 @@ public partial class ClipListControl
     /// </summary>
     private void TableView_StartRecordDrag(object sender, StartRecordDragEventArgs e)
     {
+        // Clips of a Remote Database cannot be moved
+        var viewModel = DataContext switch
+        {
+            ClipListViewModel clipListVm => clipListVm,
+            ExplorerWindowViewModel explorerVm => explorerVm.PrimaryClipList,
+            var _ => null,
+        };
+
+        if (viewModel?.IsRemoteDatabase == true)
+        {
+            e.Handled = true;
+            e.AllowDrag = false;
+            return;
+        }
+
         // Get the dragged clips
         var draggedClips = e.Records.OfType<Clip>().ToList();
         if (draggedClips.Count != 0)
@@ -659,6 +675,13 @@ public partial class ClipListControl
         {
             databaseKey = _currentDatabaseKey ?? string.Empty;
             _logger.LogDebug("Fell back to _currentDatabaseKey: '{DatabaseKey}'", databaseKey);
+        }
+
+        // A Remote Database is read-only: its clips cannot be renamed
+        if (clipListViewModel?.IsRemoteDatabase == true || RemoteDatabaseKey.IsRemote(databaseKey))
+        {
+            _messenger.Send(new StatusUpdateEvent("Remote Databases are read-only.", true));
+            return;
         }
 
         if (string.IsNullOrEmpty(databaseKey))
