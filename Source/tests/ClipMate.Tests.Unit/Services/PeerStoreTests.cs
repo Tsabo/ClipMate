@@ -302,6 +302,133 @@ public class PeerStoreTests
         await Assert.That(raised).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task SetDatabaseAliasAsync_PersistsTheRemoteDatabaseAliasAcrossRestarts()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var work = new SharedDatabase(Guid.NewGuid(), "Work");
+        await store.RecordSharedDatabasesAsync(_laptop, [work]);
+
+        // Act
+        await store.SetDatabaseAliasAsync(_laptop, work.DatabaseId, "  Office clips ");
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        var peer = reloaded.Find(_laptop)!;
+        await Assert.That(peer.GetDatabaseAlias(work.DatabaseId)).IsEqualTo("Office clips");
+        await Assert.That(peer.SharedDatabases).IsEquivalentTo([work]);
+    }
+
+    [Test]
+    public async Task SetDatabaseAliasAsync_PeerRenamesAndReportsItsShareListAgain_KeepsTheAlias()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var databaseId = Guid.NewGuid();
+        await store.RecordSharedDatabasesAsync(_laptop, [new SharedDatabase(databaseId, "Work")]);
+        await store.SetDatabaseAliasAsync(_laptop, databaseId, "Office clips");
+
+        // Act: the Peer renamed the Database, then briefly stopped sharing it, then went offline and came back
+        await store.RecordSharedDatabasesAsync(_laptop, [new SharedDatabase(databaseId, "Work 2026")]);
+        await store.RecordSharedDatabasesAsync(_laptop, []);
+        await store.RecordSeenAsync(_laptop, "LAPTOP-01", null, DateTime.Now);
+        await store.RecordSharedDatabasesAsync(_laptop, [new SharedDatabase(databaseId, "Work 2026")]);
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        var peer = reloaded.Find(_laptop)!;
+        await Assert.That(peer.GetDatabaseAlias(databaseId)).IsEqualTo("Office clips");
+        await Assert.That(peer.SharedDatabases.Single().Name).IsEqualTo("Work 2026");
+    }
+
+    [Test]
+    public async Task SetDatabaseAliasAsync_PeerAliasChanged_KeepsTheRemoteDatabaseAlias()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var databaseId = Guid.NewGuid();
+        await store.SetDatabaseAliasAsync(_laptop, databaseId, "Office clips");
+
+        // Act
+        await store.SetAliasAsync(_laptop, "Travel laptop");
+
+        // Assert
+        await Assert.That(store.Find(_laptop)!.GetDatabaseAlias(databaseId)).IsEqualTo("Office clips");
+    }
+
+    [Test]
+    public async Task SetDatabaseAliasAsync_Blank_ClearsOnlyThatDatabasesAlias()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var work = Guid.NewGuid();
+        var home = Guid.NewGuid();
+        await store.SetDatabaseAliasAsync(_laptop, work, "Office clips");
+        await store.SetDatabaseAliasAsync(_laptop, home, "Kitchen");
+
+        // Act
+        await store.SetDatabaseAliasAsync(_laptop, work, "   ");
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        var peer = reloaded.Find(_laptop)!;
+        await Assert.That(peer.GetDatabaseAlias(work)).IsNull();
+        await Assert.That(peer.GetDatabaseAlias(home)).IsEqualTo("Kitchen");
+    }
+
+    [Test]
+    public async Task SetDatabaseAliasAsync_RaisesPeersChanged()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var raised = 0;
+        store.PeersChanged += (_, _) => raised++;
+
+        // Act
+        await store.SetDatabaseAliasAsync(_laptop, Guid.NewGuid(), "Office clips");
+
+        // Assert
+        await Assert.That(raised).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SetDatabaseAliasAsync_UnpairedDevice_DoesNotAddIt()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+
+        // Act
+        await store.SetDatabaseAliasAsync(_laptop, Guid.NewGuid(), "Office clips");
+
+        // Assert
+        await Assert.That(store.IsPaired(_laptop)).IsFalse();
+    }
+
+    [Test]
+    public async Task RemoveAsync_Unpairing_RemovesThePeersRemoteDatabaseAliases()
+    {
+        // Arrange
+        var store = await CreateStoreAsync();
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var databaseId = Guid.NewGuid();
+        await store.SetDatabaseAliasAsync(_laptop, databaseId, "Office clips");
+
+        // Act: unpair, then pair again
+        await store.RemoveAsync(_laptop);
+        await store.SavePairedAsync(_laptop, "LAPTOP-01", null, null);
+        var reloaded = await CreateStoreAsync();
+
+        // Assert
+        await Assert.That(reloaded.Find(_laptop)!.GetDatabaseAlias(databaseId)).IsNull();
+        await Assert.That(reloaded.Find(_laptop)!.DatabaseAliases).IsEmpty();
+    }
+
     private async Task<PeerStore> CreateStoreAsync()
     {
         var configurationService = new ConfigurationService(_directory, NullLogger<ConfigurationService>.Instance);

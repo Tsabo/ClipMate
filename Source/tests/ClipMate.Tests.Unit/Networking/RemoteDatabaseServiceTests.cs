@@ -315,6 +315,21 @@ public class RemoteDatabaseServiceTests
         public Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task SetDatabaseAliasAsync(DeviceId deviceId, Guid databaseId, string? alias, CancellationToken cancellationToken = default)
+        {
+            if (Find(deviceId) is { } peer)
+            {
+                var aliases = peer.DatabaseAliases.Where(p => p.Key != databaseId).ToDictionary();
+                if (!string.IsNullOrWhiteSpace(alias))
+                    aliases[databaseId] = alias;
+
+                Replace(peer with { DatabaseAliases = aliases });
+            }
+
+            PeersChanged?.Invoke(this, EventArgs.Empty);
+            return Task.CompletedTask;
+        }
+
         public Task<bool> RemoveAsync(DeviceId deviceId, CancellationToken cancellationToken = default)
         {
             var paired = IsPaired(deviceId);
