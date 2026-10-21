@@ -51,6 +51,9 @@ public partial class App
     {
         base.OnStartup(e);
 
+        // --data-dir moves settings, databases and logs to another folder; it must apply before anything reads them
+        ClipMatePaths.ApplyCommandLine(e.Args);
+
         // Enforce single instance - check if another instance is already running
         using var singleInstanceLoggerFactory = LoggerFactory.Create(builder => builder.AddDebug());
         _singleInstanceManager = new SingleInstanceManager(
@@ -98,7 +101,7 @@ public partial class App
                 // Write to debug file for diagnosis
                 try
                 {
-                    var debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate", "startup-error.txt");
+                    var debugPath = Path.Combine(ClipMatePaths.DataDirectory, "startup-error.txt");
                     await File.WriteAllTextAsync(debugPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n{errorMsg}\n\nInner Exception:\n{hostEx.InnerException?.ToString() ?? "None"}");
                 }
                 catch
@@ -152,18 +155,13 @@ public partial class App
         earlyLogger.Information("Checking database setup...");
 
         // Default paths
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        var appDataPath = ClipMatePaths.DataDirectory;
 
         var configPath = Path.Join(appDataPath, "clipmate.toml");
 
         // Check if configuration exists
         if (!File.Exists(configPath))
         {
-            earlyLogger.Information("No configuration file found - launching setup wizard");
-
-            // Show setup wizard for first-time setup
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddSerilog();
@@ -172,6 +170,16 @@ public partial class App
 
             var setupServiceLogger = loggerFactory.CreateLogger<SetupService>();
             var setupService = new SetupService(setupServiceLogger);
+
+            // An isolated copy (--data-dir) sets itself up without asking, so it can start unattended
+            if (ClipMatePaths.IsDataDirectoryOverridden)
+            {
+                earlyLogger.Information("No configuration file found in {DataDirectory} - creating the default database", appDataPath);
+                _databasePath = await FirstRunSetup.CreateDefaultAsync(setupService, loggerFactory);
+                return true;
+            }
+
+            earlyLogger.Information("No configuration file found - launching setup wizard");
             var setupLogger = loggerFactory.CreateLogger<SetupWizard>();
             var setupWizard = new SetupWizard(setupLogger, setupService);
 
@@ -367,9 +375,7 @@ public partial class App
     private static ClipMateConfiguration LoadConfiguration()
     {
         // Default paths
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ClipMate");
+        var appDataPath = ClipMatePaths.DataDirectory;
 
         var configPath = Path.Join(appDataPath, "clipmate.toml");
         var tomlContent = File.ReadAllText(configPath);

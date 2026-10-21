@@ -1,5 +1,6 @@
 using System.IO;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using DevExpress.Xpf.Dialogs;
 using DXMessageBox = DevExpress.Xpf.Core.DXMessageBox;
@@ -168,7 +169,7 @@ public partial class DatabaseEditDialog
             : $"{sanitizedName}.db";
 
         saveDialog.InitialDirectory = string.IsNullOrWhiteSpace(_viewModel.DatabaseFilePath)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClipMate")
+            ? ClipMatePaths.DataDirectory
             : Path.GetDirectoryName(Environment.ExpandEnvironmentVariables(_viewModel.DatabaseFilePath));
 
         if (saveDialog.ShowDialog() == true)

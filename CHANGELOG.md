@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rename Remote Databases** - **Rename...** on a Remote Database in the collection tree gives it a name only this Device shows, in place of the Peer's own name for the database. The name stays when the Peer renames the database or goes offline; leave it blank to follow the Peer's name again. Unpairing the Peer removes these names.
 
 ### Changed
+- **Separate Data Folder** - Start ClipMate with `--data-dir <folder>` to keep its settings, databases, logs and Device identity in that folder instead of `%LOCALAPPDATA%\ClipMate`. A copy started this way runs alongside your normal ClipMate and, with an empty folder, creates its default database without the setup wizard.
 - **Uninstall Removes the Firewall Rule** - If ClipMate added its Windows Firewall rule (the first time networking was turned on), uninstalling now offers to remove it; Windows asks for permission. A silent uninstall leaves the rule in place rather than raising a permission prompt; it names a program that no longer exists, so it lets nothing in.
 - **Multi-User Setting Removed** - The **Multi-User, Networked Database?** checkbox, carried over from ClipMate 7, has been removed from database Properties. It never did anything in this version, and opening one database file from several computers over a network isn't safe. The Databases list now shows a **Shared** column instead, for databases your paired Devices can browse. Existing settings files still load.
 
