@@ -15,4 +15,18 @@ public interface IDatabaseIdService
     /// opened since the Database ID was introduced.
     /// </returns>
     Task<Guid?> GetDatabaseIdAsync(string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the Database ID stored in the database file at <paramref name="filePath" />.
+    /// </summary>
+    /// <returns>The Database ID, or null if the file does not exist or has no Database ID yet.</returns>
+    Task<Guid?> GetDatabaseIdForFileAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gives the database file at <paramref name="filePath" /> a new Database ID, replacing the one it has (e.g. one it
+    /// kept when it was copied from another Database). Peers then see it as a different Database.
+    /// </summary>
+    /// <returns>The new Database ID.</returns>
+    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    Task<Guid> AssignNewDatabaseIdAsync(string filePath, CancellationToken cancellationToken = default);
 }
