@@ -83,6 +83,15 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task SetAliasAsync(RemoteDatabaseAddress address, string? alias, CancellationToken cancellationToken = default)
+    {
+        await _peerStore.SetDatabaseAliasAsync(address.DeviceId, address.DatabaseId, alias, cancellationToken);
+
+        // Show the new label now rather than when the PeersChanged handler gets to it
+        PublishIfChanged();
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<SharedCollection>> GetCollectionTreeAsync(RemoteDatabaseAddress address,
         CancellationToken cancellationToken = default)
     {
@@ -175,9 +184,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
                 database.Name,
                 peer.DisplayName,
                 _status.GetStatus(peer.DeviceId),
-                peer.LastSeen)))
+                peer.LastSeen) { Alias = peer.GetDatabaseAlias(database.DatabaseId) }))
             .OrderBy(p => p.PeerName, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(p => p.DatabaseName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }
 }

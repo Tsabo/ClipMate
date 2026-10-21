@@ -30,6 +30,13 @@ public interface IRemoteDatabaseService
     Task RefreshAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Sets the Remote Database Alias of the Remote Database at <paramref name="address" />: a local label the Peer never
+    /// sees; blank clears it, so the Peer's current Database name is shown. Works while the Peer is offline. Kept in the
+    /// Peer's record (<see cref="IPeerStore.SetDatabaseAliasAsync" />), so unpairing removes it.
+    /// </summary>
+    Task SetAliasAsync(RemoteDatabaseAddress address, string? alias, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Fetches the collection and folder tree of a Remote Database from its Peer.
     /// </summary>
     /// <exception cref="RemoteDatabaseUnavailableException">
