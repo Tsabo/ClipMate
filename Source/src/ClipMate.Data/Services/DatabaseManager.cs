@@ -16,18 +16,21 @@ internal class DatabaseManager : IDatabaseManager
     private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<DatabaseManager> _logger;
     private readonly IMessenger _messenger;
+    private readonly DatabaseSchemaMigrationService _migrationService;
     private ClipMateConfiguration? _configuration;
     private bool _disposed;
 
     public DatabaseManager(IConfigurationService configService,
         IDatabaseContextFactory contextFactory,
         ILogger<DatabaseManager> logger,
-        IMessenger messenger)
+        IMessenger messenger,
+        DatabaseSchemaMigrationService migrationService)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
     }
 
     public void Dispose()
@@ -60,8 +63,7 @@ internal class DatabaseManager : IDatabaseManager
 
                 await using var context = _contextFactory.CreateContext(dbConfig.FilePath);
 
-                // Ensure database exists and is migrated
-                await context.Database.EnsureCreatedAsync(cancellationToken);
+                await OpenDatabaseAsync(context, cancellationToken);
 
                 loadedCount++;
                 _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
@@ -106,7 +108,7 @@ internal class DatabaseManager : IDatabaseManager
             _logger.LogInformation("Loading database: {Name} at {Path}", dbConfig.Name, dbConfig.FilePath);
 
             await using var context = _contextFactory.CreateContext(dbConfig.FilePath);
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await OpenDatabaseAsync(context, cancellationToken);
 
             _logger.LogInformation("Successfully loaded database: {Title}", dbConfig.Name);
 
@@ -119,6 +121,16 @@ internal class DatabaseManager : IDatabaseManager
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Creates the database file if needed and migrates its schema, which also assigns a Database ID to databases
+    /// created before the Database ID existed.
+    /// </summary>
+    private async Task OpenDatabaseAsync(ClipMateDbContext context, CancellationToken cancellationToken)
+    {
+        await context.Database.EnsureCreatedAsync(cancellationToken);
+        await _migrationService.MigrateAsync(context, cancellationToken);
     }
 
     /// <summary>

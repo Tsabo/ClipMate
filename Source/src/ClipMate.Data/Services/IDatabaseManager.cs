@@ -6,7 +6,7 @@ public interface IDatabaseManager : IDisposable
 {
     /// <summary>
     /// Loads all databases marked for auto-load from configuration.
-    /// Ensures the database files exist and schemas are created.
+    /// Ensures the database files exist and schemas are migrated (which also assigns missing Database IDs).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Number of databases successfully loaded.</returns>
@@ -14,7 +14,7 @@ public interface IDatabaseManager : IDisposable
 
     /// <summary>
     /// Loads a specific database by its configuration key.
-    /// Ensures the database file exists and schema is created.
+    /// Ensures the database file exists and schema is migrated (which also assigns a missing Database ID).
     /// </summary>
     /// <param name="databaseKey">Configuration key of the database to load.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

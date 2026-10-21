@@ -1,7 +1,12 @@
+using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using FakeItEasy;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -109,6 +114,142 @@ public class DatabaseIdTests
 
         // Assert
         await Assert.That(await ReadDatabaseIdAsync(firstPath)).IsNotEqualTo(await ReadDatabaseIdAsync(secondPath));
+    }
+
+    [Test]
+    public async Task LoadDatabaseAsync_DatabaseCreatedBeforeDatabaseIdExisted_AssignsDatabaseId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "old.db");
+        await CreateDatabaseWithoutDatabaseIdAsync(path);
+        var configService = CreateConfigurationService(("db_old", path, false));
+        using var manager = CreateDatabaseManager(configService);
+
+        // Act
+        var loaded = await manager.LoadDatabaseAsync("db_old");
+
+        // Assert
+        await Assert.That(loaded).IsTrue();
+        await Assert.That(await new DatabaseIdService(configService).GetDatabaseIdAsync("db_old")).IsNotNull();
+    }
+
+    [Test]
+    public async Task LoadAutoLoadDatabasesAsync_DatabaseCreatedBeforeDatabaseIdExisted_AssignsDatabaseId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "old.db");
+        await CreateDatabaseWithoutDatabaseIdAsync(path);
+        var configService = CreateConfigurationService(("db_old", path, true));
+        using var manager = CreateDatabaseManager(configService);
+
+        // Act
+        await manager.LoadAutoLoadDatabasesAsync();
+
+        // Assert
+        await Assert.That(await new DatabaseIdService(configService).GetDatabaseIdAsync("db_old")).IsNotNull();
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_ReturnsIdStoredInFile()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "stored.db");
+        await CreateAndMigrateAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService(("db_stored", path, true)));
+
+        // Act
+        var databaseId = await service.GetDatabaseIdAsync("db_stored");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(await ReadDatabaseIdAsync(path));
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_AfterRenamingDatabase_ReturnsSameId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "renamed.db");
+        await CreateAndMigrateAsync(path);
+        var configService = CreateConfigurationService(("db_renamed", path, true));
+        var service = new DatabaseIdService(configService);
+        var originalId = await service.GetDatabaseIdAsync("db_renamed");
+
+        // Act
+        configService.Configuration.Databases["db_renamed"].Name = "Renamed Database";
+        var databaseId = await service.GetDatabaseIdAsync("db_renamed");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(originalId);
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_FileDoesNotExist_ReturnsNullWithoutCreatingFile()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "missing.db");
+        var service = new DatabaseIdService(CreateConfigurationService(("db_missing", path, true)));
+
+        // Act
+        var databaseId = await service.GetDatabaseIdAsync("db_missing");
+
+        // Assert
+        await Assert.That(databaseId).IsNull();
+        await Assert.That(File.Exists(path)).IsFalse();
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_DatabaseNotYetUpgraded_ReturnsNull()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "old.db");
+        await CreateDatabaseWithoutDatabaseIdAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService(("db_old", path, true)));
+
+        // Act
+        var databaseId = await service.GetDatabaseIdAsync("db_old");
+
+        // Assert
+        await Assert.That(databaseId).IsNull();
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_UnknownDatabaseKey_ReturnsNull()
+    {
+        // Arrange
+        var service = new DatabaseIdService(CreateConfigurationService());
+
+        // Act
+        var databaseId = await service.GetDatabaseIdAsync("db_unknown");
+
+        // Assert
+        await Assert.That(databaseId).IsNull();
+    }
+
+    private static IConfigurationService CreateConfigurationService(params (string Key, string Path, bool AutoLoad)[] databases)
+    {
+        var configuration = new ClipMateConfiguration
+        {
+            Databases = databases.ToDictionary(
+                p => p.Key,
+                p => new DatabaseConfiguration { Name = p.Key, FilePath = p.Path, AutoLoad = p.AutoLoad }),
+        };
+
+        var configService = A.Fake<IConfigurationService>();
+        A.CallTo(() => configService.Configuration).Returns(configuration);
+        A.CallTo(() => configService.LoadAsync(A<CancellationToken>.Ignored)).Returns(configuration);
+
+        return configService;
+    }
+
+    private static DatabaseManager CreateDatabaseManager(IConfigurationService configService)
+    {
+#pragma warning disable CA2000 // The DatabaseManager disposes the context factory
+        var contextFactory = new DatabaseContextFactory(A.Fake<IServiceProvider>(), configService,
+            A.Fake<ILogger<DatabaseContextFactory>>());
+#pragma warning restore CA2000
+
+        return new DatabaseManager(configService, contextFactory, A.Fake<ILogger<DatabaseManager>>(),
+            A.Fake<IMessenger>(), new DatabaseSchemaMigrationService());
     }
 
     /// <summary>
