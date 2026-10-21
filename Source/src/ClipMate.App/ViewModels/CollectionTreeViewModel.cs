@@ -27,6 +27,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly IFolderService _folderService;
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IPeerDialogService _peerDialogs;
     private readonly IDatabaseIdService _databaseIdService;
     private readonly Dictionary<RemoteDatabaseAddress, RemoteDatabaseTreeNode> _remoteDatabaseNodes = [];
     private readonly IRemoteDatabaseService _remoteDatabaseService;
@@ -46,7 +47,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         IDatabaseIdService databaseIdService,
         IRemoteDatabaseService remoteDatabaseService,
         IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder,
-        ISharedDatabaseService sharedDatabaseService)
+        ISharedDatabaseService sharedDatabaseService,
+        IPeerDialogService peerDialogs)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -60,6 +62,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _remoteDatabaseTreeBuilder = remoteDatabaseTreeBuilder ?? throw new ArgumentNullException(nameof(remoteDatabaseTreeBuilder));
         _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
+        _peerDialogs = peerDialogs ?? throw new ArgumentNullException(nameof(peerDialogs));
 
         // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
         _messenger.Register<SearchExecutedEvent>(this);
@@ -77,8 +80,11 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         get;
         set
         {
-            if (SetProperty(ref field, value))
-                OnSelectedNodeChanged(value);
+            if (!SetProperty(ref field, value))
+                return;
+
+            RenameRemoteDatabaseCommand.NotifyCanExecuteChanged();
+            OnSelectedNodeChanged(value);
         }
     }
 
@@ -408,6 +414,32 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         return null;
     }
+
+    /// <summary>
+    /// Sets or clears the Remote Database Alias of the selected Remote Database node. Only the local label changes;
+    /// the Peer's Database name is untouched. Works while the Peer is offline.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRenameRemoteDatabase))]
+    private async Task RenameRemoteDatabaseAsync()
+    {
+        if (SelectedNode is not RemoteDatabaseTreeNode node)
+            return;
+
+        var alias = _peerDialogs.AskRemoteDatabaseAlias(node.Database);
+        if (alias == null)
+            return;
+
+        try
+        {
+            await _remoteDatabaseService.SetAliasAsync(node.Address, alias);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to rename Remote Database {RemoteDatabase}", node.Address);
+        }
+    }
+
+    private bool CanRenameRemoteDatabase() => SelectedNode is RemoteDatabaseTreeNode;
 
     private static (Guid? CollectionId, Guid? FolderId) GetRemoteSelection(TreeNodeBase node)
     {
