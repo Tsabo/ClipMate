@@ -8,12 +8,13 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.App.Services;
 
 /// <summary>
-/// Starts and stops the Peer host to follow the <c>Enable networking</c> setting.
-/// While networking is off nothing is created, so no port is opened and the networking stack is never loaded.
+/// Starts and stops the Peer host and LAN discovery to follow the <c>Enable networking</c> setting.
+/// While networking is off nothing is created, so no port is opened, no announcement is sent and the networking stack is never loaded.
 /// </summary>
 public sealed class NetworkingService : IHostedService, IRecipient<PreferencesChangedEvent>, IDisposable
 {
     private readonly IConfigurationService _configurationService;
+    private readonly IDeviceDiscoveryService _discovery;
     private readonly IFirewallRuleService _firewallRuleService;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly IPeerHostFactory _hostFactory;
@@ -29,6 +30,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         IDeviceIdentityService identityService,
         IFirewallRuleService firewallRuleService,
         IPeerHostFactory hostFactory,
+        IDeviceDiscoveryService discovery,
         IMessenger messenger,
         ILogger<NetworkingService> logger)
     {
@@ -36,6 +38,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _identityService = identityService ?? throw new ArgumentNullException(nameof(identityService));
         _firewallRuleService = firewallRuleService ?? throw new ArgumentNullException(nameof(firewallRuleService));
         _hostFactory = hostFactory ?? throw new ArgumentNullException(nameof(hostFactory));
+        _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -55,7 +58,13 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _messenger.UnregisterAll(this);
         var host = _host;
         if (host != null)
-            Task.Run(async () => await host.DisposeAsync()).GetAwaiter().GetResult(); // off the UI thread's context
+        {
+            Task.Run(async () =>
+            {
+                await _discovery.StopAsync();
+                await host.DisposeAsync();
+            }).GetAwaiter().GetResult(); // off the UI thread's context
+        }
         _host = null;
         _identity?.Dispose();
         _identity = null;
@@ -153,6 +162,8 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _host = host;
         _port = port;
         _logger.LogInformation("Networking enabled on port {Port}", port);
+
+        await StartDiscoveryAsync(host.ListeningPort ?? port, cancellationToken);
     }
 
     private async Task StopHostAsync()
@@ -160,9 +171,25 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         if (_host == null)
             return;
 
+        await _discovery.StopAsync();
+
         var host = _host;
         _host = null;
         await host.DisposeAsync();
         _logger.LogInformation("Networking disabled");
+    }
+
+    private async Task StartDiscoveryAsync(int listeningPort, CancellationToken cancellationToken)
+    {
+        // Discovery is a convenience: if it cannot start (e.g. its UDP port is taken), Peers can still connect.
+        try
+        {
+            await _discovery.StartAsync(_identity!, listeningPort, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to start LAN discovery");
+            _messenger.Send(new StatusUpdateEvent($"LAN discovery could not be started: {ex.Message}", true));
+        }
     }
 }

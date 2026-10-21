@@ -14,6 +14,7 @@ namespace ClipMate.Tests.Unit.Services;
 public class NetworkingServiceTests
 {
     private ClipMateConfiguration _configuration = null!;
+    private IDeviceDiscoveryService _discovery = null!;
     private IFirewallRuleService _firewall = null!;
     private IPeerHost _host = null!;
     private IPeerHostFactory _hostFactory = null!;
@@ -38,8 +39,9 @@ public class NetworkingServiceTests
         _hostFactory = A.Fake<IPeerHostFactory>();
         A.CallTo(() => _hostFactory.Create()).Returns(_host);
 
+        _discovery = A.Fake<IDeviceDiscoveryService>();
         _messenger = new StrongReferenceMessenger();
-        _service = new NetworkingService(configurationService, _identityService, _firewall, _hostFactory, _messenger,
+        _service = new NetworkingService(configurationService, _identityService, _firewall, _hostFactory, _discovery, _messenger,
             A.Fake<ILogger<NetworkingService>>());
     }
 
@@ -141,6 +143,79 @@ public class NetworkingServiceTests
         await Assert.That(_service.IsListening).IsFalse();
         A.CallTo(() => _host.DisposeAsync()).MustHaveHappened();
         await Assert.That(statusUpdates.Any(p => p.IsError)).IsTrue();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_NetworkingOn_StartsDiscoveryWithPeerListenerPort()
+    {
+        // Arrange
+        _configuration.Networking.Enabled = true;
+        _configuration.Networking.Port = 50123;
+
+        // Act
+        await _service.ApplyConfigurationAsync();
+
+        // Assert
+        A.CallTo(() => _discovery.StartAsync(A<DeviceIdentity>._, 50123, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_NetworkingOff_DoesNotStartDiscovery()
+    {
+        // Act
+        await _service.ApplyConfigurationAsync();
+
+        // Assert
+        A.CallTo(() => _discovery.StartAsync(A<DeviceIdentity>._, A<int>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_TurnedOff_StopsDiscovery()
+    {
+        // Arrange
+        _configuration.Networking.Enabled = true;
+        await _service.ApplyConfigurationAsync();
+
+        // Act
+        _configuration.Networking.Enabled = false;
+        await _service.ApplyConfigurationAsync();
+
+        // Assert
+        A.CallTo(() => _discovery.StopAsync(A<CancellationToken>._)).MustHaveHappened();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_DiscoveryFailsToStart_KeepsHostListeningAndReportsError()
+    {
+        // Arrange
+        _configuration.Networking.Enabled = true;
+        A.CallTo(() => _discovery.StartAsync(A<DeviceIdentity>._, A<int>._, A<CancellationToken>._))
+            .ThrowsAsync(new IOException("Address already in use"));
+
+        var statusUpdates = new List<StatusUpdateEvent>();
+        _messenger.Register<StatusUpdateEvent>(this, (_, message) => statusUpdates.Add(message));
+
+        // Act
+        await _service.ApplyConfigurationAsync();
+
+        // Assert
+        await Assert.That(_service.IsListening).IsTrue();
+        await Assert.That(statusUpdates.Any(p => p.IsError)).IsTrue();
+    }
+
+    [Test]
+    public async Task ApplyConfigurationAsync_HostFailsToStart_DoesNotStartDiscovery()
+    {
+        // Arrange
+        _configuration.Networking.Enabled = true;
+        A.CallTo(() => _host.StartAsync(A<DeviceIdentity>._, A<int>._, A<CancellationToken>._))
+            .ThrowsAsync(new IOException("Address already in use"));
+
+        // Act
+        await _service.ApplyConfigurationAsync();
+
+        // Assert
+        A.CallTo(() => _discovery.StartAsync(A<DeviceIdentity>._, A<int>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
