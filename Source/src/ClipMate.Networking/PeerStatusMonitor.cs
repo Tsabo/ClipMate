@@ -139,6 +139,10 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 {
     private static readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
 
+    // Pairing completes on the approving Device a moment before the requesting Device, which refuses it until then;
+    // a Peer this new is not unpaired for saying this Device is not its Peer yet.
+    private static readonly TimeSpan _pairingGracePeriod = TimeSpan.FromMinutes(1);
+
     // While a Peer stays online, its last seen time is written to clipmate.toml at most this often.
     private static readonly TimeSpan _lastSeenPersistInterval = TimeSpan.FromMinutes(10);
 
@@ -287,7 +291,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
         {
             var result = await _probe.ProbeAsync(identity, peer.DeviceId, address, cancellationToken);
-            if (result.Unpaired)
+            if (result.Unpaired && !IsCompletingPairing(peer))
             {
                 _logger.LogInformation("Peer {DeviceId} no longer has this Device as a Peer; unpairing it here too", peer.DeviceId.ToDisplayString());
                 await _peerStore.RemoveAsync(peer.DeviceId, cancellationToken);
@@ -309,6 +313,9 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 
         SetStatus(peer.DeviceId, PeerConnectionStatus.Offline);
     }
+
+    private static bool IsCompletingPairing(Peer peer) =>
+        peer.PairedAt is { } pairedAt && DateTime.Now - pairedAt < _pairingGracePeriod;
 
     private static bool NeedsRecording(Peer peer, string deviceName, string address) =>
         peer.DeviceName != deviceName

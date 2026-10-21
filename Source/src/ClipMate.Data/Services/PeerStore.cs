@@ -187,6 +187,9 @@ public sealed class PeerStore : IPeerStore
         }
 
         return new Peer(deviceId.Value, record.DeviceName, string.IsNullOrWhiteSpace(record.Alias) ? null : record.Alias,
-            record.Addresses.ToList(), record.LastSeen);
+            record.Addresses.ToList(), record.LastSeen)
+        {
+            PairedAt = record.PairedAt == default ? null : record.PairedAt,
+        };
     }
 }

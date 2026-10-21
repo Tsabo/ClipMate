@@ -358,6 +358,15 @@ public partial class PairingTests
             await Monitor.RefreshAsync();
         }
 
+        /// <summary>
+        /// Moves every Pairing on this Device an hour into the past, so it is no longer completing.
+        /// </summary>
+        public void PretendPairedLongAgo()
+        {
+            foreach (var item in ConfigurationService.Configuration.Peers)
+                item.PairedAt = DateTime.Now.AddHours(-1);
+        }
+
         public PairingTarget AsTarget() => new(DeviceId, DeviceName, Address);
 
         public async Task PairWithAsync(TestDevice other)

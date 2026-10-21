@@ -64,6 +64,7 @@ public partial class PairingTests
     {
         // Arrange
         await _laptop.PairWithAsync(_desktop);
+        _desktop.PretendPairedLongAgo();
         await _desktop.StopHostAsync();
 
         // Act
@@ -85,12 +86,26 @@ public partial class PairingTests
     {
         // Arrange: the laptop recorded the desktop, but the desktop never completed Pairing (e.g. a lost confirmation).
         await _laptop.Store.SavePairedAsync(_desktop.DeviceId, "DESKTOP", null, _desktop.Address);
+        _laptop.PretendPairedLongAgo();
 
         // Act
         await _laptop.CheckPeersAsync();
 
         // Assert
         await Assert.That(_laptop.Store.IsPaired(_desktop.DeviceId)).IsFalse();
+    }
+
+    [Test]
+    public async Task CheckPeers_JustAfterPairing_DoesNotUnpairAPeerThatIsStillCompletingPairing()
+    {
+        // Arrange: the approving Device records the Peer before the requesting Device does.
+        await _laptop.Store.SavePairedAsync(_desktop.DeviceId, "DESKTOP", null, _desktop.Address);
+
+        // Act
+        await _laptop.CheckPeersAsync();
+
+        // Assert
+        await Assert.That(_laptop.Store.IsPaired(_desktop.DeviceId)).IsTrue();
     }
 
     [Test]
