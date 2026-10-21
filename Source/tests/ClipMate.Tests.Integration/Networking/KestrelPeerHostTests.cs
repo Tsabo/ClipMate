@@ -12,7 +12,9 @@ namespace ClipMate.Tests.Integration.Networking;
 
 /// <summary>
 /// Exercises the mutual-TLS gRPC host end to end over a real loopback socket.
+/// Not parallel: StopAsync_ClosesTheListener would otherwise see the freed ephemeral port reused by another test's host.
 /// </summary>
+[NotInParallel]
 public class KestrelPeerHostTests
 {
     private static DeviceIdentity? _clientIdentity;
