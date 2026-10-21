@@ -47,7 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISearchService, SearchService>();
         services.AddTransient<IClipAppendService, ClipAppendService>();
         services.AddTransient<DatabaseSchemaMigrationService>();
-        services.AddTransient<IDatabaseIdService, DatabaseIdService>();
+        services.AddSingleton<IDatabaseIdService, DatabaseIdService>(); // remembers Database IDs; see DatabaseIdService
         services.AddTransient<ISharedDatabaseService, SharedDatabaseService>();
 
         // Live change notifications: every write through the factory's contexts is seen by the change monitor, and the

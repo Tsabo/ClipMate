@@ -198,6 +198,77 @@ public class DatabaseIdTests
     }
 
     [Test]
+    public async Task GetDatabaseIdAsync_AskedAgain_AnswersWithoutReopeningTheFile()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "cached.db");
+        await CreateAndMigrateAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService(("db_cached", path, true)));
+        var firstId = await service.GetDatabaseIdAsync("db_cached");
+        SqliteConnection.ClearAllPools();
+
+        // Act: the file is gone, so only a remembered Database ID can answer
+        File.Delete(path);
+        var databaseId = await service.GetDatabaseIdAsync("db_cached");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(firstId);
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_AfterTheConfigurationIsSaved_ReadsTheFileAgain()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "saved.db");
+        await CreateAndMigrateAsync(path);
+        var configService = CreateConfigurationService(("db_saved", path, true));
+        var service = new DatabaseIdService(configService);
+        await service.GetDatabaseIdAsync("db_saved");
+        var newId = await new DatabaseIdService(CreateConfigurationService()).AssignNewDatabaseIdAsync(path);
+
+        // Act
+        configService.Saved += Raise.WithEmpty();
+        var databaseId = await service.GetDatabaseIdAsync("db_saved");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(newId);
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_AfterAssigningANewDatabaseId_ReturnsTheNewId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "reassigned.db");
+        await CreateAndMigrateAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService(("db_reassigned", path, true)));
+        await service.GetDatabaseIdAsync("db_reassigned");
+
+        // Act
+        var newId = await service.AssignNewDatabaseIdAsync(path);
+        var databaseId = await service.GetDatabaseIdAsync("db_reassigned");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(newId);
+    }
+
+    [Test]
+    public async Task GetDatabaseIdAsync_DatabaseUpgradedAfterBeingAsked_ReturnsItsNewId()
+    {
+        // Arrange: no Database ID yet is not remembered, since opening the Database gives it one
+        var path = Path.Combine(_directory, "upgraded.db");
+        await CreateDatabaseWithoutDatabaseIdAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService(("db_upgraded", path, true)));
+        await service.GetDatabaseIdAsync("db_upgraded");
+
+        // Act
+        await MigrateAsync(path);
+        var databaseId = await service.GetDatabaseIdAsync("db_upgraded");
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(await ReadDatabaseIdAsync(path));
+    }
+
+    [Test]
     public async Task GetDatabaseIdAsync_FileDoesNotExist_ReturnsNullWithoutCreatingFile()
     {
         // Arrange
