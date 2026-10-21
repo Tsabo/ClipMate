@@ -85,4 +85,25 @@ public class TomlSerializationTests
         await Assert.That(roundTripped.Preferences.QuickPasteFormattingStrings.Count)
             .IsEqualTo(defaults.Preferences.QuickPasteFormattingStrings.Count);
     }
+
+    [Test]
+    public async Task Networking_DefaultsToOffWithComputerNameAndRoundTrips()
+    {
+        // Arrange
+        var defaults = new ClipMateConfiguration();
+        var changed = new ClipMateConfiguration { Networking = { Enabled = true, Port = 50123, DeviceName = "Office PC" } };
+
+        // Act
+        var toml = TomlSerializer.Serialize(changed, TomlSerialization.Options);
+        var roundTripped = TomlSerializer.Deserialize<ClipMateConfiguration>(toml, TomlSerialization.Options)!;
+
+        // Assert
+        await Assert.That(defaults.Networking.Enabled).IsFalse();
+        await Assert.That(defaults.Networking.DeviceName).IsEqualTo(Environment.MachineName);
+        await Assert.That(defaults.Networking.Port).IsEqualTo(NetworkingConfiguration.DefaultPort);
+        await Assert.That(toml).Contains("[networking]");
+        await Assert.That(roundTripped.Networking.Enabled).IsTrue();
+        await Assert.That(roundTripped.Networking.Port).IsEqualTo(50123);
+        await Assert.That(roundTripped.Networking.DeviceName).IsEqualTo("Office PC");
+    }
 }
