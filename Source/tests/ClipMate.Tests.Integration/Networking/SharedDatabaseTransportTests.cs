@@ -1,4 +1,6 @@
 using System.Net;
+using ClipMate.Core.Constants;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
@@ -24,6 +26,7 @@ public class SharedDatabaseTransportTests
     private static DeviceIdentity? _laptopIdentity;
     private static DeviceIdentity? _desktopIdentity;
     private GrpcSharedDatabaseClient _client = null!;
+    private IDeviceDiscoveryService _discovery = null!;
     private IPeerHost _desktopHost = null!;
     private PeerStore _desktopStore = null!;
     private PeerStore _laptopStore = null!;
@@ -61,9 +64,9 @@ public class SharedDatabaseTransportTests
             new PeerHostOptions { ListenAddress = IPAddress.Loopback }).Create();
         await _desktopHost.StartAsync(_desktopIdentity!, 0);
 
-        var discovery = A.Fake<IDeviceDiscoveryService>();
-        A.CallTo(() => discovery.DiscoveredDevices).Returns([]);
-        _client = new GrpcSharedDatabaseClient(discovery, NullLogger<GrpcSharedDatabaseClient>.Instance);
+        _discovery = A.Fake<IDeviceDiscoveryService>();
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
+        _client = new GrpcSharedDatabaseClient(_discovery, NullLogger<GrpcSharedDatabaseClient>.Instance);
     }
 
     [After(Test)]
@@ -155,6 +158,165 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_FromAPeer_ReturnsThePageOfClipMetadata()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var collectionId = Guid.NewGuid();
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(), CollectionId = collectionId, Title = "Quarterly report", CapturedAt = new DateTimeOffset(2026, 10, 1, 9, 30, 0, TimeSpan.FromHours(2)),
+            Size = 2048, Type = ClipType.Html, HasText = true, HasHtml = true, SourceApplicationName = @"C:\Apps\WINWORD.EXE",
+            SourceApplicationTitle = "report.docx", SortKey = 7,
+        };
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, collectionId, null, 0, 200, A<CancellationToken>._))
+            .Returns(new ClipPage([clip], 0, 4212));
+
+        // Act
+        var page = await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, collectionId, null, 0, 200);
+
+        // Assert
+        await Assert.That(page).IsNotNull();
+        await Assert.That(page!.TotalCount).IsEqualTo(4212);
+        var received = page.Clips.Single();
+        await Assert.That(received.Id).IsEqualTo(clip.Id);
+        await Assert.That(received.Title).IsEqualTo("Quarterly report");
+        await Assert.That(received.CapturedAt).IsEqualTo(clip.CapturedAt);
+        await Assert.That(received.Size).IsEqualTo(2048);
+        await Assert.That(received.Type).IsEqualTo(ClipType.Html);
+        await Assert.That(received.HasHtml && received.HasText && !received.HasBitmap).IsTrue();
+        await Assert.That(received.SourceApplicationName).IsEqualTo(@"C:\Apps\WINWORD.EXE");
+        await Assert.That(received.IconGlyph).IsEqualTo("🌐📄");
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_CollectionNotShared_ReturnsNull()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Returns((ClipPage?)null);
+
+        // Act
+        var page = await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200);
+
+        // Assert
+        await Assert.That(page).IsNull();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_AskingForAHugePage_IsCappedByThePeer()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var collectionId = Guid.NewGuid();
+
+        // Act
+        await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, collectionId, null, 0, 1_000_000);
+
+        // Assert
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, collectionId, null, 0, A<int>.That.Matches(p => p <= 500), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_LargeImage_IsStreamedInChunksAndArrivesWhole()
+    {
+        // Arrange: bigger than gRPC's default 4 MB message limit, so it only arrives if it is chunked.
+        var desktop = await PairAsync();
+        var image = new byte[6 * 1024 * 1024];
+        new Random(42).NextBytes(image);
+        var clip = new Clip { Id = Guid.NewGuid(), Title = "Screenshot", Type = ClipType.Image };
+        var png = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, Format = 8, FormatName = "CF_DIB", StorageType = StorageType.Png, Size = image.Length };
+        var text = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, Format = 13, FormatName = "CF_UNICODETEXT", StorageType = StorageType.Text };
+        A.CallTo(() => _sharedDatabases.GetClipContentAsync(_workId, clip.Id, A<CancellationToken>._)).Returns(new ClipContent(clip, [png, text],
+            [new BlobTxt { ClipId = clip.Id, ClipDataId = text.Id, Data = "Grüße ✓" }], [], [new BlobPng { ClipId = clip.Id, ClipDataId = png.Id, Data = image }], []));
+
+        // Act
+        var content = await _client.GetClipContentAsync(_laptopIdentity!, desktop, _workId, clip.Id);
+
+        // Assert
+        await Assert.That(content).IsNotNull();
+        await Assert.That(content!.Clip.Title).IsEqualTo("Screenshot");
+        await Assert.That(content.Formats.Select(p => p.Id)).IsEquivalentTo([png.Id, text.Id]);
+        await Assert.That(content.PngBlobs.Single().Data.SequenceEqual(image)).IsTrue();
+        await Assert.That(content.PngBlobs.Single().ClipDataId).IsEqualTo(png.Id);
+        await Assert.That(content.TextBlobs.Single().Data).IsEqualTo("Grüße ✓");
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_EncryptedClip_ArrivesAsCiphertextWithItsEncryptionMetadata()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(), Type = ClipType.Text, Encrypted = true, EncryptionSalt = "c2FsdA==", EncryptionIv = "aXY=", EncryptionMethod = "AES-256-CBC",
+        };
+        var text = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, Format = 13, FormatName = "CF_UNICODETEXT", StorageType = StorageType.Text };
+        A.CallTo(() => _sharedDatabases.GetClipContentAsync(_workId, clip.Id, A<CancellationToken>._))
+            .Returns(new ClipContent(clip, [text], [new BlobTxt { ClipId = clip.Id, ClipDataId = text.Id, Data = "Q0lQSEVSVEVYVA==" }], [], [], []));
+
+        // Act
+        var content = await _client.GetClipContentAsync(_laptopIdentity!, desktop, _workId, clip.Id);
+
+        // Assert
+        await Assert.That(content!.Clip.Encrypted).IsTrue();
+        await Assert.That(content.Clip.EncryptionSalt).IsEqualTo("c2FsdA==");
+        await Assert.That(content.Clip.EncryptionIv).IsEqualTo("aXY=");
+        await Assert.That(content.Clip.EncryptionMethod).IsEqualTo("AES-256-CBC");
+        await Assert.That(content.TextBlobs.Single().Data).IsEqualTo("Q0lQSEVSVEVYVA==");
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_ClipNotShared_ReturnsNull()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        A.CallTo(() => _sharedDatabases.GetClipContentAsync(A<Guid>._, A<Guid>._, A<CancellationToken>._)).Returns((ClipContent?)null);
+
+        // Act
+        var content = await _client.GetClipContentAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid());
+
+        // Assert
+        await Assert.That(content).IsNull();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_PeerTooSlow_TimesOutAsUnavailableAndCancelsTheWorkOnThePeer()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var peerCancelled = new TaskCompletionSource();
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .ReturnsLazily(async call =>
+            {
+                var token = call.GetArgument<CancellationToken>(5);
+                token.Register(() => peerCancelled.TrySetResult());
+                await Task.Delay(Timeout.Infinite, token);
+                return (ClipPage?)null;
+            });
+        var client = new GrpcSharedDatabaseClient(_discovery, NullLogger<GrpcSharedDatabaseClient>.Instance, TimeSpan.FromMilliseconds(500));
+
+        // Act / Assert
+        await Assert.That(async () => await client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+        await peerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_PeerNotListening_ThrowsRemoteDatabaseUnavailable()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        await _desktopHost.StopAsync();
+
+        // Act / Assert
+        await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
     }
 
     private async Task<Peer> PairAsync()

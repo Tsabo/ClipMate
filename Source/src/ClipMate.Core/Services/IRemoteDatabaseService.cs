@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 
 namespace ClipMate.Core.Services;
@@ -36,6 +37,32 @@ public interface IRemoteDatabaseService
     /// The Peer cannot be reached, is not a Peer any more, or no longer shares that Database.
     /// </exception>
     Task<IReadOnlyList<SharedCollection>> GetCollectionTreeAsync(RemoteDatabaseAddress address, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetches one page of the clips (metadata only) of a collection or folder of a Remote Database from its Peer.
+    /// Smart and SQL-based collections are evaluated on the Peer with the Peer's own stored SQL.
+    /// </summary>
+    /// <param name="address">The Remote Database.</param>
+    /// <param name="collectionId">The collection.</param>
+    /// <param name="folderId">A folder of that collection, or <c>null</c> for the collection itself.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return (the Peer may return fewer).</param>
+    /// <param name="cancellationToken">Cancellation token; also cancels the work on the Peer.</param>
+    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// The Peer cannot be reached or did not answer in time, or no longer shares that Database or collection.
+    /// </exception>
+    Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetches a clip of a Remote Database with all its formats and content from its Peer; large content is streamed
+    /// in chunks. Encrypted clips arrive as ciphertext.
+    /// </summary>
+    /// <returns>The clip and its content, or <c>null</c> if the Peer has no such clip in that Database.</returns>
+    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// The Peer cannot be reached or did not answer in time, or no longer shares that Database.
+    /// </exception>
+    Task<ClipContent?> GetClipContentAsync(RemoteDatabaseAddress address, Guid clipId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

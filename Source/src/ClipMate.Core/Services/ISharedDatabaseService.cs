@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 
@@ -21,6 +22,26 @@ public interface ISharedDatabaseService
     /// if no Shared Database has that Database ID.
     /// </summary>
     Task<IReadOnlyList<SharedCollection>?> GetCollectionTreeAsync(Guid databaseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets one page of the clips (metadata only) of a collection or folder of a Shared Database. Smart and SQL-based
+    /// collections are evaluated with their own stored SQL; no SQL is ever accepted from the caller.
+    /// </summary>
+    /// <param name="databaseId">The Shared Database.</param>
+    /// <param name="collectionId">A collection of that Database.</param>
+    /// <param name="folderId">A folder of that Database, or <c>null</c> for the collection itself.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The page, or <c>null</c> if no Shared Database has that Database ID or it has no such collection or folder.</returns>
+    Task<ClipPage?> GetClipPageAsync(Guid databaseId, Guid collectionId, Guid? folderId, int offset, int count,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a clip of a Shared Database with all its formats and content as stored: encrypted clips stay ciphertext.
+    /// </summary>
+    /// <returns>The clip, or <c>null</c> if no Shared Database has that Database ID or it has no such (undeleted) clip.</returns>
+    Task<ClipContent?> GetClipContentAsync(Guid databaseId, Guid clipId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Finds a Shared Database among <paramref name="otherDatabases" /> whose Database ID is the same as the one stored

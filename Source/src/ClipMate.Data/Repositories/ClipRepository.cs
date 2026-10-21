@@ -180,6 +180,35 @@ public class ClipRepository : IClipRepository
         return clips;
     }
 
+    /// <inheritdoc />
+    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default) =>
+        GetPageAsync(_context.Clips.Where(p => p.CollectionId == collectionId && !p.Del), offset, count, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default) =>
+        GetPageAsync(_context.Clips.Where(p => p.FolderId == folderId && !p.Del), offset, count, cancellationToken);
+
+    /// <summary>
+    /// Pages <paramref name="query" /> in the database by SortKey (newest first), loading format flags for the page only,
+    /// so the first page of a large collection is quick.
+    /// </summary>
+    private async Task<ClipPage> GetPageAsync(IQueryable<Clip> query, int offset, int count, CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        var total = await query.CountAsync(cancellationToken);
+        var clips = await query
+            .OrderByDescending(p => p.SortKey)
+            .ThenBy(p => p.Id)
+            .Skip(offset)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+        await LoadFormatFlagsAsync(clips, cancellationToken);
+        return new ClipPage(clips, offset, total);
+    }
+
     public async Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default)
     {
         // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)

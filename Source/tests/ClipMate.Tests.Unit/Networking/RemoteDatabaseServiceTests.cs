@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
@@ -266,6 +267,61 @@ public class RemoteDatabaseServiceTests
         // Act / Assert
         await Assert.That(async () => await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId)))
             .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_OnlinePeer_ReturnsThePageFromThePeer()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        var collectionId = Guid.NewGuid();
+        var page = new ClipPage([new Clip { Id = Guid.NewGuid() }], 200, 4212);
+        A.CallTo(() => _client.GetClipPageAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, collectionId, null, 200, 200,
+            A<CancellationToken>._)).Returns(page);
+
+        // Act
+        var result = await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), collectionId, null, 200, 200);
+
+        // Assert
+        await Assert.That(result).IsSameReferenceAs(page);
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_PeerOffline_ThrowsWithoutContactingIt()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Offline);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+        A.CallTo(_client).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_CollectionNoLongerShared_Throws()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        A.CallTo(() => _client.GetClipPageAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Returns((ClipPage?)null);
+
+        // Act / Assert
+        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
+            .Throws<RemoteDatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_NetworkingOff_ThrowsWithoutContactingThePeer()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        _configuration.Networking.Enabled = false;
+
+        // Act / Assert
+        await Assert.That(async () => await _service.GetClipContentAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid()))
+            .Throws<RemoteDatabaseUnavailableException>();
+        A.CallTo(_client).MustNotHaveHappened();
     }
 
     private void SetStatus(PeerConnectionStatus status) => A.CallTo(() => _status.GetStatus(_laptop)).Returns(status);
