@@ -97,7 +97,7 @@ Each database a Peer shares with you appears at the bottom of the collection tre
 
 To give a Remote Database your own name, right-click it and choose **Rename...**. The name replaces the *Database* part of the label on this Device only; the Peer never sees it, and it doesn't have to be unique. It stays when the Peer renames the database or goes offline. Leave it blank to go back to the Peer's own name for the database. Unpairing the Peer removes the names you gave its databases.
 
-When the Peer can't be reached, its Remote Databases stay in the tree, greyed out and marked "offline · last seen ...". When the Peer stops sharing a database, or you unpair it, the database leaves the tree. ClipMate checks for changes about every 30 seconds.
+When the Peer can't be reached, its Remote Databases stay in the tree, greyed out and marked "offline · last seen ...". When the Peer stops sharing a database, or you unpair it, the database leaves the tree. A Peer running this version of ClipMate tells you straight away when it stops sharing a database; older versions are checked about every 30 seconds.
 
 A Remote Database is never where new clips are captured, and it isn't part of your database list, backups, maintenance or purging.
 
@@ -112,3 +112,5 @@ Encrypted clips arrive from the Peer still encrypted and look just like your own
 Remote Databases are read-only. You can't edit, delete, move, rename, encrypt or drag their clips, or decrypt them in place; ClipMate shows "Remote Databases are read-only." instead.
 
 If the Peer goes offline or takes too long to answer, the list or viewer says so instead of holding up ClipMate. Select the collection again to retry.
+
+While you're connected, the list keeps itself up to date: when the Peer captures, deletes, moves or edits a clip in the collection you're looking at, the list reloads from the Peer on its own, keeping the clip you had selected. The Peer only says which collection changed; the clips themselves are still fetched only when you look at them. Changes in databases the Peer doesn't share are never announced. Live updates stop when you unpair the Peer or turn networking off, and resume when a Peer that went offline comes back.
