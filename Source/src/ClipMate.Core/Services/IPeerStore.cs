@@ -15,6 +15,12 @@ public interface IPeerStore
     event EventHandler? PeersChanged;
 
     /// <summary>
+    /// Raised (on the calling thread) after a Peer is unpaired and its record removed, before <see cref="PeersChanged" />.
+    /// Anything kept for the Peer (open connections, its Remote Databases, aliases, cached content) should be dropped.
+    /// </summary>
+    event EventHandler<PeerRemovedEventArgs>? PeerRemoved;
+
+    /// <summary>
     /// Gets all Peers.
     /// </summary>
     IReadOnlyList<Peer> GetPeers();
@@ -44,4 +50,28 @@ public interface IPeerStore
     /// Does nothing if the Device is not a Peer.
     /// </summary>
     Task RecordSeenAsync(DeviceId deviceId, string deviceName, string? address, DateTime seenAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the Peer Alias, a local label the Peer never sees; blank clears it, so the Peer's live Device Name is shown.
+    /// Does nothing if the Device is not a Peer.
+    /// </summary>
+    Task SetAliasAsync(DeviceId deviceId, string? alias, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the Peer record, so the Device is no longer trusted. Raises <see cref="PeerRemoved" />.
+    /// Use <see cref="IUnpairingService" /> to unpair, which also tells the Peer.
+    /// </summary>
+    /// <returns><c>true</c> if the Device was a Peer.</returns>
+    Task<bool> RemoveAsync(DeviceId deviceId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Identifies the Device that was unpaired.
+/// </summary>
+public sealed class PeerRemovedEventArgs(DeviceId deviceId) : EventArgs
+{
+    /// <summary>
+    /// Gets the former Peer's Device ID.
+    /// </summary>
+    public DeviceId DeviceId { get; } = deviceId;
 }
