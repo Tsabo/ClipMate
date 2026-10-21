@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public class SharedDatabaseServiceTests
+public partial class SharedDatabaseServiceTests
 {
     private static readonly Guid _workId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid _homeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -22,6 +22,7 @@ public class SharedDatabaseServiceTests
     private ClipMateConfiguration _configuration = null!;
     private IDatabaseContextFactory _databaseContextFactory = null!;
     private IDatabaseIdService _databaseIdService = null!;
+    private ISearchService _searchService = null!;
     private SharedDatabaseService _service = null!;
 
     [Before(Test)]
@@ -36,9 +37,10 @@ public class SharedDatabaseServiceTests
         _clipContentService = A.Fake<IClipContentService>();
         _clipRepository = A.Fake<IClipRepository>();
         _databaseContextFactory = A.Fake<IDatabaseContextFactory>();
+        _searchService = A.Fake<ISearchService>();
         A.CallTo(() => _databaseContextFactory.GetClipRepository("db_work")).Returns(_clipRepository);
         _service = new SharedDatabaseService(configurationService, _databaseIdService, _collectionService, _clipService,
-            _clipContentService, _databaseContextFactory, NullLogger<SharedDatabaseService>.Instance);
+            _clipContentService, _databaseContextFactory, _searchService, NullLogger<SharedDatabaseService>.Instance);
     }
 
     [Test]

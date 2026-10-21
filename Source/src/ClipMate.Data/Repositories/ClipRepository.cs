@@ -2,9 +2,11 @@ using System.Data;
 using System.Text;
 using System.Text.Json;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Data.Dapper;
 using Dapper;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -542,6 +544,64 @@ public class ClipRepository : IClipRepository
             dynamicParameters.Add(item.Key, item.Value);
 
         return QueryClipsAsync(sqlQuery, dynamicParameters, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<SearchMatches> ExecuteSearchQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, int? maxResults,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sqlQuery);
+        ArgumentNullException.ThrowIfNull(parameters);
+        if (maxResults is < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxResults));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Parameter values are deliberately not logged: they can contain clip search text.
+        _logger.LogInformation("Executing search SQL query: {SqlQuery}", sqlQuery);
+
+        var search = sqlQuery.Trim().TrimEnd(';');
+        var dynamicParameters = new DynamicParameters();
+        foreach (var item in parameters)
+            dynamicParameters.Add(item.Key, item.Value);
+
+        dynamicParameters.Add("ResultLimit", maxResults ?? -1); // SQLite: a negative LIMIT means no limit
+
+        var connection = _context.Database.GetDbConnection();
+        var opened = connection.State != ConnectionState.Open;
+        if (opened)
+            await _context.Database.OpenConnectionAsync(cancellationToken);
+
+        try
+        {
+            // Stops a long query inside SQLite itself, not just between rows
+            await using var interrupt = cancellationToken.Register(() =>
+            {
+                if (connection is SqliteConnection { Handle: { } handle })
+                    SQLitePCL.raw.sqlite3_interrupt(handle);
+            });
+
+            var total = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                $"Select COUNT(*) from ({search})", dynamicParameters, cancellationToken: cancellationToken));
+
+            var clips = (await connection.QueryAsync<Clip>(new CommandDefinition(
+                $"Select Matches.* from ({search}) as Matches\nOrder By Matches.SortKey Desc, Matches.ID\nLimit @ResultLimit",
+                dynamicParameters, cancellationToken: cancellationToken))).ToList();
+
+            if (clips.Count > 0)
+                await LoadFormatFlagsAsync(clips, cancellationToken);
+
+            return new SearchMatches(clips, Math.Max(total, clips.Count));
+        }
+        catch (SqliteException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("The search was cancelled.", ex, cancellationToken);
+        }
+        finally
+        {
+            if (opened)
+                await _context.Database.CloseConnectionAsync();
+        }
     }
 
     private async Task<IReadOnlyList<Clip>> QueryClipsAsync(string sqlQuery, DynamicParameters? parameters, CancellationToken cancellationToken)

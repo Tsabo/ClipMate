@@ -1,6 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IDatabaseIdService _databaseIdService;
     private readonly ILogger<SharedDatabaseService> _logger;
+    private readonly ISearchService _searchService;
 
     public SharedDatabaseService(IConfigurationService configurationService,
         IDatabaseIdService databaseIdService,
@@ -26,6 +28,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
         IClipService clipService,
         IClipContentService clipContentService,
         IDatabaseContextFactory databaseContextFactory,
+        ISearchService searchService,
         ILogger<SharedDatabaseService> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
@@ -34,6 +37,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -101,6 +105,51 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
         // Served as stored: an encrypted clip stays ciphertext (this reads the database, never the decrypted cache)
         var content = await _clipContentService.GetClipContentAsync(databaseKey, clipId, cancellationToken);
         return content is { Clip.Del: false } ? content : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<SearchMatches?> SearchAsync(Guid databaseId, SearchFilters filters, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+
+        var scopeId = filters.Scope switch
+        {
+            SearchScope.CurrentCollection => filters.CollectionId
+                                             ?? throw new ArgumentException("A collection ID is required to search the current collection.", nameof(filters)),
+            SearchScope.SpecificFolder => filters.FolderId
+                                          ?? throw new ArgumentException("A folder ID is required to search a folder.", nameof(filters)),
+            var _ => (Guid?)null,
+        };
+
+        var databaseKey = await FindSharedDatabaseKeyAsync(databaseId, cancellationToken);
+        if (databaseKey == null)
+            return null;
+
+        // Only collections and folders of this Shared Database; an ID from any other Database is unknown here
+        if (scopeId is { } id)
+        {
+            var collections = await _collectionService.GetAllByDatabaseKeyAsync(databaseKey, cancellationToken);
+            if (collections.All(p => p.Id != id))
+                return null;
+        }
+
+        // Rebuilt from the fields Remote Search supports: deleted clips and shortcuts are never served to Peers
+        var served = new SearchFilters
+        {
+            TitleQuery = filters.TitleQuery,
+            TextContentQuery = filters.TextContentQuery,
+            CreatorQuery = filters.CreatorQuery,
+            SourceUrlQuery = filters.SourceUrlQuery,
+            ContentTypes = filters.ContentTypes,
+            DateRange = filters.DateRange,
+            Scope = filters.Scope,
+            CollectionId = filters.Scope == SearchScope.CurrentCollection ? filters.CollectionId : null,
+            FolderId = filters.Scope == SearchScope.SpecificFolder ? filters.FolderId : null,
+            Format = filters.Format,
+            EncryptedOnly = filters.EncryptedOnly,
+        };
+
+        return await _searchService.SearchDatabaseAsync(databaseKey, served, RemoteSearchLimits.MaxResults, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -18,6 +18,19 @@ public interface ISearchService
     Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Searches one Database with parameterized SQL built from <paramref name="filters" />, returning the newest
+    /// matches first, at most <paramref name="maxResults" /> of them, and the total number of matches. Does not touch the
+    /// search history. Cancelling <paramref name="cancellationToken" /> interrupts the running query.
+    /// </summary>
+    /// <param name="databaseKey">The Database to search.</param>
+    /// <param name="filters">What to search for.</param>
+    /// <param name="maxResults">The most clips to return, or <c>null</c> for all of them.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <exception cref="ArgumentException">The scope needs a collection or folder ID that <paramref name="filters" /> lacks.</exception>
+    Task<SearchMatches> SearchDatabaseAsync(string databaseKey, SearchFilters filters, int? maxResults = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Builds a readable SQL rendering of the search, with filter values inlined as escaped literals.
     /// Intended for display only; searches execute <see cref="BuildParameterizedSqlQuery" /> instead.
     /// </summary>
