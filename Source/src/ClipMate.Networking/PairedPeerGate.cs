@@ -19,6 +19,7 @@ internal sealed class PairedPeerGate : Interceptor
     [
         $"/{PeerService.Descriptor.FullName}/{nameof(PeerService.PeerServiceBase.RequestPairing)}",
         $"/{PeerService.Descriptor.FullName}/{nameof(PeerService.PeerServiceBase.ConfirmPairing)}",
+        $"/{PeerService.Descriptor.FullName}/{nameof(PeerService.PeerServiceBase.CheckPairing)}",
     ];
 
     private readonly ILogger<PairedPeerGate> _logger;

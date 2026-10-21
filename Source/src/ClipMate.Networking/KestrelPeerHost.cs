@@ -91,6 +91,7 @@ internal sealed record PeerHostServices(
 /// </summary>
 internal sealed class KestrelPeerHost : IPeerHost
 {
+    private readonly PeerConnectionTracker _connections = new();
     private readonly ILogger<KestrelPeerHost> _logger;
     private readonly PeerHostServices _services;
     private WebApplication? _app;
@@ -143,6 +144,7 @@ internal sealed class KestrelPeerHost : IPeerHost
                 {
                     OnConnection = context => ValueTask.FromResult(CreateTlsOptions(identity, context.ClientHelloInfo.ServerName)),
                 });
+                listen.Use(_connections.Track);
             });
         });
 
@@ -160,6 +162,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         }
 
         _app = app;
+        _services.PeerStore.PeerRemoved += OnPeerRemoved;
         ListeningPort = ReadBoundPort(app) ?? port;
         _logger.LogInformation("Peer host listening on port {Port} as Device {DeviceId}", ListeningPort, identity.DeviceId.ToDisplayString());
     }
@@ -171,6 +174,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         if (app == null)
             return;
 
+        _services.PeerStore.PeerRemoved -= OnPeerRemoved;
         _app = null;
         ListeningPort = null;
         try
@@ -186,6 +190,14 @@ internal sealed class KestrelPeerHost : IPeerHost
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await StopAsync();
+
+    private void OnPeerRemoved(object? sender, PeerRemovedEventArgs e)
+    {
+        // Trust is only checked when a connection starts, so close the former Peer's open connections now.
+        var dropped = _connections.Drop(e.DeviceId);
+        if (dropped > 0)
+            _logger.LogInformation("Closed {Count} connection(s) from unpaired Device {DeviceId}", dropped, e.DeviceId.ToDisplayString());
+    }
 
     private SslServerAuthenticationOptions CreateTlsOptions(DeviceIdentity identity, string? serverName)
     {

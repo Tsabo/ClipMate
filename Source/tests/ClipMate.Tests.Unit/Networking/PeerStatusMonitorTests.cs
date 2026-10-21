@@ -105,6 +105,24 @@ public class PeerStatusMonitorTests
     }
 
     [Test]
+    public async Task RefreshAsync_PeerSaysThisDeviceIsNotItsPeer_UnpairsItHere()
+    {
+        // Arrange
+        _probe.NotPairedAt.Add("192.168.1.20:47823");
+        var removed = new List<DeviceId>();
+        _store.PeerRemoved += (_, e) => removed.Add(e.DeviceId);
+        await _monitor.StartAsync(_identity);
+
+        // Act
+        await _monitor.RefreshAsync();
+
+        // Assert
+        await Assert.That(_store.IsPaired(_laptop)).IsFalse();
+        await Assert.That(removed).IsEquivalentTo([_laptop]);
+        await Assert.That(_monitor.GetStatus(_laptop)).IsEqualTo(PeerConnectionStatus.Unknown);
+    }
+
+    [Test]
     public async Task StopAsync_ForgetsStatuses()
     {
         // Arrange
@@ -146,7 +164,11 @@ public class PeerStatusMonitorTests
     {
         public Dictionary<string, PeerProbeReply> Replies { get; } = [];
 
-        public Task<PeerProbeReply?> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken) =>
-            Task.FromResult(Replies.GetValueOrDefault(address));
+        public HashSet<string> NotPairedAt { get; } = [];
+
+        public Task<PeerProbeResult> ProbeAsync(DeviceIdentity identity, DeviceId peer, string address, CancellationToken cancellationToken) =>
+            Task.FromResult(NotPairedAt.Contains(address) ? PeerProbeResult.NotPaired
+                : Replies.TryGetValue(address, out var reply) ? PeerProbeResult.Reached(reply)
+                : PeerProbeResult.Unreachable);
     }
 }

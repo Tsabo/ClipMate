@@ -116,6 +116,24 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
         return new ConfirmPairReply { Paired = true };
     }
 
+    /// <inheritdoc />
+    public override Task<UnpairReply> Unpair(UnpairRequest request, ServerCallContext context)
+    {
+        var caller = PeerCallContext.GetCallerDeviceId(context);
+        _logger.LogInformation("Device {DeviceId} unpaired this Device", caller.ToDisplayString());
+
+        // Unpair once the reply is sent: removing the Peer drops its connections, including the one carrying this call.
+        context.GetHttpContext().Response.OnCompleted(() => _peerStore.RemoveAsync(caller));
+        return Task.FromResult(new UnpairReply());
+    }
+
+    /// <inheritdoc />
+    public override Task<CheckPairingReply> CheckPairing(CheckPairingRequest request, ServerCallContext context)
+    {
+        var caller = PeerCallContext.GetCallerDeviceId(context);
+        return Task.FromResult(new CheckPairingReply { Paired = _peerStore.IsPaired(caller) });
+    }
+
     private PairReply Reply(PairResult result) => new()
     {
         Result = result,
