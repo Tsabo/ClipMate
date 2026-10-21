@@ -18,12 +18,25 @@ public interface ISearchService
     Task<SearchResults> SearchAsync(string query, SearchFilters? filters = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Builds a SQL query from search filters without executing it.
+    /// Builds a readable SQL rendering of the search, with filter values inlined as escaped literals.
+    /// Intended for display only; searches execute <see cref="BuildParameterizedSqlQuery" /> instead.
     /// </summary>
     /// <param name="query">The search query text.</param>
     /// <param name="filters">Optional search filters.</param>
     /// <returns>The generated SQL query string.</returns>
     string BuildSqlQuery(string query, SearchFilters? filters = null);
+
+    /// <summary>
+    /// Builds the parameterized SQL that a search executes. Every filter value is passed as a parameter.
+    /// </summary>
+    /// <param name="query">The search query text (matched against clip text).</param>
+    /// <param name="filters">Optional search filters.</param>
+    /// <returns>The SQL text and its parameter values.</returns>
+    /// <exception cref="ArgumentException">
+    /// The scope is <see cref="Models.SearchScope.CurrentCollection" /> without a collection ID, or
+    /// <see cref="Models.SearchScope.SpecificFolder" /> without a folder ID.
+    /// </exception>
+    SearchSqlQuery BuildParameterizedSqlQuery(string query, SearchFilters? filters = null);
 
     /// <summary>
     /// Validates a SQL query for security and syntax.

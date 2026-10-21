@@ -501,13 +501,29 @@ public class ClipRepository : IClipRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, CancellationToken cancellationToken = default) =>
+        QueryClipsAsync(sqlQuery, null, cancellationToken);
+
+    public Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        var dynamicParameters = new DynamicParameters();
+        foreach (var item in parameters)
+            dynamicParameters.Add(item.Key, item.Value);
+
+        return QueryClipsAsync(sqlQuery, dynamicParameters, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<Clip>> QueryClipsAsync(string sqlQuery, DynamicParameters? parameters, CancellationToken cancellationToken)
+    {
+        // Parameter values are deliberately not logged: they can contain clip search text.
         _logger.LogInformation("Executing search SQL query: {SqlQuery}", sqlQuery);
 
         // Use Dapper for flexible raw SQL support (handles SELECT *, implicit joins, custom functions)
         var connection = _context.Database.GetDbConnection();
-        var clips = (await connection.QueryAsync<Clip>(sqlQuery)).ToList();
+        var command = new CommandDefinition(sqlQuery, parameters, cancellationToken: cancellationToken);
+        var clips = (await connection.QueryAsync<Clip>(command)).ToList();
 
         // Load format flags for the results
         if (clips.Count > 0)

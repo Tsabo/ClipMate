@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Search Date Filters** - Searching with **Captured After** or **Captured Before** turned on failed with a database error instead of returning clips. Both date filters now work.
+
 ## [0.1.0-beta.6] - 2026-10-13
 
 ### Added
