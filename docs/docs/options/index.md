@@ -38,6 +38,7 @@ The Options Dialog contains settings organized into tabs:
 | [Sounds](sounds.md) | Audio feedback |
 | [Database](databases.md) | Data storage settings |
 | [Advanced](advanced-options.md) | Power user settings |
+| [Devices](devices.md) | Peer networking, Device Name and Device ID |
 
 ## About Settings Storage
 

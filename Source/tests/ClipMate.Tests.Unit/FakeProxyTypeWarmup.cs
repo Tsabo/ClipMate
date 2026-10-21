@@ -70,6 +70,7 @@ public static class FakeProxyTypeWarmup
         typeof(IPeerHost),
         typeof(IPeerHostFactory),
         typeof(ILogger<NetworkingService>),
+        typeof(ILogger<DevicesOptionsViewModel>),
         typeof(ILogger<AboutDialogViewModel>),
         typeof(ILogger<AdvancedOptionsViewModel>),
         typeof(ILogger<AppearanceOptionsViewModel>),
