@@ -8,6 +8,7 @@
                  xmlns:controls="clr-namespace:ClipMate.App.Controls"
                  xmlns:converters="clr-namespace:ClipMate.App.Converters"
                  xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
+                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
                  xmlns:emoji="clr-namespace:Emoji.Wpf;assembly=Emoji.Wpf"
                  xmlns:helpers="clr-namespace:ClipMate.App.Helpers"
                  xmlns:local="clr-namespace:ClipMate.App"
@@ -45,6 +46,7 @@
     </dx:ThemedWindow.InputBindings>
     <dx:ThemedWindow.Resources>
         <converters:StatusBarStatisticsConverter x:Key="StatusBarStatisticsConverter" />
+        <converters:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter" />
         <converters:IconGlyphToImageSourceConverter x:Key="IconGlyphToImageSourceConverter" Size="24" />
     </dx:ThemedWindow.Resources>
 
@@ -491,10 +493,33 @@
                                       ShowCaption="False"
                                       ShowCloseButton="False"
                                       ShowBorder="False">
-                        <controls:ClipListControl x:Name="DockedClipListView"
-                                                  Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
-                                                  SelectedItem="{Binding PrimaryClipList.SelectedClip}"
-                                                  SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Remote Database clip lists load page by page; shows progress, or why the Peer could not be read -->
+                            <DockPanel Grid.Row="0"
+                                       Margin="4,2"
+                                       Visibility="{Binding PrimaryClipList.RemoteStatusMessage, Converter={StaticResource NotNullToVisibilityConverter}}">
+                                <dxe:ProgressBarEdit DockPanel.Dock="Left"
+                                                     Width="60"
+                                                     Height="12"
+                                                     Margin="0,0,6,0"
+                                                     StyleSettings="{dxe:ProgressBarMarqueeStyleSettings}"
+                                                     Visibility="{Binding PrimaryClipList.IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                <TextBlock Text="{Binding PrimaryClipList.RemoteStatusMessage}"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <controls:ClipListControl x:Name="DockedClipListView"
+                                                      Grid.Row="1"
+                                                      Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
+                                                      SelectedItem="{Binding PrimaryClipList.SelectedClip}"
+                                                      SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
+                        </Grid>
                     </dxdo:LayoutPanel>
                 </dxdo:LayoutGroup>
 

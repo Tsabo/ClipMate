@@ -19,6 +19,7 @@ public class ClipListViewModelTests
     private readonly ILogger<ClipListViewModel> _mockLogger;
     private readonly IMessenger _mockMessenger;
     private readonly IQuickPasteService _mockQuickPasteService;
+    private readonly IRemoteDatabaseService _mockRemoteDatabases = A.Fake<IRemoteDatabaseService>();
 
     public ClipListViewModelTests()
     {
@@ -40,6 +41,7 @@ public class ClipListViewModelTests
             _mockClipService,
             _mockQuickPasteService,
             _mockContextFactory,
+            _mockRemoteDatabases,
             _mockMessenger,
             _mockLogger);
 
@@ -55,6 +57,7 @@ public class ClipListViewModelTests
             _mockClipService,
             _mockQuickPasteService,
             _mockContextFactory,
+            _mockRemoteDatabases,
             _mockMessenger,
             _mockLogger);
 
@@ -62,20 +65,15 @@ public class ClipListViewModelTests
     }
 
     [Test]
-    public async Task Receive_RemoteDatabaseNodeSelected_ClearsTheListWithoutChangingTheCaptureTarget()
+    public async Task Receive_RemoteDatabaseNodeSelected_ShowsAReadOnlyRemoteListWithoutChangingTheCaptureTarget()
     {
         // Arrange
-        var viewModel = new ClipListViewModel(
-            _mockCollectionService,
-            _mockFolderService,
-            _mockClipService,
-            _mockQuickPasteService,
-            _mockContextFactory,
-            _mockMessenger,
-            _mockLogger);
+        var viewModel = CreateViewModel();
         viewModel.CurrentDatabaseKey = "db_local";
         viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
         var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Returns(new ClipPage([], 0, 0));
 
         // Act
         viewModel.Receive(new RemoteDatabaseNodeSelectedEvent(address, Guid.NewGuid(), null));
@@ -83,10 +81,87 @@ public class ClipListViewModelTests
         // Assert
         await Assert.That(viewModel.Clips).IsEmpty();
         await Assert.That(viewModel.AcceptsNewClips).IsFalse();
-        await Assert.That(viewModel.CurrentDatabaseKey).IsNull();
+        await Assert.That(viewModel.IsRemoteDatabase).IsTrue();
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteDatabaseKey.From(address));
         A.CallTo(() => _mockCollectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
         A.CallTo(() => _mockFolderService.SetActiveAsync(A<Guid?>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
+
+    [Test]
+    public async Task LoadRemoteClipsAsync_LargeCollection_ShowsTheFirstPageThenAppendsTheRestPageByPage()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var collectionId = Guid.NewGuid();
+        var first = Enumerable.Range(0, ClipListViewModel.RemotePageSize).Select(_ => new Clip { Id = Guid.NewGuid() }).ToList();
+        var last = new Clip { Id = Guid.NewGuid() };
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
+            .Returns(new ClipPage(first, 0, first.Count + 1));
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, first.Count, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
+            .Returns(new ClipPage([last], first.Count, first.Count + 1));
+
+        // Act
+        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+
+        // Assert
+        await Assert.That(viewModel.Clips.Count).IsEqualTo(first.Count + 1);
+        await Assert.That(viewModel.Clips[0].Id).IsEqualTo(first[0].Id);
+        await Assert.That(viewModel.Clips[^1].Id).IsEqualTo(last.Id);
+        await Assert.That(viewModel.IsLoading).IsFalse();
+        await Assert.That(viewModel.RemoteStatusMessage).IsNull();
+    }
+
+    [Test]
+    public async Task LoadRemoteClipsAsync_PeerOffline_ShowsTheReasonInsteadOfHanging()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .Throws(new RemoteDatabaseUnavailableException("LAPTOP is offline."));
+
+        // Act
+        await viewModel.LoadRemoteClipsAsync(address, Guid.NewGuid(), null);
+
+        // Assert
+        await Assert.That(viewModel.Clips).IsEmpty();
+        await Assert.That(viewModel.IsLoading).IsFalse();
+        await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("LAPTOP is offline.");
+    }
+
+    [Test]
+    public async Task LoadRemoteClipsAsync_Cancelled_StopsQuietly()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        using var cancellation = new CancellationTokenSource();
+        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+            .ReturnsLazily(async call =>
+            {
+                await cancellation.CancelAsync();
+                call.GetArgument<CancellationToken>(5).ThrowIfCancellationRequested();
+                return new ClipPage([], 0, 0);
+            });
+
+        // Act
+        await viewModel.LoadRemoteClipsAsync(address, Guid.NewGuid(), null, cancellation.Token);
+
+        // Assert
+        await Assert.That(viewModel.IsLoading).IsFalse();
+        await Assert.That(viewModel.RemoteStatusMessage).IsNull();
+    }
+
+    private ClipListViewModel CreateViewModel() => new(
+        _mockCollectionService,
+        _mockFolderService,
+        _mockClipService,
+        _mockQuickPasteService,
+        _mockContextFactory,
+        _mockRemoteDatabases,
+        _mockMessenger,
+        _mockLogger);
 
     [Test]
     public async Task Constructor_ShouldRegisterWithMessenger()
@@ -100,6 +175,7 @@ public class ClipListViewModelTests
             _mockClipService,
             _mockQuickPasteService,
             _mockContextFactory,
+            _mockRemoteDatabases,
             _mockMessenger,
             _mockLogger);
 

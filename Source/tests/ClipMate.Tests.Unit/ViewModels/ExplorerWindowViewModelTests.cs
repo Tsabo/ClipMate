@@ -51,6 +51,7 @@ public class ExplorerWindowViewModelTests
             mockClipService,
             mockQuickPasteService,
             mockContextFactory,
+            A.Fake<IRemoteDatabaseService>(),
             mockMessenger,
             mockLogger);
 

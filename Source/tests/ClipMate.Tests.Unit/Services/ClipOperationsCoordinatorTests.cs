@@ -49,6 +49,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             A.Fake<IClipService>(),
             A.Fake<IQuickPasteService>(),
             A.Fake<IDatabaseContextFactory>(),
+            A.Fake<IRemoteDatabaseService>(),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipListViewModel>>())));
 
