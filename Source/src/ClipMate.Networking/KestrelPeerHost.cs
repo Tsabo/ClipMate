@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Networking.SharedDatabases;
 using Microsoft.AspNetCore.Builder;
@@ -24,6 +25,12 @@ public sealed class PeerHostOptions
     /// Gets the address the listener binds to. Defaults to all IPv4 and IPv6 interfaces.
     /// </summary>
     public IPAddress ListenAddress { get; init; } = IPAddress.IPv6Any;
+
+    /// <summary>
+    /// Gets how long one Remote Search may run before the Peer stops it. Defaults to
+    /// <see cref="RemoteSearchLimits.Timeout" />.
+    /// </summary>
+    public TimeSpan SearchTimeout { get; init; } = RemoteSearchLimits.Timeout;
 }
 
 /// <summary>
@@ -137,6 +144,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         builder.Services.AddSingleton(_services.ApprovalHandler);
         builder.Services.AddSingleton(_services.Tracker);
         builder.Services.AddSingleton(_services.SharedDatabases);
+        builder.Services.AddSingleton(_services.Options);
         builder.Services.AddSingleton(_connections);
         builder.Services.AddGrpc(grpc => grpc.Interceptors.Add<PairedPeerGate>());
 

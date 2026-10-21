@@ -2,6 +2,7 @@ using System.Text;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Networking.Protocol;
 using Grpc.Core;
@@ -47,6 +48,19 @@ public interface ISharedDatabaseClient
     /// </exception>
     Task<ClipContent?> GetClipContentAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid clipId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs a Remote Search on one of <paramref name="peer" />'s Shared Databases: sends the criteria (never SQL) and
+    /// collects the pages of matches the Peer streams back, at most <see cref="RemoteSearchLimits.MaxResults" />.
+    /// </summary>
+    /// <returns>The matches and the total match count, or <c>null</c> if the Peer does not share that Database,
+    /// collection or folder (any more).</returns>
+    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// The Peer could not be reached, stopped the search because it took too long, or refused it.
+    /// </exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken" /> was cancelled; the Peer stops too.</exception>
+    Task<SearchMatches?> SearchAsync(DeviceIdentity identity, Peer peer, Guid databaseId, SearchFilters filters,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -63,10 +77,11 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     private readonly TimeSpan _contentTimeout;
     private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<GrpcSharedDatabaseClient> _logger;
+    private readonly TimeSpan _searchTimeout;
     private readonly TimeSpan _timeout;
 
     public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger)
-        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2))
+        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30))
     {
     }
 
@@ -77,9 +92,14 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// <param name="logger">Logger.</param>
     /// <param name="timeout">The deadline of each call that returns a single reply.</param>
     /// <param name="contentTimeout">The deadline for streaming a clip's content; defaults to <paramref name="timeout" />.</param>
+    /// <param name="searchTimeout">
+    /// The deadline for a Remote Search, longer than the Peer's own search time limit so the Peer can say it gave up;
+    /// defaults to <paramref name="timeout" />.
+    /// </param>
     internal GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeSpan timeout,
-        TimeSpan? contentTimeout = null)
+        TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null)
     {
+        _searchTimeout = searchTimeout ?? timeout;
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeout = timeout;
@@ -150,6 +170,62 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         {
             throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to show its clips.", ex);
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<SearchMatches?> SearchAsync(DeviceIdentity identity, Peer peer, Guid databaseId, SearchFilters filters,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+        try
+        {
+            var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
+            return await CallAsync(identity, peer, _searchTimeout,
+                (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
+                cancellationToken);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.ResourceExhausted)
+        {
+            throw new RemoteDatabaseUnavailableException($"The search took too long on {peer.DisplayName}. Try narrower criteria.", ex);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
+        {
+            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
+        {
+            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to search its clips.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Collects the pages of a Remote Search, keeping no more than the result cap even if a Peer sends more.
+    /// </summary>
+    private static async Task<SearchMatches> ReadSearchPagesAsync(AsyncServerStreamingCall<SearchClipsPage> call, CancellationToken cancellationToken)
+    {
+        using var ownedCall = call;
+        var clips = new List<Clip>();
+        var seen = new HashSet<Guid>();
+        var total = 0;
+
+        await foreach (var item in ownedCall.ResponseStream.ReadAllAsync(cancellationToken))
+        {
+            total = Math.Max(total, item.TotalMatches);
+            foreach (var clip in item.Clips.Select(SharedDatabaseMessages.FromMessage).OfType<Clip>())
+            {
+                if (clips.Count < RemoteSearchLimits.MaxResults && seen.Add(clip.Id))
+                    clips.Add(clip);
+            }
+
+            if (clips.Count >= RemoteSearchLimits.MaxResults)
+                break; // Disposing the call cancels anything more the Peer would send
+        }
+
+        return new SearchMatches(clips, Math.Max(total, clips.Count));
     }
 
     /// <summary>
