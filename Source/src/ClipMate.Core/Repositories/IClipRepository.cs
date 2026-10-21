@@ -78,6 +78,15 @@ public interface IClipRepository
     Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a parameterized SQL query and returns matching clips.
+    /// </summary>
+    /// <param name="sqlQuery">The SQL query to execute, referencing parameters as <c>@Name</c>.</param>
+    /// <param name="parameters">Parameter values keyed by name (without the <c>@</c> prefix).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of clips matching the SQL query.</returns>
+    Task<IReadOnlyList<Clip>> ExecuteSqlQueryAsync(string sqlQuery, IReadOnlyDictionary<string, object?> parameters, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new clip in the data store.
     /// </summary>
     /// <param name="clip">The clip to create.</param>

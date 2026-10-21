@@ -38,7 +38,8 @@ public class ExplorerWindowViewModelTests
             mockMessenger,
             mockCollectionTreeBuilder,
             mockTreeLogger,
-            new SearchResultsCache());
+            new SearchResultsCache(),
+            A.Fake<IDatabaseIdService>());
 
         var clipListVm = new ClipListViewModel(
             mockCollectionService,

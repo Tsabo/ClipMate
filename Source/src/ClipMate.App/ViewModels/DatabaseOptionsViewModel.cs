@@ -21,6 +21,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
 {
     private readonly IClipMate7ImportService _clipMate7ImportService;
     private readonly IConfigurationService _configurationService;
+    private readonly IDatabaseIdService _databaseIdService;
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<DatabaseOptionsViewModel> _logger;
     private readonly IMessenger _messenger;
@@ -49,13 +50,15 @@ public partial class DatabaseOptionsViewModel : ObservableObject
         IClipMate7ImportService clipMate7ImportService,
         IDatabaseManager databaseManager,
         IMessenger messenger,
-        ILogger<DatabaseOptionsViewModel> logger)
+        ILogger<DatabaseOptionsViewModel> logger,
+        IDatabaseIdService databaseIdService)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _clipMate7ImportService = clipMate7ImportService ?? throw new ArgumentNullException(nameof(clipMate7ImportService));
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
     }
 
     /// <summary>
@@ -193,7 +196,7 @@ public partial class DatabaseOptionsViewModel : ObservableObject
     /// Edits the selected database configuration.
     /// </summary>
     [RelayCommand]
-    private void EditDatabase()
+    private async Task EditDatabaseAsync()
     {
         if (SelectedDatabase == null)
         {
@@ -201,7 +204,9 @@ public partial class DatabaseOptionsViewModel : ObservableObject
             return;
         }
 
-        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration)
+        var databaseId = await _databaseIdService.GetDatabaseIdAsync(SelectedDatabase.DatabaseKey);
+
+        var dialog = new DatabaseEditDialog(SelectedDatabase.Configuration, databaseId)
         {
             Owner = Application.Current.GetDialogOwner(),
         };

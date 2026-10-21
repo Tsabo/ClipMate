@@ -57,6 +57,7 @@ public class CollectionTreeViewModelTests
             _mockMessenger,
             _mockCollectionTreeBuilder,
             _mockLogger,
-            new SearchResultsCache());
+            new SearchResultsCache(),
+            A.Fake<IDatabaseIdService>());
     }
 }

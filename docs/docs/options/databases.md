@@ -49,6 +49,7 @@ ClipMate uses .DAT, .IDX, and .BLB files (about 22-24 files total). Files ending
 |----------|-------------|
 | **Title** | Shows at top level of collection tree |
 | **Directory** | Path to database (local or mapped network drive) |
+| **Database ID** | Permanent identifier stored inside the database file (read-only). It stays the same if you rename the database or copy its file. A database created by an earlier version gets one the next time it's opened. |
 | **Auto Load at Startup** | Whether to load when ClipMate starts |
 | **Multi-User** | Enable if others update this database simultaneously |
 | **Read-Only** | Prevents writing (must have at least one read/write database) |

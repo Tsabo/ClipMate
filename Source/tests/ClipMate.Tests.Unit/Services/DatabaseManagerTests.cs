@@ -31,7 +31,7 @@ public class DatabaseManagerTests
             .Returns(config);
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var count = await manager.LoadAutoLoadDatabasesAsync();
@@ -58,7 +58,7 @@ public class DatabaseManagerTests
             .Returns(config);
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var result = await manager.LoadDatabaseAsync("NonExistent");
@@ -77,7 +77,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var result = manager.UnloadDatabase("Test DB");
@@ -103,7 +103,7 @@ public class DatabaseManagerTests
             .Returns(config);
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
         await manager.LoadAutoLoadDatabasesAsync(); // Load configuration
 
         // Act
@@ -123,7 +123,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var databases = manager.GetLoadedDatabases();
@@ -142,7 +142,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         manager.Dispose();
@@ -160,7 +160,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         manager.Dispose();
@@ -180,7 +180,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
         manager.Dispose();
 
         // Act & Assert
@@ -198,7 +198,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
 
         // Act
         var contexts = manager.CreateAllDatabaseContexts().ToList();
@@ -216,7 +216,7 @@ public class DatabaseManagerTests
         var logger = A.Fake<ILogger<DatabaseManager>>();
 
         var messenger = A.Fake<IMessenger>();
-        var manager = new DatabaseManager(configService, contextFactory, logger, messenger);
+        var manager = new DatabaseManager(configService, contextFactory, logger, messenger, new DatabaseSchemaMigrationService());
         manager.Dispose();
 
         // Act & Assert

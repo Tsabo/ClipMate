@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
@@ -9,7 +11,7 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Service for searching clips with advanced filtering capabilities.
 /// </summary>
-public class SearchService : ISearchService
+public partial class SearchService : ISearchService
 {
     private const int _maxHistorySize = 50;
 
@@ -53,11 +55,11 @@ public class SearchService : ISearchService
         if (!string.IsNullOrWhiteSpace(query))
             AddToSearchHistory(query);
 
-        // Build SQL query from filters
-        var sqlQuery = BuildSqlQuery(query, filters);
+        // Build parameterized SQL from filters; filter values never enter the SQL text
+        var sqlQuery = BuildParameterizedSqlQuery(query, filters);
 
         // Execute SQL query
-        var clips = await clipRepository.ExecuteSqlQueryAsync(sqlQuery, cancellationToken);
+        var clips = await clipRepository.ExecuteSqlQueryAsync(sqlQuery.Sql, sqlQuery.Parameters, cancellationToken);
 
         return new SearchResults
         {
@@ -69,7 +71,20 @@ public class SearchService : ISearchService
 
     public string BuildSqlQuery(string query, SearchFilters? filters = null)
     {
+        var sqlQuery = BuildParameterizedSqlQuery(query, filters);
+
+        // Readable rendering for display: substitute each @Name with its value as an escaped SQL literal.
+        // Parameter values never appear in the parameterized SQL text, so only real references are replaced.
+        return ParameterReferenceRegex().Replace(sqlQuery.Sql,
+            p => sqlQuery.Parameters.TryGetValue(p.Groups[1].Value, out var value)
+                ? ToSqlLiteral(value)
+                : p.Value);
+    }
+
+    public SearchSqlQuery BuildParameterizedSqlQuery(string query, SearchFilters? filters = null)
+    {
         var conditions = new List<string>();
+        var parameters = new Dictionary<string, object?>();
         var needsClipDataJoin = false;
         var needsBlobTxtJoin = false;
         var needsShortCutJoin = false;
@@ -86,52 +101,97 @@ public class SearchService : ISearchService
         if (filters?.HasShortcutOnly == true)
             needsShortCutJoin = true;
 
-        // Collection filter
-        if (filters?.CollectionId.HasValue == true)
-            conditions.Add($"Clips.Collection_ID = {filters.CollectionId.Value}");
+        // Scope: restrict to one collection or one folder; AllCollections applies no restriction
+        switch (filters?.Scope)
+        {
+            case SearchScope.CurrentCollection:
+                var collectionId = filters.CollectionId
+                                   ?? throw new ArgumentException("A collection ID is required when the search scope is the current collection.", nameof(filters));
 
-        // Folder filter
-        if (filters?.FolderId.HasValue == true)
-            conditions.Add($"Clips.FolderId = '{filters.FolderId.Value}'");
+                conditions.Add("Clips.CollectionId = @CollectionId");
+                parameters["CollectionId"] = ToDatabaseGuid(collectionId);
+                break;
 
-        // Date range filters
-        if (filters?.DateRange?.From.HasValue == true)
-            conditions.Add($"Clips.TimeStamp > '{filters.DateRange.From.Value:yyyy-MM-dd}'");
+            case SearchScope.SpecificFolder:
+                var folderId = filters.FolderId
+                               ?? throw new ArgumentException("A folder ID is required when the search scope is a specific folder.", nameof(filters));
 
-        if (filters?.DateRange?.To.HasValue == true)
-            conditions.Add($"Clips.TimeStamp < '{filters.DateRange.To.Value:yyyy-MM-dd}'");
+                conditions.Add("Clips.FolderId = @FolderId");
+                parameters["FolderId"] = ToDatabaseGuid(folderId);
+                break;
+        }
+
+        // Content type filter (null or empty = all types)
+        var contentTypes = filters?.ContentTypes?.Distinct().ToList();
+        if (contentTypes is { Count: > 0 })
+        {
+            var names = new List<string>();
+            for (var i = 0; i < contentTypes.Count; i++)
+            {
+                var name = $"ContentType{i}";
+                names.Add($"@{name}");
+                parameters[name] = (int)contentTypes[i];
+            }
+
+            conditions.Add($"Clips.Type IN ({string.Join(", ", names)})");
+        }
+
+        // Date range filters. CapturedAt is stored as ISO 8601 text, so comparing against a
+        // date-only string includes the whole "after" day and excludes the whole "before" day.
+        if (filters?.DateRange?.From is { } from)
+        {
+            conditions.Add("Clips.CapturedAt > @CapturedAfter");
+            parameters["CapturedAfter"] = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+
+        if (filters?.DateRange?.To is { } to)
+        {
+            conditions.Add("Clips.CapturedAt < @CapturedBefore");
+            parameters["CapturedBefore"] = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
 
         // Format filter (requires join with ClipData)
         if (!string.IsNullOrEmpty(filters?.Format))
         {
             needsClipDataJoin = true;
-            var formatId = FormatToFormatId(filters.Format);
-            conditions.Add($"ClipData.Format = {formatId}");
+            conditions.Add("ClipData.Format = @Format");
+            parameters["Format"] = FormatToFormatId(filters.Format);
         }
 
         // Text search conditions using TextSearch custom function
         if (!string.IsNullOrEmpty(filters?.TitleQuery))
-            conditions.Add($"TextSearch(Clips.TITLE, '{EscapeQuery(filters.TitleQuery)}') = 1");
+        {
+            conditions.Add("TextSearch(Clips.TITLE, @TitleQuery) = 1");
+            parameters["TitleQuery"] = filters.TitleQuery;
+        }
 
         if (!string.IsNullOrEmpty(filters?.TextContentQuery))
         {
             needsClipDataJoin = true;
             needsBlobTxtJoin = true;
-            conditions.Add($"TextSearch(BlobTxt.Data, '{EscapeQuery(filters.TextContentQuery)}') = 1");
+            conditions.Add("TextSearch(BlobTxt.Data, @TextContentQuery) = 1");
+            parameters["TextContentQuery"] = filters.TextContentQuery;
         }
 
         if (!string.IsNullOrEmpty(filters?.CreatorQuery))
-            conditions.Add($"TextSearch(Clips.CREATOR, '{EscapeQuery(filters.CreatorQuery)}') = 1");
+        {
+            conditions.Add("TextSearch(Clips.CREATOR, @CreatorQuery) = 1");
+            parameters["CreatorQuery"] = filters.CreatorQuery;
+        }
 
         if (!string.IsNullOrEmpty(filters?.SourceUrlQuery))
-            conditions.Add($"TextSearch(Clips.SOURCEURL, '{EscapeQuery(filters.SourceUrlQuery)}') = 1");
+        {
+            conditions.Add("TextSearch(Clips.SOURCEURL, @SourceUrlQuery) = 1");
+            parameters["SourceUrlQuery"] = filters.SourceUrlQuery;
+        }
 
         // Legacy query parameter (searches in text content via BlobTxt)
         if (!string.IsNullOrWhiteSpace(query))
         {
             needsClipDataJoin = true;
             needsBlobTxtJoin = true;
-            conditions.Add($"TextSearch('{EscapeQuery(query)}' in blobtxt.data)");
+            conditions.Add("TextSearch(BlobTxt.Data, @Query) = 1");
+            parameters["Query"] = query;
         }
 
         // Build FROM clause with necessary joins
@@ -166,7 +226,8 @@ public class SearchService : ISearchService
             ? $"Where {string.Join("\n  And ", allConditions)}"
             : string.Empty;
 
-        return $"Select DISTINCT Clips.* from {fromClause}\n{whereClause}\nOrder By Clips.ID;";
+        var sql = $"Select DISTINCT Clips.* from {fromClause}\n{whereClause}\nOrder By Clips.ID;";
+        return new SearchSqlQuery(sql, parameters);
     }
 
     public async Task SaveSearchQueryAsync(string name, string query, bool isCaseSensitive, bool isRegex, string? filtersJson = null, CancellationToken cancellationToken = default)
@@ -279,9 +340,23 @@ public class SearchService : ISearchService
     }
 
     /// <summary>
-    /// Escapes single quotes in search query for use inside a SQL string literal.
+    /// Renders a parameter value as a SQL literal for the readable (display-only) query.
     /// </summary>
-    private static string EscapeQuery(string query) => query.Replace("'", "''");
+    private static string ToSqlLiteral(object? value) => value switch
+    {
+        null => "NULL",
+        string s => $"'{s.Replace("'", "''")}'",
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        var _ => $"'{value.ToString()?.Replace("'", "''")}'",
+    };
+
+    /// <summary>
+    /// Formats a GUID the way EF Core stores it in SQLite (upper-case text), so it compares equal.
+    /// </summary>
+    private static string ToDatabaseGuid(Guid id) => id.ToString("D").ToUpperInvariant();
+
+    [GeneratedRegex(@"@(\w+)")]
+    private static partial Regex ParameterReferenceRegex();
 
     private int FormatToFormatId(string format)
     {

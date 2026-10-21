@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using ClipMate.Data.Schema.Abstractions;
 using ClipMate.Data.Schema.EntityFramework;
 using ClipMate.Data.Schema.Models;
@@ -79,43 +80,48 @@ public class DatabaseSchemaMigrationService
             var comparer = new SqliteSchemaComparer();
             var diff = comparer.Compare(currentSchema, expectedSchema);
 
-            if (!diff.HasChanges)
-            {
+            if (diff.HasChanges)
+                await ApplySchemaChangesAsync(diff, connectionString, connection, cancellationToken);
+            else
                 _logger?.LogInformation("Database schema is up to date");
 
-                return;
-            }
-
-            _logger?.LogInformation("Schema changes detected: {OperationCount} operations", diff.Operations.Count);
-
-            if (diff.Warnings.Count > 0)
-                _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
-
-            // Backup database before migration
-            var databasePath = GetDatabasePath(connectionString);
-            if (!string.IsNullOrEmpty(databasePath))
-                await BackupDatabaseAsync(databasePath, connection);
-
-            // Apply migrations with logging hook
-            var hook = new LoggingMigrationHook(_logger);
-            var migrator = new SqliteSchemaMigrator(connection, hook);
-
-            var result = await migrator.MigrateAsync(diff, false, cancellationToken);
-
-            if (!result.Success)
-            {
-                _logger?.LogError("Schema migration failed: {Errors}", string.Join(", ", result.Errors));
-
-                throw new InvalidOperationException($"Schema migration failed: {string.Join(", ", result.Errors)}");
-            }
-
-            _logger?.LogInformation("Database schema migration completed successfully");
+            // Every Database carries a permanent Database ID; databases created before it existed get one here
+            await DatabaseIdStore.EnsureDatabaseIdAsync(connection, cancellationToken);
         }
         finally
         {
             if (shouldCloseConnection && connection.State == ConnectionState.Open)
                 await connection.CloseAsync();
         }
+    }
+
+    private async Task ApplySchemaChangesAsync(SchemaDiff diff, string connectionString, DbConnection connection,
+        CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("Schema changes detected: {OperationCount} operations", diff.Operations.Count);
+
+        if (diff.Warnings.Count > 0)
+            _logger?.LogWarning("Migration warnings: {Warnings}", string.Join(", ", diff.Warnings));
+
+        // Backup database before migration
+        var databasePath = GetDatabasePath(connectionString);
+        if (!string.IsNullOrEmpty(databasePath))
+            await BackupDatabaseAsync(databasePath, connection);
+
+        // Apply migrations with logging hook
+        var hook = new LoggingMigrationHook(_logger);
+        var migrator = new SqliteSchemaMigrator(connection, hook);
+
+        var result = await migrator.MigrateAsync(diff, false, cancellationToken);
+
+        if (!result.Success)
+        {
+            _logger?.LogError("Schema migration failed: {Errors}", string.Join(", ", result.Errors));
+
+            throw new InvalidOperationException($"Schema migration failed: {string.Join(", ", result.Errors)}");
+        }
+
+        _logger?.LogInformation("Database schema migration completed successfully");
     }
 
     /// <summary>
