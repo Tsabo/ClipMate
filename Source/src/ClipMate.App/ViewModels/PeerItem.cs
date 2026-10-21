@@ -31,7 +31,10 @@ public sealed record PeerItem(string DisplayName, string DeviceName, string Shor
         var _ => lastSeen == null ? "Offline (never seen)" : $"Offline (last seen {FormatAgo(now - lastSeen.Value)})",
     };
 
-    private static string FormatAgo(TimeSpan elapsed) => elapsed switch
+    /// <summary>
+    /// Describes how long ago something happened, e.g. "just now", "5 min ago", "2 h ago" or "3 d ago".
+    /// </summary>
+    public static string FormatAgo(TimeSpan elapsed) => elapsed switch
     {
         { TotalMinutes: < 1 } => "just now",
         { TotalHours: < 1 } => $"{(int)elapsed.TotalMinutes} min ago",

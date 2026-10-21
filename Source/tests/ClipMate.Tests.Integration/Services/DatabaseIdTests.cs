@@ -240,6 +240,55 @@ public class DatabaseIdTests
         await Assert.That(databaseId).IsNull();
     }
 
+    [Test]
+    public async Task GetDatabaseIdForFileAsync_ReturnsIdStoredInFile()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "byfile.db");
+        await CreateAndMigrateAsync(path);
+        var service = new DatabaseIdService(CreateConfigurationService());
+
+        // Act
+        var databaseId = await service.GetDatabaseIdForFileAsync(path);
+
+        // Assert
+        await Assert.That(databaseId).IsEqualTo(await ReadDatabaseIdAsync(path));
+    }
+
+    [Test]
+    public async Task AssignNewDatabaseIdAsync_CopiedFile_GetsItsOwnIdAndTheOriginalKeepsItsId()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "original.db");
+        var copyPath = Path.Combine(_directory, "copy.db");
+        await CreateAndMigrateAsync(path);
+        var originalId = await ReadDatabaseIdAsync(path);
+        SqliteConnection.ClearAllPools();
+        File.Copy(path, copyPath);
+        var service = new DatabaseIdService(CreateConfigurationService());
+
+        // Act
+        var newId = await service.AssignNewDatabaseIdAsync(copyPath);
+
+        // Assert
+        await Assert.That(newId).IsNotEqualTo(originalId);
+        await Assert.That(await service.GetDatabaseIdForFileAsync(copyPath)).IsEqualTo(newId);
+        await Assert.That(await ReadDatabaseIdAsync(copyPath)).IsEqualTo(newId);
+        await Assert.That(await service.GetDatabaseIdForFileAsync(path)).IsEqualTo(originalId);
+    }
+
+    [Test]
+    public async Task AssignNewDatabaseIdAsync_FileDoesNotExist_ThrowsWithoutCreatingFile()
+    {
+        // Arrange
+        var path = Path.Combine(_directory, "missing.db");
+        var service = new DatabaseIdService(CreateConfigurationService());
+
+        // Act / Assert
+        await Assert.That(async () => await service.AssignNewDatabaseIdAsync(path)).Throws<FileNotFoundException>();
+        await Assert.That(File.Exists(path)).IsFalse();
+    }
+
     private static IConfigurationService CreateConfigurationService(params (string Key, string Path, bool AutoLoad)[] databases)
     {
         var configuration = new ClipMateConfiguration

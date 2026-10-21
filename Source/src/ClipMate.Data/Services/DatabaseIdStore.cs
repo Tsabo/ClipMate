@@ -26,6 +26,22 @@ internal static class DatabaseIdStore
     }
 
     /// <summary>
+    /// Replaces the Database ID with a new one (or assigns one if the database has none) and returns it.
+    /// Only for an explicit user request, such as giving a copied database file its own identity.
+    /// </summary>
+    public static async Task<Guid> ReplaceDatabaseIdAsync(DbConnection connection, CancellationToken cancellationToken = default)
+    {
+        var databaseId = Guid.NewGuid();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "INSERT OR REPLACE INTO DatabaseInfo (Id, DatabaseId) VALUES ($id, $databaseId)";
+        AddParameter(command, "$id", DatabaseInfo.SingletonId);
+        AddParameter(command, "$databaseId", databaseId.ToString("D", CultureInfo.InvariantCulture).ToUpperInvariant());
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return databaseId;
+    }
+
+    /// <summary>
     /// Reads the Database ID, or returns null if the database has none yet.
     /// </summary>
     public static async Task<Guid?> ReadDatabaseIdAsync(DbConnection connection, CancellationToken cancellationToken = default)

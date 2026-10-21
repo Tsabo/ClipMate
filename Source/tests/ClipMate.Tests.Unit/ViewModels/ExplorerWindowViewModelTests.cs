@@ -39,7 +39,10 @@ public class ExplorerWindowViewModelTests
             mockCollectionTreeBuilder,
             mockTreeLogger,
             new SearchResultsCache(),
-            A.Fake<IDatabaseIdService>());
+            A.Fake<IDatabaseIdService>(),
+            A.Fake<IRemoteDatabaseService>(),
+            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<ISharedDatabaseService>());
 
         var clipListVm = new ClipListViewModel(
             mockCollectionService,

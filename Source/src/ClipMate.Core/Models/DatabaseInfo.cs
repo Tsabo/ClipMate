@@ -17,7 +17,8 @@ public class DatabaseInfo
     public int Id { get; set; } = SingletonId;
 
     /// <summary>
-    /// Gets or sets the permanent Database ID, generated once and never changed.
+    /// Gets or sets the permanent Database ID, generated once. It changes only when the user explicitly gives the
+    /// Database a new ID (e.g. so a copied file can be shared alongside its original).
     /// </summary>
     public Guid DatabaseId { get; set; }
 }

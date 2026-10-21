@@ -16,12 +16,15 @@ public partial class DatabaseEditDialog
     /// <summary>
     /// Initializes a new instance for creating a new database.
     /// </summary>
-    public DatabaseEditDialog()
+    /// <param name="sharing">Checks that the Database can be shared with Peers; null to skip the check.</param>
+    public DatabaseEditDialog(DatabaseSharingContext? sharing = null)
     {
         InitializeComponent();
         _viewModel = new DatabaseEditViewModel();
         DataContext = _viewModel;
         Loaded += OnLoaded;
+        if (sharing != null)
+            _viewModel.UseSharingChecks(sharing);
     }
 
     /// <summary>
@@ -29,11 +32,14 @@ public partial class DatabaseEditDialog
     /// </summary>
     /// <param name="config">The database configuration to edit.</param>
     /// <param name="databaseId">The Database ID stored in the database file, or null if it has none yet.</param>
-    public DatabaseEditDialog(DatabaseConfiguration config, Guid? databaseId)
+    /// <param name="sharing">Checks that the Database can be shared with Peers; null to skip the check.</param>
+    public DatabaseEditDialog(DatabaseConfiguration config, Guid? databaseId, DatabaseSharingContext? sharing = null)
         : this()
     {
         _viewModel.LoadFrom(config);
         _viewModel.SetDatabaseId(databaseId);
+        if (sharing != null)
+            _viewModel.UseSharingChecks(sharing);
     }
 
     /// <summary>
@@ -52,6 +58,17 @@ public partial class DatabaseEditDialog
                 MessageBoxButton.OK, MessageBoxImage.Warning);
 
             TitleTextBox.Focus();
+            return;
+        }
+
+        if (!_viewModel.CanAccept)
+        {
+            DXMessageBox.Show(this,
+                _viewModel.ShareConflictMessage ?? "Please wait while ClipMate checks whether this Database can be shared.",
+                "Cannot Share This Database",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
             return;
         }
 

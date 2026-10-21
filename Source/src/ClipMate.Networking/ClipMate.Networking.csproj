@@ -29,6 +29,7 @@
 
   <ItemGroup Label="Protocol">
     <Protobuf Include="Protos\peer.proto" GrpcServices="Both" />
+    <Protobuf Include="Protos\shared_databases.proto" GrpcServices="Both" />
     <Protobuf Include="Protos\discovery.proto" GrpcServices="None" />
   </ItemGroup>
 

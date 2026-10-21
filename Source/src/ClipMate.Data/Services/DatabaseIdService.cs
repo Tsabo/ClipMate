@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 namespace ClipMate.Data.Services;
 
 /// <summary>
-/// Reads the Database ID straight from the database file without creating or modifying it.
+/// Reads the Database ID straight from the database file without creating it, and replaces it on request.
 /// </summary>
 internal class DatabaseIdService : IDatabaseIdService
 {
@@ -23,19 +23,20 @@ internal class DatabaseIdService : IDatabaseIdService
         if (!_configurationService.Configuration.Databases.TryGetValue(databaseKey, out var databaseConfig))
             return null;
 
-        var path = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+        return await GetDatabaseIdForFileAsync(databaseConfig.FilePath, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Guid?> GetDatabaseIdForFileAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var path = Environment.ExpandEnvironmentVariables(filePath);
         if (!File.Exists(path))
             return null;
 
         // Read-only and unpooled so reading the ID never creates the file or keeps it locked
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = path,
-            Mode = SqliteOpenMode.ReadOnly,
-            Pooling = false,
-        }.ToString();
-
-        await using var connection = new SqliteConnection(connectionString);
+        await using var connection = new SqliteConnection(CreateConnectionString(path, SqliteOpenMode.ReadOnly));
 
         try
         {
@@ -50,4 +51,27 @@ internal class DatabaseIdService : IDatabaseIdService
             return null;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<Guid> AssignNewDatabaseIdAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var path = Environment.ExpandEnvironmentVariables(filePath);
+        if (!File.Exists(path))
+            throw new FileNotFoundException("The database file does not exist.", path);
+
+        // ReadWrite (not ReadWriteCreate), so a file deleted meanwhile is never recreated empty
+        await using var connection = new SqliteConnection(CreateConnectionString(path, SqliteOpenMode.ReadWrite));
+        await connection.OpenAsync(cancellationToken);
+
+        return await DatabaseIdStore.ReplaceDatabaseIdAsync(connection, cancellationToken);
+    }
+
+    private static string CreateConnectionString(string path, SqliteOpenMode mode) => new SqliteConnectionStringBuilder
+    {
+        DataSource = path,
+        Mode = mode,
+        Pooling = false,
+    }.ToString();
 }

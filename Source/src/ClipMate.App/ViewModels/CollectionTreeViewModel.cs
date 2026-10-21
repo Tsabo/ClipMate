@@ -3,6 +3,7 @@ using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -27,7 +28,11 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly ILogger<CollectionTreeViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly IDatabaseIdService _databaseIdService;
+    private readonly Dictionary<RemoteDatabaseAddress, RemoteDatabaseTreeNode> _remoteDatabaseNodes = [];
+    private readonly IRemoteDatabaseService _remoteDatabaseService;
+    private readonly IRemoteDatabaseTreeBuilder _remoteDatabaseTreeBuilder;
     private readonly SearchResultsCache _searchResultsCache;
+    private readonly ISharedDatabaseService _sharedDatabaseService;
     private int _loadVersion;
 
     public CollectionTreeViewModel(ICollectionService collectionService,
@@ -38,7 +43,10 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         ICollectionTreeBuilder collectionTreeBuilder,
         ILogger<CollectionTreeViewModel> logger,
         SearchResultsCache searchResultsCache,
-        IDatabaseIdService databaseIdService)
+        IDatabaseIdService databaseIdService,
+        IRemoteDatabaseService remoteDatabaseService,
+        IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder,
+        ISharedDatabaseService sharedDatabaseService)
     {
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -49,10 +57,16 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
         _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
+        _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
+        _remoteDatabaseTreeBuilder = remoteDatabaseTreeBuilder ?? throw new ArgumentNullException(nameof(remoteDatabaseTreeBuilder));
+        _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
 
         // Register to receive SearchExecutedEvent and RefreshCollectionTreeRequestedEvent
         _messenger.Register<SearchExecutedEvent>(this);
         _messenger.Register<RefreshCollectionTreeRequestedEvent>(this);
+
+        // Remote Databases come and go with sharing, Peer status and Pairing, independently of the local tree
+        _remoteDatabaseService.RemoteDatabasesChanged += OnRemoteDatabasesChanged;
     }
 
     /// <summary>
@@ -173,6 +187,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     {
         _logger.LogInformation("Selection changed: NodeType={NodeType}", value?.GetType().Name ?? "null");
 
+        // A Remote Database is read-only: selecting it must never make it the active collection (the capture target)
+        if (FindRemoteDatabaseNode(value) is { } remoteDatabaseNode)
+        {
+            var (collectionId, folderId) = GetRemoteSelection(value!);
+            _messenger.Send(new RemoteDatabaseNodeSelectedEvent(remoteDatabaseNode.Address, collectionId, folderId));
+            return;
+        }
+
         // Get the database key by traversing up to the database node
         var databaseKey = GetDatabaseKeyForNode(value);
         if (string.IsNullOrEmpty(databaseKey))
@@ -276,7 +298,132 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         foreach (var item in treeNodes)
             RootNodes.Add(item);
 
+        // Remote Databases follow the local ones; their trees load in the background so a slow Peer never delays the local tree
+        foreach (var item in _remoteDatabaseNodes.Values)
+            RootNodes.Add(item);
+
+        _ = RefreshRemoteDatabasesAsync(cancellationToken);
         return true;
+    }
+
+    /// <summary>
+    /// Brings the Remote Database nodes in line with <see cref="IRemoteDatabaseService" />: adds new ones, removes those
+    /// that are no longer shared or whose Peer was unpaired, greys out those whose Peer is offline, and fetches the
+    /// collection tree of each available one that has not been loaded yet. Must run on the UI thread.
+    /// </summary>
+    public async Task RefreshRemoteDatabasesAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.Now;
+        var remoteDatabases = _remoteDatabaseService.GetRemoteDatabases();
+        var current = remoteDatabases.Select(p => p.Address).ToHashSet();
+
+        foreach (var item in _remoteDatabaseNodes.Values.Where(p => !current.Contains(p.Address)).ToList())
+        {
+            if (FindRemoteDatabaseNode(SelectedNode) == item)
+                SelectedNode = null;
+
+            RootNodes.Remove(item);
+            _remoteDatabaseNodes.Remove(item.Address);
+        }
+
+        var toLoad = new List<RemoteDatabaseTreeNode>();
+        foreach (var item in remoteDatabases)
+        {
+            if (_remoteDatabaseNodes.TryGetValue(item.Address, out var node))
+            {
+                // The Peer's tree may have changed while it was away
+                if (item.IsAvailable && !node.Database.IsAvailable)
+                    node.ChildrenLoaded = false;
+
+                node.Update(item, now);
+            }
+            else
+            {
+                node = new RemoteDatabaseTreeNode(item, now);
+                _remoteDatabaseNodes.Add(item.Address, node);
+                RootNodes.Add(node);
+            }
+
+            if (item.IsAvailable && !node.ChildrenLoaded)
+                toLoad.Add(node);
+        }
+
+        await Task.WhenAll(toLoad.Select(p => LoadRemoteDatabaseChildrenAsync(p, cancellationToken)));
+    }
+
+    private async Task LoadRemoteDatabaseChildrenAsync(RemoteDatabaseTreeNode node, CancellationToken cancellationToken)
+    {
+        node.ChildrenLoaded = true;
+        try
+        {
+            var children = await _remoteDatabaseTreeBuilder.BuildChildrenAsync(node, cancellationToken);
+            if (!_remoteDatabaseNodes.ContainsKey(node.Address))
+                return; // Removed meanwhile
+
+            node.Children.Clear();
+            foreach (var item in children)
+                node.Children.Add(item);
+        }
+        catch (Exception ex) when (ex is RemoteDatabaseUnavailableException or OperationCanceledException)
+        {
+            node.ChildrenLoaded = false;
+            _logger.LogInformation("Could not load Remote Database {RemoteDatabase}: {Reason}", node.Address, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            node.ChildrenLoaded = false;
+            _logger.LogWarning(ex, "Failed to load Remote Database {RemoteDatabase}", node.Address);
+        }
+    }
+
+    private void OnRemoteDatabasesChanged(object? sender, EventArgs e)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            return;
+
+        dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                await RefreshRemoteDatabasesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to refresh Remote Databases in the collection tree");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Returns the Remote Database node that <paramref name="node" /> is in, or null for a local node.
+    /// </summary>
+    private static RemoteDatabaseTreeNode? FindRemoteDatabaseNode(TreeNodeBase? node)
+    {
+        for (var current = node; current != null; current = current.Parent)
+        {
+            if (current is RemoteDatabaseTreeNode remoteDatabaseNode)
+                return remoteDatabaseNode;
+        }
+
+        return null;
+    }
+
+    private static (Guid? CollectionId, Guid? FolderId) GetRemoteSelection(TreeNodeBase node)
+    {
+        if (node is RemoteCollectionTreeNode collectionNode)
+            return (collectionNode.Collection.Id, null);
+
+        if (node is not RemoteFolderTreeNode folderNode)
+            return (null, null);
+
+        for (var current = node.Parent; current != null; current = current.Parent)
+        {
+            if (current is RemoteCollectionTreeNode parentCollection)
+                return (parentCollection.Collection.Id, folderNode.Folder.Id);
+        }
+
+        return (null, folderNode.Folder.Id);
     }
 
     /// <summary>
@@ -408,8 +555,11 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         var databaseId = await _databaseIdService.GetDatabaseIdAsync(databaseKey);
 
+        var otherDatabases = config.Databases.Where(p => p.Key != databaseKey).Select(p => p.Value).ToList();
+        var sharing = new DatabaseSharingContext(_sharedDatabaseService, _databaseIdService, otherDatabases);
+
         // Show the database edit dialog
-        var dialog = new DatabaseEditDialog(databaseConfig, databaseId)
+        var dialog = new DatabaseEditDialog(databaseConfig, databaseId, sharing)
         {
             Owner = Application.Current.GetDialogOwner(),
         };
@@ -421,6 +571,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         config.Databases[databaseKey] = dialog.DatabaseConfig;
 
         _logger.LogInformation("Updated database configuration: {DatabaseName}", dialog.DatabaseConfig.Name);
+
+        // Persist at once: sharing takes effect for Peers immediately and must survive a restart
+        await _configurationService.SaveAsync();
 
         // Reload the tree to reflect the changes
         _ = LoadAsync();
@@ -716,5 +869,6 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     public void Dispose()
     {
         _messenger.UnregisterAll(this);
+        _remoteDatabaseService.RemoteDatabasesChanged -= OnRemoteDatabasesChanged;
     }
 }

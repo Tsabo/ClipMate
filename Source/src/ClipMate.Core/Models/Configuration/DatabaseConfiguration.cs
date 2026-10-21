@@ -26,6 +26,12 @@ public class DatabaseConfiguration
     public bool AllowBackup { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether this Database is a Shared Database: served (read-only) to paired Devices while networking is on.
+    /// Off by default.
+    /// </summary>
+    public bool ShareWithPeers { get; set; }
+
+    /// <summary>
     /// Gets or sets whether this database is read-only.
     /// </summary>
     public bool ReadOnly { get; set; } = false;

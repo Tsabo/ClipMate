@@ -19,6 +19,7 @@
     <dx:ThemedWindow.DialogButtons>
         <dx:ThemedWindowDialogButton Content="OK"
                                      Click="OkButton_Click"
+                                     IsEnabled="{Binding CanAccept}"
                                      IsDefault="True"
                                      DialogResult="OK" />
         <dx:ThemedWindowDialogButton Content="Cancel"
@@ -71,7 +72,30 @@
                 <dxe:TextEdit x:Name="DatabaseIdTextBox"
                               EditValue="{Binding DatabaseIdText, Mode=OneWay}"
                               IsReadOnly="True"
-                              ToolTip="Permanent identifier stored inside the database file. It never changes, even if the database is renamed or its file is copied." />
+                              ToolTip="Permanent identifier stored inside the database file. It does not change when the database is renamed or its file is copied." />
+            </dxlc:LayoutItem>
+
+            <!-- Share with Peers -->
+            <dxlc:LayoutItem>
+                <StackPanel Orientation="Vertical">
+                    <dxe:CheckEdit x:Name="ShareWithPeersCheckBox"
+                                   Content="Share with Peers"
+                                   IsChecked="{Binding ShareWithPeers, Mode=TwoWay}"
+                                   ToolTip="Let your paired Devices browse this Database (read-only) while networking is on" />
+                    <StackPanel Orientation="Vertical"
+                                Margin="20,5,0,0"
+                                Visibility="{Binding HasShareConflict, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding ShareConflictMessage}"
+                                   TextWrapping="Wrap"
+                                   Foreground="Maroon" />
+                        <Button Content="Give this Database a new ID"
+                                Command="{Binding GiveNewDatabaseIdCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="10,5"
+                                Margin="0,5,0,0"
+                                ToolTip="Store a new Database ID in this database file. Peers then see it as a different Database from the one it was copied from." />
+                    </StackPanel>
+                </StackPanel>
             </dxlc:LayoutItem>
 
             <!-- Auto Load and Multi-User -->

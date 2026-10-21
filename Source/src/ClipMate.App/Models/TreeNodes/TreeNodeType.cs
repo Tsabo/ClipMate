@@ -47,4 +47,9 @@ public enum TreeNodeType
     /// Clipboard format node under an application profile.
     /// </summary>
     ApplicationProfileFormat = 1 << 8,
+
+    /// <summary>
+    /// Remote Database root node: a Peer's Shared Database.
+    /// </summary>
+    RemoteDatabase = 1 << 9,
 }
