@@ -48,6 +48,8 @@ Pairing makes two of your Devices trust each other. It completes only once **bot
 
 Declining on either Device, or not answering within two minutes, leaves both Devices unpaired.
 
+To keep another computer from flooding you with pairing requests, a Device answers only one request at a time from each network address, and after a request from an address is declined or goes unanswered, requests from that address are turned away for 30 seconds. The requesting Device is told the other Device is busy; wait a moment and try again.
+
 ### Add Device manually
 
 To pair with a Device that is not on your local network (on another subnet, through a VPN, or over the internet), click **Add Device manually...** under **Discovered Devices** and enter:

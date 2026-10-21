@@ -282,6 +282,27 @@ public partial class PairingTests
         await Assert.That(reply).IsNotNull();
     }
 
+    [Test]
+    public async Task RequestPairing_AnotherDeviceAtTheSameAddressWhileOneIsWaiting_IsBusyAndAsksNoOne()
+    {
+        // Arrange: the laptop's request waits for the desktop's user, who has not answered yet; then another Device ID
+        // (as an unpaired Device minting fresh certificates would) asks from the same address.
+        using var other = await new DeviceIdentityService(Path.Combine(_identityDirectory!, $"other_{Guid.NewGuid():N}"),
+            NullLogger<DeviceIdentityService>.Instance).GetOrCreateAsync();
+        await using var session = _laptop.PairingClient.Start(_desktop.AsTarget());
+        await _desktop.User.Asked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        using var channel = PeerChannelFactory.CreateForPairing(_desktop.Address, other, _desktop.DeviceId);
+        var client = new PeerService.PeerServiceClient(channel);
+
+        // Act
+        var reply = await client.RequestPairingAsync(new PairRequest { DeviceName = "OTHER", ProtocolMajor = PeerProtocol.Major },
+            deadline: DateTime.UtcNow.AddSeconds(10));
+
+        // Assert
+        await Assert.That(reply.Result).IsEqualTo(PairResult.Busy);
+        await Assert.That(_desktop.User.Requests.Count).IsEqualTo(1);
+    }
+
     /// <summary>
     /// The user at a test Device: answers pairing requests with <see cref="Answer" />, or never answers if it is null.
     /// </summary>
