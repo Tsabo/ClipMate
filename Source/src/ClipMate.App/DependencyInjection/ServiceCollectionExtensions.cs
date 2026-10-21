@@ -32,6 +32,9 @@ public static class ServiceCollectionExtensions
 
         // Register Update Checker as hosted service
         services.AddHostedService<UpdateCheckerService>();
+        // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
+        services.AddSingleton<NetworkingService>();
+        services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
 
         // Register MVVM Toolkit Messenger as singleton
         // Using StrongReferenceMessenger to ensure subscribers aren't GC'd unexpectedly
@@ -113,6 +116,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<PrintOptionsViewModel>();
         services.AddTransient<PrintPreviewViewModel>();
         services.AddTransient<AdvancedOptionsViewModel>();
+        services.AddTransient<DevicesOptionsViewModel>();
         services.AddTransient<OptionsViewModel>();
         services.AddTransient<OptionsDialog>();
 

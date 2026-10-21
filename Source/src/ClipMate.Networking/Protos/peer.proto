@@ -1,0 +1,26 @@
+// The Peer wire protocol (ADR 0002). Changes must stay backward compatible within a protocol
+// major version; new features are added as negotiated capabilities.
+syntax = "proto3";
+
+package clipmate.peer.v1;
+
+option csharp_namespace = "ClipMate.Networking.Protocol";
+
+service PeerService {
+  // Exchanges protocol version, capabilities and identity right after connecting.
+  rpc Hello (HelloRequest) returns (HelloReply);
+}
+
+message HelloRequest {
+  uint32 protocol_major = 1;
+  uint32 protocol_minor = 2;
+  repeated string capabilities = 3;
+}
+
+message HelloReply {
+  string device_id = 1;
+  string device_name = 2;
+  uint32 protocol_major = 3;
+  uint32 protocol_minor = 4;
+  repeated string capabilities = 5;
+}

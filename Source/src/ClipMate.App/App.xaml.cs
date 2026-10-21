@@ -9,6 +9,7 @@ using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Data.Services;
+using ClipMate.Networking.DependencyInjection;
 using ClipMate.Platform.DependencyInjection;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.Configuration;
@@ -340,6 +341,9 @@ public partial class App
 
                 // Register Platform services
                 services.AddClipMatePlatform();
+
+                // Register Peer networking (the Peer host is created only when networking is enabled)
+                services.AddClipMateNetworking();
 
                 // Register App services
                 services.AddClipMateApp();

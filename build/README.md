@@ -87,6 +87,7 @@ build/
 - **Target:** Windows 10 1809+ / Windows 11
 - **Auto-installs if missing:**
   - .NET 10 Desktop Runtime
+  - ASP.NET Core 10 Runtime
   - WebView2 Runtime (via InnoDependencyInstaller)
 
 ## Troubleshooting

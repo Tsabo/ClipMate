@@ -77,4 +77,9 @@ public class ClipMateConfiguration
     /// Gets or sets the appearance/theming configuration.
     /// </summary>
     public AppearanceConfiguration Appearance { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the Peer networking configuration.
+    /// </summary>
+    public NetworkingConfiguration Networking { get; set; } = new();
 }

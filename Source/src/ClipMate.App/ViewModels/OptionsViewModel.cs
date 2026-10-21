@@ -37,7 +37,8 @@ public partial class OptionsViewModel : ObservableObject
         DatabaseOptionsViewModel databaseOptionsViewModel,
         AdvancedOptionsViewModel advancedOptionsViewModel,
         EncryptionOptionsViewModel encryptionOptionsViewModel,
-        PrintOptionsViewModel printOptionsViewModel)
+        PrintOptionsViewModel printOptionsViewModel,
+        DevicesOptionsViewModel devicesOptionsViewModel)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -56,6 +57,7 @@ public partial class OptionsViewModel : ObservableObject
         Advanced = advancedOptionsViewModel ?? throw new ArgumentNullException(nameof(advancedOptionsViewModel));
         Encryption = encryptionOptionsViewModel ?? throw new ArgumentNullException(nameof(encryptionOptionsViewModel));
         Print = printOptionsViewModel ?? throw new ArgumentNullException(nameof(printOptionsViewModel));
+        Devices = devicesOptionsViewModel ?? throw new ArgumentNullException(nameof(devicesOptionsViewModel));
 
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
@@ -74,6 +76,7 @@ public partial class OptionsViewModel : ObservableObject
     public AdvancedOptionsViewModel Advanced { get; }
     public EncryptionOptionsViewModel Encryption { get; }
     public PrintOptionsViewModel Print { get; }
+    public DevicesOptionsViewModel Devices { get; }
 
     /// <summary>
     /// Selects a tab by name.
@@ -100,6 +103,7 @@ public partial class OptionsViewModel : ObservableObject
             "ADVANCED" => 10,
             "ENCRYPTION" => 11,
             "PRINT" => 12,
+            "DEVICES" => 13,
             var _ => SelectedTabIndex,
         };
 
@@ -124,6 +128,7 @@ public partial class OptionsViewModel : ObservableObject
         Advanced.LoadAsync();
         Encryption.LoadFromConfiguration(_configurationService.Configuration.Encryption);
         Print.LoadAsync();
+        await Devices.LoadAsync();
 
         _logger.LogDebug("Configuration loaded into all child ViewModels");
     }
@@ -150,6 +155,7 @@ public partial class OptionsViewModel : ObservableObject
             Advanced.SaveAsync();
             Encryption.SaveToConfiguration(_configurationService.Configuration.Encryption);
             Print.SaveAsync();
+            Devices.Save();
 
             // If the Monaco editor theme follows the app theme, override whatever the Editor
             // tab saved with the theme matching the newly saved app theme.
