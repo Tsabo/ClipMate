@@ -209,9 +209,27 @@
                                 <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="100"
                                                 CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
                                 <dxg:GridColumn FieldName="StatusText" Header="Status" Width="180" />
+                                <dxg:GridColumn Header="" Width="150" AllowSorting="False" AllowResizing="False">
+                                    <dxg:GridColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <dx:SimpleButton Content="Rename..."
+                                                                 Margin="2"
+                                                                 Command="{Binding DataContext.RenamePeerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 CommandParameter="{Binding RowData.Row}"
+                                                                 ToolTip="Change the name this Device shows for the Peer (its Peer Alias)" />
+                                                <dx:SimpleButton Content="Unpair"
+                                                                 Margin="2"
+                                                                 Command="{Binding DataContext.UnpairCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 CommandParameter="{Binding RowData.Row}"
+                                                                 ToolTip="End the Pairing on both Devices" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellTemplate>
+                                </dxg:GridColumn>
                             </dxg:GridControl.Columns>
                         </dxg:GridControl>
-                        <TextBlock Text="Devices you have paired with appear here. Peers stay until you unpair them."
+                        <TextBlock Text="Devices you have paired with appear here. Peers stay until you unpair them. Rename changes only the name you see; unpairing ends the Pairing on both Devices, and pairing again needs approval on both."
                                    Margin="0,5,0,0"
                                    Foreground="Gray"
                                    FontSize="11"

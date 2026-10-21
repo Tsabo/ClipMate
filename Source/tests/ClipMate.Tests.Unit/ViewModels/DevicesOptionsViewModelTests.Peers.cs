@@ -121,6 +121,86 @@ public partial class DevicesOptionsViewModelTests
     }
 
     [Test]
+    public async Task RenamePeerCommand_SetsThePeerAliasTheUserEntered()
+    {
+        // Arrange
+        var laptop = new Peer(DeviceId.FromCertificateBytes([1]), "LAPTOP", null, [], null);
+        A.CallTo(() => _peerStore.GetPeers()).Returns([laptop]);
+        A.CallTo(() => _peerDialogs.AskPeerAlias(laptop)).Returns("Travel laptop");
+        _viewModel.StartWatching();
+
+        // Act
+        await _viewModel.RenamePeerCommand.ExecuteAsync(_viewModel.Peers.Single());
+
+        // Assert
+        A.CallTo(() => _peerStore.SetAliasAsync(laptop.DeviceId, "Travel laptop", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RenamePeerCommand_BlankAlias_ClearsThePeerAlias()
+    {
+        // Arrange
+        var laptop = new Peer(DeviceId.FromCertificateBytes([1]), "LAPTOP", "Travel laptop", [], null);
+        A.CallTo(() => _peerStore.GetPeers()).Returns([laptop]);
+        A.CallTo(() => _peerDialogs.AskPeerAlias(laptop)).Returns(string.Empty);
+        _viewModel.StartWatching();
+
+        // Act
+        await _viewModel.RenamePeerCommand.ExecuteAsync(_viewModel.Peers.Single());
+
+        // Assert
+        A.CallTo(() => _peerStore.SetAliasAsync(laptop.DeviceId, string.Empty, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RenamePeerCommand_Cancelled_ChangesNothing()
+    {
+        // Arrange
+        var laptop = new Peer(DeviceId.FromCertificateBytes([1]), "LAPTOP", null, [], null);
+        A.CallTo(() => _peerStore.GetPeers()).Returns([laptop]);
+        A.CallTo(() => _peerDialogs.AskPeerAlias(laptop)).Returns(null);
+        _viewModel.StartWatching();
+
+        // Act
+        await _viewModel.RenamePeerCommand.ExecuteAsync(_viewModel.Peers.Single());
+
+        // Assert
+        A.CallTo(() => _peerStore.SetAliasAsync(A<DeviceId>._, A<string?>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task UnpairCommand_Confirmed_UnpairsThePeer()
+    {
+        // Arrange
+        var laptop = new Peer(DeviceId.FromCertificateBytes([1]), "LAPTOP", null, [], null);
+        A.CallTo(() => _peerStore.GetPeers()).Returns([laptop]);
+        A.CallTo(() => _peerDialogs.ConfirmUnpair(laptop)).Returns(true);
+        _viewModel.StartWatching();
+
+        // Act
+        await _viewModel.UnpairCommand.ExecuteAsync(_viewModel.Peers.Single());
+
+        // Assert
+        A.CallTo(() => _unpairing.UnpairAsync(laptop.DeviceId, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task UnpairCommand_NotConfirmed_KeepsThePeer()
+    {
+        // Arrange
+        var laptop = new Peer(DeviceId.FromCertificateBytes([1]), "LAPTOP", null, [], null);
+        A.CallTo(() => _peerStore.GetPeers()).Returns([laptop]);
+        A.CallTo(() => _peerDialogs.ConfirmUnpair(laptop)).Returns(false);
+        _viewModel.StartWatching();
+
+        // Act
+        await _viewModel.UnpairCommand.ExecuteAsync(_viewModel.Peers.Single());
+
+        // Assert
+        A.CallTo(() => _unpairing.UnpairAsync(A<DeviceId>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
     [Arguments(PeerConnectionStatus.Online, null, "Online")]
     [Arguments(PeerConnectionStatus.UpdateRequired, 5, "Update required")]
     [Arguments(PeerConnectionStatus.Offline, null, "Offline (never seen)")]
