@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.App.ViewModels;
@@ -12,6 +13,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public class DevicesOptionsViewModelTests
 {
     private ClipMateConfiguration _configuration = null!;
+    private IDeviceDiscoveryService _discovery = null!;
     private DeviceIdentity _identity = null!;
     private IDeviceIdentityService _identityService = null!;
     private DevicesOptionsViewModel _viewModel = null!;
@@ -28,7 +30,10 @@ public class DevicesOptionsViewModelTests
         A.CallTo(() => _identityService.TryLoadAsync(A<CancellationToken>._)).Returns((DeviceIdentity?)null);
         A.CallTo(() => _identityService.GetOrCreateAsync(A<CancellationToken>._)).ReturnsLazily(() => new DeviceIdentity(CreateCertificateCopy()));
 
-        _viewModel = new DevicesOptionsViewModel(configurationService, _identityService, A.Fake<ILogger<DevicesOptionsViewModel>>());
+        _discovery = A.Fake<IDeviceDiscoveryService>();
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
+
+        _viewModel = new DevicesOptionsViewModel(configurationService, _identityService, _discovery, A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 
     [After(Test)]
@@ -123,6 +128,76 @@ public class DevicesOptionsViewModelTests
 
         // Assert
         await Assert.That(_configuration.Networking.DeviceName).IsEqualTo(Environment.MachineName);
+    }
+
+    [Test]
+    public async Task StartWatchingDiscoveredDevices_ListsDeviceNameAndShortDeviceId()
+    {
+        // Arrange
+        var desktop = CreateDiscoveredDevice("Desktop");
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([desktop]);
+
+        // Act
+        _viewModel.StartWatchingDiscoveredDevices();
+
+        // Assert
+        var item = _viewModel.DiscoveredDevices.Single();
+        await Assert.That(item.DeviceName).IsEqualTo("Desktop");
+        await Assert.That(item.ShortDeviceId).IsEqualTo(desktop.DeviceId.ToShortDisplayString());
+        await Assert.That(item.DeviceId).IsEqualTo(desktop.DeviceId.ToDisplayString());
+    }
+
+    [Test]
+    public async Task DiscoveredDevicesChanged_WhileWatching_UpdatesTheList()
+    {
+        // Arrange
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([CreateDiscoveredDevice("Desktop")]);
+        _viewModel.StartWatchingDiscoveredDevices();
+
+        // Act: the desktop stops announcing and drops off
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
+        _discovery.DiscoveredDevicesChanged += Raise.WithEmpty();
+
+        // Assert
+        await Assert.That(_viewModel.DiscoveredDevices).IsEmpty();
+    }
+
+    [Test]
+    public async Task StopWatchingDiscoveredDevices_IgnoresLaterChanges()
+    {
+        // Arrange
+        _viewModel.StartWatchingDiscoveredDevices();
+
+        // Act
+        _viewModel.StopWatchingDiscoveredDevices();
+        A.CallTo(() => _discovery.DiscoveredDevices).Returns([CreateDiscoveredDevice("Desktop")]);
+        _discovery.DiscoveredDevicesChanged += Raise.WithEmpty();
+
+        // Assert
+        await Assert.That(_viewModel.DiscoveredDevices).IsEmpty();
+    }
+
+    [Test]
+    [Arguments(false, "Turn on networking to find your other Devices on this network.")]
+    [Arguments(true, "Looking for your other Devices on this network...")]
+    public async Task StartWatchingDiscoveredDevices_NoneFound_ExplainsWhy(bool discovering, string expected)
+    {
+        // Arrange
+        A.CallTo(() => _discovery.IsRunning).Returns(discovering);
+
+        // Act
+        _viewModel.StartWatchingDiscoveredDevices();
+
+        // Assert
+        await Assert.That(_viewModel.HasDiscoveredDevices).IsFalse();
+        await Assert.That(_viewModel.DiscoveryStatusText).IsEqualTo(expected);
+    }
+
+    private static DiscoveredDevice CreateDiscoveredDevice(string deviceName)
+    {
+        using var certificate = CreateCertificate();
+        return new DiscoveredDevice(DeviceId.FromCertificate(certificate), deviceName, new IPEndPoint(IPAddress.Parse("192.168.1.20"), 47823),
+            1, 0, DateTimeOffset.UtcNow);
     }
 
     private static X509Certificate2 CreateCertificate()

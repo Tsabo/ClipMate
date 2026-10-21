@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Database ID** - Every database now has a permanent Database ID, stored inside the database file and shown (read-only) in Database Properties. It never changes, even if you rename the database or copy its file. Existing databases get one automatically the first time they're opened.
 - **Devices Options Page** - A new **Devices** tab in Options has an **Enable networking** switch (off by default), an editable **Device Name** and this Device's **Device ID** with **Copy** and **QR Code** buttons. Turning networking on creates the Device's identity, listens for your paired Devices on a configurable port and adds a Windows Firewall rule (Windows asks for permission). This is the foundation for browsing clips on your other Devices.
+- **Discovered Devices** - With networking on, the Devices tab lists the other ClipMate Devices on your local network, by Device Name and short Device ID. Devices announce themselves about every 30 seconds with a signed message and drop off the list when they stop. Being listed never lets a Device connect; only paired Devices can.
 
 ### Fixed
 - **Search Date Filters** - Searching with **Captured After** or **Captured Before** turned on failed with a database error instead of returning clips. Both date filters now work.

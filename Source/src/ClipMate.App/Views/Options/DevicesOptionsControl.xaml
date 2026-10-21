@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
+             xmlns:dxg="http://schemas.devexpress.com/winfx/2008/xaml/grid"
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:DevicesOptionsViewModel}"
@@ -130,6 +131,50 @@
 
             </dxlc:LayoutGroup>
 
-        </dxlc:LayoutControl>
-    </ScrollViewer>
+            <!-- Discovered Devices Section -->
+            <dxlc:LayoutGroup View="GroupBox" Header="Discovered Devices" Orientation="Vertical">
+
+                <dxlc:LayoutItem>
+                    <StackPanel>
+                        <dxg:GridControl ItemsSource="{Binding DiscoveredDevices}"
+                                         Height="150"
+                                         Visibility="{Binding HasDiscoveredDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <dxg:GridControl.View>
+                                <dxg:TableView ShowGroupPanel="False"
+                                               AllowEditing="False"
+                                               NavigationStyle="Row"
+                                               ShowIndicator="False" />
+                            </dxg:GridControl.View>
+                            <dxg:GridControl.Columns>
+                                <dxg:GridColumn FieldName="DeviceName" Header="Device Name" Width="*" />
+                                <dxg:GridColumn FieldName="ShortDeviceId" Header="Device ID" Width="120"
+                                                CellToolTipBinding="{Binding RowData.Row.DeviceId}" />
+                            </dxg:GridControl.Columns>
+                        </dxg:GridControl>
+                        <TextBlock Text="{Binding DiscoveryStatusText}"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDiscoveredDevices}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="Other ClipMate Devices on this network that have networking turned on. Seeing a Device here does not let it connect; only Devices you pair with can."
+                                   Margin="0,5,0,0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+
+            </dxlc:LayoutGroup>
+
+        </dxlc:LayoutControl>    </ScrollViewer>
 </UserControl>
