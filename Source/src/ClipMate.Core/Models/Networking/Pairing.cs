@@ -32,7 +32,11 @@ public sealed record PairingDecision(bool Accepted, string? Alias)
 /// <param name="DeviceId">The Device ID it must prove with its certificate.</param>
 /// <param name="DeviceName">Its Device Name (e.g. from its discovery announcement), or empty if not known yet (added manually).</param>
 /// <param name="Address">Where its Peer listener is (<c>host:port</c>).</param>
-public sealed record PairingTarget(DeviceId DeviceId, string DeviceName, string Address);
+/// <param name="AddressEnteredManually">
+/// Whether the user typed <paramref name="Address" /> in (Add Device manually). Such an address is pinned: it is always
+/// kept among the Peer's known addresses, however many others the Peer is later seen at.
+/// </param>
+public sealed record PairingTarget(DeviceId DeviceId, string DeviceName, string Address, bool AddressEnteredManually = false);
 
 /// <summary>
 /// Where a Pairing stands, as seen by the requesting Device.

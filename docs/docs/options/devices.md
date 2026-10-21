@@ -62,7 +62,7 @@ An address alone is never enough: ClipMate connects only if the Device at that a
 
 Click **Pair...** and the same pairing dialog opens as for a Discovered Device, with the same Verification Code check on both Devices. Until the other Device answers, the dialog names it by its address; once it accepts, **Show as** is filled in with its Device Name. Networking must already be turned on (click **OK** after turning it on) before you add a Device.
 
-The address you entered is remembered as one of the Peer's known addresses, so ClipMate can reach the Peer there again later.
+The address you entered is remembered as one of the Peer's known addresses, so ClipMate can reach the Peer there again later. It is kept for good: addresses the Peer is later found at on your local network never push it out, and ClipMate always tries it when it can't reach the Peer elsewhere.
 
 ## Peers
 

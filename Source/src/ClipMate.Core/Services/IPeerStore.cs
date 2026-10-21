@@ -46,6 +46,21 @@ public interface IPeerStore
     Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Records a completed Pairing (or a repeated one), replacing the Peer Alias. Call only once both Devices have accepted.
+    /// </summary>
+    /// <param name="deviceId">The Peer's Device ID.</param>
+    /// <param name="deviceName">The Peer's Device Name.</param>
+    /// <param name="alias">The Peer Alias from the "Show as" field; blank means no alias.</param>
+    /// <param name="address">The address the Peer was reached at (<c>host:port</c>), if known.</param>
+    /// <param name="pinAddress">
+    /// <c>true</c> if the user entered <paramref name="address" /> (Add Device manually): it is then never dropped from the
+    /// Peer's known addresses to make room for addresses the Peer is seen at later, and is always tried.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task SavePairedAsync(DeviceId deviceId, string deviceName, string? alias, string? address, bool pinAddress,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Records that a Peer was reached: updates its Device Name, last seen time and last known addresses.
     /// Does nothing if the Device is not a Peer.
     /// </summary>

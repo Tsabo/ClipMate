@@ -258,7 +258,7 @@ public partial class PairingTests
         // Arrange: added manually, so only the address and Device ID are known (no Device Name yet).
         _desktop.User.Answer = PairingDecision.Accept(null);
         var address = $"localhost:{_desktop.ListeningPort}";
-        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address));
+        await using var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address, true));
 
         // Act
         var response = await session.PeerResponse;
@@ -280,6 +280,23 @@ public partial class PairingTests
         var probe = new GrpcPeerProbe(_laptop.ConfigurationService, NullLogger<GrpcPeerProbe>.Instance);
         var reply = await probe.ProbeAsync(_laptop.Identity, _desktop.DeviceId, desktopOnLaptop.Addresses[0], CancellationToken.None);
         await Assert.That(reply).IsNotNull();
+    }
+
+    [Test]
+    public async Task ManualPairing_PeerLaterSeenAtManyOtherAddresses_StillRemembersTheEnteredAddress()
+    {
+        // Arrange
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        var address = $"localhost:{_desktop.ListeningPort}";
+        await using (var session = _laptop.PairingClient.Start(new PairingTarget(_desktop.DeviceId, string.Empty, address, true)))
+            await session.AcceptAsync(null);
+
+        // Act: discovered on the LAN at a series of other addresses
+        for (var i = 1; i <= 6; i++)
+            await _laptop.Store.RecordSeenAsync(_desktop.DeviceId, "DESKTOP", $"10.0.0.{i}:47823", DateTime.Now);
+
+        // Assert
+        await Assert.That(_laptop.Store.Find(_desktop.DeviceId)!.Addresses).Contains(address);
     }
 
     [Test]
