@@ -201,6 +201,27 @@ internal static class SharedDatabaseMessages
         };
     }
 
+    public static ChangeNotice ToMessage(SharedCollectionChange change) => new()
+    {
+        CollectionChanged = new CollectionChanged
+        {
+            DatabaseId = change.DatabaseId.ToString("D", CultureInfo.InvariantCulture),
+            CollectionId = change.CollectionId.ToString("D", CultureInfo.InvariantCulture),
+        },
+    };
+
+    /// <summary>
+    /// Reads a change notice from a Peer, or <c>null</c> if it is unusable (invalid IDs, or a kind this version does not know).
+    /// </summary>
+    public static PeerChangeNotice? FromMessage(ChangeNotice notice) => notice.ChangeCase switch
+    {
+        ChangeNotice.ChangeOneofCase.CollectionChanged when Guid.TryParse(notice.CollectionChanged.DatabaseId, out var databaseId) &&
+                                                            Guid.TryParse(notice.CollectionChanged.CollectionId, out var collectionId) =>
+            new CollectionChangedNotice(new SharedCollectionChange(databaseId, collectionId)),
+        ChangeNotice.ChangeOneofCase.SharedDatabasesChanged => new SharedDatabasesChangedNotice(),
+        var _ => null,
+    };
+
     private static string? CleanOptional(string text, int maxLength)
     {
         var clean = new string(text.Where(p => !char.IsControl(p)).ToArray()).Trim();
