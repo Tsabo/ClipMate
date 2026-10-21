@@ -24,7 +24,7 @@ public static class PeerChannelFactory
 
         return GrpcChannel.ForAddress(address, new GrpcChannelOptions
         {
-            HttpHandler = CreateHandler(identity, expectedPeer, null),
+            HttpHandler = CreateHandler(identity, expectedPeer, null, null),
             DisposeHttpClient = true,
         });
     }
@@ -40,10 +40,19 @@ public static class PeerChannelFactory
     /// Creates a channel for Pairing with the Device at <paramref name="address" /> (<c>host:port</c>).
     /// The other Device accepts the connection from an unpaired Device, but serves it nothing except the pairing calls.
     /// </summary>
-    public static GrpcChannel CreateForPairing(string address, DeviceIdentity identity, DeviceId expectedPeer) =>
-        Create(address, PeerTlsServerNames.Pairing, identity, expectedPeer);
+    /// <param name="address">The other Device's address (<c>host:port</c>).</param>
+    /// <param name="identity">This Device's identity.</param>
+    /// <param name="expectedPeer">The Device ID the other Device must prove with its certificate.</param>
+    /// <param name="wrongDevice">
+    /// Called with the presented Device ID when the Device at <paramref name="address" /> presents a certificate for another
+    /// Device ID (the connection is then refused).
+    /// </param>
+    public static GrpcChannel CreateForPairing(string address, DeviceIdentity identity, DeviceId expectedPeer,
+        Action<DeviceId>? wrongDevice = null) =>
+        Create(address, PeerTlsServerNames.Pairing, identity, expectedPeer, wrongDevice);
 
-    private static GrpcChannel Create(string address, string serverName, DeviceIdentity identity, DeviceId expectedPeer)
+    private static GrpcChannel Create(string address, string serverName, DeviceIdentity identity, DeviceId expectedPeer,
+        Action<DeviceId>? wrongDevice = null)
     {
         ArgumentNullException.ThrowIfNull(identity);
         var endPoint = PeerAddress.Parse(address);
@@ -51,12 +60,13 @@ public static class PeerChannelFactory
         // The URI host is only the TLS server name (SNI); the connection goes to the real address.
         return GrpcChannel.ForAddress(new Uri($"https://{serverName}:{PeerAddress.GetPort(endPoint)}"), new GrpcChannelOptions
         {
-            HttpHandler = CreateHandler(identity, expectedPeer, endPoint),
+            HttpHandler = CreateHandler(identity, expectedPeer, endPoint, wrongDevice),
             DisposeHttpClient = true,
         });
     }
 
-    private static SocketsHttpHandler CreateHandler(DeviceIdentity identity, DeviceId expectedPeer, EndPoint? connectTo)
+    private static SocketsHttpHandler CreateHandler(DeviceIdentity identity, DeviceId expectedPeer, EndPoint? connectTo,
+        Action<DeviceId>? wrongDevice)
     {
         var handler = new SocketsHttpHandler
         {
@@ -67,7 +77,17 @@ public static class PeerChannelFactory
                 LocalCertificateSelectionCallback = (_, _, _, _, _) => identity.Certificate,
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
                 RemoteCertificateValidationCallback = (_, certificate, _, _) =>
-                    certificate != null && DeviceId.FromCertificateBytes(certificate.GetRawCertData()) == expectedPeer,
+                {
+                    if (certificate == null)
+                        return false;
+
+                    var presented = DeviceId.FromCertificateBytes(certificate.GetRawCertData());
+                    if (presented == expectedPeer)
+                        return true;
+
+                    wrongDevice?.Invoke(presented);
+                    return false;
+                },
             },
         };
 

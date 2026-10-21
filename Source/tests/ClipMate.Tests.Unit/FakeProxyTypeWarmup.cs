@@ -76,6 +76,7 @@ public static class FakeProxyTypeWarmup
         typeof(IPeerDialogService),
         typeof(IUnpairingService),
         typeof(IPairingSession),
+        typeof(ILocalDevice),
         typeof(IDeviceDiscoveryService),
         typeof(ClipMate.Networking.Discovery.IDiscoveryTransportFactory),
         typeof(ILogger<NetworkingService>),

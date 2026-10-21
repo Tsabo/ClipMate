@@ -129,10 +129,80 @@ public class PairingDialogViewModelTests
         A.CallTo(() => session.Cancel()).MustHaveHappenedOnceExactly();
     }
 
-    private static IPairingSession CreateSession(PairingStatus peerResponse)
+    [Test]
+    public async Task ForRequest_WhenTheDeviceAtTheAddressIsAnotherDevice_SaysTheDeviceIdDoesNotMatch()
+    {
+        // Arrange
+        var session = CreateSession(PairingStatus.WrongDevice);
+
+        // Act
+        var viewModel = PairingDialogViewModel.ForRequest(session);
+        await viewModel.WhenPeerResponded;
+
+        // Assert
+        await Assert.That(viewModel.StatusText).IsEqualTo(
+            "The Device at 192.168.1.20:47823 does not have the Device ID you entered, so the connection was refused. Check the address and the Device ID.");
+        await Assert.That(viewModel.IsFinished).IsTrue();
+    }
+
+    [Test]
+    public async Task ForRequest_AddedManually_NamesTheDeviceByItsAddressUntilItAnswers()
+    {
+        // Arrange
+        var response = new TaskCompletionSource<PairingStatus>();
+        var session = CreateSession(PairingStatus.Accepted, string.Empty);
+        A.CallTo(() => session.PeerResponse).Returns(response.Task);
+
+        // Act
+        var viewModel = PairingDialogViewModel.ForRequest(session);
+
+        // Assert
+        await Assert.That(viewModel.OtherDeviceName).IsEqualTo("the Device at 192.168.1.20:47823");
+        await Assert.That(viewModel.Heading).IsEqualTo("Pair with the Device at 192.168.1.20:47823");
+        await Assert.That(viewModel.ShowAs).IsEqualTo(string.Empty);
+        await Assert.That(viewModel.VerificationCode).IsEqualTo("ABCD-EFGH");
+    }
+
+    [Test]
+    public async Task ForRequest_AddedManually_WhenTheDeviceAccepts_PrefillsShowAsWithItsDeviceName()
+    {
+        // Arrange
+        var session = CreateSession(PairingStatus.Accepted, string.Empty);
+        A.CallTo(() => session.PeerDeviceName).Returns("DESKTOP");
+
+        // Act
+        var viewModel = PairingDialogViewModel.ForRequest(session);
+        await viewModel.WhenPeerResponded;
+
+        // Assert
+        await Assert.That(viewModel.OtherDeviceName).IsEqualTo("DESKTOP");
+        await Assert.That(viewModel.ShowAs).IsEqualTo("DESKTOP");
+        await Assert.That(viewModel.StatusText).IsEqualTo("DESKTOP accepted. Accept here too to finish pairing.");
+    }
+
+    [Test]
+    public async Task ForRequest_AddedManually_WhenTheDeviceAccepts_KeepsAShowAsTheUserTyped()
+    {
+        // Arrange
+        var response = new TaskCompletionSource<PairingStatus>();
+        var session = CreateSession(PairingStatus.Accepted, string.Empty);
+        A.CallTo(() => session.PeerResponse).Returns(response.Task);
+        A.CallTo(() => session.PeerDeviceName).Returns("DESKTOP");
+        var viewModel = PairingDialogViewModel.ForRequest(session);
+        viewModel.ShowAs = "Office desktop";
+
+        // Act
+        response.SetResult(PairingStatus.Accepted);
+        await viewModel.WhenPeerResponded;
+
+        // Assert
+        await Assert.That(viewModel.ShowAs).IsEqualTo("Office desktop");
+    }
+
+    private static IPairingSession CreateSession(PairingStatus peerResponse, string deviceName = "DESKTOP")
     {
         var session = A.Fake<IPairingSession>();
-        A.CallTo(() => session.Target).Returns(new PairingTarget(_desktop, "DESKTOP", "192.168.1.20:47823"));
+        A.CallTo(() => session.Target).Returns(new PairingTarget(_desktop, deviceName, "192.168.1.20:47823"));
         A.CallTo(() => session.VerificationCode).Returns("ABCD-EFGH");
         A.CallTo(() => session.PeerResponse).Returns(Task.FromResult(peerResponse));
         return session;
