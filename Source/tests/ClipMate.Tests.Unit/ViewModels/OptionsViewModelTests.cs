@@ -131,6 +131,7 @@ public class OptionsViewModelTests
         _devicesViewModel = new DevicesOptionsViewModel(
             _mockConfigurationService,
             A.Fake<IDeviceIdentityService>(),
+            A.Fake<IDeviceDiscoveryService>(),
             A.Fake<ILogger<DevicesOptionsViewModel>>());
     }
 

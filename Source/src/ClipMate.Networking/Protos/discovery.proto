@@ -1,0 +1,30 @@
+// LAN discovery announcements, sent over UDP (spec section 5.2).
+//
+// A datagram is: the 4-byte magic "CMDA", a 1-byte format version (currently 1), then a SignedAnnouncement.
+// New Announcement fields can be added without changing the format version (protobuf skips unknown fields and
+// the signature covers the announcement bytes exactly as sent). The format version only changes if the
+// envelope itself changes incompatibly.
+syntax = "proto3";
+
+package clipmate.discovery.v1;
+
+option csharp_namespace = "ClipMate.Networking.Discovery.Protocol";
+
+message SignedAnnouncement {
+  // Serialized Announcement.
+  bytes announcement = 1;
+  // ECDSA signature (IEEE P1363, SHA-256) by the Device key over the signing context followed by announcement.
+  bytes signature = 2;
+}
+
+message Announcement {
+  // DER bytes of the Device certificate; the Device ID is the hash of these bytes.
+  bytes certificate = 1;
+  // The Device ID the sender claims, in canonical form. Must match the certificate.
+  string device_id = 2;
+  string device_name = 3;
+  // TCP port of the sender's Peer listener.
+  uint32 port = 4;
+  uint32 protocol_major = 5;
+  uint32 protocol_minor = 6;
+}
