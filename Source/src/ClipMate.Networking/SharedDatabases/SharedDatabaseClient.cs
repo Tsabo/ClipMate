@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
@@ -47,6 +48,15 @@ public interface ISharedDatabaseClient
     /// </exception>
     Task<ClipContent?> GetClipContentAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid clipId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Watches <paramref name="peer" /> for changes to its Shared Databases: yields each notice as it arrives, for as
+    /// long as the Peer keeps the stream open or until <paramref name="cancellationToken" /> is cancelled. Notices carry
+    /// IDs only, never clip data.
+    /// </summary>
+    /// <exception cref="RemoteDatabaseUnavailableException">The Peer could not be reached, or the stream broke (the Peer went away or unpaired this Device).</exception>
+    /// <exception cref="NotSupportedException">The Peer's version of ClipMate does not send change notices.</exception>
+    IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -150,6 +160,90 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         {
             throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to show its clips.", ex);
         }
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(DeviceIdentity identity, Peer peer,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(peer);
+
+        var (channel, call) = await OpenWatchAsync(identity, peer, cancellationToken);
+        using var ownedChannel = channel;
+        using var ownedCall = call;
+        while (true)
+        {
+            ChangeNotice notice;
+            try
+            {
+                if (!await call.ResponseStream.MoveNext(cancellationToken))
+                    yield break;
+
+                notice = call.ResponseStream.Current;
+            }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled && cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Stopped watching.", ex, cancellationToken);
+            }
+            catch (RpcException ex)
+            {
+                throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} stopped sending changes.", ex);
+            }
+
+            if (SharedDatabaseMessages.FromMessage(notice) is { } item)
+                yield return item;
+        }
+    }
+
+    /// <summary>
+    /// Starts the <c>WatchChanges</c> call at each of the Peer's addresses until one answers with its response headers
+    /// (sent as soon as the Peer is listening). Only connecting has a deadline; the stream itself stays open.
+    /// </summary>
+    private async Task<(GrpcChannel Channel, AsyncServerStreamingCall<ChangeNotice> Call)> OpenWatchAsync(DeviceIdentity identity, Peer peer,
+        CancellationToken cancellationToken)
+    {
+        Exception? lastError = null;
+        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            GrpcChannel? channel = null;
+            AsyncServerStreamingCall<ChangeNotice>? call = null;
+            try
+            {
+                channel = PeerChannelFactory.CreateForPeer(address, identity, peer.DeviceId);
+                call = new SharedDatabaseAccess.SharedDatabaseAccessClient(channel).WatchChanges(new WatchChangesRequest(),
+                    cancellationToken: cancellationToken);
+                await call.ResponseHeadersAsync.WaitAsync(_timeout, cancellationToken);
+                return (channel, call);
+            }
+            catch (Exception ex)
+            {
+                call?.Dispose();
+                channel?.Dispose();
+                switch (ex)
+                {
+                    case RpcException { StatusCode: StatusCode.Cancelled } when cancellationToken.IsCancellationRequested:
+                        throw new OperationCanceledException("Stopped watching.", ex, cancellationToken);
+                    case OperationCanceledException:
+                        throw;
+                    case RpcException { StatusCode: StatusCode.Unimplemented }:
+                        throw new NotSupportedException($"{peer.DisplayName} needs a newer version of ClipMate to send changes.", ex);
+                    case RpcException { StatusCode: StatusCode.PermissionDenied }:
+                        throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
+                    case RpcException { StatusCode: StatusCode.Unavailable or StatusCode.DeadlineExceeded } or TimeoutException or FormatException:
+                        lastError = ex;
+                        _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.DeviceId.ToShortDisplayString(), address);
+                        break;
+                    case RpcException:
+                        throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} did not accept the request for changes.", ex);
+                    default:
+                        throw;
+                }
+            }
+        }
+
+        throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} cannot be reached.", lastError ?? new InvalidOperationException("No address."));
     }
 
     /// <summary>
