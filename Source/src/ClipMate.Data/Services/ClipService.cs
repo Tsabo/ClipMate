@@ -422,14 +422,15 @@ public class ClipService : IClipService
     /// <summary>
     /// Builds the new local clip for Copy to local: every stored field of the original, including the encryption
     /// fields (salt, IV, method) that keep an encrypted clip decryptable, but with a new ID, the target collection
-    /// and no folder. The title is copied as stored, since an encrypted title is ciphertext.
+    /// and no folder. The title is copied as stored, since an encrypted title is ciphertext. The user is left unset, as for
+    /// a captured clip: a user ID only means something in the database it came from.
     /// </summary>
     private static Clip CreateLocalCopy(Clip source, Guid targetCollectionId) => new()
     {
         Id = Guid.NewGuid(),
         CollectionId = targetCollectionId,
         FolderId = null,
-        UserId = source.UserId,
+        UserId = null,
         Title = source.Title,
         Creator = source.Creator,
         CapturedAt = source.CapturedAt,
