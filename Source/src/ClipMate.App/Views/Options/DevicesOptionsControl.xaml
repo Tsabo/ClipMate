@@ -184,6 +184,11 @@
                                    Foreground="Gray"
                                    FontSize="11"
                                    TextWrapping="Wrap" />
+                        <dx:SimpleButton Content="Add Device manually..."
+                                         Command="{Binding AddDeviceManuallyCommand}"
+                                         HorizontalAlignment="Left"
+                                         Margin="0,8,0,0"
+                                         ToolTip="Pair with a Device on another network, through a VPN or over the internet, using its address and Device ID" />
                     </StackPanel>
                 </dxlc:LayoutItem>
 
