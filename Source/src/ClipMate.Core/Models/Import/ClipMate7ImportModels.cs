@@ -14,7 +14,8 @@ public sealed class ClipMate7ImportPreview
     public int ShortcutCount { get; init; }
 
     /// <summary>
-    /// Clips encrypted by ClipMate 7. These cannot be decrypted and are skipped.
+    /// Clips encrypted by ClipMate 7. They are imported only with their ClipMate 7 key
+    /// (<see cref="ClipMate7ImportOptions.EncryptionKey" />).
     /// </summary>
     public int EncryptedClipCount { get; init; }
 
@@ -41,6 +42,13 @@ public sealed class ClipMate7ImportOptions
     /// The file must not already exist. When false, clips are merged into the existing database.
     /// </summary>
     public bool CreateNewDatabase { get; init; }
+
+    /// <summary>
+    /// The key clips were encrypted with in ClipMate 7. Encrypted clips are decrypted with it and encrypted again
+    /// with ClipMate's encryption using the same key, so they stay encrypted. Encrypted clips are skipped when this
+    /// is null, or when it cannot decrypt them.
+    /// </summary>
+    public string? EncryptionKey { get; init; }
 }
 
 /// <summary>
@@ -60,7 +68,13 @@ public sealed class ClipMate7ImportResult
     public int DuplicateClipsSkipped { get; set; }
 
     /// <summary>
-    /// Clips skipped because ClipMate 7 encrypted them.
+    /// Clips encrypted in ClipMate 7 that were imported, and encrypted again with the same key.
+    /// Included in <see cref="ClipsImported" />.
+    /// </summary>
+    public int EncryptedClipsImported { get; set; }
+
+    /// <summary>
+    /// Encrypted clips skipped because no ClipMate 7 key was given, or the key could not decrypt them.
     /// </summary>
     public int EncryptedClipsSkipped { get; set; }
 

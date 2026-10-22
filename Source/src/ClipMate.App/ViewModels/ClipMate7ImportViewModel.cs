@@ -25,6 +25,16 @@ public partial class ClipMate7ImportViewModel : ObservableObject
     private CancellationTokenSource? _cancellationTokenSource;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasEncryptedClips))]
+    private int _encryptedClipCount;
+
+    /// <summary>
+    /// The key the encrypted clips were encrypted with in ClipMate 7; empty to skip them.
+    /// </summary>
+    [ObservableProperty]
+    private string _encryptionKey = string.Empty;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExecuteImportCommand))]
     private bool _isAnalyzed;
 
@@ -82,6 +92,11 @@ public partial class ClipMate7ImportViewModel : ObservableObject
     /// </summary>
     public IReadOnlyList<ClipMate7ImportTarget> Targets { get; }
 
+    /// <summary>
+    /// True when the ClipMate 7 database has encrypted clips, which need their ClipMate 7 key to be imported.
+    /// </summary>
+    public bool HasEncryptedClips => EncryptedClipCount > 0;
+
     public bool IsMerge
     {
         get => !IsNewDatabase;
@@ -116,6 +131,7 @@ public partial class ClipMate7ImportViewModel : ObservableObject
     {
         SourceFolder = folder;
         IsAnalyzed = false;
+        EncryptedClipCount = 0;
 
         if (!_importService.IsClipMate7Database(folder))
         {
@@ -135,6 +151,7 @@ public partial class ClipMate7ImportViewModel : ObservableObject
             foreach (var item in preview.Warnings)
                 ProcessingLog += $"Note: {item}\n";
 
+            EncryptedClipCount = preview.EncryptedClipCount;
             IsAnalyzed = true;
         }
         catch (Exception ex)
@@ -189,6 +206,9 @@ public partial class ClipMate7ImportViewModel : ObservableObject
                 SourceFolder = SourceFolder,
                 TargetDatabasePath = targetPath,
                 CreateNewDatabase = IsNewDatabase,
+                EncryptionKey = HasEncryptedClips && EncryptionKey.Length > 0
+                    ? EncryptionKey
+                    : null,
             }, OnProgress, _cancellationTokenSource.Token);
 
             ProcessingLog += FormatSummary(result);
@@ -242,8 +262,11 @@ public partial class ClipMate7ImportViewModel : ObservableObject
         if (result.DuplicateClipsSkipped > 0)
             summary += $"Skipped {result.DuplicateClipsSkipped} clip(s) already in the database.\n";
 
+        if (result.EncryptedClipsImported > 0)
+            summary += $"{result.EncryptedClipsImported} encrypted clip(s) were imported and are still encrypted, with the same key.\n";
+
         if (result.EncryptedClipsSkipped > 0)
-            summary += $"Skipped {result.EncryptedClipsSkipped} encrypted clip(s).\n";
+            summary += $"Skipped {result.EncryptedClipsSkipped} encrypted clip(s): no ClipMate 7 key was entered, or it could not decrypt them.\n";
 
         if (result.UnreadableClipsSkipped > 0)
             summary += $"Skipped {result.UnreadableClipsSkipped} clip(s) with no importable content.\n";

@@ -48,6 +48,20 @@
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
+        <!-- Key for clips encrypted in ClipMate 7 -->
+        <dxlc:LayoutGroup Header="Encrypted Clips" View="GroupBox" Orientation="Vertical"
+                          Visibility="{Binding HasEncryptedClips, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}">
+            <dxlc:LayoutItem>
+                <TextBlock TextWrapping="Wrap"
+                           Text="{Binding EncryptedClipCount, StringFormat='{}{0} clip(s) were encrypted in ClipMate 7. Enter the ClipMate 7 encryption key to import them; they stay encrypted, with the same key. Leave it empty to skip them.'}" />
+            </dxlc:LayoutItem>
+            <dxlc:LayoutItem Label="ClipMate 7 key">
+                <dxe:PasswordBoxEdit EditValue="{Binding EncryptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="The key the clips were encrypted with in ClipMate 7" />
+            </dxlc:LayoutItem>
+        </dxlc:LayoutGroup>
+
         <!-- Target -->
         <dxlc:LayoutGroup Header="Import Into" View="GroupBox" Orientation="Vertical"
                           IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}">

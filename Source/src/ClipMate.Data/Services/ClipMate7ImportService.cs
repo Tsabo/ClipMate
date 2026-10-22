@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Models.Import;
 using ClipMate.Core.Services;
+using ClipMate.Core.ValueObjects;
 using ClipMate.Data.Legacy.ClipMate7;
 using ClipMate.Data.Legacy.Dbisam;
 using ClipMate.Data.Repositories;
@@ -19,6 +20,8 @@ namespace ClipMate.Data.Services;
 /// BLOB tables, SHORTCUT → Shortcuts. GUIDs are preserved, so collections that also exist in the default ClipMate
 /// layout (Inbox, Safe, Overflow, Samples, ...) are matched rather than duplicated, and re-importing is idempotent.
 /// Clip content is converted to the representation clipboard capture produces (see <see cref="ClipMate7FormatConverter" />).
+/// Clips encrypted in ClipMate 7 are decrypted with the ClipMate 7 key (see <see cref="ClipMate7Encryption" />) and
+/// immediately encrypted again with ClipMate's own encryption using that same key, so they stay encrypted.
 /// </remarks>
 public class ClipMate7ImportService : IClipMate7ImportService
 {
@@ -31,12 +34,14 @@ public class ClipMate7ImportService : IClipMate7ImportService
     private const string _shortcutTable = "shortcut";
     private static readonly string[] _blobTables = ["blobtxt", "blobpng", "blobjpg", "blobblob"];
 
+    private readonly IEncryptionService _encryptionService;
     private readonly ILogger<ClipMate7ImportService> _logger;
     private readonly ISetupService _setupService;
 
-    public ClipMate7ImportService(ISetupService setupService, ILogger<ClipMate7ImportService> logger)
+    public ClipMate7ImportService(ISetupService setupService, IEncryptionService encryptionService, ILogger<ClipMate7ImportService> logger)
     {
         _setupService = setupService ?? throw new ArgumentNullException(nameof(setupService));
+        _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -75,8 +80,8 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
                 if (encryptedCount > 0)
                 {
-                    warnings.Add($"{encryptedCount} clip(s) are encrypted with a ClipMate 7 passphrase and will be skipped. " +
-                                 "Decrypt them in ClipMate 7 before importing to keep them.");
+                    warnings.Add($"{encryptedCount} clip(s) are encrypted in ClipMate 7. Enter their ClipMate 7 encryption key to " +
+                                 "import them (they stay encrypted, with the same key); without it they are skipped.");
                 }
 
                 foreach (var item in _blobTables.Where(p => !DbisamTable.Exists(sourceFolder, p)))
@@ -129,12 +134,16 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
         try
         {
-            var result = await Task.Run(() => ImportCoreAsync(options.SourceFolder, targetPath, progressCallback, cancellationToken), cancellationToken);
+            using var encryption = CreateEncryption(options.EncryptionKey, out var keyWarning);
+            var result = await Task.Run(() => ImportCoreAsync(options.SourceFolder, targetPath, encryption, progressCallback, cancellationToken), cancellationToken);
+            if (keyWarning is not null && result.EncryptedClipsSkipped > 0)
+                result.Warnings.Insert(0, keyWarning);
 
             _logger.LogInformation(
                 "ClipMate 7 import complete: {Clips} clips, {Collections} collections, {Shortcuts} shortcuts imported; " +
+                "{EncryptedImported} of them kept encrypted; " +
                 "{Duplicates} duplicate, {Encrypted} encrypted, {Unreadable} unreadable clips skipped",
-                result.ClipsImported, result.CollectionsImported, result.ShortcutsImported,
+                result.ClipsImported, result.CollectionsImported, result.ShortcutsImported, result.EncryptedClipsImported,
                 result.DuplicateClipsSkipped, result.EncryptedClipsSkipped, result.UnreadableClipsSkipped);
 
             Report(progressCallback, "Import complete.", isComplete: true);
@@ -157,8 +166,31 @@ public class ClipMate7ImportService : IClipMate7ImportService
         }
     }
 
+    /// <summary>
+    /// Prepares decryption of ClipMate 7 encrypted clips and re-encryption with the same key, or returns null (the
+    /// clips are skipped) when no key was given or ClipMate's encryption does not accept it.
+    /// </summary>
+    private static ClipEncryption? CreateEncryption(string? passphrase, out string? warning)
+    {
+        warning = null;
+        if (string.IsNullOrEmpty(passphrase))
+            return null;
+
+        try
+        {
+            return new ClipEncryption(new ClipMate7Encryption(passphrase), EncryptionKey.FromPassphrase(passphrase));
+        }
+        catch (ArgumentException ex)
+        {
+            // Encrypted clips must stay encrypted, so a key ClipMate cannot encrypt with means they cannot be imported
+            warning = $"Encrypted clips were skipped because ClipMate cannot encrypt with this key: {ex.Message.Split(" (Parameter")[0]}";
+            return null;
+        }
+    }
+
     private async Task<ClipMate7ImportResult> ImportCoreAsync(string sourceFolder,
         string targetPath,
+        ClipEncryption? encryption,
         Action<ExportProgressMessage>? progressCallback,
         CancellationToken cancellationToken)
     {
@@ -232,7 +264,7 @@ public class ClipMate7ImportService : IClipMate7ImportService
                 processed++;
 
                 var clip = await TryAddClipAsync(item, context, formatsByClipId, blobsByClipDataId, collectionMap,
-                    existingClipIds, result, cancellationToken);
+                    existingClipIds, encryption, result, cancellationToken);
 
                 if (clip is not null)
                 {
@@ -418,6 +450,7 @@ public class ClipMate7ImportService : IClipMate7ImportService
         Dictionary<int, DbisamRecord> blobsByClipDataId,
         CollectionMap collectionMap,
         HashSet<Guid> existingClipIds,
+        ClipEncryption? encryption,
         ClipMate7ImportResult result,
         CancellationToken cancellationToken)
     {
@@ -432,12 +465,15 @@ public class ClipMate7ImportService : IClipMate7ImportService
             return null;
         }
 
-        if (record.GetBoolean("ENCRYPTED"))
+        var encrypted = record.GetBoolean("ENCRYPTED");
+        if (encrypted && encryption is null)
         {
             result.EncryptedClipsSkipped++;
             return null;
         }
 
+        // ClipMate 7 encrypts only the TEXT format; the salt it used also decrypts the title
+        byte[]? salt = null;
         var formats = new List<ClipMate7Format>();
         foreach (var item in formatsByClipId.GetValueOrDefault(legacyId) ?? [])
         {
@@ -446,7 +482,19 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
             try
             {
-                formats.Add(new ClipMate7Format(item.Name, item.Code, blob.GetBlob("DATA")));
+                var data = blob.GetBlob("DATA");
+                if (encrypted && item.Code == Formats.Text.Code)
+                {
+                    if (!encryption!.Decryptor.TryDecryptText(data, record.GetInt32("CHECKSUM") ?? 0, out data, out var textSalt))
+                    {
+                        result.EncryptedClipsSkipped++;
+                        return null;
+                    }
+
+                    salt = textSalt;
+                }
+
+                formats.Add(new ClipMate7Format(item.Name, item.Code, data));
             }
             catch (DbisamFormatException ex)
             {
@@ -455,6 +503,17 @@ public class ClipMate7ImportService : IClipMate7ImportService
             }
         }
 
+        if (encrypted && salt is null)
+        {
+            result.EncryptedClipsSkipped++;
+            return null;
+        }
+
+        var customTitle = record.GetBoolean("CUSTOMTITLE");
+        var title = record.GetString("TITLE");
+        if (encrypted && !customTitle && title is not null)
+            title = encryption!.Decryptor.TryDecryptTitle(title, salt!);
+
         var timestamp = record.GetDateTime("TIMESTAMP");
         var deleted = record.GetBoolean("DEL");
         var clip = new Clip
@@ -462,14 +521,14 @@ public class ClipMate7ImportService : IClipMate7ImportService
             Id = clipId,
             CollectionId = collectionMap.Resolve(record.GetGuid("COLL_GUID"), record.GetInt32("COLLECTION_ID")),
             UserId = record.GetInt32("USER_ID"),
-            Title = record.GetString("TITLE"),
+            Title = title,
             Creator = record.GetString("CREATOR"),
             CapturedAt = timestamp.HasValue
                 ? new DateTimeOffset(timestamp.Value)
                 : DateTimeOffset.Now,
             SortKey = record.GetInt32("SORTKEY") ?? 0,
             SourceUrl = record.GetString("SOURCEURL"),
-            CustomTitle = record.GetBoolean("CUSTOMTITLE"),
+            CustomTitle = customTitle,
             Locale = record.GetInt32("LOCALE") ?? 0,
             WrapCheck = record.GetBoolean("WRAPCHECK"),
             Icons = record.GetInt32("ICONS") ?? 0,
@@ -495,9 +554,49 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
         context.Clips.Add(clip);
         await ClipContentStorage.AddContentAsync(context, clip, cancellationToken);
+
+        if (encrypted)
+        {
+            // An encrypted title that could not be decrypted gets a title from the text, as a captured clip does
+            if (string.IsNullOrWhiteSpace(clip.Title) && !customTitle)
+                clip.Title = TitleFromText(clip.TextContent);
+
+            await ClipContentEncryption.EncryptAsync(_encryptionService, encryption!.Key, clip,
+                context.BlobTxt.Local.Where(p => p.ClipId == clip.Id),
+                context.BlobJpg.Local.Where(p => p.ClipId == clip.Id),
+                context.BlobPng.Local.Where(p => p.ClipId == clip.Id),
+                context.BlobBlob.Local.Where(p => p.ClipId == clip.Id));
+
+            ClearContent(clip);
+            result.EncryptedClipsImported++;
+        }
+
         result.ClipsImported++;
 
         return clip;
+    }
+
+    /// <summary>
+    /// The first non-empty line of the text, at most 60 characters (the TITLE field width).
+    /// </summary>
+    private static string? TitleFromText(string? text)
+    {
+        var line = text?.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+        return line is { Length: > 60 }
+            ? string.Concat(line.AsSpan(0, 57), "...")
+            : line;
+    }
+
+    /// <summary>
+    /// Drops the plain-text transient content of a clip that has been encrypted.
+    /// </summary>
+    private static void ClearContent(Clip clip)
+    {
+        clip.TextContent = null;
+        clip.RtfContent = null;
+        clip.HtmlContent = null;
+        clip.ImageData = null;
+        clip.FilePathsJson = null;
     }
 
     private static int CountRecords(string folder, string tableName)
@@ -545,6 +644,15 @@ public class ClipMate7ImportService : IClipMate7ImportService
             ProcessedCount = processed,
             TotalCount = total,
         });
+
+    /// <summary>
+    /// Decrypts ClipMate 7 encrypted clips (<see cref="Decryptor" />) and re-encrypts them with ClipMate's own
+    /// encryption using the same key (<see cref="Key" />).
+    /// </summary>
+    private sealed record ClipEncryption(ClipMate7Encryption Decryptor, EncryptionKey Key) : IDisposable
+    {
+        public void Dispose() => Key.Dispose();
+    }
 
     private sealed record ExistingCollection(Guid Id, Guid? ParentId, string Title, CollectionRole Role, bool IsClipTarget);
 

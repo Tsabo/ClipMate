@@ -1,9 +1,13 @@
+using System.Buffers.Binary;
+using System.Text;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Import;
+using ClipMate.Core.ValueObjects;
 using ClipMate.Data;
 using ClipMate.Data.Legacy.Dbisam;
 using ClipMate.Data.Services;
+using ClipMate.Platform.Services;
 using FakeItEasy;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +25,7 @@ public class ClipMate7ImportServiceTests
     private static readonly Guid _welcomeClipId = Guid.Parse("56DF8FED-5E03-4533-B769-6CA26C22A6CC");
     private static readonly Guid _htmlClipId = Guid.Parse("F6B8F72A-B671-445C-A9FB-198D4EE336DB");
     private static readonly Guid _macroClipId = Guid.Parse("897CE1B4-7400-4BA4-9568-B705DB4BA9B5");
+    private static readonly Guid _passwordDemoClipId = Guid.Parse("6138B5B6-5FBC-4C3E-84F1-9E7369DECBEB");
     private static readonly Guid _inboxId = Guid.Parse("E21B62F2-4CFA-4913-9B79-4F955F4F202D");
     private static readonly Guid _samplesId = Guid.Parse("253CB828-DF18-4833-ACF8-304DF0511122");
 
@@ -40,7 +45,7 @@ public class ClipMate7ImportServiceTests
     }
 
     private static ClipMate7ImportService CreateService() =>
-        new(new SetupService(A.Fake<ILogger<SetupService>>()), A.Fake<ILogger<ClipMate7ImportService>>());
+        new(new SetupService(A.Fake<ILogger<SetupService>>()), new AesEncryptionService(), A.Fake<ILogger<ClipMate7ImportService>>());
 
     private ClipMateDbContext CreateTargetContext() =>
         new(new DbContextOptionsBuilder<ClipMateDbContext>().UseSqlite($"Data Source={_targetPath}").Options);
@@ -273,5 +278,231 @@ public class ClipMate7ImportServiceTests
             .Throws<OperationCanceledException>();
 
         await Assert.That(File.Exists(_targetPath)).IsFalse();
+    }
+
+    // ==================== Encrypted clips ====================
+
+    // A clip captured from a real ClipMate 7 database: "webAuthn.js" encrypted with the key "test" (AllowChecksum on)
+    private const string _encryptionKey = "test";
+    private const string _encryptedText = "55.125:OaDZ/o6mCsvmqWk=";
+    private const string _encryptedTitle = "OaDZ/o6mCsvmqWk=";
+    private const int _encryptedChecksum = -98664153;
+
+    /// <summary>
+    /// Copies the fixture and turns its "Password Demo" clip (ID 4, TEXT in CLIPDATA 5) into the clip captured from
+    /// ClipMate 7, as ClipMate 7 stores an encrypted clip: ENCRYPTED, CHECKSUM, the encrypted title and TEXT.
+    /// </summary>
+    private static string CreateEncryptedFixture()
+    {
+        var folder = Directory.CreateTempSubdirectory("cm7encrypted").FullName;
+        foreach (var item in Directory.GetFiles(FixtureFolder))
+            File.Copy(item, Path.Combine(folder, Path.GetFileName(item)));
+
+        PatchRecord(folder, "clip", "ID", 4, (record, field) =>
+        {
+            WriteValue(record, field("ENCRYPTED"), [1, 0]);
+            WriteValue(record, field("CHECKSUM"), BitConverter.GetBytes(_encryptedChecksum));
+            var title = new byte[field("TITLE").Size];
+            Encoding.ASCII.GetBytes(_encryptedTitle).CopyTo(title, 0);
+            WriteValue(record, field("TITLE"), title);
+        });
+
+        var firstBlock = 0;
+        PatchRecord(folder, "blobtxt", "CLIPDATA_ID", 5, (record, field) =>
+            firstBlock = BinaryPrimitives.ReadInt32LittleEndian(record.AsSpan(field("DATA").Offset + 1)));
+
+        // The original 30-byte text fits in one BLOB block: set its used and total sizes, then the data
+        using var blob = new FileStream(Path.Combine(folder, "blobtxt.blb"), FileMode.Open, FileAccess.ReadWrite);
+        var blockSize = ReadHeaderUInt16(Path.Combine(folder, "blobtxt.dat"), 0x33);
+        var block = new byte[blockSize];
+        blob.Position = 512 + (long)(firstBlock - 1) * blockSize;
+        blob.ReadExactly(block);
+
+        var data = Encoding.ASCII.GetBytes(_encryptedText);
+        BinaryPrimitives.WriteUInt16LittleEndian(block.AsSpan(8), (ushort)data.Length);
+        BinaryPrimitives.WriteInt32LittleEndian(block.AsSpan(14), data.Length);
+        block.AsSpan(18).Clear();
+        data.CopyTo(block, 18);
+
+        blob.Position = 512 + (long)(firstBlock - 1) * blockSize;
+        blob.Write(block);
+
+        return folder;
+    }
+
+    /// <summary>
+    /// Rewrites the record of a DBISAM table whose integer key field has the given value.
+    /// </summary>
+    private static void PatchRecord(string folder, string tableName, string keyField, int key, Action<byte[], Func<string, DbisamField>> patch)
+    {
+        IReadOnlyList<DbisamField> fields;
+        using (var table = DbisamTable.Open(folder, tableName))
+            fields = table.Fields;
+
+        var path = Path.Combine(folder, tableName + ".dat");
+        var recordSize = ReadHeaderUInt16(path, 0x2D);
+        var recordsOffset = 0x200 + ReadHeaderUInt16(path, 0x2F) * 768L;
+        DbisamField Field(string name) => fields.Single(p => p.Name == name);
+
+        var bytes = File.ReadAllBytes(path);
+        for (var offset = recordsOffset; offset + recordSize <= bytes.Length; offset += recordSize)
+        {
+            var record = bytes.AsSpan((int)offset, recordSize);
+            var keyValue = Field(keyField);
+            if (record[0] != 0 || record[keyValue.Offset] == 0 || BinaryPrimitives.ReadInt32LittleEndian(record[(keyValue.Offset + 1)..]) != key)
+                continue;
+
+            var copy = record.ToArray();
+            patch(copy, Field);
+            copy.CopyTo(record);
+            File.WriteAllBytes(path, bytes);
+            return;
+        }
+
+        throw new InvalidOperationException($"No {tableName} record with {keyField} = {key}.");
+    }
+
+    private static void WriteValue(byte[] record, DbisamField field, byte[] value)
+    {
+        record[field.Offset] = 1;
+        value.CopyTo(record, field.Offset + 1);
+    }
+
+    private static int ReadHeaderUInt16(string path, int offset)
+    {
+        using var stream = File.OpenRead(path);
+        var buffer = new byte[2];
+        stream.Position = offset;
+        stream.ReadExactly(buffer);
+        return BinaryPrimitives.ReadUInt16LittleEndian(buffer);
+    }
+
+    private async Task<string> DecryptAsync(string base64, Clip clip)
+    {
+        using var key = EncryptionKey.FromPassphrase(_encryptionKey);
+        var metadata = new EncryptionMetadata(clip.EncryptionSalt!, clip.EncryptionIv!, clip.EncryptionMethod!, 0);
+        var plain = await new AesEncryptionService().DecryptAsync(Convert.FromBase64String(base64), metadata, key, 600_000);
+        return Encoding.UTF8.GetString(plain);
+    }
+
+    [Test]
+    [Category("Integration")]
+    [Category("ClipMate7Import")]
+    public async Task AnalyzeAsync_EncryptedClip_IsCountedAndExplained()
+    {
+        var folder = CreateEncryptedFixture();
+        try
+        {
+            var preview = await CreateService().AnalyzeAsync(folder);
+
+            await Assert.That(preview.EncryptedClipCount).IsEqualTo(1);
+            await Assert.That(preview.Warnings.Any(p => p.Contains("encryption key", StringComparison.Ordinal))).IsTrue();
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    [Test]
+    [Category("Integration")]
+    [Category("ClipMate7Import")]
+    public async Task ImportAsync_EncryptedClipWithKey_ImportsItEncryptedWithTheSameKey()
+    {
+        var folder = CreateEncryptedFixture();
+        try
+        {
+            await CreateEmptyTargetAsync();
+
+            var result = await CreateService().ImportAsync(new ClipMate7ImportOptions
+            {
+                SourceFolder = folder,
+                TargetDatabasePath = _targetPath,
+                EncryptionKey = _encryptionKey,
+            });
+
+            await Assert.That(result.ClipsImported).IsEqualTo(5);
+            await Assert.That(result.EncryptedClipsImported).IsEqualTo(1);
+            await Assert.That(result.EncryptedClipsSkipped).IsEqualTo(0);
+
+            await using var context = CreateTargetContext();
+            var clip = await context.Clips.SingleAsync(p => p.Id == _passwordDemoClipId);
+            await Assert.That(clip.Encrypted).IsTrue();
+            await Assert.That(clip.EncryptionSalt).IsNotNull();
+            await Assert.That(clip.EncryptionIv).IsNotNull();
+
+            // Stored encrypted (Base64 ciphertext), and decrypts with the ClipMate 7 key
+            var text = await context.BlobTxt.SingleAsync(p => p.ClipId == _passwordDemoClipId);
+            await Assert.That(text.Data).IsNotEqualTo("webAuthn.js");
+            await Assert.That(await DecryptAsync(text.Data, clip)).IsEqualTo("webAuthn.js");
+            await Assert.That(await DecryptAsync(clip.Title!, clip)).IsEqualTo("webAuthn.js");
+
+            // Clips that were not encrypted in ClipMate 7 stay plain
+            var welcome = await context.Clips.SingleAsync(p => p.Id == _welcomeClipId);
+            await Assert.That(welcome.Encrypted).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    [Test]
+    [Category("Integration")]
+    [Category("ClipMate7Import")]
+    [Arguments(null)]
+    [Arguments("wrong")]
+    public async Task ImportAsync_EncryptedClipWithoutTheRightKey_IsSkipped(string? key)
+    {
+        var folder = CreateEncryptedFixture();
+        try
+        {
+            await CreateEmptyTargetAsync();
+
+            var result = await CreateService().ImportAsync(new ClipMate7ImportOptions
+            {
+                SourceFolder = folder,
+                TargetDatabasePath = _targetPath,
+                EncryptionKey = key,
+            });
+
+            await Assert.That(result.ClipsImported).IsEqualTo(4);
+            await Assert.That(result.EncryptedClipsImported).IsEqualTo(0);
+            await Assert.That(result.EncryptedClipsSkipped).IsEqualTo(1);
+
+            await using var context = CreateTargetContext();
+            await Assert.That(await context.Clips.AnyAsync(p => p.Id == _passwordDemoClipId)).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    [Test]
+    [Category("Integration")]
+    [Category("ClipMate7Import")]
+    public async Task ImportAsync_KeyClipMateCannotEncryptWith_SkipsEncryptedClipsWithWarning()
+    {
+        var folder = CreateEncryptedFixture();
+        try
+        {
+            await CreateEmptyTargetAsync();
+
+            // ClipMate 7 accepted any key; ClipMate's own encryption needs at least 4 characters
+            var result = await CreateService().ImportAsync(new ClipMate7ImportOptions
+            {
+                SourceFolder = folder,
+                TargetDatabasePath = _targetPath,
+                EncryptionKey = "tst",
+            });
+
+            await Assert.That(result.EncryptedClipsSkipped).IsEqualTo(1);
+            await Assert.That(result.Warnings.First()).Contains("cannot encrypt");
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 }
