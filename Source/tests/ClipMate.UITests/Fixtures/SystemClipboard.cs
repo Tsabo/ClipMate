@@ -109,6 +109,25 @@ public static partial class SystemClipboard
         }
     }
 
+    /// <summary>
+    /// True when the clipboard's current content was put there by <paramref name="process" />.
+    /// </summary>
+    public static bool IsOwnedBy(System.Diagnostics.Process process)
+    {
+        var owner = GetClipboardOwner();
+        if (owner == IntPtr.Zero)
+            return false;
+
+        GetWindowThreadProcessId(owner, out var processId);
+        return processId == process.Id;
+    }
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetClipboardOwner();
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool OpenClipboard(IntPtr hWndNewOwner);

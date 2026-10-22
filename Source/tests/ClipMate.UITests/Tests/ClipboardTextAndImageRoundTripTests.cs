@@ -18,11 +18,15 @@ namespace ClipMate.UITests.Tests;
 [NotInParallel(SystemClipboard.ParallelKey)]
 public class ClipboardTextAndImageRoundTripTests(AppFixture appFixture)
 {
-    private const string _fileName = "Screenshot 2026-10-22 roundtrip.png";
     private const string _probeText = "probe text";
 
+    // Unique per run, so a copy left on the clipboard by an earlier run is never mistaken for this one
+    private readonly string _fileName = $"Screenshot {Guid.NewGuid():N}.png";
+
     [Test]
-    public async Task ImageWithItsFilename_CapturedAndPicked_OffersBothTheImageAndTheText()
+    [Arguments(true)] // e.g. SnagIt: a bitmap plus the PNG encoding
+    [Arguments(false)] // e.g. Screenpresso: a bitmap only, which ClipMate encodes itself
+    public async Task ImageWithItsFilename_CapturedAndPicked_OffersBothTheImageAndTheText(bool alsoOfferPng)
     {
         var png = CreatePng();
         var backup = SystemClipboard.Backup();
@@ -31,12 +35,15 @@ public class ClipboardTextAndImageRoundTripTests(AppFixture appFixture)
             await appFixture.StartAppAsync();
             var clipList = new ClipListPage(appFixture.Process);
 
-            // Arrange: the image (as a bitmap and as PNG) plus its filename as text, as Screenpresso copies it
+            // Arrange: the image plus its filename as text, as a screenshot tool copies it. The bitmap is created on the
+            // clipboard's STA thread: a WPF bitmap can't cross threads unless frozen.
             SystemClipboard.OnSta(() =>
             {
                 var copy = new DataObject();
                 copy.SetImage(BitmapFrame.Create(new MemoryStream(png)));
-                copy.SetData("PNG", new MemoryStream(png));
+                if (alsoOfferPng)
+                    copy.SetData("PNG", new MemoryStream(png));
+
                 copy.SetText(_fileName);
                 Clipboard.SetDataObject(copy, true);
             });
@@ -70,9 +77,12 @@ public class ClipboardTextAndImageRoundTripTests(AppFixture appFixture)
             await Assert.That(offered).Contains("#13"); // CF_UNICODETEXT
             await Assert.That(offered.Any(p => p is "#2" or "#8" or "#17")).IsTrue(); // CF_BITMAP / CF_DIB / CF_DIBV5
 
-            var (text, image) = SystemClipboard.OnSta(() => (Clipboard.GetText(), Clipboard.GetData("PNG") as MemoryStream));
+            var (text, image) = SystemClipboard.OnSta(() => (Clipboard.GetText(), (Clipboard.GetData("PNG") as MemoryStream)!.ToArray()));
             await Assert.That(text).IsEqualTo(_fileName);
-            await Assert.That(image!.ToArray()).IsEquivalentTo(png);
+            if (alsoOfferPng)
+                await Assert.That(image).IsEquivalentTo(png); // the original encoding, unchanged
+            else
+                await Assert.That(BitmapFrame.Create(new MemoryStream(image)).PixelWidth).IsEqualTo(16); // ClipMate's own encoding
         }
         finally
         {

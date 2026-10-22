@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.IO;
+using System.Windows;
+using ClipMate.UITests.PageObjects;
 using WpfPilot;
 
 namespace ClipMate.UITests.Fixtures;
@@ -31,7 +33,7 @@ public class AppFixture : IAsyncDisposable
     public string DatabasePath => Path.Combine(DataDirectory, "Databases", "clipmate.db");
 
     /// <summary>
-    /// Starts ClipMate and waits until its log reports that startup finished.
+    /// Starts ClipMate and waits until its log reports that startup finished and clipboard monitoring is running.
     /// </summary>
     public async Task StartAppAsync()
     {
@@ -64,13 +66,37 @@ public class AppFixture : IAsyncDisposable
             if (_appProcess.HasExited)
                 throw new InvalidOperationException($"ClipMate exited during startup (exit code {_appProcess.ExitCode}). Logs: {LogDirectory}");
 
-            if (ReadLog().Contains("Initialization pipeline completed", StringComparison.Ordinal))
+            // Clipboard monitoring starts after the initialization pipeline; a copy made in between is never captured
+            var log = ReadLog();
+            if (log.Contains("Initialization pipeline completed", StringComparison.Ordinal) &&
+                log.Contains("Clipboard coordinator started successfully", StringComparison.Ordinal))
+            {
+                await WaitUntilCapturingAsync();
                 return;
+            }
 
             await Task.Delay(250);
         }
 
         throw new TimeoutException($"ClipMate did not finish starting within {_startupTimeout.TotalSeconds}s. Logs: {LogDirectory}");
+    }
+
+    /// <summary>
+    /// The log line that monitoring has started comes slightly before the clip list is ready for new clips. A marker
+    /// that shows up in the list proves that every later copy is captured and listed.
+    /// </summary>
+    private async Task WaitUntilCapturingAsync()
+    {
+        var marker = $"uitest-ready-{Guid.NewGuid():N}";
+        var clipList = new ClipListPage(Process);
+        var attempt = 0;
+        await Poll.UntilAsync(() =>
+        {
+            if (attempt++ % 10 == 0)
+                SystemClipboard.OnSta(() => Clipboard.SetText(marker));
+
+            return clipList.FindRow(marker);
+        }, "the startup marker in the clip list", _startupTimeout);
     }
 
     /// <summary>
