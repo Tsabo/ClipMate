@@ -48,22 +48,17 @@ This test suite uses the **Page Object Pattern** to create maintainable, reusabl
 
 ```
 ClipMate.UITests/
-├── PageObjects/              # Page classes representing UI windows/components
-│   ├── CollectionTreePage.cs
-│   ├── ClipListPage.cs
-│   └── OptionsDialogPage.cs
-├── Tests/                    # Actual test classes
-│   ├── CollectionTreeTests.cs
-│   └── DragDropTests.cs
-└── Fixtures/                 # Shared setup/teardown logic
-    └── AppFixture.cs
+├── PageObjects/                  # Page classes representing UI windows/components
+│   ├── ClipListPage.cs           # Clip list via UI Automation: find, wait for and select clips
+│   └── CollectionTreePage.cs     # Collection tree via WPF Pilot
+├── Tests/
+│   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
+│   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
+└── Fixtures/
+    ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir) and waits for startup
+    ├── Poll.cs                   # Waits on another process until a deadline
+    └── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
 ```
-
-## Example Tests
-
-See the example tests in this project for reference:
-- `Tests/ExampleTests.cs` - Basic button clicks and tree selection
-- `PageObjects/CollectionTreePage.cs` - Window-level page object implementation
 
 ## Writing New Tests
 
@@ -71,18 +66,38 @@ See the example tests in this project for reference:
 2. **Write Test** - Use page object methods to perform user actions
 3. **Assert** - Verify expected behavior
 
-Example:
+`ClipboardFileDropRoundTripTests` is the working reference. A test that picks a clip:
+
 ```csharp
-[Test]
-public async Task CanSelectCollection()
+[ClassDataSource<AppFixture>(Shared = SharedType.None)]
+public class PickClipTests(AppFixture appFixture)
 {
-    var treePage = new CollectionTreePage(appWindow);
-    await treePage.SelectCollectionAsync("InBox");
-    
-    await Assert.That(treePage.SelectedCollectionName)
-        .IsEqualTo("InBox");
+    [Test]
+    public async Task PickingAClip_PutsItOnTheClipboard()
+    {
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+
+            await clipList.SelectAsync("Welcome to ClipMate");
+
+            // Wait for the picked clip's own text: until ClipMate copies it, the clipboard still holds whatever was there
+            await Poll.UntilAsync(() => SystemClipboard.OnSta(() => Clipboard.GetText().Contains("This is a sample clip")),
+                "the sample clip on the clipboard");
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
 }
 ```
+
+`ClipListPage` documents how rows behave: titles are truncated (match long content by its icon), the grid recreates
+rows when a clip arrives (`SelectAsync` looks the row up afresh), and ClipMate copies a newly captured clip back by
+itself, which can overwrite what a test just put on the clipboard.
 
 ## Troubleshooting
 

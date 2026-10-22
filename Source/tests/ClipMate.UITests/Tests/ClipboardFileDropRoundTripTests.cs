@@ -1,8 +1,8 @@
 using System.Collections.Specialized;
 using System.IO;
 using System.Windows;
-using System.Windows.Automation;
 using ClipMate.UITests.Fixtures;
+using ClipMate.UITests.PageObjects;
 using Microsoft.Data.Sqlite;
 
 namespace ClipMate.UITests.Tests;
@@ -20,7 +20,7 @@ namespace ClipMate.UITests.Tests;
 public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
 {
     private const int _dropEffectMove = 2;
-    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(15);
+    private const string _probeText = "probe text";
 
     [Test]
     public async Task CutFiles_CapturedAndPicked_PasteAsAMoveIntoAnotherFolder()
@@ -36,6 +36,7 @@ public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
         try
         {
             await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
 
             // Arrange: an Explorer-style cut (file list plus DROPEFFECT_MOVE, no text)
             SystemClipboard.OnSta(() =>
@@ -48,29 +49,26 @@ public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
                 Clipboard.SetDataObject(cut, true);
             });
 
-            var storedFormats = await WaitForAsync(() => ReadStoredFormatsOfClipWithFiles(), "ClipMate to capture the cut");
+            var storedFormats = await Poll.UntilAsync(ReadStoredFormatsOfClipWithFiles, "ClipMate to capture the cut");
             await Assert.That(storedFormats.Keys).Contains("HDROP");
             await Assert.That(storedFormats.Keys).Contains("CF_UNICODETEXT");
             await Assert.That(storedFormats["Preferred DropEffect"]).IsEquivalentTo(BitConverter.GetBytes(_dropEffectMove));
 
-            // Act: replace the clipboard, then pick the files clip from the list (selecting a clip copies it back).
-            // ClipMate copies a newly captured clip back once its selection settles, which can overwrite the probe,
-            // so the probe is set again until its clip shows up.
-            await WaitForAsync(() => FindClipRow("📁"), "the files clip in the clip list"); // titles are truncated; the row's icons are not
+            // Act: put other text on the clipboard, then pick the files clip (selecting a clip copies it back).
+            // ClipMate's own copy-back of the new files clip can overwrite the probe, so set it again until it is listed.
+            await clipList.WaitForRowAsync(ClipListPage.FilesIcon);
             var probeAttempt = 0;
-            await WaitForAsync(() =>
+            await Poll.UntilAsync(() =>
             {
                 if (probeAttempt++ % 10 == 0)
-                    SystemClipboard.OnSta(() => Clipboard.SetText("probe text"));
+                    SystemClipboard.OnSta(() => Clipboard.SetText(_probeText));
 
-                return FindClipRow("probe text");
+                return clipList.FindRow(_probeText);
             }, "the probe clip in the clip list");
 
-            // Look the row up again: the grid recreates its rows when the probe clip is inserted above it
-            var filesRow = await WaitForAsync(() => FindClipRow("📁"), "the files clip in the clip list");
-            ((SelectionItemPattern)filesRow.GetCurrentPattern(SelectionItemPattern.Pattern)).Select();
+            await clipList.SelectAsync(ClipListPage.FilesIcon);
 
-            var offered = await WaitForAsync(() =>
+            var offered = await Poll.UntilAsync(() =>
             {
                 var formats = SystemClipboard.TryGetRawFormatNames();
                 return formats?.Contains("Shell IDList Array") == true ? formats : null;
@@ -98,7 +96,7 @@ public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
                 shell.NameSpace(targetFolder.FullName).Self.InvokeVerb("paste");
             });
 
-            await WaitForAsync(() => files.All(p => File.Exists(Path.Combine(targetFolder.FullName, Path.GetFileName(p)))) ? true : (bool?)null,
+            await Poll.UntilAsync(() => files.All(p => File.Exists(Path.Combine(targetFolder.FullName, Path.GetFileName(p)))),
                 "the shell to paste the files");
             await Assert.That(sourceFolder.EnumerateFiles().Any()).IsFalse();
         }
@@ -132,38 +130,4 @@ public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
 
         return formats.Count > 0 ? formats : null;
     }
-
-    /// <summary>
-    /// The clip-list row whose text contains <paramref name="text" />, found through UI Automation.
-    /// </summary>
-    private AutomationElement? FindClipRow(string text)
-    {
-        var window = AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, appFixture.Process.Id),
-            new PropertyCondition(AutomationElement.NameProperty, "ClipMate - Clipboard Manager")));
-
-        return window?.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem))
-            .Cast<AutomationElement>()
-            .FirstOrDefault(p => p.Current.Name.Contains(text, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// ClipMate is a separate process, so its progress can only be observed by polling until a deadline.
-    /// </summary>
-    private static async Task<T> WaitForAsync<T>(Func<T?> probe, string what) where T : class
-    {
-        var deadline = DateTime.UtcNow + _timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (probe() is { } result)
-                return result;
-
-            await Task.Delay(200);
-        }
-
-        throw new TimeoutException($"Timed out after {_timeout.TotalSeconds}s waiting for {what}");
-    }
-
-    private static async Task WaitForAsync(Func<bool?> probe, string what) =>
-        await WaitForAsync(() => probe() == true ? "done" : null, what);
 }

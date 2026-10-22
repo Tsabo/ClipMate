@@ -116,7 +116,7 @@ $cakeArgs = @(
 )
 
 if ($Version) {
-    $cakeArgs += "--version=$Version"
+    $cakeArgs += "--release-version=$Version"
 }
 
 $cakeArgs += $PassThroughArguments
