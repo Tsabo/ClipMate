@@ -40,6 +40,7 @@ public partial class ClipListViewModel : ObservableObject,
     private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IRemoteDatabaseService _remoteDatabaseService;
     private CancellationTokenSource? _remoteLoadCts;
@@ -114,6 +115,7 @@ public partial class ClipListViewModel : ObservableObject,
         IFolderService folderService,
         IClipService clipService,
         IQuickPasteService quickPasteService,
+        IPowerPasteService powerPasteService,
         IDatabaseContextFactory databaseContextFactory,
         IRemoteDatabaseService remoteDatabaseService,
         IMessenger messenger,
@@ -123,6 +125,7 @@ public partial class ClipListViewModel : ObservableObject,
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -668,6 +671,17 @@ public partial class ClipListViewModel : ObservableObject,
         SelectedClip = clip;
     }
 
+    /// <summary>
+    /// Selects a clip of the list without copying it to the clipboard or treating it as the user's pick, as Power Paste
+    /// does to show the clip waiting to be pasted. Does nothing if the clip is not in the list.
+    /// </summary>
+    public void SelectClipWithoutCopying(Guid clipId)
+    {
+        var clip = Clips.FirstOrDefault(p => p.Id == clipId);
+        if (clip != null && clip != SelectedClip)
+            SetSelectedClipWithoutClipboardOperation(clip);
+    }
+
     partial void OnSelectedClipChanged(Clip? value)
     {
         // Reset IsDecrypted flag on previous clip when navigating away
@@ -705,13 +719,18 @@ public partial class ClipListViewModel : ObservableObject,
             _setClipboardCts = null;
 
             // Send messenger event when selection changes
-            _messenger.Send(new ClipSelectedEvent(clip, CurrentDatabaseKey));
+            var isUserSelection = clip.Id != _clipNotToCopyOnSelection;
+            _messenger.Send(new ClipSelectedEvent(clip, CurrentDatabaseKey, isUserSelection));
 
             // Skip the clipboard for a clip selected without copying (just captured, or selected while loading)
-            if (clip.Id == _clipNotToCopyOnSelection)
+            if (!isUserSelection)
                 return;
 
             _clipNotToCopyOnSelection = null;
+
+            // Power Paste holds the clipboard; picking a clip of its sequence moved the sequence there instead
+            if (_powerPasteService.State == PowerPasteState.Active)
+                return;
 
             // Automatically load the selected clip onto the system clipboard
             // This is ClipMate's standard "Pick, Flip, and Paste" behavior

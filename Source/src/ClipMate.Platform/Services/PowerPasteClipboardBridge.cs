@@ -1,10 +1,11 @@
 using System.Diagnostics;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.System.Memory;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
@@ -13,10 +14,11 @@ namespace ClipMate.Platform.Services;
 
 /// <summary>
 /// Bridges PowerPaste's sequence state to real Windows paste detection.
-/// The current clip's text is registered on the clipboard for delayed rendering
+/// Every Format of the waiting clip is registered on the clipboard for delayed rendering
 /// (SetClipboardData with no data), so Windows notifies us via WM_RENDERFORMAT at the
-/// exact moment the target application performs its paste (GetClipboardData). That's
-/// what triggers rendering the real data and advancing to the next clip in the sequence.
+/// exact moment an application reads it (GetClipboardData). All Formats are rendered on that
+/// first request; a read by the application the user is working in is a paste and advances
+/// the sequence, any other read just gets the data.
 /// </summary>
 public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 {
@@ -30,30 +32,53 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     // is treated as one of those, not a second paste.
     private const int MinAdvanceIntervalMs = 500;
 
+    // Re-arming after a background read changes the clipboard, and a clipboard reader that ignores the markers below
+    // reads every change; stop answering it after a few rounds rather than loop with it forever.
+    private const int MaxReArmsPerClip = 3;
+
+    // Formats that tell clipboard history and other clipboard managers to ignore a change (ClipMate 7's
+    // "Clipboard Viewer Ignore" and the Windows clipboard history's own). A re-arm adds them: the waiting clip is
+    // unchanged, so the managers that already read it have nothing new to read.
+    private static readonly string[] _ignoredByMonitorsFormatNames =
+        ["Clipboard Viewer Ignore", "ExcludeClipboardContentFromMonitorProcessing"];
+
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
+    private readonly ITemplateService _templateService;
 
     private CancellationTokenSource? _advanceDebounceCts;
+    private int _armCount;
     private Clip? _armedClip;
+    private IReadOnlyList<ClipboardFormatData> _armedFormats = [];
+    private bool _clipboardTaken;
     private HwndSource? _hwndSource;
     private bool _isReregistering;
     private DateTime _lastAcceptedPasteAt = DateTime.MinValue;
+    private int _reArmCount;
+    private bool _reArmPending;
 
     public PowerPasteClipboardBridge(IPowerPasteService powerPasteService,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
+        ITemplateService templateService,
         ILogger<PowerPasteClipboardBridge> logger)
     {
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <summary>
+    /// The Formats registered for the waiting clip.
+    /// </summary>
+    internal IReadOnlyList<ClipboardFormatData> ArmedFormats => _armedFormats;
+
     /// <inheritdoc />
-    public void Dispose() => TearDown();
+    public void Dispose() => TearDown(false);
 
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
@@ -70,7 +95,8 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _powerPasteService.StateChanged -= OnStateChanged;
         _powerPasteService.PositionChanged -= OnPositionChanged;
 
-        RunOnDispatcher(TearDown);
+        // Leaving: the waiting clip stays on the clipboard through WM_RENDERALLFORMATS
+        RunOnDispatcher(() => TearDown(false));
 
         return Task.CompletedTask;
     }
@@ -80,11 +106,11 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         if (e.NewState == PowerPasteState.Active)
             RunOnDispatcher(CreateMessageWindow);
         else
-            RunOnDispatcher(TearDown);
+            RunOnDispatcher(() => TearDown(!_clipboardTaken));
     }
 
     private void OnPositionChanged(object? sender, PowerPastePositionChangedEventArgs e) =>
-        RunOnDispatcher(() => Arm(e.CurrentClip));
+        RunOnDispatcher(() => Arm(e.CurrentClip, e.IsExplodePiece));
 
     private static void RunOnDispatcher(Action action)
     {
@@ -103,11 +129,11 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
         // Don't let timing from a previous PowerPaste session affect this one.
         _lastAcceptedPasteAt = DateTime.MinValue;
+        _clipboardTaken = false;
 
         // Our own delayed-render registrations broadcast WM_CLIPBOARDUPDATE like any other
-        // clipboard write. Without suspending, ClipMate's own capture pipeline reads the
-        // clipboard in response - which satisfies our WM_RENDERFORMAT request itself and looks
-        // exactly like a real paste, advancing the sequence before the user ever does.
+        // clipboard write. Without suspending, ClipMate's own capture pipeline would read the
+        // clipboard in response and capture every clip of the sequence again.
         _clipboardService.SuspendCapture();
 
         var parameters = new HwndSourceParameters("ClipMate.PowerPaste")
@@ -124,56 +150,87 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _hwndSource.AddHook(WndProc);
     }
 
-    private void TearDown()
+    /// <summary>
+    /// Ends Power Paste's hold on the clipboard. With <paramref name="restore" /> the waiting clip is put back as a
+    /// normal copy with all its Formats; without it the clipboard is left alone (another application took it, or
+    /// ClipMate is closing and WM_RENDERALLFORMATS has already kept the clip).
+    /// </summary>
+    private void TearDown(bool restore)
     {
         _advanceDebounceCts?.Cancel();
         _advanceDebounceCts = null;
+
+        var clip = _armedClip;
         _armedClip = null;
 
         if (_hwndSource != null)
         {
-            _hwndSource.RemoveHook(WndProc);
-            _hwndSource.Dispose();
+            // Destroying the window while it still owns delayed-render Formats sends WM_RENDERALLFORMATS, so keep
+            // the hook until it is gone: the clipboard keeps the waiting clip instead of being left empty.
+            var source = _hwndSource;
             _hwndSource = null;
+            source.Dispose();
 
-            // Release our delayed-render clipboard ownership. Passing a null window associates
-            // the open with the current process (the owning window is already gone).
-            if (TryOpenClipboard(HWND.Null))
-            {
-                try
-                {
-                    PInvoke.EmptyClipboard();
-                }
-                finally
-                {
-                    PInvoke.CloseClipboard();
-                }
-            }
+            if (restore && clip != null)
+                RestoreAsNormalCopy(clip);
         }
 
+        _armedFormats = [];
         _clipboardService.ResumeCapture();
     }
 
+    private void RestoreAsNormalCopy(Clip clip)
+    {
+        // A normal copy: the capture pipeline recognizes the clip by this hash and does not capture it again
+        clip.ContentHash = ContentHasher.HashClip(clip);
+
+        _ = Task.Run(async () =>
+        {
+            // Power Paste was started again meanwhile and holds the clipboard
+            if (_powerPasteService.State == PowerPasteState.Active)
+                return;
+
+            try
+            {
+                await _clipboardService.SetClipboardContentAsync(clip);
+                _logger.LogInformation("PowerPaste left the waiting clip {ClipId} on the clipboard", clip.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PowerPaste could not leave the waiting clip {ClipId} on the clipboard", clip.Id);
+            }
+        });
+    }
+
     /// <summary>
-    /// Registers the given clip's text for delayed clipboard rendering, or - for clips with
-    /// no text content (e.g. images) - falls back to setting the clipboard immediately.
-    /// Auto-advance cannot be detected for that fallback case.
+    /// Applies the active template to the clip and registers every Format of the result for delayed rendering.
+    /// An Explode piece is plain text only.
     /// </summary>
-    internal void Arm(Clip? clip)
+    internal void Arm(Clip? clip, bool isExplodePiece = false)
     {
         _advanceDebounceCts?.Cancel();
-        _armedClip = clip;
+        _armCount++;
+        _reArmCount = 0;
+        _reArmPending = false;
 
         if (clip == null)
-            return;
-
-        if (string.IsNullOrEmpty(clip.TextContent))
         {
-            _logger.LogDebug(
-                "PowerPaste clip {ClipId} has no text content - setting clipboard immediately (auto-advance unavailable for this item)",
-                clip.Id);
+            _armedClip = null;
+            _armedFormats = [];
 
-            _ = _clipboardService.SetClipboardContentAsync(clip);
+            return;
+        }
+
+        // Applied once per waiting clip, so #SEQUENCE# advances once per paste
+        var pastedClip = _templateService.TryApplyTemplate(clip) ?? clip;
+        _armedClip = pastedClip;
+        _armedFormats = isExplodePiece
+            ? [new ClipboardFormatData((uint)Formats.UnicodeText.Code, DataObjectFormats.EncodeUnicodeText(pastedClip.TextContent ?? string.Empty))]
+            : _clipboardService.GetClipboardFormats(pastedClip);
+
+        if (_armedFormats.Count == 0)
+        {
+            _logger.LogWarning("PowerPaste clip {ClipId} has nothing to put on the clipboard", clip.Id);
 
             return;
         }
@@ -205,8 +262,11 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
             try
             {
                 PInvoke.EmptyClipboard();
-                PInvoke.SetClipboardData((uint)Formats.UnicodeText.Code, new HANDLE(IntPtr.Zero));
-                _logger.LogInformation("PowerPaste armed clip {ClipId} for delayed rendering", _armedClip?.Id);
+                foreach (var item in _armedFormats)
+                    PInvoke.SetClipboardData(item.FormatId, new HANDLE(IntPtr.Zero));
+
+                _logger.LogInformation("PowerPaste armed clip {ClipId} for delayed rendering in {FormatCount} format(s)",
+                    _armedClip?.Id, _armedFormats.Count);
             }
             finally
             {
@@ -216,6 +276,60 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         finally
         {
             _isReregistering = false;
+        }
+    }
+
+    /// <summary>
+    /// After a read that was not a paste the clipboard holds the clip's real data, so the user's next paste would go
+    /// unnoticed. Registers the Formats for delayed rendering again, without emptying the clipboard, and marks the
+    /// change as one clipboard managers should ignore.
+    /// </summary>
+    private void ReArm(int armCount, bool afterBackgroundRead)
+    {
+        // The next clip was armed meanwhile
+        if (armCount != _armCount)
+            return;
+
+        _reArmPending = false;
+        if (_hwndSource == null || _armedFormats.Count == 0)
+            return;
+
+        if (afterBackgroundRead && _reArmCount >= MaxReArmsPerClip)
+        {
+            _logger.LogWarning(
+                "PowerPaste stopped re-arming clip {ClipId}: another program keeps reading the clipboard, so the next paste may not be detected",
+                _armedClip?.Id);
+
+            return;
+        }
+
+        if (afterBackgroundRead)
+            _reArmCount++;
+
+        if (!TryOpenClipboard(new HWND(_hwndSource.Handle)))
+        {
+            _logger.LogWarning("PowerPaste could not open the clipboard to re-arm clip {ClipId}", _armedClip?.Id);
+
+            return;
+        }
+
+        try
+        {
+            foreach (var item in _armedFormats)
+                PInvoke.SetClipboardData(item.FormatId, new HANDLE(IntPtr.Zero));
+
+            foreach (var item in _ignoredByMonitorsFormatNames)
+            {
+                var hGlobal = DataObjectFormats.AllocGlobal(new byte[sizeof(int)]);
+                if (hGlobal != IntPtr.Zero)
+                    PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(item), new HANDLE(hGlobal));
+            }
+
+            _logger.LogDebug("PowerPaste re-armed clip {ClipId} after a read that was not a paste", _armedClip?.Id);
+        }
+        finally
+        {
+            PInvoke.CloseClipboard();
         }
     }
 
@@ -230,7 +344,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
                 break;
 
             case WmRenderAllFormats:
-                HandleRenderAllFormats();
+                HandleRenderAllFormats(new HWND(hwnd));
                 handled = true;
 
                 break;
@@ -246,27 +360,21 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     private void HandleRenderFormat(uint formatId)
     {
-        var requester = GetForegroundWindowInfo();
+        var reader = GetClipboardReader();
 
         _logger.LogInformation(
-            "PowerPaste WM_RENDERFORMAT received for format {FormatId}, requested by {RequestingProcess} (window: {WindowTitle}, isOwnProcess={IsOwnProcess})",
-            formatId, requester.ProcessName, requester.WindowTitle, requester.IsOwnProcess);
+            "PowerPaste WM_RENDERFORMAT received for format {FormatId}, read by {ReaderProcess} while {ForegroundProcess} is in the foreground",
+            formatId, reader.ReaderProcessName, reader.ForegroundProcessName);
 
-        RenderFormatData(formatId);
+        // Windows sends WM_RENDERFORMAT once per format; every Format is supplied now, whoever asked
+        RenderFormatData();
 
-        if (requester.IsOwnProcess)
+        if (!IsPaste(reader.ReaderProcessId, reader.ForegroundProcessId, (uint)Environment.ProcessId))
         {
-            // ClipMate's own UI (command requery, focus/property-change handling, etc.) can read
-            // the clipboard for reasons that have nothing to do with the user pasting into a
-            // target application. Provide real data (above) so nothing breaks, but don't treat it
-            // as a paste - only an external application's read should advance the sequence.
-            //
-            // Windows only sends WM_RENDERFORMAT once per NULL-data registration - once real data
-            // has been provided, further reads (including the user's actual paste) succeed
-            // silently with no further notification. Re-arm immediately, while the clipboard is
-            // still open to us from this callback, so a subsequent real paste can still be seen.
-            PInvoke.SetClipboardData(formatId, new HANDLE(IntPtr.Zero));
-            _logger.LogDebug("PowerPaste ignoring clipboard read from ClipMate's own process - re-armed for the next read");
+            // Clipboard history, another clipboard manager, ClipMate itself: it gets the data, but the user has not
+            // pasted. Arm the clip again once the reader has closed the clipboard.
+            _logger.LogDebug("PowerPaste clipboard read by {ReaderProcess} is not a paste", reader.ReaderProcessName);
+            ScheduleReArm(true);
 
             return;
         }
@@ -276,11 +384,10 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         {
             // Too soon after the last accepted paste to plausibly be a new, separate Ctrl+V -
             // most likely the target application (or Windows) re-reading what it just received.
-            // Re-arm so a genuinely later paste still gets detected.
-            PInvoke.SetClipboardData(formatId, new HANDLE(IntPtr.Zero));
             _logger.LogDebug(
-                "PowerPaste ignoring clipboard read {ElapsedMs}ms after the last accepted paste - too soon to be a new paste, re-armed",
+                "PowerPaste ignoring clipboard read {ElapsedMs}ms after the last accepted paste - too soon to be a new paste",
                 msSinceLastAcceptedPaste);
+            ScheduleReArm(false);
 
             return;
         }
@@ -289,67 +396,73 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         OnPasteDetected();
     }
 
-    private static (string ProcessName, string WindowTitle, bool IsOwnProcess) GetForegroundWindowInfo()
+    /// <summary>
+    /// A clipboard read is a paste when the window holding the clipboard open belongs to the application in the
+    /// foreground, and that application is not ClipMate. A read by a window-less caller (process ID 0) never is.
+    /// </summary>
+    internal static bool IsPaste(uint readerProcessId, uint foregroundProcessId, uint ownProcessId) =>
+        readerProcessId != 0 && readerProcessId == foregroundProcessId && readerProcessId != ownProcessId;
+
+    /// <param name="afterBackgroundRead">True when another program read the clipboard; only those re-arms are limited.</param>
+    private void ScheduleReArm(bool afterBackgroundRead)
     {
+        if (_reArmPending || _hwndSource == null)
+            return;
+
+        _reArmPending = true;
+        var armCount = _armCount;
+        _hwndSource.Dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armCount, afterBackgroundRead));
+    }
+
+    private (uint ReaderProcessId, string ReaderProcessName, uint ForegroundProcessId, string ForegroundProcessName) GetClipboardReader()
+    {
+        var readerProcessId = GetProcessId(PInvoke.GetOpenClipboardWindow());
+        var foregroundProcessId = GetProcessId(PInvoke.GetForegroundWindow());
+
+        return (readerProcessId, GetProcessName(readerProcessId), foregroundProcessId, GetProcessName(foregroundProcessId));
+    }
+
+    private static unsafe uint GetProcessId(HWND window)
+    {
+        if (window.IsNull)
+            return 0;
+
+        uint processId;
+        PInvoke.GetWindowThreadProcessId(window, &processId);
+
+        return processId;
+    }
+
+    private static string GetProcessName(uint processId)
+    {
+        if (processId == 0)
+            return "(no window)";
+
         try
         {
-            var foregroundWindow = PInvoke.GetForegroundWindow();
-            if (foregroundWindow.IsNull)
-                return ("(none)", "(none)", false);
+            using var process = Process.GetProcessById((int)processId);
 
-            uint processId;
-            unsafe
-            {
-                PInvoke.GetWindowThreadProcessId(foregroundWindow, &processId);
-            }
-
-            var isOwnProcess = processId == (uint)Environment.ProcessId;
-
-            string processName;
-            try
-            {
-                using var process = Process.GetProcessById((int)processId);
-                processName = process.ProcessName;
-            }
-            catch
-            {
-                processName = "(unknown)";
-            }
-
-            string windowTitle;
-            const int maxLength = 256;
-            unsafe
-            {
-                var buffer = stackalloc char[maxLength];
-                var length = PInvoke.GetWindowText(foregroundWindow, buffer, maxLength);
-                windowTitle = length > 0
-                    ? new string(buffer, 0, length)
-                    : "(empty)";
-            }
-
-            return (processName, windowTitle, isOwnProcess);
+            return process.ProcessName;
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
-            return ("(unknown)", "(unknown)", false);
+            return "(unknown)";
         }
     }
 
-    private void HandleRenderAllFormats()
+    private void HandleRenderAllFormats(HWND hwnd)
     {
         // Our window is being destroyed while still owning delayed-render data - must provide
         // real data now or it's lost. Clipboard must be (re)opened explicitly here, unlike
         // WM_RENDERFORMAT where it's already open for us.
-        var clip = _armedClip;
-        if (string.IsNullOrEmpty(clip?.TextContent))
-            return;
-
-        if (!TryOpenClipboard(HWND.Null))
+        if (_armedFormats.Count == 0 || !TryOpenClipboard(hwnd))
             return;
 
         try
         {
-            RenderFormatData((uint)Formats.UnicodeText.Code);
+            // Another program may have taken the clipboard while it was being opened
+            if (PInvoke.GetClipboardOwner() == hwnd)
+                RenderFormatData();
         }
         finally
         {
@@ -357,30 +470,22 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         }
     }
 
-    private void RenderFormatData(uint formatId)
+    private void RenderFormatData()
     {
-        var text = _armedClip?.TextContent;
-        if (string.IsNullOrEmpty(text))
+        foreach (var item in _armedFormats)
         {
-            _logger.LogWarning(
-                "PowerPaste has no armed clip text to render for format {FormatId} (ArmedClipId={ArmedClipId})",
-                formatId, _armedClip?.Id);
+            var hGlobal = DataObjectFormats.AllocGlobal(item.Data);
+            if (hGlobal == IntPtr.Zero)
+            {
+                _logger.LogWarning("Failed to allocate memory to render PowerPaste clipboard format {FormatId}", item.FormatId);
 
-            return;
+                continue;
+            }
+
+            PInvoke.SetClipboardData(item.FormatId, new HANDLE(hGlobal));
         }
 
-        var hGlobal = AllocGlobalUnicodeText(text);
-        if (hGlobal == IntPtr.Zero)
-        {
-            _logger.LogWarning("Failed to allocate memory to render PowerPaste clipboard format {FormatId}", formatId);
-
-            return;
-        }
-
-        var result = PInvoke.SetClipboardData(formatId, new HANDLE(hGlobal));
-        _logger.LogInformation(
-            "PowerPaste rendered {Length} characters for format {FormatId} (ArmedClipId={ArmedClipId}, SetClipboardData succeeded={Succeeded})",
-            text.Length, formatId, _armedClip?.Id, !result.IsNull);
+        _logger.LogInformation("PowerPaste rendered {FormatCount} format(s) of clip {ArmedClipId}", _armedFormats.Count, _armedClip?.Id);
     }
 
     /// <summary>
@@ -422,8 +527,8 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     /// <summary>
     /// Called when clipboard ownership changes. If it wasn't us re-arming the next clip, some
-    /// other application (or the user, via Ctrl+C) took the clipboard - PowerPaste is
-    /// interrupted, matching the existing behavior of stopping on unrelated clip selection.
+    /// other application (or the user, via Ctrl+C) took the clipboard - PowerPaste stops and
+    /// leaves the new content alone.
     /// </summary>
     internal void OnClipboardOwnershipLost()
     {
@@ -431,37 +536,8 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
             return;
 
         _logger.LogInformation("PowerPaste clipboard ownership lost externally - stopping PowerPaste");
+        _clipboardTaken = true;
         _powerPasteService.Stop();
-    }
-
-    private static unsafe IntPtr AllocGlobalUnicodeText(string text)
-    {
-        var byteCount = (text.Length + 1) * sizeof(char);
-        var hMem = PInvoke.GlobalAlloc(GLOBAL_ALLOC_FLAGS.GMEM_MOVEABLE, (nuint)byteCount);
-
-        if (hMem.IsNull)
-            return IntPtr.Zero;
-
-        var ptr = PInvoke.GlobalLock(hMem);
-        if (ptr == null)
-        {
-            PInvoke.GlobalFree(hMem);
-
-            return IntPtr.Zero;
-        }
-
-        try
-        {
-            var span = new Span<char>(ptr, text.Length + 1);
-            text.AsSpan().CopyTo(span);
-            span[text.Length] = '\0';
-        }
-        finally
-        {
-            PInvoke.GlobalUnlock(hMem);
-        }
-
-        return (IntPtr)hMem.Value;
     }
 
     private static bool TryOpenClipboard(HWND hwnd, int maxAttempts = 10, int delayMs = 50)

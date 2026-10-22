@@ -13,20 +13,27 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class PowerPasteService : IPowerPasteService
 {
+    // ClipMate 7 beeps twice, this far apart, when a looping sequence starts over
+    private static readonly TimeSpan _loopBeepInterval = TimeSpan.FromMilliseconds(250);
+
     private readonly IConfigurationService _configurationService;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<PowerPasteService> _logger;
-    private readonly List<Clip> _sequence = [];
+    private readonly List<SequenceItem> _sequence = [];
     private readonly ISoundService _soundService;
-    private bool _explodeMode;
+    private readonly TimeProvider _timeProvider;
+    private bool _isSingleClip;
+    private int _pasteCount;
 
     public PowerPasteService(IConfigurationService configurationService,
         ISoundService soundService,
-        ILogger<PowerPasteService> logger)
+        ILogger<PowerPasteService> logger,
+        TimeProvider? timeProvider = null)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -63,21 +70,21 @@ public class PowerPasteService : IPowerPasteService
 
             // Build the sequence
             _sequence.Clear();
-            _explodeMode = explodeMode;
+            _pasteCount = 0;
+
+            // A single clip without Explode pastes once and stops, even with Loop on
+            _isSingleClip = clips.Count == 1 && !explodeMode;
 
             if (explodeMode)
             {
                 // Explode mode: split clips into fragments
                 foreach (var clip in clips)
-                {
-                    var fragments = ExplodeClip(clip, config);
-                    _sequence.AddRange(fragments);
-                }
+                    _sequence.AddRange(ExplodeClip(clip, config));
             }
             else
             {
                 // Normal mode: use clips as-is
-                _sequence.AddRange(clips);
+                _sequence.AddRange(clips.Select(p => new SequenceItem(p, false)));
             }
 
             if (_sequence.Count == 0)
@@ -106,13 +113,7 @@ public class PowerPasteService : IPowerPasteService
                 TotalCount = _sequence.Count,
             });
 
-            PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
-            {
-                Position = CurrentPosition,
-                TotalCount = _sequence.Count,
-                CurrentClip = GetCurrentClip(),
-                IsComplete = false,
-            });
+            RaisePositionChanged();
 
             _logger.LogInformation("PowerPaste started: Position={Position}/{TotalCount}", CurrentPosition + 1, _sequence.Count);
         }
@@ -136,6 +137,7 @@ public class PowerPasteService : IPowerPasteService
             }
 
             var config = _configurationService.Configuration.Preferences;
+            _pasteCount++;
 
             // Move to next position
             if (Direction == PowerPasteDirection.Down)
@@ -152,7 +154,7 @@ public class PowerPasteService : IPowerPasteService
 
             if (isComplete)
             {
-                if (config.PowerPasteLoop)
+                if (config.PowerPasteLoop && !_isSingleClip)
                 {
                     // Loop back to the beginning
                     CurrentPosition = Direction == PowerPasteDirection.Down
@@ -161,14 +163,13 @@ public class PowerPasteService : IPowerPasteService
 
                     _logger.LogInformation("PowerPaste looping: Position reset to {Position}", CurrentPosition + 1);
 
-                    // Play double beep to indicate loop
-                    await PlayLoopSoundAsync();
+                    // Double beep to indicate loop, without holding up the next paste
+                    _ = PlayLoopSoundAsync();
                 }
                 else
                 {
                     // Sequence complete
                     _logger.LogInformation("PowerPaste sequence complete");
-                    await PlayCompletionSoundAsync();
 
                     StopInternal();
 
@@ -176,14 +177,38 @@ public class PowerPasteService : IPowerPasteService
                 }
             }
 
-            // Raise position changed event
-            PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
+            RaisePositionChanged();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    public bool MoveTo(Guid clipId)
+    {
+        _lock.Wait();
+        try
+        {
+            if (State != PowerPasteState.Active)
+                return false;
+
+            var position = Direction == PowerPasteDirection.Down
+                ? _sequence.FindIndex(p => p.Clip.Id == clipId)
+                : _sequence.FindLastIndex(p => p.Clip.Id == clipId);
+
+            if (position < 0)
+                return false;
+
+            if (position != CurrentPosition)
             {
-                Position = CurrentPosition,
-                TotalCount = _sequence.Count,
-                CurrentClip = GetCurrentClip(),
-                IsComplete = isComplete && !config.PowerPasteLoop,
-            });
+                CurrentPosition = position;
+                _logger.LogInformation("PowerPaste moved to clip {ClipId}: Position={Position}/{TotalCount}", clipId, CurrentPosition + 1, _sequence.Count);
+                RaisePositionChanged();
+            }
+
+            return true;
         }
         finally
         {
@@ -211,8 +236,18 @@ public class PowerPasteService : IPowerPasteService
         if (State != PowerPasteState.Active || CurrentPosition < 0 || CurrentPosition >= _sequence.Count)
             return null;
 
-        return _sequence[CurrentPosition];
+        return _sequence[CurrentPosition].Clip;
     }
+
+    private void RaisePositionChanged() =>
+        PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
+        {
+            Position = CurrentPosition,
+            TotalCount = _sequence.Count,
+            CurrentClip = _sequence[CurrentPosition].Clip,
+            IsExplodePiece = _sequence[CurrentPosition].IsExplodePiece,
+            IsComplete = false,
+        });
 
     /// <summary>
     /// Internal stop method that doesn't acquire the lock.
@@ -223,7 +258,11 @@ public class PowerPasteService : IPowerPasteService
         if (State == PowerPasteState.Inactive)
             return;
 
-        _logger.LogInformation("Stopping PowerPaste");
+        _logger.LogInformation("Stopping PowerPaste after {PasteCount} paste(s)", _pasteCount);
+
+        // Only a sequence that was pasted from is complete
+        if (_pasteCount > 0)
+            _ = PlayCompletionSoundAsync();
 
         var oldState = State;
         State = PowerPasteState.Inactive;
@@ -242,13 +281,13 @@ public class PowerPasteService : IPowerPasteService
     /// <summary>
     /// Explodes a clip into fragments based on delimiter configuration.
     /// </summary>
-    private List<Clip> ExplodeClip(Clip clip, PreferencesConfiguration config)
+    private List<SequenceItem> ExplodeClip(Clip clip, PreferencesConfiguration config)
     {
-        var fragments = new List<Clip>();
+        var fragments = new List<SequenceItem>();
 
         if (string.IsNullOrWhiteSpace(clip.TextContent))
         {
-            fragments.Add(clip);
+            fragments.Add(new SequenceItem(clip, false));
 
             return fragments;
         }
@@ -298,12 +337,12 @@ public class PowerPasteService : IPowerPasteService
                 CollectionId = clip.CollectionId,
             };
 
-            fragments.Add(fragment);
+            fragments.Add(new SequenceItem(fragment, true));
         }
 
         // If no fragments were created (all empty), return original clip
         if (fragments.Count == 0)
-            fragments.Add(clip);
+            fragments.Add(new SequenceItem(clip, false));
 
         _logger.LogDebug("Exploded clip into {FragmentCount} fragments", fragments.Count);
 
@@ -315,18 +354,28 @@ public class PowerPasteService : IPowerPasteService
     /// </summary>
     private async Task PlayCompletionSoundAsync()
     {
-        // Play completion sound once
-        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
+        try
+        {
+            await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not play the PowerPaste complete sound");
+        }
     }
 
     /// <summary>
-    /// Plays a double beep sound when PowerPaste loops.
+    /// Plays the completion sound twice, 250 ms apart, when PowerPaste loops.
     /// </summary>
     private async Task PlayLoopSoundAsync()
     {
-        // Play completion sound twice with delay for loop indication
-        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
-        await Task.Delay(100); // Brief delay between beeps
-        await _soundService.PlaySoundAsync(SoundEvent.PowerPasteComplete);
+        await PlayCompletionSoundAsync();
+        await Task.Delay(_loopBeepInterval, _timeProvider);
+        await PlayCompletionSoundAsync();
     }
+
+    /// <summary>
+    /// One step of the sequence: a clip, or one piece of an exploded clip.
+    /// </summary>
+    private sealed record SequenceItem(Clip Clip, bool IsExplodePiece);
 }

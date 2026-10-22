@@ -15,6 +15,7 @@ public partial class PowerPasteClipboardBridgeTests
     private IConfigurationService _mockConfigService = null!;
     private ILogger<PowerPasteClipboardBridge> _mockLogger = null!;
     private IPowerPasteService _mockPowerPasteService = null!;
+    private ITemplateService _mockTemplateService = null!;
 
     [Before(Test)]
     public void Setup()
@@ -23,6 +24,8 @@ public partial class PowerPasteClipboardBridgeTests
         _mockClipboardService = A.Fake<IClipboardService>();
         _mockLogger = A.Fake<ILogger<PowerPasteClipboardBridge>>();
         _mockConfigService = A.Fake<IConfigurationService>();
+        _mockTemplateService = A.Fake<ITemplateService>();
+        A.CallTo(() => _mockTemplateService.TryApplyTemplate(A<Clip>.Ignored)).Returns(null);
 
         var config = new ClipMateConfiguration
         {
@@ -41,6 +44,7 @@ public partial class PowerPasteClipboardBridgeTests
         _mockPowerPasteService,
         _mockClipboardService,
         _mockConfigService,
+        _mockTemplateService,
         _mockLogger);
 
     /// <summary>

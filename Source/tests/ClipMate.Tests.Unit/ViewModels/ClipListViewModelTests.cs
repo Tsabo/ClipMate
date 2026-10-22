@@ -18,6 +18,7 @@ public class ClipListViewModelTests
     private readonly IFolderService _mockFolderService;
     private readonly ILogger<ClipListViewModel> _mockLogger;
     private readonly IMessenger _mockMessenger;
+    private readonly IPowerPasteService _mockPowerPasteService = A.Fake<IPowerPasteService>();
     private readonly IQuickPasteService _mockQuickPasteService;
     private readonly IRemoteDatabaseService _mockRemoteDatabases = A.Fake<IRemoteDatabaseService>();
 
@@ -40,12 +41,42 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            _mockPowerPasteService,
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,
             _mockLogger);
 
         await Assert.That(viewModel.IsListView).IsTrue();
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_ClipInList_SelectsIt()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var waiting = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+        viewModel.Clips.Add(waiting);
+
+        // Act
+        viewModel.SelectClipWithoutCopying(waiting.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(waiting);
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_ClipNotInList_KeepsTheSelection()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.SelectClipWithoutCopying(Guid.NewGuid());
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsNull();
     }
 
     [Test]
@@ -56,6 +87,7 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            _mockPowerPasteService,
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,
@@ -265,6 +297,7 @@ public class ClipListViewModelTests
         _mockFolderService,
         _mockClipService,
         _mockQuickPasteService,
+        _mockPowerPasteService,
         _mockContextFactory,
         _mockRemoteDatabases,
         _mockMessenger,
@@ -281,6 +314,7 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            _mockPowerPasteService,
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,

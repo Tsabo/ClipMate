@@ -45,10 +45,17 @@ public partial class PowerPasteServiceTests
         A.CallTo(() => _mockConfigService.Configuration).Returns(config);
     }
 
-    private PowerPasteService CreateService() => new(
+    private PowerPasteService CreateService(TimeProvider? timeProvider = null) => new(
         _mockConfigService,
         _mockSoundService,
-        _mockLogger);
+        _mockLogger,
+        timeProvider);
+
+    private void UseConfiguration(PreferencesConfiguration preferences) =>
+        A.CallTo(() => _mockConfigService.Configuration).Returns(new ClipMateConfiguration { Preferences = preferences });
+
+    private int CompleteSoundCount() =>
+        Fake.GetCalls(_mockSoundService).Count(p => p.Method.Name == nameof(ISoundService.PlaySoundAsync) && Equals(p.Arguments[0], SoundEvent.PowerPasteComplete));
 
     private static Clip CreateTestClip(string textContent,
         Guid? id = null,

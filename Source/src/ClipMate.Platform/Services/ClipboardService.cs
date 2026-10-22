@@ -233,27 +233,8 @@ public class ClipboardService : IClipboardService, IDisposable
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                        switch (clip.Type)
-                        {
-                            case ClipType.Text:
-                            case ClipType.Html:
-                            case ClipType.RichText:
-                                SetTextToClipboard(clip);
-
-                                break;
-                            case ClipType.Image:
-                                SetImageToClipboard(clip);
-
-                                break;
-                            case ClipType.Files:
-                                SetFilesToClipboard(clip);
-
-                                break;
-                            default:
-                                _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
-
-                                break;
-                        }
+                        if (CreateDataObject(clip) is { } dataObject)
+                            WpfClipboard.SetDataObject(dataObject, true);
                     });
 
                     if (attempt > 0)
@@ -284,6 +265,34 @@ public class ClipboardService : IClipboardService, IDisposable
 
             throw new ClipboardException("Failed to set clipboard content", ex);
         }
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip)
+    {
+        ArgumentNullException.ThrowIfNull(clip);
+
+        var dataObject = CreateDataObject(clip);
+        if (dataObject == null)
+            return [];
+
+        var formats = DataObjectFormats.Read(dataObject).ToList();
+
+        // A copy offers its image as a GDI bitmap, which the clipboard keeps as a handle rather than memory; offer the
+        // DIB (Windows derives the bitmap from it) so a delayed-rendered copy has the image too
+        if (formats.All(p => p.FormatId != (uint)Formats.Dib.Code) && GetPlainImageData(clip) is { } imageData)
+        {
+            try
+            {
+                formats.Add(new ClipboardFormatData((uint)Formats.Dib.Code, DataObjectFormats.EncodeDib(imageData)));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not convert the image of clip {ClipId} to a DIB", clip.Id);
+            }
+        }
+
+        return formats;
     }
 
     /// <inheritdoc />
@@ -1179,7 +1188,30 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    private void SetTextToClipboard(Clip clip)
+    /// <summary>
+    /// The data object a copy of the clip puts on the clipboard, with every Format the clip has; null for an unsupported
+    /// clip type.
+    /// </summary>
+    private WpfDataObject? CreateDataObject(Clip clip)
+    {
+        switch (clip.Type)
+        {
+            case ClipType.Text:
+            case ClipType.Html:
+            case ClipType.RichText:
+                return CreateTextDataObject(clip);
+            case ClipType.Image:
+                return CreateImageDataObject(clip);
+            case ClipType.Files:
+                return CreateFilesDataObject(clip);
+            default:
+                _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
+
+                return null;
+        }
+    }
+
+    private WpfDataObject CreateTextDataObject(Clip clip)
     {
         try
         {
@@ -1243,7 +1275,7 @@ public class ClipboardService : IClipboardService, IDisposable
 
             AddFileDropFormats(dataObject, clip);
 
-            WpfClipboard.SetDataObject(dataObject, true);
+            return dataObject;
         }
         catch (Exception ex)
         {
@@ -1253,7 +1285,7 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    private void SetImageToClipboard(Clip clip)
+    private WpfDataObject CreateImageDataObject(Clip clip)
     {
         try
         {
@@ -1302,8 +1334,7 @@ public class ClipboardService : IClipboardService, IDisposable
             AddImageFormats(dataObject, imageData);
             AddFileDropFormats(dataObject, clip);
 
-            // Set the final DataObject to clipboard
-            WpfClipboard.SetDataObject(dataObject, true);
+            return dataObject;
         }
         catch (Exception ex)
         {
@@ -1313,7 +1344,7 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    private void SetFilesToClipboard(Clip clip)
+    private WpfDataObject CreateFilesDataObject(Clip clip)
     {
         try
         {
@@ -1328,7 +1359,7 @@ public class ClipboardService : IClipboardService, IDisposable
             var dataObject = new WpfDataObject();
             AddFileDropFormats(dataObject, clip);
 
-            WpfClipboard.SetDataObject(dataObject, true);
+            return dataObject;
         }
         catch (Exception ex)
         {

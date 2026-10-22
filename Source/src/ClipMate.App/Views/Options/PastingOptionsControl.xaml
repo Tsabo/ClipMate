@@ -24,13 +24,6 @@
                                    ToolTip="When PowerPaste reaches the end, loop back to the beginning" />
                 </dxlc:LayoutItem>
 
-                <!-- PowerPaste Shield -->
-                <dxlc:LayoutItem>
-                    <dxe:CheckEdit Content="PowerPaste Shield (stealth mode)"
-                                   IsChecked="{Binding PowerPasteShield}"
-                                   ToolTip="Prevents other applications from detecting clipboard changes during PowerPaste" />
-                </dxlc:LayoutItem>
-
             </dxlc:LayoutGroup>
 
             <dxlc:LayoutGroup View="GroupBox" Header="Exploding PowerPaste" Orientation="Vertical">
