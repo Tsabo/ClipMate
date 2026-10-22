@@ -17,6 +17,7 @@ namespace ClipMate.UITests.Tests;
 /// </para>
 /// </summary>
 [ClassDataSource<AppFixture>(Shared = SharedType.None)]
+[NotInParallel(SystemClipboard.ParallelKey)]
 public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
 {
     private const int _dropEffectMove = 2;

@@ -72,13 +72,7 @@ internal static class ClipMate7FormatConverter
         }
 
         clip.Type = DetermineType(clip);
-        clip.ContentHash = clip.Type switch
-        {
-            ClipType.Image => ContentHasher.HashBytes(clip.ImageData),
-            ClipType.Files => ContentHasher.HashText(clip.FilePathsJson ?? string.Empty),
-            var _ => ContentHasher.HashText(clip.TextContent ?? string.Empty),
-        };
-
+        clip.ContentHash = ContentHasher.HashClip(clip);
         clip.Checksum = clip.ContentHash.GetHashCode();
 
         return unsupported;

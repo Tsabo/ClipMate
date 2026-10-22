@@ -11,6 +11,12 @@ namespace ClipMate.UITests.Fixtures;
 public static partial class SystemClipboard
 {
     /// <summary>
+    /// <c>[NotInParallel]</c> key for every test that uses the clipboard: there is only one, and each test's ClipMate
+    /// captures whatever any other test puts on it.
+    /// </summary>
+    public const string ParallelKey = "SystemClipboard";
+
+    /// <summary>
     /// Runs <paramref name="action" /> on a new STA thread and returns its result.
     /// </summary>
     public static T OnSta<T>(Func<T> action)

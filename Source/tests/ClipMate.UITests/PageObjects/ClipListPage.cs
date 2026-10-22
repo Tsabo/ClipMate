@@ -25,6 +25,9 @@ public class ClipListPage(Process app)
     /// <summary>Icon shown on clips that carry text.</summary>
     public const string TextIcon = "📄";
 
+    /// <summary>Icon shown on clips that carry an image.</summary>
+    public const string ImageIcon = "🖼";
+
     private const string _mainWindowTitle = "ClipMate - Clipboard Manager";
 
     /// <summary>

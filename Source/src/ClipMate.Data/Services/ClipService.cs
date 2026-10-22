@@ -528,13 +528,8 @@ public class ClipService : IClipService
 
             // Generate ContentHash for suppression (prevent re-capturing this clip)
             // IMPORTANT: Must compute hash AFTER loading content from database
-            clip.ContentHash = clip.Type switch
-            {
-                ClipType.Text or ClipType.RichText or ClipType.Html => ContentHasher.HashText(clip.TextContent ?? string.Empty),
-                ClipType.Image => ContentHasher.HashBytes(clip.ImageData ?? []),
-                ClipType.Files => ContentHasher.HashText(clip.FilePathsJson ?? string.Empty),
-                var _ => string.Empty,
-            };
+            // Same rule as capture, so the clip's own re-capture is recognised
+            clip.ContentHash = ContentHasher.HashClip(clip);
 
             // Update the Windows clipboard
             await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
