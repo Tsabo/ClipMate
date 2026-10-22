@@ -58,5 +58,9 @@ public sealed record ClipContent(
         var filePathBlob = BinaryBlobs.FirstOrDefault(b => Formats.Any(p => p.Id == b.ClipDataId && p.Format == ClipboardFormats.HDrop.Code));
         if (filePathBlob != null)
             target.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+
+        var dropEffectBlob = BinaryBlobs.FirstOrDefault(b => Formats.Any(p => p.Id == b.ClipDataId && p.FormatName == ClipboardFormats.PreferredDropEffect.Name));
+        if (dropEffectBlob is { Data.Length: >= sizeof(int) })
+            target.FileDropEffect = BitConverter.ToInt32(dropEffectBlob.Data);
     }
 }

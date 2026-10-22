@@ -135,6 +135,19 @@ public static class Formats
     public static readonly ClipboardFormat DibV5 = new(17, "CF_DIBV5");
 
     /// <summary>
+    /// Shell format that travels with a file list: a DWORD DROPEFFECT telling the paste target whether the
+    /// files were copied (1) or cut (2). Registered format, so its code differs per session; stored rows are
+    /// matched by name and use code 0.
+    /// </summary>
+    public static readonly ClipboardFormat PreferredDropEffect = new(0, "Preferred DropEffect");
+
+    /// <summary>
+    /// Shell format that travels with a file list: a CIDA of item ID lists for the files.
+    /// Registered format; built from the file paths on copy-back rather than stored.
+    /// </summary>
+    public static readonly ClipboardFormat ShellIdListArray = new(0, "Shell IDList Array");
+
+    /// <summary>
     /// All standard formats as a collection for enumeration.
     /// </summary>
     public static readonly IReadOnlyList<ClipboardFormat> All =

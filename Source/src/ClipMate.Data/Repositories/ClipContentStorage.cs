@@ -168,6 +168,29 @@ internal static class ClipContentStorage
             };
 
             context.BlobBlob.Add(blobBlob);
+
+            if (clip.FileDropEffect is { } dropEffect)
+            {
+                var dropEffectData = new ClipData
+                {
+                    Id = Guid.NewGuid(),
+                    ClipId = clip.Id,
+                    FormatName = Formats.PreferredDropEffect.Name,
+                    Format = Formats.PreferredDropEffect.Code,
+                    Size = sizeof(int),
+                    StorageType = 4, // BLOB (generic)
+                };
+
+                clipDataEntries.Add(dropEffectData);
+
+                context.BlobBlob.Add(new BlobBlob
+                {
+                    Id = Guid.NewGuid(),
+                    ClipDataId = dropEffectData.Id,
+                    ClipId = clip.Id,
+                    Data = BitConverter.GetBytes(dropEffect),
+                });
+            }
         }
 
         // Add all ClipData entries

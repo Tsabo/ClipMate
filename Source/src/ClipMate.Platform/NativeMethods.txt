@@ -41,4 +41,6 @@ GetSystemMetrics
 SendInput
 GetLastInputInfo
 GetTickCount64
-
+SHParseDisplayName
+ILGetSize
+ILFree

@@ -41,7 +41,9 @@ Enable this option to automatically convert HDROP data to plain text showing fil
 C:\Documents\JohnDoe\hello.txt
 ```
 
-This is equivalent to using **Edit** > **Convert File Pointer To Text** automatically.
+The clip keeps the files as well, so pasting it into Explorer still pastes the files (as a copy or a move, matching the original copy or cut), while pasting into an editor pastes the paths. Unlike **Edit** > **Convert File Pointer To Text**, which turns a clip into text only.
+
+When the option is off, copied files are stored as a Files clip that pastes only as files.
 
 ## Image Storage
 

@@ -532,6 +532,11 @@ public class ClipboardService : IClipboardService, IDisposable
         else if (hasFiles)
             clip = ExtractFilesClip();
 
+        // Keep the file list (and whether it was a copy or a cut) even when the source also offered text or an
+        // image, as ClipMate 7 does, so the clip still pastes as files into Explorer.
+        if (clip != null && hasFiles)
+            AddFileDropToClip(clip);
+
         // Populate standard fields
         if (clip != null)
             PopulateStandardFields(clip);
@@ -825,8 +830,8 @@ public class ClipboardService : IClipboardService, IDisposable
                     var filePathsJson = JsonSerializer.Serialize(filePaths);
                     var text = string.Join(Environment.NewLine, filePaths);
 
-                    // "HDROP Expansion" preference: capture straight to a plain-text clip instead of
-                    // a Files clip, equivalent to running Edit > Convert File Pointer To Text automatically.
+                    // "HDROP Expansion" preference: capture as a Text clip listing the paths instead of a
+                    // Files clip. Unlike Edit > Convert File Pointer To Text, the file list is kept.
                     var autoExpand = _configurationService.Configuration.Preferences.AutoExpandHdropFilePointers;
 
                     var clip = new Clip
@@ -876,6 +881,59 @@ public class ClipboardService : IClipboardService, IDisposable
 
             return null;
         }
+    }
+
+    /// <summary>
+    /// Adds the clipboard's file list and "Preferred DropEffect" to a clip whose primary content is something else.
+    /// </summary>
+    private void AddFileDropToClip(Clip clip)
+    {
+        try
+        {
+            if (clip.FilePathsJson == null)
+            {
+                var filePaths = WpfClipboard.GetFileDropList().Cast<string>().Where(p => !string.IsNullOrEmpty(p)).ToList();
+                if (filePaths.Count == 0)
+                    return;
+
+                clip.FilePathsJson = JsonSerializer.Serialize(filePaths);
+            }
+
+            if (WpfClipboard.ContainsData(Formats.PreferredDropEffect.Name))
+                clip.FileDropEffect = ShellFileDropFormats.ReadPreferredDropEffect(WpfClipboard.GetData(Formats.PreferredDropEffect.Name));
+        }
+        catch (Exception ex)
+        {
+            // The primary content was already captured; losing the file list is not worth losing the clip.
+            _logger.LogWarning(ex, "Could not read the file list alongside the clipboard content");
+        }
+    }
+
+    /// <summary>
+    /// Adds a clip's file list to a data object as Explorer offers it: CF_HDROP (with FileName/FileNameW,
+    /// which WPF derives from it), "Shell IDList Array" and, if one was captured, "Preferred DropEffect".
+    /// </summary>
+    private void AddFileDropFormats(WpfDataObject dataObject, Clip clip)
+    {
+        if (string.IsNullOrEmpty(clip.FilePathsJson))
+            return;
+
+        var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
+        if (filePaths is not { Count: > 0 })
+            return;
+
+        var fileDropList = new StringCollection();
+        fileDropList.AddRange(filePaths.ToArray());
+        dataObject.SetFileDropList(fileDropList);
+
+        var shellIdListArray = ShellFileDropFormats.CreateShellIdListArray(filePaths);
+        if (shellIdListArray != null)
+            dataObject.SetData(Formats.ShellIdListArray.Name, shellIdListArray);
+        else
+            _logger.LogDebug("Not offering {Format}: at least one file no longer exists", Formats.ShellIdListArray.Name);
+
+        if (clip.FileDropEffect is { } dropEffect)
+            dataObject.SetData(Formats.PreferredDropEffect.Name, ShellFileDropFormats.CreatePreferredDropEffect(dropEffect));
     }
 
     /// <summary>
@@ -1106,18 +1164,9 @@ public class ClipboardService : IClipboardService, IDisposable
             if (!string.IsNullOrEmpty(htmlContent))
                 dataObject.SetData(DataFormats.Html, htmlContent);
 
-            // Auto-expanded HDROP clips still carry their file paths - restore the file-drop format
-            // too so pasting into Explorer works, in addition to pasting the readable text elsewhere.
-            if (!string.IsNullOrEmpty(clip.FilePathsJson))
-            {
-                var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
-                if (filePaths is { Count: > 0 })
-                {
-                    var fileDropList = new StringCollection();
-                    fileDropList.AddRange(filePaths.ToArray());
-                    dataObject.SetFileDropList(fileDropList);
-                }
-            }
+            // Text clips that carry a file list (auto-expanded HDROP, or a source that offered both) restore the
+            // file formats too, so the paste target picks: Explorer takes the files, an editor takes the text.
+            AddFileDropFormats(dataObject, clip);
 
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -1213,6 +1262,8 @@ public class ClipboardService : IClipboardService, IDisposable
                 _logger.LogDebug("Preserved JPEG format ({Size} bytes) on clipboard", imageData.Length);
             }
 
+            AddFileDropFormats(dataObject, clip);
+
             // Set the final DataObject to clipboard
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -1236,10 +1287,10 @@ public class ClipboardService : IClipboardService, IDisposable
             if (filePaths == null || filePaths.Count == 0)
                 throw new InvalidOperationException("No file paths found");
 
-            var fileDropList = new StringCollection();
-            fileDropList.AddRange(filePaths.ToArray());
+            var dataObject = new WpfDataObject();
+            AddFileDropFormats(dataObject, clip);
 
-            WpfClipboard.SetFileDropList(fileDropList);
+            WpfClipboard.SetDataObject(dataObject, true);
         }
         catch (Exception ex)
         {
