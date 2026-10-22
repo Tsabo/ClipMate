@@ -52,12 +52,15 @@ ClipMate.UITests/
 │   ├── ClipListPage.cs           # Clip list via UI Automation: find, wait for and select clips
 │   └── CollectionTreePage.cs     # Collection tree via WPF Pilot
 ├── Tests/
+│   ├── AutoTargetingTests.cs                # Runs: switch between two windows, open ClipMate, QuickPaste into the last one
 │   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
 │   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
 └── Fixtures/
     ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir) and waits for startup
+    ├── Foreground.cs             # Switches the foreground window and presses keys, as a user would
     ├── Poll.cs                   # Waits on another process until a deadline
-    └── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
+    ├── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
+    └── TargetWindow.cs           # A window in another process to paste into, with its text read back
 ```
 
 ## Writing New Tests

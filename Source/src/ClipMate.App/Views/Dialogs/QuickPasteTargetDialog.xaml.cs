@@ -3,7 +3,7 @@ using DevExpress.Xpf.Editors;
 namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
-/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME).
+/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME), or bad window titles.
 /// </summary>
 public partial class QuickPasteTargetDialog
 {
@@ -21,6 +21,20 @@ public partial class QuickPasteTargetDialog
         : this()
     {
         TargetTextBox.Text = currentTarget;
+    }
+
+    /// <summary>
+    /// Creates a dialog for a bad window title instead of a PROCESSNAME:CLASSNAME specification.
+    /// </summary>
+    /// <param name="currentTitle">The title to edit, or empty to add one.</param>
+    public static QuickPasteTargetDialog ForWindowTitle(string currentTitle = "")
+    {
+        var dialog = new QuickPasteTargetDialog(currentTitle);
+        dialog.SpecificationHelp.Visibility = Visibility.Collapsed;
+        dialog.TitleHelp.Visibility = Visibility.Visible;
+        dialog.TargetItem.Label = "Title:";
+
+        return dialog;
     }
 
     /// <summary>

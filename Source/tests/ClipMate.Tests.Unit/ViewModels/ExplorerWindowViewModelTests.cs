@@ -107,7 +107,6 @@ public class ExplorerWindowViewModelTests
             searchVm,
             quickPasteToolbarVm,
             mainMenuViewModel,
-            mockQuickPasteService,
             A.Fake<IPowerPasteService>(),
             mockCollectionService,
             mockFolderService,

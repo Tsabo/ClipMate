@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
+using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -64,8 +65,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Subscribe to target change events
-        _messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => UpdateTargetDisplay());
+        // Subscribe to target change events (sent from the foreground window monitor's thread)
+        _messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => OnTargetChanged());
         _messenger.Register<StateRefreshRequestedEvent>(this);
 
         LoadFormattingStrings();
@@ -135,6 +136,15 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
             // Fallback to first item if service has no selection
             SelectedFormattingString = FormattingStrings[0];
         }
+    }
+
+    private void OnTargetChanged()
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+            UpdateTargetDisplay();
+        else
+            dispatcher.InvokeAsync(UpdateTargetDisplay);
     }
 
     /// <summary>

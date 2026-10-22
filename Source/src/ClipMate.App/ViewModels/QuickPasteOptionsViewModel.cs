@@ -27,6 +27,9 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     private ObservableCollection<string> _quickPasteBadTargets = [];
 
     [ObservableProperty]
+    private ObservableCollection<string> _quickPasteBadTitles = [];
+
+    [ObservableProperty]
     private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = [];
 
     [ObservableProperty]
@@ -43,6 +46,9 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
 
     [ObservableProperty]
     private int _selectedBadTargetIndex = -1;
+
+    [ObservableProperty]
+    private int _selectedBadTitleIndex = -1;
 
     [ObservableProperty]
     private QuickPasteFormattingString? _selectedFormattingString;
@@ -72,6 +78,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         QuickPastePasteOnDoubleClick = config.QuickPastePasteOnDoubleClick;
         QuickPasteGoodTargets = new ObservableCollection<string>(config.QuickPasteGoodTargets);
         QuickPasteBadTargets = new ObservableCollection<string>(config.QuickPasteBadTargets);
+        QuickPasteBadTitles = new ObservableCollection<string>(config.QuickPasteBadTitles);
         QuickPasteFormattingStrings = new ObservableCollection<QuickPasteFormattingString>(config.QuickPasteFormattingStrings);
 
         _logger.LogDebug("QuickPaste configuration loaded");
@@ -89,6 +96,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         config.QuickPastePasteOnDoubleClick = QuickPastePasteOnDoubleClick;
         config.QuickPasteGoodTargets = QuickPasteGoodTargets.ToList();
         config.QuickPasteBadTargets = QuickPasteBadTargets.ToList();
+        config.QuickPasteBadTitles = QuickPasteBadTitles.ToList();
         config.QuickPasteFormattingStrings = QuickPasteFormattingStrings.ToList();
 
         // Broadcast QuickPaste configuration changed event for immediate reload
@@ -231,6 +239,70 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         var target = QuickPasteBadTargets[SelectedBadTargetIndex];
         QuickPasteBadTargets.RemoveAt(SelectedBadTargetIndex);
         _logger.LogDebug("Deleted BAD target: {Target}", target);
+    }
+
+    /// <summary>
+    /// Adds a new bad window title.
+    /// </summary>
+    [RelayCommand]
+    private void AddBadTitle()
+    {
+        var dialog = QuickPasteTargetDialog.ForWindowTitle();
+        dialog.Owner = Application.Current.GetDialogOwner();
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var title = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(title) || QuickPasteBadTitles.Contains(title, StringComparer.OrdinalIgnoreCase))
+            return;
+
+        QuickPasteBadTitles.Add(title);
+        _logger.LogDebug("Added bad title: {Title}", title);
+    }
+
+    /// <summary>
+    /// Edits the selected bad window title.
+    /// </summary>
+    [RelayCommand]
+    private void EditBadTitle()
+    {
+        if (SelectedBadTitleIndex < 0 || SelectedBadTitleIndex >= QuickPasteBadTitles.Count)
+        {
+            _logger.LogWarning("No bad title selected for editing");
+            return;
+        }
+
+        var currentTitle = QuickPasteBadTitles[SelectedBadTitleIndex];
+        var dialog = QuickPasteTargetDialog.ForWindowTitle(currentTitle);
+        dialog.Owner = Application.Current.GetDialogOwner();
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var title = dialog.TargetSpecification;
+        if (string.IsNullOrWhiteSpace(title))
+            return;
+
+        QuickPasteBadTitles[SelectedBadTitleIndex] = title;
+        _logger.LogDebug("Edited bad title from {Old} to {New}", currentTitle, title);
+    }
+
+    /// <summary>
+    /// Deletes the selected bad window title.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteBadTitle()
+    {
+        if (SelectedBadTitleIndex < 0 || SelectedBadTitleIndex >= QuickPasteBadTitles.Count)
+        {
+            _logger.LogWarning("No bad title selected for deletion");
+            return;
+        }
+
+        var title = QuickPasteBadTitles[SelectedBadTitleIndex];
+        QuickPasteBadTitles.RemoveAt(SelectedBadTitleIndex);
+        _logger.LogDebug("Deleted bad title: {Title}", title);
     }
 
     /// <summary>

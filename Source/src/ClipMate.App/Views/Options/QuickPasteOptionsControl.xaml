@@ -69,6 +69,26 @@
                                      SelectedIndex="{Binding SelectedBadTargetIndex, Mode=TwoWay}" />
                 </Grid>
             </dxlc:LayoutGroup>
+
+            <!-- BAD Titles -->
+            <dxlc:LayoutGroup View="GroupBox" Header="BAD Titles" Orientation="Horizontal"
+                              ToolTip="Windows whose title starts with one of these (ignoring case) are never the Paste Target">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <dxb:ToolBarControl Grid.Column="0" Orientation="Vertical" AllowCustomizationMenu="False" AllowQuickCustomization="False" AllowCollapse="False">
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Actions/Add_16x16.png'}" Command="{Binding AddBadTitleCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/XAF/Action_Edit.png'}" Command="{Binding EditBadTitleCommand}"/>
+                        <dxb:BarButtonItem Glyph="{dx:DXImage 'Images/Edit/Delete_16x16.png'}" Command="{Binding DeleteBadTitleCommand}"/>
+                    </dxb:ToolBarControl>
+                    <dxe:ListBoxEdit Grid.Column="1" ItemsSource="{Binding QuickPasteBadTitles}"
+                                     SelectionMode="Single"
+                                     ShowBorder="True"
+                                     SelectedIndex="{Binding SelectedBadTitleIndex, Mode=TwoWay}" />
+                </Grid>
+            </dxlc:LayoutGroup>
         </dxlc:LayoutGroup>
 
         <!-- Paste Triggers Section -->

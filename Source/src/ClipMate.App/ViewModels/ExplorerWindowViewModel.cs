@@ -30,7 +30,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
-    private readonly IQuickPasteService _quickPasteService;
     private readonly ITemplateService _templateService;
 
     public ExplorerWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
@@ -39,7 +38,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         SearchViewModel searchViewModel,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         MainMenuViewModel mainMenuViewModel,
-        IQuickPasteService quickPasteService,
         IPowerPasteService powerPasteService,
         ICollectionService collectionService,
         IFolderService folderService,
@@ -53,7 +51,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         Search = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         MainMenu = mainMenuViewModel ?? throw new ArgumentNullException(nameof(mainMenuViewModel));
-        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
@@ -200,28 +197,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         IsLoading = isLoading;
         LoadingProgress = progress;
     }
-
-    #region Window Event Handlers
-
-    /// <summary>
-    /// Called when the main window is deactivated (loses focus).
-    /// Captures the new foreground window as the QuickPaste target.
-    /// </summary>
-    public async void OnWindowDeactivated()
-    {
-        try
-        {
-            // Brief delay to ensure the new foreground window is fully activated
-            await Task.Delay(50);
-            _quickPasteService.UpdateTarget();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error updating QuickPaste target on window deactivation");
-        }
-    }
-
-    #endregion
 
     #region Helper Methods
 

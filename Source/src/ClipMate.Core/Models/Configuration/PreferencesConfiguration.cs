@@ -418,6 +418,17 @@ public class PreferencesConfiguration
         ":#43",
         "HELPMAN:TFRMTOPIC",
         ":GDI+_HOOK_WINDOW_CLASS",
+        "CTFMON:",
+    ];
+
+    /// <summary>
+    /// Gets or sets the window titles that are never a Paste Target, whatever their program/class.
+    /// A title matches when it starts with an entry, ignoring case.
+    /// </summary>
+    public List<string> QuickPasteBadTitles { get; set; } =
+    [
+        "INTELLIFORMPROXY",
+        "DEFAULT IME",
     ];
 
     /// <summary>

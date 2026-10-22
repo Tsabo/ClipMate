@@ -89,6 +89,7 @@ public partial class QuickPasteServiceTests : TestFixtureBase
 
         return new QuickPasteService(
             _mockWin32,
+            A.Fake<IForegroundWindowMonitor>(),
             _mockClipboardService,
             _mockConfigurationService,
             _mockMessenger,
@@ -110,6 +111,8 @@ public partial class QuickPasteServiceTests : TestFixtureBase
         };
 
     private IWin32InputInterop CreateMockWin32() => A.Fake<IWin32InputInterop>();
+
+    private IForegroundWindowMonitor CreateMockForegroundMonitor() => A.Fake<IForegroundWindowMonitor>();
 
     private IClipboardService CreateMockClipboardService() => A.Fake<IClipboardService>();
 

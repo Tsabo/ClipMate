@@ -97,6 +97,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
 
         _quickPasteService = new QuickPasteService(
             _mockWin32,
+            A.Fake<IForegroundWindowMonitor>(),
             _mockClipboardService,
             _configurationService,
             _messenger,
@@ -129,7 +130,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         _quickPasteService.SetTargetLock(true);
 
         // Act
-        _quickPasteService.UpdateTarget();
+        _quickPasteService.StartTargetTracking();
 
         // Assert - Target should remain null because it's locked
         var target = _quickPasteService.GetCurrentTarget();
@@ -263,14 +264,14 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task QuickPaste_UpdateTarget_DoesNotThrowWhenNoWindow()
+    public async Task QuickPaste_StartTargetTracking_DoesNotThrowWhenNoWindow()
     {
         // Arrange - No foreground window
         A.CallTo(() => _mockWin32.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
         _quickPasteService.SetTargetLock(false);
 
         // Act
-        _quickPasteService.UpdateTarget();
+        _quickPasteService.StartTargetTracking();
 
         // Assert - Should not throw, target remains null
         var target = _quickPasteService.GetCurrentTarget();

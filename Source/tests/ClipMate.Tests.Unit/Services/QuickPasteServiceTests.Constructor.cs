@@ -16,6 +16,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 null!,
+                CreateMockForegroundMonitor(),
                 mockClipboard,
                 mockConfig,
                 mockMessenger,
@@ -38,6 +39,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
+                CreateMockForegroundMonitor(),
                 null!,
                 mockConfig,
                 mockMessenger,
@@ -60,6 +62,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
+                CreateMockForegroundMonitor(),
                 mockClipboard,
                 null!,
                 mockMessenger,
@@ -82,6 +85,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
+                CreateMockForegroundMonitor(),
                 mockClipboard,
                 mockConfig,
                 null!,
@@ -104,6 +108,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
+                CreateMockForegroundMonitor(),
                 mockClipboard,
                 mockConfig,
                 mockMessenger,
@@ -111,6 +116,23 @@ public partial class QuickPasteServiceTests
                 CreateMockTemplateService(),
                 CreateMockDialogService(),
                 null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Constructor_ThrowsArgumentNullException_WhenForegroundMonitorIsNull()
+    {
+        // Act & Assert
+        await Assert.That(() => new QuickPasteService(
+                CreateMockWin32(),
+                null!,
+                CreateMockClipboardService(),
+                CreateMockConfigurationService(),
+                CreateMockMessenger(),
+                CreateMockMacroExecutionService(),
+                CreateMockTemplateService(),
+                CreateMockDialogService(),
+                CreateMockLogger()))
             .Throws<ArgumentNullException>();
     }
 

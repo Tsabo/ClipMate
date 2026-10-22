@@ -38,6 +38,7 @@ public static class FakeProxyTypeWarmup
         typeof(HotkeyCoordinator),
         typeof(IActiveWindowService),
         typeof(IApplicationFilterRepository),
+        typeof(IForegroundWindowMonitor),
         typeof(IApplicationFilterService),
         typeof(IApplicationProfileService),
         typeof(IApplicationProfileStore),

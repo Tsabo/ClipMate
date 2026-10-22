@@ -153,6 +153,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStartupInitializationStep, HotkeyInitializationStep>();
         services.AddSingleton<IStartupInitializationStep, HotkeyRegistrationStep>();
         services.AddSingleton<IStartupInitializationStep, ClipOperationsInitializationStep>();
+        services.AddSingleton<IStartupInitializationStep, PasteTargetTrackingStep>();
 
         return services;
     }

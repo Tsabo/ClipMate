@@ -62,12 +62,12 @@ public interface IQuickPasteService
     Task<bool> PasteClipAsync(Clip clip, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Switches focus to the current target (updating it first, unless locked) and sends a TAB keystroke.
+    /// Switches focus to the current target and sends a TAB keystroke.
     /// </summary>
     Task SendTabKeystroke();
 
     /// <summary>
-    /// Switches focus to the current target (updating it first, unless locked) and sends an ENTER keystroke.
+    /// Switches focus to the current target and sends an ENTER keystroke.
     /// </summary>
     Task SendEnterKeystroke();
 
@@ -77,9 +77,12 @@ public interface IQuickPasteService
     void ResetSequence();
 
     /// <summary>
-    /// Manually updates the target by detecting the foreground window.
+    /// Starts following the foreground window: from then on the Paste Target is the last suitable window that is not
+    /// ClipMate, updated as the user switches windows unless the target is locked. When ClipMate comes to the front
+    /// and that window has closed or is hidden, the next suitable window down the window stack takes its place.
+    /// Calling it again has no effect.
     /// </summary>
-    void UpdateTarget();
+    void StartTargetTracking();
 
     /// <summary>
     /// Gets the current target in format "PROCESSNAME:CLASSNAME".

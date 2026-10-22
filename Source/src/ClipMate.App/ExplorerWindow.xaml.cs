@@ -76,7 +76,6 @@ public partial class ExplorerWindow : IWindow,
         Closing += ExplorerWindow_Closing;
         PreviewKeyDown += ExplorerWindow_PreviewKeyDown;
         Activated += ExplorerWindow_Activated;
-        Deactivated += ExplorerWindow_Deactivated;
 
         // Subscribe to events
         _messenger.Register<OpenOptionsDialogEvent>(this, (_, message) => ShowOptions(message.TabName));
@@ -144,12 +143,6 @@ public partial class ExplorerWindow : IWindow,
 
         ShowTextTools();
         e.Handled = true;
-    }
-
-    private void ExplorerWindow_Deactivated(object? sender, EventArgs e)
-    {
-        // Capture target window when ClipMate loses focus
-        _viewModel.OnWindowDeactivated();
     }
 
     private void ExplorerWindow_Activated(object? sender, EventArgs e)
