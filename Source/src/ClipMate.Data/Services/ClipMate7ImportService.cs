@@ -20,8 +20,9 @@ namespace ClipMate.Data.Services;
 /// BLOB tables, SHORTCUT → Shortcuts. GUIDs are preserved, so collections that also exist in the default ClipMate
 /// layout (Inbox, Safe, Overflow, Samples, ...) are matched rather than duplicated, and re-importing is idempotent.
 /// Clip content is converted to the representation clipboard capture produces (see <see cref="ClipMate7FormatConverter" />).
-/// Clips encrypted in ClipMate 7 are decrypted with the ClipMate 7 key (see <see cref="ClipMate7Encryption" />) and
-/// immediately encrypted again with ClipMate's own encryption using that same key, so they stay encrypted.
+/// Clips encrypted in ClipMate 7 are decrypted with whichever of the user's ClipMate 7 keys opens them (see
+/// <see cref="ClipMate7Encryption" />) and immediately encrypted again with ClipMate's own encryption using that same
+/// key, so they stay encrypted.
 /// </remarks>
 public class ClipMate7ImportService : IClipMate7ImportService
 {
@@ -80,8 +81,8 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
                 if (encryptedCount > 0)
                 {
-                    warnings.Add($"{encryptedCount} clip(s) are encrypted in ClipMate 7. Enter their ClipMate 7 encryption key to " +
-                                 "import them (they stay encrypted, with the same key); without it they are skipped.");
+                    warnings.Add($"{encryptedCount} clip(s) are encrypted in ClipMate 7. Enter their ClipMate 7 encryption keys to " +
+                                 "import them (they stay encrypted, with the same keys); clips no key opens are skipped.");
                 }
 
                 foreach (var item in _blobTables.Where(p => !DbisamTable.Exists(sourceFolder, p)))
@@ -96,6 +97,43 @@ public class ClipMate7ImportService : IClipMate7ImportService
                     EncryptedClipCount = encryptedCount,
                     Warnings = warnings,
                 };
+            }
+            catch (Exception ex) when (ex is DbisamFormatException or IOException)
+            {
+                throw new InvalidOperationException($"Unable to read the ClipMate 7 database: {ex.Message}", ex);
+            }
+        }, cancellationToken);
+    }
+
+    public Task<int> CountDecryptableClipsAsync(string sourceFolder, IReadOnlyList<string> encryptionKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(encryptionKeys);
+        EnsureSourceFolder(sourceFolder);
+
+        return Task.Run(() =>
+        {
+            try
+            {
+                using var keyRing = ClipMate7KeyRing.Create(encryptionKeys, out _);
+                if (keyRing.IsEmpty)
+                    return 0;
+
+                using var formats = FormatIndex.Open(sourceFolder);
+                using var clipTable = DbisamTable.Open(sourceFolder, _clipTable);
+
+                var count = 0;
+                foreach (var item in clipTable.ReadRecords())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (item.GetInt32("ID") is not > 0 || !item.GetBoolean("ENCRYPTED"))
+                        continue;
+
+                    var text = formats.Get(item.GetInt32("ID")!.Value).FirstOrDefault(p => p.Code == Formats.Text.Code && p.Blob is not null);
+                    if (text.Blob is not null && keyRing.TryDecryptText(text.Blob.GetBlob("DATA"), item.GetInt32("CHECKSUM") ?? 0, out _, out _, out _))
+                        count++;
+                }
+
+                return count;
             }
             catch (Exception ex) when (ex is DbisamFormatException or IOException)
             {
@@ -134,10 +172,10 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
         try
         {
-            using var encryption = CreateEncryption(options.EncryptionKey, out var keyWarning);
-            var result = await Task.Run(() => ImportCoreAsync(options.SourceFolder, targetPath, encryption, progressCallback, cancellationToken), cancellationToken);
-            if (keyWarning is not null && result.EncryptedClipsSkipped > 0)
-                result.Warnings.Insert(0, keyWarning);
+            using var keyRing = ClipMate7KeyRing.Create(options.EncryptionKeys, out var keyWarnings);
+            var result = await Task.Run(() => ImportCoreAsync(options.SourceFolder, targetPath, keyRing, progressCallback, cancellationToken), cancellationToken);
+            if (result.EncryptedClipsSkipped > 0)
+                result.Warnings.InsertRange(0, keyWarnings);
 
             _logger.LogInformation(
                 "ClipMate 7 import complete: {Clips} clips, {Collections} collections, {Shortcuts} shortcuts imported; " +
@@ -166,31 +204,9 @@ public class ClipMate7ImportService : IClipMate7ImportService
         }
     }
 
-    /// <summary>
-    /// Prepares decryption of ClipMate 7 encrypted clips and re-encryption with the same key, or returns null (the
-    /// clips are skipped) when no key was given or ClipMate's encryption does not accept it.
-    /// </summary>
-    private static ClipEncryption? CreateEncryption(string? passphrase, out string? warning)
-    {
-        warning = null;
-        if (string.IsNullOrEmpty(passphrase))
-            return null;
-
-        try
-        {
-            return new ClipEncryption(new ClipMate7Encryption(passphrase), EncryptionKey.FromPassphrase(passphrase));
-        }
-        catch (ArgumentException ex)
-        {
-            // Encrypted clips must stay encrypted, so a key ClipMate cannot encrypt with means they cannot be imported
-            warning = $"Encrypted clips were skipped because ClipMate cannot encrypt with this key: {ex.Message.Split(" (Parameter")[0]}";
-            return null;
-        }
-    }
-
     private async Task<ClipMate7ImportResult> ImportCoreAsync(string sourceFolder,
         string targetPath,
-        ClipEncryption? encryption,
+        ClipMate7KeyRing keyRing,
         Action<ExportProgressMessage>? progressCallback,
         CancellationToken cancellationToken)
     {
@@ -215,38 +231,8 @@ public class ClipMate7ImportService : IClipMate7ImportService
         collectionMap.FallbackId = existingCollections.FirstOrDefault(p => p is { Role: CollectionRole.Inbox, IsClipTarget: true })?.Id
                                    ?? existingCollections.FirstOrDefault(p => p.IsClipTarget)?.Id;
 
-        // Index CLIPDATA rows by clip, and BLOB rows by CLIPDATA id. BLOB contents are read on demand.
         Report(progressCallback, "Indexing clip formats...");
-        using var blobTables = new DisposableList<DbisamTable>();
-        var blobsByClipDataId = new Dictionary<int, DbisamRecord>();
-        foreach (var item in _blobTables.Where(p => DbisamTable.Exists(sourceFolder, p)))
-        {
-            var table = DbisamTable.Open(sourceFolder, item);
-            blobTables.Add(table);
-            foreach (var record in table.ReadRecords())
-            {
-                if (record.GetInt32("CLIPDATA_ID") is { } clipDataId && clipDataId > 0)
-                    blobsByClipDataId.TryAdd(clipDataId, record);
-            }
-        }
-
-        var formatsByClipId = new Dictionary<int, List<(int Id, string Name, int Code)>>();
-        if (DbisamTable.Exists(sourceFolder, _clipDataTable))
-        {
-            using var clipDataTable = DbisamTable.Open(sourceFolder, _clipDataTable);
-            foreach (var item in clipDataTable.ReadRecords())
-            {
-                var id = item.GetInt32("ID") ?? 0;
-                var clipId = item.GetInt32("CLIP_ID") ?? 0;
-                if (id <= 0 || clipId <= 0)
-                    continue;
-
-                if (!formatsByClipId.TryGetValue(clipId, out var list))
-                    formatsByClipId[clipId] = list = [];
-
-                list.Add((id, item.GetString("FORMAT_NAME") ?? string.Empty, item.GetInt32("FORMAT") ?? 0));
-            }
-        }
+        using var formats = FormatIndex.Open(sourceFolder);
 
         // Clips
         var existingClipIds = (await context.Clips.AsNoTracking().Select(p => p.Id).ToListAsync(cancellationToken)).ToHashSet();
@@ -263,8 +249,8 @@ public class ClipMate7ImportService : IClipMate7ImportService
                 cancellationToken.ThrowIfCancellationRequested();
                 processed++;
 
-                var clip = await TryAddClipAsync(item, context, formatsByClipId, blobsByClipDataId, collectionMap,
-                    existingClipIds, encryption, result, cancellationToken);
+                var clip = await TryAddClipAsync(item, context, formats, collectionMap, existingClipIds, keyRing, result,
+                    cancellationToken);
 
                 if (clip is not null)
                 {
@@ -446,11 +432,10 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
     private async Task<Clip?> TryAddClipAsync(DbisamRecord record,
         ClipMateDbContext context,
-        Dictionary<int, List<(int Id, string Name, int Code)>> formatsByClipId,
-        Dictionary<int, DbisamRecord> blobsByClipDataId,
+        FormatIndex formatIndex,
         CollectionMap collectionMap,
         HashSet<Guid> existingClipIds,
-        ClipEncryption? encryption,
+        ClipMate7KeyRing keyRing,
         ClipMate7ImportResult result,
         CancellationToken cancellationToken)
     {
@@ -466,18 +451,19 @@ public class ClipMate7ImportService : IClipMate7ImportService
         }
 
         var encrypted = record.GetBoolean("ENCRYPTED");
-        if (encrypted && encryption is null)
+        if (encrypted && keyRing.IsEmpty)
         {
             result.EncryptedClipsSkipped++;
             return null;
         }
 
-        // ClipMate 7 encrypts only the TEXT format; the salt it used also decrypts the title
+        // ClipMate 7 encrypts only the TEXT format; the key and salt that open it also decrypt the title
         byte[]? salt = null;
+        ClipMate7KeyRing.Key? key = null;
         var formats = new List<ClipMate7Format>();
-        foreach (var item in formatsByClipId.GetValueOrDefault(legacyId) ?? [])
+        foreach (var item in formatIndex.Get(legacyId))
         {
-            if (!blobsByClipDataId.TryGetValue(item.Id, out var blob))
+            if (item.Blob is not { } blob)
                 continue;
 
             try
@@ -485,13 +471,11 @@ public class ClipMate7ImportService : IClipMate7ImportService
                 var data = blob.GetBlob("DATA");
                 if (encrypted && item.Code == Formats.Text.Code)
                 {
-                    if (!encryption!.Decryptor.TryDecryptText(data, record.GetInt32("CHECKSUM") ?? 0, out data, out var textSalt))
+                    if (!keyRing.TryDecryptText(data, record.GetInt32("CHECKSUM") ?? 0, out data, out salt, out key))
                     {
                         result.EncryptedClipsSkipped++;
                         return null;
                     }
-
-                    salt = textSalt;
                 }
 
                 formats.Add(new ClipMate7Format(item.Name, item.Code, data));
@@ -503,7 +487,7 @@ public class ClipMate7ImportService : IClipMate7ImportService
             }
         }
 
-        if (encrypted && salt is null)
+        if (encrypted && key is null)
         {
             result.EncryptedClipsSkipped++;
             return null;
@@ -512,7 +496,7 @@ public class ClipMate7ImportService : IClipMate7ImportService
         var customTitle = record.GetBoolean("CUSTOMTITLE");
         var title = record.GetString("TITLE");
         if (encrypted && !customTitle && title is not null)
-            title = encryption!.Decryptor.TryDecryptTitle(title, salt!);
+            title = key!.Decryptor.TryDecryptTitle(title, salt!);
 
         var timestamp = record.GetDateTime("TIMESTAMP");
         var deleted = record.GetBoolean("DEL");
@@ -561,7 +545,7 @@ public class ClipMate7ImportService : IClipMate7ImportService
             if (string.IsNullOrWhiteSpace(clip.Title) && !customTitle)
                 clip.Title = TitleFromText(clip.TextContent);
 
-            await ClipContentEncryption.EncryptAsync(_encryptionService, encryption!.Key, clip,
+            await ClipContentEncryption.EncryptAsync(_encryptionService, key!.EncryptionKey, clip,
                 context.BlobTxt.Local.Where(p => p.ClipId == clip.Id),
                 context.BlobJpg.Local.Where(p => p.ClipId == clip.Id),
                 context.BlobPng.Local.Where(p => p.ClipId == clip.Id),
@@ -646,12 +630,152 @@ public class ClipMate7ImportService : IClipMate7ImportService
         });
 
     /// <summary>
-    /// Decrypts ClipMate 7 encrypted clips (<see cref="Decryptor" />) and re-encrypts them with ClipMate's own
-    /// encryption using the same key (<see cref="Key" />).
+    /// The CLIPDATA rows (formats) of each ClipMate 7 clip, with the BLOB row holding each format's data. BLOB contents
+    /// are read on demand, so the BLOB tables stay open until disposed.
     /// </summary>
-    private sealed record ClipEncryption(ClipMate7Encryption Decryptor, EncryptionKey Key) : IDisposable
+    private sealed class FormatIndex : IDisposable
     {
-        public void Dispose() => Key.Dispose();
+        private readonly List<DbisamTable> _openTables = [];
+        private readonly Dictionary<int, List<(int Id, string Name, int Code, DbisamRecord? Blob)>> _formatsByClipId = [];
+
+        private FormatIndex()
+        {
+        }
+
+        public static FormatIndex Open(string sourceFolder)
+        {
+            var index = new FormatIndex();
+            try
+            {
+                var blobsByClipDataId = new Dictionary<int, DbisamRecord>();
+                foreach (var item in _blobTables.Where(p => DbisamTable.Exists(sourceFolder, p)))
+                {
+                    var table = DbisamTable.Open(sourceFolder, item);
+                    index._openTables.Add(table);
+                    foreach (var record in table.ReadRecords())
+                    {
+                        if (record.GetInt32("CLIPDATA_ID") is { } clipDataId && clipDataId > 0)
+                            blobsByClipDataId.TryAdd(clipDataId, record);
+                    }
+                }
+
+                if (!DbisamTable.Exists(sourceFolder, _clipDataTable))
+                    return index;
+
+                using var clipDataTable = DbisamTable.Open(sourceFolder, _clipDataTable);
+                foreach (var item in clipDataTable.ReadRecords())
+                {
+                    var id = item.GetInt32("ID") ?? 0;
+                    var clipId = item.GetInt32("CLIP_ID") ?? 0;
+                    if (id <= 0 || clipId <= 0)
+                        continue;
+
+                    if (!index._formatsByClipId.TryGetValue(clipId, out var list))
+                        index._formatsByClipId[clipId] = list = [];
+
+                    list.Add((id, item.GetString("FORMAT_NAME") ?? string.Empty, item.GetInt32("FORMAT") ?? 0,
+                        blobsByClipDataId.GetValueOrDefault(id)));
+                }
+
+                return index;
+            }
+            catch
+            {
+                index.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The formats of a clip, by its ClipMate 7 ID. Blob is null when the format's data is missing.
+        /// </summary>
+        public IReadOnlyList<(int Id, string Name, int Code, DbisamRecord? Blob)> Get(int legacyClipId) =>
+            _formatsByClipId.GetValueOrDefault(legacyClipId) ?? [];
+
+        public void Dispose()
+        {
+            foreach (var item in _openTables)
+                item.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// The ClipMate 7 keys the user entered. ClipMate 7 asks for a key each time clips are encrypted, so each
+    /// encrypted clip is tried with every key; the key that opens it also re-encrypts it with ClipMate's encryption.
+    /// </summary>
+    private sealed class ClipMate7KeyRing : IDisposable
+    {
+        private readonly List<Key> _keys;
+
+        private ClipMate7KeyRing(List<Key> keys) => _keys = keys;
+
+        public bool IsEmpty => _keys.Count == 0;
+
+        /// <summary>
+        /// Builds the key ring from the keys entered, ignoring blanks and duplicates.
+        /// </summary>
+        /// <param name="warnings">Keys that cannot be used: encrypted clips must stay encrypted, so a key ClipMate's
+        /// encryption does not accept cannot import the clips it opens.</param>
+        public static ClipMate7KeyRing Create(IEnumerable<string> passphrases, out List<string> warnings)
+        {
+            warnings = [];
+            var keys = new List<Key>();
+            foreach (var item in passphrases.Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.Ordinal))
+            {
+                try
+                {
+                    keys.Add(new Key(new ClipMate7Encryption(item), EncryptionKey.FromPassphrase(item)));
+                }
+                catch (ArgumentException ex)
+                {
+                    warnings.Add($"A ClipMate 7 key was not used because ClipMate cannot encrypt with it: {ex.Message.Split(" (Parameter")[0]}");
+                }
+            }
+
+            return new ClipMate7KeyRing(keys);
+        }
+
+        /// <summary>
+        /// Decrypts an encrypted clip's TEXT with the key that opens it.
+        /// </summary>
+        /// <remarks>
+        /// With a checksum only the right key opens the clip. Without one, a wrong key can still produce text-like
+        /// bytes, so of the keys that pass, the one giving the fewest non-ASCII characters wins.
+        /// </remarks>
+        public bool TryDecryptText(byte[] stored, int checksum, out byte[] plainText, out byte[] salt, out Key? key)
+        {
+            plainText = [];
+            salt = [];
+            key = null;
+            var bestScore = int.MaxValue;
+
+            foreach (var item in _keys)
+            {
+                if (!item.Decryptor.TryDecryptText(stored, checksum, out var plain, out var itemSalt))
+                    continue;
+
+                var score = checksum != 0 ? 0 : plain.Count(p => p >= 0x80);
+                if (score >= bestScore)
+                    continue;
+
+                (plainText, salt, key, bestScore) = (plain, itemSalt, item, score);
+                if (score == 0)
+                    break;
+            }
+
+            return key is not null;
+        }
+
+        public void Dispose()
+        {
+            foreach (var item in _keys)
+                item.EncryptionKey.Dispose();
+        }
+
+        /// <summary>
+        /// One key: <see cref="Decryptor" /> opens ClipMate 7 clips; <see cref="EncryptionKey" /> encrypts them again.
+        /// </summary>
+        public sealed record Key(ClipMate7Encryption Decryptor, EncryptionKey EncryptionKey);
     }
 
     private sealed record ExistingCollection(Guid Id, Guid? ParentId, string Title, CollectionRole Role, bool IsClipTarget);
@@ -679,15 +803,6 @@ public class ClipMate7ImportService : IClipMate7ImportService
                 return byId;
 
             return FallbackId;
-        }
-    }
-
-    private sealed class DisposableList<T> : List<T>, IDisposable where T : IDisposable
-    {
-        public void Dispose()
-        {
-            foreach (var item in this)
-                item.Dispose();
         }
     }
 }

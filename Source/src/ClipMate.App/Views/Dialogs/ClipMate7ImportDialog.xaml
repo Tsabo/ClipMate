@@ -54,11 +54,22 @@
                           IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}">
             <dxlc:LayoutItem>
                 <TextBlock TextWrapping="Wrap"
-                           Text="{Binding EncryptedClipCount, StringFormat='{}{0} clip(s) were encrypted in ClipMate 7. Enter the ClipMate 7 encryption key to import them; they stay encrypted, with the same key. Leave it empty to skip them.'}" />
+                           Text="{Binding EncryptedClipCount, StringFormat='{}{0} clip(s) were encrypted in ClipMate 7. Enter each key you used to encrypt clips in ClipMate 7 to import them; each clip stays encrypted, with the key that opens it. Clips that no key opens are skipped.'}" />
             </dxlc:LayoutItem>
-            <dxlc:LayoutItem Label="ClipMate 7 key">
-                <dxe:PasswordBoxEdit EditValue="{Binding EncryptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="The key the clips were encrypted with in ClipMate 7" />
+            <dxlc:LayoutGroup Orientation="Horizontal">
+                <dxlc:LayoutItem Label="ClipMate 7 key" HorizontalAlignment="Stretch">
+                    <dxe:PasswordBoxEdit EditValue="{Binding EncryptionKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="A key clips were encrypted with in ClipMate 7. Add each key you used." />
+                </dxlc:LayoutItem>
+                <dxlc:LayoutItem HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal">
+                        <dx:SimpleButton Content="Add Key" Margin="8,0,0,0" Command="{Binding AddEncryptionKeyCommand}" />
+                        <dx:SimpleButton Content="Clear Keys" Margin="8,0,0,0" Command="{Binding ClearEncryptionKeysCommand}" />
+                    </StackPanel>
+                </dxlc:LayoutItem>
+            </dxlc:LayoutGroup>
+            <dxlc:LayoutItem>
+                <TextBlock TextWrapping="Wrap" Text="{Binding EncryptionKeysStatus}" />
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 

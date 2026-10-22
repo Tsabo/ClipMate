@@ -21,6 +21,7 @@ public sealed record ClipMate7ImportTarget(string Name, string FilePath);
 /// </summary>
 public partial class ClipMate7ImportViewModel : ObservableObject
 {
+    private readonly List<string> _encryptionKeys = [];
     private readonly IClipMate7ImportService _importService;
     private CancellationTokenSource? _cancellationTokenSource;
 
@@ -29,10 +30,18 @@ public partial class ClipMate7ImportViewModel : ObservableObject
     private int _encryptedClipCount;
 
     /// <summary>
-    /// The key the encrypted clips were encrypted with in ClipMate 7; empty to skip them.
+    /// A ClipMate 7 key being entered. ClipMate 7 asks for a key each time clips are encrypted, so the user can add
+    /// several (<see cref="AddEncryptionKeyCommand" />).
     /// </summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddEncryptionKeyCommand))]
     private string _encryptionKey = string.Empty;
+
+    /// <summary>
+    /// How many keys have been added and how many encrypted clips they open. The keys themselves are never shown.
+    /// </summary>
+    [ObservableProperty]
+    private string _encryptionKeysStatus = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExecuteImportCommand))]
@@ -132,6 +141,9 @@ public partial class ClipMate7ImportViewModel : ObservableObject
         SourceFolder = folder;
         IsAnalyzed = false;
         EncryptedClipCount = 0;
+        _encryptionKeys.Clear();
+        EncryptionKey = string.Empty;
+        EncryptionKeysStatus = string.Empty;
 
         if (!_importService.IsClipMate7Database(folder))
         {
@@ -157,6 +169,45 @@ public partial class ClipMate7ImportViewModel : ObservableObject
         catch (Exception ex)
         {
             ProcessingLog = $"{ex.Message}\n";
+        }
+    }
+
+    private bool CanAddEncryptionKey() => EncryptionKey.Length > 0 && !IsProcessing;
+
+    /// <summary>
+    /// Adds the key being entered, then reports how many encrypted clips the keys added so far open.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanAddEncryptionKey))]
+    private async Task AddEncryptionKey()
+    {
+        if (!_encryptionKeys.Contains(EncryptionKey, StringComparer.Ordinal))
+            _encryptionKeys.Add(EncryptionKey);
+
+        EncryptionKey = string.Empty;
+        await UpdateEncryptionKeysStatusAsync();
+    }
+
+    [RelayCommand]
+    private void ClearEncryptionKeys()
+    {
+        _encryptionKeys.Clear();
+        EncryptionKey = string.Empty;
+        EncryptionKeysStatus = string.Empty;
+    }
+
+    private async Task UpdateEncryptionKeysStatusAsync()
+    {
+        try
+        {
+            var opened = await _importService.CountDecryptableClipsAsync(SourceFolder, _encryptionKeys);
+            EncryptionKeysStatus = $"{_encryptionKeys.Count} key(s) entered. They open {opened} of {EncryptedClipCount} encrypted clip(s)" +
+                                   (opened < EncryptedClipCount
+                                       ? "; add the key(s) for the rest, or they are skipped."
+                                       : ".");
+        }
+        catch (Exception ex)
+        {
+            EncryptionKeysStatus = ex.Message;
         }
     }
 
@@ -206,9 +257,9 @@ public partial class ClipMate7ImportViewModel : ObservableObject
                 SourceFolder = SourceFolder,
                 TargetDatabasePath = targetPath,
                 CreateNewDatabase = IsNewDatabase,
-                EncryptionKey = HasEncryptedClips && EncryptionKey.Length > 0
-                    ? EncryptionKey
-                    : null,
+                EncryptionKeys = HasEncryptedClips
+                    ? [.._encryptionKeys, EncryptionKey] // A key typed but not added counts too
+                    : [],
             }, OnProgress, _cancellationTokenSource.Token);
 
             ProcessingLog += FormatSummary(result);
@@ -263,10 +314,10 @@ public partial class ClipMate7ImportViewModel : ObservableObject
             summary += $"Skipped {result.DuplicateClipsSkipped} clip(s) already in the database.\n";
 
         if (result.EncryptedClipsImported > 0)
-            summary += $"{result.EncryptedClipsImported} encrypted clip(s) were imported and are still encrypted, with the same key.\n";
+            summary += $"{result.EncryptedClipsImported} encrypted clip(s) were imported and are still encrypted, each with the key that opened it.\n";
 
         if (result.EncryptedClipsSkipped > 0)
-            summary += $"Skipped {result.EncryptedClipsSkipped} encrypted clip(s): no ClipMate 7 key was entered, or it could not decrypt them.\n";
+            summary += $"Skipped {result.EncryptedClipsSkipped} encrypted clip(s) that none of the ClipMate 7 keys entered opens.\n";
 
         if (result.UnreadableClipsSkipped > 0)
             summary += $"Skipped {result.UnreadableClipsSkipped} clip(s) with no importable content.\n";
