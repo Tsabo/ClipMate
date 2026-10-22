@@ -119,6 +119,16 @@ public class ClipMate7FormatConverterTests
     }
 
     [Test]
+    public async Task Apply_PreferredDropEffect_KeepsWhetherTheFilesWereCut()
+    {
+        // ClipMate 7 stores registered formats under their name with a negative code
+        var clip = Convert(out var unsupported, new ClipMate7Format("Preferred DropEffect", -5, BitConverter.GetBytes(2)));
+
+        await Assert.That(clip.FileDropEffect).IsEqualTo(2);
+        await Assert.That(unsupported).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Apply_UnknownFormat_CountsUnsupportedAndKeepsOthers()
     {
         var clip = Convert(out var unsupported,

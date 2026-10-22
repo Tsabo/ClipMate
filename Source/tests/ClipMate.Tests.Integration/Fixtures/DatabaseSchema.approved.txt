@@ -1,0 +1,126 @@
+ApplicationFilters.CreatedAt TEXT NOT NULL
+ApplicationFilters.Id TEXT NOT NULL
+ApplicationFilters.IsEnabled INTEGER NOT NULL
+ApplicationFilters.ModifiedAt TEXT
+ApplicationFilters.Name TEXT NOT NULL
+ApplicationFilters.ProcessName TEXT
+ApplicationFilters.WindowTitlePattern TEXT
+BlobBlob.ClipDataId TEXT NOT NULL
+BlobBlob.ClipId TEXT NOT NULL
+BlobBlob.Data BLOB NOT NULL
+BlobBlob.Id TEXT NOT NULL
+BlobJpg.ClipDataId TEXT NOT NULL
+BlobJpg.ClipId TEXT NOT NULL
+BlobJpg.Data BLOB NOT NULL
+BlobJpg.Id TEXT NOT NULL
+BlobPng.ClipDataId TEXT NOT NULL
+BlobPng.ClipId TEXT NOT NULL
+BlobPng.Data BLOB NOT NULL
+BlobPng.Id TEXT NOT NULL
+BlobTxt.ClipDataId TEXT NOT NULL
+BlobTxt.ClipId TEXT NOT NULL
+BlobTxt.Data TEXT NOT NULL
+BlobTxt.Id TEXT NOT NULL
+ClipData.ClipId TEXT NOT NULL
+ClipData.Format INTEGER NOT NULL
+ClipData.FormatName TEXT NOT NULL
+ClipData.Id TEXT NOT NULL
+ClipData.Size INTEGER NOT NULL
+ClipData.StorageType INTEGER NOT NULL
+Clips.CapturedAt TEXT NOT NULL
+Clips.Checksum INTEGER NOT NULL
+Clips.CollectionId TEXT
+Clips.ContentHash TEXT NOT NULL
+Clips.Creator TEXT
+Clips.CustomTitle INTEGER NOT NULL
+Clips.Del INTEGER NOT NULL
+Clips.DelDate INTEGER
+Clips.Encrypted INTEGER NOT NULL
+Clips.EncryptionIv TEXT
+Clips.EncryptionMethod TEXT
+Clips.EncryptionSalt TEXT
+Clips.FolderId TEXT
+Clips.Icons INTEGER NOT NULL
+Clips.Id TEXT NOT NULL
+Clips.IsFavorite INTEGER NOT NULL
+Clips.Label TEXT
+Clips.LastModified TEXT
+Clips.Locale INTEGER NOT NULL
+Clips.Macro INTEGER NOT NULL
+Clips.PasteCount INTEGER NOT NULL
+Clips.Size INTEGER NOT NULL
+Clips.SortKey INTEGER NOT NULL
+Clips.SourceApplicationName TEXT
+Clips.SourceApplicationTitle TEXT
+Clips.SourceUrl TEXT
+Clips.Title TEXT
+Clips.Type INTEGER NOT NULL
+Clips.UserId INTEGER
+Clips.ViewTab INTEGER NOT NULL
+Clips.WrapCheck INTEGER NOT NULL
+Collections.AcceptDuplicates INTEGER NOT NULL
+Collections.AcceptNewClips INTEGER NOT NULL
+Collections.CreatedAt TEXT NOT NULL
+Collections.Description TEXT
+Collections.Encrypted INTEGER NOT NULL
+Collections.Favorite INTEGER NOT NULL
+Collections.Icon TEXT
+Collections.Id TEXT NOT NULL
+Collections.IlIndex INTEGER NOT NULL
+Collections.IsActive INTEGER NOT NULL
+Collections.LastKnownCount INTEGER
+Collections.LastUpdateTime TEXT
+Collections.LastUserId INTEGER
+Collections.ListType INTEGER NOT NULL
+Collections.LmType INTEGER NOT NULL
+Collections.MaxAgeDays INTEGER NOT NULL
+Collections.MaxBytes INTEGER NOT NULL
+Collections.MaxClips INTEGER NOT NULL
+Collections.ModifiedAt TEXT
+Collections.Name TEXT NOT NULL
+Collections.NewClipsGo INTEGER NOT NULL
+Collections.ParentGuid TEXT
+Collections.ParentId TEXT
+Collections.ReadOnly INTEGER NOT NULL
+Collections.RetentionLimit INTEGER NOT NULL
+Collections.Role INTEGER NOT NULL
+Collections.SortAscending INTEGER NOT NULL
+Collections.SortColumn INTEGER NOT NULL
+Collections.SortKey INTEGER NOT NULL
+Collections.SortOrder INTEGER NOT NULL
+Collections.Sql TEXT
+Collections.Title TEXT NOT NULL
+Collections.VirtualCollectionQuery TEXT
+DatabaseInfo.DatabaseId TEXT NOT NULL
+DatabaseInfo.Id INTEGER NOT NULL
+MonacoEditorState.ClipDataId TEXT NOT NULL
+MonacoEditorState.Id TEXT NOT NULL
+MonacoEditorState.Language TEXT NOT NULL
+MonacoEditorState.LastModified TEXT NOT NULL
+MonacoEditorState.ViewState TEXT
+SearchQueries.CreatedAt TEXT NOT NULL
+SearchQueries.ExecutionCount INTEGER NOT NULL
+SearchQueries.Id TEXT NOT NULL
+SearchQueries.IsCaseSensitive INTEGER NOT NULL
+SearchQueries.IsRegex INTEGER NOT NULL
+SearchQueries.LastExecutedAt TEXT
+SearchQueries.Name TEXT NOT NULL
+SearchQueries.QueryText TEXT NOT NULL
+ShortCut.ClipGuid TEXT NOT NULL
+ShortCut.ClipId TEXT NOT NULL
+ShortCut.Id TEXT NOT NULL
+ShortCut.Nickname TEXT NOT NULL
+Templates.CollectionId TEXT
+Templates.Content TEXT NOT NULL
+Templates.CreatedAt TEXT NOT NULL
+Templates.Description TEXT
+Templates.Id TEXT NOT NULL
+Templates.LastUsedAt TEXT
+Templates.ModifiedAt TEXT
+Templates.Name TEXT NOT NULL
+Templates.SortOrder INTEGER NOT NULL
+Templates.UseCount INTEGER NOT NULL
+Users.Id TEXT NOT NULL
+Users.LastDate TEXT NOT NULL
+Users.Username TEXT NOT NULL
+Users.Workstation TEXT NOT NULL

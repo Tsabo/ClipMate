@@ -218,6 +218,12 @@ public partial class Clip
     public string? FilePathsJson { get; set; }
 
     /// <summary>
+    /// "Preferred DropEffect" captured with the file list (1 = copy, 2 = cut), restored with it on copy-back.
+    /// Null when the source did not offer one. NOT stored in Clips table.
+    /// </summary>
+    public int? FileDropEffect { get; set; }
+
+    /// <summary>
     /// Whether this encrypted clip has been decrypted in memory (temporary state).
     /// When true, encrypted clips can be viewed. Resets to false when user scrolls away.
     /// NOT stored in Clips table - transient runtime property only.

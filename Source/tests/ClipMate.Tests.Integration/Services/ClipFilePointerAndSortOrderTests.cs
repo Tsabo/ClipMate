@@ -30,6 +30,7 @@ public class ClipFilePointerAndSortOrderTests : IntegrationTestBase
         {
             Type = ClipType.Files,
             FilePathsJson = filePathsJson,
+            FileDropEffect = 1,
             TextContent = string.Join(Environment.NewLine, filePaths),
             ContentHash = "files_hash_1",
             CapturedAt = DateTime.UtcNow,
@@ -53,6 +54,7 @@ public class ClipFilePointerAndSortOrderTests : IntegrationTestBase
 
         var formats = await clipService.GetClipFormatsAsync(_testDatabaseKey, savedClip.Id);
         await Assert.That(formats.Any(p => p.FormatName == Formats.HDrop.Name)).IsFalse();
+        await Assert.That(formats.Any(p => p.FormatName == Formats.PreferredDropEffect.Name)).IsFalse();
         await Assert.That(formats.Any(p => p.FormatName == Formats.UnicodeText.Name)).IsTrue();
     }
 
@@ -82,6 +84,58 @@ public class ClipFilePointerAndSortOrderTests : IntegrationTestBase
 
         var formats = await clipService.GetClipFormatsAsync(_testDatabaseKey, savedClip.Id);
         await Assert.That(formats.Any(p => p.FormatName == Formats.UnicodeText.Name)).IsTrue();
+    }
+
+    [Test]
+    public async Task CreateAsync_TextClipWithFileListAndDropEffect_RestoresBothWhenContentIsLoaded()
+    {
+        // Arrange - a Text clip that kept the file list of a cut in Explorer
+        var clipService = CreateClipService();
+        var filePathsJson = JsonSerializer.Serialize(new List<string> { @"C:\Docs\moved.txt" });
+        var clip = new Clip
+        {
+            Type = ClipType.Text,
+            TextContent = @"C:\Docs\moved.txt",
+            FilePathsJson = filePathsJson,
+            FileDropEffect = 2,
+            ContentHash = "files_hash_3",
+            CapturedAt = DateTime.UtcNow,
+        };
+
+        // Act
+        var savedClip = await clipService.CreateAsync(_testDatabaseKey, clip);
+        await DbContext.SaveChangesAsync();
+
+        var formats = DbContext.ClipData.Where(p => p.ClipId == savedClip.Id).ToList();
+        var binaryBlobs = DbContext.BlobBlob.Where(p => p.ClipId == savedClip.Id).ToList();
+        var textBlobs = DbContext.BlobTxt.Where(p => p.ClipId == savedClip.Id).ToList();
+        var loaded = new Clip { Id = savedClip.Id, Type = ClipType.Text };
+        new ClipContent(savedClip, formats, textBlobs, [], [], binaryBlobs).PopulateContent(loaded);
+
+        // Assert
+        await Assert.That(formats.Any(p => p.FormatName == Formats.PreferredDropEffect.Name)).IsTrue();
+        await Assert.That(loaded.FilePathsJson).IsEqualTo(filePathsJson);
+        await Assert.That(loaded.FileDropEffect).IsEqualTo(2);
+        await Assert.That(loaded.TextContent).IsEqualTo(@"C:\Docs\moved.txt");
+    }
+
+    [Test]
+    public async Task CreateAsync_FilesClipWithoutDropEffect_StoresNoDropEffectFormat()
+    {
+        var clipService = CreateClipService();
+        var savedClip = await clipService.CreateAsync(_testDatabaseKey, new Clip
+        {
+            Type = ClipType.Files,
+            FilePathsJson = JsonSerializer.Serialize(new List<string> { @"C:\Docs\copied.txt" }),
+            ContentHash = "files_hash_4",
+            CapturedAt = DateTime.UtcNow,
+        });
+
+        await DbContext.SaveChangesAsync();
+
+        var formats = DbContext.ClipData.Where(p => p.ClipId == savedClip.Id).ToList();
+        await Assert.That(formats.Any(p => p.FormatName == Formats.PreferredDropEffect.Name)).IsFalse();
+        await Assert.That(formats.Any(p => p.FormatName == Formats.HDrop.Name)).IsTrue();
     }
 
     [Test]

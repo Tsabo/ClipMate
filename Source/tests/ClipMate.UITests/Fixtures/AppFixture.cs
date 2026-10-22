@@ -1,125 +1,156 @@
 using System.Diagnostics;
 using System.IO;
+using System.Windows;
+using ClipMate.UITests.PageObjects;
 using WpfPilot;
 
 namespace ClipMate.UITests.Fixtures;
 
 /// <summary>
-/// Shared fixture for initializing and cleaning up the ClipMate application in UI tests.
-/// Uses WPF Pilot to launch and manage the application instance.
+/// Starts an isolated ClipMate for UI tests: the ClipMate.App.exe built beside the tests, run with --data-dir
+/// pointing at a fresh temporary folder, so the user's settings, databases and running ClipMate are never touched.
+/// WPF Pilot attaches only when a test asks for <see cref="App" />.
 /// </summary>
 public class AppFixture : IAsyncDisposable
 {
+    private static readonly TimeSpan _startupTimeout = TimeSpan.FromSeconds(90);
+
     private AppDriver? _appDriver;
     private Process? _appProcess;
-    private string? _testDatabasePath;
 
-    public AppDriver App => _appDriver ?? throw new InvalidOperationException("App not started. Call StartAppAsync first.");
+    public AppDriver App => _appDriver ??= AppDriver.AttachTo(Process.Id);
+
+    public Process Process => _appProcess ?? throw new InvalidOperationException("App not started. Call StartAppAsync first.");
 
     /// <summary>
-    /// Starts the ClipMate application with a test database.
-    /// Creates a temporary database for isolated testing.
+    /// The isolated data folder (settings, Databases\, Logs\).
+    /// </summary>
+    public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), $"clipmate-uitest-{Guid.NewGuid():N}");
+
+    /// <summary>
+    /// The default database the isolated copy creates on first run.
+    /// </summary>
+    public string DatabasePath => Path.Combine(DataDirectory, "Databases", "clipmate.db");
+
+    /// <summary>
+    /// Starts ClipMate and waits until its log reports that startup finished and clipboard monitoring is running.
     /// </summary>
     public async Task StartAppAsync()
     {
-        if (_appDriver != null)
-            return; // Already started
+        if (_appProcess != null)
+            return;
 
-        // Create temporary test database
-        _testDatabasePath = Path.Combine(Path.GetTempPath(), $"ClipMateTest_{Guid.NewGuid()}.cm5");
-        
-        // Get the ClipMate.App executable path (assuming it's in bin/Debug or bin/Release)
-        var appPath = GetClipMateExecutablePath();
+        Directory.CreateDirectory(DataDirectory);
+        var appPath = Path.Combine(AppContext.BaseDirectory, "ClipMate.App.exe");
+        if (!File.Exists(appPath))
+            throw new FileNotFoundException($"ClipMate.App.exe not found beside the tests at {appPath}. Build ClipMate.UITests first.");
 
-        // Launch the application with test database argument
-        var startInfo = new ProcessStartInfo
+        // The app also logs to its console; discard that copy (the log files are read below) so test output stays readable
+        _appProcess = Process.Start(new ProcessStartInfo(appPath, ["--data-dir", DataDirectory])
+                      {
+                          UseShellExecute = false,
+                          RedirectStandardOutput = true,
+                          RedirectStandardError = true,
+                      })
+                      ?? throw new InvalidOperationException("Failed to start ClipMate process");
+
+        _appProcess.OutputDataReceived += (_, _) => { };
+        _appProcess.ErrorDataReceived += (_, _) => { };
+        _appProcess.BeginOutputReadLine();
+        _appProcess.BeginErrorReadLine();
+
+        // The app is a separate process, so its startup can only be observed by polling its log until a deadline
+        var deadline = DateTime.UtcNow + _startupTimeout;
+        while (DateTime.UtcNow < deadline)
         {
-            FileName = appPath,
-            Arguments = $"--database \"{_testDatabasePath}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+            if (_appProcess.HasExited)
+                throw new InvalidOperationException($"ClipMate exited during startup (exit code {_appProcess.ExitCode}). Logs: {LogDirectory}");
 
-        _appProcess = Process.Start(startInfo);
-        
-        if (_appProcess == null)
-            throw new InvalidOperationException("Failed to start ClipMate process");
+            // Clipboard monitoring starts after the initialization pipeline; a copy made in between is never captured
+            var log = ReadLog();
+            if (log.Contains("Initialization pipeline completed", StringComparison.Ordinal) &&
+                log.Contains("Clipboard coordinator started successfully", StringComparison.Ordinal))
+            {
+                await WaitUntilCapturingAsync();
+                return;
+            }
 
-        // Wait for main window to appear and initialize WPF Pilot
-        await Task.Delay(2000); // Give app time to initialize
-        
-        _appDriver = AppDriver.AttachTo(_appProcess.Id);
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException($"ClipMate did not finish starting within {_startupTimeout.TotalSeconds}s. Logs: {LogDirectory}");
+    }
+
+    /// <summary>
+    /// The log line that monitoring has started comes slightly before the clip list is ready for new clips. A marker
+    /// that shows up in the list proves that every later copy is captured and listed.
+    /// </summary>
+    private async Task WaitUntilCapturingAsync()
+    {
+        var marker = $"uitest-ready-{Guid.NewGuid():N}";
+        var clipList = new ClipListPage(Process);
+        var attempt = 0;
+        await Poll.UntilAsync(() =>
+        {
+            if (attempt++ % 10 == 0)
+                SystemClipboard.OnSta(() => Clipboard.SetText(marker));
+
+            return clipList.FindRow(marker);
+        }, "the startup marker in the clip list", _startupTimeout);
     }
 
     /// <summary>
     /// Gets the main application window element.
     /// </summary>
-    public Element GetMainWindow()
+    public Element GetMainWindow() => App.GetElement(x => x.TypeName == "MainWindow");
+
+    private string LogDirectory => Path.Combine(DataDirectory, "Logs");
+
+    private string ReadLog()
     {
-        if (_appDriver == null)
-            throw new InvalidOperationException("App not started");
+        if (!Directory.Exists(LogDirectory))
+            return string.Empty;
 
-        // Wait for and return the main window
-        return _appDriver.GetElement(x => x.TypeName == "MainWindow");
-    }
-
-    private static string GetClipMateExecutablePath()
-    {
-        // Navigate from test project bin to app bin
-        var testAssembly = typeof(AppFixture).Assembly.Location;
-        var testBinDir = Path.GetDirectoryName(testAssembly)!;
-        
-        // Extract configuration (Debug or Release) from test binary path
-        var testBinParts = testBinDir.Split(Path.DirectorySeparatorChar);
-        var binIndex = Array.FindLastIndex(testBinParts, p => p.Equals("bin", StringComparison.OrdinalIgnoreCase));
-        var configuration = binIndex >= 0 && binIndex + 1 < testBinParts.Length 
-            ? testBinParts[binIndex + 1] 
-            : "Debug";
-        
-        // Go up from tests/ClipMate.UITests/bin/{configuration}/net10.0-windows
-        var sourceDir = Path.GetFullPath(Path.Combine(testBinDir, "..", "..", "..", "..", ".."));
-        
-        // App targets net10.0-windows
-        var appBinDir = Path.Combine(sourceDir, "src", "ClipMate.App", "bin", configuration, "net10.0-windows");
-        var appPath = Path.Combine(appBinDir, "ClipMate.App.exe");
-
-        if (!File.Exists(appPath))
-            throw new FileNotFoundException($"ClipMate.App.exe not found at: {appPath}. Build the solution first.");
-
-        return appPath;
+        // The early and configured loggers roll to separate files, so read them all; the app still has them open
+        return string.Concat(Directory.EnumerateFiles(LogDirectory, "clipmate-*.log").Select(p =>
+        {
+            using var stream = new FileStream(p, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }));
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_appDriver != null)
-        {
-            _appDriver.Dispose();
-            _appDriver = null;
-        }
+        _appDriver?.Dispose();
+        _appDriver = null;
 
-        if (_appProcess != null && !_appProcess.HasExited)
+        if (_appProcess != null)
         {
-            _appProcess.Kill();
-            _appProcess.WaitForExit(5000);
+            if (!_appProcess.HasExited)
+            {
+                // The tree includes the WebView2 processes, which otherwise keep the data folder locked
+                _appProcess.Kill(true);
+                await _appProcess.WaitForExitAsync();
+            }
+
             _appProcess.Dispose();
             _appProcess = null;
         }
 
-        // Clean up test database
-        if (_testDatabasePath != null && File.Exists(_testDatabasePath))
+        // Killed child processes release their files a moment after the app exits
+        for (var attempt = 0; attempt < 20 && Directory.Exists(DataDirectory); attempt++)
         {
             try
             {
-                File.Delete(_testDatabasePath);
+                Directory.Delete(DataDirectory, true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Ignore cleanup errors
+                await Task.Delay(250);
             }
         }
 
         GC.SuppressFinalize(this);
-        await ValueTask.CompletedTask;
     }
 }

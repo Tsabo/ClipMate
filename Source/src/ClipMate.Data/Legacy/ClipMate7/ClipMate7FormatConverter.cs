@@ -56,6 +56,8 @@ internal static class ClipMate7FormatConverter
                 clip.ImageData ??= item.Data;
             else if (item.FormatCode == Formats.HDrop.Code && TryParseDropFiles(item.Data, out var filePaths))
                 clip.FilePathsJson ??= JsonSerializer.Serialize(filePaths);
+            else if (string.Equals(item.FormatName, Formats.PreferredDropEffect.Name, StringComparison.OrdinalIgnoreCase) && item.Data.Length >= sizeof(int))
+                clip.FileDropEffect ??= BinaryPrimitives.ReadInt32LittleEndian(item.Data);
             else
                 unsupported++;
         }
@@ -70,13 +72,7 @@ internal static class ClipMate7FormatConverter
         }
 
         clip.Type = DetermineType(clip);
-        clip.ContentHash = clip.Type switch
-        {
-            ClipType.Image => ContentHasher.HashBytes(clip.ImageData),
-            ClipType.Files => ContentHasher.HashText(clip.FilePathsJson ?? string.Empty),
-            var _ => ContentHasher.HashText(clip.TextContent ?? string.Empty),
-        };
-
+        clip.ContentHash = ContentHasher.HashClip(clip);
         clip.Checksum = clip.ContentHash.GetHashCode();
 
         return unsupported;

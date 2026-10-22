@@ -47,16 +47,18 @@ public sealed record ClipContent(
                 target.HtmlContent = textBlob.Data;
         }
 
-        if (target.Type == ClipType.Image)
-        {
-            var image = PngBlobs.Select(p => p.Data).FirstOrDefault() ?? JpgBlobs.Select(p => p.Data).FirstOrDefault();
-            if (image != null)
-                target.ImageData = image;
-        }
+        // Any clip may hold an image, e.g. a text clip from a screenshot tool that offered the image and its filename
+        var image = PngBlobs.Select(p => p.Data).FirstOrDefault() ?? JpgBlobs.Select(p => p.Data).FirstOrDefault();
+        if (image != null)
+            target.ImageData = image;
 
         // Restore the file drop whenever an HDROP entry exists, even for Text-type clips that were auto-expanded from HDROP.
         var filePathBlob = BinaryBlobs.FirstOrDefault(b => Formats.Any(p => p.Id == b.ClipDataId && p.Format == ClipboardFormats.HDrop.Code));
         if (filePathBlob != null)
             target.FilePathsJson = Encoding.UTF8.GetString(filePathBlob.Data);
+
+        var dropEffectBlob = BinaryBlobs.FirstOrDefault(b => Formats.Any(p => p.Id == b.ClipDataId && p.FormatName == ClipboardFormats.PreferredDropEffect.Name));
+        if (dropEffectBlob is { Data.Length: >= sizeof(int) })
+            target.FileDropEffect = BitConverter.ToInt32(dropEffectBlob.Data);
     }
 }

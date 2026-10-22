@@ -36,7 +36,7 @@
             <dxlc:LayoutItem>
                 <dxe:CheckEdit Content="Automatically expand HDROP file pointers to text"
                                IsChecked="{Binding AutoExpandHdropFilePointers}"
-                               ToolTip="Convert file paths from HDROP format to readable text (always enabled internally)" />
+                               ToolTip="Store copied files as a text clip listing their paths. The files are kept too, so pasting into Explorer still pastes the files." />
             </dxlc:LayoutItem>
 
             <!-- Default Accept Clips from Clipboard -->

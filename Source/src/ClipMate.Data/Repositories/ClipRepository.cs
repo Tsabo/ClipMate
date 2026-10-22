@@ -415,9 +415,11 @@ public class ClipRepository : IClipRepository
             });
         }
 
-        // Remove the HDROP entry (cascades to its BlobBlob row).
+        // Remove the HDROP entry and the drop effect that went with it (each cascades to its BlobBlob row).
         if (hDropEntry != null)
             _context.ClipData.Remove(hDropEntry);
+
+        _context.ClipData.RemoveRange(clipDataEntries.Where(p => p.FormatName == Formats.PreferredDropEffect.Name));
 
         clip.Type = ClipType.Text;
 

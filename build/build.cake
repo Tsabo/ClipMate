@@ -13,6 +13,8 @@ using System.Text.RegularExpressions;
 var target = Argument("target", "Build");
 var configuration = Argument("configuration", "Release");
 var versionOverride = Argument("release-version", "");
+// Builds into this folder instead of each project's bin (used when a running ClipMate locks bin)
+var artifactsPath = Argument("artifacts-path", "");
 
 //////////////////////////////////////////////////////////////////////
 // PREPARATION
@@ -367,6 +369,179 @@ Task("Test")
     
     var elapsed = DateTime.Now - startTime;
     Information($"Tests completed in {elapsed.TotalSeconds:F2}s");
+});
+
+// Where a project's build put its executable: its own bin, or the --artifacts-path layout
+FilePath BuiltExecutable(FilePath project)
+{
+    var name = project.GetFilenameWithoutExtension().FullPath;
+    var folder = string.IsNullOrEmpty(artifactsPath)
+        ? project.GetDirectory().Combine($"bin/{configuration}/net10.0-windows")
+        : MakeAbsolute(Directory(artifactsPath)).Combine($"bin/{name}/{configuration.ToLowerInvariant()}");
+
+    return folder.CombineWithFilePath($"{name}.exe");
+}
+
+Task("Smoke-Test")
+    .Description("Start ClipMate against an isolated data folder and check that it gets through startup")
+    .Does(() =>
+{
+    // --exe (default: the configuration's build), --data-dir (default: new folder in %TEMP%; reuse one to keep its
+    // settings), --timeout seconds, --keep-running (leave it running, e.g. to pair two copies)
+    var exe = Argument("exe", BuiltExecutable(appProject).FullPath);
+    var dataDir = Argument("data-dir", System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"clipmate-smoke-{Guid.NewGuid():N}"[..23]));
+    var timeout = TimeSpan.FromSeconds(Argument("timeout", 90));
+    var keepRunning = HasArgument("keep-running");
+
+    if (!FileExists(exe))
+        throw new Exception($"{exe} not found: build it first, or pass --exe");
+
+    EnsureDirectoryExists(dataDir);
+    var logDir = System.IO.Path.Combine(dataDir, "Logs");
+    Information($"ClipMate: {exe}");
+    Information($"Data dir: {dataDir}");
+
+    // Shell-launched like a user would, so the app's console output stays out of the build log
+    var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"--data-dir \"{dataDir}\"") { UseShellExecute = true });
+
+    // The early and configured loggers roll to separate files, so read them all; the app still has them open
+    string ReadLog() => !System.IO.Directory.Exists(logDir)
+        ? string.Empty
+        : string.Concat(System.IO.Directory.EnumerateFiles(logDir, "clipmate-*.log").Select(p =>
+        {
+            using var reader = new System.IO.StreamReader(new System.IO.FileStream(p, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete));
+            return reader.ReadToEnd();
+        }));
+
+    string result = null;
+    var deadline = DateTime.UtcNow + timeout;
+    while (result == null && DateTime.UtcNow < deadline)
+    {
+        System.Threading.Thread.Sleep(500);
+        var log = ReadLog();
+        if (log.Contains("Initialization pipeline completed"))
+            result = "started";
+        else if (Regex.IsMatch(log, @"\[FTL\]|Fatal error during application startup|Failed to build host"))
+            result = "fatal";
+        else if (process.HasExited)
+            result = "exited";
+    }
+
+    if (result != "started")
+    {
+        result ??= "timeout";
+        Error($"SMOKE TEST FAILED: {result}");
+        Information("--- last log lines ---");
+        foreach (var item in ReadLog().Split('\n').TakeLast(40))
+            Information(item.TrimEnd());
+
+        if (result == "timeout" && !process.HasExited)
+        {
+            // Managed thread stacks show where startup hangs
+            Information("--- managed thread stacks (dotnet-stack) ---");
+            StartProcess("dotnet", new ProcessSettings { Arguments = $"tool run dotnet-stack report -p {process.Id}", WorkingDirectory = repoRoot });
+        }
+
+        if (!process.HasExited)
+            process.Kill(true);
+
+        throw new Exception($"Smoke test failed: {result}");
+    }
+
+    Information($"SMOKE TEST PASSED: startup completed (PID {process.Id})");
+    if (keepRunning)
+        Information($"Left running. Stop it with: Stop-Process -Id {process.Id}");
+    else
+        process.Kill(true);
+});
+
+Task("Prepare-Worktree")
+    .Description("Make a fresh git worktree buildable: copy the gitignored font and Monaco assets from the main checkout")
+    .Does(() =>
+{
+    // --main-checkout (default: the checkout that owns this worktree's git directory, i.e. <main checkout>\.git)
+    var worktree = System.IO.Path.GetFullPath(repoRoot.FullPath).TrimEnd('\\', '/');
+    var mainCheckout = Argument("main-checkout", "");
+    if (string.IsNullOrEmpty(mainCheckout))
+    {
+        StartProcess("git", new ProcessSettings
+        {
+            Arguments = "rev-parse --path-format=absolute --git-common-dir",
+            WorkingDirectory = repoRoot,
+            RedirectStandardOutput = true,
+        }, out var output);
+
+        mainCheckout = System.IO.Path.GetDirectoryName(output.First().Trim());
+    }
+
+    mainCheckout = System.IO.Path.GetFullPath(mainCheckout).TrimEnd('\\', '/');
+    if (string.Equals(mainCheckout, worktree, StringComparison.OrdinalIgnoreCase))
+    {
+        Information("This is the main checkout; nothing to copy.");
+        return;
+    }
+
+    // ClipMate.ttf is built by Build-Font; Monaco would otherwise be downloaded
+    foreach (var item in new[] { "Source/src/ClipMate.App/Assets/ClipMate.ttf", "Source/src/ClipMate.App/Assets/monaco/min" })
+    {
+        var target = System.IO.Path.Combine(worktree, item);
+        var source = System.IO.Path.Combine(mainCheckout, item);
+        if (FileExists(target) || DirectoryExists(target))
+            Information($"present   {item}");
+        else if (FileExists(source))
+        {
+            CopyFile(source, target);
+            Information($"copied    {item}");
+        }
+        else if (DirectoryExists(source))
+        {
+            CopyDirectory(source, target);
+            Information($"copied    {item}");
+        }
+        else
+            Warning($"missing   {item} (not in {mainCheckout} either; build the main checkout first)");
+    }
+
+    // Local-only documents (listed in .git/info/exclude, so never in a worktree): read them from the main checkout
+    var localDocs = new[] { "CLAUDE.md", "GLOSSARY.md", "adr", "specs", ".scratch", "docs/agents" }
+        .Select(p => System.IO.Path.Combine(mainCheckout, p))
+        .Where(p => FileExists(p) || DirectoryExists(p))
+        .ToList();
+
+    if (localDocs.Count > 0)
+    {
+        Information("");
+        Information("Local-only docs (read from the main checkout):");
+        foreach (var item in localDocs)
+            Information($"  {item}");
+    }
+});
+
+Task("UI-Test")
+    .Description("Run the UI tests (not part of CI): each starts an isolated ClipMate and drives the real clipboard")
+    .Does(() =>
+{
+    // --test-filter narrows the run with a TUnit tree filter, e.g. "/*/*/ClipboardFileDropRoundTripTests/*"
+    var uiTestsProject = sourceDir.CombineWithFilePath("tests/ClipMate.UITests/ClipMate.UITests.csproj");
+    var filter = Argument("test-filter", "");
+
+    DotNetBuild(uiTestsProject.FullPath, new DotNetBuildSettings
+    {
+        Configuration = configuration,
+        ArgumentCustomization = args => string.IsNullOrEmpty(artifactsPath)
+            ? args
+            : args.Append("--artifacts-path").AppendQuoted(MakeAbsolute(Directory(artifactsPath)).FullPath),
+    });
+
+    var exe = BuiltExecutable(uiTestsProject);
+    var exitCode = StartProcess(exe, new ProcessSettings
+    {
+        Arguments = string.IsNullOrEmpty(filter) ? "" : $"--treenode-filter \"{filter}\"",
+        WorkingDirectory = exe.GetDirectory(),
+    });
+
+    if (exitCode != 0)
+        throw new Exception($"UI tests failed with exit code {exitCode}");
 });
 
 Task("Publish")

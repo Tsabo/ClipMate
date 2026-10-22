@@ -103,10 +103,12 @@ public partial class ClipListViewModel : ObservableObject,
     private ObservableCollection<Clip> _shortcutClips = [];
 
     /// <summary>
-    /// Suppresses clipboard operations during auto-selection from ClipAddedEvent.
-    /// Prevents redundant clipboard operations for newly captured clips (content is already on clipboard).
+    /// The clip whose selection must not copy it to the clipboard: one just captured (the source application's own,
+    /// complete data is already there) or one selected while a list loads. Kept until a different clip is selected,
+    /// because selection is handled after a debounce and may be reported more than once. A flag reset right after
+    /// setting <see cref="SelectedClip" /> was always clear by then, so every capture replaced the clipboard.
     /// </summary>
-    private bool _suppressClipboardOperation;
+    private Guid? _clipNotToCopyOnSelection;
 
     public ClipListViewModel(ICollectionService collectionService,
         IFolderService folderService,
@@ -208,17 +210,8 @@ public partial class ClipListViewModel : ObservableObject,
                     Clips.RemoveAt(Clips.Count - 1);
             }
 
-            // Auto-select the new clip
-            // Suppress clipboard operation since content is already on system clipboard
-            _suppressClipboardOperation = true;
-            try
-            {
-                SelectedClip = message.Clip;
-            }
-            finally
-            {
-                _suppressClipboardOperation = false;
-            }
+            // Auto-select the new clip without copying it back: the clipboard already holds what the source offered
+            SetSelectedClipWithoutClipboardOperation(message.Clip);
         });
     }
 
@@ -671,9 +664,8 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     private void SetSelectedClipWithoutClipboardOperation(Clip? clip)
     {
-        _suppressClipboardOperation = true;
+        _clipNotToCopyOnSelection = clip?.Id;
         SelectedClip = clip;
-        _suppressClipboardOperation = false;
     }
 
     partial void OnSelectedClipChanged(Clip? value)
@@ -715,10 +707,11 @@ public partial class ClipListViewModel : ObservableObject,
             // Send messenger event when selection changes
             _messenger.Send(new ClipSelectedEvent(clip, CurrentDatabaseKey));
 
-            // Skip clipboard operation if this is an auto-selection from ClipAddedEvent
-            // (content is already on system clipboard from the capture)
-            if (_suppressClipboardOperation)
+            // Skip the clipboard for a clip selected without copying (just captured, or selected while loading)
+            if (clip.Id == _clipNotToCopyOnSelection)
                 return;
+
+            _clipNotToCopyOnSelection = null;
 
             // Automatically load the selected clip onto the system clipboard
             // This is ClipMate's standard "Pick, Flip, and Paste" behavior

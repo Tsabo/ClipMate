@@ -522,15 +522,23 @@ public class ClipboardService : IClipboardService, IDisposable
         var hasImage = (IsFormatAllowed(Formats.Dib.Name, allowedFormats) || IsFormatAllowed(Formats.Bitmap.Name, allowedFormats)) && WpfClipboard.ContainsImage();
         var hasFiles = IsFormatAllowed(Formats.HDrop.Name, allowedFormats) && WpfClipboard.ContainsFileDropList();
 
-        // Priority 1: Text formats (includes RTF and HTML)
+        // The clip's type comes from the first of these it can read: text (including RTF and HTML), image, files
         if (hasText || hasRtf || hasHtml)
             clip = ExtractTextClip(hasText, hasRtf, hasHtml);
-        // Priority 2: Images
-        else if (hasImage)
+
+        if (clip == null && hasImage)
             clip = ExtractImageClip();
-        // Priority 3: Files
-        else if (hasFiles)
+
+        if (clip == null && hasFiles)
             clip = ExtractFilesClip();
+
+        // A clip keeps every Format the source offered, as ClipMate 7 does, so the Paste Target can choose: e.g. a
+        // screenshot tool's image plus its filename, or Explorer's files plus whether they were copied or cut.
+        if (clip != null && hasImage && clip.ImageData == null)
+            AddImageToClip(clip);
+
+        if (clip != null && hasFiles)
+            AddFileDropToClip(clip);
 
         // Populate standard fields
         if (clip != null)
@@ -610,9 +618,6 @@ public class ClipboardService : IClipboardService, IDisposable
             if (string.IsNullOrEmpty(clip.TextContent))
                 return null;
 
-            // Generate content hash from primary content
-            clip.ContentHash = ContentHasher.HashText(clip.TextContent);
-
             // Calculate size (all text formats combined)
             clip.Size = CalculateTextSize(clip);
 
@@ -683,7 +688,6 @@ public class ClipboardService : IClipboardService, IDisposable
                             Type = ClipType.Image,
                             ImageData = pngData,
                             CapturedAt = DateTimeOffset.Now,
-                            ContentHash = ContentHasher.HashBytes(pngData),
                             Size = pngData.Length,
                             Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
                         };
@@ -737,7 +741,6 @@ public class ClipboardService : IClipboardService, IDisposable
                         ImageData = imageData,
                         CapturedAt = DateTimeOffset.Now,
                         // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
-                        ContentHash = ContentHasher.HashBytes(imageData),
                         Size = imageData.Length,
                         Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
                     };
@@ -825,8 +828,8 @@ public class ClipboardService : IClipboardService, IDisposable
                     var filePathsJson = JsonSerializer.Serialize(filePaths);
                     var text = string.Join(Environment.NewLine, filePaths);
 
-                    // "HDROP Expansion" preference: capture straight to a plain-text clip instead of
-                    // a Files clip, equivalent to running Edit > Convert File Pointer To Text automatically.
+                    // "HDROP Expansion" preference: capture as a Text clip listing the paths instead of a
+                    // Files clip. Unlike Edit > Convert File Pointer To Text, the file list is kept.
                     var autoExpand = _configurationService.Configuration.Preferences.AutoExpandHdropFilePointers;
 
                     var clip = new Clip
@@ -840,8 +843,6 @@ public class ClipboardService : IClipboardService, IDisposable
                         FilePathsJson = filePathsJson,
                         TextContent = text, // For search, and as the primary content when auto-expanded
                         CapturedAt = DateTimeOffset.Now,
-                        // Generate content hash from file paths
-                        ContentHash = ContentHasher.HashText(filePathsJson),
                         // Size is just the JSON length (actual file sizes not counted)
                         Size = filePathsJson.Length * 2, // Unicode = 2 bytes per char
                         // Title shows file count
@@ -879,11 +880,130 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
+    /// Adds the clipboard's file list and "Preferred DropEffect" to a clip whose primary content is something else.
+    /// </summary>
+    private void AddFileDropToClip(Clip clip)
+    {
+        try
+        {
+            if (clip.FilePathsJson == null)
+            {
+                var filePaths = WpfClipboard.GetFileDropList().Cast<string>().Where(p => !string.IsNullOrEmpty(p)).ToList();
+                if (filePaths.Count == 0)
+                    return;
+
+                clip.FilePathsJson = JsonSerializer.Serialize(filePaths);
+            }
+
+            if (WpfClipboard.ContainsData(Formats.PreferredDropEffect.Name))
+                clip.FileDropEffect = ShellFileDropFormats.ReadPreferredDropEffect(WpfClipboard.GetData(Formats.PreferredDropEffect.Name));
+        }
+        catch (Exception ex)
+        {
+            // The primary content was already captured; losing the file list is not worth losing the clip.
+            _logger.LogWarning(ex, "Could not read the file list alongside the clipboard content");
+        }
+    }
+
+    /// <summary>
+    /// Adds the clipboard's image to a clip whose primary content is text, such as a screenshot tool's image plus its
+    /// filename.
+    /// </summary>
+    private void AddImageToClip(Clip clip)
+    {
+        // ExtractImageClip handles PNG-versus-bitmap and logs its own failures; only its image is wanted here
+        var image = ExtractImageClip();
+        if (image?.ImageData == null)
+            return;
+
+        clip.ImageData = image.ImageData;
+        clip.Size += image.ImageData.Length;
+    }
+
+    /// <summary>
+    /// Adds an image to a data object as a bitmap (for apps that read only CF_BITMAP/CF_DIB) and in its original PNG
+    /// or JPEG encoding, so re-capturing it loses no quality.
+    /// </summary>
+    private void AddImageFormats(WpfDataObject dataObject, byte[] imageData)
+    {
+        // Convert byte array back to BitmapSource for DIB format compatibility
+        using var memoryStream = new MemoryStream(imageData);
+        var decoder = BitmapDecoder.Create(memoryStream,
+            BitmapCreateOptions.PreservePixelFormat,
+            BitmapCacheOption.OnLoad);
+
+        if (decoder.Frames.Count <= 0)
+            return;
+
+        // Create a writable copy to ensure pixel data is fully accessible
+        var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
+        writableBitmap.Freeze();
+        dataObject.SetImage(writableBitmap);
+
+        // IMPORTANT: Don't dispose these streams - the DataObject needs them to remain alive
+        var format = DetectImageFormatFromBytes(imageData);
+        if (format == "PNG")
+        {
+            dataObject.SetData("PNG", new MemoryStream(imageData));
+            _logger.LogDebug("Preserved PNG format ({Size} bytes) on clipboard", imageData.Length);
+        }
+        else if (format == "JPEG")
+        {
+            dataObject.SetData("JFIF", new MemoryStream(imageData));
+            _logger.LogDebug("Preserved JPEG format ({Size} bytes) on clipboard", imageData.Length);
+        }
+    }
+
+    /// <summary>
+    /// The clip's image as plain bytes ready for the clipboard: from the decrypted cache for an unlocked encrypted clip,
+    /// null for a locked one (its stored image is ciphertext) or a clip without an image.
+    /// </summary>
+    private byte[]? GetPlainImageData(Clip clip)
+    {
+        if (!clip.Encrypted)
+            return clip.ImageData is { Length: > 0 } ? clip.ImageData : null;
+
+        if (!clip.IsDecrypted)
+            return null;
+
+        var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clip.Id);
+        return cachedBlobs?.PngBlobs.Select(p => p.Data).FirstOrDefault() ?? cachedBlobs?.JpgBlobs.Select(p => p.Data).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Adds a clip's file list to a data object as Explorer offers it: CF_HDROP (with FileName/FileNameW,
+    /// which WPF derives from it), "Shell IDList Array" and, if one was captured, "Preferred DropEffect".
+    /// </summary>
+    private void AddFileDropFormats(WpfDataObject dataObject, Clip clip)
+    {
+        if (string.IsNullOrEmpty(clip.FilePathsJson))
+            return;
+
+        var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
+        if (filePaths is not { Count: > 0 })
+            return;
+
+        var fileDropList = new StringCollection();
+        fileDropList.AddRange(filePaths.ToArray());
+        dataObject.SetFileDropList(fileDropList);
+
+        var shellIdListArray = ShellFileDropFormats.CreateShellIdListArray(filePaths);
+        if (shellIdListArray != null)
+            dataObject.SetData(Formats.ShellIdListArray.Name, shellIdListArray);
+        else
+            _logger.LogDebug("Not offering {Format}: at least one file no longer exists", Formats.ShellIdListArray.Name);
+
+        if (clip.FileDropEffect is { } dropEffect)
+            dataObject.SetData(Formats.PreferredDropEffect.Name, ShellFileDropFormats.CreatePreferredDropEffect(dropEffect));
+    }
+
+    /// <summary>
     /// Populates standard metadata fields on a clip.
     /// </summary>
     private void PopulateStandardFields(Clip clip)
     {
-        // Calculate checksum (simple hash for duplicate detection)
+        // Hash every Format the clip ended up with, for duplicate detection
+        clip.ContentHash = ContentHasher.HashClip(clip);
         clip.Checksum = clip.ContentHash.GetHashCode();
 
         // Set view tab based on type
@@ -1106,18 +1226,22 @@ public class ClipboardService : IClipboardService, IDisposable
             if (!string.IsNullOrEmpty(htmlContent))
                 dataObject.SetData(DataFormats.Html, htmlContent);
 
-            // Auto-expanded HDROP clips still carry their file paths - restore the file-drop format
-            // too so pasting into Explorer works, in addition to pasting the readable text elsewhere.
-            if (!string.IsNullOrEmpty(clip.FilePathsJson))
+            // Text clips that also carry an image or a file list restore those Formats too, so the Paste Target picks:
+            // an image-capable app takes the image, Explorer takes the files, a text-only field takes the text.
+            if (GetPlainImageData(clip) is { } imageData)
             {
-                var filePaths = JsonSerializer.Deserialize<List<string>>(clip.FilePathsJson);
-                if (filePaths is { Count: > 0 })
+                try
                 {
-                    var fileDropList = new StringCollection();
-                    fileDropList.AddRange(filePaths.ToArray());
-                    dataObject.SetFileDropList(fileDropList);
+                    AddImageFormats(dataObject, imageData);
+                }
+                catch (Exception ex)
+                {
+                    // The text is the clip's primary content; still paste it if the stored image cannot be decoded
+                    _logger.LogWarning(ex, "Could not put the image of clip {ClipId} on the clipboard", clip.Id);
                 }
             }
+
+            AddFileDropFormats(dataObject, clip);
 
             WpfClipboard.SetDataObject(dataObject, true);
         }
@@ -1172,46 +1296,11 @@ public class ClipboardService : IClipboardService, IDisposable
             if (imageData == null || imageData.Length == 0)
                 throw new InvalidOperationException("Image data is empty");
 
-            // Detect image format to determine how to set it on clipboard
-            var format = DetectImageFormatFromBytes(imageData);
-            _logger.LogDebug("Setting image to clipboard: Format={Format}, Size={Size} bytes", format, imageData.Length);
+            _logger.LogDebug("Setting image to clipboard: Format={Format}, Size={Size} bytes", DetectImageFormatFromBytes(imageData), imageData.Length);
 
-            // Convert byte array back to BitmapSource for DIB format compatibility
-            using var memoryStream = new MemoryStream(imageData);
-            var decoder = BitmapDecoder.Create(memoryStream,
-                BitmapCreateOptions.PreservePixelFormat,
-                BitmapCacheOption.OnLoad);
-
-            if (decoder.Frames.Count <= 0)
-                return;
-
-            // Create a writable copy to ensure pixel data is fully accessible
-            var writableBitmap = new WriteableBitmap(decoder.Frames[0]);
-            writableBitmap.Freeze();
-
-            // CRITICAL: Use DataObject to preserve original image format on clipboard
-            // Instead of only calling SetImage (which loses PNG/JPG format),
-            // set both the bitmap AND the original format data
             var dataObject = new WpfDataObject();
-
-            // Set the bitmap for compatibility with apps that only read CF_BITMAP/DIB
-            dataObject.SetImage(writableBitmap);
-
-            // Preserve the original PNG or JPEG format on clipboard
-            // This prevents quality loss when the clip is recaptured
-            // IMPORTANT: Don't dispose the MemoryStream - DataObject needs it to remain alive
-            if (format == "PNG")
-            {
-                var pngStream = new MemoryStream(imageData);
-                dataObject.SetData("PNG", pngStream);
-                _logger.LogDebug("Preserved PNG format ({Size} bytes) on clipboard", imageData.Length);
-            }
-            else if (format == "JPEG")
-            {
-                var jpgStream = new MemoryStream(imageData);
-                dataObject.SetData("JFIF", jpgStream);
-                _logger.LogDebug("Preserved JPEG format ({Size} bytes) on clipboard", imageData.Length);
-            }
+            AddImageFormats(dataObject, imageData);
+            AddFileDropFormats(dataObject, clip);
 
             // Set the final DataObject to clipboard
             WpfClipboard.SetDataObject(dataObject, true);
@@ -1236,10 +1325,10 @@ public class ClipboardService : IClipboardService, IDisposable
             if (filePaths == null || filePaths.Count == 0)
                 throw new InvalidOperationException("No file paths found");
 
-            var fileDropList = new StringCollection();
-            fileDropList.AddRange(filePaths.ToArray());
+            var dataObject = new WpfDataObject();
+            AddFileDropFormats(dataObject, clip);
 
-            WpfClipboard.SetFileDropList(fileDropList);
+            WpfClipboard.SetDataObject(dataObject, true);
         }
         catch (Exception ex)
         {

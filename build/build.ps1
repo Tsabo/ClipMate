@@ -23,9 +23,12 @@ The logging verbosity level. Default is Normal.
 .\build.ps1 -Target Release -Version "1.0.0"
 .\build.ps1 -Verbosity Diagnostic
 .\build.ps1 --target Build --verbosity Diagnostic
+.\build.ps1 -Target Smoke-Test -Configuration Debug --keep-running
+
+Arguments the script does not recognise are passed to the Cake target.
 #>
 
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 Param(
     [string]$Target = "Build",
     [string]$Version = "",
@@ -45,6 +48,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Process remaining arguments to handle double-dash syntax
 # This allows: .\build.ps1 --target Build --verbosity Diagnostic
+$PassThroughArguments = @()
 if ($RemainingArguments) {
     for ($i = 0; $i -lt $RemainingArguments.Length; $i++) {
         $arg = $RemainingArguments[$i]
@@ -69,6 +73,10 @@ if ($RemainingArguments) {
                 if ($i + 1 -lt $RemainingArguments.Length) {
                     $Verbosity = $RemainingArguments[++$i]
                 }
+            }
+            # Anything else is a target's own argument (e.g. --keep-running, --test-filter=...): pass it to Cake
+            default {
+                $PassThroughArguments += $arg
             }
         }
     }
@@ -108,8 +116,10 @@ $cakeArgs = @(
 )
 
 if ($Version) {
-    $cakeArgs += "--version=$Version"
+    $cakeArgs += "--release-version=$Version"
 }
+
+$cakeArgs += $PassThroughArguments
 
 # Execute Cake
 Write-Host "Executing Cake build..." -ForegroundColor Yellow

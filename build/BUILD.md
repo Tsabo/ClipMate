@@ -39,6 +39,10 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 .\build\build.ps1 -Target Build
 .\build\build.ps1 -Target Test
 
+# Check startup / run the UI tests (other arguments go to the target)
+.\build\build.ps1 -Target Smoke-Test -Configuration Debug --keep-running
+.\build\build.ps1 -Target UI-Test -Configuration Debug --artifacts-path=C:\temp\artifacts
+
 # Create installer
 .\build\build.ps1 -Target Build-Installer
 
@@ -57,6 +61,9 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 | `Build-Installer` | Create Windows installer with InnoDependencyInstaller |
 | `Build-Font` | Build custom color font (ClipMate.ttf) from SVG icons |
 | `Build-Docs` | Build Docusaurus documentation site |
+| `Prepare-Worktree` | Copy the gitignored font and Monaco assets from the main checkout into a fresh git worktree |
+| `Smoke-Test` | Start ClipMate against a temporary `--data-dir` and check it finishes startup (`--exe`, `--data-dir`, `--timeout`, `--keep-running`) |
+| `UI-Test` | Run `Source/tests/ClipMate.UITests` (not in CI; uses the real clipboard; `--test-filter`) |
 | `CI` | Full CI build (build + test) |
 | `Release` | Full release build with installer |
 

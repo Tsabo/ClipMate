@@ -308,8 +308,11 @@ public class PreferencesConfiguration
     public bool CaptureExistingClipboardAtStartup { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to automatically expand HDROP file pointers to text when capturing.
-    /// This is a UI-only setting as HDROP expansion is always performed internally.
+    /// Gets or sets whether a captured file list (CF_HDROP) with no text of its own becomes a Text clip.
+    /// When true, the clip's text is the list of paths and it keeps the file list, so pasting offers both
+    /// and the target picks (Explorer pastes the files, an editor pastes the paths), as with ClipMate 7's
+    /// AutoParseHDROP. When false, it stays a Files clip that pastes only as files; its paths are still
+    /// stored for searching and Edit > Convert File Pointer To Text.
     /// </summary>
     public bool AutoExpandHdropFilePointers { get; set; } = true;
 
