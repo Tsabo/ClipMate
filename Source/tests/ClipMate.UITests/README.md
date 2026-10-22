@@ -18,17 +18,22 @@ WPF Pilot is a robust UI automation framework for WPF applications that provides
 
 ## Running Tests
 
-**Important**: These tests are excluded from CI/CD and should be run on-demand only.
+**Important**: These tests are excluded from CI/CD (the project is not in `ClipMate.sln`) and should be run on-demand only.
+
+Each test starts its own ClipMate (the `ClipMate.App.exe` built beside the tests) with `--data-dir` pointing at a temporary folder, so your settings and databases are never touched. Tests that exercise the clipboard use the real, shared Windows clipboard: another clipboard manager you have running will see their clips. They put the clipboard's previous content back afterwards.
+
+### From Command Line
+```powershell
+.\build\build.ps1 -Target UI-Test -Configuration Debug
+.\build\build.ps1 -Target UI-Test -Configuration Debug --test-filter=/*/*/ClipboardFileDropRoundTripTests/*
+```
+
+Add `--artifacts-path=<folder>` when a running ClipMate locks `bin`.
 
 ### From Visual Studio
 - Open Test Explorer
 - Select the ClipMate.UITests project
 - Run selected tests
-
-### From Command Line
-```powershell
-dotnet test Source/tests/ClipMate.UITests/ClipMate.UITests.csproj
-```
 
 ## Page Object Pattern
 
