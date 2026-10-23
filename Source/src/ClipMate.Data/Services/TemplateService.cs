@@ -175,16 +175,10 @@ public class TemplateService : ITemplateService
         var mergedText = MergeClipWithTemplate(ActiveTemplate, clip, _sequenceCounter);
         _sequenceCounter++; // Increment for next use
 
-        // Create a new clip with the merged template content
-        // Preserve the original clip type (Text, RichText, or Html)
-        var transformedClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = clip.Type,
-            TextContent = mergedText,
-            ContentHash = ContentHasher.HashText(mergedText),
-            CapturedAt = DateTime.UtcNow,
-        };
+        // Only the plain text takes the template; the clip's other Formats (RTF, HTML...) are still offered, so the
+        // Paste Target chooses. The copy's hash covers every Format it now carries.
+        var transformedClip = clip.WithText(mergedText);
+        transformedClip.ContentHash = ContentHasher.HashClip(transformedClip);
 
         _logger.LogInformation("Applied template {TemplateName} to clip (Type: {ClipType}), sequence: {Sequence}",
             ActiveTemplate.Name, clip.Type, _sequenceCounter - 1);

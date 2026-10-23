@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data.Services;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
 
@@ -245,6 +246,64 @@ public class TemplateServiceTests
         // Assert
         await Assert.That(result).Contains("Captured:");
         await Assert.That(result).Contains("12/26/2025"); // Or locale-specific format
+    }
+
+    [Test]
+    public async Task TryApplyTemplate_HtmlAndRtfClip_KeepsRichFormatsAndMergesPlainText()
+    {
+        // Arrange
+        var service = await CreateServiceWithActiveTemplateAsync("Note: #CLIP#");
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Html,
+            TextContent = "Hello",
+            HtmlContent = "<b>Hello</b>",
+            RtfContent = @"{\rtf1 \b Hello\b0}",
+        };
+
+        // Act
+        var result = service.TryApplyTemplate(clip);
+
+        // Assert
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.TextContent).IsEqualTo("Note: Hello");
+        await Assert.That(result.HtmlContent).IsEqualTo("<b>Hello</b>");
+        await Assert.That(result.RtfContent).IsEqualTo(@"{\rtf1 \b Hello\b0}");
+        await Assert.That(result.Type).IsEqualTo(ClipType.Html);
+        await Assert.That(result.ContentHash).IsEqualTo(ContentHasher.HashClip(result));
+        await Assert.That(clip.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    public async Task TryApplyTemplate_TextOnlyClip_ReturnsMergedTextOnly()
+    {
+        // Arrange
+        var service = await CreateServiceWithActiveTemplateAsync("Note: #CLIP#");
+        var clip = new Clip
+        {
+            Type = ClipType.Text,
+            TextContent = "Hello",
+        };
+
+        // Act
+        var result = service.TryApplyTemplate(clip);
+
+        // Assert
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.TextContent).IsEqualTo("Note: Hello");
+        await Assert.That(result.HtmlContent).IsNull();
+        await Assert.That(result.RtfContent).IsNull();
+        await Assert.That(result.ContentHash).IsEqualTo(ContentHasher.HashText("Note: Hello"));
+    }
+
+    private async Task<TemplateService> CreateServiceWithActiveTemplateAsync(string templateContent)
+    {
+        await File.WriteAllTextAsync(Path.Combine(_testTemplatesDir, "active.txt"), templateContent);
+        var service = new TemplateService(_mockConfigService, _mockLogger);
+        await service.SetActiveTemplateAsync("active");
+
+        return service;
     }
 
     [Test]
