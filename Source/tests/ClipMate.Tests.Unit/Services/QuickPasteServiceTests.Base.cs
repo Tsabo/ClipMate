@@ -89,6 +89,7 @@ public partial class QuickPasteServiceTests : TestFixtureBase
 
         return new QuickPasteService(
             _mockWin32,
+            CreateMockPasteTarget(),
             _mockClipboardService,
             _mockConfigurationService,
             _mockMessenger,
@@ -110,6 +111,14 @@ public partial class QuickPasteServiceTests : TestFixtureBase
         };
 
     private IWin32InputInterop CreateMockWin32() => A.Fake<IWin32InputInterop>();
+
+    private IPasteTarget CreateMockPasteTarget()
+    {
+        // No Paste Target unless a test sets one; FakeItEasy would otherwise return a dummy window
+        var pasteTarget = A.Fake<IPasteTarget>();
+        A.CallTo(() => pasteTarget.Window).Returns(null);
+        return pasteTarget;
+    }
 
     private IClipboardService CreateMockClipboardService() => A.Fake<IClipboardService>();
 

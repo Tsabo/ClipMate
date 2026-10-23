@@ -88,13 +88,24 @@ public class ConfigurationService : IConfigurationService
                                 ?? CreateDefaultConfiguration();
 
                 _logger.LogInformation("Configuration parsed successfully");
+
+                var savedVersion = Configuration.Version;
+                var upgraded = ConfigurationUpgrader.Upgrade(Configuration);
                 _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", Configuration.MonacoEditor.EnableDebug);
                 _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", Configuration.MonacoEditor.Theme);
 
                 // Validate the configuration
                 var validationErrors = ValidateConfiguration(Configuration);
                 if (validationErrors.Count <= 0)
+                {
+                    if (upgraded)
+                    {
+                        _logger.LogInformation("Upgraded configuration from version {Old} to {New}", savedVersion, Configuration.Version);
+                        await SaveInternalAsync(cancellationToken);
+                    }
+
                     return Configuration;
+                }
 
                 _logger.LogError("Configuration validation failed with {Count} error(s):", validationErrors.Count);
                 foreach (var error in validationErrors)
@@ -270,7 +281,7 @@ public class ConfigurationService : IConfigurationService
 
         var config = new ClipMateConfiguration
         {
-            Version = 1,
+            Version = ConfigurationUpgrader.CurrentVersion,
             Preferences = new PreferencesConfiguration(),
             Hotkeys = new HotkeyConfiguration(),
             MonacoEditor = new MonacoEditorConfiguration(),

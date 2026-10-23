@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -17,8 +16,8 @@ using DialogResult = ClipMate.Core.Models.DialogResult;
 namespace ClipMate.Platform.Services;
 
 /// <summary>
-/// Service implementing QuickPaste functionality including auto-targeting,
-/// formatting string execution, and keystroke sending to target applications.
+/// Service implementing QuickPaste functionality: formatting string execution and keystroke sending to the Paste
+/// Target, which <see cref="IPasteTarget" /> provides.
 /// </summary>
 public class QuickPasteService : IQuickPasteService, IDisposable
 {
@@ -28,22 +27,21 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     private readonly ILogger<QuickPasteService> _logger;
     private readonly IMacroExecutionService _macroExecutionService;
     private readonly IMessenger _messenger;
+    private readonly IPasteTarget _pasteTarget;
     private readonly ITemplateService _templateService;
     private readonly IWin32InputInterop _win32;
     private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
-    private (string ProcessName, string ClassName, string WindowTitle)? _currentTarget;
-    private nint _currentTargetWindowHandle; // Store the window handle for focus switching
     private bool _disposed;
 
     private bool _goBackEnabled;
     private QuickPasteFormattingString? _selectedFormattingString;
     private int _sequenceCounter = 1;
-    private bool _targetLocked;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="QuickPasteService" /> class.
     /// </summary>
     public QuickPasteService(IWin32InputInterop win32Interop,
+        IPasteTarget pasteTarget,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         IMessenger messenger,
@@ -53,6 +51,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         ILogger<QuickPasteService> logger)
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
+        _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -85,20 +84,6 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     }
 
     /// <inheritdoc />
-    public (string ProcessName, string ClassName, string WindowTitle)? GetCurrentTarget() => _currentTarget;
-
-    /// <inheritdoc />
-    public void SetTargetLock(bool locked)
-    {
-        _targetLocked = locked;
-        _logger.LogDebug("Target lock set to {Locked}", locked);
-        _messenger.Send(new StateRefreshRequestedEvent());
-    }
-
-    /// <inheritdoc />
-    public bool IsTargetLocked() => _targetLocked;
-
-    /// <inheritdoc />
     public bool GetGoBackState() => _goBackEnabled;
 
     /// <inheritdoc />
@@ -124,7 +109,9 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(clip);
 
-        if (_currentTarget == null)
+        // The Paste Target is kept up to date by tracking the foreground window, so it is used as it stands
+        var target = _pasteTarget.Window;
+        if (target == null)
         {
             _logger.LogWarning("No target application selected for QuickPaste");
 
@@ -134,15 +121,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         try
         {
             _logger.LogDebug("QuickPaste: Pasting clip {ClipId} to target {Target}",
-                clip.Id, GetCurrentTargetString());
-
-            // Update target if not locked - ensures we have the most recent foreground window
-            // This handles cases where user switches windows before double-clicking
-            if (!_targetLocked)
-            {
-                UpdateTarget();
-                _logger.LogDebug("Updated target before paste: {Target}", GetCurrentTargetString());
-            }
+                clip.Id, target.TargetString);
 
             // Capture ClipMate's window handle for GoBack functionality (before switching away)
             if (_goBackEnabled)
@@ -159,10 +138,10 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             }
 
             // Switch focus to target application and wait for it to activate
-            if (_currentTargetWindowHandle != IntPtr.Zero)
+            if (target.Handle != IntPtr.Zero)
             {
-                _logger.LogDebug("Switching focus to target window handle: {Handle:X}", _currentTargetWindowHandle);
-                _win32.SetForegroundWindow(new HWND(_currentTargetWindowHandle));
+                _logger.LogDebug("Switching focus to target window handle: {Handle:X}", target.Handle);
+                _win32.SetForegroundWindow(new HWND(target.Handle));
 
                 // Wait longer for focus switch to complete - give the window time to activate
                 // This is especially important for macro execution which requires the window to be active
@@ -222,7 +201,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
                 await Task.Delay(50, cancellationToken);
 
                 // Select formatting string based on title trigger if no manual selection
-                var format = _selectedFormattingString ?? SelectFormattingStringByTarget();
+                var format = _selectedFormattingString ?? SelectFormattingStringByTarget(target);
 
                 // Execute the formatting string
                 await ExecuteFormattingStringAsync(clip, format, cancellationToken);
@@ -274,58 +253,22 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         _logger.LogDebug("Sequence counter reset to 1");
     }
 
-    /// <inheritdoc />
-    public void UpdateTarget()
-    {
-        // Check if auto-targeting is enabled in configuration
-        var config = _configurationService.Configuration.Preferences;
-        if (!config.QuickPasteAutoTargetingEnabled)
-        {
-            _logger.LogDebug("Auto-targeting is disabled in configuration");
-
-            return;
-        }
-
-        if (_targetLocked)
-        {
-            _logger.LogDebug("Target is locked, skipping update");
-
-            return;
-        }
-
-        var result = DetectTargetWindow();
-        if (result.target == null)
-            return;
-
-        _currentTarget = result.target;
-        _currentTargetWindowHandle = result.windowHandle;
-        _logger.LogInformation("Target updated to: {Target} (Handle: {Handle:X})", GetCurrentTargetString(), _currentTargetWindowHandle);
-        _messenger.Send(new QuickPasteTargetChangedEvent());
-    }
-
-    /// <inheritdoc />
-    public string GetCurrentTargetString() => _currentTarget == null
-        ? string.Empty
-        : $"{_currentTarget.Value.ProcessName}:{_currentTarget.Value.ClassName}";
-
     /// <summary>
-    /// Updates the target (unless locked) and switches focus to it, mirroring the focus-switch step in
-    /// <see cref="PasteClipAsync" />. Needed because TAB/ENTER are triggered from ClipMate's own UI
-    /// (menu click), which steals focus away from the target before the keystroke would otherwise be sent.
+    /// Switches focus to the Paste Target, mirroring the focus-switch step in <see cref="PasteClipAsync" />.
+    /// Needed because TAB/ENTER are triggered from ClipMate's own UI (menu click), which steals focus away
+    /// from the target before the keystroke would otherwise be sent.
     /// </summary>
     private async Task FocusTargetWindowAsync()
     {
-        if (!_targetLocked)
-            UpdateTarget();
-
-        if (_currentTargetWindowHandle == IntPtr.Zero)
+        var target = _pasteTarget.Window;
+        if (target == null || target.Handle == IntPtr.Zero)
         {
             _logger.LogWarning("No valid window handle for target application");
 
             return;
         }
 
-        _win32.SetForegroundWindow(new HWND(_currentTargetWindowHandle));
+        _win32.SetForegroundWindow(new HWND(target.Handle));
 
         // Give the window time to activate before sending the keystroke.
         await Task.Delay(300);
@@ -353,13 +296,10 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             _selectedFormattingString?.Title ?? "None");
     }
 
-    private QuickPasteFormattingString? SelectFormattingStringByTarget()
+    private QuickPasteFormattingString? SelectFormattingStringByTarget(PasteTargetWindow target)
     {
-        if (_currentTarget == null)
-            return _selectedFormattingString;
-
         var config = _configurationService.Configuration.Preferences;
-        var targetTitle = _currentTarget.Value.WindowTitle;
+        var targetTitle = target.WindowTitle;
 
         // Find format with matching title trigger (case-insensitive substring match)
         var matchedFormat = config.QuickPasteFormattingStrings
@@ -368,125 +308,6 @@ public class QuickPasteService : IQuickPasteService, IDisposable
                                  targetTitle.Contains(p.TitleTrigger, StringComparison.OrdinalIgnoreCase));
 
         return matchedFormat ?? _selectedFormattingString;
-    }
-
-    private ((string ProcessName, string ClassName, string WindowTitle)? target, nint windowHandle) DetectTargetWindow()
-    {
-        try
-        {
-            var foregroundWindow = _win32.GetForegroundWindow();
-            if (foregroundWindow.IsNull)
-                return (null, IntPtr.Zero);
-
-            // Get process name
-            _win32.GetWindowThreadProcessId(foregroundWindow, out var processId);
-
-            if (processId == 0)
-                return (null, IntPtr.Zero);
-
-            string processName;
-            try
-            {
-                using var process = Process.GetProcessById((int)processId);
-                processName = process.ProcessName.ToUpperInvariant();
-            }
-            catch
-            {
-                return (null, IntPtr.Zero);
-            }
-
-            // Get window class name
-            const int maxLength = 256;
-            string className;
-            unsafe
-            {
-                var buffer = stackalloc char[maxLength];
-                var length = _win32.GetClassName(foregroundWindow, buffer, maxLength);
-                className = length > 0
-                    ? new string(buffer, 0, length).ToUpperInvariant()
-                    : string.Empty;
-            }
-
-            // Get window title
-            string windowTitle;
-            unsafe
-            {
-                var buffer = stackalloc char[maxLength];
-                var length = _win32.GetWindowText(foregroundWindow, buffer, maxLength);
-                windowTitle = length > 0
-                    ? new string(buffer, 0, length)
-                    : string.Empty;
-            }
-
-            // Check against good/bad target lists
-            var targetString = $"{processName}:{className}";
-
-            if (!IsValidTarget(targetString))
-                return (null, IntPtr.Zero);
-
-            // Store window handle for focus switching
-            nint windowHandle;
-            unsafe
-            {
-                windowHandle = (nint)foregroundWindow.Value;
-            }
-
-            return ((processName, className, windowTitle), windowHandle);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error detecting target window");
-
-            return (null, IntPtr.Zero);
-        }
-    }
-
-    private bool IsValidTarget(string targetString)
-    {
-        var config = _configurationService.Configuration.Preferences;
-
-        // Check bad targets first (exclusion list)
-        foreach (var item in config.QuickPasteBadTargets)
-        {
-            if (!MatchesTarget(targetString, item))
-                continue;
-
-            _logger.LogDebug("Target {Target} matches bad target {BadTarget}, rejecting",
-                targetString, item);
-
-            return false;
-        }
-
-        // Good targets are training hints for future window stack enumeration
-        // For now, accept any target not in the bad list
-        _logger.LogDebug("Target {Target} is valid (not in bad targets list)", targetString);
-
-        return true;
-    }
-
-    private static bool MatchesTarget(string actual, string pattern)
-    {
-        // Pattern format: PROCESSNAME:CLASSNAME or PROCESSNAME: (match all classes for process)
-        // Empty process name means match any process with that class
-        var patternParts = pattern.Split(':', 2);
-        var actualParts = actual.Split(':', 2);
-
-        if (patternParts.Length != 2 || actualParts.Length != 2)
-            return false;
-
-        var patternProcess = patternParts[0];
-        var patternClass = patternParts[1];
-        var actualProcess = actualParts[0];
-        var actualClass = actualParts[1];
-
-        // Match process (empty pattern matches any, non-empty uses prefix match)
-        if (!string.IsNullOrEmpty(patternProcess) &&
-            !actualProcess.StartsWith(patternProcess, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Match class (empty pattern matches any, non-empty uses prefix match)
-        return string.IsNullOrEmpty(patternClass) ||
-               actualClass.StartsWith(patternClass, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ExecuteFormattingStringAsync(Clip clip, QuickPasteFormattingString? format,

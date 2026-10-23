@@ -25,21 +25,19 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
     private readonly bool _isHotkeyTriggered;
     private readonly ILogger<ClassicWindow>? _logger;
     private readonly IMessenger _messenger;
-    private readonly IQuickPasteService _quickPasteService;
     private readonly ISearchService _searchService;
     private readonly SearchViewModel _searchViewModel;
     private readonly IServiceProvider _serviceProvider;
     private readonly ITemplateService _templateService;
     private readonly ClassicViewModel _viewModel;
 
-    public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, IQuickPasteService quickPasteService, ISearchService searchService, ICollectionService collectionService,
+    public ClassicWindow(ClassicViewModel viewModel, SearchViewModel searchViewModel, IConfigurationService configurationService, ISearchService searchService, ICollectionService collectionService,
         IServiceProvider serviceProvider, IMessenger messenger, IActiveWindowService activeWindowService, IDatabaseManager databaseManager, ITemplateService templateService, bool isHotkeyTriggered = false, ILogger<ClassicWindow>? logger = null)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _searchViewModel = searchViewModel ?? throw new ArgumentNullException(nameof(searchViewModel));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -57,8 +55,6 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         // Subscribe to close window flag
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
-        // Subscribe to window deactivation for QuickPaste target updates
-        Deactivated += ClassicWindow_Deactivated;
         Activated += ClassicWindow_Activated;
         Loaded += ClassicWindow_Loaded;
 
@@ -119,21 +115,6 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         }
     }
 
-    private async void ClassicWindow_Deactivated(object? sender, EventArgs e)
-    {
-        try
-        {
-            // Brief delay to ensure the new foreground window is fully activated
-            await Task.Delay(50);
-            _quickPasteService.UpdateTarget();
-        }
-        catch (Exception ex)
-        {
-            // Log error silently - QuickPaste target update failures should not crash the window
-            _logger?.LogError(ex, "Error updating QuickPaste target on window deactivation");
-        }
-    }
-
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         var config = _configurationService.Configuration.Preferences;
@@ -164,7 +145,6 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
     {
         _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
         Activated -= ClassicWindow_Activated;
-        Deactivated -= ClassicWindow_Deactivated;
 
         var config = _configurationService.Configuration.Preferences;
 

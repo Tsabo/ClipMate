@@ -361,12 +361,6 @@ public class PreferencesConfiguration
     public bool QuickPasteAutoTargetingEnabled { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to use a monitoring thread for auto-targeting.
-    /// Useful when ClipMate is running in "always on top" mode.
-    /// </summary>
-    public bool QuickPasteUseMonitoringThread { get; set; } = false;
-
-    /// <summary>
     /// Gets or sets whether pressing ENTER on a clip triggers QuickPaste.
     /// </summary>
     public bool QuickPastePasteOnEnter { get; set; } = true;
@@ -418,6 +412,17 @@ public class PreferencesConfiguration
         ":#43",
         "HELPMAN:TFRMTOPIC",
         ":GDI+_HOOK_WINDOW_CLASS",
+        "CTFMON:",
+    ];
+
+    /// <summary>
+    /// Gets or sets the window titles that are never a Paste Target, whatever their program/class.
+    /// A title matches when it starts with an entry, ignoring case.
+    /// </summary>
+    public List<string> QuickPasteBadTitles { get; set; } =
+    [
+        "INTELLIFORMPROXY",
+        "DEFAULT IME",
     ];
 
     /// <summary>

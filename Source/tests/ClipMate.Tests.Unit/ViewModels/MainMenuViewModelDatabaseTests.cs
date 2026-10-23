@@ -38,6 +38,8 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
             A.Fake<IAutoAppendService>(),
             A.Fake<IPowerPasteService>(),
             A.Fake<IQuickPasteService>(),
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockServiceProvider);
     }
 
