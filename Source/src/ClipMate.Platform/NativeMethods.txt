@@ -22,6 +22,15 @@ GetWindowTextW
 GetWindowTextLengthW
 GetClassName
 GetWindow
+IsWindow
+DwmGetWindowAttribute
+SetWinEventHook
+UnhookWinEvent
+GetMessage
+TranslateMessage
+DispatchMessage
+PostThreadMessage
+GetCurrentThreadId
 GetWindowLong
 IsWindowVisible
 ShowWindow

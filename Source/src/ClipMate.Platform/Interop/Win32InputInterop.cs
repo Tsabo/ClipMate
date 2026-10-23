@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace ClipMate.Platform.Interop;
 
@@ -35,6 +38,41 @@ public class Win32InputInterop : IWin32InputInterop
         unsafe
         {
             return SetForegroundWindow((IntPtr)hWnd.Value);
+        }
+    }
+
+    /// <inheritdoc />
+    public HWND GetWindow(HWND hWnd, GET_WINDOW_CMD uCmd) => PInvoke.GetWindow(hWnd, uCmd);
+
+    /// <inheritdoc />
+    public bool IsWindow(HWND hWnd) => PInvoke.IsWindow(hWnd);
+
+    /// <inheritdoc />
+    public bool IsWindowVisible(HWND hWnd) => PInvoke.IsWindowVisible(hWnd);
+
+    /// <inheritdoc />
+    public bool IsWindowCloaked(HWND hWnd)
+    {
+        unsafe
+        {
+            uint cloaked = 0;
+            var result = PInvoke.DwmGetWindowAttribute(hWnd, DWMWINDOWATTRIBUTE.DWMWA_CLOAKED, &cloaked, sizeof(uint));
+            return result.Succeeded && cloaked != 0;
+        }
+    }
+
+    /// <inheritdoc />
+    public string? GetProcessName(uint processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return process.ProcessName;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            // The process has exited
+            return null;
         }
     }
 

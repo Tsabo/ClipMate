@@ -3,7 +3,7 @@ using DevExpress.Xpf.Editors;
 namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
-/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME).
+/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME), or bad window titles.
 /// </summary>
 public partial class QuickPasteTargetDialog
 {
@@ -24,9 +24,24 @@ public partial class QuickPasteTargetDialog
     }
 
     /// <summary>
-    /// Gets the target specification entered by the user.
+    /// Creates a dialog for a bad window title instead of a PROCESSNAME:CLASSNAME specification.
     /// </summary>
-    public string TargetSpecification { get; private set; } = string.Empty;
+    /// <param name="currentTitle">The title to edit, or empty to add one.</param>
+    public static QuickPasteTargetDialog ForWindowTitle(string currentTitle = "")
+    {
+        var dialog = new QuickPasteTargetDialog(currentTitle);
+        dialog.SpecificationHelp.Visibility = Visibility.Collapsed;
+        dialog.TitleHelp.Visibility = Visibility.Visible;
+        dialog.TargetItem.Label = "Title:";
+
+        return dialog;
+    }
+
+    /// <summary>
+    /// Gets what the user entered: a PROCESSNAME:CLASSNAME specification, or a window title in
+    /// <see cref="ForWindowTitle" /> mode.
+    /// </summary>
+    public string EnteredText { get; private set; } = string.Empty;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -34,7 +49,7 @@ public partial class QuickPasteTargetDialog
         TargetTextBox.SelectAll();
     }
 
-    private void OkButton_Click(object sender, RoutedEventArgs e) => TargetSpecification = TargetTextBox.Text?.Trim() ?? string.Empty;
+    private void OkButton_Click(object sender, RoutedEventArgs e) => EnteredText = TargetTextBox.Text?.Trim() ?? string.Empty;
 
     private void TargetTextBox_EditValueChanged(object sender, EditValueChangedEventArgs e)
     {

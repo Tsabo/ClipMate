@@ -35,6 +35,8 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
     private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
+    private readonly IPasteTarget _pasteTarget;
+    private readonly IPasteTargetTracker _pasteTargetTracker;
     private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IServiceProvider _serviceProvider;
@@ -80,6 +82,8 @@ public partial class MainMenuViewModel : ObservableObject,
         IAutoAppendService autoAppendService,
         IPowerPasteService powerPasteService,
         IQuickPasteService quickPasteService,
+        IPasteTarget pasteTarget,
+        IPasteTargetTracker pasteTargetTracker,
         IServiceProvider serviceProvider,
         ClipListViewModel? clipListViewModel = null,
         CollectionTreeViewModel? collectionTreeViewModel = null)
@@ -91,6 +95,8 @@ public partial class MainMenuViewModel : ObservableObject,
         _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
+        _pasteTargetTracker = pasteTargetTracker ?? throw new ArgumentNullException(nameof(pasteTargetTracker));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _clipListViewModel = clipListViewModel;
         _collectionTreeViewModel = collectionTreeViewModel;
@@ -899,8 +905,8 @@ public partial class MainMenuViewModel : ObservableObject,
     [RelayCommand]
     private void ToggleTargetLock()
     {
-        var isLocked = _quickPasteService.IsTargetLocked();
-        _quickPasteService.SetTargetLock(!isLocked);
+        var isLocked = _pasteTarget.IsLocked;
+        _pasteTargetTracker.SetLocked(!isLocked);
         IsTargetLocked = !isLocked;
     }
 

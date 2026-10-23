@@ -70,7 +70,7 @@ public class ConfigurationServiceTests
 
         // Assert - should have created a configuration (validation doesn't run on new files)
         await Assert.That(config).IsNotNull();
-        await Assert.That(config.Version).IsEqualTo(1);
+        await Assert.That(config.Version).IsEqualTo(ConfigurationUpgrader.CurrentVersion);
         await Assert.That(config.Preferences).IsNotNull();
         await Assert.That(config.Hotkeys).IsNotNull();
 
@@ -176,6 +176,31 @@ public class ConfigurationServiceTests
         // Assert
         await Assert.That(service.Configuration.ApplicationProfiles.ContainsKey("NOTEPAD")).IsTrue();
         await Assert.That(service.Configuration.ApplicationProfiles["NOTEPAD"].Formats.ContainsKey("TEXT")).IsTrue();
+    }
+
+    [Test]
+    public async Task LoadAsync_OlderSettings_AddsCtfmonOnceAndSavesTheUpgrade()
+    {
+        // Arrange: version 1 settings whose BAD list predates CTFMON:
+        var service = await CreateServiceWithValidConfigurationAsync();
+        service.Configuration.Version = 1;
+        service.Configuration.Preferences.QuickPasteBadTargets = ["EXPLORER:SHELL_TRAYWND"];
+        await service.SaveAsync();
+
+        // Act: load (which upgrades and saves), then delete CTFMON: as a user may, and load again
+        var upgraded = await new ConfigurationService(_testConfigDirectory, _logger).LoadAsync();
+        var reloaded = await new ConfigurationService(_testConfigDirectory, _logger).LoadAsync();
+        var edited = new ConfigurationService(_testConfigDirectory, _logger);
+        await edited.LoadAsync();
+        edited.Configuration.Preferences.QuickPasteBadTargets = ["EXPLORER:SHELL_TRAYWND"];
+        await edited.SaveAsync();
+        var afterDeletion = await new ConfigurationService(_testConfigDirectory, _logger).LoadAsync();
+
+        // Assert
+        await Assert.That(upgraded.Preferences.QuickPasteBadTargets).IsEquivalentTo(new[] { "EXPLORER:SHELL_TRAYWND", "CTFMON:" });
+        await Assert.That(upgraded.Version).IsEqualTo(ConfigurationUpgrader.CurrentVersion);
+        await Assert.That(reloaded.Preferences.QuickPasteBadTargets).Contains("CTFMON:");
+        await Assert.That(afterDeletion.Preferences.QuickPasteBadTargets).IsEquivalentTo(new[] { "EXPLORER:SHELL_TRAYWND" });
     }
 
     [Test]

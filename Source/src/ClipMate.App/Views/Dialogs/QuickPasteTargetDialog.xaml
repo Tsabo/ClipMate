@@ -26,16 +26,20 @@
 
         <!-- Instruction Text -->
         <dxlc:LayoutItem>
-            <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">
-                <Run Text="Enter the target specification in the format: " />
-                <Run FontWeight="Bold" Text="PROCESSNAME:CLASSNAME" />
-                <LineBreak />
-                <Run Text="Leave CLASSNAME blank to target all windows from the process." />
-            </TextBlock>
+            <Grid Margin="0,0,0,12">
+                <TextBlock x:Name="SpecificationHelp" TextWrapping="Wrap">
+                    <Run Text="Enter the target specification in the format: " />
+                    <Run FontWeight="Bold" Text="PROCESSNAME:CLASSNAME" />
+                    <LineBreak />
+                    <Run Text="Leave CLASSNAME blank to target all windows from the process." />
+                </TextBlock>
+                <TextBlock x:Name="TitleHelp" TextWrapping="Wrap" Visibility="Collapsed"
+                           Text="Enter a window title. Windows whose title starts with it (ignoring case) are never the Paste Target." />
+            </Grid>
         </dxlc:LayoutItem>
 
         <!-- Target Input -->
-        <dxlc:LayoutItem Label="Target:" LabelPosition="Left">
+        <dxlc:LayoutItem x:Name="TargetItem" Label="Target:" LabelPosition="Left">
             <dxe:TextEdit x:Name="TargetTextBox"
                           EditValueChanged="TargetTextBox_EditValueChanged" />
         </dxlc:LayoutItem>

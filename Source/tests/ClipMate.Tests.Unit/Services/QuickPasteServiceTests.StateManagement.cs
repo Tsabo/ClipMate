@@ -5,56 +5,6 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class QuickPasteServiceTests
 {
     [Test]
-    public async Task GetCurrentTarget_ReturnsNull_WhenNoTargetSet()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var target = service.GetCurrentTarget();
-
-        // Assert
-        await Assert.That(target).IsNull();
-    }
-
-    [Test]
-    public async Task SetTargetLock_SetsLockState()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        service.SetTargetLock(true);
-
-        // Assert
-        await Assert.That(service.IsTargetLocked()).IsTrue();
-    }
-
-    [Test]
-    public async Task IsTargetLocked_ReturnsFalse_Initially()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act & Assert
-        await Assert.That(service.IsTargetLocked()).IsFalse();
-    }
-
-    [Test]
-    public async Task SetTargetLock_CanBeToggledOff()
-    {
-        // Arrange
-        var service = CreateService();
-        service.SetTargetLock(true);
-
-        // Act
-        service.SetTargetLock(false);
-
-        // Assert
-        await Assert.That(service.IsTargetLocked()).IsFalse();
-    }
-
-    [Test]
     public async Task GetGoBackState_ReturnsTrue_Initially()
     {
         // Arrange
@@ -140,18 +90,5 @@ public partial class QuickPasteServiceTests
 
         // Assert
         await Assert.That(service.GetSelectedFormattingString()).IsNull();
-    }
-
-    [Test]
-    public async Task GetCurrentTargetString_ReturnsEmpty_WhenNoTargetSet()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act
-        var targetString = service.GetCurrentTargetString();
-
-        // Assert
-        await Assert.That(targetString).IsEqualTo(string.Empty);
     }
 }
