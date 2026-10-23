@@ -106,7 +106,10 @@ public class AppFixture : IAsyncDisposable
 
     private string LogDirectory => Path.Combine(DataDirectory, "Logs");
 
-    private string ReadLog()
+    /// <summary>
+    /// Everything the isolated ClipMate has logged so far.
+    /// </summary>
+    public string ReadLog()
     {
         if (!Directory.Exists(LogDirectory))
             return string.Empty;

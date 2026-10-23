@@ -1,4 +1,5 @@
 using Windows.Win32.Foundation;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -146,6 +147,81 @@ public class ClipboardServiceTests : TestFixtureBase
         // Assert
         // Channel should be completed
         await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_TextClipWithRtfAndHtml_ReturnsEveryFormatAsACopyWouldOfferIt()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.RichText,
+            TextContent = "Hello",
+            RtfContent = @"{\rtf1 Hello}",
+            HtmlContent = "Version:0.9\r\n<b>Hello</b>",
+        };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        var unicodeText = formats.Single(p => p.FormatId == (uint)Formats.UnicodeText.Code);
+        await Assert.That(System.Text.Encoding.Unicode.GetString(unicodeText.Data).TrimEnd('\0')).IsEqualTo("Hello");
+        await Assert.That(formats.Any(p => p.FormatId == System.Windows.DataFormats.GetDataFormat(System.Windows.DataFormats.Rtf).Id)).IsTrue();
+        await Assert.That(formats.Any(p => p.FormatId == System.Windows.DataFormats.GetDataFormat(System.Windows.DataFormats.Html).Id)).IsTrue();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_ImageClip_IncludesADibAndTheOriginalPng()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Image, ImageData = CreatePng(3, 2) };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        var dib = formats.Single(p => p.FormatId == (uint)Formats.Dib.Code).Data;
+        await Assert.That(BitConverter.ToInt32(dib, 4)).IsEqualTo(3); // biWidth
+        await Assert.That(BitConverter.ToInt32(dib, 8)).IsEqualTo(2); // biHeight
+        await Assert.That(dib.Length).IsEqualTo(40 + 3 * 2 * 4);
+        await Assert.That(formats.Single(p => p.FormatId == System.Windows.DataFormats.GetDataFormat("PNG").Id).Data).IsEquivalentTo(clip.ImageData);
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_FilesClip_IncludesTheFileDropList()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Files,
+            FilePathsJson = System.Text.Json.JsonSerializer.Serialize(new[] { Environment.ProcessPath! }),
+        };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        await Assert.That(formats.Any(p => p.FormatId == (uint)Formats.HDrop.Code)).IsTrue();
+    }
+
+    private static byte[] CreatePng(int width, int height)
+    {
+        var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
+            new byte[width * height * 4], width * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
     }
 
     /// <summary>

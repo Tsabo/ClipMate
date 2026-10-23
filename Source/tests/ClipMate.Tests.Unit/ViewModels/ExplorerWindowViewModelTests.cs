@@ -50,6 +50,7 @@ public class ExplorerWindowViewModelTests
             mockFolderService,
             mockClipService,
             mockQuickPasteService,
+            new PowerPasteStatus(),
             mockContextFactory,
             A.Fake<IRemoteDatabaseService>(),
             mockMessenger,
@@ -87,6 +88,7 @@ public class ExplorerWindowViewModelTests
         var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService, mockAboutLogger);
         A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(A.Fake<IActiveWindowService>());
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(MainMenuViewModelDatabaseTestsHelpers.CreateConfigServiceMock());
 
         var mockMenuMessenger = A.Fake<IMessenger>();
         var mockClipViewerWindowManager = A.Fake<IClipViewerWindowManager>();
@@ -108,7 +110,6 @@ public class ExplorerWindowViewModelTests
             quickPasteToolbarVm,
             mainMenuViewModel,
             mockQuickPasteService,
-            A.Fake<IPowerPasteService>(),
             mockCollectionService,
             mockFolderService,
             A.Fake<ITemplateService>(),

@@ -15,6 +15,7 @@ public partial class PowerPasteServiceTests
     private IConfigurationService _mockConfigService = null!;
     private ILogger<PowerPasteService> _mockLogger = null!;
     private ISoundService _mockSoundService = null!;
+    private PowerPasteStatus _status = null!;
 
     [Before(Test)]
     public void Setup()
@@ -22,6 +23,7 @@ public partial class PowerPasteServiceTests
         _mockLogger = A.Fake<ILogger<PowerPasteService>>();
         _mockConfigService = A.Fake<IConfigurationService>();
         _mockSoundService = A.Fake<ISoundService>();
+        _status = new PowerPasteStatus();
 
         // Configure sound service to return completed task (with or without cancellation token)
         A.CallTo(() => _mockSoundService.PlaySoundAsync(A<SoundEvent>.Ignored))
@@ -45,10 +47,18 @@ public partial class PowerPasteServiceTests
         A.CallTo(() => _mockConfigService.Configuration).Returns(config);
     }
 
-    private PowerPasteService CreateService() => new(
+    private PowerPasteService CreateService(TimeProvider? timeProvider = null) => new(
         _mockConfigService,
         _mockSoundService,
-        _mockLogger);
+        _mockLogger,
+        _status,
+        timeProvider);
+
+    private void UseConfiguration(PreferencesConfiguration preferences) =>
+        A.CallTo(() => _mockConfigService.Configuration).Returns(new ClipMateConfiguration { Preferences = preferences });
+
+    private int CompleteSoundCount() =>
+        Fake.GetCalls(_mockSoundService).Count(p => p.Method.Name == nameof(ISoundService.PlaySoundAsync) && Equals(p.Arguments[0], SoundEvent.PowerPasteComplete));
 
     private static Clip CreateTestClip(string textContent,
         Guid? id = null,

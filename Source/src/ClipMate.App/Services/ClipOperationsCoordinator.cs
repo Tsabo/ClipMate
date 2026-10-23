@@ -9,6 +9,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,9 +67,6 @@ public class ClipOperationsCoordinator :
     // Guard flag to prevent infinite decryption loop
     private bool _isDecryptingClip;
 
-    // Track which clips PowerPaste was started with
-    private HashSet<Guid> _powerPasteClipIds = [];
-
     public ClipOperationsCoordinator(IActiveWindowService activeWindowService,
         ClipListViewModel clipListViewModel,
         CollectionTreeViewModel collectionTreeViewModel,
@@ -121,6 +119,9 @@ public class ClipOperationsCoordinator :
         _messenger.Register<ConvertFilePointerRequestedEvent>(this);
         _messenger.Register<MoveClipSortOrderRequestedEvent>(this);
 
+        // The clip list shows the clip waiting to be pasted
+        _powerPasteService.PositionChanged += OnPowerPastePositionChanged;
+
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
     }
 
@@ -167,22 +168,26 @@ public class ClipOperationsCoordinator :
     }
 
     /// <summary>
-    /// Handles ClipSelectedEvent to stop PowerPaste when user selects a different clip.
-    /// Also handles automatic decryption of encrypted clips.
+    /// Handles ClipSelectedEvent: while PowerPaste is active, picking a clip of its sequence moves the sequence to it
+    /// and picking any other clip stops it. Also handles automatic decryption of encrypted clips.
     /// </summary>
     public async void Receive(ClipSelectedEvent message)
     {
-        // Stop PowerPaste when user selects a clip that's not part of the current PowerPaste sequence
+        // Selections PowerPaste makes itself (following the sequence) are not the user's
         if (_powerPasteService.State == PowerPasteState.Active
-            && message.SelectedClip != null
-            && !_powerPasteClipIds.Contains(message.SelectedClip.Id))
+            && message is { IsUserSelection: true, SelectedClip: not null })
         {
-            _logger.LogInformation("Stopping PowerPaste - user selected clip outside PowerPaste sequence (ClipId={ClipId})",
-                message.SelectedClip.Id);
+            if (_powerPasteService.MoveTo(message.SelectedClip.Id))
+                SendStatus("PowerPaste moved to the selected clip");
+            else
+            {
+                _logger.LogInformation("Stopping PowerPaste - user selected clip outside PowerPaste sequence (ClipId={ClipId})",
+                    message.SelectedClip.Id);
 
-            _powerPasteService.Stop();
-            _powerPasteClipIds.Clear();
-            SendStatus("PowerPaste stopped - different clip selected");
+                // The picked clip is copied next, so the waiting clip is not put back
+                _powerPasteService.Stop(false);
+                SendStatus("PowerPaste stopped - different clip selected");
+            }
         }
 
         // Handle encrypted clip selection
@@ -1098,30 +1103,7 @@ public class ClipOperationsCoordinator :
     /// <summary>
     /// Handles PowerPasteDownRequestedEvent to start PowerPaste in downward direction.
     /// </summary>
-    public async void Receive(PowerPasteDownRequestedEvent message)
-    {
-        var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
-
-        if (selectedClips.Count == 0)
-        {
-            SendStatus("No clips selected for PowerPaste");
-            return;
-        }
-
-        try
-        {
-            await HydrateClipsForPowerPasteAsync(selectedClips);
-            await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Down);
-            _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Down";
-            _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
-            SendStatus($"PowerPaste Down started with {selectedClips.Count} clip(s)");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to start PowerPaste Down");
-            SendStatus("Error starting PowerPaste", true);
-        }
-    }
+    public async void Receive(PowerPasteDownRequestedEvent message) => await StartPowerPasteAsync(PowerPasteDirection.Down);
 
     /// <summary>
     /// Handles PowerPasteToggleRequestedEvent to toggle PowerPaste state.
@@ -1129,78 +1111,38 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(PowerPasteToggleRequestedEvent message)
     {
-        var config = _configurationService.Configuration.Preferences;
-
-        // If PowerPaste is active, cycle to next state
-        if (_powerPasteService.State == PowerPasteState.Active)
+        if (_powerPasteService.State != PowerPasteState.Active)
         {
-            if (_powerPasteService.Direction == PowerPasteDirection.Down)
-            {
-                // Down → Up: Change direction to Up
-                _logger.LogInformation("PowerPaste direction changed from Down to Up");
-
-                // Stop current PowerPaste
-                _powerPasteService.Stop();
-
-                // Start with Up direction
-                var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
-                if (selectedClips.Count <= 0)
-                    return;
-
-                try
-                {
-                    await HydrateClipsForPowerPasteAsync(selectedClips);
-                    await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
-                    config.PowerPasteLastDirection = "Up";
-                    _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
-                    SendStatus("PowerPaste direction changed to Up");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to restart PowerPaste with Up direction");
-                    SendStatus("Error changing PowerPaste direction", true);
-                }
-            }
-            else
-            {
-                // Up → Off: Stop PowerPaste
-                _logger.LogInformation("PowerPaste stopped via toggle");
-                _powerPasteService.Stop();
-                _powerPasteClipIds.Clear();
-                SendStatus("PowerPaste stopped");
-            }
+            // Off → Down
+            await StartPowerPasteAsync(PowerPasteDirection.Down);
 
             return;
         }
 
-        // Off → Down: Start PowerPaste in Down direction
-        var selectedClipsToStart = _clipListViewModel.GetSelectedClipsInDisplayOrder();
-
-        if (selectedClipsToStart.Count == 0)
+        if (_powerPasteService.Direction == PowerPasteDirection.Down)
         {
-            SendStatus("No clips selected for PowerPaste");
+            // Down → Up: restarting replaces the sequence without giving up the clipboard
+            _logger.LogInformation("PowerPaste direction changed from Down to Up");
+            await StartPowerPasteAsync(PowerPasteDirection.Up);
+
             return;
         }
 
-        try
-        {
-            await HydrateClipsForPowerPasteAsync(selectedClipsToStart);
-            await _powerPasteService.StartAsync(selectedClipsToStart, PowerPasteDirection.Down);
-            config.PowerPasteLastDirection = "Down";
-            _powerPasteClipIds = selectedClipsToStart.Select(p => p.Id).ToHashSet();
-            SendStatus($"PowerPaste started (Down) with {selectedClipsToStart.Count} clip(s)");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to start PowerPaste");
-            SendStatus("Error starting PowerPaste", true);
-        }
+        // Up → Off
+        _logger.LogInformation("PowerPaste stopped via toggle");
+        _powerPasteService.Stop();
+        SendStatus("PowerPaste stopped");
     }
 
     /// <summary>
     /// Handles PowerPasteUpRequestedEvent to start PowerPaste in upward direction.
     /// </summary>
-    public async void Receive(PowerPasteUpRequestedEvent message)
+    public async void Receive(PowerPasteUpRequestedEvent message) => await StartPowerPasteAsync(PowerPasteDirection.Up);
+
+    /// <summary>
+    /// Starts PowerPaste with the selected clips in on-screen order, exploding them if the Explode setting is on.
+    /// </summary>
+    private async Task StartPowerPasteAsync(PowerPasteDirection direction)
     {
         var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
@@ -1212,17 +1154,26 @@ public class ClipOperationsCoordinator :
 
         try
         {
+            var preferences = _configurationService.Configuration.Preferences;
             await HydrateClipsForPowerPasteAsync(selectedClips);
-            await _powerPasteService.StartAsync(selectedClips, PowerPasteDirection.Up);
-            _configurationService.Configuration.Preferences.PowerPasteLastDirection = "Up";
-            _powerPasteClipIds = selectedClips.Select(p => p.Id).ToHashSet();
-            SendStatus($"PowerPaste Up started with {selectedClips.Count} clip(s)");
+            await _powerPasteService.StartAsync(selectedClips, direction, preferences.PowerPasteExplode);
+            preferences.PowerPasteLastDirection = direction.ToString();
+            SendStatus($"PowerPaste {direction} started with {selectedClips.Count} clip(s)");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start PowerPaste Up");
+            _logger.LogError(ex, "Failed to start PowerPaste {Direction}", direction);
             SendStatus("Error starting PowerPaste", true);
         }
+    }
+
+    /// <summary>
+    /// Selects the clip waiting to be pasted in the clip list, without copying it or counting it as the user's pick.
+    /// </summary>
+    private void OnPowerPastePositionChanged(object? sender, PowerPastePositionChangedEventArgs e)
+    {
+        if (e.CurrentClip is { } clip)
+            UiThread.Run(() => _clipListViewModel.SelectClipWithoutCopying(clip.Id));
     }
 
     /// <summary>

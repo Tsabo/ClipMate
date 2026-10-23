@@ -122,8 +122,77 @@ public static partial class SystemClipboard
         return processId == process.Id;
     }
 
+    /// <summary>
+    /// Reads the clipboard's text the way an application pastes it: OpenClipboard with <paramref name="window" />
+    /// (IntPtr.Zero opens it without a window, as a background reader may), then GetClipboardData(CF_UNICODETEXT),
+    /// which makes a delayed-rendering owner render it. Null while another program holds the clipboard open or when
+    /// there is no text.
+    /// </summary>
+    public static string? TryReadText(IntPtr window)
+    {
+        const uint cfUnicodeText = 13;
+
+        if (!OpenClipboard(window))
+            return null;
+
+        try
+        {
+            var handle = GetClipboardData(cfUnicodeText);
+            if (handle == IntPtr.Zero)
+                return null;
+
+            var pointer = GlobalLock(handle);
+            try
+            {
+                return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUni(pointer);
+            }
+            finally
+            {
+                GlobalUnlock(handle);
+            }
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    /// <summary>
+    /// The title of the window that owns the clipboard's current content, empty if it has none.
+    /// </summary>
+    public static string GetOwnerWindowTitle()
+    {
+        var owner = GetClipboardOwner();
+        if (owner == IntPtr.Zero)
+            return string.Empty;
+
+        var buffer = new StringBuilder(256);
+        return GetWindowText(owner, buffer, buffer.Capacity) > 0 ? buffer.ToString() : string.Empty;
+    }
+
+    /// <summary>
+    /// Windows' count of clipboard changes; it moves on every change, including a re-registration by the owner.
+    /// </summary>
+    public static uint SequenceNumber => GetClipboardSequenceNumber();
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetClipboardSequenceNumber();
+
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetClipboardOwner();
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetClipboardData(uint format);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial IntPtr GlobalLock(IntPtr handle);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GlobalUnlock(IntPtr handle);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
     [LibraryImport("user32.dll")]
     private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);

@@ -56,9 +56,26 @@ public interface IPowerPasteService
     Task AdvanceToNextAsync();
 
     /// <summary>
+    /// Moves the sequence to a clip in it, so that clip is the next one pasted: its first Explode piece going down,
+    /// its last going up.
+    /// </summary>
+    /// <param name="clipId">The clip's ID.</param>
+    /// <returns>False if Power Paste is not active or the clip is not in the sequence.</returns>
+    bool MoveTo(Guid clipId);
+
+    /// <summary>
     /// Stops the current PowerPaste sequence.
     /// </summary>
     void Stop();
+
+    /// <summary>
+    /// Stops the current PowerPaste sequence.
+    /// </summary>
+    /// <param name="keepWaitingClip">
+    /// True to leave the clip that was waiting on the clipboard as a normal copy (the user stopped Power Paste); false
+    /// when something else is about to put its own content there (another copy, picking a clip outside the sequence).
+    /// </param>
+    void Stop(bool keepWaitingClip);
 
     /// <summary>
     /// Gets the current clip in the sequence.
@@ -108,6 +125,11 @@ public class PowerPasteStateChangedEventArgs : EventArgs
     public PowerPasteState NewState { get; init; }
     public PowerPasteDirection Direction { get; init; }
     public int TotalCount { get; init; }
+
+    /// <summary>
+    /// When Power Paste stops: true to leave the clip that was waiting on the clipboard as a normal copy.
+    /// </summary>
+    public bool KeepWaitingClip { get; init; }
 }
 
 /// <summary>
@@ -118,5 +140,9 @@ public class PowerPastePositionChangedEventArgs : EventArgs
     public int Position { get; init; }
     public int TotalCount { get; init; }
     public Clip? CurrentClip { get; init; }
-    public bool IsComplete { get; init; }
+
+    /// <summary>
+    /// True when <see cref="CurrentClip" /> is one piece of an exploded clip, which is pasted as plain text only.
+    /// </summary>
+    public bool IsExplodePiece { get; init; }
 }

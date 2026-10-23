@@ -53,9 +53,11 @@ ClipMate.UITests/
 │   └── CollectionTreePage.cs     # Collection tree via WPF Pilot
 ├── Tests/
 │   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
+│   ├── PowerPasteTests.cs                   # Runs: paste detection, and the clipboard after Power Paste ends
 │   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
 └── Fixtures/
     ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir) and waits for startup
+    ├── ForegroundTestWindow.cs   # A test window in the foreground, to paste as the user's application
     ├── Poll.cs                   # Waits on another process until a deadline
     └── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
 ```

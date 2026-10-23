@@ -13,6 +13,7 @@ GetPriorityClipboardFormat
 CountClipboardFormats
 EnumClipboardFormats
 RegisterClipboardFormatW
+GetOpenClipboardWindow
 RegisterHotKey
 UnregisterHotKey
 GetForegroundWindow

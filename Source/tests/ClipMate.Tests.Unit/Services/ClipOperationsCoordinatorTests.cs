@@ -4,6 +4,7 @@ using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Data;
@@ -50,6 +51,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             A.Fake<IFolderService>(),
             A.Fake<IClipService>(),
             A.Fake<IQuickPasteService>(),
+            new PowerPasteStatus(),
             A.Fake<IDatabaseContextFactory>(),
             A.Fake<IRemoteDatabaseService>(),
             A.Fake<IMessenger>(),
@@ -423,6 +425,111 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         // Assert
         A.CallTo(() => _mockClipService.CopyToLocalAsync(_remoteKey, clip.Id, "db_local01", targetCollectionId, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
+    }
+
+    #endregion
+
+    #region Power Paste
+
+    [Test]
+    public Task ClipSelectedEvent_UserPicksAClipInTheSequence_MovesTheSequenceToIt()
+    {
+        // Arrange
+        var clip = new Clip { Id = Guid.NewGuid() };
+        A.CallTo(() => _mockPowerPasteService.State).Returns(PowerPasteState.Active);
+        A.CallTo(() => _mockPowerPasteService.MoveTo(clip.Id)).Returns(true);
+
+        // Act
+        _coordinator.Receive(new ClipSelectedEvent(clip, "test-database-path"));
+
+        // Assert
+        A.CallTo(() => _mockPowerPasteService.MoveTo(clip.Id)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockPowerPasteService.Stop()).MustNotHaveHappened();
+        A.CallTo(() => _mockPowerPasteService.Stop(A<bool>.Ignored)).MustNotHaveHappened();
+
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task ClipSelectedEvent_UserPicksAClipOutsideTheSequence_StopsPowerPasteWithoutPuttingTheWaitingClipBack()
+    {
+        // Arrange
+        var clip = new Clip { Id = Guid.NewGuid() };
+        A.CallTo(() => _mockPowerPasteService.State).Returns(PowerPasteState.Active);
+        A.CallTo(() => _mockPowerPasteService.MoveTo(clip.Id)).Returns(false);
+
+        // Act
+        _coordinator.Receive(new ClipSelectedEvent(clip, "test-database-path"));
+
+        // Assert
+        // The picked clip is copied next; putting the waiting clip back would race with it
+        A.CallTo(() => _mockPowerPasteService.Stop(false)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockPowerPasteService.Stop()).MustNotHaveHappened();
+
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task ClipSelectedEvent_SelectionMadeByClipMate_LeavesPowerPasteAlone()
+    {
+        // Arrange - e.g. the clip list following the sequence
+        var clip = new Clip { Id = Guid.NewGuid() };
+        A.CallTo(() => _mockPowerPasteService.State).Returns(PowerPasteState.Active);
+
+        // Act
+        _coordinator.Receive(new ClipSelectedEvent(clip, "test-database-path", false));
+
+        // Assert
+        A.CallTo(() => _mockPowerPasteService.MoveTo(A<Guid>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => _mockPowerPasteService.Stop()).MustNotHaveHappened();
+        A.CallTo(() => _mockPowerPasteService.Stop(A<bool>.Ignored)).MustNotHaveHappened();
+
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public Task PowerPasteRequests_UseTheSavedExplodeSetting(bool explode)
+    {
+        // Arrange - menu, toolbar and Options all change PowerPasteExplode; every way of starting reads it
+        var config = new ClipMateConfiguration();
+        config.Preferences.PowerPasteExplode = explode;
+        A.CallTo(() => _mockConfigurationService.Configuration).Returns(config);
+        var clip = new Clip { Id = Guid.NewGuid(), TextContent = "a,b" };
+        _mockClipListViewModel.Clips.Add(clip);
+        _mockClipListViewModel.SelectedClips.Add(clip);
+
+        // Act
+        _coordinator.Receive(new PowerPasteDownRequestedEvent());
+        _coordinator.Receive(new PowerPasteUpRequestedEvent());
+        _coordinator.Receive(new PowerPasteToggleRequestedEvent());
+
+        // Assert
+        A.CallTo(() => _mockPowerPasteService.StartAsync(A<IReadOnlyList<Clip>>.Ignored, A<PowerPasteDirection>.Ignored, explode, A<CancellationToken>.Ignored))
+            .MustHaveHappened(3, Times.Exactly);
+
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public async Task PowerPastePositionChanged_SelectsTheWaitingClipInTheList()
+    {
+        // Arrange
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        _mockClipListViewModel.Clips.Add(first);
+        _mockClipListViewModel.Clips.Add(second);
+
+        // Act - an Explode piece is a copy of its clip with the same ID
+        _mockPowerPasteService.PositionChanged += Raise.With(new PowerPastePositionChangedEventArgs
+        {
+            CurrentClip = new Clip { Id = second.Id, TextContent = "piece" },
+            IsExplodePiece = true,
+        });
+
+        // Assert
+        await Assert.That(_mockClipListViewModel.SelectedClip).IsEqualTo(second);
     }
 
     #endregion

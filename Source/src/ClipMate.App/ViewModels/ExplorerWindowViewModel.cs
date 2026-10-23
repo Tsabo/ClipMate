@@ -29,7 +29,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private readonly IFolderService _folderService;
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
-    private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
     private readonly ITemplateService _templateService;
 
@@ -40,7 +39,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         QuickPasteToolbarViewModel quickPasteToolbarViewModel,
         MainMenuViewModel mainMenuViewModel,
         IQuickPasteService quickPasteService,
-        IPowerPasteService powerPasteService,
         ICollectionService collectionService,
         IFolderService folderService,
         ITemplateService templateService,
@@ -54,7 +52,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
         QuickPasteToolbarViewModel = quickPasteToolbarViewModel ?? throw new ArgumentNullException(nameof(quickPasteToolbarViewModel));
         MainMenu = mainMenuViewModel ?? throw new ArgumentNullException(nameof(mainMenuViewModel));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
-        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
@@ -565,118 +562,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
 
     [ObservableProperty]
     private double _primaryClipListHeight = 350;
-
-    #endregion
-
-    #region PowerPaste
-
-    /// <summary>
-    /// Indicates whether PowerPaste is currently active.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isPowerPasteActive;
-
-    /// <summary>
-    /// Current PowerPaste direction (Up or Down).
-    /// </summary>
-    [ObservableProperty]
-    private string _powerPasteDirection = "Up";
-
-    /// <summary>
-    /// Toggles PowerPaste on/off with direction cycling.
-    /// First click: activate with last direction
-    /// Second click (no paste): flip direction
-    /// Click after pasting: deactivate
-    /// </summary>
-    [RelayCommand]
-    private async Task PowerPasteToggle()
-    {
-        if (!IsPowerPasteActive)
-        {
-            // Activate PowerPaste with last used direction
-            await StartPowerPasteAsync(PowerPasteDirection);
-        }
-        else
-        {
-            // TODO: Check if user has pasted anything
-            // For now, just toggle direction
-            PowerPasteDirection = PowerPasteDirection == "Up"
-                ? "Down"
-                : "Up";
-
-            _logger?.LogInformation("PowerPaste direction changed to {Direction}", PowerPasteDirection);
-        }
-    }
-
-    /// <summary>
-    /// Starts PowerPaste in Up direction.
-    /// </summary>
-    [RelayCommand]
-    private async Task PowerPasteUp()
-    {
-        PowerPasteDirection = "Up";
-        await StartPowerPasteAsync("Up");
-    }
-
-    /// <summary>
-    /// Starts PowerPaste in Down direction.
-    /// </summary>
-    [RelayCommand]
-    private async Task PowerPasteDown()
-    {
-        PowerPasteDirection = "Down";
-        await StartPowerPasteAsync("Down");
-    }
-
-    /// <summary>
-    /// Starts PowerPaste with the selected clips.
-    /// </summary>
-    private async Task StartPowerPasteAsync(string direction)
-    {
-        try
-        {
-            _logger?.LogInformation("Starting PowerPaste in {Direction} direction, Explode={Explode}, Loop={Loop}",
-                direction, MainMenu.IsExplodeMode, MainMenu.IsLoopMode);
-
-            // Get the selected clip(s) from ClipListView, in on-screen top-to-bottom order -
-            // Up/Down direction only makes sense relative to that, not the grid's arbitrary
-            // selection-reporting order. Try multi-selection first, fall back to single selection.
-            IReadOnlyList<Clip> selectedClips;
-            if (PrimaryClipList.SelectedClips.Count > 0)
-                selectedClips = PrimaryClipList.GetSelectedClipsInDisplayOrder();
-            else if (PrimaryClipList.SelectedClip != null)
-                selectedClips = [PrimaryClipList.SelectedClip];
-            else
-            {
-                _logger?.LogWarning("No clip selected for PowerPaste");
-                SetStatus("Select a clip to start PowerPaste");
-                return;
-            }
-
-            // Clips from the grid only carry metadata - hydrate full content before PowerPaste
-            // inspects it (e.g. to decide whether a clip has text to paste)
-            foreach (var clip in selectedClips)
-                await PrimaryClipList.LoadBlobDataAsync(clip);
-
-            // Start PowerPaste
-            var powerPasteDirection = direction == "Up"
-                ? Core.Services.PowerPasteDirection.Up
-                : Core.Services.PowerPasteDirection.Down;
-
-            await _powerPasteService.StartAsync(
-                selectedClips,
-                powerPasteDirection,
-                MainMenu.IsExplodeMode);
-
-            IsPowerPasteActive = true;
-            SetStatus($"PowerPaste active ({direction}) - Paste to advance");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to start PowerPaste");
-            SetStatus("Error starting PowerPaste");
-        }
-    }
 
     #endregion
 

@@ -13,10 +13,12 @@ public class ClipSelectedEvent
     /// </summary>
     /// <param name="selectedClip">The selected clip, or null if cleared.</param>
     /// <param name="databaseKey">The database key where the clip is stored.</param>
-    public ClipSelectedEvent(Clip? selectedClip, string? databaseKey = null)
+    /// <param name="isUserSelection">False when ClipMate selected the clip itself (loading a list, a new capture, following Power Paste).</param>
+    public ClipSelectedEvent(Clip? selectedClip, string? databaseKey = null, bool isUserSelection = true)
     {
         SelectedClip = selectedClip;
         DatabaseKey = databaseKey;
+        IsUserSelection = isUserSelection;
     }
 
     /// <summary>
@@ -28,4 +30,10 @@ public class ClipSelectedEvent
     /// The database key where the clip is stored, or null if no clip is selected.
     /// </summary>
     public string? DatabaseKey { get; }
+
+    /// <summary>
+    /// True when the user picked the clip; false when ClipMate selected it itself (loading a list, a new capture,
+    /// following Power Paste), which does not copy it to the clipboard.
+    /// </summary>
+    public bool IsUserSelection { get; }
 }

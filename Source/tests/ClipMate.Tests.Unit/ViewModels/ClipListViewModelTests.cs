@@ -40,12 +40,62 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            new PowerPasteStatus(),
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,
             _mockLogger);
 
         await Assert.That(viewModel.IsListView).IsTrue();
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_ClipInList_SelectsIt()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var waiting = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+        viewModel.Clips.Add(waiting);
+
+        // Act
+        viewModel.SelectClipWithoutCopying(waiting.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(waiting);
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_WithSeveralRowsSelected_KeepsThemAllSelected()
+    {
+        // Arrange - the Power Paste sequence is the selected rows; a restart in the other direction reads them again
+        var viewModel = CreateViewModel();
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(first);
+        viewModel.Clips.Add(second);
+        viewModel.SelectedClips.Add(first);
+        viewModel.SelectedClips.Add(second);
+
+        // Act
+        viewModel.SelectClipWithoutCopying(second.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(second);
+        await Assert.That(viewModel.GetSelectedClipsInDisplayOrder()).IsEquivalentTo(new[] { first, second });
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_ClipNotInList_KeepsTheSelection()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.SelectClipWithoutCopying(Guid.NewGuid());
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsNull();
     }
 
     [Test]
@@ -56,6 +106,7 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            new PowerPasteStatus(),
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,
@@ -265,6 +316,7 @@ public class ClipListViewModelTests
         _mockFolderService,
         _mockClipService,
         _mockQuickPasteService,
+        new PowerPasteStatus(),
         _mockContextFactory,
         _mockRemoteDatabases,
         _mockMessenger,
@@ -281,6 +333,7 @@ public class ClipListViewModelTests
             _mockFolderService,
             _mockClipService,
             _mockQuickPasteService,
+            new PowerPasteStatus(),
             _mockContextFactory,
             _mockRemoteDatabases,
             _mockMessenger,

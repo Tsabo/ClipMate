@@ -36,11 +36,7 @@ public class ClipListPage(Process app)
     /// </summary>
     public AutomationElement? FindRow(string text)
     {
-        var window = AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
-            new PropertyCondition(AutomationElement.NameProperty, _mainWindowTitle)));
-
-        return window?.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem))
+        return MainWindow()?.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.DataItem))
             .Cast<AutomationElement>()
             .FirstOrDefault(p => p.Current.Name.Contains(text, StringComparison.OrdinalIgnoreCase));
     }
@@ -50,6 +46,39 @@ public class ClipListPage(Process app)
     /// </summary>
     public Task<AutomationElement> WaitForRowAsync(string text) =>
         Poll.UntilAsync(() => FindRow(text), $"a clip containing \"{text}\" in the clip list");
+
+    /// <summary>
+    /// Adds the row containing <paramref name="text" /> to the selection, as Ctrl+click does.
+    /// </summary>
+    public async Task AddToSelectionAsync(string text)
+    {
+        var row = await WaitForRowAsync(text);
+        ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).AddToSelection();
+    }
+
+    /// <summary>
+    /// True when the row containing <paramref name="text" /> is listed and selected.
+    /// </summary>
+    public bool IsSelected(string text) =>
+        FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
+
+    /// <summary>
+    /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste").
+    /// </summary>
+    public void ClickToolbarButton(string name)
+    {
+        var button = MainWindow()?.FindFirst(TreeScope.Descendants, new AndCondition(
+                         new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                         new PropertyCondition(AutomationElement.NameProperty, name)))
+                     ?? throw new InvalidOperationException($"No toolbar button named \"{name}\"");
+
+        ((InvokePattern)button.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+    }
+
+    private AutomationElement? MainWindow() =>
+        AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
+            new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
+            new PropertyCondition(AutomationElement.NameProperty, _mainWindowTitle)));
 
     /// <summary>
     /// Selects the row containing <paramref name="text" />, which copies that clip to the clipboard.

@@ -155,10 +155,21 @@ public class TemplateService : ITemplateService
     }
 
     /// <inheritdoc />
+    public string? PreviewTemplateText(Clip clip) =>
+        ActiveTemplate == null || !IsTemplatable(clip)
+            ? null
+            : MergeClipWithTemplate(ActiveTemplate, clip, _sequenceCounter);
+
+    /// <inheritdoc />
+    public void AdvanceSequence() => _sequenceCounter++;
+
+    // Only text-based clips (Text, RichText, and Html) take a template
+    private static bool IsTemplatable(Clip clip) => clip.Type is ClipType.Text or ClipType.Html or ClipType.RichText;
+
+    /// <inheritdoc />
     public Clip? TryApplyTemplate(Clip clip)
     {
-        // Only apply templates to text-based clips (Text, RichText, and Html)
-        if (ActiveTemplate == null || clip.Type != ClipType.Text && clip.Type != ClipType.Html && clip.Type != ClipType.RichText)
+        if (ActiveTemplate == null || !IsTemplatable(clip))
             return null;
 
         var mergedText = MergeClipWithTemplate(ActiveTemplate, clip, _sequenceCounter);

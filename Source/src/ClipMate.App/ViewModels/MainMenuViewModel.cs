@@ -33,6 +33,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly ClipListViewModel? _clipListViewModel;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
+    private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
@@ -51,12 +52,6 @@ public partial class MainMenuViewModel : ObservableObject,
     /// </summary>
     [ObservableProperty]
     private bool _hasMultipleDatabases;
-
-    [ObservableProperty]
-    private bool _isExplodeMode;
-
-    [ObservableProperty]
-    private bool _isLoopMode;
 
     /// <summary>
     /// Gets or sets whether outbound clip filtering is enabled.
@@ -102,6 +97,10 @@ public partial class MainMenuViewModel : ObservableObject,
 
         // Subscribe to PowerPaste state changes to update icon
         _powerPasteService.StateChanged += OnPowerPasteStateChanged;
+
+        // Explode and Loop can also be changed on the Options dialog
+        _configurationService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        _configurationService.Saved += OnConfigurationSaved;
 
         // Register for state refresh notifications
         _messenger.Register(this);
@@ -158,6 +157,25 @@ public partial class MainMenuViewModel : ObservableObject,
     }
 
     /// <summary>
+    /// Gets or sets whether Power Paste explodes clips into pieces: the saved PowerPasteExplode setting, which the menu,
+    /// the toolbar and the Options dialog all show and every way of starting Power Paste uses.
+    /// </summary>
+    public bool IsExplodeMode
+    {
+        get => _configurationService.Configuration.Preferences.PowerPasteExplode;
+        set => SetPowerPastePreference(IsExplodeMode, value, p => p.PowerPasteExplode = value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether Power Paste starts over at the end of the sequence: the saved PowerPasteLoop setting.
+    /// </summary>
+    public bool IsLoopMode
+    {
+        get => _configurationService.Configuration.Preferences.PowerPasteLoop;
+        set => SetPowerPastePreference(IsLoopMode, value, p => p.PowerPasteLoop = value);
+    }
+
+    /// <summary>
     /// Gets the collection of loaded databases for dynamic menu generation.
     /// </summary>
     public ObservableCollection<DatabaseMenuItemViewModel> LoadedDatabases { get; } = [];
@@ -169,6 +187,22 @@ public partial class MainMenuViewModel : ObservableObject,
     {
         _messenger.UnregisterAll(this);
         _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
+        _configurationService.Saved -= OnConfigurationSaved;
+    }
+
+    private void SetPowerPastePreference(bool oldValue, bool newValue, Action<PreferencesConfiguration> apply)
+    {
+        if (oldValue == newValue)
+            return;
+
+        apply(_configurationService.Configuration.Preferences);
+        _ = _configurationService.SaveAsync();
+    }
+
+    private void OnConfigurationSaved(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(IsExplodeMode));
+        OnPropertyChanged(nameof(IsLoopMode));
     }
 
     /// <summary>

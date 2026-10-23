@@ -51,6 +51,14 @@ public interface IClipboardService
     Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The Formats that <see cref="SetClipboardContentAsync" /> would put on the clipboard for a clip, as raw data,
+    /// without touching the clipboard. Used by Power Paste to offer the clip by delayed rendering. Call on the UI thread.
+    /// </summary>
+    /// <param name="clip">The clip, with its content loaded.</param>
+    /// <returns>One entry per clipboard format, empty if the clip has nothing to put on the clipboard.</returns>
+    IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip);
+
+    /// <summary>
     /// Suspends reacting to clipboard change notifications without stopping monitoring or
     /// completing the clips channel. Used by features (e.g. PowerPaste) that repeatedly modify
     /// the clipboard themselves and would otherwise have those changes misread as new captures.

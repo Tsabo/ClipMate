@@ -95,7 +95,6 @@ public partial class PowerPasteServiceTests
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
         await Assert.That(service.CurrentPosition).IsEqualTo(0);
-        A.CallTo(() => _mockSoundService.PlaySoundAsync(SoundEvent.PowerPasteComplete, A<CancellationToken>.Ignored)).MustHaveHappened(2, Times.Exactly);
     }
 
     [Test]

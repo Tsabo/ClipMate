@@ -22,7 +22,7 @@ public class ClipListViewModelRemoteSearchTests
     private readonly IRemoteDatabaseService _remoteDatabases = A.Fake<IRemoteDatabaseService>();
 
     private ClipListViewModel CreateViewModel() => new(_collectionService, _folderService, A.Fake<IClipService>(), A.Fake<IQuickPasteService>(),
-        A.Fake<IDatabaseContextFactory>(), _remoteDatabases, A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
+        new PowerPasteStatus(), A.Fake<IDatabaseContextFactory>(), _remoteDatabases, A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
 
     [Test]
     public async Task Receive_RemoteSearchResultsSelected_ShowsTheCachedMatchesReadOnlyAndHowManyOfTheTotal()
