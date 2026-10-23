@@ -28,6 +28,7 @@ public class MainMenuViewModelDatabaseTests : TestFixtureBase
         var mockServiceProvider = A.Fake<IServiceProvider>();
         A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(A.Fake<IActiveWindowService>());
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(MainMenuViewModelDatabaseTestsHelpers.CreateConfigServiceMock());
 
         _viewModel = new MainMenuViewModel(
             _messengerMock,

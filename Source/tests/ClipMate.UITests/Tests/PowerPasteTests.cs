@@ -36,7 +36,7 @@ public class PowerPasteTests(AppFixture appFixture)
         try
         {
             // Arrange: Power Paste Down over both clips; the newer one is listed first, so it waits first
-            await StartPowerPasteOverBothClipsAsync();
+            var clipList = await StartPowerPasteOverBothClipsAsync();
 
             // Act: a background read, as clipboard history or another clipboard manager makes
             var backgroundRead = SystemClipboard.TryReadText(IntPtr.Zero);
@@ -51,20 +51,21 @@ public class PowerPasteTests(AppFixture appFixture)
             using var target = await ForegroundTestWindow.OpenAsync();
             var pasted = await target.PasteAsync();
 
-            // Assert: it got the waiting clip, and the sequence moved on to the next one
+            // Assert: it got the waiting clip, and the sequence moved on to the next one, which the clip list now shows
+            // as current while both clips of the sequence stay selected
             await Assert.That(pasted).IsEqualTo(_newer);
             await Poll.UntilAsync(() => SystemClipboard.TryReadText(IntPtr.Zero) == _older, "Power Paste to advance to the next clip");
+            await Poll.UntilAsync(() => clipList.IsSelected(_newer) && clipList.IsSelected(_older), "both clips to stay selected");
 
             // Act: paste the last clip. A paste within 500 ms of the previous one counts as the application re-reading
-            // it, so keep pasting until the sequence finishes.
-            // A later attempt can land while ClipMate is putting the clip back, so only the first one's text is checked.
+            // it, so paste until the sequence finishes. A later attempt can land while ClipMate is putting the clip
+            // back, so only the first one's text is checked.
             await Assert.That(await target.PasteAsync()).IsEqualTo(_older);
-            var deadline = DateTime.UtcNow + Poll.DefaultTimeout;
-            while (SystemClipboard.GetOwnerWindowTitle() == _powerPasteWindow && DateTime.UtcNow < deadline)
+            await Poll.UntilAsync(() =>
             {
-                await Task.Delay(200);
-                await target.PasteAsync();
-            }
+                target.Paste();
+                return SystemClipboard.GetOwnerWindowTitle() != _powerPasteWindow;
+            }, "Power Paste to finish after the last clip is pasted");
 
             // Assert: the last clip stays on the clipboard as a normal copy
             await AssertLeftOnTheClipboardAsNormalCopyAsync(_older);
@@ -144,34 +145,18 @@ public class PowerPasteTests(AppFixture appFixture)
             }, $"\"{item}\" in the clip list");
         }
 
+        // The newer clip, just captured, is already the current row, so selecting it copies nothing. Adding the older
+        // one makes it current, and ClipMate copies it once the selection settles: that copy must land before Power
+        // Paste takes the clipboard, or it would stop Power Paste as a copy made elsewhere does.
         await clipList.SelectAsync(_newer);
         await clipList.AddToSelectionAsync(_older);
-
-        // Picking a clip copies it once the selection settles; that copy must land before Power Paste takes the
-        // clipboard, or it would stop Power Paste as a copy made elsewhere does
-        await WaitUntilClipboardSettlesAsync();
+        await Poll.UntilAsync(() => SystemClipboard.IsOwnedBy(appFixture.Process) && SystemClipboard.TryReadText(IntPtr.Zero) == _older,
+            "ClipMate to copy the older clip it was given as current");
 
         clipList.ClickToolbarButton("PowerPaste");
         await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() == _powerPasteWindow, "Power Paste to arm the first clip");
 
         return clipList;
-    }
-
-    private static async Task WaitUntilClipboardSettlesAsync()
-    {
-        var quietFor = TimeSpan.FromSeconds(1.5);
-        var sequenceNumber = SystemClipboard.SequenceNumber;
-        var changedAt = DateTime.UtcNow;
-        await Poll.UntilAsync(() =>
-        {
-            if (SystemClipboard.SequenceNumber != sequenceNumber)
-            {
-                sequenceNumber = SystemClipboard.SequenceNumber;
-                changedAt = DateTime.UtcNow;
-            }
-
-            return DateTime.UtcNow - changedAt >= quietFor;
-        }, "the clipboard to stop changing");
     }
 
     private async Task AssertLeftOnTheClipboardAsNormalCopyAsync(string text)

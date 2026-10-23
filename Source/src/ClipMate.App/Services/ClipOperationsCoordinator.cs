@@ -9,6 +9,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -183,7 +184,8 @@ public class ClipOperationsCoordinator :
                 _logger.LogInformation("Stopping PowerPaste - user selected clip outside PowerPaste sequence (ClipId={ClipId})",
                     message.SelectedClip.Id);
 
-                _powerPasteService.Stop();
+                // The picked clip is copied next, so the waiting clip is not put back
+                _powerPasteService.Stop(false);
                 SendStatus("PowerPaste stopped - different clip selected");
             }
         }
@@ -1170,14 +1172,8 @@ public class ClipOperationsCoordinator :
     /// </summary>
     private void OnPowerPastePositionChanged(object? sender, PowerPastePositionChangedEventArgs e)
     {
-        if (e.CurrentClip is not { } clip)
-            return;
-
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess())
-            _clipListViewModel.SelectClipWithoutCopying(clip.Id);
-        else
-            dispatcher.BeginInvoke(() => _clipListViewModel.SelectClipWithoutCopying(clip.Id));
+        if (e.CurrentClip is { } clip)
+            UiThread.Run(() => _clipListViewModel.SelectClipWithoutCopying(clip.Id));
     }
 
     /// <summary>

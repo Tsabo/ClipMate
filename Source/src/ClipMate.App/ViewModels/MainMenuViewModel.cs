@@ -33,7 +33,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly ClipListViewModel? _clipListViewModel;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
     private readonly CollectionTreeViewModel? _collectionTreeViewModel;
-    private readonly IConfigurationService? _configurationService;
+    private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly IQuickPasteService _quickPasteService;
@@ -99,9 +99,8 @@ public partial class MainMenuViewModel : ObservableObject,
         _powerPasteService.StateChanged += OnPowerPasteStateChanged;
 
         // Explode and Loop can also be changed on the Options dialog
-        _configurationService = _serviceProvider.GetService(typeof(IConfigurationService)) as IConfigurationService;
-        if (_configurationService != null)
-            _configurationService.Saved += OnConfigurationSaved;
+        _configurationService = _serviceProvider.GetRequiredService<IConfigurationService>();
+        _configurationService.Saved += OnConfigurationSaved;
 
         // Register for state refresh notifications
         _messenger.Register(this);
@@ -163,7 +162,7 @@ public partial class MainMenuViewModel : ObservableObject,
     /// </summary>
     public bool IsExplodeMode
     {
-        get => _configurationService?.Configuration.Preferences.PowerPasteExplode ?? false;
+        get => _configurationService.Configuration.Preferences.PowerPasteExplode;
         set => SetPowerPastePreference(IsExplodeMode, value, p => p.PowerPasteExplode = value);
     }
 
@@ -172,7 +171,7 @@ public partial class MainMenuViewModel : ObservableObject,
     /// </summary>
     public bool IsLoopMode
     {
-        get => _configurationService?.Configuration.Preferences.PowerPasteLoop ?? false;
+        get => _configurationService.Configuration.Preferences.PowerPasteLoop;
         set => SetPowerPastePreference(IsLoopMode, value, p => p.PowerPasteLoop = value);
     }
 
@@ -188,13 +187,12 @@ public partial class MainMenuViewModel : ObservableObject,
     {
         _messenger.UnregisterAll(this);
         _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
-        if (_configurationService != null)
-            _configurationService.Saved -= OnConfigurationSaved;
+        _configurationService.Saved -= OnConfigurationSaved;
     }
 
     private void SetPowerPastePreference(bool oldValue, bool newValue, Action<PreferencesConfiguration> apply)
     {
-        if (_configurationService == null || oldValue == newValue)
+        if (oldValue == newValue)
             return;
 
         apply(_configurationService.Configuration.Preferences);

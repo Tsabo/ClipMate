@@ -69,6 +69,15 @@ public interface IPowerPasteService
     void Stop();
 
     /// <summary>
+    /// Stops the current PowerPaste sequence.
+    /// </summary>
+    /// <param name="keepWaitingClip">
+    /// True to leave the clip that was waiting on the clipboard as a normal copy (the user stopped Power Paste); false
+    /// when something else is about to put its own content there (another copy, picking a clip outside the sequence).
+    /// </param>
+    void Stop(bool keepWaitingClip);
+
+    /// <summary>
     /// Gets the current clip in the sequence.
     /// </summary>
     /// <returns>The current clip, or null if no sequence is active.</returns>
@@ -116,6 +125,11 @@ public class PowerPasteStateChangedEventArgs : EventArgs
     public PowerPasteState NewState { get; init; }
     public PowerPasteDirection Direction { get; init; }
     public int TotalCount { get; init; }
+
+    /// <summary>
+    /// When Power Paste stops: true to leave the clip that was waiting on the clipboard as a normal copy.
+    /// </summary>
+    public bool KeepWaitingClip { get; init; }
 }
 
 /// <summary>
@@ -131,6 +145,4 @@ public class PowerPastePositionChangedEventArgs : EventArgs
     /// True when <see cref="CurrentClip" /> is one piece of an exploded clip, which is pasted as plain text only.
     /// </summary>
     public bool IsExplodePiece { get; init; }
-
-    public bool IsComplete { get; init; }
 }

@@ -8,6 +8,18 @@ namespace ClipMate.Core.Models;
 public partial class Clip
 {
     /// <summary>
+    /// A copy of this clip, with every Format it carries, whose plain text is <paramref name="text" />; this clip is
+    /// left unchanged.
+    /// </summary>
+    public Clip WithText(string? text)
+    {
+        var copy = (Clip)MemberwiseClone();
+        copy.TextContent = text;
+
+        return copy;
+    }
+
+    /// <summary>
     /// Unique identifier for the clip (CLIP_GUID in ClipMate 7.5).
     /// </summary>
     public Guid Id { get; set; }

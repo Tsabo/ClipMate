@@ -25,7 +25,7 @@ public partial class PowerPasteClipboardBridgeTests
         _mockLogger = A.Fake<ILogger<PowerPasteClipboardBridge>>();
         _mockConfigService = A.Fake<IConfigurationService>();
         _mockTemplateService = A.Fake<ITemplateService>();
-        A.CallTo(() => _mockTemplateService.TryApplyTemplate(A<Clip>.Ignored)).Returns(null);
+        A.CallTo(() => _mockTemplateService.PreviewTemplateText(A<Clip>.Ignored)).Returns(null);
 
         var config = new ClipMateConfiguration
         {

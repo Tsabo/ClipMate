@@ -21,6 +21,7 @@ public class PowerPasteService : IPowerPasteService
     private readonly ILogger<PowerPasteService> _logger;
     private readonly List<SequenceItem> _sequence = [];
     private readonly ISoundService _soundService;
+    private readonly PowerPasteStatus _status;
     private readonly TimeProvider _timeProvider;
     private bool _isSingleClip;
     private int _pasteCount;
@@ -28,11 +29,13 @@ public class PowerPasteService : IPowerPasteService
     public PowerPasteService(IConfigurationService configurationService,
         ISoundService soundService,
         ILogger<PowerPasteService> logger,
+        PowerPasteStatus? status = null,
         TimeProvider? timeProvider = null)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _status = status ?? new PowerPasteStatus();
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -103,6 +106,7 @@ public class PowerPasteService : IPowerPasteService
             // Update state
             var oldState = State;
             State = PowerPasteState.Active;
+            _status.IsActive = true;
 
             // Raise events
             StateChanged?.Invoke(this, new PowerPasteStateChangedEventArgs
@@ -171,7 +175,7 @@ public class PowerPasteService : IPowerPasteService
                     // Sequence complete
                     _logger.LogInformation("PowerPaste sequence complete");
 
-                    StopInternal();
+                    StopInternal(true);
 
                     return;
                 }
@@ -217,12 +221,15 @@ public class PowerPasteService : IPowerPasteService
     }
 
     /// <inheritdoc />
-    public void Stop()
+    public void Stop() => Stop(true);
+
+    /// <inheritdoc />
+    public void Stop(bool keepWaitingClip)
     {
         _lock.Wait();
         try
         {
-            StopInternal();
+            StopInternal(keepWaitingClip);
         }
         finally
         {
@@ -246,14 +253,13 @@ public class PowerPasteService : IPowerPasteService
             TotalCount = _sequence.Count,
             CurrentClip = _sequence[CurrentPosition].Clip,
             IsExplodePiece = _sequence[CurrentPosition].IsExplodePiece,
-            IsComplete = false,
         });
 
     /// <summary>
     /// Internal stop method that doesn't acquire the lock.
     /// Should only be called when the lock is already held.
     /// </summary>
-    private void StopInternal()
+    private void StopInternal(bool keepWaitingClip)
     {
         if (State == PowerPasteState.Inactive)
             return;
@@ -266,6 +272,7 @@ public class PowerPasteService : IPowerPasteService
 
         var oldState = State;
         State = PowerPasteState.Inactive;
+        _status.IsActive = false;
         _sequence.Clear();
         CurrentPosition = -1;
 
@@ -275,6 +282,7 @@ public class PowerPasteService : IPowerPasteService
             NewState = State,
             Direction = Direction,
             TotalCount = 0,
+            KeepWaitingClip = keepWaitingClip,
         });
     }
 

@@ -67,7 +67,8 @@ public static class ServiceCollectionExtensions
         // CollectionService maintains active collection/database state shared across the app
         services.AddSingleton<ICollectionService, CollectionService>();
 
-        // PowerPasteService maintains explode mode state
+        // PowerPasteService maintains explode mode state; PowerPasteStatus is what other services read
+        services.AddSingleton<PowerPasteStatus>();
         services.AddSingleton<IPowerPasteService, PowerPasteService>();
 
         // AutoAppendService maintains Auto-Append mode toggle state

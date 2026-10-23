@@ -57,6 +57,12 @@ public class ClipListPage(Process app)
     }
 
     /// <summary>
+    /// True when the row containing <paramref name="text" /> is listed and selected.
+    /// </summary>
+    public bool IsSelected(string text) =>
+        FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
+
+    /// <summary>
     /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste").
     /// </summary>
     public void ClickToolbarButton(string name)

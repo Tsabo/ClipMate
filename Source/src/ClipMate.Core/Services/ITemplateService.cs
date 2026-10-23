@@ -83,4 +83,17 @@ public interface ITemplateService
     /// <param name="clip">The clip to potentially transform.</param>
     /// <returns>Transformed clip, or null if no transformation applied.</returns>
     Clip? TryApplyTemplate(Clip clip);
+
+    /// <summary>
+    /// The clip's text merged with the active template using the current sequence number, without moving the
+    /// sequence on; null if no template is active or the clip is not text. Pair with <see cref="AdvanceSequence" />
+    /// once the text has been used (Power Paste: when it is pasted).
+    /// </summary>
+    /// <param name="clip">The clip to merge.</param>
+    string? PreviewTemplateText(Clip clip);
+
+    /// <summary>
+    /// Moves #SEQUENCE# on to the next number.
+    /// </summary>
+    void AdvanceSequence();
 }

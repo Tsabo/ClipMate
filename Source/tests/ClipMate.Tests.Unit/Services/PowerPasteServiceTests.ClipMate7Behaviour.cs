@@ -148,6 +148,58 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
+    [Category("Stop")]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task Stop_TellsWhetherToKeepTheWaitingClip(bool keepWaitingClip)
+    {
+        // Arrange - a stop by picking another clip, or by a copy elsewhere, must not put the waiting clip back
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        PowerPasteStateChangedEventArgs? stopped = null;
+        service.StateChanged += (_, e) => stopped = e;
+
+        // Act
+        service.Stop(keepWaitingClip);
+
+        // Assert
+        await Assert.That(stopped?.KeepWaitingClip).IsEqualTo(keepWaitingClip);
+    }
+
+    [Test]
+    [Category("Stop")]
+    public async Task AdvanceToNextAsync_AtTheEnd_KeepsTheLastClip()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        await service.AdvanceToNextAsync();
+        PowerPasteStateChangedEventArgs? stopped = null;
+        service.StateChanged += (_, e) => stopped = e;
+
+        // Act
+        await service.AdvanceToNextAsync();
+
+        // Assert
+        await Assert.That(stopped?.KeepWaitingClip).IsTrue();
+    }
+
+    [Test]
+    [Category("Status")]
+    public async Task Status_FollowsStartAndStop()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act & Assert
+        await service.StartAsync([CreateTestClip("First")], PowerPasteDirection.Down);
+        await Assert.That(_status.IsActive).IsTrue();
+
+        service.Stop();
+        await Assert.That(_status.IsActive).IsFalse();
+    }
+
+    [Test]
     [Category("MoveTo")]
     public async Task MoveTo_ClipInSequence_MakesItTheWaitingClip()
     {

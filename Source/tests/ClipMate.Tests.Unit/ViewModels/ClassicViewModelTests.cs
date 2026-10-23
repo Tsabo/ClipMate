@@ -35,6 +35,7 @@ public class ClassicViewModelTests
         A.CallTo(() => mockServiceProvider.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager);
         A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(MainMenuViewModelDatabaseTestsHelpers.CreateConfigServiceMock());
 
         var mainMenuViewModel = new MainMenuViewModel(
             _mockMessenger,
@@ -68,7 +69,7 @@ public class ClassicViewModelTests
             mockFolderService,
             mockClipService,
             mockQuickPasteServiceForClipList,
-            A.Fake<IPowerPasteService>(),
+            new PowerPasteStatus(),
             mockContextFactory,
             A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,
@@ -95,6 +96,7 @@ public class ClassicViewModelTests
         A.CallTo(() => mockServiceProvider.GetService(typeof(IDatabaseManager))).Returns(mockDatabaseManager);
         A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(mockActiveWindowService);
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(MainMenuViewModelDatabaseTestsHelpers.CreateConfigServiceMock());
 
         var mainMenu = new MainMenuViewModel(
             _mockMessenger,
@@ -125,7 +127,7 @@ public class ClassicViewModelTests
             mockFolderService,
             mockClipService,
             mockQuickPasteServiceForClipList,
-            A.Fake<IPowerPasteService>(),
+            new PowerPasteStatus(),
             mockContextFactory,
             A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,

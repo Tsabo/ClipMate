@@ -15,6 +15,7 @@ public partial class PowerPasteServiceTests
     private IConfigurationService _mockConfigService = null!;
     private ILogger<PowerPasteService> _mockLogger = null!;
     private ISoundService _mockSoundService = null!;
+    private PowerPasteStatus _status = null!;
 
     [Before(Test)]
     public void Setup()
@@ -22,6 +23,7 @@ public partial class PowerPasteServiceTests
         _mockLogger = A.Fake<ILogger<PowerPasteService>>();
         _mockConfigService = A.Fake<IConfigurationService>();
         _mockSoundService = A.Fake<ISoundService>();
+        _status = new PowerPasteStatus();
 
         // Configure sound service to return completed task (with or without cancellation token)
         A.CallTo(() => _mockSoundService.PlaySoundAsync(A<SoundEvent>.Ignored))
@@ -49,6 +51,7 @@ public partial class PowerPasteServiceTests
         _mockConfigService,
         _mockSoundService,
         _mockLogger,
+        _status,
         timeProvider);
 
     private void UseConfiguration(PreferencesConfiguration preferences) =>

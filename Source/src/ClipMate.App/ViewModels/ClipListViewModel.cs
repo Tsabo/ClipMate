@@ -40,7 +40,7 @@ public partial class ClipListViewModel : ObservableObject,
     private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
     private readonly IMessenger _messenger;
-    private readonly IPowerPasteService _powerPasteService;
+    private readonly PowerPasteStatus _powerPasteStatus;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IRemoteDatabaseService _remoteDatabaseService;
     private CancellationTokenSource? _remoteLoadCts;
@@ -115,7 +115,7 @@ public partial class ClipListViewModel : ObservableObject,
         IFolderService folderService,
         IClipService clipService,
         IQuickPasteService quickPasteService,
-        IPowerPasteService powerPasteService,
+        PowerPasteStatus powerPasteStatus,
         IDatabaseContextFactory databaseContextFactory,
         IRemoteDatabaseService remoteDatabaseService,
         IMessenger messenger,
@@ -125,7 +125,7 @@ public partial class ClipListViewModel : ObservableObject,
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
-        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _powerPasteStatus = powerPasteStatus ?? throw new ArgumentNullException(nameof(powerPasteStatus));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -673,7 +673,8 @@ public partial class ClipListViewModel : ObservableObject,
 
     /// <summary>
     /// Selects a clip of the list without copying it to the clipboard or treating it as the user's pick, as Power Paste
-    /// does to show the clip waiting to be pasted. Does nothing if the clip is not in the list.
+    /// does to show the clip waiting to be pasted. Only the current clip moves; the selected rows stay selected, so a
+    /// restart in the other direction still sees the whole sequence. Does nothing if the clip is not in the list.
     /// </summary>
     public void SelectClipWithoutCopying(Guid clipId)
     {
@@ -729,7 +730,7 @@ public partial class ClipListViewModel : ObservableObject,
             _clipNotToCopyOnSelection = null;
 
             // Power Paste holds the clipboard; picking a clip of its sequence moved the sequence there instead
-            if (_powerPasteService.State == PowerPasteState.Active)
+            if (_powerPasteStatus.IsActive)
                 return;
 
             // Automatically load the selected clip onto the system clipboard

@@ -386,6 +386,15 @@ public class ClipboardService : IClipboardService, IDisposable
                 return;
             }
 
+            // A program that asks clipboard viewers to ignore its change (for example Power Paste re-offering a clip
+            // that was already read) is not captured
+            if (_configurationService.Configuration.Preferences.PayAttentionToClipboardIgnoreFlag && IsMarkedToBeIgnored())
+            {
+                _logger.LogInformation("Not capturing a clipboard change marked to be ignored by clipboard viewers");
+
+                return;
+            }
+
             var clip = await GetCurrentClipboardContentAsync(captureCts.Token);
 
             // Check if clipboard is empty (no formats we support)
@@ -1447,6 +1456,9 @@ public class ClipboardService : IClipboardService, IDisposable
     /// Checks if the clipboard is truly empty (no formats available).
     /// Returns true if clipboard has no data at all, false if it has any formats.
     /// </summary>
+    private static bool IsMarkedToBeIgnored() =>
+        ClipboardIgnoreFormats.All.Any(p => PInvoke.IsClipboardFormatAvailable(PInvoke.RegisterClipboardFormat(p)));
+
     private bool IsClipboardTrulyEmpty()
     {
         try

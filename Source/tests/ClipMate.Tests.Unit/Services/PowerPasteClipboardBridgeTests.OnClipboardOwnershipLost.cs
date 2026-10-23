@@ -6,7 +6,7 @@ public partial class PowerPasteClipboardBridgeTests
 {
     [Test]
     [Category("OnClipboardOwnershipLost")]
-    public Task OnClipboardOwnershipLost_StopsPowerPaste()
+    public Task OnClipboardOwnershipLost_StopsPowerPasteAndLeavesTheNewCopyAlone()
     {
         // Arrange - simulates the user copying something new elsewhere while PowerPaste is active
         var bridge = CreateBridge();
@@ -15,7 +15,7 @@ public partial class PowerPasteClipboardBridgeTests
         bridge.OnClipboardOwnershipLost();
 
         // Assert
-        A.CallTo(() => _mockPowerPasteService.Stop()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockPowerPasteService.Stop(false)).MustHaveHappenedOnceExactly();
 
         return Task.CompletedTask;
     }

@@ -56,8 +56,13 @@ public sealed partial class ForegroundTestWindow : IDisposable
     public async Task<string?> PasteAsync()
     {
         await BringToForegroundAsync(Handle);
-        return _dispatcher.Invoke(() => SystemClipboard.TryReadText(Handle));
+        return Paste();
     }
+
+    /// <summary>
+    /// Reads the clipboard's text as a paste into this window, which must still be in the foreground.
+    /// </summary>
+    public string? Paste() => _dispatcher.Invoke(() => SystemClipboard.TryReadText(Handle));
 
     private static Task BringToForegroundAsync(IntPtr handle) =>
         // Windows only lets the process that received the last input take the foreground; a synthetic Alt press

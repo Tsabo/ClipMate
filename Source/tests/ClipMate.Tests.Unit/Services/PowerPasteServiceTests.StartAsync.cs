@@ -126,7 +126,6 @@ public partial class PowerPasteServiceTests
         await Assert.That(eventArgs!.Position).IsEqualTo(0);
         await Assert.That(eventArgs.TotalCount).IsEqualTo(1);
         await Assert.That(eventArgs.CurrentClip).IsNotNull();
-        await Assert.That(eventArgs.IsComplete).IsFalse();
     }
 
     [Test]
