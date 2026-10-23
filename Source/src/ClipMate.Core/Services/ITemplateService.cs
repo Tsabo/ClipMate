@@ -77,7 +77,8 @@ public interface ITemplateService
 
     /// <summary>
     /// Attempts to apply the active template to a clip.
-    /// Returns a new clip with merged template content if template is active and clip is text type.
+    /// Returns a copy of the clip whose plain text is the merged template content, keeping every other Format, if a
+    /// template is active and the clip is a text type; the clip passed in is left unchanged.
     /// Returns null if no template is active or clip type is not compatible.
     /// </summary>
     /// <param name="clip">The clip to potentially transform.</param>
