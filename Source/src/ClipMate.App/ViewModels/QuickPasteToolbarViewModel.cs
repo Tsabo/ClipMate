@@ -2,11 +2,11 @@ using System.Collections.ObjectModel;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
-using Application = System.Windows.Application;
 
 namespace ClipMate.App.ViewModels;
 
@@ -144,14 +144,7 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         }
     }
 
-    private void OnTargetChanged()
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess())
-            UpdateTargetDisplay();
-        else
-            dispatcher.InvokeAsync(UpdateTargetDisplay);
-    }
+    private void OnTargetChanged() => UiThread.Run(UpdateTargetDisplay);
 
     /// <summary>
     /// Updates the target display from the QuickPaste service.

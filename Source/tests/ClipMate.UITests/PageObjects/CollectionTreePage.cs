@@ -28,22 +28,14 @@ public class CollectionTreePage
     }
 
     /// <summary>
-    /// Simulates pressing the + key to move collection up.
+    /// Simulates pressing the + key to move collection up. Poll for the move before asserting on it.
     /// </summary>
-    public async Task PressMovUpKeyAsync()
-    {
-        _appDriver.Keyboard.Type("+");
-        await Task.Delay(100);
-    }
+    public void PressMoveUpKey() => _appDriver.Keyboard.Type("+");
 
     /// <summary>
-    /// Simulates pressing the - key to move collection down.
+    /// Simulates pressing the - key to move collection down. Poll for the move before asserting on it.
     /// </summary>
-    public async Task PressMovDownKeyAsync()
-    {
-        _appDriver.Keyboard.Type("-");
-        await Task.Delay(100);
-    }
+    public void PressMoveDownKey() => _appDriver.Keyboard.Type("-");
 
     /// <summary>
     /// Verifies the tree view exists and is visible.

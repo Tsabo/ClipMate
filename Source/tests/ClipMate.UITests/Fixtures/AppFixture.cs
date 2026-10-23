@@ -60,25 +60,25 @@ public class AppFixture : IAsyncDisposable
         _appProcess.BeginErrorReadLine();
 
         // The app is a separate process, so its startup can only be observed by polling its log until a deadline
-        var deadline = DateTime.UtcNow + _startupTimeout;
-        while (DateTime.UtcNow < deadline)
+        try
         {
-            if (_appProcess.HasExited)
-                throw new InvalidOperationException($"ClipMate exited during startup (exit code {_appProcess.ExitCode}). Logs: {LogDirectory}");
-
-            // Clipboard monitoring starts after the initialization pipeline; a copy made in between is never captured
-            var log = ReadLog();
-            if (log.Contains("Initialization pipeline completed", StringComparison.Ordinal) &&
-                log.Contains("Clipboard coordinator started successfully", StringComparison.Ordinal))
+            await Poll.UntilAsync(() =>
             {
-                await WaitUntilCapturingAsync();
-                return;
-            }
+                if (_appProcess.HasExited)
+                    throw new InvalidOperationException($"ClipMate exited during startup (exit code {_appProcess.ExitCode}). Logs: {LogDirectory}");
 
-            await Task.Delay(250);
+                // Clipboard monitoring starts after the initialization pipeline; a copy made in between is never captured
+                var log = ReadLog();
+                return log.Contains("Initialization pipeline completed", StringComparison.Ordinal) &&
+                       log.Contains("Clipboard coordinator started successfully", StringComparison.Ordinal);
+            }, "ClipMate's startup", _startupTimeout);
+        }
+        catch (TimeoutException)
+        {
+            throw new TimeoutException($"ClipMate did not finish starting within {_startupTimeout.TotalSeconds}s. Logs: {LogDirectory}");
         }
 
-        throw new TimeoutException($"ClipMate did not finish starting within {_startupTimeout.TotalSeconds}s. Logs: {LogDirectory}");
+        await WaitUntilCapturingAsync();
     }
 
     /// <summary>
@@ -141,19 +141,30 @@ public class AppFixture : IAsyncDisposable
             _appProcess = null;
         }
 
-        // Killed child processes release their files a moment after the app exits
-        for (var attempt = 0; attempt < 20 && Directory.Exists(DataDirectory); attempt++)
+        // Killed child processes release their files a moment after the app exits; a folder still locked after that is left
+        try
         {
-            try
-            {
-                Directory.Delete(DataDirectory, true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                await Task.Delay(250);
-            }
+            await Poll.UntilAsync(TryDeleteDataDirectory, "the test data folder to be deleted", TimeSpan.FromSeconds(5));
+        }
+        catch (TimeoutException)
+        {
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private bool TryDeleteDataDirectory()
+    {
+        try
+        {
+            if (Directory.Exists(DataDirectory))
+                Directory.Delete(DataDirectory, true);
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }

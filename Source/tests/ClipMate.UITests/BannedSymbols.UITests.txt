@@ -1,0 +1,2 @@
+M:System.Threading.Tasks.Task.Delay(System.Int32);UI tests wait for a concrete condition with Poll.UntilAsync instead of sleeping on the wall clock
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan);UI tests wait for a concrete condition with Poll.UntilAsync instead of sleeping on the wall clock

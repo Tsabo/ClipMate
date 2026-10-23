@@ -4,6 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Data;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -367,11 +368,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     private void OnRemoteCollectionChanged(object? sender, RemoteCollectionChangedEventArgs e)
     {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess())
-            _ = ReloadChangedRemoteViewAsync(e);
-        else
-            dispatcher.InvokeAsync(() => ReloadChangedRemoteViewAsync(e));
+        UiThread.Run(() => _ = ReloadChangedRemoteViewAsync(e));
     }
 
     private async Task ReloadChangedRemoteViewAsync(RemoteCollectionChangedEventArgs change)

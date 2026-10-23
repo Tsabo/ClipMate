@@ -456,7 +456,7 @@ Task("Smoke-Test")
 });
 
 Task("Prepare-Worktree")
-    .Description("Make a fresh git worktree buildable: copy the gitignored font and Monaco assets from the main checkout")
+    .Description("Make a fresh git worktree buildable: copy the gitignored font and Monaco assets from the main checkout and link its local-only docs")
     .Does(() =>
 {
     // --main-checkout (default: the checkout that owns this worktree's git directory, i.e. <main checkout>\.git)
@@ -502,18 +502,40 @@ Task("Prepare-Worktree")
             Warning($"missing   {item} (not in {mainCheckout} either; build the main checkout first)");
     }
 
-    // Local-only documents (listed in .git/info/exclude, so never in a worktree): read them from the main checkout
-    var localDocs = new[] { "CLAUDE.md", "GLOSSARY.md", "adr", "specs", ".scratch", "docs/agents" }
-        .Select(p => System.IO.Path.Combine(mainCheckout, p))
-        .Where(p => FileExists(p) || DirectoryExists(p))
-        .ToList();
+    // Local-only documents (listed in .git/info/exclude, so never in a worktree): link them to the main checkout's copies, so
+    // relative paths resolve and edits (a ticket's status, say) land in the one real copy. Folders become junctions and files
+    // hard links, since neither needs the symlink privilege. CLAUDE.md is skipped when the worktree sits inside the main
+    // checkout, which already loads it as a parent folder's CLAUDE.md.
+    var insideMainCheckout = worktree.StartsWith(mainCheckout + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    var localDocs = new[] { "CLAUDE.md", "CODING_STANDARDS.md", "GLOSSARY.md", "adr", "specs", ".scratch", "docs/agents" }
+        .Where(p => !(insideMainCheckout && p == "CLAUDE.md"));
 
-    if (localDocs.Count > 0)
+    Information("");
+    foreach (var item in localDocs)
     {
-        Information("");
-        Information("Local-only docs (read from the main checkout):");
-        foreach (var item in localDocs)
-            Information($"  {item}");
+        var target = System.IO.Path.Combine(worktree, item);
+        var source = System.IO.Path.Combine(mainCheckout, item);
+        if (FileExists(target) || DirectoryExists(target))
+        {
+            Information($"present   {item}");
+            continue;
+        }
+
+        var isDirectory = DirectoryExists(source);
+        if (!isDirectory && !FileExists(source))
+            continue;
+
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
+        var exitCode = StartProcess("cmd", new ProcessSettings
+        {
+            Arguments = $"/c mklink {(isDirectory ? "/J" : "/H")} \"{target}\" \"{source}\"",
+            RedirectStandardOutput = true,
+        });
+
+        if (exitCode == 0)
+            Information($"linked    {item}");
+        else
+            Warning($"not linked {item} (mklink exit {exitCode}); read it from {source}");
     }
 });
 

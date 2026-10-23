@@ -77,7 +77,7 @@ public class CollectionTreeTests(AppFixture appFixture)
         var treePage = new CollectionTreePage(mainWindow, _appFixture.App);
 
         // This demonstrates the API - actual test needs collection setup
-        await treePage.PressMovUpKeyAsync();
+        treePage.PressMoveUpKey();
         
         // Would verify collection moved up
         await Task.CompletedTask;

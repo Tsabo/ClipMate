@@ -21,7 +21,10 @@ public static class Poll
             if (probe() is { } result)
                 return result;
 
+            // The one wall-clock wait UI tests have (BannedSymbols.UITests.txt sends everything else here)
+#pragma warning disable RS0030
             await Task.Delay(200);
+#pragma warning restore RS0030
         }
 
         throw new TimeoutException($"Timed out after {limit.TotalSeconds}s waiting for {what}");

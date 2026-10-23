@@ -29,6 +29,11 @@
     <Using Include="WpfPilot" />
   </ItemGroup>
 
+  <!-- Adds to tests/BannedSymbols.txt: every wait on another process goes through Poll -->
+  <ItemGroup>
+    <AdditionalFiles Include="BannedSymbols.UITests.txt" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\ClipMate.App\ClipMate.App.csproj" />
     <ProjectReference Include="..\..\src\ClipMate.Core\ClipMate.Core.csproj" />
