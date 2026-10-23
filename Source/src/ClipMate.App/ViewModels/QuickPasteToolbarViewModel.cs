@@ -18,6 +18,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<QuickPasteToolbarViewModel> _logger;
     private readonly IMessenger _messenger;
+    private readonly IPasteTarget _pasteTarget;
+    private readonly IPasteTargetTracker _pasteTargetTracker;
     private readonly IQuickPasteService _quickPasteService;
 
     [ObservableProperty]
@@ -56,11 +58,15 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     private string _targetLockIcon = "🔓";
 
     public QuickPasteToolbarViewModel(IQuickPasteService quickPasteService,
+        IPasteTarget pasteTarget,
+        IPasteTargetTracker pasteTargetTracker,
         IConfigurationService configurationService,
         IMessenger messenger,
         ILogger<QuickPasteToolbarViewModel> logger)
     {
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
+        _pasteTargetTracker = pasteTargetTracker ?? throw new ArgumentNullException(nameof(pasteTargetTracker));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -104,7 +110,7 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     public void Receive(StateRefreshRequestedEvent message)
     {
         // Refresh state from services
-        IsTargetLocked = _quickPasteService.IsTargetLocked();
+        IsTargetLocked = _pasteTarget.IsLocked;
         GoBackEnabled = _quickPasteService.GetGoBackState();
     }
 
@@ -152,19 +158,19 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     /// </summary>
     public void UpdateTargetDisplay()
     {
-        var target = _quickPasteService.GetCurrentTarget();
-        if (target.HasValue)
+        var target = _pasteTarget.Window;
+        if (target != null)
         {
             HasTarget = true;
-            CurrentTargetString = $"{target.Value.ProcessName}:{target.Value.ClassName}";
+            CurrentTargetString = target.TargetString;
 
             // Display process name with window title
-            var displayText = !string.IsNullOrWhiteSpace(target.Value.WindowTitle)
-                ? $"{target.Value.ProcessName} - {target.Value.WindowTitle}"
-                : target.Value.ProcessName;
+            var displayText = !string.IsNullOrWhiteSpace(target.WindowTitle)
+                ? $"{target.ProcessName} - {target.WindowTitle}"
+                : target.ProcessName;
 
             CurrentTargetDisplay = displayText;
-            CurrentTargetTooltip = $"Process: {target.Value.ProcessName}\nClass: {target.Value.ClassName}\nTitle: {target.Value.WindowTitle}";
+            CurrentTargetTooltip = $"Process: {target.ProcessName}\nClass: {target.ClassName}\nTitle: {target.WindowTitle}";
         }
         else
         {
@@ -174,7 +180,7 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
             CurrentTargetTooltip = "No active window detected";
         }
 
-        IsTargetLocked = _quickPasteService.IsTargetLocked();
+        IsTargetLocked = _pasteTarget.IsLocked;
         TargetLockIcon = IsTargetLocked
             ? "🔒"
             : "🔓";
@@ -191,8 +197,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
     [RelayCommand]
     private void ToggleTargetLock()
     {
-        var isLocked = _quickPasteService.IsTargetLocked();
-        _quickPasteService.SetTargetLock(!isLocked);
+        var isLocked = _pasteTarget.IsLocked;
+        _pasteTargetTracker.SetLocked(!isLocked);
         IsTargetLocked = !isLocked;
         TargetLockIcon = !isLocked
             ? "🔒"
@@ -275,7 +281,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         var config = _configurationService.Configuration.Preferences;
         if (!string.IsNullOrEmpty(CurrentTargetString) && !config.QuickPasteGoodTargets.Contains(CurrentTargetString))
         {
-            config.QuickPasteGoodTargets.Add(CurrentTargetString);
+            // Replaced, not changed in place: the Paste Target tracker reads the list on another thread
+            config.QuickPasteGoodTargets = [.. config.QuickPasteGoodTargets, CurrentTargetString];
             await _configurationService.SaveAsync();
             _logger.LogInformation("Added {Target} to good targets", CurrentTargetString);
         }
@@ -290,7 +297,8 @@ public partial class QuickPasteToolbarViewModel : ObservableObject, IRecipient<S
         var config = _configurationService.Configuration.Preferences;
         if (!string.IsNullOrEmpty(CurrentTargetString) && !config.QuickPasteBadTargets.Contains(CurrentTargetString))
         {
-            config.QuickPasteBadTargets.Add(CurrentTargetString);
+            // Replaced, not changed in place: the Paste Target tracker reads the list on another thread
+            config.QuickPasteBadTargets = [.. config.QuickPasteBadTargets, CurrentTargetString];
             await _configurationService.SaveAsync();
             _logger.LogInformation("Added {Target} to bad targets", CurrentTargetString);
         }

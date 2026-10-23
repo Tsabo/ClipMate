@@ -16,7 +16,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 null!,
-                CreateMockForegroundMonitor(),
+                CreateMockPasteTarget(),
                 mockClipboard,
                 mockConfig,
                 mockMessenger,
@@ -39,7 +39,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
-                CreateMockForegroundMonitor(),
+                CreateMockPasteTarget(),
                 null!,
                 mockConfig,
                 mockMessenger,
@@ -62,7 +62,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
-                CreateMockForegroundMonitor(),
+                CreateMockPasteTarget(),
                 mockClipboard,
                 null!,
                 mockMessenger,
@@ -85,7 +85,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
-                CreateMockForegroundMonitor(),
+                CreateMockPasteTarget(),
                 mockClipboard,
                 mockConfig,
                 null!,
@@ -108,7 +108,7 @@ public partial class QuickPasteServiceTests
         // Act & Assert
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
-                CreateMockForegroundMonitor(),
+                CreateMockPasteTarget(),
                 mockClipboard,
                 mockConfig,
                 mockMessenger,
@@ -120,7 +120,7 @@ public partial class QuickPasteServiceTests
     }
 
     [Test]
-    public async Task Constructor_ThrowsArgumentNullException_WhenForegroundMonitorIsNull()
+    public async Task Constructor_ThrowsArgumentNullException_WhenPasteTargetIsNull()
     {
         // Act & Assert
         await Assert.That(() => new QuickPasteService(

@@ -138,6 +138,7 @@ public partial class ClipListControl
     private readonly ILogger<ClipListControl> _logger;
     private readonly IMessenger _messenger;
     private readonly PreferencesConfiguration _preferences;
+    private readonly IPasteTargetTracker? _pasteTargetTracker;
     private readonly IQuickPasteService? _quickPasteService;
     private readonly IShortcutService? _shortcutService;
     private string? _currentDatabaseKey;
@@ -162,6 +163,7 @@ public partial class ClipListControl
         _messenger = app.ServiceProvider.GetService<IMessenger>()!;
         _shortcutService = app.ServiceProvider.GetService<IShortcutService>();
         _quickPasteService = app.ServiceProvider.GetService<IQuickPasteService>();
+        _pasteTargetTracker = app.ServiceProvider.GetService<IPasteTargetTracker>();
         _clipService = app.ServiceProvider.GetService<IClipService>();
         _logger = app.ServiceProvider.GetService<ILogger<ClipListControl>>()!;
         var options = app.ServiceProvider.GetService<IOptions<ClipMateConfiguration>>();
@@ -449,7 +451,7 @@ public partial class ClipListControl
     private void QuickPasteLockTarget_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuItem menuItem)
-            _quickPasteService?.SetTargetLock(menuItem.IsChecked);
+            _pasteTargetTracker?.SetLocked(menuItem.IsChecked);
     }
 
     private void QuickPasteGoBack_Click(object sender, RoutedEventArgs e)

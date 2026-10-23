@@ -24,16 +24,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     private bool _quickPasteAutoTargetingEnabled;
 
     [ObservableProperty]
-    private ObservableCollection<string> _quickPasteBadTargets = [];
-
-    [ObservableProperty]
-    private ObservableCollection<string> _quickPasteBadTitles = [];
-
-    [ObservableProperty]
     private ObservableCollection<QuickPasteFormattingString> _quickPasteFormattingStrings = [];
-
-    [ObservableProperty]
-    private ObservableCollection<string> _quickPasteGoodTargets = [];
 
     [ObservableProperty]
     private bool _quickPastePasteOnDoubleClick;
@@ -42,19 +33,7 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
     private bool _quickPastePasteOnEnter;
 
     [ObservableProperty]
-    private bool _quickPasteUseMonitoringThread;
-
-    [ObservableProperty]
-    private int _selectedBadTargetIndex = -1;
-
-    [ObservableProperty]
-    private int _selectedBadTitleIndex = -1;
-
-    [ObservableProperty]
     private QuickPasteFormattingString? _selectedFormattingString;
-
-    [ObservableProperty]
-    private int _selectedGoodTargetIndex = -1;
 
     public QuickPasteOptionsViewModel(IConfigurationService configurationService,
         IMessenger messenger,
@@ -63,7 +42,26 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        GoodTargets = new EditableStringListViewModel(PromptForTarget);
+        BadTargets = new EditableStringListViewModel(PromptForTarget);
+        BadTitles = new EditableStringListViewModel(PromptForTitle);
     }
+
+    /// <summary>
+    /// Gets the GOOD PROCESSNAME:CLASSNAME list: windows that are always a suitable Paste Target.
+    /// </summary>
+    public EditableStringListViewModel GoodTargets { get; }
+
+    /// <summary>
+    /// Gets the BAD PROCESSNAME:CLASSNAME list: windows that are never the Paste Target.
+    /// </summary>
+    public EditableStringListViewModel BadTargets { get; }
+
+    /// <summary>
+    /// Gets the bad window titles: windows whose title starts with one of them are never the Paste Target.
+    /// </summary>
+    public EditableStringListViewModel BadTitles { get; }
 
     /// <summary>
     /// Loads QuickPaste configuration.
@@ -73,12 +71,11 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         var config = _configurationService.Configuration.Preferences;
 
         QuickPasteAutoTargetingEnabled = config.QuickPasteAutoTargetingEnabled;
-        QuickPasteUseMonitoringThread = config.QuickPasteUseMonitoringThread;
         QuickPastePasteOnEnter = config.QuickPastePasteOnEnter;
         QuickPastePasteOnDoubleClick = config.QuickPastePasteOnDoubleClick;
-        QuickPasteGoodTargets = new ObservableCollection<string>(config.QuickPasteGoodTargets);
-        QuickPasteBadTargets = new ObservableCollection<string>(config.QuickPasteBadTargets);
-        QuickPasteBadTitles = new ObservableCollection<string>(config.QuickPasteBadTitles);
+        GoodTargets.Load(config.QuickPasteGoodTargets);
+        BadTargets.Load(config.QuickPasteBadTargets);
+        BadTitles.Load(config.QuickPasteBadTitles);
         QuickPasteFormattingStrings = new ObservableCollection<QuickPasteFormattingString>(config.QuickPasteFormattingStrings);
 
         _logger.LogDebug("QuickPaste configuration loaded");
@@ -94,9 +91,9 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         config.QuickPasteAutoTargetingEnabled = QuickPasteAutoTargetingEnabled;
         config.QuickPastePasteOnEnter = QuickPastePasteOnEnter;
         config.QuickPastePasteOnDoubleClick = QuickPastePasteOnDoubleClick;
-        config.QuickPasteGoodTargets = QuickPasteGoodTargets.ToList();
-        config.QuickPasteBadTargets = QuickPasteBadTargets.ToList();
-        config.QuickPasteBadTitles = QuickPasteBadTitles.ToList();
+        config.QuickPasteGoodTargets = GoodTargets.ToList();
+        config.QuickPasteBadTargets = BadTargets.ToList();
+        config.QuickPasteBadTitles = BadTitles.ToList();
         config.QuickPasteFormattingStrings = QuickPasteFormattingStrings.ToList();
 
         // Broadcast QuickPaste configuration changed event for immediate reload
@@ -105,204 +102,18 @@ public partial class QuickPasteOptionsViewModel : ObservableObject
         _logger.LogDebug("QuickPaste configuration saved");
     }
 
-    /// <summary>
-    /// Adds a new GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void AddGoodTarget()
+    private static string? PromptForTarget(string current) =>
+        ShowListEntryDialog(new QuickPasteTargetDialog(current));
+
+    private static string? PromptForTitle(string current) =>
+        ShowListEntryDialog(QuickPasteTargetDialog.ForWindowTitle(current));
+
+    private static string? ShowListEntryDialog(QuickPasteTargetDialog dialog)
     {
-        var dialog = new QuickPasteTargetDialog
-        {
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var target = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(target) || QuickPasteGoodTargets.Contains(target))
-            return;
-
-        QuickPasteGoodTargets.Add(target);
-        _logger.LogDebug("Added GOOD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Edits the selected GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void EditGoodTarget()
-    {
-        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
-        {
-            _logger.LogWarning("No GOOD target selected for editing");
-            return;
-        }
-
-        var currentTarget = QuickPasteGoodTargets[SelectedGoodTargetIndex];
-        var dialog = new QuickPasteTargetDialog(currentTarget)
-        {
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var target = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(target))
-            return;
-
-        QuickPasteGoodTargets[SelectedGoodTargetIndex] = target;
-        _logger.LogDebug("Edited GOOD target from {Old} to {New}", currentTarget, target);
-    }
-
-    /// <summary>
-    /// Deletes the selected GOOD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteGoodTarget()
-    {
-        if (SelectedGoodTargetIndex < 0 || SelectedGoodTargetIndex >= QuickPasteGoodTargets.Count)
-        {
-            _logger.LogWarning("No GOOD target selected for deletion");
-            return;
-        }
-
-        var target = QuickPasteGoodTargets[SelectedGoodTargetIndex];
-        QuickPasteGoodTargets.RemoveAt(SelectedGoodTargetIndex);
-        _logger.LogDebug("Deleted GOOD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Adds a new BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void AddBadTarget()
-    {
-        var dialog = new QuickPasteTargetDialog
-        {
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var target = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(target) || QuickPasteBadTargets.Contains(target))
-            return;
-
-        QuickPasteBadTargets.Add(target);
-        _logger.LogDebug("Added BAD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Edits the selected BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void EditBadTarget()
-    {
-        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
-        {
-            _logger.LogWarning("No BAD target selected for editing");
-            return;
-        }
-
-        var currentTarget = QuickPasteBadTargets[SelectedBadTargetIndex];
-        var dialog = new QuickPasteTargetDialog(currentTarget)
-        {
-            Owner = Application.Current.GetDialogOwner(),
-        };
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var target = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(target))
-            return;
-
-        QuickPasteBadTargets[SelectedBadTargetIndex] = target;
-        _logger.LogDebug("Edited BAD target from {Old} to {New}", currentTarget, target);
-    }
-
-    /// <summary>
-    /// Deletes the selected BAD target specification.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteBadTarget()
-    {
-        if (SelectedBadTargetIndex < 0 || SelectedBadTargetIndex >= QuickPasteBadTargets.Count)
-        {
-            _logger.LogWarning("No BAD target selected for deletion");
-            return;
-        }
-
-        var target = QuickPasteBadTargets[SelectedBadTargetIndex];
-        QuickPasteBadTargets.RemoveAt(SelectedBadTargetIndex);
-        _logger.LogDebug("Deleted BAD target: {Target}", target);
-    }
-
-    /// <summary>
-    /// Adds a new bad window title.
-    /// </summary>
-    [RelayCommand]
-    private void AddBadTitle()
-    {
-        var dialog = QuickPasteTargetDialog.ForWindowTitle();
         dialog.Owner = Application.Current.GetDialogOwner();
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var title = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(title) || QuickPasteBadTitles.Contains(title, StringComparer.OrdinalIgnoreCase))
-            return;
-
-        QuickPasteBadTitles.Add(title);
-        _logger.LogDebug("Added bad title: {Title}", title);
-    }
-
-    /// <summary>
-    /// Edits the selected bad window title.
-    /// </summary>
-    [RelayCommand]
-    private void EditBadTitle()
-    {
-        if (SelectedBadTitleIndex < 0 || SelectedBadTitleIndex >= QuickPasteBadTitles.Count)
-        {
-            _logger.LogWarning("No bad title selected for editing");
-            return;
-        }
-
-        var currentTitle = QuickPasteBadTitles[SelectedBadTitleIndex];
-        var dialog = QuickPasteTargetDialog.ForWindowTitle(currentTitle);
-        dialog.Owner = Application.Current.GetDialogOwner();
-
-        if (dialog.ShowDialog() != true)
-            return;
-
-        var title = dialog.TargetSpecification;
-        if (string.IsNullOrWhiteSpace(title))
-            return;
-
-        QuickPasteBadTitles[SelectedBadTitleIndex] = title;
-        _logger.LogDebug("Edited bad title from {Old} to {New}", currentTitle, title);
-    }
-
-    /// <summary>
-    /// Deletes the selected bad window title.
-    /// </summary>
-    [RelayCommand]
-    private void DeleteBadTitle()
-    {
-        if (SelectedBadTitleIndex < 0 || SelectedBadTitleIndex >= QuickPasteBadTitles.Count)
-        {
-            _logger.LogWarning("No bad title selected for deletion");
-            return;
-        }
-
-        var title = QuickPasteBadTitles[SelectedBadTitleIndex];
-        QuickPasteBadTitles.RemoveAt(SelectedBadTitleIndex);
-        _logger.LogDebug("Deleted bad title: {Title}", title);
+        return dialog.ShowDialog() == true
+            ? dialog.EnteredText
+            : null;
     }
 
     /// <summary>

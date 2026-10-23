@@ -10,11 +10,11 @@ namespace ClipMate.UITests.Fixtures;
 /// It has to be another program, since ClipMate never targets its own windows and the BAD list rejects the test
 /// process ("CLIPMATE:" matches "ClipMate.UITests").
 /// </summary>
-public sealed class TargetWindow : IDisposable
+public sealed class TestAppWindow : IDisposable
 {
     private readonly Process _process;
 
-    private TargetWindow(Process process, string title, nint handle)
+    private TestAppWindow(Process process, string title, nint handle)
     {
         _process = process;
         Title = title;
@@ -28,7 +28,7 @@ public sealed class TargetWindow : IDisposable
     /// <summary>
     /// Starts the window and waits until it is shown.
     /// </summary>
-    public static async Task<TargetWindow> OpenAsync(string title)
+    public static async Task<TestAppWindow> OpenAsync(string title)
     {
         var script = $$"""
                        Add-Type -AssemblyName System.Windows.Forms
@@ -60,7 +60,7 @@ public sealed class TargetWindow : IDisposable
                     : null;
             }, $"the \"{title}\" window", TimeSpan.FromSeconds(30));
 
-            return new TargetWindow(process, title, (nint)handle);
+            return new TestAppWindow(process, title, (nint)handle);
         }
         catch
         {

@@ -44,6 +44,8 @@ public class ClassicViewModelTests
             A.Fake<IAutoAppendService>(),
             A.Fake<IPowerPasteService>(),
             A.Fake<IQuickPasteService>(),
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockServiceProvider);
 
         // Create QuickPasteToolbarViewModel with mocked dependencies
@@ -53,6 +55,8 @@ public class ClassicViewModelTests
         A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
         var quickPasteToolbar = new QuickPasteToolbarViewModel(
             mockQuickPasteService,
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockConfigService,
             _mockMessenger,
             NullLogger<QuickPasteToolbarViewModel>.Instance);
@@ -103,6 +107,8 @@ public class ClassicViewModelTests
             A.Fake<IAutoAppendService>(),
             A.Fake<IPowerPasteService>(),
             A.Fake<IQuickPasteService>(),
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockServiceProvider);
 
         var mockQuickPasteService = A.Fake<IQuickPasteService>();
@@ -110,6 +116,8 @@ public class ClassicViewModelTests
         A.CallTo(() => mockConfigService.Configuration).Returns(new ClipMateConfiguration());
         var quickPasteToolbar = new QuickPasteToolbarViewModel(
             mockQuickPasteService,
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockConfigService,
             _mockMessenger,
             NullLogger<QuickPasteToolbarViewModel>.Instance);

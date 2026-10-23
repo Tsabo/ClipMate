@@ -25,8 +25,8 @@ public class AutoTargetingTests(AppFixture appFixture)
         try
         {
             await appFixture.StartAppAsync();
-            using var excel = await TargetWindow.OpenAsync($"UI-Test Excel {Guid.NewGuid():N}");
-            using var word = await TargetWindow.OpenAsync($"UI-Test Word {Guid.NewGuid():N}");
+            using var excel = await TestAppWindow.OpenAsync($"UI-Test Excel {Guid.NewGuid():N}");
+            using var word = await TestAppWindow.OpenAsync($"UI-Test Word {Guid.NewGuid():N}");
             var clipList = new ClipListPage(appFixture.Process);
             SystemClipboard.OnSta(() => Clipboard.SetText(text));
             await clipList.WaitForRowAsync(text);
@@ -57,8 +57,8 @@ public class AutoTargetingTests(AppFixture appFixture)
         try
         {
             await appFixture.StartAppAsync();
-            using var excel = await TargetWindow.OpenAsync($"UI-Test Excel {Guid.NewGuid():N}");
-            using var word = await TargetWindow.OpenAsync($"UI-Test Word {Guid.NewGuid():N}");
+            using var excel = await TestAppWindow.OpenAsync($"UI-Test Excel {Guid.NewGuid():N}");
+            using var word = await TestAppWindow.OpenAsync($"UI-Test Word {Guid.NewGuid():N}");
             var clipList = new ClipListPage(appFixture.Process);
             SystemClipboard.OnSta(() => Clipboard.SetText(text));
             await clipList.WaitForRowAsync(text);

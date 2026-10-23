@@ -38,9 +38,10 @@ public partial class QuickPasteTargetDialog
     }
 
     /// <summary>
-    /// Gets the target specification entered by the user.
+    /// Gets what the user entered: a PROCESSNAME:CLASSNAME specification, or a window title in
+    /// <see cref="ForWindowTitle" /> mode.
     /// </summary>
-    public string TargetSpecification { get; private set; } = string.Empty;
+    public string EnteredText { get; private set; } = string.Empty;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -48,7 +49,7 @@ public partial class QuickPasteTargetDialog
         TargetTextBox.SelectAll();
     }
 
-    private void OkButton_Click(object sender, RoutedEventArgs e) => TargetSpecification = TargetTextBox.Text?.Trim() ?? string.Empty;
+    private void OkButton_Click(object sender, RoutedEventArgs e) => EnteredText = TargetTextBox.Text?.Trim() ?? string.Empty;
 
     private void TargetTextBox_EditValueChanged(object sender, EditValueChangedEventArgs e)
     {

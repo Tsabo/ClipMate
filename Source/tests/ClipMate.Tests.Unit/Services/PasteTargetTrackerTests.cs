@@ -4,17 +4,18 @@ using ClipMate.Core.Services;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Tests.Unit.Services;
 
 /// <summary>
-/// Unit tests for QuickPasteService auto-targeting: following the foreground window, ClipMate 7's suitability rules,
-/// the target lock and the window-stack fallback, on a simulated desktop.
+/// Auto-targeting: following the foreground window, ClipMate 7's suitability rules, the target lock and the
+/// window-stack fallback, on a simulated desktop.
 /// </summary>
-public partial class QuickPasteServiceTests
+public class PasteTargetTrackerTests
 {
     [Test]
-    public async Task StartTargetTracking_StartsTheMonitorAndTakesTheForegroundWindow()
+    public async Task Start_StartsTheMonitorAndTakesTheForegroundWindow()
     {
         // Arrange
         var desktop = new FakeDesktop();
@@ -22,11 +23,11 @@ public partial class QuickPasteServiceTests
         desktop.Activate(notepad);
 
         // Act
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
 
         // Assert
         await Assert.That(desktop.IsStarted).IsTrue();
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("NOTEPAD:NOTEPAD");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("NOTEPAD:NOTEPAD");
     }
 
     [Test]
@@ -36,15 +37,16 @@ public partial class QuickPasteServiceTests
         var desktop = new FakeDesktop();
         var notepad = desktop.Open("notepad", "Notepad", "Untitled - Notepad");
         var word = desktop.Open("winword", "OpusApp", "Report - Word");
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
 
         // Act
         desktop.Activate(notepad);
         desktop.Activate(word);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("WINWORD:OPUSAPP");
-        await Assert.That(service.GetCurrentTarget()?.WindowTitle).IsEqualTo("Report - Word");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("WINWORD:OPUSAPP");
+        await Assert.That(target.Window?.WindowTitle).IsEqualTo("Report - Word");
+        await Assert.That(target.Window?.Handle).IsEqualTo(word.Handle);
     }
 
     [Test]
@@ -56,7 +58,7 @@ public partial class QuickPasteServiceTests
         var excel = desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
         desktop.Activate(clipMate);
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
 
         // Act
         desktop.Activate(excel);
@@ -64,7 +66,7 @@ public partial class QuickPasteServiceTests
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("WINWORD:OPUSAPP");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("WINWORD:OPUSAPP");
     }
 
     [Test]
@@ -73,13 +75,13 @@ public partial class QuickPasteServiceTests
         // Arrange: ClipMate's own windows are recognised by process, even when it is on the GOOD list
         var desktop = new FakeDesktop();
         var clipMate = desktop.OpenClipMate();
-        var service = CreateTrackingService(desktop, new PreferencesConfiguration { QuickPasteGoodTargets = ["CLIPMATE:"] });
+        var target = StartTracking(desktop, new PreferencesConfiguration { QuickPasteGoodTargets = ["CLIPMATE:"] }).Target;
 
         // Act
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTarget()).IsNull();
+        await Assert.That(target.Window).IsNull();
     }
 
     [Test]
@@ -92,7 +94,7 @@ public partial class QuickPasteServiceTests
         var messenger = new StrongReferenceMessenger();
         var changes = 0;
         messenger.Register<QuickPasteTargetChangedEvent>(this, (_, _) => changes++);
-        CreateTrackingService(desktop, messenger: messenger);
+        StartTracking(desktop, messenger: messenger);
 
         // Act: Word, ClipMate and Word again
         desktop.Activate(word);
@@ -109,13 +111,33 @@ public partial class QuickPasteServiceTests
         // Arrange
         var desktop = new FakeDesktop();
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop, new PreferencesConfiguration { QuickPasteAutoTargetingEnabled = false });
+        var target = StartTracking(desktop, new PreferencesConfiguration { QuickPasteAutoTargetingEnabled = false }).Target;
 
         // Act
         desktop.Activate(word);
 
         // Assert
-        await Assert.That(service.GetCurrentTarget()).IsNull();
+        await Assert.That(target.Window).IsNull();
+    }
+
+    [Test]
+    public async Task SetLocked_UpdatesTheLockStateAndAnnouncesIt()
+    {
+        // Arrange
+        var desktop = new FakeDesktop();
+        var messenger = new StrongReferenceMessenger();
+        var refreshes = 0;
+        messenger.Register<StateRefreshRequestedEvent>(this, (_, _) => refreshes++);
+        var (tracker, target) = StartTracking(desktop, messenger: messenger);
+        var lockedInitially = target.IsLocked;
+
+        // Act
+        tracker.SetLocked(true);
+
+        // Assert
+        await Assert.That(lockedInitially).IsFalse();
+        await Assert.That(target.IsLocked).IsTrue();
+        await Assert.That(refreshes).IsEqualTo(1);
     }
 
     [Test]
@@ -125,36 +147,36 @@ public partial class QuickPasteServiceTests
         var desktop = new FakeDesktop();
         var excel = desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
+        var (tracker, target) = StartTracking(desktop);
         desktop.Activate(excel);
-        service.SetTargetLock(true);
+        tracker.SetLocked(true);
 
         // Act
         desktop.Activate(word);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("EXCEL:XLMAIN");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("EXCEL:XLMAIN");
     }
 
     [Test]
-    public async Task SetTargetLock_Unlocking_AdoptsTheLastSuitableWindowSeenWhileLocked()
+    public async Task SetLocked_Unlocking_AdoptsTheLastSuitableWindowSeenWhileLocked()
     {
         // Arrange
         var desktop = new FakeDesktop();
         var clipMate = desktop.OpenClipMate();
         var excel = desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
+        var (tracker, target) = StartTracking(desktop);
         desktop.Activate(excel);
-        service.SetTargetLock(true);
+        tracker.SetLocked(true);
         desktop.Activate(word);
         desktop.Activate(clipMate);
 
         // Act
-        service.SetTargetLock(false);
+        tracker.SetLocked(false);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("WINWORD:OPUSAPP");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("WINWORD:OPUSAPP");
     }
 
     [Test]
@@ -171,7 +193,7 @@ public partial class QuickPasteServiceTests
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
         desktop.OpenClipMate("ClipBar");
         var clipMate = desktop.OpenClipMate();
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
         desktop.Activate(notepad);
         desktop.Activate(word);
 
@@ -180,7 +202,7 @@ public partial class QuickPasteServiceTests
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTarget()?.WindowTitle).IsEqualTo("Untitled - Notepad");
+        await Assert.That(target.Window?.WindowTitle).IsEqualTo("Untitled - Notepad");
     }
 
     [Test]
@@ -191,7 +213,7 @@ public partial class QuickPasteServiceTests
         var clipMate = desktop.OpenClipMate();
         var excel = desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
         desktop.Activate(excel);
         desktop.Activate(word);
 
@@ -200,7 +222,7 @@ public partial class QuickPasteServiceTests
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("EXCEL:XLMAIN");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("EXCEL:XLMAIN");
     }
 
     [Test]
@@ -212,7 +234,7 @@ public partial class QuickPasteServiceTests
         var excel = desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
         var taskbar = desktop.Open("explorer", "Shell_TrayWnd", "Taskbar");
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
         desktop.Activate(word);
         desktop.Activate(excel);
         desktop.Activate(word);
@@ -222,7 +244,7 @@ public partial class QuickPasteServiceTests
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("WINWORD:OPUSAPP");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("WINWORD:OPUSAPP");
     }
 
     [Test]
@@ -233,7 +255,7 @@ public partial class QuickPasteServiceTests
         var clipMate = desktop.OpenClipMate();
         desktop.Open("explorer", "Shell_TrayWnd", "Taskbar");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
+        var target = StartTracking(desktop).Target;
         desktop.Activate(word);
 
         // Act
@@ -241,7 +263,7 @@ public partial class QuickPasteServiceTests
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTarget()).IsNull();
+        await Assert.That(target.Window).IsNull();
     }
 
     [Test]
@@ -252,16 +274,16 @@ public partial class QuickPasteServiceTests
         var clipMate = desktop.OpenClipMate();
         desktop.Open("excel", "XLMAIN", "Book1 - Excel");
         var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
+        var (tracker, target) = StartTracking(desktop);
         desktop.Activate(word);
-        service.SetTargetLock(true);
+        tracker.SetLocked(true);
 
         // Act
         desktop.Close(word);
         desktop.Activate(clipMate);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("WINWORD:OPUSAPP");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("WINWORD:OPUSAPP");
     }
 
     [Test]
@@ -283,11 +305,11 @@ public partial class QuickPasteServiceTests
     {
         // Arrange: the default lists, plus a class-prefix entry; Notepad is the target to begin with
         var preferences = new PreferencesConfiguration();
-        preferences.QuickPasteBadTargets.Add(":MSCTFIME UI");
+        preferences.QuickPasteBadTargets = [.. preferences.QuickPasteBadTargets, ":MSCTFIME UI"];
         var desktop = new FakeDesktop();
         var notepad = desktop.Open("notepad", "Notepad", "Untitled - Notepad");
         var candidate = desktop.Open(processName, className, title);
-        var service = CreateTrackingService(desktop, preferences);
+        var target = StartTracking(desktop, preferences).Target;
         desktop.Activate(notepad);
 
         // Act
@@ -298,7 +320,7 @@ public partial class QuickPasteServiceTests
             ? $"{processName}:{className}".ToUpperInvariant()
             : "NOTEPAD:NOTEPAD";
 
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo(expected);
+        await Assert.That(target.Window?.TargetString).IsEqualTo(expected);
     }
 
     [Test]
@@ -308,14 +330,33 @@ public partial class QuickPasteServiceTests
         var desktop = new FakeDesktop();
         var secret = desktop.Open("someapp", "SomeClass", "Secret window");
         var ime = desktop.Open("otherapp", "OtherClass", "Default IME");
-        var service = CreateTrackingService(desktop, new PreferencesConfiguration { QuickPasteBadTitles = ["SECRET"] });
+        var target = StartTracking(desktop, new PreferencesConfiguration { QuickPasteBadTitles = ["SECRET"] }).Target;
 
         // Act
         desktop.Activate(ime);
         desktop.Activate(secret);
 
         // Assert
-        await Assert.That(service.GetCurrentTargetString()).IsEqualTo("OTHERAPP:OTHERCLASS");
+        await Assert.That(target.Window?.TargetString).IsEqualTo("OTHERAPP:OTHERCLASS");
+    }
+
+    [Test]
+    public async Task ForegroundChange_AfterAListIsReplaced_UsesTheNewList()
+    {
+        // Arrange: the toolbar's "add to BAD targets" replaces the list once the rules were already in use
+        var preferences = new PreferencesConfiguration();
+        var desktop = new FakeDesktop();
+        var notepad = desktop.Open("notepad", "Notepad", "Untitled - Notepad");
+        var someApp = desktop.Open("someapp", "SomeClass", "Some App");
+        var target = StartTracking(desktop, preferences).Target;
+        desktop.Activate(notepad);
+
+        // Act
+        preferences.QuickPasteBadTargets = [.. preferences.QuickPasteBadTargets, "SOMEAPP:"];
+        desktop.Activate(someApp);
+
+        // Assert
+        await Assert.That(target.Window?.TargetString).IsEqualTo("NOTEPAD:NOTEPAD");
     }
 
     [Test]
@@ -329,45 +370,23 @@ public partial class QuickPasteServiceTests
         await Assert.That(preferences.QuickPasteBadTitles).IsEquivalentTo(new[] { "INTELLIFORMPROXY", "DEFAULT IME" });
     }
 
-    [Test]
-    public async Task PasteClipAsync_FocusesTheTrackedTarget_WithoutLookingForANewOne()
-    {
-        // Arrange: Word is the target, then ClipMate is in front when the clip is pasted
-        var desktop = new FakeDesktop();
-        var clipMate = desktop.OpenClipMate();
-        var word = desktop.Open("winword", "OpusApp", "Document1 - Word");
-        var service = CreateTrackingService(desktop);
-        desktop.Activate(word);
-        desktop.Activate(clipMate);
-        service.SetGoBackState(false);
-
-        // Act
-        var pasted = await service.PasteClipAsync(CreateTestClip());
-
-        // Assert
-        await Assert.That(pasted).IsTrue();
-        await Assert.That(desktop.ForegroundRequests).IsEquivalentTo(new[] { word.Handle });
-    }
-
-    private QuickPasteService CreateTrackingService(FakeDesktop desktop, PreferencesConfiguration? preferences = null,
-        IMessenger? messenger = null)
+    private static (PasteTargetTracker Tracker, PasteTarget Target) StartTracking(FakeDesktop desktop,
+        PreferencesConfiguration? preferences = null, IMessenger? messenger = null)
     {
         var configurationService = A.Fake<IConfigurationService>();
         A.CallTo(() => configurationService.Configuration)
             .Returns(new ClipMateConfiguration { Preferences = preferences ?? new PreferencesConfiguration() });
 
-        var service = new QuickPasteService(
+        var target = new PasteTarget();
+        var tracker = new PasteTargetTracker(
             desktop,
             desktop,
-            CreateMockClipboardService(),
+            target,
             configurationService,
             messenger ?? new StrongReferenceMessenger(),
-            CreateMockMacroExecutionService(),
-            CreateMockTemplateService(),
-            CreateMockDialogService(),
-            CreateMockLogger());
+            A.Fake<ILogger<PasteTargetTracker>>());
 
-        service.StartTargetTracking();
-        return service;
+        tracker.Start();
+        return (tracker, target);
     }
 }

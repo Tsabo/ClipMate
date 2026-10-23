@@ -361,12 +361,6 @@ public class PreferencesConfiguration
     public bool QuickPasteAutoTargetingEnabled { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether to use a monitoring thread for auto-targeting.
-    /// Useful when ClipMate is running in "always on top" mode.
-    /// </summary>
-    public bool QuickPasteUseMonitoringThread { get; set; } = false;
-
-    /// <summary>
     /// Gets or sets whether pressing ENTER on a clip triggers QuickPaste.
     /// </summary>
     public bool QuickPastePasteOnEnter { get; set; } = true;

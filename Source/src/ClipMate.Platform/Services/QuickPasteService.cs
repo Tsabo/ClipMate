@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
-using Windows.Win32.UI.WindowsAndMessaging;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
@@ -17,44 +16,32 @@ using DialogResult = ClipMate.Core.Models.DialogResult;
 namespace ClipMate.Platform.Services;
 
 /// <summary>
-/// Service implementing QuickPaste functionality including auto-targeting,
-/// formatting string execution, and keystroke sending to target applications.
+/// Service implementing QuickPaste functionality: formatting string execution and keystroke sending to the Paste
+/// Target, which <see cref="IPasteTarget" /> provides.
 /// </summary>
 public class QuickPasteService : IQuickPasteService, IDisposable
 {
-    // Bounds the window-stack walk; a desktop has a few hundred top-level windows at most
-    private const int _maxWindowStackDepth = 1000;
-
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly IDialogService _dialogService;
-    private readonly IForegroundWindowMonitor _foregroundMonitor;
     private readonly ILogger<QuickPasteService> _logger;
     private readonly IMacroExecutionService _macroExecutionService;
     private readonly IMessenger _messenger;
+    private readonly IPasteTarget _pasteTarget;
     private readonly ITemplateService _templateService;
-
-    // Guards the Paste Target's read-modify-write: foreground changes arrive on the monitor's thread
-    private readonly Lock _targetSync = new();
     private readonly IWin32InputInterop _win32;
     private nint _clipMateWindowHandle; // Store ClipMate's window handle for GoBack functionality
     private bool _disposed;
 
     private bool _goBackEnabled;
-
-    // The last suitable window seen while the target was locked, adopted when it is unlocked
-    private TargetWindow? _lastSuitableWhileLocked;
     private QuickPasteFormattingString? _selectedFormattingString;
     private int _sequenceCounter = 1;
-    private volatile TargetWindow? _target;
-    private bool _targetLocked;
-    private bool _tracking;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="QuickPasteService" /> class.
     /// </summary>
     public QuickPasteService(IWin32InputInterop win32Interop,
-        IForegroundWindowMonitor foregroundMonitor,
+        IPasteTarget pasteTarget,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         IMessenger messenger,
@@ -64,7 +51,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         ILogger<QuickPasteService> logger)
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
-        _foregroundMonitor = foregroundMonitor ?? throw new ArgumentNullException(nameof(foregroundMonitor));
+        _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -92,43 +79,9 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         if (_disposed)
             return;
 
-        _foregroundMonitor.ForegroundChanged -= OnForegroundChanged;
         _messenger.UnregisterAll(this);
         _disposed = true;
     }
-
-    /// <inheritdoc />
-    public (string ProcessName, string ClassName, string WindowTitle)? GetCurrentTarget()
-    {
-        var target = _target;
-        return target == null
-            ? null
-            : (target.ProcessName, target.ClassName, target.WindowTitle);
-    }
-
-    /// <inheritdoc />
-    public void SetTargetLock(bool locked)
-    {
-        var changed = false;
-        lock (_targetSync)
-        {
-            _targetLocked = locked;
-
-            // Unlocking catches up with the windows the user switched to while the target was locked
-            var adopt = _lastSuitableWhileLocked;
-            _lastSuitableWhileLocked = null;
-            if (!locked && adopt != null && _win32.IsWindow(new HWND(adopt.Handle)))
-                changed = SetTarget(adopt);
-        }
-
-        _logger.LogDebug("Target lock set to {Locked}", locked);
-        _messenger.Send(new StateRefreshRequestedEvent());
-        if (changed)
-            _messenger.Send(new QuickPasteTargetChangedEvent());
-    }
-
-    /// <inheritdoc />
-    public bool IsTargetLocked() => _targetLocked;
 
     /// <inheritdoc />
     public bool GetGoBackState() => _goBackEnabled;
@@ -157,7 +110,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         ArgumentNullException.ThrowIfNull(clip);
 
         // The Paste Target is kept up to date by tracking the foreground window, so it is used as it stands
-        var target = _target;
+        var target = _pasteTarget.Window;
         if (target == null)
         {
             _logger.LogWarning("No target application selected for QuickPaste");
@@ -300,28 +253,6 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         _logger.LogDebug("Sequence counter reset to 1");
     }
 
-    /// <inheritdoc />
-    public void StartTargetTracking()
-    {
-        lock (_targetSync)
-        {
-            if (_tracking || _disposed)
-                return;
-
-            _tracking = true;
-        }
-
-        _foregroundMonitor.ForegroundChanged += OnForegroundChanged;
-        _foregroundMonitor.Start();
-
-        // The window that is in front now is the starting point; later changes arrive through the monitor
-        OnForegroundChanged(_win32.GetForegroundWindow());
-        _logger.LogInformation("Paste Target tracking started");
-    }
-
-    /// <inheritdoc />
-    public string GetCurrentTargetString() => _target?.TargetString ?? string.Empty;
-
     /// <summary>
     /// Switches focus to the Paste Target, mirroring the focus-switch step in <see cref="PasteClipAsync" />.
     /// Needed because TAB/ENTER are triggered from ClipMate's own UI (menu click), which steals focus away
@@ -329,7 +260,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     /// </summary>
     private async Task FocusTargetWindowAsync()
     {
-        var target = _target;
+        var target = _pasteTarget.Window;
         if (target == null || target.Handle == IntPtr.Zero)
         {
             _logger.LogWarning("No valid window handle for target application");
@@ -341,110 +272,6 @@ public class QuickPasteService : IQuickPasteService, IDisposable
 
         // Give the window time to activate before sending the keystroke.
         await Task.Delay(300);
-    }
-
-    /// <summary>
-    /// Follows the foreground window: a suitable window that is not ClipMate becomes the Paste Target (unless the
-    /// target is locked); ClipMate coming to the front replaces a target that has closed or been hidden.
-    /// </summary>
-    private void OnForegroundChanged(HWND hwnd)
-    {
-        if (!_configurationService.Configuration.Preferences.QuickPasteAutoTargetingEnabled)
-            return;
-
-        var window = DescribeWindow(hwnd);
-        if (window == null)
-            return;
-
-        bool changed;
-        lock (_targetSync)
-        {
-            if (window.ProcessId == (uint)Environment.ProcessId)
-                changed = ReplaceUnavailableTarget(hwnd);
-            else if (!IsSuitableTarget(window))
-                return;
-            else if (_targetLocked)
-            {
-                _lastSuitableWhileLocked = window;
-                return;
-            }
-            else
-                changed = SetTarget(window);
-        }
-
-        if (changed)
-            _messenger.Send(new QuickPasteTargetChangedEvent());
-    }
-
-    /// <summary>
-    /// When the Paste Target has closed or is hidden, takes the next suitable window below ClipMate's in the window
-    /// stack instead. Called with <see cref="_targetSync" /> held.
-    /// </summary>
-    /// <returns>True when the target changed.</returns>
-    private bool ReplaceUnavailableTarget(HWND clipMateWindow)
-    {
-        if (_targetLocked)
-            return false;
-
-        var target = _target;
-        if (target != null && IsShown(new HWND(target.Handle)))
-            return false;
-
-        var replacement = FindTargetInWindowStack(clipMateWindow);
-        if (replacement != null)
-        {
-            _logger.LogInformation("Paste Target {Target} is no longer available; using {Replacement} from the window stack",
-                target?.TargetString ?? "(none)", replacement.TargetString);
-
-            return SetTarget(replacement);
-        }
-
-        // Nothing suitable is open: a closed target cannot be pasted into, but a hidden one may come back
-        if (target == null || _win32.IsWindow(new HWND(target.Handle)))
-            return false;
-
-        _target = null;
-        _logger.LogDebug("Paste Target {Target} has closed and no other window is suitable", target.TargetString);
-
-        return true;
-    }
-
-    private TargetWindow? FindTargetInWindowStack(HWND start)
-    {
-        var hwnd = start;
-        for (var i = 0; i < _maxWindowStackDepth; i++)
-        {
-            hwnd = _win32.GetWindow(hwnd, GET_WINDOW_CMD.GW_HWNDNEXT);
-            if (hwnd.IsNull)
-                return null;
-
-            if (!IsShown(hwnd))
-                continue;
-
-            var window = DescribeWindow(hwnd);
-            if (window != null && window.ProcessId != (uint)Environment.ProcessId && IsSuitableTarget(window))
-                return window;
-        }
-
-        return null;
-    }
-
-    private bool IsShown(HWND hwnd) =>
-        !hwnd.IsNull && _win32.IsWindow(hwnd) && _win32.IsWindowVisible(hwnd) && !_win32.IsWindowCloaked(hwnd);
-
-    /// <summary>
-    /// Makes <paramref name="window" /> the Paste Target. Called with <see cref="_targetSync" /> held.
-    /// </summary>
-    /// <returns>True when the target changed.</returns>
-    private bool SetTarget(TargetWindow window)
-    {
-        if (window == _target)
-            return false;
-
-        _target = window;
-        _logger.LogInformation("Paste Target updated to: {Target} (Handle: {Handle:X})", window.TargetString, window.Handle);
-
-        return true;
     }
 
     private void OnConfigurationChanged()
@@ -469,7 +296,7 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             _selectedFormattingString?.Title ?? "None");
     }
 
-    private QuickPasteFormattingString? SelectFormattingStringByTarget(TargetWindow target)
+    private QuickPasteFormattingString? SelectFormattingStringByTarget(PasteTargetWindow target)
     {
         var config = _configurationService.Configuration.Preferences;
         var targetTitle = target.WindowTitle;
@@ -481,125 +308,6 @@ public class QuickPasteService : IQuickPasteService, IDisposable
                                  targetTitle.Contains(p.TitleTrigger, StringComparison.OrdinalIgnoreCase));
 
         return matchedFormat ?? _selectedFormattingString;
-    }
-
-    private TargetWindow? DescribeWindow(HWND hwnd)
-    {
-        if (hwnd.IsNull)
-            return null;
-
-        try
-        {
-            _win32.GetWindowThreadProcessId(hwnd, out var processId);
-            if (processId == 0)
-                return null;
-
-            var processName = _win32.GetProcessName(processId);
-            if (processName == null)
-                return null;
-
-            // Get window class name
-            const int maxLength = 256;
-            string className;
-            unsafe
-            {
-                var buffer = stackalloc char[maxLength];
-                var length = _win32.GetClassName(hwnd, buffer, maxLength);
-                className = length > 0
-                    ? new string(buffer, 0, length).ToUpperInvariant()
-                    : string.Empty;
-            }
-
-            // Get window title
-            string windowTitle;
-            unsafe
-            {
-                var buffer = stackalloc char[maxLength];
-                var length = _win32.GetWindowText(hwnd, buffer, maxLength);
-                windowTitle = length > 0
-                    ? new string(buffer, 0, length)
-                    : string.Empty;
-            }
-
-            nint handle;
-            unsafe
-            {
-                handle = (nint)hwnd.Value;
-            }
-
-            return new TargetWindow(handle, processId, processName.ToUpperInvariant(), className, windowTitle);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error reading window {Handle:X}", (nint)hwnd);
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// ClipMate 7's rules: a window on the GOOD list is suitable; one on the BAD list, without a title or with a
-    /// title on the bad-titles list is not; any other window is.
-    /// </summary>
-    private bool IsSuitableTarget(TargetWindow window)
-    {
-        var config = _configurationService.Configuration.Preferences;
-        var targetString = window.TargetString;
-
-        if (config.QuickPasteGoodTargets.Any(p => MatchesTarget(targetString, p)))
-            return true;
-
-        var badTarget = config.QuickPasteBadTargets.FirstOrDefault(p => MatchesTarget(targetString, p));
-        if (badTarget != null)
-        {
-            _logger.LogDebug("Window {Target} matches bad target {BadTarget}, rejecting", targetString, badTarget);
-
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(window.WindowTitle))
-        {
-            _logger.LogDebug("Window {Target} has no title, rejecting", targetString);
-
-            return false;
-        }
-
-        var badTitle = config.QuickPasteBadTitles.FirstOrDefault(p => MatchesTitle(window.WindowTitle, p));
-        if (badTitle == null)
-            return true;
-
-        _logger.LogDebug("Window {Target} title {Title} matches bad title {BadTitle}, rejecting",
-            targetString, window.WindowTitle, badTitle);
-
-        return false;
-    }
-
-    private static bool MatchesTitle(string title, string pattern) =>
-        !string.IsNullOrWhiteSpace(pattern) && title.StartsWith(pattern.Trim(), StringComparison.OrdinalIgnoreCase);
-
-    private static bool MatchesTarget(string actual, string pattern)
-    {
-        // Pattern format: PROCESSNAME:CLASSNAME or PROCESSNAME: (match all classes for process)
-        // Empty process name means match any process with that class
-        var patternParts = pattern.Split(':', 2);
-        var actualParts = actual.Split(':', 2);
-
-        if (patternParts.Length != 2 || actualParts.Length != 2)
-            return false;
-
-        var patternProcess = patternParts[0];
-        var patternClass = patternParts[1];
-        var actualProcess = actualParts[0];
-        var actualClass = actualParts[1];
-
-        // Match process (empty pattern matches any, non-empty uses prefix match)
-        if (!string.IsNullOrEmpty(patternProcess) &&
-            !actualProcess.StartsWith(patternProcess, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Match class (empty pattern matches any, non-empty uses prefix match)
-        return string.IsNullOrEmpty(patternClass) ||
-               actualClass.StartsWith(patternClass, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ExecuteFormattingStringAsync(Clip clip, QuickPasteFormattingString? format,
@@ -1067,13 +775,5 @@ public class QuickPasteService : IQuickPasteService, IDisposable
         return string.IsNullOrEmpty(filePath)
             ? string.Empty
             : Path.GetExtension(filePath);
-    }
-
-    /// <summary>
-    /// A window as auto-targeting sees it. A record, so a changed title counts as a different target.
-    /// </summary>
-    private sealed record TargetWindow(nint Handle, uint ProcessId, string ProcessName, string ClassName, string WindowTitle)
-    {
-        public string TargetString => $"{ProcessName}:{ClassName}";
     }
 }

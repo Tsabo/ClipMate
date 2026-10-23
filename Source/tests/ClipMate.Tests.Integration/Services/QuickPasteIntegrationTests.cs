@@ -18,9 +18,12 @@ namespace ClipMate.Tests.Integration.Services;
 public class QuickPasteIntegrationTests : IntegrationTestBase
 {
     private IConfigurationService _configurationService = null!;
+    private IForegroundWindowMonitor _foregroundMonitor = null!;
     private IMessenger _messenger = null!;
     private IClipboardService _mockClipboardService = null!;
     private IWin32InputInterop _mockWin32 = null!;
+    private PasteTarget _pasteTarget = null!;
+    private PasteTargetTracker _pasteTargetTracker = null!;
     private QuickPasteService _quickPasteService = null!;
     private ClipMateConfiguration _testConfig = null!;
 
@@ -95,9 +98,19 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
 
         var quickPasteLogger = A.Fake<ILogger<QuickPasteService>>();
 
+        _foregroundMonitor = A.Fake<IForegroundWindowMonitor>();
+        _pasteTarget = new PasteTarget();
+        _pasteTargetTracker = new PasteTargetTracker(
+            _mockWin32,
+            _foregroundMonitor,
+            _pasteTarget,
+            _configurationService,
+            _messenger,
+            A.Fake<ILogger<PasteTargetTracker>>());
+
         _quickPasteService = new QuickPasteService(
             _mockWin32,
-            A.Fake<IForegroundWindowMonitor>(),
+            _pasteTarget,
             _mockClipboardService,
             _configurationService,
             _messenger,
@@ -111,6 +124,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     public void CleanupQuickPasteTest()
     {
         _quickPasteService?.Dispose();
+        _pasteTargetTracker?.Dispose();
     }
 
     [Test]
@@ -124,17 +138,22 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task QuickPaste_TargetLock_PreventstargetUpdates()
+    public async Task QuickPaste_TargetLock_PreventsTargetUpdates()
     {
-        // Arrange
-        _quickPasteService.SetTargetLock(true);
+        // Arrange: Notepad, a suitable window, is about to come to the front while the target is locked
+        var notepad = ArrangeNotepadWindow();
+        _pasteTargetTracker.Start();
+        _pasteTargetTracker.SetLocked(true);
 
-        // Act
-        _quickPasteService.StartTargetTracking();
+        // Act: the same foreground change while locked and after unlocking
+        _foregroundMonitor.ForegroundChanged += Raise.FreeForm<Action<HWND>>.With(notepad);
+        var targetWhileLocked = _pasteTarget.Window;
+        _pasteTargetTracker.SetLocked(false);
+        _foregroundMonitor.ForegroundChanged += Raise.FreeForm<Action<HWND>>.With(notepad);
 
-        // Assert - Target should remain null because it's locked
-        var target = _quickPasteService.GetCurrentTarget();
-        await Assert.That(target).IsNull();
+        // Assert
+        await Assert.That(targetWhileLocked).IsNull();
+        await Assert.That(_pasteTarget.Window?.TargetString).IsEqualTo("NOTEPAD:");
     }
 
     [Test]
@@ -254,27 +273,30 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task QuickPaste_TargetString_ReturnsEmptyWhenNotSet()
-    {
-        // Act
-        var targetString = _quickPasteService.GetCurrentTargetString();
-
-        // Assert
-        await Assert.That(targetString).IsEqualTo(string.Empty);
-    }
-
-    [Test]
     public async Task QuickPaste_StartTargetTracking_DoesNotThrowWhenNoWindow()
     {
         // Arrange - No foreground window
         A.CallTo(() => _mockWin32.GetForegroundWindow()).Returns(new HWND(IntPtr.Zero));
-        _quickPasteService.SetTargetLock(false);
 
         // Act
-        _quickPasteService.StartTargetTracking();
+        _pasteTargetTracker.Start();
 
         // Assert - Should not throw, target remains null
-        var target = _quickPasteService.GetCurrentTarget();
-        await Assert.That(target).IsNull();
+        await Assert.That(_pasteTarget.Window).IsNull();
+    }
+
+    /// <summary>
+    /// A Notepad window without class name or title; "NOTEPAD:" on the GOOD list makes it suitable all the same.
+    /// </summary>
+    private HWND ArrangeNotepadWindow()
+    {
+        const uint processId = 4242;
+        var notepad = new HWND(0x1234);
+        uint ignored;
+        A.CallTo(() => _mockWin32.GetWindowThreadProcessId(notepad, out ignored)).Returns(1u).AssignsOutAndRefParameters(processId);
+        A.CallTo(() => _mockWin32.GetProcessName(processId)).Returns("notepad");
+        _testConfig.Preferences.QuickPasteGoodTargets = [.. _testConfig.Preferences.QuickPasteGoodTargets, "NOTEPAD:"];
+
+        return notepad;
     }
 }

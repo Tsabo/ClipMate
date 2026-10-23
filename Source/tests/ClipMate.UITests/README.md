@@ -60,7 +60,7 @@ ClipMate.UITests/
     ├── Foreground.cs             # Switches the foreground window and presses keys, as a user would
     ├── Poll.cs                   # Waits on another process until a deadline
     ├── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
-    └── TargetWindow.cs           # A window in another process to paste into, with its text read back
+    └── TestAppWindow.cs          # A window in another process to paste into, with its text read back
 ```
 
 ## Writing New Tests

@@ -10,12 +10,12 @@ namespace ClipMate.App.Services.Initialization;
 public class PasteTargetTrackingStep : IStartupInitializationStep
 {
     private readonly ILogger<PasteTargetTrackingStep> _logger;
-    private readonly IQuickPasteService _quickPasteService;
+    private readonly IPasteTargetTracker _pasteTargetTracker;
 
-    public PasteTargetTrackingStep(IQuickPasteService quickPasteService,
+    public PasteTargetTrackingStep(IPasteTargetTracker pasteTargetTracker,
         ILogger<PasteTargetTrackingStep> logger)
     {
-        _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
+        _pasteTargetTracker = pasteTargetTracker ?? throw new ArgumentNullException(nameof(pasteTargetTracker));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -30,7 +30,7 @@ public class PasteTargetTrackingStep : IStartupInitializationStep
     {
         try
         {
-            _quickPasteService.StartTargetTracking();
+            _pasteTargetTracker.Start();
         }
         catch (Exception ex)
         {

@@ -55,6 +55,11 @@ public static class ServiceCollectionExtensions
         // Register QuickPasteService for QuickPaste functionality
         services.AddSingleton<IQuickPasteService, QuickPasteService>();
 
+        // Auto-targeting: the tracker keeps the Paste Target state up to date; readers depend only on the state
+        services.AddSingleton<PasteTarget>();
+        services.AddSingleton<IPasteTarget>(sp => sp.GetRequiredService<PasteTarget>());
+        services.AddSingleton<IPasteTargetTracker, PasteTargetTracker>();
+
         // Register MacroExecutionService as singleton for keystroke sending
         services.AddSingleton<IMacroExecutionService, MacroExecutionService>();
 

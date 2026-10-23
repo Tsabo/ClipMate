@@ -4,30 +4,11 @@ using ClipMate.Core.Models.Configuration;
 namespace ClipMate.Core.Services;
 
 /// <summary>
-/// Service for QuickPaste functionality including auto-targeting, formatting strings,
-/// and keystroke execution to paste clips into target applications.
+/// Service for QuickPaste: formatting strings and keystroke execution to paste clips into the Paste Target
+/// (see <see cref="IPasteTarget" />).
 /// </summary>
 public interface IQuickPasteService
 {
-    /// <summary>
-    /// Gets the current QuickPaste target information.
-    /// </summary>
-    /// <returns>A tuple containing (ProcessName, ClassName, WindowTitle) or null if no target.</returns>
-    (string ProcessName, string ClassName, string WindowTitle)? GetCurrentTarget();
-
-    /// <summary>
-    /// Sets the target lock state.
-    /// When locked, auto-targeting is disabled and the current target is preserved.
-    /// </summary>
-    /// <param name="locked">True to lock the target, false to enable auto-targeting.</param>
-    void SetTargetLock(bool locked);
-
-    /// <summary>
-    /// Gets whether the target is currently locked.
-    /// </summary>
-    /// <returns>True if target is locked, false otherwise.</returns>
-    bool IsTargetLocked();
-
     /// <summary>
     /// Gets the current GoBack state.
     /// When enabled, focus returns to ClipMate after pasting.
@@ -75,18 +56,4 @@ public interface IQuickPasteService
     /// Resets the sequence counter used by #SEQUENCE# macro to 1.
     /// </summary>
     void ResetSequence();
-
-    /// <summary>
-    /// Starts following the foreground window: from then on the Paste Target is the last suitable window that is not
-    /// ClipMate, updated as the user switches windows unless the target is locked. When ClipMate comes to the front
-    /// and that window has closed or is hidden, the next suitable window down the window stack takes its place.
-    /// Calling it again has no effect.
-    /// </summary>
-    void StartTargetTracking();
-
-    /// <summary>
-    /// Gets the current target in format "PROCESSNAME:CLASSNAME".
-    /// </summary>
-    /// <returns>The target string or empty if no target.</returns>
-    string GetCurrentTargetString();
 }

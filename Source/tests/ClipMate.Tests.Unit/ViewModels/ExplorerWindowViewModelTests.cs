@@ -75,6 +75,8 @@ public class ExplorerWindowViewModelTests
         var mockQuickPasteLogger = A.Fake<ILogger<QuickPasteToolbarViewModel>>();
         var quickPasteToolbarVm = new QuickPasteToolbarViewModel(
             mockQuickPasteServiceForToolbar,
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockConfigService,
             mockMessenger,
             mockQuickPasteLogger);
@@ -98,6 +100,8 @@ public class ExplorerWindowViewModelTests
             A.Fake<IAutoAppendService>(),
             A.Fake<IPowerPasteService>(),
             A.Fake<IQuickPasteService>(),
+            A.Fake<IPasteTarget>(),
+            A.Fake<IPasteTargetTracker>(),
             mockServiceProvider);
 
         return new ExplorerWindowViewModel(
