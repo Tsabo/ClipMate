@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using Windows.Win32;
@@ -6,6 +5,7 @@ using Windows.Win32.Foundation;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
+using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -43,6 +43,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly ITemplateService _templateService;
+    private readonly IWin32InputInterop _win32;
 
     private CancellationTokenSource? _advanceDebounceCts;
     private HwndSource? _hwndSource;
@@ -65,12 +66,14 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         ITemplateService templateService,
+        IWin32InputInterop win32,
         ILogger<PowerPasteClipboardBridge> logger)
     {
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
+        _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -370,7 +373,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     private void HandleRenderFormat(uint formatId)
     {
-        var reader = ClipboardReader.Current();
+        var reader = ClipboardReader.Current(_win32, PInvoke.GetOpenClipboardWindow());
 
         _logger.LogInformation(
             "PowerPaste WM_RENDERFORMAT received for format {FormatId}, read by {ReaderProcess} while {ForegroundProcess} is in the foreground",
@@ -380,7 +383,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         SetArmedFormats(true);
         _logger.LogInformation("PowerPaste rendered {FormatCount} format(s) of clip {ArmedClipId}", _armedFormats.Count, _armedClip?.Id);
 
-        if (!reader.IsPaste((uint)Environment.ProcessId))
+        if (!reader.IsPaste(OwnProcess.Id))
         {
             // Clipboard history, another clipboard manager, ClipMate itself: it gets the data, but the user has not
             // pasted. Arm the clip again once the reader has closed the clipboard.
@@ -538,14 +541,14 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint ForegroundProcessId, string ForegroundProcessName)
 {
     /// <summary>
-    /// The reader as seen now, while the clipboard is open to it.
+    /// The reader as seen now, while the clipboard is open to <paramref name="openClipboardWindow" />.
     /// </summary>
-    public static ClipboardReader Current()
+    public static ClipboardReader Current(IWin32InputInterop win32, HWND openClipboardWindow)
     {
-        var processId = GetProcessId(PInvoke.GetOpenClipboardWindow());
-        var foregroundProcessId = GetProcessId(PInvoke.GetForegroundWindow());
+        var processId = GetProcessId(win32, openClipboardWindow);
+        var foregroundProcessId = GetProcessId(win32, win32.GetForegroundWindow());
 
-        return new ClipboardReader(processId, GetProcessName(processId), foregroundProcessId, GetProcessName(foregroundProcessId));
+        return new ClipboardReader(processId, GetProcessName(win32, processId), foregroundProcessId, GetProcessName(win32, foregroundProcessId));
     }
 
     /// <summary>
@@ -555,31 +558,18 @@ internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint 
     public bool IsPaste(uint ownProcessId) =>
         ProcessId != 0 && ProcessId == ForegroundProcessId && ProcessId != ownProcessId;
 
-    private static unsafe uint GetProcessId(HWND window)
+    private static uint GetProcessId(IWin32InputInterop win32, HWND window)
     {
         if (window.IsNull)
             return 0;
 
-        uint processId;
-        PInvoke.GetWindowThreadProcessId(window, &processId);
+        win32.GetWindowThreadProcessId(window, out var processId);
 
         return processId;
     }
 
-    private static string GetProcessName(uint processId)
-    {
-        if (processId == 0)
-            return "(no window)";
-
-        try
-        {
-            using var process = Process.GetProcessById((int)processId);
-
-            return process.ProcessName;
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return "(unknown)";
-        }
-    }
+    private static string GetProcessName(IWin32InputInterop win32, uint processId) =>
+        processId == 0
+            ? "(no window)"
+            : win32.GetProcessName(processId) ?? "(unknown)";
 }

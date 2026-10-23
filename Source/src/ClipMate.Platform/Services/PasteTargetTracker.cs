@@ -4,6 +4,7 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -19,8 +20,6 @@ public sealed class PasteTargetTracker : IPasteTargetTracker, IDisposable
 {
     // Bounds the window-stack walk; a desktop has a few hundred top-level windows at most
     private const int _maxWindowStackDepth = 1000;
-
-    private static readonly uint _clipMateProcessId = (uint)Environment.ProcessId;
 
     private readonly IConfigurationService _configurationService;
     private readonly IForegroundWindowMonitor _foregroundMonitor;
@@ -338,7 +337,7 @@ public sealed class PasteTargetTracker : IPasteTargetTracker, IDisposable
     /// </summary>
     private sealed record TrackedWindow(HWND Hwnd, uint ProcessId, PasteTargetWindow Target)
     {
-        public bool IsClipMate => ProcessId == _clipMateProcessId;
+        public bool IsClipMate => OwnProcess.Is(ProcessId);
 
         public string TargetString => Target.TargetString;
     }

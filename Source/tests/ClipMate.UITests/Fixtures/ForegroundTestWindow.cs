@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -10,11 +9,8 @@ namespace ClipMate.UITests.Fixtures;
 /// is working in": reading the clipboard with this window passed to OpenClipboard is what an editor's Ctrl+V does.
 /// It runs on its own STA thread with a dispatcher.
 /// </summary>
-public sealed partial class ForegroundTestWindow : IDisposable
+public sealed class ForegroundTestWindow : IDisposable
 {
-    private const byte _vkMenu = 0x12;
-    private const uint _keyEventKeyUp = 0x0002;
-
     private readonly Dispatcher _dispatcher;
     private readonly Thread _thread;
 
@@ -64,33 +60,11 @@ public sealed partial class ForegroundTestWindow : IDisposable
     /// </summary>
     public string? Paste() => _dispatcher.Invoke(() => SystemClipboard.TryReadText(Handle));
 
-    private static Task BringToForegroundAsync(IntPtr handle) =>
-        // Windows only lets the process that received the last input take the foreground; a synthetic Alt press
-        // counts as that input
-        Poll.UntilAsync(() =>
-        {
-            if (GetForegroundWindow() == handle)
-                return true;
-
-            keybd_event(_vkMenu, 0, 0, UIntPtr.Zero);
-            keybd_event(_vkMenu, 0, _keyEventKeyUp, UIntPtr.Zero);
-            SetForegroundWindow(handle);
-            return GetForegroundWindow() == handle;
-        }, "the test window to come to the foreground");
+    private static Task BringToForegroundAsync(IntPtr handle) => Foreground.ActivateAsync(handle, "the test window");
 
     public void Dispose()
     {
         _dispatcher.InvokeShutdown();
         _thread.Join();
     }
-
-    [LibraryImport("user32.dll")]
-    private static partial IntPtr GetForegroundWindow();
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetForegroundWindow(IntPtr hWnd);
-
-    [LibraryImport("user32.dll")]
-    private static partial void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 }

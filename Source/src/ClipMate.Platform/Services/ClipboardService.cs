@@ -1433,15 +1433,12 @@ public class ClipboardService : IClipboardService, IDisposable
             uint processId = 0;
             _ = PInvoke.GetWindowThreadProcessId(hwnd, &processId);
 
-            if (processId != 0)
+            // Don't capture profiles for ClipMate itself
+            if (processId != 0 && !OwnProcess.Is(processId))
             {
-                var process = Process.GetProcessById((int)processId);
-                var processName = process.ProcessName;
+                using var process = Process.GetProcessById((int)processId);
 
-                // Don't capture profiles for ClipMate itself
-                return processName.Equals("ClipMate.App", StringComparison.OrdinalIgnoreCase)
-                    ? null
-                    : processName;
+                return process.ProcessName;
             }
         }
         catch (Exception ex)
