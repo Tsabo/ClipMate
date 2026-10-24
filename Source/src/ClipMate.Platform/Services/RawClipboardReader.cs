@@ -11,7 +11,8 @@ namespace ClipMate.Platform.Services;
 /// <param name="FormatCount">How many formats the clipboard offered, stored or not; 0 means it was empty.</param>
 /// <param name="Formats">The formats read, in the source's order.</param>
 /// <param name="IgnoreFlag">The change asked clipboard viewers to ignore it, so nothing was read.</param>
-internal sealed record ClipboardSnapshot(int FormatCount, IReadOnlyList<RawClipboardFormat> Formats, bool IgnoreFlag);
+/// <param name="Owner">The window that owned the clipboard while it was read, or null.</param>
+internal sealed record ClipboardSnapshot(int FormatCount, IReadOnlyList<RawClipboardFormat> Formats, bool IgnoreFlag, HWND Owner);
 
 /// <summary>
 /// Reads the clipboard the way ClipMate 7 does: opened once, every format read raw in the order the source offered
@@ -66,9 +67,10 @@ internal sealed class RawClipboardReader
         var open = true;
         try
         {
+            var owner = _win32.GetClipboardOwner();
             var offered = ListFormats();
             if (honourIgnoreFlag && offered.Any(p => p.Name != null && ClipboardIgnoreFormats.All.Contains(p.Name)))
-                return new ClipboardSnapshot(offered.Count, [], true);
+                return new ClipboardSnapshot(offered.Count, [], true, owner);
 
             var formats = new List<RawClipboardFormat>();
             foreach (var (code, name) in offered)
@@ -99,14 +101,14 @@ internal sealed class RawClipboardReader
                     {
                         _logger.LogWarning("Could not reopen the clipboard to read {Format}", name);
 
-                        return new ClipboardSnapshot(offered.Count, formats, false);
+                        return new ClipboardSnapshot(offered.Count, formats, false, owner);
                     }
 
                     open = true;
                 }
             }
 
-            return new ClipboardSnapshot(offered.Count, formats, false);
+            return new ClipboardSnapshot(offered.Count, formats, false, owner);
         }
         finally
         {

@@ -259,6 +259,124 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_OwnerInABackgroundProgram_SourceIsTheOwner()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x11), 101, "notepad", "Untitled - Notepad");
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.SourceApplicationName).IsEqualTo("notepad");
+        await Assert.That(clip.SourceApplicationTitle).IsEqualTo("Untitled - Notepad");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_OwnerWindowWithoutATitle_TakesTheForegroundTitle()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x10), 101, "notepad", null);
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.SourceApplicationName).IsEqualTo("notepad");
+        await Assert.That(clip.SourceApplicationTitle).IsEqualTo("Desktop");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_NoClipboardOwner_SourceIsTheForegroundWindow()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.SourceApplicationName).IsEqualTo("explorer");
+        await Assert.That(clip.SourceApplicationTitle).IsEqualTo("Desktop");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_OwnerProcessGone_SourceIsTheForegroundWindow()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x11), 101, null, null);
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.SourceApplicationName).IsEqualTo("explorer");
+        await Assert.That(clip.SourceApplicationTitle).IsEqualTo("Desktop");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_OwnerInABackgroundProgram_ApplicationProfileIsTheOwners()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x11), 101, "notepad", "Untitled - Notepad");
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var profileService = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => profileService.GetOrCreateProfileAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new Core.Models.ApplicationProfile { ApplicationName = "NOTEPAD", Enabled = true });
+        A.CallTo(() => profileService.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
+
+        // Act
+        await CaptureAsync(service);
+
+        // Assert
+        A.CallTo(() => profileService.GetOrCreateProfileAsync("notepad", A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.GetOrCreateProfileAsync("explorer", A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_OwnerInABackgroundProgram_ProfileIsTheOwners()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x11), 101, "notepad", "Untitled - Notepad");
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var profileService = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => profileService.GetOrCreateProfileAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new Core.Models.ApplicationProfile { ApplicationName = "NOTEPAD", Enabled = true });
+        A.CallTo(() => profileService.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync();
+
+        // Assert
+        await Assert.That(clip).IsNotNull();
+        A.CallTo(() => profileService.GetOrCreateProfileAsync("notepad", A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.GetOrCreateProfileAsync("explorer", A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task GetClipboardFormats_ClipWithRawFormats_OffersThemAgain()
     {
         // Arrange
@@ -320,7 +438,8 @@ public class ClipboardServiceTests : TestFixtureBase
     /// </summary>
     private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
 
-    private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService)
+    private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService,
+        IApplicationProfileService? profileServiceMock = null)
     {
         var logger = CreateLogger<ClipboardService>();
 
@@ -328,9 +447,11 @@ public class ClipboardServiceTests : TestFixtureBase
         A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
         A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
 
-        // Mock IApplicationProfileService (disabled by default)
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
+        if (profileServiceMock == null)
+        {
+            profileServiceMock = A.Fake<IApplicationProfileService>();
+            A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
+        }
 
         A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
@@ -351,6 +472,7 @@ public class ClipboardServiceTests : TestFixtureBase
         var win32Mock = CreateWin32ClipboardMock();
         A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).Returns(true);
         A.CallTo(() => win32Mock.CloseClipboard()).Returns(true);
+        A.CallTo(() => win32Mock.GetClipboardOwner()).Returns(HWND.Null);
         A.CallTo(() => win32Mock.GetForegroundWindow()).Returns(HWND.Null);
         A.CallTo(() => win32Mock.EnumClipboardFormats(A<uint>.Ignored)).ReturnsLazily((uint previous) =>
         {
@@ -364,5 +486,43 @@ public class ClipboardServiceTests : TestFixtureBase
         }
 
         return win32Mock;
+    }
+
+    private IWin32ClipboardInterop CreateTextOffering() =>
+        CreateClipboardOffering(((uint)Formats.UnicodeText.Code, null, System.Text.Encoding.Unicode.GetBytes("Hello\0")));
+
+    private static async Task<Clip> CaptureAsync(ClipboardService service)
+    {
+        await service.CaptureClipboardChangeAsync(HWND.Null);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        return await service.ClipsChannel.ReadAsync(cts.Token);
+    }
+
+    /// <summary>
+    /// The clipboard is owned by <paramref name="owner" /> (inside the top-level window <paramref name="topLevel" />)
+    /// of process <paramref name="processId" />; a null process name means the process has exited.
+    /// </summary>
+    private static void GivenClipboardOwner(IWin32ClipboardInterop win32Mock, HWND owner, HWND topLevel, uint processId, string? processName,
+        string? topLevelTitle)
+    {
+        A.CallTo(() => win32Mock.GetClipboardOwner()).Returns(owner);
+        GivenWindow(win32Mock, owner, topLevel, processId, processName, topLevel == owner ? topLevelTitle : null);
+        if (topLevel != owner)
+            GivenWindow(win32Mock, topLevel, topLevel, processId, processName, topLevelTitle);
+    }
+
+    private static void GivenForegroundWindow(IWin32ClipboardInterop win32Mock, HWND window, uint processId, string processName, string title)
+    {
+        A.CallTo(() => win32Mock.GetForegroundWindow()).Returns(window);
+        GivenWindow(win32Mock, window, window, processId, processName, title);
+    }
+
+    private static void GivenWindow(IWin32ClipboardInterop win32Mock, HWND window, HWND topLevel, uint processId, string? processName, string? title)
+    {
+        A.CallTo(() => win32Mock.GetWindowProcessId(window)).Returns(processId);
+        A.CallTo(() => win32Mock.GetProcessName(processId)).Returns(processName);
+        A.CallTo(() => win32Mock.GetTopLevelWindow(window)).Returns(topLevel);
+        A.CallTo(() => win32Mock.GetWindowTitle(window)).Returns(title);
     }
 }

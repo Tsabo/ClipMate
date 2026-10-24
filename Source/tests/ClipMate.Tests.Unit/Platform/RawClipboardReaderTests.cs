@@ -42,6 +42,25 @@ public class RawClipboardReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_ClipboardWithAnOwner_RecordsTheOwnerWhileTheClipboardIsOpen()
+    {
+        // Arrange
+        var owner = new HWND(77);
+        var win32 = FakeClipboard(((uint)Formats.UnicodeText.Code, null, Encoding.Unicode.GetBytes("x\0")));
+        A.CallTo(() => win32.GetClipboardOwner()).Returns(owner);
+        var reader = new RawClipboardReader(win32, new ManualTimeProvider(), NullLogger.Instance);
+
+        // Act
+        var snapshot = await reader.ReadAsync(_window, honourIgnoreFlag: true);
+
+        // Assert
+        await Assert.That(snapshot!.Owner).IsEqualTo(owner);
+        A.CallTo(() => win32.OpenClipboard(_window)).MustHaveHappenedOnceExactly()
+            .Then(A.CallTo(() => win32.GetClipboardOwner()).MustHaveHappenedOnceExactly())
+            .Then(A.CallTo(() => win32.CloseClipboard()).MustHaveHappenedOnceExactly());
+    }
+
+    [Test]
     public async Task ReadAsync_NeverCaptureAndUnnamedFormats_AreLeftOut()
     {
         // Arrange: ClipMate 7's never-capture list, a format without a name and GDI handle formats around one keeper

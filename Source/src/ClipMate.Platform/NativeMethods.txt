@@ -18,6 +18,7 @@ RegisterHotKey
 UnregisterHotKey
 GetForegroundWindow
 GetWindowThreadProcessId
+GetAncestor
 GetWindowTextW
 GetWindowTextLengthW
 GetClassName

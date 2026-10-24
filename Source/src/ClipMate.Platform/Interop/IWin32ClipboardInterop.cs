@@ -23,14 +23,29 @@ public interface IWin32ClipboardInterop
     HWND GetForegroundWindow();
 
     /// <summary>
-    /// Gets the length of the window text.
+    /// The window's title, or null when it has none.
     /// </summary>
-    int GetWindowTextLength(HWND hwnd);
+    string? GetWindowTitle(HWND hwnd);
 
     /// <summary>
-    /// Gets the text of the specified window.
+    /// The top-level window that contains <paramref name="hwnd" /> (the window itself when it is top-level).
     /// </summary>
-    unsafe int GetWindowText(HWND hwnd, char* lpString, int nMaxCount);
+    HWND GetTopLevelWindow(HWND hwnd);
+
+    /// <summary>
+    /// The ID of the process that created the window, or 0 when the window doesn't exist.
+    /// </summary>
+    uint GetWindowProcessId(HWND hwnd);
+
+    /// <summary>
+    /// The name of a running process (without ".exe"), or null when it has exited.
+    /// </summary>
+    string? GetProcessName(uint processId);
+
+    /// <summary>
+    /// The window that owns the clipboard's content, or null when there is none.
+    /// </summary>
+    HWND GetClipboardOwner();
 
     /// <summary>
     /// Opens the clipboard for reading, associated with the window.

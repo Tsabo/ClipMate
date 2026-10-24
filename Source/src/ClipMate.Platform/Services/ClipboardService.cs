@@ -1,11 +1,9 @@
 using System.Collections.Specialized;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using System.Windows.Media.Imaging;
-using Windows.Win32;
 using Windows.Win32.Foundation;
 using ClipMate.Core.Exceptions;
 using ClipMate.Core.Models;
@@ -175,11 +173,6 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            var foregroundWindow = _win32.GetForegroundWindow();
-            string? applicationName = null;
-            if (!foregroundWindow.IsNull)
-                applicationName = GetProcessName(foregroundWindow);
-
             // Read on the clipboard thread while monitoring, else (startup capture) on the thread pool; a manual or
             // startup capture skips the ignore flag
             var clipboardThread = _clipboardThread;
@@ -190,7 +183,15 @@ public class ClipboardService : IClipboardService, IDisposable
             if (snapshot == null || snapshot.Formats.Count == 0)
                 return null;
 
-            return await Task.Run(() => _decoder.DecodeAsync(snapshot.Formats, applicationName, cancellationToken), cancellationToken);
+            var source = GetSourceApplication(snapshot.Owner);
+            var clip = await Task.Run(() => _decoder.DecodeAsync(snapshot.Formats, source.Name, cancellationToken), cancellationToken);
+            if (clip != null)
+            {
+                clip.SourceApplicationName = source.Name;
+                clip.SourceApplicationTitle = source.Title;
+            }
+
+            return clip;
         }
         catch (Exception ex)
         {
@@ -363,7 +364,7 @@ public class ClipboardService : IClipboardService, IDisposable
     // Runs on the clipboard thread, started by the capture scheduler; the clipboard is held only for the raw read
     internal async Task<ClipboardCaptureResult> CaptureClipboardChangeAsync(HWND window)
     {
-        var owner = GetClipboardOwnerName();
+        string? owner = null;
         try
         {
             // Suspension may have started after the notification was scheduled - reading the clipboard here
@@ -374,6 +375,9 @@ public class ClipboardService : IClipboardService, IDisposable
             var snapshot = await _reader.ReadAsync(window, _configurationService.Configuration.Preferences.PayAttentionToClipboardIgnoreFlag);
             if (snapshot == null)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Failed, owner);
+
+            var source = GetSourceApplication(snapshot.Owner);
+            owner = source.IsClipMate ? "ClipMate" : source.Name;
 
             // A program that asks clipboard viewers to ignore its change (for example Power Paste re-offering a clip
             // that was already read) is not captured
@@ -395,10 +399,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (snapshot.Formats.Count == 0)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Unsupported, owner);
 
-            var foregroundWindow = _win32.GetForegroundWindow();
-            var pending = foregroundWindow.IsNull
-                ? new PendingCapture(snapshot.Formats, null, null, _lastClipboardChange)
-                : new PendingCapture(snapshot.Formats, GetProcessName(foregroundWindow), GetWindowTitle(foregroundWindow), _lastClipboardChange);
+            var pending = new PendingCapture(snapshot.Formats, source.Name, source.Title, _lastClipboardChange);
 
             // Decoding, hashing and saving run on the thread pool; the channel drops the oldest read when full
             await _pendingCaptures.Writer.WriteAsync(pending);
@@ -437,7 +438,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    /// A clipboard read waiting to be decoded, with the application that was in the foreground and when it changed.
+    /// A clipboard read waiting to be decoded, with its Source Application and when it changed.
     /// </summary>
     private sealed record PendingCapture(IReadOnlyList<RawClipboardFormat> Formats, string? ApplicationName, string? ApplicationTitle, DateTime ChangedAt);
 
@@ -761,82 +762,51 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    private unsafe string? GetProcessName(HWND hwnd)
-    {
-        try
-        {
-            uint processId = 0;
-            _ = PInvoke.GetWindowThreadProcessId(hwnd, &processId);
-
-            // Don't capture profiles for ClipMate itself
-            if (processId != 0 && !OwnProcess.Is(processId))
-            {
-                using var process = Process.GetProcessById((int)processId);
-
-                return process.ProcessName;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to get process name");
-        }
-
-        return null;
-    }
-
     /// <summary>
-    /// The process name of the clipboard's owner, "ClipMate" for ClipMate itself, or null when there is no owner.
+    /// The Source Application of a clipboard change: the process of the clipboard owner, or of the foreground window
+    /// when there is no owner or its process can't be found. The title is the owner's top-level window title, else
+    /// the foreground window's. ClipMate itself gets no name, so it never has an Application Profile.
     /// </summary>
-    private unsafe string? GetClipboardOwnerName()
+    private SourceApplication GetSourceApplication(HWND owner)
     {
-        try
+        var foreground = _win32.GetForegroundWindow();
+        var window = owner;
+        var process = FindProcess(owner);
+        if (process == null)
         {
-            var owner = PInvoke.GetClipboardOwner();
-            if (owner.IsNull)
-                return null;
-
-            uint processId = 0;
-            _ = PInvoke.GetWindowThreadProcessId(owner, &processId);
-            if (processId == 0)
-                return null;
-
-            if (OwnProcess.Is(processId))
-                return "ClipMate";
-
-            using var process = Process.GetProcessById((int)processId);
-
-            return process.ProcessName;
+            window = foreground;
+            process = FindProcess(foreground);
         }
-        catch (ArgumentException)
-        {
-            // The owner exited
+
+        var title = GetTopLevelTitle(window) ?? (window != foreground ? GetTopLevelTitle(foreground) : null);
+
+        return new SourceApplication(process?.Name, title, process?.IsClipMate == true);
+    }
+
+    private (string? Name, bool IsClipMate)? FindProcess(HWND window)
+    {
+        if (window.IsNull)
             return null;
-        }
+
+        var processId = _win32.GetWindowProcessId(window);
+        if (processId == 0)
+            return null;
+
+        if (OwnProcess.Is(processId))
+            return (null, true);
+
+        return _win32.GetProcessName(processId) is { } name ? (name, false) : null;
     }
 
-    private unsafe string? GetWindowTitle(HWND hwnd)
+    private string? GetTopLevelTitle(HWND window)
     {
-        try
-        {
-            var length = _win32.GetWindowTextLength(hwnd);
+        if (window.IsNull)
+            return null;
 
-            if (length == 0)
-                return null;
+        var topLevel = _win32.GetTopLevelWindow(window);
 
-            var buffer = new char[length + 1];
-            fixed (char* pBuffer = buffer)
-            {
-                var result = _win32.GetWindowText(hwnd, pBuffer, length + 1);
-
-                if (result > 0)
-                    return new string(buffer, 0, result);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to get window title");
-        }
-
-        return null;
+        return _win32.GetWindowTitle(topLevel.IsNull ? window : topLevel) is { Length: > 0 } title ? title : null;
     }
+
+    private sealed record SourceApplication(string? Name, string? Title, bool IsClipMate);
 }
