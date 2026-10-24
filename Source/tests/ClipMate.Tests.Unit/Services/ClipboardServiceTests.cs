@@ -422,6 +422,88 @@ public class ClipboardServiceTests : TestFixtureBase
         await Assert.That(formats.Single(p => p.FormatId == privateId).Data).IsEquivalentTo(privateData);
     }
 
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_IgnoreFlagPresent_IsNotCaptured()
+    {
+        // Arrange
+        var soundService = A.Fake<ISoundService>();
+        var service = CreateClipboardService(CreateIgnoredTextOffering(), soundService);
+
+        // Act
+        var result = await service.CaptureClipboardChangeAsync(HWND.Null);
+
+        // Assert
+        await Assert.That(result.Outcome).IsEqualTo(ClipboardCaptureOutcome.IgnoreFlag);
+        await Assert.That(service.ClipsChannel.TryRead(out _)).IsFalse();
+        A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_IgnoreFlagPresentButNotHonoured_IsCaptured()
+    {
+        // Arrange
+        var configuration = new ClipMateConfiguration { Preferences = { PayAttentionToClipboardIgnoreFlag = false } };
+        var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>(), configuration: configuration);
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_SameContentTwice_PublishesBothWithoutASound()
+    {
+        // Arrange
+        var soundService = A.Fake<ISoundService>();
+        var service = CreateClipboardService(CreateTextOffering(), soundService);
+
+        // Act
+        var first = await CaptureAsync(service);
+        var second = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(second.ContentHash).IsEqualTo(first.ContentHash);
+        A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CreateCopy_TextClip_CarriesTheClipboardViewerIgnoreFormatOnly()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+
+        // Act
+        var dataObject = service.CreateCopy(clip);
+
+        // Assert
+        await Assert.That(dataObject!.GetDataPresent(ClipboardIgnoreFormats.ClipboardViewerIgnore, false)).IsTrue();
+        await Assert.That(dataObject.GetDataPresent(ClipboardIgnoreFormats.ExcludeFromMonitorProcessing, false)).IsFalse();
+        await Assert.That(dataObject.GetData(System.Windows.DataFormats.UnicodeText)).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_TextClip_DoesNotIncludeTheIgnoreFormat()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        var ignoreId = (uint)System.Windows.DataFormats.GetDataFormat(ClipboardIgnoreFormats.ClipboardViewerIgnore).Id;
+        await Assert.That(formats.Any(p => p.FormatId == ignoreId)).IsFalse();
+    }
+
     private static byte[] CreatePng(int width, int height)
     {
         var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
@@ -439,7 +521,7 @@ public class ClipboardServiceTests : TestFixtureBase
     private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
 
     private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService,
-        IApplicationProfileService? profileServiceMock = null)
+        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null)
     {
         var logger = CreateLogger<ClipboardService>();
 
@@ -457,7 +539,7 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Create configuration mock with default timing values
         var configServiceMock = A.Fake<IConfigurationService>();
-        var config = new ClipMateConfiguration();
+        var config = configuration ?? new ClipMateConfiguration();
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
@@ -490,6 +572,10 @@ public class ClipboardServiceTests : TestFixtureBase
 
     private IWin32ClipboardInterop CreateTextOffering() =>
         CreateClipboardOffering(((uint)Formats.UnicodeText.Code, null, System.Text.Encoding.Unicode.GetBytes("Hello\0")));
+
+    private IWin32ClipboardInterop CreateIgnoredTextOffering() =>
+        CreateClipboardOffering(((uint)Formats.UnicodeText.Code, null, System.Text.Encoding.Unicode.GetBytes("Hello\0")),
+            (0xC010, ClipboardIgnoreFormats.ClipboardViewerIgnore, []));
 
     private static async Task<Clip> CaptureAsync(ClipboardService service)
     {

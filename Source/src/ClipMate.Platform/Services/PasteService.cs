@@ -43,7 +43,7 @@ public class PasteService : IPasteService
         {
             _logger.LogDebug("Pasting clip {ClipId} of type {ClipType} to active window", clip.Id, clip.Type);
 
-            // Use ClipboardService to set clipboard content with proper capture suppression
+            // ClipMate's own copy, so it isn't captured again
             await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
 
             // Small delay to ensure clipboard is set

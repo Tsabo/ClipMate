@@ -180,10 +180,8 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     private void RestoreAsNormalCopy(Clip clip)
     {
-        // A normal copy: the capture pipeline recognizes the clip by this hash and does not capture it again. The
-        // copy keeps the clip in the list untouched.
+        // A normal copy, marked as ClipMate's own so it is not captured again; the clip stays in the list untouched
         var copy = clip.WithText(clip.TextContent);
-        copy.ContentHash = ContentHasher.HashClip(copy);
 
         _ = Task.Run(async () =>
         {

@@ -526,9 +526,7 @@ public class ClipService : IClipService
             if (transformedClip != null)
                 clip = transformedClip;
 
-            // Generate ContentHash for suppression (prevent re-capturing this clip)
-            // IMPORTANT: Must compute hash AFTER loading content from database
-            // Same rule as capture, so the clip's own re-capture is recognised
+            // Recompute after loading the content, by the same rule as capture
             clip.ContentHash = ContentHasher.HashClip(clip);
 
             // Update the Windows clipboard

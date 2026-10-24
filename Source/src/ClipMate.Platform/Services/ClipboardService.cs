@@ -42,10 +42,6 @@ public class ClipboardService : IClipboardService, IDisposable
     private bool _captureSuspended;
     private ClipboardCaptureScheduler? _captureScheduler;
     private ClipboardThread? _clipboardThread;
-    private DateTime _lastClipboardChange = DateTime.MinValue;
-    private string _lastContentHash = string.Empty;
-    private string? _suppressCaptureForHash;
-    private DateTime _suppressCaptureUntil = DateTime.MinValue;
 
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
@@ -211,31 +207,11 @@ public class ClipboardService : IClipboardService, IDisposable
             await Retrier.Attempt(
                 async attempt =>
                 {
-                    // Suppress capture of this specific content by storing its hash BEFORE modifying clipboard
-                    // With settle delay, notifications arrive later, so set suppression window long enough
-                    // Use the clip's existing ContentHash - it's already computed for all clip types
-                    _suppressCaptureForHash = clip.ContentHash;
-                    _suppressCaptureUntil = DateTime.UtcNow.AddSeconds(2); // Longer window to account for settle delay
-
-                    // Clear last content hash to prevent false duplicate detection
-                    // When we restore a clip, the subsequent capture should use suppression hash, not duplicate detection
-                    _lastContentHash = string.Empty;
-
-                    if (_logger.IsEnabled(LogLevel.Debug))
-                    {
-                        var hashPreview = _suppressCaptureForHash.Length >= 8
-                            ? _suppressCaptureForHash[..8]
-                            : _suppressCaptureForHash;
-
-                        _logger.LogDebug("Set clipboard suppression hash BEFORE clipboard modification: {Hash} for clip type {Type}",
-                            hashPreview, clip.Type);
-                    }
-
                     // Must run on STA thread (UI thread) for WPF Clipboard API
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                        if (CreateDataObject(clip) is { } dataObject)
+                        if (CreateCopy(clip) is { } dataObject)
                             WpfClipboard.SetDataObject(dataObject, true);
                     });
 
@@ -351,7 +327,6 @@ public class ClipboardService : IClipboardService, IDisposable
             return IntPtr.Zero;
         }
 
-        _lastClipboardChange = DateTime.UtcNow;
         _captureScheduler?.OnClipboardUpdate();
 
         return IntPtr.Zero;
@@ -390,7 +365,6 @@ public class ClipboardService : IClipboardService, IDisposable
 
             if (snapshot.FormatCount == 0)
             {
-                _lastContentHash = string.Empty;
                 await _soundService.PlaySoundAsync(SoundEvent.Erase);
 
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Empty, owner);
@@ -399,7 +373,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (snapshot.Formats.Count == 0)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Unsupported, owner);
 
-            var pending = new PendingCapture(snapshot.Formats, source.Name, source.Title, _lastClipboardChange);
+            var pending = new PendingCapture(snapshot.Formats, source.Name, source.Title);
 
             // Decoding, hashing and saving run on the thread pool; the channel drops the oldest read when full
             await _pendingCaptures.Writer.WriteAsync(pending);
@@ -438,9 +412,9 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    /// A clipboard read waiting to be decoded, with its Source Application and when it changed.
+    /// A clipboard read waiting to be decoded, with its Source Application.
     /// </summary>
-    private sealed record PendingCapture(IReadOnlyList<RawClipboardFormat> Formats, string? ApplicationName, string? ApplicationTitle, DateTime ChangedAt);
+    private sealed record PendingCapture(IReadOnlyList<RawClipboardFormat> Formats, string? ApplicationName, string? ApplicationTitle);
 
     private async Task DecodeAndPublishAsync(PendingCapture pending)
     {
@@ -452,30 +426,6 @@ public class ClipboardService : IClipboardService, IDisposable
             return;
         }
 
-        // Content ClipMate itself put on the clipboard within the suppression window
-        if (_suppressCaptureForHash != null && clip.ContentHash == _suppressCaptureForHash && DateTime.UtcNow < _suppressCaptureUntil)
-        {
-            _logger.LogDebug("Clipboard change is ClipMate's own copy");
-
-            return;
-        }
-
-        if (DateTime.UtcNow >= _suppressCaptureUntil)
-            _suppressCaptureForHash = null;
-
-        if (clip.ContentHash == _lastContentHash)
-        {
-            // A duplicate arriving >200ms after the last change is likely the user copying the same thing twice,
-            // unless ClipMate itself set the clipboard
-            if ((DateTime.UtcNow - pending.ChangedAt).TotalMilliseconds > 200 && DateTime.UtcNow >= _suppressCaptureUntil)
-                await _soundService.PlaySoundAsync(SoundEvent.Ignore);
-
-            _logger.LogDebug("Clipboard change is a duplicate of the last one");
-
-            return;
-        }
-
-        _lastContentHash = clip.ContentHash;
         clip.SourceApplicationName = pending.ApplicationName;
         clip.SourceApplicationTitle = pending.ApplicationTitle;
 
@@ -583,6 +533,18 @@ public class ClipboardService : IClipboardService, IDisposable
         // An encrypted clip's raw formats are not decrypted for the clipboard
         if (!clip.Encrypted)
             AddRawFormats(dataObject, clip.RawFormats);
+
+        return dataObject;
+    }
+
+    /// <summary>
+    /// The data object a copy of the clip puts on the clipboard: every Format the clip has, marked as ClipMate's own copy.
+    /// </summary>
+    internal WpfDataObject? CreateCopy(Clip clip)
+    {
+        var dataObject = CreateDataObject(clip);
+        if (dataObject != null)
+            OwnClipboardCopy.Mark(dataObject);
 
         return dataObject;
     }
