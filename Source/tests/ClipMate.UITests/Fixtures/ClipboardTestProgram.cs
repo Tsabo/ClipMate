@@ -56,6 +56,15 @@ public sealed class ClipboardTestProgram : IDisposable
                                            Application.Run();
                                        }
 
+                                       public static void CopyInBackground(string text, string title)
+                                       {
+                                           var owner = new ClipboardTestOwner(text, 0, 0);
+                                           owner.Text = title;
+                                           Write(owner.Handle, true, CfUnicodeText, Encoding.Unicode.GetBytes(text + "\0"));
+                                           Console.WriteLine("written");
+                                           Application.Run();
+                                       }
+
                                        // The text is there at once for clipboard monitors that read only text; the HTML is
                                        // rendered on demand. Windows' clipboard history is kept out, as it would ask for it first.
                                        private void Offer()
@@ -202,6 +211,18 @@ public sealed class ClipboardTestProgram : IDisposable
     /// </summary>
     public static ClipboardTestProgram OfferSlowly(string text, int renderDelayMs, Process reader) =>
         new($"[ClipboardTestOwner]::OfferSlowly('{Quote(text)}', {renderDelayMs}, {reader.Id})");
+
+    /// <summary>
+    /// Copies <paramref name="text" /> from a hidden window titled <paramref name="title" />, never in the foreground.
+    /// Prints "written" when done.
+    /// </summary>
+    public static ClipboardTestProgram CopyInBackground(string text, string title) =>
+        new($"[ClipboardTestOwner]::CopyInBackground('{Quote(text)}', '{Quote(title)}')");
+
+    /// <summary>
+    /// The name of the program's process, as ClipMate records it.
+    /// </summary>
+    public string ProcessName => _process.ProcessName;
 
     /// <summary>
     /// True once the program has printed <paramref name="line" />. Throws when it has exited without printing it.
