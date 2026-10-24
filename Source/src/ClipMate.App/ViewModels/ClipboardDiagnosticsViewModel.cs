@@ -2,10 +2,10 @@ using System.Collections.ObjectModel;
 using System.Text;
 using ClipMate.App.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -113,7 +113,7 @@ public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
         foreach (var item in Formats)
             sb.AppendLine($"{item.FormatId,9} | {item.FormatName,-40} | {item.SizeDisplay}");
 
-        Clipboard.SetText(sb.ToString());
+        OwnClipboardCopy.SetText(sb.ToString());
         StatusMessage = "Diagnostics copied to clipboard";
     }
 }

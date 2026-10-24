@@ -1,10 +1,10 @@
 using System.ComponentModel;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.Controls;
 
@@ -94,7 +94,7 @@ public partial class MarkdownViewerControl
             if (string.IsNullOrEmpty(text))
                 return;
 
-            Clipboard.SetText(text);
+            OwnClipboardCopy.SetText(text);
             _logger.LogDebug("[MarkdownViewer] Copied {Length} characters of Markdown", text.Length);
         }
         catch (Exception ex)

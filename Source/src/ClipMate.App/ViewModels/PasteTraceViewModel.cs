@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -126,7 +126,7 @@ public sealed partial class PasteTraceViewModel : ObservableObject, IDisposable
             lines.Add($"{item.Timestamp:HH:mm:ss.fff}       | {item.FormatId,9} | {item.FormatName,-30} | {size}");
         }
 
-        Clipboard.SetText(string.Join(Environment.NewLine, lines));
+        OwnClipboardCopy.SetText(string.Join(Environment.NewLine, lines));
         StatusMessage = "Results copied to clipboard";
     }
 

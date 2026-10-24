@@ -1,4 +1,6 @@
 using System.IO;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 using ClipMate.Core.Constants;
 using Clipboard = System.Windows.Clipboard;
 using DataFormats = System.Windows.DataFormats;
@@ -34,4 +36,14 @@ public static class OwnClipboardCopy
     /// Must run on an STA thread.
     /// </summary>
     public static void SetText(string text) => Clipboard.SetDataObject(CreateText(text), true);
+
+    /// <summary>
+    /// Adds the "Clipboard Viewer Ignore" format to the clipboard ClipMate has open and emptied.
+    /// </summary>
+    internal static void MarkOpenClipboard()
+    {
+        var hGlobal = DataObjectFormats.AllocGlobal(new byte[sizeof(int)]);
+        if (hGlobal != IntPtr.Zero)
+            PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(ClipboardIgnoreFormats.ClipboardViewerIgnore), new HANDLE(hGlobal));
+    }
 }
