@@ -210,8 +210,10 @@ public class PowerPasteTests(AppFixture appFixture)
                                     SystemClipboard.TryReadText(IntPtr.Zero) == text,
             "ClipMate to leave the waiting clip on the clipboard");
 
+        // Marked as ClipMate's own copy like any other, but kept in Windows clipboard history, unlike a re-arm
         var formats = await Poll.UntilAsync(SystemClipboard.TryGetRawFormatNames, "the clipboard's formats");
         await Assert.That(formats).Contains("#13"); // CF_UNICODETEXT
-        await Assert.That(formats).DoesNotContain(_ignoreMarker);
+        await Assert.That(formats).Contains(_ignoreMarker);
+        await Assert.That(formats).DoesNotContain("ExcludeClipboardContentFromMonitorProcessing");
     }
 }
