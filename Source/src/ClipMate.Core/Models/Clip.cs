@@ -236,6 +236,13 @@ public partial class Clip
     public int? FileDropEffect { get; set; }
 
     /// <summary>
+    /// The Formats the source offered that none of the typed content properties hold (an application's private
+    /// format, CF_LOCALE...), raw and in the source's order, so a copy of the clip offers them again.
+    /// NOT stored in Clips table.
+    /// </summary>
+    public IReadOnlyList<RawClipboardFormat> RawFormats { get; set; } = [];
+
+    /// <summary>
     /// Whether this encrypted clip has been decrypted in memory (temporary state).
     /// When true, encrypted clips can be viewed. Resets to false when user scrolls away.
     /// NOT stored in Clips table - transient runtime property only.
