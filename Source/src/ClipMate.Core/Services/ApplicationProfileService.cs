@@ -50,69 +50,66 @@ public class ApplicationProfileService : IApplicationProfileService
     }
 
     /// <inheritdoc />
-    public async Task<bool> ShouldCaptureFormatAsync(string applicationName, string formatName, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlySet<string>?> GetCapturedFormatsAsync(string applicationName, IReadOnlyCollection<string> formatNames,
+        CancellationToken cancellationToken = default)
     {
-        // If profiles are disabled, don't capture
+        var all = formatNames.ToHashSet(StringComparer.Ordinal);
         if (!_isEnabled)
-            return false;
+            return all;
 
         var normalizedAppName = NormalizeApplicationName(applicationName);
-        var profile = await GetOrCreateProfileAsync(normalizedAppName, cancellationToken);
+        var profile = await _store.GetProfileAsync(normalizedAppName, cancellationToken);
+        if (profile == null)
+            return all;
 
-        // If application is disabled, don't capture
         if (!profile.Enabled)
-            return false;
+            return null;
 
-        // Check if format is in profile and enabled
+        var captured = new HashSet<string>(StringComparer.Ordinal);
+        var learned = false;
+        foreach (var formatName in all)
+        {
+            if (TryGetSetting(profile, formatName) is not { } enabled)
+            {
+                enabled = _smartDefaults.GetValueOrDefault(formatName);
+                profile.Formats[formatName] = enabled;
+                learned = true;
+                _logger.LogInformation("Application profile {ApplicationName} learned format {FormatName} ({Setting})",
+                    normalizedAppName, formatName, enabled ? "on" : "off");
+            }
+
+            if (enabled)
+                captured.Add(formatName);
+        }
+
+        if (learned)
+            await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
+
+        return captured;
+    }
+
+    /// <summary>
+    /// The profile's setting for a format, or null when the profile doesn't have it yet.
+    /// </summary>
+    private static bool? TryGetSetting(ApplicationProfile profile, string formatName)
+    {
         if (profile.Formats.TryGetValue(formatName, out var enabled))
             return enabled;
 
-        // Backward compatibility: if format name starts with "CF_", also try without prefix
-        // This handles old profiles that stored "BITMAP" vs new enumeration returning "CF_BITMAP"
-        if (formatName.StartsWith("CF_", StringComparison.Ordinal))
-        {
-            var withoutPrefix = formatName[3..]; // Remove "CF_"
-            if (profile.Formats.TryGetValue(withoutPrefix, out enabled))
-                return enabled;
-        }
+        // Profiles from older versions store the standard formats without the "CF_" prefix
+        if (formatName.StartsWith("CF_", StringComparison.Ordinal) && profile.Formats.TryGetValue(formatName[3..], out enabled))
+            return enabled;
 
-        // Special case: All bitmap formats should be treated as equivalent
-        // If any bitmap format is enabled, allow all bitmap formats (CF_BITMAP, CF_DIB, CF_DIBV5)
+        // Every bitmap format follows any bitmap setting the profile has
         if (formatName is "CF_BITMAP" or "CF_DIB" or "CF_DIBV5")
         {
-            // Check if any bitmap variant is enabled in the profile
-            return profile.Formats.TryGetValue("CF_BITMAP", out enabled) && enabled
-                   || profile.Formats.TryGetValue("CF_DIB", out enabled) && enabled
-                   || profile.Formats.TryGetValue("CF_DIBV5", out enabled) && enabled
-                   || profile.Formats.TryGetValue("BITMAP", out enabled) && enabled // Old format without prefix
-                   || profile.Formats.TryGetValue("DIB", out enabled) && enabled; // Old format without prefix
+            string[] bitmapFormats = ["CF_BITMAP", "CF_DIB", "CF_DIBV5", "BITMAP", "DIB"];
+            var settings = bitmapFormats.Where(profile.Formats.ContainsKey).Select(p => profile.Formats[p]).ToList();
+            if (settings.Count > 0)
+                return settings.Any(p => p);
         }
 
-        // Format not in profile, default to false (don't capture)
-        return false;
-    }
-
-    /// <inheritdoc />
-    public async Task<ApplicationProfile> GetOrCreateProfileAsync(string applicationName, CancellationToken cancellationToken = default)
-    {
-        var normalizedAppName = NormalizeApplicationName(applicationName);
-        var profile = await _store.GetProfileAsync(normalizedAppName, cancellationToken);
-
-        if (profile != null)
-            return profile;
-
-        // Create new profile with smart defaults
-        profile = new ApplicationProfile
-        {
-            ApplicationName = normalizedAppName,
-            Enabled = true,
-            Formats = new Dictionary<string, bool>(_smartDefaults),
-        };
-
-        await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
-        _logger.LogInformation("Created new application profile for {ApplicationName} with smart defaults", normalizedAppName);
-
-        return profile;
+        return null;
     }
 
     /// <inheritdoc />

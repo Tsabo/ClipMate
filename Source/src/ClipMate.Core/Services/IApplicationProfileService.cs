@@ -4,7 +4,7 @@ namespace ClipMate.Core.Services;
 
 /// <summary>
 /// Service for managing application-specific clipboard format capture profiles.
-/// Provides auto-creation of profiles with smart defaults and format filtering.
+/// Provides format filtering by profile; existing profiles learn the formats they haven't seen.
 /// </summary>
 public interface IApplicationProfileService
 {
@@ -23,22 +23,16 @@ public interface IApplicationProfileService
     void SetApplicationProfilesEnabled(bool enabled);
 
     /// <summary>
-    /// Determines if a specific clipboard format should be captured for a given application.
-    /// Automatically creates a profile with smart defaults if the application is not yet profiled.
+    /// The formats of a capture the Source Application's profile keeps, or null when its profile is switched off.
+    /// Without a profile (or with profiles switched off) every format is kept and no profile is created. Formats an
+    /// existing profile doesn't have yet are added with their default (text, RTF, HTML, images and file lists on;
+    /// others off) and the profile is saved.
     /// </summary>
-    /// <param name="applicationName">The application name (normalized, uppercase, without .EXE).</param>
-    /// <param name="formatName">The clipboard format name to check.</param>
+    /// <param name="applicationName">The Source Application's name; it is normalized.</param>
+    /// <param name="formatNames">The names of the formats on the clipboard, as the profile stores them.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the format should be captured, false otherwise.</returns>
-    Task<bool> ShouldCaptureFormatAsync(string applicationName, string formatName, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets an existing application profile or creates a new one with smart defaults.
-    /// </summary>
-    /// <param name="applicationName">The application name (normalized, uppercase, without .EXE).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The application profile.</returns>
-    Task<ApplicationProfile> GetOrCreateProfileAsync(string applicationName, CancellationToken cancellationToken = default);
+    Task<IReadOnlySet<string>?> GetCapturedFormatsAsync(string applicationName, IReadOnlyCollection<string> formatNames,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates an existing application profile.

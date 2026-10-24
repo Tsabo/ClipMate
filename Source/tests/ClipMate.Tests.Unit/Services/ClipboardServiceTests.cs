@@ -338,17 +338,16 @@ public class ClipboardServiceTests : TestFixtureBase
         GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
         var profileService = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profileService.GetOrCreateProfileAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(new Core.Models.ApplicationProfile { ApplicationName = "NOTEPAD", Enabled = true });
-        A.CallTo(() => profileService.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
+        A.CallTo(() => profileService.GetCapturedFormatsAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
         var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
 
         // Act
         await CaptureAsync(service);
 
         // Assert
-        A.CallTo(() => profileService.GetOrCreateProfileAsync("notepad", A<CancellationToken>.Ignored)).MustHaveHappened();
-        A.CallTo(() => profileService.GetOrCreateProfileAsync("explorer", A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => profileService.GetCapturedFormatsAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.GetCapturedFormatsAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -361,9 +360,8 @@ public class ClipboardServiceTests : TestFixtureBase
         GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
         var profileService = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profileService.GetOrCreateProfileAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(new Core.Models.ApplicationProfile { ApplicationName = "NOTEPAD", Enabled = true });
-        A.CallTo(() => profileService.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).Returns(true);
+        A.CallTo(() => profileService.GetCapturedFormatsAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
         var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
 
         // Act
@@ -371,8 +369,8 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Assert
         await Assert.That(clip).IsNotNull();
-        A.CallTo(() => profileService.GetOrCreateProfileAsync("notepad", A<CancellationToken>.Ignored)).MustHaveHappened();
-        A.CallTo(() => profileService.GetOrCreateProfileAsync("explorer", A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => profileService.GetCapturedFormatsAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.GetCapturedFormatsAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]

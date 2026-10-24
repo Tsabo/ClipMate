@@ -45,7 +45,7 @@ internal sealed class ClipboardSnapshotDecoder
     /// </summary>
     public async Task<Clip?> DecodeAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName, CancellationToken cancellationToken = default)
     {
-        var allowed = await GetAllowedTypedFormatsAsync(formats, applicationName, cancellationToken);
+        var allowed = await GetAllowedFormatsAsync(formats, applicationName, cancellationToken);
         if (allowed == null)
             return null;
 
@@ -53,10 +53,10 @@ internal sealed class ClipboardSnapshotDecoder
         {
             Id = Guid.NewGuid(),
             CapturedAt = DateTimeOffset.Now,
-            RawFormats = formats.Where(p => !_typedFormats.Contains(p.Name)).ToList(),
+            RawFormats = allowed.Where(p => !_typedFormats.Contains(p.Name)).ToList(),
         };
 
-        byte[]? Find(string name) => allowed.Contains(name) ? formats.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Data : null;
+        byte[]? Find(string name) => allowed.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Data;
 
         if (Find("CF_UNICODETEXT") is { } unicodeText)
             clip.TextContent = NullIfEmpty(DecodeUnicode(unicodeText));
@@ -139,42 +139,38 @@ internal sealed class ClipboardSnapshotDecoder
     }
 
     /// <summary>
-    /// The typed formats the Application Profile lets through, or null when the application's profile is switched
-    /// off. Formats without a typed field are kept until profiles learn them (ticket 06).
+    /// The formats the Application Profile lets through (all of them without a profile), or null when the
+    /// application's profile is switched off.
     /// </summary>
-    private async Task<HashSet<string>?> GetAllowedTypedFormatsAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName,
+    private async Task<IReadOnlyList<RawClipboardFormat>?> GetAllowedFormatsAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName,
         CancellationToken cancellationToken)
     {
-        var present = formats.Select(p => p.Name).Where(_typedFormats.Contains).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!_applicationProfileService.IsApplicationProfilesEnabled() || string.IsNullOrEmpty(applicationName))
-            return present;
+            return formats;
 
-        var profile = await _applicationProfileService.GetOrCreateProfileAsync(applicationName, cancellationToken);
-        if (!profile.Enabled)
+        var profileFormats = formats.Select(p => ProfileFormat(p.Name)).Distinct(StringComparer.Ordinal).ToList();
+        var captured = await _applicationProfileService.GetCapturedFormatsAsync(applicationName, profileFormats, cancellationToken);
+        if (captured == null)
         {
             _logger.LogDebug("Application profile of {AppName} is switched off", applicationName);
 
             return null;
         }
 
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in present)
-        {
-            // Every image format follows the profile's bitmap setting, and the drop effect its file list, as before
-            var profileFormat = item switch
-            {
-                _pngFormat or "CF_DIBV5" => "CF_DIB",
-                var _ when item.Equals(Formats.PreferredDropEffect.Name, StringComparison.OrdinalIgnoreCase) => "CF_HDROP",
-                var _ => item,
-            };
-            if (await _applicationProfileService.ShouldCaptureFormatAsync(applicationName, profileFormat, cancellationToken))
-                allowed.Add(item);
-            else
-                _logger.LogDebug("Format {FormatName} filtered out for {AppName}", item, applicationName);
-        }
+        var allowed = formats.Where(p => captured.Contains(ProfileFormat(p.Name))).ToList();
+        foreach (var item in formats.Except(allowed))
+            _logger.LogDebug("Format {FormatName} filtered out for {AppName}", item.Name, applicationName);
 
         return allowed;
     }
+
+    // Every image format follows the profile's bitmap setting, and the drop effect its file list
+    private static string ProfileFormat(string name) => name switch
+    {
+        _pngFormat or "CF_DIBV5" => "CF_DIB",
+        var _ when name.Equals(Formats.PreferredDropEffect.Name, StringComparison.OrdinalIgnoreCase) => "CF_HDROP",
+        var _ => name,
+    };
 
     private (byte[] Data, int Width, int Height)? DecodeImage(byte[]? png, byte[]? dib)
     {

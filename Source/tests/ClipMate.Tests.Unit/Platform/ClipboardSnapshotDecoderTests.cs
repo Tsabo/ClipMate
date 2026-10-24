@@ -19,6 +19,7 @@ namespace ClipMate.Tests.Unit.Platform;
 /// </summary>
 public class ClipboardSnapshotDecoderTests
 {
+    private const string _pngFormat = "PNG";
     private static readonly RawClipboardFormat _privateFormat = new("Acme Private", 0xC123, [1, 2, 3]);
     private static readonly RawClipboardFormat _locale = new("CF_LOCALE", (uint)Formats.Locale.Code, [9, 4, 0, 0]);
 
@@ -110,16 +111,12 @@ public class ClipboardSnapshotDecoderTests
     }
 
     [Test]
-    public async Task DecodeAsync_ProfileSwitchesOffHtml_DropsItAndKeepsTheRest()
+    public async Task DecodeAsync_ProfileSwitchesOffHtmlAndARawFormat_DropsThemAndKeepsTheRest()
     {
-        var profiles = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profiles.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profiles.GetOrCreateProfileAsync("acme", A<CancellationToken>._)).Returns(new ApplicationProfile { ApplicationName = "ACME", Enabled = true });
-        A.CallTo(() => profiles.ShouldCaptureFormatAsync("acme", A<string>._, A<CancellationToken>._)).Returns(true);
-        A.CallTo(() => profiles.ShouldCaptureFormatAsync("acme", Formats.Html.Name, A<CancellationToken>._)).Returns(false);
+        var profiles = CreateProfiles(Formats.Html.Name, "CF_LOCALE");
         var decoder = CreateDecoder(profiles);
 
-        var clip = await decoder.DecodeAsync([UnicodeText("x"), new RawClipboardFormat(Formats.Html.Name, 0xC0A0, "<b>x</b>"u8.ToArray()), _privateFormat], "acme");
+        var clip = await decoder.DecodeAsync([UnicodeText("x"), new RawClipboardFormat(Formats.Html.Name, 0xC0A0, "<b>x</b>"u8.ToArray()), _privateFormat, _locale], "acme");
 
         await Assert.That(clip!.HtmlContent).IsNull();
         await Assert.That(clip.TextContent).IsEqualTo("x");
@@ -127,14 +124,44 @@ public class ClipboardSnapshotDecoderTests
     }
 
     [Test]
+    public async Task DecodeAsync_WithProfiles_AsksAboutEveryFormatImagesAsTheDibAndTheDropEffectAsTheFileList()
+    {
+        var profiles = CreateProfiles();
+        var decoder = CreateDecoder(profiles);
+        string[] files = [@"C:\Docs\a.txt"];
+
+        await decoder.DecodeAsync(
+        [
+            new RawClipboardFormat(_pngFormat, 0xC0D0, CreatePng(1, 1)), new RawClipboardFormat("CF_DIBV5", (uint)Formats.DibV5.Code, [1]),
+            HDrop(files), new RawClipboardFormat(Formats.PreferredDropEffect.Name, 0xC0C0, BitConverter.GetBytes(2)), _privateFormat,
+        ], "acme");
+
+        A.CallTo(() => profiles.GetCapturedFormatsAsync("acme",
+                A<IReadOnlyCollection<string>>.That.IsSameSequenceAs(new[] { "CF_DIB", "CF_HDROP", "Acme Private" }), A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task DecodeAsync_ProfileDisabled_IsNoClip()
     {
         var profiles = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profiles.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profiles.GetOrCreateProfileAsync("acme", A<CancellationToken>._)).Returns(new ApplicationProfile { ApplicationName = "ACME", Enabled = false });
+        A.CallTo(() => profiles.GetCapturedFormatsAsync("acme", A<IReadOnlyCollection<string>>._, A<CancellationToken>._)).Returns((IReadOnlySet<string>?)null);
         var decoder = CreateDecoder(profiles);
 
         await Assert.That(await decoder.DecodeAsync([UnicodeText("x"), _privateFormat], "acme")).IsNull();
+    }
+
+    // A profile service keeping every format except the ones given
+    private static IApplicationProfileService CreateProfiles(params string[] switchedOff)
+    {
+        var profiles = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profiles.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => profiles.GetCapturedFormatsAsync("acme", A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) =>
+                Task.FromResult<IReadOnlySet<string>?>(names.Except(switchedOff).ToHashSet()));
+
+        return profiles;
     }
 
     private static ClipboardSnapshotDecoder CreateDecoder(IApplicationProfileService? profiles = null,
