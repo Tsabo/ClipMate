@@ -6,6 +6,7 @@ using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Windows.Win32.Foundation;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -96,6 +97,8 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     {
         var logger = A.Fake<ILogger<ClipboardService>>();
         var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
+        A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
 
         // Mock IApplicationProfileService (disabled by default)
         var profileServiceMock = A.Fake<IApplicationProfileService>();

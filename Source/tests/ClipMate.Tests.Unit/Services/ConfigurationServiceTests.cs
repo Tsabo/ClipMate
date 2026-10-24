@@ -204,6 +204,39 @@ public class ConfigurationServiceTests
     }
 
     [Test]
+    public async Task LoadAsync_Version2Settings_CarriesTheSavedCaptureDelayOverToTheDelayOnClipboardUpdate()
+    {
+        // Arrange: settings saved by a ClipMate that still had the capture delay and settle time settings
+        Directory.CreateDirectory(_testConfigDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_testConfigDirectory, "clipmate.toml"), """
+                                                                                        version = 2
+                                                                                        default_database = "MyClips"
+
+                                                                                        [preferences]
+                                                                                        delay_on_clipboard_update = 250
+                                                                                        capture_delay_ms = 600
+                                                                                        settle_time_between_captures_ms = 40
+
+                                                                                        [databases.MyClips]
+                                                                                        name = "My Clips"
+                                                                                        file_path = "clipmate.db"
+                                                                                        auto_load = true
+                                                                                        """);
+
+        // Act: load (which upgrades and saves), then load the saved result again
+        var upgraded = await new ConfigurationService(_testConfigDirectory, _logger).LoadAsync();
+        var saved = await File.ReadAllTextAsync(Path.Combine(_testConfigDirectory, "clipmate.toml"));
+        var reloaded = await new ConfigurationService(_testConfigDirectory, _logger).LoadAsync();
+
+        // Assert: the old settle time is dropped, as ClipMate 7's own default applies
+        await Assert.That(upgraded.Preferences.DelayOnClipboardUpdateMs).IsEqualTo(600);
+        await Assert.That(upgraded.Preferences.SettleTimeMs).IsEqualTo(100);
+        await Assert.That(saved).DoesNotContain("capture_delay_ms");
+        await Assert.That(saved).DoesNotContain("settle_time_between_captures_ms");
+        await Assert.That(reloaded.Preferences.DelayOnClipboardUpdateMs).IsEqualTo(600);
+    }
+
+    [Test]
     public async Task LoadAsync_LoadsExistingConfiguration()
     {
         // Arrange - First, create and save a configuration

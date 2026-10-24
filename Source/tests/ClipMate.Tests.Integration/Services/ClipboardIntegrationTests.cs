@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Windows.Win32.Foundation;
 using CoreApplicationProfile = ClipMate.Core.Models.ApplicationProfile;
 
 namespace ClipMate.Tests.Integration.Services;
@@ -61,6 +62,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Setup ClipboardService first (needed by ClipService)
         var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
+        A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
         var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();

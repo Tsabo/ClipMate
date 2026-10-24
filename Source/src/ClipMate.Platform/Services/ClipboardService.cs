@@ -42,13 +42,14 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipboardService> _logger;
     private readonly ISoundService _soundService;
+    private readonly TimeProvider _timeProvider;
     private readonly IWin32ClipboardInterop _win32;
     private bool _captureSuspended;
-    private HwndSource? _hwndSource;
+    private ClipboardCaptureScheduler? _captureScheduler;
+    private ClipboardThread? _clipboardThread;
     private DateTime _lastClipboardChange = DateTime.MinValue;
     private bool _lastClipboardWasEmpty;
     private string _lastContentHash = string.Empty;
-    private CancellationTokenSource? _pendingCaptureCts;
     private string? _suppressCaptureForHash;
     private DateTime _suppressCaptureUntil = DateTime.MinValue;
 
@@ -58,7 +59,8 @@ public class ClipboardService : IClipboardService, IDisposable
         IApplicationProfileService applicationProfileService,
         IClipboardFormatEnumerator clipboardFormatEnumerator,
         ISoundService soundService,
-        IDecryptedBlobCacheService blobCacheService)
+        IDecryptedBlobCacheService blobCacheService,
+        TimeProvider? timeProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
@@ -67,6 +69,7 @@ public class ClipboardService : IClipboardService, IDisposable
         _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
@@ -84,94 +87,79 @@ public class ClipboardService : IClipboardService, IDisposable
     public bool IsMonitoring { get; private set; }
 
     /// <inheritdoc />
-    public Task StartMonitoringAsync(CancellationToken cancellationToken = default)
+    public async Task StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
         if (IsMonitoring)
         {
             _logger.LogDebug("Clipboard monitoring already active");
 
-            return Task.CompletedTask;
+            return;
         }
 
+        ClipboardThread? clipboardThread = null;
         try
         {
-            // Create a message-only window for receiving clipboard notifications
-            var hwndSourceParams = new HwndSourceParameters("ClipboardMonitor")
+            clipboardThread = await ClipboardThread.StartAsync(WndProc).ConfigureAwait(false);
+            var thread = clipboardThread;
+            var (listening, error) = await thread.Dispatcher.InvokeAsync(() =>
             {
-                Width = 0,
-                Height = 0,
-                PositionX = 0,
-                PositionY = 0,
-                WindowStyle = 0,
-            };
+                _captureScheduler = new ClipboardCaptureScheduler(_timeProvider,
+                    () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.DelayOnClipboardUpdateMs)),
+                    () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.SettleTimeMs)),
+                    action => thread.Dispatcher.InvokeAsync(action),
+                    CaptureClipboardChangeAsync,
+                    TraceCapture);
+                var added = _win32.AddClipboardFormatListener(thread.Handle);
 
-            _hwndSource = new HwndSource(hwndSourceParams);
-            _hwndSource.AddHook(WndProc);
+                return (added, added ? 0 : Marshal.GetLastWin32Error());
+            });
 
-            var hwnd = new HWND(_hwndSource.Handle);
-
-            // Register for clipboard notifications
-            if (!_win32.AddClipboardFormatListener(hwnd))
-            {
-                var error = Marshal.GetLastWin32Error();
-
+            if (!listening)
                 throw new ClipboardException($"Failed to register clipboard listener. Error: {error}");
-            }
 
+            _clipboardThread = thread;
             IsMonitoring = true;
             _logger.LogInformation("Clipboard monitoring started");
         }
-        catch (InvalidOperationException ex)
-        {
-            // HwndSource requires STA thread with dispatcher (not available in tests)
-            _logger.LogWarning(ex, "Cannot start clipboard monitoring: No dispatcher available (not on UI thread)");
-            // For testing purposes, mark as monitoring without actual window
-            IsMonitoring = true;
-
-            return Task.CompletedTask;
-        }
         catch (Exception ex)
         {
+            if (clipboardThread != null)
+                await clipboardThread.StopAsync(DisposeCaptureScheduler).ConfigureAwait(false);
+
             _logger.LogError(ex, "Failed to start clipboard monitoring");
+
+            if (ex is ClipboardException)
+                throw;
 
             throw new ClipboardException("Failed to start clipboard monitoring", ex);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task StopMonitoringAsync()
+    public async Task StopMonitoringAsync()
     {
         if (!IsMonitoring)
-            return Task.CompletedTask;
+            return;
+
+        var clipboardThread = _clipboardThread;
+        _clipboardThread = null;
+        IsMonitoring = false;
 
         try
         {
-            if (_hwndSource != null)
-            {
-                var hwnd = new HWND(_hwndSource.Handle);
-                _win32.RemoveClipboardFormatListener(hwnd);
-
-                _hwndSource.RemoveHook(WndProc);
-                _hwndSource.Dispose();
-                _hwndSource = null;
-            }
-
-            IsMonitoring = false;
+            if (clipboardThread != null)
+                await clipboardThread.StopAsync(StopListening(clipboardThread)).ConfigureAwait(false);
 
             // Complete the channel - no more clips will be written
-            _clipsChannel.Writer.Complete();
+            _clipsChannel.Writer.TryComplete();
 
             _logger.LogInformation("Clipboard monitoring stopped");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error stopping clipboard monitoring");
-            _clipsChannel.Writer.Complete(ex);
+            _clipsChannel.Writer.TryComplete(ex);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -179,14 +167,14 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            // Must run on STA thread (UI thread) for WPF Clipboard API
-            // Get source application info
             var foregroundWindow = _win32.GetForegroundWindow();
             string? applicationName = null;
             if (!foregroundWindow.IsNull)
                 applicationName = GetProcessName(foregroundWindow);
 
-            var task = Application.Current.Dispatcher.InvokeAsync(async () =>
+            // The WPF clipboard needs an STA thread: the clipboard thread while monitoring, else the UI thread (startup capture)
+            var dispatcher = _clipboardThread?.Dispatcher ?? Application.Current.Dispatcher;
+            var task = dispatcher.InvokeAsync(async () =>
                 await ExtractClipboardDataAsync(applicationName, cancellationToken));
 
             return await await task;
@@ -309,8 +297,29 @@ public class ClipboardService : IClipboardService, IDisposable
         _logger.LogDebug("Clipboard capture resumed");
     }
 
-    public void Dispose() => StopMonitoringAsync().Wait();
+    public void Dispose()
+    {
+        // Never waits on the clipboard thread: Dispose may run on the UI thread while a read waits for it
+        var clipboardThread = _clipboardThread;
+        _clipboardThread = null;
+        IsMonitoring = false;
+        clipboardThread?.BeginStop(StopListening(clipboardThread));
+        _clipsChannel.Writer.TryComplete();
+    }
 
+    private Action StopListening(ClipboardThread clipboardThread) => () =>
+    {
+        _win32.RemoveClipboardFormatListener(clipboardThread.Handle);
+        DisposeCaptureScheduler();
+    };
+
+    private void DisposeCaptureScheduler()
+    {
+        _captureScheduler?.Dispose();
+        _captureScheduler = null;
+    }
+
+    // Runs on the clipboard thread
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         const int wmClipboardUpdate = 0x031D;
@@ -327,64 +336,26 @@ public class ClipboardService : IClipboardService, IDisposable
             return IntPtr.Zero;
         }
 
-        _ = Task.Run(async () => await HandleClipboardChangeAsync());
+        _lastClipboardChange = DateTime.UtcNow;
+        _captureScheduler?.OnClipboardUpdate();
 
         return IntPtr.Zero;
     }
 
-    private async Task HandleClipboardChangeAsync()
+    private void TraceCapture(ClipboardCaptureTrace trace) =>
+        _logger.LogDebug("Clipboard capture: {Outcome} after {Notifications} notification(s), {Start}, owner {Owner}",
+            trace.Outcome, trace.Notifications, trace.TimerFired ? "delay timer fired" : "no delay", trace.Owner ?? "(none)");
+
+    // Runs on the clipboard thread, started by the capture scheduler
+    private async Task<ClipboardCaptureResult> CaptureClipboardChangeAsync()
     {
+        var owner = GetClipboardOwnerName();
         try
         {
-            // Cancel any pending capture task - new clipboard content arrived
-            _pendingCaptureCts?.Cancel();
-            _pendingCaptureCts = new CancellationTokenSource();
-            var captureCts = _pendingCaptureCts;
-
-            // Wait for clipboard to settle before capturing
-            // Apps like SnagIt add formats sequentially, firing multiple WM_CLIPBOARDUPDATE events
-            var now = DateTime.UtcNow;
-            var settleTime = _configurationService.Configuration.Preferences.SettleTimeBetweenCapturesMs;
-
-            // Update the last change timestamp
-            _lastClipboardChange = now;
-
-            // Wait for the settle period
-            try
-            {
-                await Task.Delay(settleTime, captureCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Another notification arrived, this capture is cancelled
-                _logger.LogDebug("Clipboard capture cancelled - new notification arrived during settle period");
-                return;
-            }
-
-            // Apply additional capture delay if configured
-            var captureDelay = _configurationService.Configuration.Preferences.CaptureDelayMs;
-            if (captureDelay > 0)
-            {
-                try
-                {
-                    await Task.Delay(captureDelay, captureCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogDebug("Clipboard capture cancelled during capture delay");
-                    return;
-                }
-            }
-
-            // Re-check suspension in case it started after this notification was already queued -
-            // reading the clipboard here (GetClipboardData) can itself satisfy a delayed-render
-            // registration (e.g. PowerPaste's), so this must not run while suspended.
+            // Suspension may have started after the notification was scheduled - reading the clipboard here
+            // (GetClipboardData) can itself satisfy a delayed-render registration (e.g. PowerPaste's)
             if (_captureSuspended)
-            {
-                _logger.LogDebug("Clipboard capture cancelled - capture is suspended");
-
-                return;
-            }
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Suspended, owner);
 
             // A program that asks clipboard viewers to ignore its change (for example Power Paste re-offering a clip
             // that was already read) is not captured
@@ -392,103 +363,71 @@ public class ClipboardService : IClipboardService, IDisposable
             {
                 _logger.LogInformation("Not capturing a clipboard change marked to be ignored by clipboard viewers");
 
-                return;
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.IgnoreFlag, owner);
             }
 
-            var clip = await GetCurrentClipboardContentAsync(captureCts.Token);
+            var foregroundWindow = _win32.GetForegroundWindow();
+            var clip = await ExtractClipboardDataAsync(foregroundWindow.IsNull ? null : GetProcessName(foregroundWindow));
 
-            // Check if clipboard is empty (no formats we support)
-            var isClipboardEmpty = clip == null && IsClipboardTrulyEmpty();
-
-            if (isClipboardEmpty)
+            if (clip == null && IsClipboardTrulyEmpty())
             {
-                // Clipboard was cleared - check if we should play the erase sound
-                // Only play if: 1) We didn't just clear it, and 2) It previously had content
-                var shouldPlayEraseSound = !_lastClipboardWasEmpty &&
-                                           DateTime.UtcNow >= _suppressCaptureUntil;
-
-                if (shouldPlayEraseSound)
-                {
-                    _logger.LogDebug("Clipboard was cleared by external application");
-                    await _soundService.PlaySoundAsync(SoundEvent.Erase, captureCts.Token);
-                }
+                // Only an external clear of a clipboard that had content plays the erase sound
+                if (!_lastClipboardWasEmpty && DateTime.UtcNow >= _suppressCaptureUntil)
+                    await _soundService.PlaySoundAsync(SoundEvent.Erase);
 
                 _lastClipboardWasEmpty = true;
                 _lastContentHash = string.Empty;
-                return;
+
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Empty, owner);
             }
 
-            if (clip == null)
-            {
-                // Clipboard has content but not in a format we support
-                _lastClipboardWasEmpty = false;
-                return;
-            }
-
-            // Clipboard has content we captured
             _lastClipboardWasEmpty = false;
 
-            // Check if we should suppress this capture (we set the clipboard programmatically)
-            // Use time-based suppression window to handle multiple clipboard events
+            // Clipboard has content but not in a format we support
+            if (clip == null)
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Unsupported, owner);
+
+            // Content ClipMate itself put on the clipboard within the suppression window
             if (_suppressCaptureForHash != null &&
                 clip.ContentHash == _suppressCaptureForHash &&
                 DateTime.UtcNow < _suppressCaptureUntil)
-            {
-                if (!_logger.IsEnabled(LogLevel.Debug))
-                    return;
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.OwnCopy, owner);
 
-                var hashPreview = clip.ContentHash.Length >= 8
-                    ? clip.ContentHash[..8]
-                    : clip.ContentHash;
-
-                _logger.LogDebug("Suppressing clipboard capture - content was set programmatically (hash: {Hash})", hashPreview);
-
-                return;
-            }
-
-            // Clear suppression if time window has expired
             if (DateTime.UtcNow >= _suppressCaptureUntil)
                 _suppressCaptureForHash = null;
 
-            // Duplicate detection: ignore if same content hash
             if (clip.ContentHash == _lastContentHash)
             {
-                _logger.LogDebug("Ignoring duplicate clipboard content");
-
-                // Only play sound if this is a user-initiated duplicate (not rapid-fire events from slow clipboard owners)
-                // If duplicate arrives >200ms after last change, it's likely intentional (user copied same thing twice)
-                // BUT: Don't play sound if we're still within a suppression window (clipboard was set programmatically)
+                // A duplicate arriving >200ms after the last change is likely the user copying the same thing twice,
+                // unless ClipMate itself set the clipboard
                 var timeSinceLastChange = (DateTime.UtcNow - _lastClipboardChange).TotalMilliseconds;
-                var isWithinSuppressionWindow = DateTime.UtcNow < _suppressCaptureUntil;
+                if (timeSinceLastChange > 200 && DateTime.UtcNow >= _suppressCaptureUntil)
+                    await _soundService.PlaySoundAsync(SoundEvent.Ignore);
 
-                if (timeSinceLastChange > 200 && !isWithinSuppressionWindow)
-                    await _soundService.PlaySoundAsync(SoundEvent.Ignore, captureCts.Token);
-
-                return;
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Duplicate, owner);
             }
 
             _lastContentHash = clip.ContentHash;
-            // Get source application info
-            var foregroundWindow = _win32.GetForegroundWindow();
             if (!foregroundWindow.IsNull)
             {
                 clip.SourceApplicationName = GetProcessName(foregroundWindow);
                 clip.SourceApplicationTitle = GetWindowTitle(foregroundWindow);
             }
 
-            // Write to channel (non-blocking, drops oldest if full)
-            await _clipsChannel.Writer.WriteAsync(clip, captureCts.Token);
+            // Non-blocking: the channel drops the oldest clip when full
+            await _clipsChannel.Writer.WriteAsync(clip);
 
-            _logger.LogDebug("Published clip to channel: {ClipType}, Size: {Size} bytes, Hash: {Hash}",
-                clip.Type, clip.Size, clip.ContentHash);
+            return new ClipboardCaptureResult(ClipboardCaptureOutcome.Captured, owner);
         }
         catch (ChannelClosedException)
         {
-            _logger.LogDebug("Clipboard channel closed, ignoring new clip");
+            return new ClipboardCaptureResult(ClipboardCaptureOutcome.Failed, owner);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling clipboard change");
+
+            return new ClipboardCaptureResult(ClipboardCaptureOutcome.Failed, owner);
         }
     }
 
@@ -1456,40 +1395,51 @@ public class ClipboardService : IClipboardService, IDisposable
     private static bool IsMarkedToBeIgnored() =>
         ClipboardIgnoreFormats.All.Any(p => PInvoke.IsClipboardFormatAvailable(PInvoke.RegisterClipboardFormat(p)));
 
+    // Runs on the clipboard thread
     private bool IsClipboardTrulyEmpty()
     {
         try
         {
-            return Application.Current.Dispatcher.Invoke(() =>
-            {
-                // Check all common formats
-                if (WpfClipboard.ContainsText())
-                    return false;
+            if (WpfClipboard.ContainsText() || WpfClipboard.ContainsImage() || WpfClipboard.ContainsFileDropList() ||
+                WpfClipboard.ContainsData(DataFormats.Rtf) || WpfClipboard.ContainsData(DataFormats.Html) || WpfClipboard.ContainsAudio())
+                return false;
 
-                if (WpfClipboard.ContainsImage())
-                    return false;
-
-                if (WpfClipboard.ContainsFileDropList())
-                    return false;
-
-                if (WpfClipboard.ContainsData(DataFormats.Rtf))
-                    return false;
-
-                if (WpfClipboard.ContainsData(DataFormats.Html))
-                    return false;
-
-                if (WpfClipboard.ContainsAudio())
-                    return false;
-
-                // Check if any formats exist at all using format enumerator
-                var formats = _clipboardFormatEnumerator.GetAllAvailableFormats();
-                return formats.Count == 0;
-            });
+            return _clipboardFormatEnumerator.GetAllAvailableFormats().Count == 0;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Error checking if clipboard is empty");
             return false; // Assume not empty if we can't check
+        }
+    }
+
+    /// <summary>
+    /// The process name of the clipboard's owner, "ClipMate" for ClipMate itself, or null when there is no owner.
+    /// </summary>
+    private unsafe string? GetClipboardOwnerName()
+    {
+        try
+        {
+            var owner = PInvoke.GetClipboardOwner();
+            if (owner.IsNull)
+                return null;
+
+            uint processId = 0;
+            _ = PInvoke.GetWindowThreadProcessId(owner, &processId);
+            if (processId == 0)
+                return null;
+
+            if (OwnProcess.Is(processId))
+                return "ClipMate";
+
+            using var process = Process.GetProcessById((int)processId);
+
+            return process.ProcessName;
+        }
+        catch (ArgumentException)
+        {
+            // The owner exited
+            return null;
         }
     }
 

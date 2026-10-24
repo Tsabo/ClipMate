@@ -31,13 +31,13 @@
             <!-- Capture Delay -->
             <dxlc:LayoutItem Label="Capture Delay:" LabelPosition="Left">
                 <StackPanel Orientation="Horizontal">
-                    <dxe:SpinEdit Value="{Binding CaptureDelayMs}"
+                    <dxe:SpinEdit Value="{Binding DelayOnClipboardUpdateMs}"
                                   MinValue="0"
                                   MaxValue="5000"
                                   Increment="50"
                                   IsFloatValue="False"
                                   Width="80"
-                                  ToolTip="Causes ClipMate to pause after you copy data, to let the copying application finish. Usually 250ms is sufficient." />
+                                  ToolTip="Causes ClipMate to pause for a short time after you copy data, to let the copying application finish the copy operation. Each further change restarts the pause. Usually 250 milliseconds is plenty; 0 captures at once." />
                     <TextBlock Text="Milliseconds (1/1000 seconds)" VerticalAlignment="Center" Margin="8,0,0,0" />
                 </StackPanel>
             </dxlc:LayoutItem>
@@ -45,13 +45,13 @@
             <!-- Settle Time Between Captures -->
             <dxlc:LayoutItem Label="Settle Time Between Captures:" LabelPosition="Left">
                 <StackPanel Orientation="Horizontal">
-                    <dxe:SpinEdit Value="{Binding SettleTimeBetweenCapturesMs}"
+                    <dxe:SpinEdit Value="{Binding SettleTimeMs}"
                                   MinValue="0"
                                   MaxValue="5000"
                                   Increment="50"
                                   IsFloatValue="False"
                                   Width="80"
-                                  ToolTip="Minimum time to wait after capturing an item before accepting new items. Decrease if experiencing missed copies from rapid succession." />
+                                  ToolTip="The minimum amount of time to wait after capturing an item, before accepting new items. Decrease if you are missing copies made in rapid succession." />
                     <TextBlock Text="Milliseconds (1/1000 seconds)" VerticalAlignment="Center" Margin="8,0,0,0" />
                 </StackPanel>
             </dxlc:LayoutItem>

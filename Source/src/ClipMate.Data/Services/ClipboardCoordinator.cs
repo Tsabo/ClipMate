@@ -1,4 +1,3 @@
-using System.Windows;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -100,20 +99,8 @@ public class ClipboardCoordinator : IHostedService,
                 }
             }
 
-            // Start clipboard monitoring
-            // Check if we have an Application dispatcher (UI thread), otherwise start directly
-            if (Application.Current?.Dispatcher != null)
-            {
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    _clipboardService.StartMonitoringAsync(cancellationToken);
-                });
-            }
-            else
-            {
-                // No dispatcher available (e.g., in tests), start directly
-                await _clipboardService.StartMonitoringAsync(cancellationToken);
-            }
+            // Start clipboard monitoring (on its own clipboard thread)
+            await _clipboardService.StartMonitoringAsync(cancellationToken);
 
             // Start background task to process clips from channel (if not already started)
             if (_processingTask == null)
@@ -200,15 +187,7 @@ public class ClipboardCoordinator : IHostedService,
             try
             {
                 // Start monitoring
-                if (Application.Current?.Dispatcher != null)
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        _clipboardService.StartMonitoringAsync(CancellationToken.None);
-                    });
-                }
-                else
-                    await _clipboardService.StartMonitoringAsync(CancellationToken.None);
+                await _clipboardService.StartMonitoringAsync(CancellationToken.None);
 
                 // Start processing task if not already running
                 if (_processingTask == null || _processingTask.IsCompleted)
@@ -268,22 +247,9 @@ public class ClipboardCoordinator : IHostedService,
                 _cts = new CancellationTokenSource();
                 _processingTask = ProcessClipsAsync(_cts.Token);
 
-                // Start clipboard monitoring on UI thread
-                if (Application.Current?.Dispatcher != null)
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(async () =>
-                    {
-                        await _clipboardService.StartMonitoringAsync(_cts.Token);
-                        _isMonitoring = true;
-                        _messenger.Send(new StateRefreshRequestedEvent());
-                    });
-                }
-                else
-                {
-                    await _clipboardService.StartMonitoringAsync(_cts.Token);
-                    _isMonitoring = true;
-                    _messenger.Send(new StateRefreshRequestedEvent());
-                }
+                await _clipboardService.StartMonitoringAsync(_cts.Token);
+                _isMonitoring = true;
+                _messenger.Send(new StateRefreshRequestedEvent());
             }
         }
         catch (Exception ex)
