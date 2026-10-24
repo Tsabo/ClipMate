@@ -1,14 +1,9 @@
-using System.Buffers;
 using System.Collections.Specialized;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -29,18 +24,20 @@ namespace ClipMate.Platform.Services;
 
 /// <summary>
 /// Service for monitoring and capturing clipboard changes using Win32 APIs via CsWin32.
-/// Captures all formats: Text, RTF, HTML, Images, and Files.
-/// Uses a channel-based pattern for publishing captured clips.
+/// Each change is read raw in one clipboard session on the clipboard thread, then decoded into a clip on the thread
+/// pool and published through a channel.
 /// </summary>
 public class ClipboardService : IClipboardService, IDisposable
 {
     private const int _channelCapacity = 100; // Max queued clips before backpressure
-    private readonly IApplicationProfileService _applicationProfileService;
     private readonly IDecryptedBlobCacheService _blobCacheService;
-    private readonly IClipboardFormatEnumerator _clipboardFormatEnumerator;
     private readonly Channel<Clip> _clipsChannel;
     private readonly IConfigurationService _configurationService;
+    private readonly Task _decodeLoop;
+    private readonly ClipboardSnapshotDecoder _decoder;
     private readonly ILogger<ClipboardService> _logger;
+    private readonly Channel<PendingCapture> _pendingCaptures;
+    private readonly RawClipboardReader _reader;
     private readonly ISoundService _soundService;
     private readonly TimeProvider _timeProvider;
     private readonly IWin32ClipboardInterop _win32;
@@ -48,7 +45,6 @@ public class ClipboardService : IClipboardService, IDisposable
     private ClipboardCaptureScheduler? _captureScheduler;
     private ClipboardThread? _clipboardThread;
     private DateTime _lastClipboardChange = DateTime.MinValue;
-    private bool _lastClipboardWasEmpty;
     private string _lastContentHash = string.Empty;
     private string? _suppressCaptureForHash;
     private DateTime _suppressCaptureUntil = DateTime.MinValue;
@@ -57,7 +53,6 @@ public class ClipboardService : IClipboardService, IDisposable
         IWin32ClipboardInterop win32Interop,
         IConfigurationService configurationService,
         IApplicationProfileService applicationProfileService,
-        IClipboardFormatEnumerator clipboardFormatEnumerator,
         ISoundService soundService,
         IDecryptedBlobCacheService blobCacheService,
         TimeProvider? timeProvider = null)
@@ -65,19 +60,29 @@ public class ClipboardService : IClipboardService, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
-        _clipboardFormatEnumerator = clipboardFormatEnumerator ?? throw new ArgumentNullException(nameof(clipboardFormatEnumerator));
+        ArgumentNullException.ThrowIfNull(applicationProfileService);
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _reader = new RawClipboardReader(_win32, _timeProvider, _logger);
+        _decoder = new ClipboardSnapshotDecoder(_configurationService, applicationProfileService, _logger);
 
         // Create bounded channel with drop oldest policy to prevent memory issues
         _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
-            SingleWriter = true, // Only clipboard monitor writes
+            SingleWriter = true, // Only the decode loop writes
             SingleReader = false, // Multiple consumers allowed
         });
+
+        _pendingCaptures = Channel.CreateBounded<PendingCapture>(new BoundedChannelOptions(_channelCapacity)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleWriter = true,
+            SingleReader = true,
+        });
+
+        _decodeLoop = Task.Run(DecodeCapturesAsync);
     }
 
     /// <inheritdoc />
@@ -107,7 +112,7 @@ public class ClipboardService : IClipboardService, IDisposable
                     () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.DelayOnClipboardUpdateMs)),
                     () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.SettleTimeMs)),
                     action => thread.Dispatcher.InvokeAsync(action),
-                    CaptureClipboardChangeAsync,
+                    () => CaptureClipboardChangeAsync(thread.Handle),
                     TraceCapture);
                 var added = _win32.AddClipboardFormatListener(thread.Handle);
 
@@ -150,7 +155,9 @@ public class ClipboardService : IClipboardService, IDisposable
             if (clipboardThread != null)
                 await clipboardThread.StopAsync(StopListening(clipboardThread)).ConfigureAwait(false);
 
-            // Complete the channel - no more clips will be written
+            // Clips already read are still decoded and published, then the channel completes
+            _pendingCaptures.Writer.TryComplete();
+            await _decodeLoop.ConfigureAwait(false);
             _clipsChannel.Writer.TryComplete();
 
             _logger.LogInformation("Clipboard monitoring stopped");
@@ -158,6 +165,7 @@ public class ClipboardService : IClipboardService, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error stopping clipboard monitoring");
+            _pendingCaptures.Writer.TryComplete(ex);
             _clipsChannel.Writer.TryComplete(ex);
         }
     }
@@ -172,12 +180,17 @@ public class ClipboardService : IClipboardService, IDisposable
             if (!foregroundWindow.IsNull)
                 applicationName = GetProcessName(foregroundWindow);
 
-            // The WPF clipboard needs an STA thread: the clipboard thread while monitoring, else the UI thread (startup capture)
-            var dispatcher = _clipboardThread?.Dispatcher ?? Application.Current.Dispatcher;
-            var task = dispatcher.InvokeAsync(async () =>
-                await ExtractClipboardDataAsync(applicationName, cancellationToken));
+            // Read on the clipboard thread while monitoring, else (startup capture) on the thread pool; a manual or
+            // startup capture skips the ignore flag
+            var clipboardThread = _clipboardThread;
+            var snapshot = clipboardThread != null
+                ? await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false))
+                : await Task.Run(() => _reader.ReadAsync(HWND.Null, false), cancellationToken);
 
-            return await await task;
+            if (snapshot == null || snapshot.Formats.Count == 0)
+                return null;
+
+            return await Task.Run(() => _decoder.DecodeAsync(snapshot.Formats, applicationName, cancellationToken), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -304,6 +317,7 @@ public class ClipboardService : IClipboardService, IDisposable
         _clipboardThread = null;
         IsMonitoring = false;
         clipboardThread?.BeginStop(StopListening(clipboardThread));
+        _pendingCaptures.Writer.TryComplete();
         _clipsChannel.Writer.TryComplete();
     }
 
@@ -346,8 +360,8 @@ public class ClipboardService : IClipboardService, IDisposable
         _logger.LogDebug("Clipboard capture: {Outcome} after {Notifications} notification(s), {Start}, owner {Owner}",
             trace.Outcome, trace.Notifications, trace.TimerFired ? "delay timer fired" : "no delay", trace.Owner ?? "(none)");
 
-    // Runs on the clipboard thread, started by the capture scheduler
-    private async Task<ClipboardCaptureResult> CaptureClipboardChangeAsync()
+    // Runs on the clipboard thread, started by the capture scheduler; the clipboard is held only for the raw read
+    internal async Task<ClipboardCaptureResult> CaptureClipboardChangeAsync(HWND window)
     {
         var owner = GetClipboardOwnerName();
         try
@@ -357,65 +371,37 @@ public class ClipboardService : IClipboardService, IDisposable
             if (_captureSuspended)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Suspended, owner);
 
+            var snapshot = await _reader.ReadAsync(window, _configurationService.Configuration.Preferences.PayAttentionToClipboardIgnoreFlag);
+            if (snapshot == null)
+                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Failed, owner);
+
             // A program that asks clipboard viewers to ignore its change (for example Power Paste re-offering a clip
             // that was already read) is not captured
-            if (_configurationService.Configuration.Preferences.PayAttentionToClipboardIgnoreFlag && IsMarkedToBeIgnored())
+            if (snapshot.IgnoreFlag)
             {
                 _logger.LogInformation("Not capturing a clipboard change marked to be ignored by clipboard viewers");
 
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.IgnoreFlag, owner);
             }
 
-            var foregroundWindow = _win32.GetForegroundWindow();
-            var clip = await ExtractClipboardDataAsync(foregroundWindow.IsNull ? null : GetProcessName(foregroundWindow));
-
-            if (clip == null && IsClipboardTrulyEmpty())
+            if (snapshot.FormatCount == 0)
             {
-                // Only an external clear of a clipboard that had content plays the erase sound
-                if (!_lastClipboardWasEmpty && DateTime.UtcNow >= _suppressCaptureUntil)
-                    await _soundService.PlaySoundAsync(SoundEvent.Erase);
-
-                _lastClipboardWasEmpty = true;
                 _lastContentHash = string.Empty;
+                await _soundService.PlaySoundAsync(SoundEvent.Erase);
 
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Empty, owner);
             }
 
-            _lastClipboardWasEmpty = false;
-
-            // Clipboard has content but not in a format we support
-            if (clip == null)
+            if (snapshot.Formats.Count == 0)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Unsupported, owner);
 
-            // Content ClipMate itself put on the clipboard within the suppression window
-            if (_suppressCaptureForHash != null &&
-                clip.ContentHash == _suppressCaptureForHash &&
-                DateTime.UtcNow < _suppressCaptureUntil)
-                return new ClipboardCaptureResult(ClipboardCaptureOutcome.OwnCopy, owner);
+            var foregroundWindow = _win32.GetForegroundWindow();
+            var pending = foregroundWindow.IsNull
+                ? new PendingCapture(snapshot.Formats, null, null, _lastClipboardChange)
+                : new PendingCapture(snapshot.Formats, GetProcessName(foregroundWindow), GetWindowTitle(foregroundWindow), _lastClipboardChange);
 
-            if (DateTime.UtcNow >= _suppressCaptureUntil)
-                _suppressCaptureForHash = null;
-
-            if (clip.ContentHash == _lastContentHash)
-            {
-                // A duplicate arriving >200ms after the last change is likely the user copying the same thing twice,
-                // unless ClipMate itself set the clipboard
-                var timeSinceLastChange = (DateTime.UtcNow - _lastClipboardChange).TotalMilliseconds;
-                if (timeSinceLastChange > 200 && DateTime.UtcNow >= _suppressCaptureUntil)
-                    await _soundService.PlaySoundAsync(SoundEvent.Ignore);
-
-                return new ClipboardCaptureResult(ClipboardCaptureOutcome.Duplicate, owner);
-            }
-
-            _lastContentHash = clip.ContentHash;
-            if (!foregroundWindow.IsNull)
-            {
-                clip.SourceApplicationName = GetProcessName(foregroundWindow);
-                clip.SourceApplicationTitle = GetWindowTitle(foregroundWindow);
-            }
-
-            // Non-blocking: the channel drops the oldest clip when full
-            await _clipsChannel.Writer.WriteAsync(clip);
+            // Decoding, hashing and saving run on the thread pool; the channel drops the oldest read when full
+            await _pendingCaptures.Writer.WriteAsync(pending);
 
             return new ClipboardCaptureResult(ClipboardCaptureOutcome.Captured, owner);
         }
@@ -431,450 +417,68 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    /// <summary>
-    /// Extracts all available clipboard data in priority order with application profile filtering.
-    /// Priority: Text (including RTF/HTML) > Images > Files
-    /// </summary>
-    private async Task<Clip?> ExtractClipboardDataAsync(string? applicationName = null, CancellationToken cancellationToken = default)
+    private async Task DecodeCapturesAsync()
     {
-        Clip? clip = null;
-
-        // If application profiles are enabled, filter formats
-        HashSet<string>? allowedFormats = null;
-        if (_applicationProfileService.IsApplicationProfilesEnabled() && !string.IsNullOrEmpty(applicationName))
+        await foreach (var pending in _pendingCaptures.Reader.ReadAllAsync())
         {
-            // Enumerate all available clipboard formats
-            var availableFormats = _clipboardFormatEnumerator.GetAllAvailableFormats();
-            _logger.LogDebug("Clipboard has {Count} formats available for application {AppName}",
-                availableFormats.Count, applicationName);
-
-            // Filter formats based on application profile
-            allowedFormats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in availableFormats)
+            try
             {
-                var shouldCapture = await _applicationProfileService.ShouldCaptureFormatAsync(
-                    applicationName, item.FormatName, cancellationToken);
-
-                if (shouldCapture)
-                {
-                    allowedFormats.Add(item.FormatName);
-                    _logger.LogDebug("Format {FormatName} allowed for {AppName}", item.FormatName, applicationName);
-                }
-                else
-                    _logger.LogDebug("Format {FormatName} filtered out for {AppName}", item.FormatName, applicationName);
+                await DecodeAndPublishAsync(pending);
             }
-
-            if (allowedFormats.Count == 0)
+            catch (ChannelClosedException)
             {
-                _logger.LogDebug("All clipboard formats filtered out for {AppName}", applicationName);
-
-                return null;
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error decoding a clipboard change");
             }
         }
-
-        // Check what formats are available (considering profile filtering if enabled)
-        var hasText = IsFormatAllowed(Formats.UnicodeText.Name, allowedFormats) && WpfClipboard.ContainsText();
-        var hasRtf = IsFormatAllowed(Formats.RichText.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Rtf);
-        var hasHtml = IsFormatAllowed(Formats.Html.Name, allowedFormats) && WpfClipboard.ContainsData(DataFormats.Html);
-        var hasImage = (IsFormatAllowed(Formats.Dib.Name, allowedFormats) || IsFormatAllowed(Formats.Bitmap.Name, allowedFormats)) && WpfClipboard.ContainsImage();
-        var hasFiles = IsFormatAllowed(Formats.HDrop.Name, allowedFormats) && WpfClipboard.ContainsFileDropList();
-
-        // The clip's type comes from the first of these it can read: text (including RTF and HTML), image, files
-        if (hasText || hasRtf || hasHtml)
-            clip = ExtractTextClip(hasText, hasRtf, hasHtml);
-
-        if (clip == null && hasImage)
-            clip = ExtractImageClip();
-
-        if (clip == null && hasFiles)
-            clip = ExtractFilesClip();
-
-        // A clip keeps every Format the source offered, as ClipMate 7 does, so the Paste Target can choose: e.g. a
-        // screenshot tool's image plus its filename, or Explorer's files plus whether they were copied or cut.
-        if (clip != null && hasImage && clip.ImageData == null)
-            AddImageToClip(clip);
-
-        if (clip != null && hasFiles)
-            AddFileDropToClip(clip);
-
-        // Populate standard fields
-        if (clip != null)
-            PopulateStandardFields(clip);
-
-        return clip;
     }
 
     /// <summary>
-    /// Checks if a clipboard format is allowed based on application profile filtering.
-    /// If no filtering is active (allowedFormats is null), all formats are allowed.
-    /// Handles both "CF_" prefixed format names (from enumeration) and non-prefixed names (from constants).
+    /// A clipboard read waiting to be decoded, with the application that was in the foreground and when it changed.
     /// </summary>
-    private static bool IsFormatAllowed(string formatName, HashSet<string>? allowedFormats)
+    private sealed record PendingCapture(IReadOnlyList<RawClipboardFormat> Formats, string? ApplicationName, string? ApplicationTitle, DateTime ChangedAt);
+
+    private async Task DecodeAndPublishAsync(PendingCapture pending)
     {
-        if (allowedFormats == null)
-            return true;
-
-        // Check exact match first
-        if (allowedFormats.Contains(formatName))
-            return true;
-
-        // Handle CF_ prefix efficiently
-        const string prefix = "CF_";
-        if (formatName.StartsWith(prefix, StringComparison.Ordinal))
+        var clip = await _decoder.DecodeAsync(pending.Formats, pending.ApplicationName);
+        if (clip == null)
         {
-            // Format has CF_ prefix, check without it
-            return allowedFormats.Contains(formatName.AsSpan(prefix.Length).ToString());
-        }
+            _logger.LogDebug("Clipboard change has nothing to keep");
 
-        // Format doesn't have CF_ prefix, check with it
-        return allowedFormats.Contains(string.Concat(prefix, formatName));
-    }
-
-
-    /// <summary>
-    /// Extracts text-based clipboard content (Plain Text, RTF, HTML) based on allowed formats.
-    /// </summary>
-    private Clip? ExtractTextClip(bool extractText = true, bool extractRtf = true, bool extractHtml = true)
-    {
-        try
-        {
-            var clip = new Clip
-            {
-                Id = Guid.NewGuid(),
-                Type = ClipType.Text,
-                CapturedAt = DateTimeOffset.Now,
-            };
-
-            // Extract Plain Text (CF_UNICODETEXT = 13)
-            if (extractText && WpfClipboard.ContainsText())
-                clip.TextContent = WpfClipboard.GetText();
-
-            // Extract RTF (CF_RTF)
-            if (extractRtf && WpfClipboard.ContainsData(DataFormats.Rtf))
-            {
-                clip.RtfContent = WpfClipboard.GetData(DataFormats.Rtf) as string;
-                if (!string.IsNullOrEmpty(clip.RtfContent))
-                    clip.Type = ClipType.RichText;
-            }
-
-            // Extract HTML (CF_HTML) and Source URL
-            if (extractHtml && WpfClipboard.ContainsData(DataFormats.Html))
-            {
-                clip.HtmlContent = WpfClipboard.GetData(DataFormats.Html) as string;
-                if (!string.IsNullOrEmpty(clip.HtmlContent))
-                {
-                    clip.Type = ClipType.Html;
-
-                    // Extract source URL from HTML clipboard format
-                    // HTML clipboard format includes metadata like SourceURL in the header
-                    clip.SourceUrl = ExtractSourceUrlFromHtml(clip.HtmlContent);
-                }
-            }
-
-            // Must have at least some text content
-            if (string.IsNullOrEmpty(clip.TextContent))
-                return null;
-
-            // Calculate size (all text formats combined)
-            clip.Size = CalculateTextSize(clip);
-
-            // Auto-generate title from first line
-            clip.Title = GenerateTitleFromText(clip.TextContent);
-
-            return clip;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting text from clipboard");
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Extracts image clipboard content, converting to proper PNG or JPEG format.
-    /// </summary>
-    private Clip? ExtractImageClip()
-    {
-        try
-        {
-            return Retrier.Attempt(
-                attempt =>
-                {
-                    if (!WpfClipboard.ContainsImage())
-                        return null;
-
-                    // Check if PNG format is available directly in the clipboard
-                    // If PNG exists, use it directly to preserve transparency
-                    var hasPngFormat = WpfClipboard.ContainsData("PNG");
-                    byte[]? pngData = null;
-
-                    if (hasPngFormat)
-                    {
-                        try
-                        {
-                            if (WpfClipboard.GetData("PNG") is MemoryStream pngStream)
-                            {
-                                pngData = pngStream.ToArray();
-                                _logger.LogDebug("Found PNG format in clipboard: {Size} bytes", pngData.Length);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to retrieve PNG data from clipboard, falling back to BitmapSource");
-                        }
-                    }
-
-                    // If we have valid PNG data, use it directly
-                    if (pngData is { Length: > 0 } && DetectImageFormatFromBytes(pngData) == "PNG")
-                    {
-                        _logger.LogInformation("Using PNG format directly from clipboard - preserving transparency");
-
-                        // Decode PNG to get dimensions for the title
-                        using var pngStream = new MemoryStream(pngData);
-                        var decoder = BitmapDecoder.Create(
-                            pngStream,
-                            BitmapCreateOptions.DelayCreation,
-                            BitmapCacheOption.None);
-
-                        var frame = decoder.Frames[0];
-
-                        var pngClip = new Clip
-                        {
-                            Id = Guid.NewGuid(),
-                            Type = ClipType.Image,
-                            ImageData = pngData,
-                            CapturedAt = DateTimeOffset.Now,
-                            Size = pngData.Length,
-                            Title = $"Image {frame.PixelWidth}×{frame.PixelHeight}",
-                        };
-
-                        _logger.LogDebug("Captured PNG image from clipboard PNG format: {Width}x{Height}, {Size} bytes",
-                            frame.PixelWidth, frame.PixelHeight, pngData.Length);
-
-                        return pngClip;
-                    }
-
-                    // No PNG format or failed to retrieve it - use standard BitmapSource approach
-                    // This will be InteropBitmap for screenshots (needs alpha fix)
-                    var image = WpfClipboard.GetImage();
-
-                    if (image == null)
-                        return null;
-
-                    // InteropBitmap is specifically used for DIB/DIBv5 clipboard formats (screenshots, screen captures)
-                    // These have the known alpha=0 bug.
-                    var isInteropBitmap = image is InteropBitmap;
-
-                    _logger.LogDebug("Extracting image from clipboard: {Width}x{Height}, Format: {Format}, DpiX: {DpiX}, DpiY: {DpiY}, Type: {BitmapType}, IsInteropBitmap: {IsInterop}",
-                        image.PixelWidth, image.PixelHeight, image.Format, image.DpiX, image.DpiY, image.GetType().Name, isInteropBitmap);
-
-                    // Convert BitmapSource to byte array
-                    // Pass whether this is an InteropBitmap (which needs alpha channel fixing)
-                    var imageData = ConvertBitmapSourceToBytes(image, isInteropBitmap);
-                    if (imageData == null || imageData.Length == 0)
-                    {
-                        _logger.LogError("Failed to convert bitmap to bytes");
-
-                        return null;
-                    }
-
-                    // Verify the generated image is valid by checking magic bytes
-                    var detectedFormat = DetectImageFormatFromBytes(imageData);
-                    _logger.LogDebug("Generated image format: {Format}, Size: {Size} bytes", detectedFormat, imageData.Length);
-
-                    if (detectedFormat == "Unknown")
-                    {
-                        _logger.LogError("Generated image data is not a valid PNG. First 16 bytes: {Bytes}",
-                            BitConverter.ToString(imageData.Take(16).ToArray()));
-
-                        return null;
-                    }
-
-                    var clip = new Clip
-                    {
-                        Id = Guid.NewGuid(),
-                        Type = ClipType.Image,
-                        ImageData = imageData,
-                        CapturedAt = DateTimeOffset.Now,
-                        // Don't set TextContent for image-only clips to avoid storing unnecessary CF_UNICODETEXT format
-                        Size = imageData.Length,
-                        Title = $"Image {image.PixelWidth}×{image.PixelHeight}",
-                    };
-
-                    _logger.LogDebug("Captured PNG image: {Width}x{Height}, {Size} bytes",
-                        image.PixelWidth, image.PixelHeight, imageData.Length);
-
-                    if (attempt > 0)
-                        _logger.LogInformation("Image extraction succeeded after {Attempt} retries", attempt);
-
-                    return clip;
-                },
-                new RetryOptions
-                {
-                    MaxAttempts = 4, // 1 initial attempt + 3 retries
-                    Delay = retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
-                    IsRetryAllowed = (ex, _) => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
-                    BeforeRetry = (_, _) => _logger.LogWarning("Clipboard locked during image extraction, retrying..."),
-                });
-        }
-        catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
-        {
-            _logger.LogError(ex, "Failed to extract image from clipboard after retries - clipboard remains locked");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting image from clipboard");
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Detects image format from byte array.
-    /// </summary>
-    private static string DetectImageFormatFromBytes(byte[] imageData)
-    {
-        if (imageData.Length < 8)
-            return "Unknown";
-
-        ReadOnlySpan<byte> data = imageData;
-
-        // Check PNG signature: 89 50 4E 47 0D 0A 1A 0A
-        ReadOnlySpan<byte> pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-        if (data[..8].SequenceEqual(pngSignature))
-            return "PNG";
-
-        // Check JPEG signature: FF D8 FF
-        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
-            return "JPEG";
-
-        return "Unknown";
-    }
-
-    /// <summary>
-    /// Extracts file list clipboard content (CF_HDROP = 15).
-    /// </summary>
-    private Clip? ExtractFilesClip()
-    {
-        try
-        {
-            return Retrier.Attempt(
-                attempt =>
-                {
-                    if (!WpfClipboard.ContainsFileDropList())
-                        return null;
-
-                    var fileDropList = WpfClipboard.GetFileDropList();
-
-                    if (fileDropList.Count == 0)
-                        return null;
-
-                    // Convert to string array and serialize to JSON
-                    var filePaths = new List<string>();
-                    foreach (var item in fileDropList)
-                    {
-                        if (!string.IsNullOrEmpty(item))
-                            filePaths.Add(item);
-                    }
-
-                    if (filePaths.Count == 0)
-                        return null;
-
-                    var filePathsJson = JsonSerializer.Serialize(filePaths);
-                    var text = string.Join(Environment.NewLine, filePaths);
-
-                    // "HDROP Expansion" preference: capture as a Text clip listing the paths instead of a
-                    // Files clip. Unlike Edit > Convert File Pointer To Text, the file list is kept.
-                    var autoExpand = _configurationService.Configuration.Preferences.AutoExpandHdropFilePointers;
-
-                    var clip = new Clip
-                    {
-                        Id = Guid.NewGuid(),
-                        Type = autoExpand
-                            ? ClipType.Text
-                            : ClipType.Files,
-                        // Keep FilePathsJson even when auto-expanded so the original HDROP data can still be
-                        // restored to the clipboard on paste, alongside the plain-text representation.
-                        FilePathsJson = filePathsJson,
-                        TextContent = text, // For search, and as the primary content when auto-expanded
-                        CapturedAt = DateTimeOffset.Now,
-                        // Size is just the JSON length (actual file sizes not counted)
-                        Size = filePathsJson.Length * 2, // Unicode = 2 bytes per char
-                        // Title shows file count
-                        Title = filePaths.Count == 1
-                            ? Path.GetFileName(filePaths[0])
-                            : $"{filePaths.Count} files",
-                    };
-
-                    _logger.LogDebug("Captured {Count} files", filePaths.Count);
-
-                    if (attempt > 0)
-                        _logger.LogInformation("File extraction succeeded after {Attempt} retries", attempt);
-
-                    return clip;
-                },
-                new RetryOptions
-                {
-                    MaxAttempts = 4, // 1 initial attempt + 3 retries
-                    Delay = retryCount => TimeSpan.FromMilliseconds(50 * Math.Pow(2, retryCount)), // 50ms, 100ms, 200ms
-                    IsRetryAllowed = (ex, _) => ex is COMException { HResult: unchecked((int)0x800401D0) }, // CLIPBRD_E_CANT_OPEN
-                    BeforeRetry = (_, _) => _logger.LogWarning("Clipboard locked during file extraction, retrying..."),
-                });
-        }
-        catch (COMException ex) when (ex.HResult == unchecked((int)0x800401D0))
-        {
-            _logger.LogError(ex, "Failed to extract files from clipboard after retries - clipboard remains locked");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting files from clipboard");
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Adds the clipboard's file list and "Preferred DropEffect" to a clip whose primary content is something else.
-    /// </summary>
-    private void AddFileDropToClip(Clip clip)
-    {
-        try
-        {
-            if (clip.FilePathsJson == null)
-            {
-                var filePaths = WpfClipboard.GetFileDropList().Cast<string>().Where(p => !string.IsNullOrEmpty(p)).ToList();
-                if (filePaths.Count == 0)
-                    return;
-
-                clip.FilePathsJson = JsonSerializer.Serialize(filePaths);
-            }
-
-            if (WpfClipboard.ContainsData(Formats.PreferredDropEffect.Name))
-                clip.FileDropEffect = ShellFileDropFormats.ReadPreferredDropEffect(WpfClipboard.GetData(Formats.PreferredDropEffect.Name));
-        }
-        catch (Exception ex)
-        {
-            // The primary content was already captured; losing the file list is not worth losing the clip.
-            _logger.LogWarning(ex, "Could not read the file list alongside the clipboard content");
-        }
-    }
-
-    /// <summary>
-    /// Adds the clipboard's image to a clip whose primary content is text, such as a screenshot tool's image plus its
-    /// filename.
-    /// </summary>
-    private void AddImageToClip(Clip clip)
-    {
-        // ExtractImageClip handles PNG-versus-bitmap and logs its own failures; only its image is wanted here
-        var image = ExtractImageClip();
-        if (image?.ImageData == null)
             return;
+        }
 
-        clip.ImageData = image.ImageData;
-        clip.Size += image.ImageData.Length;
+        // Content ClipMate itself put on the clipboard within the suppression window
+        if (_suppressCaptureForHash != null && clip.ContentHash == _suppressCaptureForHash && DateTime.UtcNow < _suppressCaptureUntil)
+        {
+            _logger.LogDebug("Clipboard change is ClipMate's own copy");
+
+            return;
+        }
+
+        if (DateTime.UtcNow >= _suppressCaptureUntil)
+            _suppressCaptureForHash = null;
+
+        if (clip.ContentHash == _lastContentHash)
+        {
+            // A duplicate arriving >200ms after the last change is likely the user copying the same thing twice,
+            // unless ClipMate itself set the clipboard
+            if ((DateTime.UtcNow - pending.ChangedAt).TotalMilliseconds > 200 && DateTime.UtcNow >= _suppressCaptureUntil)
+                await _soundService.PlaySoundAsync(SoundEvent.Ignore);
+
+            _logger.LogDebug("Clipboard change is a duplicate of the last one");
+
+            return;
+        }
+
+        _lastContentHash = clip.ContentHash;
+        clip.SourceApplicationName = pending.ApplicationName;
+        clip.SourceApplicationTitle = pending.ApplicationTitle;
+
+        await _clipsChannel.Writer.WriteAsync(clip);
     }
 
     /// <summary>
@@ -898,7 +502,7 @@ public class ClipboardService : IClipboardService, IDisposable
         dataObject.SetImage(writableBitmap);
 
         // IMPORTANT: Don't dispose these streams - the DataObject needs them to remain alive
-        var format = DetectImageFormatFromBytes(imageData);
+        var format = ClipboardSnapshotDecoder.DetectImageFormat(imageData);
         if (format == "PNG")
         {
             dataObject.SetData("PNG", new MemoryStream(imageData));
@@ -955,207 +559,47 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <summary>
-    /// Populates standard metadata fields on a clip.
-    /// </summary>
-    private void PopulateStandardFields(Clip clip)
-    {
-        // Hash every Format the clip ended up with, for duplicate detection
-        clip.ContentHash = ContentHasher.HashClip(clip);
-        clip.Checksum = clip.ContentHash.GetHashCode();
-
-        // Set view tab based on type
-        clip.ViewTab = clip.Type switch
-        {
-            ClipType.Text => 0,
-            ClipType.RichText => 1,
-            ClipType.Html => 2,
-            var _ => 0,
-        };
-
-        // Default locale
-        clip.Locale = CultureInfo.CurrentCulture.LCID;
-
-        // Default flags
-        clip.Encrypted = false;
-        clip.Macro = false;
-        clip.Del = false;
-
-        // Timestamps
-        clip.LastModified = clip.CapturedAt;
-
-        // Creator (username@workstation)
-        clip.Creator = $"{Environment.UserName}@{Environment.MachineName}";
-
-        _logger.LogDebug("Clip populated: Type={Type}, Size={Size}, Title={Title}",
-            clip.Type, clip.Size, clip.Title);
-    }
-
-    /// <summary>
-    /// Calculates total size of text-based clip (all formats combined).
-    /// </summary>
-    private static int CalculateTextSize(Clip clip)
-    {
-        var size = 0;
-        if (!string.IsNullOrEmpty(clip.TextContent))
-            size += clip.TextContent.Length * 2; // Unicode
-
-        if (!string.IsNullOrEmpty(clip.RtfContent))
-            size += clip.RtfContent.Length * 2;
-
-        if (!string.IsNullOrEmpty(clip.HtmlContent))
-            size += clip.HtmlContent.Length * 2;
-
-        return size;
-    }
-
-    /// <summary>
-    /// Generates a title from the first line of text (max 60 chars).
-    /// </summary>
-    private static string GenerateTitleFromText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "(Empty)";
-
-        // Get first line using span to avoid allocations
-        var textSpan = text.AsSpan();
-        var lineEndIndex = textSpan.IndexOfAny('\r', '\n');
-
-        var firstLine = lineEndIndex >= 0
-            ? textSpan[..lineEndIndex].Trim()
-            : textSpan.Trim();
-
-        // Skip empty lines
-        if (firstLine.IsEmpty)
-            return "(Empty)";
-
-        // Truncate to 60 chars (database field limit)
-        const int maxLength = 60;
-
-        return firstLine.Length > maxLength
-            ? string.Concat(firstLine[..(maxLength - 3)], "...")
-            : firstLine.ToString();
-    }
-
-    /// <summary>
-    /// Converts BitmapSource to PNG byte array for storage.
-    /// </summary>
-    /// <param name="image">The BitmapSource to convert</param>
-    /// <param name="isInteropBitmap">
-    /// True if the image is an InteropBitmap (DIB format from screenshots), which has the
-    /// alpha=0 bug
-    /// </param>
-    private byte[]? ConvertBitmapSourceToBytes(BitmapSource image, bool isInteropBitmap)
-    {
-        byte[]? rentedArray = null;
-        try
-        {
-            // Calculate the stride (bytes per row)
-            var stride = (image.PixelWidth * image.Format.BitsPerPixel + 7) / 8;
-            var pixelDataLength = stride * image.PixelHeight;
-
-            // Rent from pool to reduce allocations
-            rentedArray = ArrayPool<byte>.Shared.Rent(pixelDataLength);
-            var pixelData = rentedArray.AsSpan(0, pixelDataLength);
-
-            // Copy pixel data from the source image directly into our buffer
-            image.CopyPixels(rentedArray, stride, 0);
-
-            // Fix alpha channel transparency bug ONLY for InteropBitmap sources
-            // InteropBitmap is used for DIB/DIBv5 (Device Independent Bitmap) from Windows screenshots
-            // which often incorrectly sets alpha=0 for all pixels even though the image is opaque.
-            // Other bitmap types (from PNG files, etc.) should preserve transparency exactly as-is.
-            if (isInteropBitmap &&
-                (image.Format == PixelFormats.Bgra32 ||
-                 image.Format == PixelFormats.Pbgra32))
-            {
-                // Check if any alpha bytes are non-zero
-                var hasNonZeroAlpha = false;
-                for (var i = 3; i < pixelData.Length; i += 4)
-                {
-                    if (pixelData[i] == 0)
-                        continue;
-
-                    hasNonZeroAlpha = true;
-
-                    break;
-                }
-
-                // If ALL alpha bytes are 0, this is the InteropBitmap transparency bug
-                // Fix by setting all alpha to 255 (fully opaque)
-                if (!hasNonZeroAlpha)
-                {
-                    // For InteropBitmap (DIB/DIBV5 from clipboard), if all alpha is 0, this is ALWAYS the bug
-                    // Don't check for color data - even white images (RGB all 255) should have alpha=255, not 0
-                    // The check is already at function scope: isInteropBitmap must be true to reach here
-                    _logger.LogInformation("Detected InteropBitmap with all alpha=0 - fixing transparency bug by setting alpha=255 (opaque)");
-
-                    // Fix by setting all alpha to 255 (opaque)
-                    for (var i = 3; i < pixelData.Length; i += 4)
-                        pixelData[i] = 255;
-                }
-            }
-
-            // Create a new WriteableBitmap from the pixel data
-            var writableBitmap = new WriteableBitmap(
-                image.PixelWidth,
-                image.PixelHeight,
-                image.DpiX,
-                image.DpiY,
-                image.Format,
-                image.Palette);
-
-            // Write the pixel data to the writable bitmap
-            writableBitmap.WritePixels(
-                new Int32Rect(0, 0, image.PixelWidth, image.PixelHeight),
-                rentedArray,
-                stride,
-                0);
-
-            writableBitmap.Freeze();
-
-            // Encode to PNG
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(writableBitmap));
-
-            using var memoryStream = new MemoryStream();
-            encoder.Save(memoryStream);
-
-            return memoryStream.ToArray();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error converting image to bytes");
-
-            return null;
-        }
-        finally
-        {
-            // Return rented array to pool
-            if (rentedArray != null)
-                ArrayPool<byte>.Shared.Return(rentedArray);
-        }
-    }
-
-    /// <summary>
     /// The data object a copy of the clip puts on the clipboard, with every Format the clip has; null for an unsupported
     /// clip type.
     /// </summary>
     private WpfDataObject? CreateDataObject(Clip clip)
     {
-        switch (clip.Type)
+        var dataObject = clip.Type switch
         {
-            case ClipType.Text:
-            case ClipType.Html:
-            case ClipType.RichText:
-                return CreateTextDataObject(clip);
-            case ClipType.Image:
-                return CreateImageDataObject(clip);
-            case ClipType.Files:
-                return CreateFilesDataObject(clip);
-            default:
-                _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
+            ClipType.Text or ClipType.Html or ClipType.RichText or ClipType.Custom => CreateTextDataObject(clip),
+            ClipType.Image => CreateImageDataObject(clip),
+            ClipType.Files => CreateFilesDataObject(clip),
+            var _ => null,
+        };
 
-                return null;
+        if (dataObject == null)
+        {
+            _logger.LogWarning("Unsupported clip type: {ClipType}", clip.Type);
+
+            return null;
+        }
+
+        // An encrypted clip's raw formats are not decrypted for the clipboard
+        if (!clip.Encrypted)
+            AddRawFormats(dataObject, clip.RawFormats);
+
+        return dataObject;
+    }
+
+    /// <summary>
+    /// Offers again the formats the source offered that no typed content holds, such as an application's private format.
+    /// </summary>
+    private static void AddRawFormats(WpfDataObject dataObject, IReadOnlyList<RawClipboardFormat> rawFormats)
+    {
+        foreach (var item in rawFormats)
+        {
+            // A standard format keeps its code; a registered one is found again by name in this Windows session
+            var name = item.Code is > 0 and < 0xC000 && Formats.TryGetStandardFormatName(item.Code, out _)
+                ? DataFormats.GetDataFormat((int)item.Code).Name
+                : item.Name;
+
+            if (!dataObject.GetDataPresent(name, false))
+                dataObject.SetData(name, new MemoryStream(item.Data), false);
         }
     }
 
@@ -1276,7 +720,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (imageData == null || imageData.Length == 0)
                 throw new InvalidOperationException("Image data is empty");
 
-            _logger.LogDebug("Setting image to clipboard: Format={Format}, Size={Size} bytes", DetectImageFormatFromBytes(imageData), imageData.Length);
+            _logger.LogDebug("Setting image to clipboard: Format={Format}, Size={Size} bytes", ClipboardSnapshotDecoder.DetectImageFormat(imageData), imageData.Length);
 
             var dataObject = new WpfDataObject();
             AddImageFormats(dataObject, imageData);
@@ -1317,54 +761,6 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
-    /// <summary>
-    /// Extracts the source URL from HTML clipboard format.
-    /// HTML clipboard format includes metadata headers like "SourceURL:https://..."
-    /// </summary>
-    private string? ExtractSourceUrlFromHtml(string htmlContent)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(htmlContent))
-                return null;
-
-            // Look for SourceURL: in the header
-            const string sourceUrlMarker = "SourceURL:";
-            var sourceUrlIndex = htmlContent.IndexOf(sourceUrlMarker, StringComparison.OrdinalIgnoreCase);
-
-            if (sourceUrlIndex == -1)
-                return null;
-
-            // Extract URL from the line
-            var urlStart = sourceUrlIndex + sourceUrlMarker.Length;
-            var urlEnd = htmlContent.IndexOfAny(['\r', '\n'], urlStart);
-
-            if (urlEnd == -1)
-                urlEnd = htmlContent.Length;
-
-            var url = htmlContent[urlStart..urlEnd].Trim();
-
-            // Accept any non-empty value from SourceURL field
-            // Applications put various URL schemes here (http, https, file, vscode-file, etc.)
-            if (string.IsNullOrEmpty(url))
-                return null;
-
-            // Truncate to 250 chars (database field limit)
-            if (url.Length > 250)
-                url = url[..250];
-
-            _logger.LogDebug("Extracted source URL: {Url}", url);
-
-            return url;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to extract source URL from HTML");
-
-            return null;
-        }
-    }
-
     private unsafe string? GetProcessName(HWND hwnd)
     {
         try
@@ -1386,31 +782,6 @@ public class ClipboardService : IClipboardService, IDisposable
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Checks if the clipboard is truly empty (no formats available).
-    /// Returns true if clipboard has no data at all, false if it has any formats.
-    /// </summary>
-    private static bool IsMarkedToBeIgnored() =>
-        ClipboardIgnoreFormats.All.Any(p => PInvoke.IsClipboardFormatAvailable(PInvoke.RegisterClipboardFormat(p)));
-
-    // Runs on the clipboard thread
-    private bool IsClipboardTrulyEmpty()
-    {
-        try
-        {
-            if (WpfClipboard.ContainsText() || WpfClipboard.ContainsImage() || WpfClipboard.ContainsFileDropList() ||
-                WpfClipboard.ContainsData(DataFormats.Rtf) || WpfClipboard.ContainsData(DataFormats.Html) || WpfClipboard.ContainsAudio())
-                return false;
-
-            return _clipboardFormatEnumerator.GetAllAvailableFormats().Count == 0;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Error checking if clipboard is empty");
-            return false; // Assume not empty if we can't check
-        }
     }
 
     /// <summary>

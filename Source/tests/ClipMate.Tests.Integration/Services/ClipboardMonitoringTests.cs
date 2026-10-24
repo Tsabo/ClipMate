@@ -104,10 +104,6 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
 
-        // Mock IClipboardFormatEnumerator
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
-
         var soundService = A.Fake<ISoundService>();
         A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
@@ -117,6 +113,6 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, soundService, blobCacheServiceMock);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock);
     }
 }

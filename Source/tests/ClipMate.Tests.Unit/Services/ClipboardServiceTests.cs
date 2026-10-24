@@ -4,6 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
+using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using FakeItEasy;
 using TUnit.Core.Executors;
@@ -213,6 +214,96 @@ public class ClipboardServiceTests : TestFixtureBase
         await Assert.That(formats.Any(p => p.FormatId == (uint)Formats.HDrop.Code)).IsTrue();
     }
 
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_EmptyClipboard_PlaysTheEraseSoundEveryTime()
+    {
+        // Arrange
+        var soundService = A.Fake<ISoundService>();
+        var service = CreateClipboardService(CreateClipboardOffering(), soundService);
+
+        // Act
+        var first = await service.CaptureClipboardChangeAsync(HWND.Null);
+        var second = await service.CaptureClipboardChangeAsync(HWND.Null);
+
+        // Assert
+        await Assert.That(first.Outcome).IsEqualTo(ClipboardCaptureOutcome.Empty);
+        await Assert.That(second.Outcome).IsEqualTo(ClipboardCaptureOutcome.Empty);
+        A.CallTo(() => soundService.PlaySoundAsync(SoundEvent.Erase, A<CancellationToken>.Ignored)).MustHaveHappenedTwiceExactly();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_TextAndAPrivateFormat_ReadsInOneSessionAndPublishesBoth()
+    {
+        // Arrange
+        byte[] privateData = [1, 2, 3];
+        var win32Mock = CreateClipboardOffering(
+            ((uint)Formats.UnicodeText.Code, null, System.Text.Encoding.Unicode.GetBytes("Hello\0")),
+            (0xC123, "ClipMate.Tests.Private", privateData));
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var result = await service.CaptureClipboardChangeAsync(HWND.Null);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var clip = await service.ClipsChannel.ReadAsync(cts.Token);
+
+        // Assert
+        await Assert.That(result.Outcome).IsEqualTo(ClipboardCaptureOutcome.Captured);
+        await Assert.That(clip.TextContent).IsEqualTo("Hello");
+        await Assert.That(clip.RawFormats.Single().Name).IsEqualTo("ClipMate.Tests.Private");
+        await Assert.That(clip.RawFormats.Single().Data).IsEquivalentTo(privateData);
+        A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => win32Mock.CloseClipboard()).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_ClipWithRawFormats_OffersThemAgain()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        byte[] privateData = [1, 2, 3];
+        byte[] locale = [9, 4, 0, 0];
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "Hello",
+            RawFormats = [new RawClipboardFormat("ClipMate.Tests.Private", 0xC123, privateData), new RawClipboardFormat("CF_LOCALE", 16, locale)],
+        };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        var privateId = (uint)System.Windows.DataFormats.GetDataFormat("ClipMate.Tests.Private").Id;
+        await Assert.That(formats.Single(p => p.FormatId == privateId).Data).IsEquivalentTo(privateData);
+        await Assert.That(formats.Single(p => p.FormatId == 16).Data).IsEquivalentTo(locale);
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetClipboardFormats_ClipWithOnlyRawFormats_OffersThem()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        byte[] privateData = [1, 2, 3];
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Custom,
+            RawFormats = [new RawClipboardFormat("ClipMate.Tests.Private", 0xC123, privateData)],
+        };
+
+        // Act
+        var formats = service.GetClipboardFormats(clip);
+
+        // Assert
+        var privateId = (uint)System.Windows.DataFormats.GetDataFormat("ClipMate.Tests.Private").Id;
+        await Assert.That(formats.Single(p => p.FormatId == privateId).Data).IsEquivalentTo(privateData);
+    }
+
     private static byte[] CreatePng(int width, int height)
     {
         var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
@@ -227,10 +318,11 @@ public class ClipboardServiceTests : TestFixtureBase
     /// <summary>
     /// Creates an instance of ClipboardService for testing.
     /// </summary>
-    private IClipboardService CreateClipboardService()
+    private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
+
+    private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService)
     {
         var logger = CreateLogger<ClipboardService>();
-        var win32Mock = CreateWin32ClipboardMock();
 
         // Setup basic Win32 mock expectations
         A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
@@ -240,11 +332,6 @@ public class ClipboardServiceTests : TestFixtureBase
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
 
-        // Mock IClipboardFormatEnumerator
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
-
-        var soundService = A.Fake<ISoundService>();
         A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         // Create configuration mock with default timing values
@@ -253,6 +340,29 @@ public class ClipboardServiceTests : TestFixtureBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, soundService, blobCacheServiceMock);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock);
+    }
+
+    /// <summary>
+    /// A strict Win32 fake whose clipboard offers the given formats, in order, each with its data.
+    /// </summary>
+    private IWin32ClipboardInterop CreateClipboardOffering(params (uint Code, string? Name, byte[] Data)[] formats)
+    {
+        var win32Mock = CreateWin32ClipboardMock();
+        A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).Returns(true);
+        A.CallTo(() => win32Mock.CloseClipboard()).Returns(true);
+        A.CallTo(() => win32Mock.GetForegroundWindow()).Returns(HWND.Null);
+        A.CallTo(() => win32Mock.EnumClipboardFormats(A<uint>.Ignored)).ReturnsLazily((uint previous) =>
+        {
+            var index = previous == 0 ? 0 : Array.FindIndex(formats, p => p.Code == previous) + 1;
+            return index < formats.Length ? formats[index].Code : 0;
+        });
+        foreach (var (code, name, data) in formats)
+        {
+            A.CallTo(() => win32Mock.GetClipboardFormatName(code)).Returns(name);
+            A.CallTo(() => win32Mock.GetClipboardData(code)).Returns(data);
+        }
+
+        return win32Mock;
     }
 }

@@ -66,8 +66,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
         var clipboardSoundService = A.Fake<ISoundService>();
         A.CallTo(() => clipboardSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
@@ -78,7 +76,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => configServiceMock.Configuration).Returns(clipboardConfig);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, clipboardSoundService, blobCacheServiceMock);
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, clipboardSoundService, blobCacheServiceMock);
 
         var clipServiceLogger = A.Fake<ILogger<ClipService>>();
 
@@ -282,15 +280,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
             .Returns(true);
 
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats())
-            .Returns(new List<ClipboardFormatInfo>
-            {
-                new("TEXT", 1),
-                new("HTML Format", 49352),
-                new("Rich Text Format", 49353),
-            });
-
         var win32Mock = A.Fake<IWin32ClipboardInterop>();
         var clipboardLogger = A.Fake<ILogger<ClipboardService>>();
         var testSoundService = A.Fake<ISoundService>();
@@ -302,7 +291,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => testConfigServiceMock.Configuration).Returns(testConfig);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock, testConfigServiceMock, profileServiceMock, formatEnumeratorMock, testSoundService, blobCacheServiceMock);
+        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock, testConfigServiceMock, profileServiceMock, testSoundService, blobCacheServiceMock);
 
         // Act & Assert - Service should not filter formats when disabled
         A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(
