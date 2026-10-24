@@ -476,8 +476,8 @@ public class ClipboardCoordinator : IHostedService,
             // Check if collection accepts duplicates
             if (activeCollection is { AcceptDuplicates: false })
             {
-                _logger.LogDebug(
-                    "Duplicate clip detected and collection does not accept duplicates, ignoring: {ExistingId}",
+                _logger.LogInformation(
+                    "Not saving a duplicate clip: the collection does not accept duplicates ({ExistingId})",
                     existing.Id);
 
                 await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
