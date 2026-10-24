@@ -6,6 +6,7 @@ using ClipMate.Platform.Services;
 using ClipMate.Tests.Unit.Networking;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
+using TUnit.Assertions.Enums;
 
 namespace ClipMate.Tests.Unit.Platform;
 
@@ -33,7 +34,7 @@ public class RawClipboardReaderTests
 
         // Assert
         await Assert.That(snapshot!.FormatCount).IsEqualTo(3);
-        await Assert.That(snapshot.Formats.Select(p => p.Name)).IsEquivalentTo(["Acme Private", Formats.Html.Name, "CF_UNICODETEXT"]);
+        await Assert.That(snapshot.Formats.Select(p => p.Name)).IsEquivalentTo(["Acme Private", Formats.Html.Name, "CF_UNICODETEXT"], CollectionOrdering.Matching);
         await Assert.That(snapshot.Formats[0].Code).IsEqualTo(_privateFormat);
         await Assert.That(snapshot.Formats[0].Data).IsEquivalentTo(new byte[] { 1, 2, 3 });
         A.CallTo(() => win32.OpenClipboard(_window)).MustHaveHappenedOnceExactly();
