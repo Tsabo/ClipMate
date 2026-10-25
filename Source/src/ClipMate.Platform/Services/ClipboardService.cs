@@ -94,6 +94,9 @@ public class ClipboardService : IClipboardService, IDisposable
     public bool IsMonitoring { get; private set; }
 
     /// <inheritdoc />
+    public int SettleGapDrops => _captureScheduler?.SettleGapDrops ?? 0;
+
+    /// <inheritdoc />
     public async Task StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
         if (IsMonitoring)
@@ -110,7 +113,8 @@ public class ClipboardService : IClipboardService, IDisposable
             var thread = clipboardThread;
             var (listening, error) = await thread.Dispatcher.InvokeAsync(() =>
             {
-                _captureScheduler = new ClipboardCaptureScheduler(_timeProvider,
+                // Lives until Dispose, so its settle-gap drops count from start-up, as ClipMate 7's do
+                _captureScheduler ??= new ClipboardCaptureScheduler(_timeProvider,
                     () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.DelayOnClipboardUpdateMs)),
                     () => TimeSpan.FromMilliseconds(Math.Max(0, _configurationService.Configuration.Preferences.SettleTimeMs)),
                     action => thread.Dispatcher.InvokeAsync(action),
@@ -319,7 +323,11 @@ public class ClipboardService : IClipboardService, IDisposable
         }
 
         IsMonitoring = false;
-        started?.ContinueWith(p => p.Result.BeginStop(StopListening(p.Result)), TaskContinuationOptions.OnlyOnRanToCompletion);
+        started?.ContinueWith(p => p.Result.BeginStop(() =>
+        {
+            StopListening(p.Result)();
+            DisposeCaptureScheduler();
+        }), TaskContinuationOptions.OnlyOnRanToCompletion);
         _pendingCaptures.Writer.TryComplete();
         _clipsChannel.Writer.TryComplete();
     }
@@ -340,7 +348,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private Action StopListening(ClipboardThread clipboardThread) => () =>
     {
         _win32.RemoveClipboardFormatListener(clipboardThread.Handle);
-        DisposeCaptureScheduler();
+        _captureScheduler?.Cancel();
     };
 
     private void DisposeCaptureScheduler()

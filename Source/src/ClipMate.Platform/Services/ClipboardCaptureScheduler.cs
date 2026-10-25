@@ -7,6 +7,7 @@ internal enum ClipboardCaptureOutcome
 {
     Captured,
     SettleGap,
+    TooManySettleGapDrops,
     Suspended,
     IgnoreFlag,
     Empty,
@@ -30,10 +31,14 @@ internal readonly record struct ClipboardCaptureTrace(int Notifications, bool Ti
 /// <summary>
 /// Decides when a clipboard change is read, as ClipMate 7 does: each change notification restarts one timer, so a
 /// source that adds its formats one at a time is captured once, after its last update; a capture starting within the
-/// settle time of the previous one is dropped. Every member runs on the clipboard thread; the timer posts back to it.
+/// settle time of the previous one is dropped, and after <see cref="MaxSettleGapDrops" /> such drops nothing more is
+/// captured until ClipMate restarts (ClipMate 7's guard against two clipboard tools copying back and forth). Every
+/// member runs on the clipboard thread; the timer posts back to it.
 /// </summary>
 internal sealed class ClipboardCaptureScheduler : IDisposable
 {
+    public const int MaxSettleGapDrops = 100;
+
     private readonly Func<Task<ClipboardCaptureResult>> _capture;
     private readonly Func<TimeSpan> _delay;
     private readonly Action<Action> _post;
@@ -66,6 +71,21 @@ internal sealed class ClipboardCaptureScheduler : IDisposable
     }
 
     public void Dispose() => _timer.Dispose();
+
+    /// <summary>
+    /// Captures dropped by the settle gap since the scheduler was created (ClipMate 7's "cyclic errors").
+    /// </summary>
+    public int SettleGapDrops { get; private set; }
+
+    /// <summary>
+    /// Forgets changes waiting for the delay, when monitoring stops.
+    /// </summary>
+    public void Cancel()
+    {
+        StopTimer();
+        _notifications = 0;
+        _rerunWhenDone = false;
+    }
 
     /// <summary>
     /// Handles one <c>WM_CLIPBOARDUPDATE</c>.
@@ -119,7 +139,14 @@ internal sealed class ClipboardCaptureScheduler : IDisposable
 
         if (_lastCaptureEnd is { } lastCaptureEnd && _timeProvider.GetUtcNow() - lastCaptureEnd < _settleTime())
         {
+            SettleGapDrops++;
             _trace(new ClipboardCaptureTrace(notifications, timerFired, null, ClipboardCaptureOutcome.SettleGap));
+            return;
+        }
+
+        if (SettleGapDrops >= MaxSettleGapDrops)
+        {
+            _trace(new ClipboardCaptureTrace(notifications, timerFired, null, ClipboardCaptureOutcome.TooManySettleGapDrops));
             return;
         }
 

@@ -21,6 +21,12 @@ public interface IClipboardService
     bool IsMonitoring { get; }
 
     /// <summary>
+    /// Changes dropped because they came within the settle time of the previous capture, since ClipMate started. At
+    /// 100, as in ClipMate 7, monitored changes are no longer captured until ClipMate restarts.
+    /// </summary>
+    int SettleGapDrops { get; }
+
+    /// <summary>
     /// Starts monitoring the system clipboard for changes.
     /// Captured clips are published to the <see cref="ClipsChannel" />.
     /// </summary>

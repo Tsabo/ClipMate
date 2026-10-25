@@ -102,6 +102,28 @@ public class ClipboardCaptureSchedulerTests
         await Assert.That(_traces.Select(p => p.Outcome)).IsEquivalentTo([ClipboardCaptureOutcome.Captured, ClipboardCaptureOutcome.Captured]);
     }
 
+    [Test]
+    [Arguments(ClipboardCaptureScheduler.MaxSettleGapDrops - 1, 2)]
+    [Arguments(ClipboardCaptureScheduler.MaxSettleGapDrops, 1)]
+    public async Task OnClipboardUpdate_AfterManySettleGapDrops_StopsCapturing(int drops, int expectedCaptures)
+    {
+        // Arrange: two clipboard tools copying back and forth, every change within the settle time of the capture
+        using var scheduler = CreateScheduler(delayMs: 0, settleTimeMs: 100);
+        scheduler.OnClipboardUpdate();
+        for (var i = 0; i < drops; i++)
+            scheduler.OnClipboardUpdate();
+
+        // Act: a change well after the settle time
+        _time.Advance(TimeSpan.FromSeconds(1));
+        scheduler.OnClipboardUpdate();
+
+        // Assert
+        await Assert.That(scheduler.SettleGapDrops).IsEqualTo(drops);
+        await Assert.That(_captures).IsEqualTo(expectedCaptures);
+        if (expectedCaptures == 1)
+            await Assert.That(_traces[^1].Outcome).IsEqualTo(ClipboardCaptureOutcome.TooManySettleGapDrops);
+    }
+
     private ClipboardCaptureScheduler CreateScheduler(int delayMs, int settleTimeMs, Func<Task<ClipboardCaptureResult>>? read = null)
     {
         read ??= () => Task.FromResult(new ClipboardCaptureResult(ClipboardCaptureOutcome.Captured, "SOURCE"));
