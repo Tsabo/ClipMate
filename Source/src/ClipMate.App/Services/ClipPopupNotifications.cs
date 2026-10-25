@@ -1,7 +1,5 @@
-using System.Windows;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
-using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.UI;
@@ -28,9 +26,7 @@ public sealed class ClipPopupNotifications : IClipPopupNotifications
     {
         var service = GetService();
 
-        // The notification window does not follow the DevExpress theme: pick the frame for the current one
-        var theme = _configurationService.Configuration.Appearance.AppTheme == AppTheme.Dark ? "Dark" : "Light";
-        service.CustomNotificationTemplate = (DataTemplate)_templates![theme];
+        service.CustomNotificationTemplate = _templates!.For(_configurationService.Configuration.Appearance.AppTheme);
         return service.CreateCustomNotification(viewModel);
     }
 
