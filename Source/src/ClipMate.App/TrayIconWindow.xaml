@@ -18,7 +18,7 @@
     <dxmvvm:Interaction.Behaviors>
         <dx:NotifyIconService
             Icon="pack://application:,,,/ClipMate.App;component/Assets/icon.ico"
-            Tooltip="ClipMate - Clipboard Manager"
+            Tooltip="{Binding Tooltip.Text}"
             LeftClickCommand="{Binding ShowExplorerWindowCommand}">
             <dx:NotifyIconService.ContextMenu>
                 <dxb:PopupMenu x:Name="TrayContextMenu" Opening="TrayContextMenu_Opening">

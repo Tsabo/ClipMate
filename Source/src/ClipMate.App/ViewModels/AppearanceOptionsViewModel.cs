@@ -20,6 +20,9 @@ public partial class AppearanceOptionsViewModel : ObservableObject
     [ObservableProperty]
     private bool _monacoThemeFollowsAppTheme;
 
+    [ObservableProperty]
+    private SystemTrayHint _systemTrayHint;
+
     public AppearanceOptionsViewModel(IConfigurationService configurationService,
         ILogger<AppearanceOptionsViewModel> logger)
     {
@@ -36,6 +39,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
 
         AppTheme = config.AppTheme;
         MonacoThemeFollowsAppTheme = config.MonacoThemeFollowsAppTheme;
+        SystemTrayHint = config.SystemTrayHint;
 
         _logger.LogDebug("Appearance configuration loaded");
     }
@@ -49,6 +53,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
 
         config.AppTheme = AppTheme;
         config.MonacoThemeFollowsAppTheme = MonacoThemeFollowsAppTheme;
+        config.SystemTrayHint = SystemTrayHint;
 
         _logger.LogDebug("Appearance configuration saved");
     }
@@ -61,6 +66,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
     {
         AppTheme = AppTheme.Light;
         MonacoThemeFollowsAppTheme = true;
+        SystemTrayHint = SystemTrayHint.ClipTitle;
 
         _logger.LogInformation("Appearance settings reset to defaults");
     }
