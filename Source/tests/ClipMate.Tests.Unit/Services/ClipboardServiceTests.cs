@@ -6,6 +6,7 @@ using ClipMate.Core.Services;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Unit.Networking;
 using FakeItEasy;
 using TUnit.Core.Executors;
 
@@ -375,6 +376,87 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_NotMonitoring_ReadsOnTheClipboardThread()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        string? readingThread = null;
+        var readingWindow = HWND.Null;
+        A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).ReturnsLazily((HWND window) =>
+        {
+            readingThread = Thread.CurrentThread.Name;
+            readingWindow = window;
+            return true;
+        });
+        using var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync();
+
+        // Assert
+        await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+        await Assert.That(readingThread).IsEqualTo("Clipboard");
+        await Assert.That(readingWindow).IsNotEqualTo(HWND.Null);
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_AfterMonitoringStopped_StillReadsOnTheClipboardThread()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        string? readingThread = null;
+        A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).ReturnsLazily(() =>
+        {
+            readingThread = Thread.CurrentThread.Name;
+            return true;
+        });
+        using var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+        await service.StartMonitoringAsync();
+        await service.StopMonitoringAsync();
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync();
+
+        // Assert
+        await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+        await Assert.That(readingThread).IsEqualTo("Clipboard");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_IgnoreFlagPresent_IsCaptured()
+    {
+        // Arrange
+        using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>());
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync();
+
+        // Assert
+        await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_WhileMonitoring_DoesNotWaitForTheDelayOrSettleGap()
+    {
+        // Arrange
+        var configuration = new ClipMateConfiguration { Preferences = { DelayOnClipboardUpdateMs = 250, SettleTimeMs = 100 } };
+        using var service = CreateClipboardService(CreateTextOffering(), A.Fake<ISoundService>(), configuration: configuration,
+            timeProvider: new ManualTimeProvider());
+        await service.StartMonitoringAsync();
+        await service.CaptureClipboardChangeAsync(HWND.Null);
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task GetClipboardFormats_ClipWithRawFormats_OffersThemAgain()
     {
         // Arrange
@@ -519,7 +601,7 @@ public class ClipboardServiceTests : TestFixtureBase
     private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
 
     private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService,
-        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null)
+        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null, TimeProvider? timeProvider = null)
     {
         var logger = CreateLogger<ClipboardService>();
 
@@ -541,7 +623,7 @@ public class ClipboardServiceTests : TestFixtureBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock, timeProvider);
     }
 
     /// <summary>

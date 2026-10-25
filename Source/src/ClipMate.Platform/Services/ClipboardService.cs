@@ -30,6 +30,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private const int _channelCapacity = 100; // Max queued clips before backpressure
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly Channel<Clip> _clipsChannel;
+    private readonly Lock _clipboardThreadLock = new();
     private readonly IConfigurationService _configurationService;
     private readonly Task _decodeLoop;
     private readonly ClipboardSnapshotDecoder _decoder;
@@ -41,7 +42,8 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly IWin32ClipboardInterop _win32;
     private bool _captureSuspended;
     private ClipboardCaptureScheduler? _captureScheduler;
-    private ClipboardThread? _clipboardThread;
+    private Task<ClipboardThread>? _clipboardThread;
+    private bool _disposed;
 
     public ClipboardService(ILogger<ClipboardService> logger,
         IWin32ClipboardInterop win32Interop,
@@ -98,7 +100,7 @@ public class ClipboardService : IClipboardService, IDisposable
         ClipboardThread? clipboardThread = null;
         try
         {
-            clipboardThread = await ClipboardThread.StartAsync(WndProc).ConfigureAwait(false);
+            clipboardThread = await GetClipboardThreadAsync().ConfigureAwait(false);
             var thread = clipboardThread;
             var (listening, error) = await thread.Dispatcher.InvokeAsync(() =>
             {
@@ -116,14 +118,13 @@ public class ClipboardService : IClipboardService, IDisposable
             if (!listening)
                 throw new ClipboardException($"Failed to register clipboard listener. Error: {error}");
 
-            _clipboardThread = thread;
             IsMonitoring = true;
             _logger.LogInformation("Clipboard monitoring started");
         }
         catch (Exception ex)
         {
             if (clipboardThread != null)
-                await clipboardThread.StopAsync(DisposeCaptureScheduler).ConfigureAwait(false);
+                await clipboardThread.Dispatcher.InvokeAsync(DisposeCaptureScheduler);
 
             _logger.LogError(ex, "Failed to start clipboard monitoring");
 
@@ -140,14 +141,13 @@ public class ClipboardService : IClipboardService, IDisposable
         if (!IsMonitoring)
             return;
 
-        var clipboardThread = _clipboardThread;
-        _clipboardThread = null;
         IsMonitoring = false;
 
         try
         {
-            if (clipboardThread != null)
-                await clipboardThread.StopAsync(StopListening(clipboardThread)).ConfigureAwait(false);
+            // The clipboard thread stays for manual capture
+            var clipboardThread = await GetClipboardThreadAsync().ConfigureAwait(false);
+            await clipboardThread.Dispatcher.InvokeAsync(StopListening(clipboardThread));
 
             // Clips already read are still decoded and published, then the channel completes
             _pendingCaptures.Writer.TryComplete();
@@ -169,12 +169,9 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
-            // Read on the clipboard thread while monitoring, else (startup capture) on the thread pool; a manual or
-            // startup capture skips the ignore flag
-            var clipboardThread = _clipboardThread;
-            var snapshot = clipboardThread != null
-                ? await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false))
-                : await Task.Run(() => _reader.ReadAsync(HWND.Null, false), cancellationToken);
+            // Same read as a monitored change, without the delay, settle gap or ignore flag
+            var clipboardThread = await GetClipboardThreadAsync();
+            var snapshot = await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false));
 
             if (snapshot == null || snapshot.Formats.Count == 0)
                 return null;
@@ -290,12 +287,31 @@ public class ClipboardService : IClipboardService, IDisposable
     public void Dispose()
     {
         // Never waits on the clipboard thread: Dispose may run on the UI thread while a read waits for it
-        var clipboardThread = _clipboardThread;
-        _clipboardThread = null;
+        Task<ClipboardThread>? started;
+        lock (_clipboardThreadLock)
+        {
+            _disposed = true;
+            started = _clipboardThread;
+            _clipboardThread = null;
+        }
+
         IsMonitoring = false;
-        clipboardThread?.BeginStop(StopListening(clipboardThread));
+        started?.ContinueWith(p => p.Result.BeginStop(StopListening(p.Result)), TaskContinuationOptions.OnlyOnRanToCompletion);
         _pendingCaptures.Writer.TryComplete();
         _clipsChannel.Writer.TryComplete();
+    }
+
+    // The clipboard thread runs from its first use (monitoring, a manual or a startup capture) until Dispose
+    private Task<ClipboardThread> GetClipboardThreadAsync()
+    {
+        lock (_clipboardThreadLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_clipboardThread is not { IsFaulted: false, IsCanceled: false })
+                _clipboardThread = ClipboardThread.StartAsync(WndProc);
+
+            return _clipboardThread;
+        }
     }
 
     private Action StopListening(ClipboardThread clipboardThread) => () =>
