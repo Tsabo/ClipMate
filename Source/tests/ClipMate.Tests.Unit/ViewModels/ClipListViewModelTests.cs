@@ -358,6 +358,27 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    public async Task Receive_SelectNextClipFromHotkeyInAOneClipList_AnnouncesNothing()
+    {
+        // Arrange: the press does not move to another clip
+        var messenger = new StrongReferenceMessenger();
+        using var viewModel = CreateViewModel(messenger);
+        var only = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(only);
+        viewModel.SelectClipWithoutCopying(only.Id);
+        var announced = false;
+        messenger.Register<ClipReachedByHotkeyEvent>(this, (_, _) => announced = true);
+
+        // Act
+        messenger.Send(new SelectNextClipEvent(FromHotkey: true));
+        messenger.Send(new SelectPreviousClipEvent(FromHotkey: true));
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(only);
+        await Assert.That(announced).IsFalse();
+    }
+
+    [Test]
     public async Task Receive_SelectNextClipInsideAWindow_AnnouncesNothing()
     {
         // Arrange

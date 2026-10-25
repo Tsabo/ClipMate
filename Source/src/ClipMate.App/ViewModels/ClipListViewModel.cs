@@ -626,6 +626,10 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     private void MoveTo(Clip clip, bool fromHotkey)
     {
+        // In a one-clip list the press stays where it is: nothing to announce
+        if (clip == SelectedClip)
+            return;
+
         SelectedClip = clip;
 
         // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
