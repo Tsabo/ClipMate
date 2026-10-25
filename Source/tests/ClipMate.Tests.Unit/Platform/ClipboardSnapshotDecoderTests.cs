@@ -103,6 +103,53 @@ public class ClipboardSnapshotDecoderTests
     }
 
     [Test]
+    public async Task DecodeAsync_UrlWithoutText_TakesTheUnicodeUrlAsTextAndKeepsTheUrlFormatsRaw()
+    {
+        var decoder = CreateDecoder();
+        var unicodeUrl = new RawClipboardFormat("UniformResourceLocatorW", 0xC0E1, DataObjectFormats.EncodeUnicodeText("https://example.com/é"));
+        var ansiUrl = Ansi("UniformResourceLocator", 0xC0E0, "https://example.com/?");
+
+        var clip = await decoder.DecodeAsync([ansiUrl, unicodeUrl], null);
+
+        await Assert.That(clip!.Type).IsEqualTo(ClipType.Text);
+        await Assert.That(clip.TextContent).IsEqualTo("https://example.com/é");
+        await Assert.That(clip.Title).IsEqualTo("https://example.com/é");
+        await Assert.That(clip.RawFormats.Select(p => p.Name)).IsEquivalentTo(["UniformResourceLocator", "UniformResourceLocatorW"], CollectionOrdering.Matching);
+        await Assert.That(clip.ContentHash).IsEqualTo(ContentHasher.HashText("https://example.com/é"));
+    }
+
+    [Test]
+    public async Task DecodeAsync_AnsiUrlWithoutText_TakesItAsText()
+    {
+        var decoder = CreateDecoder();
+
+        var clip = await decoder.DecodeAsync([Ansi("UniformResourceLocator", 0xC0E0, "https://example.com/")], null);
+
+        await Assert.That(clip!.TextContent).IsEqualTo("https://example.com/");
+    }
+
+    [Test]
+    public async Task DecodeAsync_UrlWithText_KeepsTheText()
+    {
+        var decoder = CreateDecoder();
+
+        var clip = await decoder.DecodeAsync([UnicodeText("Example"), Ansi("UniformResourceLocator", 0xC0E0, "https://example.com/")], null);
+
+        await Assert.That(clip!.TextContent).IsEqualTo("Example");
+    }
+
+    [Test]
+    public async Task DecodeAsync_ProfileSwitchesOffTheTextOfAUrl_AddsNoText()
+    {
+        var decoder = CreateDecoder(CreateProfiles("CF_UNICODETEXT"));
+
+        var clip = await decoder.DecodeAsync([UnicodeText("Example"), Ansi("UniformResourceLocator", 0xC0E0, "https://example.com/")], "acme");
+
+        await Assert.That(clip!.TextContent).IsNull();
+        await Assert.That(clip.Type).IsEqualTo(ClipType.Custom);
+    }
+
+    [Test]
     public async Task DecodeAsync_NoFormats_IsNoClip()
     {
         var decoder = CreateDecoder();

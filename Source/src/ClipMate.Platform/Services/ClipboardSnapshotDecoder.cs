@@ -61,6 +61,15 @@ internal sealed class ClipboardSnapshotDecoder
         if (Find("CF_UNICODETEXT") is { } unicodeText)
             clip.TextContent = NullIfEmpty(DecodeUnicode(unicodeText));
 
+        // A URL without any text on the clipboard also becomes the clip's text, as ClipMate 7 does
+        if (!formats.Any(p => p.Name is "CF_UNICODETEXT" or "CF_TEXT"))
+        {
+            if (Find("UniformResourceLocatorW") is { } unicodeUrl)
+                clip.TextContent = NullIfEmpty(DecodeUnicode(unicodeUrl));
+            else if (Find("UniformResourceLocator") is { } ansiUrl)
+                clip.TextContent = NullIfEmpty(DecodeAnsi(ansiUrl));
+        }
+
         if (Find(Formats.RichText.Name) is { } rtf)
             clip.RtfContent = NullIfEmpty(DecodeAnsi(rtf));
 
