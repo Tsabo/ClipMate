@@ -76,7 +76,7 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
             if (_currentCollection != null)
                 return;
 
-            _currentCollection = ClipDescription.Collection(active.Title);
+            _currentCollection = ClipDescription.CollectionOf(active.Title);
             Refresh();
         });
     }
@@ -137,7 +137,7 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
     {
         var detail = _configurationService.Configuration.Appearance.SystemTrayHint == SystemTrayHint.Collection
             ? _currentCollection
-            : _currentClip == null ? null : ClipDescription.Title(_currentClip);
+            : _currentClip == null ? null : ClipDescription.TitleOf(_currentClip);
 
         var text = string.IsNullOrEmpty(detail) ? _appName : $"{_appName} - {detail}";
         Text = text.Length <= MaxLength ? text : Shorten(text);

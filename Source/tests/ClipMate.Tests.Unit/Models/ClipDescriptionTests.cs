@@ -14,7 +14,7 @@ public class ClipDescriptionTests
         var clip = new Clip { Title = "Meeting notes" };
 
         // Act
-        var title = ClipDescription.Title(clip);
+        var title = ClipDescription.TitleOf(clip);
 
         // Assert
         await Assert.That(title).IsEqualTo("Meeting notes");
@@ -27,7 +27,7 @@ public class ClipDescriptionTests
         var clip = new Clip { Title = "Bank PIN", CustomTitle = true, Encrypted = true, IsDecrypted = true };
 
         // Act
-        var title = ClipDescription.Title(clip);
+        var title = ClipDescription.TitleOf(clip);
 
         // Assert
         await Assert.That(title).IsEqualTo("Encrypted clip");
@@ -37,7 +37,7 @@ public class ClipDescriptionTests
     public async Task Collection_LocalCollection_IsItsName()
     {
         // Act
-        var collection = ClipDescription.Collection("Inbox");
+        var collection = ClipDescription.CollectionOf("Inbox");
 
         // Assert
         await Assert.That(collection).IsEqualTo("Inbox");
@@ -47,7 +47,7 @@ public class ClipDescriptionTests
     public async Task Collection_RemoteDatabaseCollection_NamesThePeer()
     {
         // Act
-        var collection = ClipDescription.Collection("Inbox", "Work laptop");
+        var collection = ClipDescription.CollectionOf("Inbox", "Work laptop");
 
         // Assert
         await Assert.That(collection).IsEqualTo("Inbox on Work laptop");

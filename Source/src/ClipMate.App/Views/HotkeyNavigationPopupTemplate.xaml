@@ -12,13 +12,13 @@
     <DataTemplate x:Key="Content" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
         <DockPanel Width="316" LastChildFill="True">
             <TextBlock DockPanel.Dock="Top"
-                       Text="{Binding Title}"
+                       Text="{Binding Description.Title}"
                        FontWeight="SemiBold"
                        TextTrimming="CharacterEllipsis" />
             <TextBlock DockPanel.Dock="Top"
                        Margin="0,2,0,0"
                        Opacity="0.7"
-                       Text="{Binding Collection}"
+                       Text="{Binding Description.Collection}"
                        FontSize="11"
                        TextTrimming="CharacterEllipsis" />
             <Image DockPanel.Dock="Top"

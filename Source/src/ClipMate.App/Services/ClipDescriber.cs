@@ -5,13 +5,6 @@ using ClipMate.Core.Services;
 namespace ClipMate.App.Services;
 
 /// <summary>
-/// How a clip is named to the user outside the clip list: its title and the collection it is in.
-/// </summary>
-/// <param name="Title">The clip's title (see <see cref="ClipDescription.Title" />).</param>
-/// <param name="Collection">The collection the clip is in (see <see cref="ClipDescription.Collection" />).</param>
-public sealed record ClipCaption(string Title, string Collection);
-
-/// <summary>
 /// Describes a clip by its title and collection, looking up the collection's name (and, for a Remote Database, its
 /// Peer's), for places that show a clip outside a ClipMate window such as the hotkey navigation popup.
 /// </summary>
@@ -29,7 +22,7 @@ public sealed class ClipDescriber
     /// <summary>
     /// Describes <paramref name="clip" />, which is in the Database <paramref name="databaseKey" />.
     /// </summary>
-    public async Task<ClipCaption> DescribeAsync(Clip clip, string? databaseKey, CancellationToken cancellationToken = default)
+    public async Task<ClipDescription> DescribeAsync(Clip clip, string? databaseKey, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clip);
 
@@ -37,7 +30,7 @@ public sealed class ClipDescriber
             ? await DescribeRemoteCollectionAsync(address, clip.CollectionId, cancellationToken)
             : await DescribeLocalCollectionAsync(databaseKey, clip.CollectionId, cancellationToken);
 
-        return new ClipCaption(ClipDescription.Title(clip), collection);
+        return new ClipDescription(ClipDescription.TitleOf(clip), collection);
     }
 
     private async Task<string> DescribeLocalCollectionAsync(string? databaseKey, Guid? collectionId, CancellationToken cancellationToken)
@@ -63,6 +56,6 @@ public sealed class ClipDescriber
             // The Peer went offline: name the Remote Database instead of the collection
         }
 
-        return ClipDescription.Collection(collection ?? database?.Name ?? string.Empty, database?.PeerName);
+        return ClipDescription.CollectionOf(collection ?? database?.Name ?? string.Empty, database?.PeerName);
     }
 }

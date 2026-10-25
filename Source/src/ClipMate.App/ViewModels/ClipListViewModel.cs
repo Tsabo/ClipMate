@@ -30,6 +30,7 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>,
+    IRecipient<SelectClipRequestedEvent>,
     IRecipient<ShowAllClipsInChildrenRequestedEvent>,
     IRecipient<ClipsDeletedEvent>,
     IDisposable
@@ -152,6 +153,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
+        _messenger.Register<SelectClipRequestedEvent>(this);
         _messenger.Register<SearchResultsSelectedEvent>(this);
         _messenger.Register<ShowAllClipsInChildrenRequestedEvent>(this);
         _messenger.Register<ClipsDeletedEvent>(this);
@@ -686,6 +688,11 @@ public partial class ClipListViewModel : ObservableObject,
         if (clip != null && clip != SelectedClip)
             SetSelectedClipWithoutClipboardOperation(clip);
     }
+
+    /// <summary>
+    /// Selects the clip asked for without copying it (see <see cref="SelectClipWithoutCopying" />).
+    /// </summary>
+    public void Receive(SelectClipRequestedEvent message) => UiThread.Run(() => SelectClipWithoutCopying(message.ClipId));
 
     partial void OnSelectedClipChanged(Clip? value)
     {

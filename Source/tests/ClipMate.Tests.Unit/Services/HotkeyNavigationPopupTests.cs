@@ -11,7 +11,6 @@ using ClipMate.Data;
 using DevExpress.Mvvm;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
-using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -28,7 +27,7 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
     public HotkeyNavigationPopupTests()
     {
         _clipList = new ClipListViewModel(_collections, A.Fake<IFolderService>(), _clips, A.Fake<IQuickPasteService>(), new PowerPasteStatus(),
-            A.Fake<IDatabaseContextFactory>(), A.Fake<IRemoteDatabaseService>(), A.Fake<IMessenger>(), NullLogger<ClipListViewModel>.Instance);
+            A.Fake<IDatabaseContextFactory>(), A.Fake<IRemoteDatabaseService>(), _messenger, NullLogger<ClipListViewModel>.Instance);
 
         A.CallTo(() => _notifications.Create(A<HotkeyNavigationPopupViewModel>._))
             .ReturnsLazily((HotkeyNavigationPopupViewModel viewModel) =>
@@ -55,8 +54,8 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
 
         // Assert
         await Assert.That(_shown).Count().IsEqualTo(1);
-        await Assert.That(_shown[0].Title).IsEqualTo("Shopping list");
-        await Assert.That(_shown[0].Collection).IsEqualTo("Inbox");
+        await Assert.That(_shown[0].Description.Title).IsEqualTo("Shopping list");
+        await Assert.That(_shown[0].Description.Collection).IsEqualTo("Inbox");
         await Assert.That(_shown[0].PreviewText).IsEqualTo("milk\neggs\nbread");
     }
 
@@ -90,7 +89,7 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
 
         // Assert
         var shown = _shown.Single();
-        await Assert.That(shown.Title).IsEqualTo("Encrypted clip");
+        await Assert.That(shown.Description.Title).IsEqualTo("Encrypted clip");
         await Assert.That(shown.PreviewText).IsNull();
         await Assert.That(shown.Thumbnail).IsNull();
         A.CallTo(() => _clips.LoadBlobDataAsync(A<string>._, A<Clip>._, A<CancellationToken>._)).MustNotHaveHappened();
@@ -158,7 +157,7 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
         await showingFirst;
 
         // Assert
-        await Assert.That(_shown.Select(p => p.Title)).IsEquivalentTo(["Second"]);
+        await Assert.That(_shown.Select(p => p.Description.Title)).IsEquivalentTo(["Second"]);
     }
 
     [Test]
@@ -232,7 +231,7 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
         _messenger.Send(new ClipReachedByHotkeyEvent(new Clip { Id = Guid.NewGuid(), Title = "Sent", TextContent = "text" }, "db_local"));
 
         // Assert - every call it makes completes at once, so the popup is already shown
-        await Assert.That(_shown.Single().Title).IsEqualTo("Sent");
+        await Assert.That(_shown.Single().Description.Title).IsEqualTo("Sent");
     }
 
     private static byte[] CreatePng(int width, int height)
@@ -251,7 +250,6 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
         _clips,
         ConfigurationService(),
         _notifications,
-        _clipList,
         _messenger,
         NullLogger<HotkeyNavigationPopup>.Instance);
 

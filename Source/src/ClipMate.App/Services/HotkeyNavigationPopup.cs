@@ -20,7 +20,6 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
 {
     private const int _previewLineCount = 3;
 
-    private readonly ClipListViewModel _clipList;
     private readonly IClipService _clips;
     private readonly IConfigurationService _configurationService;
     private readonly ClipDescriber _describer;
@@ -34,7 +33,6 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
         IClipService clips,
         IConfigurationService configurationService,
         IClipPopupNotifications notifications,
-        ClipListViewModel clipList,
         IMessenger messenger,
         ILogger<HotkeyNavigationPopup> logger)
     {
@@ -42,7 +40,6 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
         _clips = clips ?? throw new ArgumentNullException(nameof(clips));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
-        _clipList = clipList ?? throw new ArgumentNullException(nameof(clipList));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -82,8 +79,7 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
 
             var viewModel = new HotkeyNavigationPopupViewModel
             {
-                Title = description.Title,
-                Collection = description.Collection,
+                Description = description,
                 PreviewText = clip.Encrypted ? null : PreviewTextOf(clip),
                 Thumbnail = clip.Encrypted ? null : ThumbnailOf(clip),
             };
@@ -112,7 +108,7 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
             if (result != NotificationResult.Activated)
                 return;
 
-            _clipList.SelectClipWithoutCopying(clip.Id);
+            _messenger.Send(new SelectClipRequestedEvent(clip.Id));
             _messenger.Send(new ShowExplorerWindowEvent());
         }
         catch (Exception ex)

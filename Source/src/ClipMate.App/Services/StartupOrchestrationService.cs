@@ -52,6 +52,9 @@ public class StartupOrchestrationService
         // Follows the Current Clip and collection from the start, even while the tray icon is hidden
         await _serviceProvider.GetRequiredService<TrayTooltipViewModel>().InitializeAsync();
 
+        // Shows the clip reached with the Scroll Next / Previous hotkeys (registers for events)
+        _ = _serviceProvider.GetRequiredService<HotkeyNavigationPopup>();
+
         // Check if any databases need backup
         var backupService = _serviceProvider.GetRequiredService<BackupOrchestrationService>();
         await backupService.CheckAndPromptForBackupsAsync(forceBackupPrompt);

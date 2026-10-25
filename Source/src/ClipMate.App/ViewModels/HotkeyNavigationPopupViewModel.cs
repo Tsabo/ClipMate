@@ -1,4 +1,5 @@
 using System.Windows.Media;
+using ClipMate.Core.Models;
 
 namespace ClipMate.App.ViewModels;
 
@@ -13,14 +14,10 @@ public sealed class HotkeyNavigationPopupViewModel
     public const int ThumbnailSize = 96;
 
     /// <summary>
-    /// Gets the clip's title, or "Encrypted clip" for an Encrypted Clip.
+    /// Gets the clip's title ("Encrypted clip" for an Encrypted Clip) and the collection it is in
+    /// (<c>&lt;collection&gt; on &lt;Peer&gt;</c> for a Remote Database).
     /// </summary>
-    public required string Title { get; init; }
-
-    /// <summary>
-    /// Gets the collection the clip is in; <c>&lt;collection&gt; on &lt;Peer&gt;</c> for a Remote Database.
-    /// </summary>
-    public required string Collection { get; init; }
+    public required ClipDescription Description { get; init; }
 
     /// <summary>
     /// Gets the first lines of the clip's text, or <c>null</c> when it has none to show.
