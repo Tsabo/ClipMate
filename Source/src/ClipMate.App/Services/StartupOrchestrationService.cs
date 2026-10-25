@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ClipMate.App.Services.Initialization;
+using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,9 @@ public class StartupOrchestrationService
 
         // Initialize coordinators (registers for events)
         _ = _serviceProvider.GetRequiredService<DatabaseMaintenanceCoordinator>();
+
+        // Follows the Current Clip and collection from the start, even while the tray icon is hidden
+        _ = _serviceProvider.GetRequiredService<TrayTooltipViewModel>();
 
         // Check if any databases need backup
         var backupService = _serviceProvider.GetRequiredService<BackupOrchestrationService>();

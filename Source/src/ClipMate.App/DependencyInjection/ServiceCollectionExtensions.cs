@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
 
         // Register TrayIconWindow (system tray icon)
         services.AddTransient<TrayIconWindow>();
+        services.AddSingleton<TrayTooltipViewModel>();
 
         // Register ClipBar (quick paste picker) components
         services.AddTransient<ClassicViewModel>();

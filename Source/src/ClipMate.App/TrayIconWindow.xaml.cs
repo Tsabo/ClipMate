@@ -26,7 +26,8 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
         ILogger<TrayIconWindow> logger,
         IConfigurationService configurationService,
         IMessenger messenger,
-        MainMenuViewModel mainMenu)
+        MainMenuViewModel mainMenu,
+        TrayTooltipViewModel tooltip)
     {
         InitializeComponent();
 
@@ -35,6 +36,7 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         MainMenu = mainMenu ?? throw new ArgumentNullException(nameof(mainMenu));
+        Tooltip = tooltip ?? throw new ArgumentNullException(nameof(tooltip));
 
         ShowExplorerWindowCommand = new RelayCommand(ShowExplorerWindowExecute);
         ExitApplicationCommand = new RelayCommand(ExitApplicationExecute);
@@ -64,6 +66,11 @@ public partial class TrayIconWindow : IRecipient<ShowTrayIconChangedEvent>, IRec
     /// Gets the shared main menu view model for binding menu commands.
     /// </summary>
     public MainMenuViewModel MainMenu { get; }
+
+    /// <summary>
+    /// Gets the tray icon's tooltip: the Current Clip or the current collection.
+    /// </summary>
+    public TrayTooltipViewModel Tooltip { get; }
 
     public RelayCommand ShowExplorerWindowCommand { get; }
     public RelayCommand ExitApplicationCommand { get; }

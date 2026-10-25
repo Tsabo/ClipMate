@@ -4,6 +4,7 @@ using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -225,6 +226,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         {
             var (collectionId, folderId) = GetRemoteSelection(value!);
             _messenger.Send(new RemoteDatabaseNodeSelectedEvent(remoteDatabaseNode.Address, collectionId, folderId));
+            if (value is RemoteCollectionTreeNode or RemoteFolderTreeNode)
+                _messenger.Send(new CurrentCollectionChangedEvent(ClipDescription.Collection(value.Name, remoteDatabaseNode.Database.PeerName)));
+
             return;
         }
 
@@ -235,6 +239,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             _logger.LogWarning("Could not determine database key for selected node");
             return;
         }
+
+        if (value is CollectionTreeNode or FolderTreeNode or TrashcanVirtualCollectionNode or VirtualCollectionTreeNode or SearchResultsVirtualCollectionNode)
+            _messenger.Send(new CurrentCollectionChangedEvent(ClipDescription.Collection(value.Name)));
 
         // Send messenger event with collection/folder IDs based on node type
         switch (value)
