@@ -135,6 +135,9 @@ public static class ServiceCollectionExtensions
 
         // Register coordinators
         services.AddSingleton<HotkeyCoordinator>();
+        services.AddSingleton<ClipDescriber>();
+        services.AddSingleton<IClipPopupNotifications, ClipPopupNotifications>();
+        services.AddSingleton<HotkeyNavigationPopup>();
         services.AddSingleton<DatabaseMaintenanceCoordinator>();
         services.AddSingleton<ClipOperationsCoordinator>();
         services.AddSingleton<CollectionOperationsCoordinator>();

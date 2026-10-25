@@ -52,6 +52,17 @@
 
         </dxlc:LayoutGroup>
 
+        <!-- Hotkey Navigation Popup Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Hotkey Navigation" Orientation="Vertical">
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Show clip when scrolling with hotkeys"
+                               IsChecked="{Binding ShowClipWhenScrollingWithHotkeys}"
+                               ToolTip="When the Scroll Next / Previous hotkeys move to another clip, show its title, collection and a preview in a popup next to the tray. Click the popup to open ClipMate with that clip selected." />
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
         <!-- Reset Button -->
         <dxlc:LayoutItem>
             <Button Content="Reset to Defaults"

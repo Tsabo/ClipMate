@@ -23,6 +23,9 @@ public partial class AppearanceOptionsViewModel : ObservableObject
     [ObservableProperty]
     private SystemTrayHint _systemTrayHint;
 
+    [ObservableProperty]
+    private bool _showClipWhenScrollingWithHotkeys;
+
     public AppearanceOptionsViewModel(IConfigurationService configurationService,
         ILogger<AppearanceOptionsViewModel> logger)
     {
@@ -40,6 +43,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
         AppTheme = config.AppTheme;
         MonacoThemeFollowsAppTheme = config.MonacoThemeFollowsAppTheme;
         SystemTrayHint = config.SystemTrayHint;
+        ShowClipWhenScrollingWithHotkeys = config.ShowClipWhenScrollingWithHotkeys;
 
         _logger.LogDebug("Appearance configuration loaded");
     }
@@ -54,6 +58,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
         config.AppTheme = AppTheme;
         config.MonacoThemeFollowsAppTheme = MonacoThemeFollowsAppTheme;
         config.SystemTrayHint = SystemTrayHint;
+        config.ShowClipWhenScrollingWithHotkeys = ShowClipWhenScrollingWithHotkeys;
 
         _logger.LogDebug("Appearance configuration saved");
     }
@@ -67,6 +72,7 @@ public partial class AppearanceOptionsViewModel : ObservableObject
         AppTheme = AppTheme.Light;
         MonacoThemeFollowsAppTheme = true;
         SystemTrayHint = SystemTrayHint.ClipTitle;
+        ShowClipWhenScrollingWithHotkeys = true;
 
         _logger.LogInformation("Appearance settings reset to defaults");
     }

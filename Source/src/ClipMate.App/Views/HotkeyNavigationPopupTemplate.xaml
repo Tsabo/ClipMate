@@ -1,0 +1,53 @@
+<ResourceDictionary x:Class="ClipMate.App.Views.HotkeyNavigationPopupTemplate"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+                    xmlns:converters="clr-namespace:ClipMate.App.Converters">
+
+    <!-- The hotkey navigation popup: the clip the Scroll Next / Previous hotkeys reached. The notification window does
+         not follow the DevExpress theme, so there is one frame per application theme around the same content. -->
+
+    <converters:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter" />
+
+    <DataTemplate x:Key="Content" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
+        <DockPanel Width="316" LastChildFill="True">
+            <TextBlock DockPanel.Dock="Top"
+                       Text="{Binding Title}"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock DockPanel.Dock="Top"
+                       Margin="0,2,0,0"
+                       Opacity="0.7"
+                       Text="{Binding Collection}"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis" />
+            <Image DockPanel.Dock="Top"
+                   Margin="0,6,0,0"
+                   HorizontalAlignment="Left"
+                   Stretch="None"
+                   Source="{Binding Thumbnail}"
+                   Visibility="{Binding Thumbnail, Converter={StaticResource NotNullToVisibilityConverter}}" />
+            <TextBlock Margin="0,6,0,0"
+                       Text="{Binding PreviewText}"
+                       FontFamily="Consolas"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis"
+                       Visibility="{Binding PreviewText, Converter={StaticResource NotNullToVisibilityConverter}}" />
+        </DockPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="Light" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
+        <Border Padding="12,10" Cursor="Hand" BorderThickness="1"
+                Background="White" BorderBrush="#FFC8C8C8" TextElement.Foreground="#FF1E1E1E">
+            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Content}" />
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="Dark" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
+        <Border Padding="12,10" Cursor="Hand" BorderThickness="1"
+                Background="#FF2D2D30" BorderBrush="#FF505050" TextElement.Foreground="#FFF1F1F1">
+            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Content}" />
+        </Border>
+    </DataTemplate>
+
+</ResourceDictionary>

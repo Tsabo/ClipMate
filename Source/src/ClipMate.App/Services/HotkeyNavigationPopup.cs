@@ -1,8 +1,13 @@
+using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using DevExpress.Mvvm;
+using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.Services;
@@ -15,16 +20,21 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
 {
     private const int _previewLineCount = 3;
 
+    private readonly ClipListViewModel _clipList;
     private readonly IClipService _clips;
     private readonly IConfigurationService _configurationService;
     private readonly ClipDescriber _describer;
     private readonly ILogger<HotkeyNavigationPopup> _logger;
+    private readonly IMessenger _messenger;
     private readonly IClipPopupNotifications _notifications;
+    private int _latestRequest;
+    private INotification? _shown;
 
     public HotkeyNavigationPopup(ClipDescriber describer,
         IClipService clips,
         IConfigurationService configurationService,
         IClipPopupNotifications notifications,
+        ClipListViewModel clipList,
         IMessenger messenger,
         ILogger<HotkeyNavigationPopup> logger)
     {
@@ -32,21 +42,31 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
         _clips = clips ?? throw new ArgumentNullException(nameof(clips));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
+        _clipList = clipList ?? throw new ArgumentNullException(nameof(clipList));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        ArgumentNullException.ThrowIfNull(messenger);
 
-        messenger.Register(this);
+        _messenger.Register(this);
     }
 
     /// <inheritdoc />
     public void Receive(ClipReachedByHotkeyEvent message) => _ = ShowAsync(message);
 
     /// <summary>
-    /// Shows the clip reached in the popup.
+    /// Shows the clip reached in the popup, in place of the one shown for an earlier press. Completes once the popup
+    /// is shown, without waiting for it to close. Called on the UI thread.
     /// </summary>
     public async Task ShowAsync(ClipReachedByHotkeyEvent message)
     {
         ArgumentNullException.ThrowIfNull(message);
+        if (!_configurationService.Configuration.Appearance.ShowClipWhenScrollingWithHotkeys)
+            return;
+
+        // One popup at a time: a new press replaces the shown popup, and a press whose clip is still loading when the
+        // next one comes is never shown at all (the notification service would queue rather than replace)
+        var request = ++_latestRequest;
+        _shown?.Hide();
+        _shown = null;
 
         try
         {
@@ -57,18 +77,47 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
             if (!clip.Encrypted)
                 await LoadContentAsync(clip, message.DatabaseKey);
 
+            if (request != _latestRequest)
+                return;
+
             var viewModel = new HotkeyNavigationPopupViewModel
             {
                 Title = description.Title,
                 Collection = description.Collection,
                 PreviewText = clip.Encrypted ? null : PreviewTextOf(clip),
+                Thumbnail = clip.Encrypted ? null : ThumbnailOf(clip),
             };
 
-            _ = _notifications.Create(viewModel).ShowAsync();
+            var notification = _notifications.Create(viewModel);
+            _shown = notification;
+            _ = OpenClipMateWhenClickedAsync(notification, clip);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to show clip {ClipId} reached with the hotkeys", message.Clip.Id);
+        }
+    }
+
+    /// <summary>
+    /// Clicking the popup opens ClipMate with the clip selected, even if the clip list moved on since.
+    /// </summary>
+    private async Task OpenClipMateWhenClickedAsync(INotification notification, Clip clip)
+    {
+        try
+        {
+            var result = await notification.ShowAsync();
+            if (ReferenceEquals(_shown, notification))
+                _shown = null;
+
+            if (result != NotificationResult.Activated)
+                return;
+
+            _clipList.SelectClipWithoutCopying(clip.Id);
+            _messenger.Send(new ShowExplorerWindowEvent());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open ClipMate from the hotkey navigation popup for clip {ClipId}", clip.Id);
         }
     }
 
@@ -88,6 +137,37 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
         {
             // Still show the title and collection
             _logger.LogWarning(ex, "Could not load clip {ClipId} for the hotkey navigation popup's preview", clip.Id);
+        }
+    }
+
+    private ImageSource? ThumbnailOf(Clip clip)
+    {
+        if (clip.ImageData is not { Length: > 0 } imageData)
+            return null;
+
+        try
+        {
+            // Decode straight to thumbnail size, keeping the aspect ratio
+            using var header = new MemoryStream(imageData);
+            var size = BitmapFrame.Create(header, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+            using var content = new MemoryStream(imageData);
+            var thumbnail = new BitmapImage();
+            thumbnail.BeginInit();
+            thumbnail.StreamSource = content;
+            thumbnail.CacheOption = BitmapCacheOption.OnLoad;
+            if (size.PixelWidth >= size.PixelHeight)
+                thumbnail.DecodePixelWidth = Math.Min(size.PixelWidth, HotkeyNavigationPopupViewModel.ThumbnailSize);
+            else
+                thumbnail.DecodePixelHeight = Math.Min(size.PixelHeight, HotkeyNavigationPopupViewModel.ThumbnailSize);
+
+            thumbnail.EndInit();
+            thumbnail.Freeze();
+            return thumbnail;
+        }
+        catch (Exception ex) when (ex is NotSupportedException or FileFormatException or ArgumentException)
+        {
+            _logger.LogWarning(ex, "Could not make a thumbnail of clip {ClipId} for the hotkey navigation popup", clip.Id);
+            return null;
         }
     }
 

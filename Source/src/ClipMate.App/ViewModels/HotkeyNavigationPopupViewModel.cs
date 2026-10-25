@@ -8,6 +8,11 @@ namespace ClipMate.App.ViewModels;
 public sealed class HotkeyNavigationPopupViewModel
 {
     /// <summary>
+    /// The most device-independent pixels a thumbnail is wide or high.
+    /// </summary>
+    public const int ThumbnailSize = 96;
+
+    /// <summary>
     /// Gets the clip's title, or "Encrypted clip" for an Encrypted Clip.
     /// </summary>
     public required string Title { get; init; }
