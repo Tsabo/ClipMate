@@ -16,4 +16,15 @@ public class AppearanceConfiguration
     /// editor theme picker is disabled.
     /// </summary>
     public bool MonacoThemeFollowsAppTheme { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the tray icon's tooltip shows the Current Clip's title or the current collection.
+    /// </summary>
+    public SystemTrayHint SystemTrayHint { get; set; } = SystemTrayHint.ClipTitle;
+
+    /// <summary>
+    /// Gets or sets whether a popup next to the tray shows the clip the Scroll Next / Previous hotkeys reach
+    /// (ClipMate 7's <c>SysTrayScrollBalloon</c>).
+    /// </summary>
+    public bool ShowClipWhenScrollingWithHotkeys { get; set; } = true;
 }

@@ -1,8 +1,10 @@
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
@@ -15,7 +17,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class ExplorerWindowViewModelTests
 {
-    private ExplorerWindowViewModel CreateViewModel()
+    private ExplorerWindowViewModel CreateViewModel(ICollectionTreeBuilder? collectionTreeBuilder = null)
     {
         var mockMessenger = A.Fake<IMessenger>();
         var mockClipService = A.Fake<IClipService>();
@@ -28,7 +30,7 @@ public class ExplorerWindowViewModelTests
         var mockLogger = A.Fake<ILogger<ClipListViewModel>>();
         var mockTreeLogger = A.Fake<ILogger<CollectionTreeViewModel>>();
         var mockMainLogger = A.Fake<ILogger<ExplorerWindowViewModel>>();
-        var mockCollectionTreeBuilder = A.Fake<ICollectionTreeBuilder>();
+        var mockCollectionTreeBuilder = collectionTreeBuilder ?? A.Fake<ICollectionTreeBuilder>();
 
         var collectionTreeVm = new CollectionTreeViewModel(
             mockCollectionService,
@@ -90,6 +92,7 @@ public class ExplorerWindowViewModelTests
         var aboutDialogViewModel = new AboutDialogViewModel(mockUpdateCheckService, mockAboutLogger);
         A.CallTo(() => mockServiceProvider.GetService(typeof(AboutDialogViewModel))).Returns(aboutDialogViewModel);
         A.CallTo(() => mockServiceProvider.GetService(typeof(IActiveWindowService))).Returns(A.Fake<IActiveWindowService>());
+        A.CallTo(() => mockServiceProvider.GetService(typeof(IDatabaseManager))).Returns(A.Fake<IDatabaseManager>());
         A.CallTo(() => mockServiceProvider.GetService(typeof(IConfigurationService))).Returns(MainMenuViewModelDatabaseTestsHelpers.CreateConfigServiceMock());
 
         var mockMenuMessenger = A.Fake<IMessenger>();
@@ -302,5 +305,20 @@ public class ExplorerWindowViewModelTests
         // Assert
         await Assert.That(propertyChangedRaised).IsTrue();
         await Assert.That(viewModel.RightPaneWidth).IsEqualTo(350);
+    }
+
+    [Test]
+    public async Task InitializeAsync_CalledAgain_LoadsCollectionsOnce()
+    {
+        // Arrange: startup loads the collections and clips, then the Explorer window asks again when first shown
+        var treeBuilder = A.Fake<ICollectionTreeBuilder>();
+        var viewModel = CreateViewModel(treeBuilder);
+
+        // Act
+        await viewModel.InitializeAsync();
+        await viewModel.InitializeAsync();
+
+        // Assert
+        A.CallTo(() => treeBuilder.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 }

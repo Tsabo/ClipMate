@@ -4,6 +4,7 @@ using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -225,6 +226,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         {
             var (collectionId, folderId) = GetRemoteSelection(value!);
             _messenger.Send(new RemoteDatabaseNodeSelectedEvent(remoteDatabaseNode.Address, collectionId, folderId));
+            if (collectionId != null || folderId != null)
+                SendCurrentCollection(value!, remoteDatabaseNode.Database.PeerName);
+
             return;
         }
 
@@ -243,6 +247,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId=null",
                     databaseKey, collectionNode.Collection.Id);
 
+                SendCurrentCollection(collectionNode);
                 _messenger.Send(new CollectionNodeSelectedEvent(collectionNode.Collection.Id, null, databaseKey));
 
                 break;
@@ -251,6 +256,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}",
                     databaseKey, folderNode.Folder.CollectionId, folderNode.Folder.Id);
 
+                SendCurrentCollection(folderNode);
                 _messenger.Send(new CollectionNodeSelectedEvent(folderNode.Folder.CollectionId, folderNode.Folder.Id, databaseKey));
 
                 break;
@@ -258,11 +264,13 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             case TrashcanVirtualCollectionNode trashcanNode:
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent for Trashcan: DatabaseKey={DatabaseKey}", databaseKey);
 
+                SendCurrentCollection(trashcanNode);
                 _messenger.Send(new CollectionNodeSelectedEvent(trashcanNode.VirtualId, null, databaseKey, true));
 
                 break;
 
             case SearchResultsVirtualCollectionNode searchNode:
+                SendCurrentCollection(searchNode);
                 if (searchNode.SearchResult is { ClipIds.Count: > 0 })
                 {
                     _logger.LogInformation("Sending SearchResultsSelectedEvent: DatabaseKey={DatabaseKey}, Query={Query}, Count={Count}",
@@ -283,6 +291,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 _logger.LogInformation("Sending CollectionNodeSelectedEvent: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId=null",
                     databaseKey, virtualNode.VirtualCollection.Id);
 
+                SendCurrentCollection(virtualNode);
                 _messenger.Send(new CollectionNodeSelectedEvent(virtualNode.VirtualCollection.Id, null, databaseKey));
 
                 break;
@@ -290,6 +299,12 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             // Database and VirtualCollectionsContainer nodes don't trigger selection changes
         }
     }
+
+    /// <summary>
+    /// The picked collection or folder becomes the current collection (shown by the tray tooltip in Collection mode).
+    /// </summary>
+    private void SendCurrentCollection(TreeNodeBase node, string? peerName = null) =>
+        _messenger.Send(new CurrentCollectionChangedEvent(ClipDescription.CollectionOf(node.Name, peerName)));
 
     /// <summary>
     /// Gets the database configuration key for a tree node by traversing up to the database node.

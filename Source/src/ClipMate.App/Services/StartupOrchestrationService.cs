@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ClipMate.App.Services.Initialization;
+using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,12 +49,22 @@ public class StartupOrchestrationService
         // Initialize coordinators (registers for events)
         _ = _serviceProvider.GetRequiredService<DatabaseMaintenanceCoordinator>();
 
+        // Follows the Current Clip and collection from the start, even while the tray icon is hidden
+        await _serviceProvider.GetRequiredService<TrayTooltipViewModel>().InitializeAsync();
+
+        // Shows the clip reached with the Scroll Next / Previous hotkeys (registers for events)
+        _ = _serviceProvider.GetRequiredService<HotkeyNavigationPopup>();
+
         // Check if any databases need backup
         var backupService = _serviceProvider.GetRequiredService<BackupOrchestrationService>();
         await backupService.CheckAndPromptForBackupsAsync(forceBackupPrompt);
 
         // Run startup cleanup tasks (if configured)
         await RunStartupMaintenanceTasksAsync();
+
+        // Load the collections and clips now rather than when a window is first shown, so the Scroll Next / Previous
+        // hotkeys work while ClipMate is in the tray
+        await _serviceProvider.GetRequiredService<ExplorerWindowViewModel>().InitializeAsync();
 
         // Apply icon configuration and create windows
         await CreateApplicationWindowsAsync();

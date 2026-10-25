@@ -78,4 +78,10 @@ public interface IWin32ClipboardInterop
     /// for it (e.g. the source failed to render it).
     /// </summary>
     byte[]? GetClipboardData(uint format);
+
+    /// <summary>
+    /// Replaces the clipboard's content with <paramref name="dataObject" />, kept after ClipMate exits. Called on an STA
+    /// thread.
+    /// </summary>
+    void SetClipboardDataObject(System.Windows.IDataObject dataObject);
 }

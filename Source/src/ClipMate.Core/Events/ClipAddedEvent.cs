@@ -41,4 +41,10 @@ public class ClipAddedEvent
     /// The folder ID the clip was assigned to.
     /// </summary>
     public Guid? FolderId { get; }
+
+    /// <summary>
+    /// Whether the clip was captured from the clipboard, and so is the Current Clip; <c>false</c> for a clip ClipMate
+    /// made without putting it on the clipboard, such as by Append Clips.
+    /// </summary>
+    public bool Captured { get; init; }
 }

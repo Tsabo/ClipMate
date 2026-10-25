@@ -34,6 +34,35 @@
 
         </dxlc:LayoutGroup>
 
+        <!-- System Tray Hint Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="System Tray Hint" Orientation="Vertical">
+
+            <dxlc:LayoutItem Label="Tray icon tooltip shows:">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Clip title"
+                                 IsChecked="{Binding SystemTrayHint, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SystemTrayHint.ClipTitle}}"
+                                 GroupName="SystemTrayHint" Margin="0,0,5,0"
+                                 ToolTip="Show the title of the clip on the clipboard, so hovering over the tray icon tells you what you will paste." />
+                    <RadioButton Content="Collection"
+                                 IsChecked="{Binding SystemTrayHint, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:SystemTrayHint.Collection}}"
+                                 GroupName="SystemTrayHint"
+                                 ToolTip="Show the collection selected in ClipMate." />
+                </StackPanel>
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
+        <!-- Hotkey Navigation Popup Section -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Hotkey Navigation" Orientation="Vertical">
+
+            <dxlc:LayoutItem>
+                <dxe:CheckEdit Content="Show clip when scrolling with hotkeys"
+                               IsChecked="{Binding ShowClipWhenScrollingWithHotkeys}"
+                               ToolTip="When the Scroll Next / Previous hotkeys move to another clip, show its title, collection and a preview in a popup next to the tray. Click the popup to open ClipMate with that clip selected." />
+            </dxlc:LayoutItem>
+
+        </dxlc:LayoutGroup>
+
         <!-- Reset Button -->
         <dxlc:LayoutItem>
             <Button Content="Reset to Defaults"

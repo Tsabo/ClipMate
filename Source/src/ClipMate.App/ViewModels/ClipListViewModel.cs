@@ -30,6 +30,7 @@ public partial class ClipListViewModel : ObservableObject,
     IRecipient<QuickPasteNowEvent>,
     IRecipient<SelectNextClipEvent>,
     IRecipient<SelectPreviousClipEvent>,
+    IRecipient<SelectClipRequestedEvent>,
     IRecipient<ShowAllClipsInChildrenRequestedEvent>,
     IRecipient<ClipsDeletedEvent>,
     IDisposable
@@ -152,6 +153,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.Register<QuickPasteNowEvent>(this);
         _messenger.Register<SelectNextClipEvent>(this);
         _messenger.Register<SelectPreviousClipEvent>(this);
+        _messenger.Register<SelectClipRequestedEvent>(this);
         _messenger.Register<SearchResultsSelectedEvent>(this);
         _messenger.Register<ShowAllClipsInChildrenRequestedEvent>(this);
         _messenger.Register<ClipsDeletedEvent>(this);
@@ -585,7 +587,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public void Receive(SelectNextClipEvent message)
     {
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             if (Clips.Count == 0)
                 return;
@@ -594,16 +596,7 @@ public partial class ClipListViewModel : ObservableObject,
                 ? Clips.IndexOf(SelectedClip)
                 : -1;
 
-            var nextIndex = (currentIndex + 1) % Clips.Count;
-            var nextClip = Clips[nextIndex];
-
-            SelectedClip = nextClip;
-
-            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
-            // SelectedClip alone drives clipboard "flip" logic; SelectedClips is what the
-            // DevExpress grid's row highlight is actually bound to (see GridControlSelectionSync).
-            SelectedClips.Clear();
-            SelectedClips.Add(nextClip);
+            MoveTo(Clips[(currentIndex + 1) % Clips.Count], message.FromHotkey);
         });
     }
 
@@ -612,7 +605,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public void Receive(SelectPreviousClipEvent message)
     {
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             if (Clips.Count == 0)
                 return;
@@ -625,14 +618,30 @@ public partial class ClipListViewModel : ObservableObject,
                 ? Clips.Count - 1
                 : currentIndex - 1;
 
-            var previousClip = Clips[previousIndex];
-
-            SelectedClip = previousClip;
-
-            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
-            SelectedClips.Clear();
-            SelectedClips.Add(previousClip);
+            MoveTo(Clips[previousIndex], message.FromHotkey);
         });
+    }
+
+    /// <summary>
+    /// Moves the selection to <paramref name="clip" /> for Scroll Next / Previous, announcing it when a hotkey asked, so
+    /// the hotkey navigation popup can show it.
+    /// </summary>
+    private void MoveTo(Clip clip, bool fromHotkey)
+    {
+        // In a one-clip list the press stays where it is: nothing to announce
+        if (clip == SelectedClip)
+            return;
+
+        SelectedClip = clip;
+
+        // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
+        // SelectedClip alone drives clipboard "flip" logic; SelectedClips is what the
+        // DevExpress grid's row highlight is actually bound to (see GridControlSelectionSync).
+        SelectedClips.Clear();
+        SelectedClips.Add(clip);
+
+        if (fromHotkey)
+            _messenger.Send(new ClipReachedByHotkeyEvent(clip, CurrentDatabaseKey));
     }
 
     /// <summary>
@@ -679,6 +688,11 @@ public partial class ClipListViewModel : ObservableObject,
         if (clip != null && clip != SelectedClip)
             SetSelectedClipWithoutClipboardOperation(clip);
     }
+
+    /// <summary>
+    /// Selects the clip asked for without copying it (see <see cref="SelectClipWithoutCopying" />).
+    /// </summary>
+    public void Receive(SelectClipRequestedEvent message) => UiThread.Run(() => SelectClipWithoutCopying(message.ClipId));
 
     partial void OnSelectedClipChanged(Clip? value)
     {
@@ -753,9 +767,6 @@ public partial class ClipListViewModel : ObservableObject,
             await _clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id, cancellationToken);
 
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
-
-            // Notify that clipboard has been updated
-            _messenger.Send(new ClipboardCopiedEvent(clip));
         }
         catch (Exception ex)
         {

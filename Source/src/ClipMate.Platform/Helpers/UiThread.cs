@@ -21,4 +21,20 @@ public static class UiThread
         else
             dispatcher.BeginInvoke(action);
     }
+
+    /// <summary>
+    /// Runs the action on the UI thread, now when called there (or when there is no application, as in unit tests),
+    /// and completes once it has run.
+    /// </summary>
+    public static Task RunAsync(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+            return dispatcher.InvokeAsync(action).Task;
+
+        action();
+        return Task.CompletedTask;
+    }
 }

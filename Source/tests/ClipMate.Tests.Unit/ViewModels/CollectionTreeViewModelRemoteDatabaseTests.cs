@@ -180,6 +180,49 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     }
 
     [Test]
+    public async Task SelectedNode_RemoteCollectionOrFolder_SendsTheCollectionNamingThePeer()
+    {
+        // Arrange
+        _remoteDatabases.Add(Remote(PeerConnectionStatus.Online) with { PeerName = "Work laptop" });
+        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
+        var projects = new SharedCollection(Guid.NewGuid(), inbox.Id, "Projects", SharedCollectionKind.Folder, 5);
+        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
+            .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [inbox, projects], false)));
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        var remote = _viewModel.RootNodes.Single();
+        var inboxNode = remote.Children.OfType<RemoteCollectionTreeNode>().Single();
+
+        var collections = new List<string>();
+        _messenger.Register<CurrentCollectionChangedEvent>(this, (_, m) => collections.Add(m.Name));
+
+        // Act
+        _viewModel.SelectedNode = inboxNode;
+        _viewModel.SelectedNode = inboxNode.Children.Single();
+
+        // Assert
+        await Assert.That(collections).IsEquivalentTo(["Inbox on Work laptop", "Projects on Work laptop"]);
+    }
+
+    [Test]
+    public async Task SelectedNode_LocalCollection_SendsItsName()
+    {
+        // Arrange
+        await _viewModel.LoadAsync();
+        var database = _viewModel.RootNodes.Single();
+        var inbox = new CollectionTreeNode(new Collection { Id = Guid.NewGuid(), Name = "InBox" }) { Parent = database };
+        database.Children.Add(inbox);
+
+        var collections = new List<string>();
+        _messenger.Register<CurrentCollectionChangedEvent>(this, (_, m) => collections.Add(m.Name));
+
+        // Act
+        _viewModel.SelectedNode = inbox;
+
+        // Assert
+        await Assert.That(collections).IsEquivalentTo(["InBox"]);
+    }
+
+    [Test]
     public async Task RemoteNodes_AreNeitherDatabaseNorCollectionNodes_SoNoLocalDatabaseOrCollectionActionAppliesToThem()
     {
         // Arrange
