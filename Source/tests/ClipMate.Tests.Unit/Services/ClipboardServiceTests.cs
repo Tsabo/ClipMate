@@ -331,6 +331,23 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_NoClipboardOwnerAndNoText_SourceIsWindows()
+    {
+        // Arrange
+        var win32Mock = CreateClipboardOffering((0xC123, "Acme Private", [1, 2, 3]));
+        GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
+        var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.SourceApplicationName).IsEqualTo(ClipboardService.NoOwnerApplication);
+        await Assert.That(clip.SourceApplicationTitle).IsNull();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task CaptureClipboardChangeAsync_OwnerProcessGone_SourceIsTheForegroundWindow()
     {
         // Arrange

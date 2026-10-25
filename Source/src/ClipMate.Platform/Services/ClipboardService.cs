@@ -28,6 +28,11 @@ namespace ClipMate.Platform.Services;
 public class ClipboardService : IClipboardService, IDisposable
 {
     private const int _channelCapacity = 100; // Max queued clips before backpressure
+
+    /// <summary>
+    /// The Source Application of a change nothing owns and that has no text.
+    /// </summary>
+    public const string NoOwnerApplication = "WINDOWS";
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly Channel<Clip> _clipsChannel;
     private readonly Lock _clipboardThreadLock = new();
@@ -178,7 +183,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (snapshot == null || snapshot.Formats.Count == 0)
                 return null;
 
-            var source = GetSourceApplication(snapshot.Owner);
+            var source = GetSourceApplication(snapshot);
 
             return await Task.Run(() => DecodeAsync(new PendingCapture(snapshot.Formats, source.Name, source.Title), cancellationToken),
                 cancellationToken);
@@ -364,7 +369,7 @@ public class ClipboardService : IClipboardService, IDisposable
             if (snapshot == null)
                 return new ClipboardCaptureResult(ClipboardCaptureOutcome.Failed, owner);
 
-            var source = GetSourceApplication(snapshot.Owner);
+            var source = GetSourceApplication(snapshot);
             owner = source.IsClipMate ? "ClipMate" : source.Name;
 
             // A program that asks clipboard viewers to ignore its change (for example Power Paste re-offering a clip
@@ -748,11 +753,16 @@ public class ClipboardService : IClipboardService, IDisposable
 
     /// <summary>
     /// The Source Application of a clipboard change: the process of the clipboard owner, or of the foreground window
-    /// when there is no owner or its process can't be found. The title is the owner's top-level window title, else
+    /// when the owner's process can't be found. Without an owner it is the foreground window only when the clipboard
+    /// has text, otherwise "WINDOWS", as ClipMate 7 records. The title is the owner's top-level window title, else
     /// the foreground window's. ClipMate itself gets no name, so it never has an Application Profile.
     /// </summary>
-    private SourceApplication GetSourceApplication(HWND owner)
+    private SourceApplication GetSourceApplication(ClipboardSnapshot snapshot)
     {
+        var owner = snapshot.Owner;
+        if (owner.IsNull && !snapshot.Formats.Any(p => p.Name is "CF_UNICODETEXT" or "CF_TEXT"))
+            return new SourceApplication(NoOwnerApplication, null, false);
+
         var foreground = _win32.GetForegroundWindow();
         var window = owner;
         var process = FindProcess(owner);
