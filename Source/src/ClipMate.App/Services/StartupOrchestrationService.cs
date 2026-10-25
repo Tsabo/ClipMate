@@ -62,6 +62,10 @@ public class StartupOrchestrationService
         // Run startup cleanup tasks (if configured)
         await RunStartupMaintenanceTasksAsync();
 
+        // Load the collections and clips now rather than when a window is first shown, so the Scroll Next / Previous
+        // hotkeys work while ClipMate is in the tray
+        await _serviceProvider.GetRequiredService<ExplorerWindowViewModel>().InitializeAsync();
+
         // Apply icon configuration and create windows
         await CreateApplicationWindowsAsync();
     }

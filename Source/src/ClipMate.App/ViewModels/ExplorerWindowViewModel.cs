@@ -30,6 +30,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private readonly ILogger<ExplorerWindowViewModel>? _logger;
     private readonly IMessenger _messenger;
     private readonly ITemplateService _templateService;
+    private Task? _initialization;
 
     public ExplorerWindowViewModel(CollectionTreeViewModel collectionTreeViewModel,
         ClipListViewModel clipListViewModel,
@@ -70,10 +71,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Initializes the main window and all child ViewModels.
-    /// Should be called after the window is loaded.
+    /// Loads the collections and the active collection's clips, once: at startup, so the Scroll Next / Previous
+    /// hotkeys work from the tray, and again harmlessly when the window is first shown.
     /// </summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync() => _initialization ??= LoadAsync();
+
+    private async Task LoadAsync()
     {
         try
         {
