@@ -141,7 +141,7 @@ public class ClipboardSnapshotDecoderTests
     [Test]
     public async Task DecodeAsync_ProfileSwitchesOffTheTextOfAUrl_AddsNoText()
     {
-        var decoder = CreateDecoder(CreateProfiles("CF_UNICODETEXT"));
+        var decoder = CreateDecoder(CreateProfiles("CF_TEXT"));
 
         var clip = await decoder.DecodeAsync([UnicodeText("Example"), Ansi("UniformResourceLocator", 0xC0E0, "https://example.com/")], "acme");
 
@@ -158,16 +158,26 @@ public class ClipboardSnapshotDecoderTests
     }
 
     [Test]
-    public async Task DecodeAsync_ProfileSwitchesOffHtmlAndARawFormat_DropsThemAndKeepsTheRest()
+    public async Task DecodeAsync_ProfileSwitchesOffHtml_DropsItAndKeepsTheLocaleWithTheText()
     {
-        var profiles = CreateProfiles(Formats.Html.Name, "CF_LOCALE");
+        var profiles = CreateProfiles(Formats.Html.Name);
         var decoder = CreateDecoder(profiles);
 
         var clip = await decoder.DecodeAsync([UnicodeText("x"), new RawClipboardFormat(Formats.Html.Name, 0xC0A0, "<b>x</b>"u8.ToArray()), _privateFormat, _locale], "acme");
 
         await Assert.That(clip!.HtmlContent).IsNull();
         await Assert.That(clip.TextContent).IsEqualTo("x");
-        await Assert.That(clip.RawFormats.Single()).IsEqualTo(_privateFormat);
+        await Assert.That(clip.RawFormats).IsEquivalentTo([_privateFormat, _locale]);
+    }
+
+    [Test]
+    public async Task DecodeAsync_ProfileSwitchesOffText_DropsTheLocaleToo()
+    {
+        var decoder = CreateDecoder(CreateProfiles("CF_TEXT"));
+
+        var clip = await decoder.DecodeAsync([UnicodeText("x"), _privateFormat, _locale], "acme");
+
+        await Assert.That(clip!.RawFormats.Single()).IsEqualTo(_privateFormat);
     }
 
     [Test]

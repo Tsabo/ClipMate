@@ -24,9 +24,9 @@ public interface IApplicationProfileService
 
     /// <summary>
     /// The formats of a capture the Source Application's profile keeps, or null when its profile is switched off.
-    /// Without a profile (or with profiles switched off) every format is kept and no profile is created. Formats an
-    /// existing profile doesn't have yet are added with their default (text, RTF, HTML, images and file lists on;
-    /// others off) and the profile is saved.
+    /// As in ClipMate 7, an application without a profile gets one (a preset for programs ClipMate 7 knows, else HTML
+    /// and text, or the image when there is no text). Formats the profile doesn't have yet are added (text and RTF on,
+    /// others off) and the profile is saved. With profiles switched off every format is kept.
     /// </summary>
     /// <param name="applicationName">The Source Application's name; it is normalized.</param>
     /// <param name="formatNames">The names of the formats on the clipboard, as the profile stores them.</param>

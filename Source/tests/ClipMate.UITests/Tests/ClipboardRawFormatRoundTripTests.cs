@@ -28,19 +28,31 @@ public class ClipboardRawFormatRoundTripTests(AppFixture appFixture)
         var backup = SystemClipboard.Backup();
         try
         {
+            // As in ClipMate 7, a new program's private formats start off; the user switches this one on
+            Directory.CreateDirectory(appFixture.DataDirectory);
+            var testProgram = System.Diagnostics.Process.GetCurrentProcess().ProcessName.ToUpperInvariant();
+            await File.WriteAllTextAsync(Path.Combine(appFixture.DataDirectory, "application-profiles.toml"),
+                $"[profiles.\"{testProgram}\"]\nenabled = true\nCF_TEXT = true\n\"{_privateFormat}\" = true\n");
+
             await appFixture.StartAppAsync();
             var clipList = new ClipListPage(appFixture.Process);
 
-            // Arrange: text plus a format only the source application understands
-            SystemClipboard.OnSta(() =>
+            // The copying thread ends before ClipMate reads, so the Source Application comes from the foreground window
+            using (await ForegroundTestWindow.OpenAsync())
             {
-                var copy = new DataObject();
-                copy.SetText(_text);
-                copy.SetData(_privateFormat, new MemoryStream(_privateData));
-                Clipboard.SetDataObject(copy, true);
-            });
+                // Arrange: text plus a format only the source application understands
+                SystemClipboard.OnSta(() =>
+                {
+                    var copy = new DataObject();
+                    copy.SetText(_text);
+                    copy.SetData(_privateFormat, new MemoryStream(_privateData));
+                    Clipboard.SetDataObject(copy, true);
+                });
 
-            var stored = await Poll.UntilAsync(ReadStoredFormatNamesOfClip, "ClipMate to capture the copy");
+                await Poll.UntilAsync(ReadStoredFormatNamesOfClip, "ClipMate to capture the copy");
+            }
+
+            var stored = ReadStoredFormatNamesOfClip()!;
             await Assert.That(stored).Contains("CF_UNICODETEXT");
             await Assert.That(stored).Contains(_privateFormat);
 

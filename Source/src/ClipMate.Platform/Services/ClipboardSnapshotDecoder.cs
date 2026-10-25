@@ -148,8 +148,8 @@ internal sealed class ClipboardSnapshotDecoder
     }
 
     /// <summary>
-    /// The formats the Application Profile lets through (all of them without a profile), or null when the
-    /// application's profile is switched off.
+    /// The formats the Application Profile lets through (all of them when profiles are off or there is no Source
+    /// Application), or null when the application's profile is switched off.
     /// </summary>
     private async Task<IReadOnlyList<RawClipboardFormat>?> GetAllowedFormatsAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName,
         CancellationToken cancellationToken)
@@ -173,10 +173,12 @@ internal sealed class ClipboardSnapshotDecoder
         return allowed;
     }
 
-    // Every image format follows the profile's bitmap setting, and the drop effect its file list
+    // Every image format follows the profile's image setting, the drop effect its file list, and Unicode text and the
+    // locale (which ClipMate 7 keeps with any text) its text setting
     private static string ProfileFormat(string name) => name switch
     {
         _pngFormat or "CF_DIBV5" => "CF_DIB",
+        "CF_UNICODETEXT" or "CF_LOCALE" => "CF_TEXT",
         var _ when name.Equals(Formats.PreferredDropEffect.Name, StringComparison.OrdinalIgnoreCase) => "CF_HDROP",
         var _ => name,
     };
