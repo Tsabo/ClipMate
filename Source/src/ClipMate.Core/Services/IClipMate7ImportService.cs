@@ -20,6 +20,13 @@ public interface IClipMate7ImportService
     Task<ClipMate7ImportPreview> AnalyzeAsync(string sourceFolder, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Counts the encrypted clips that one of the ClipMate 7 keys can decrypt, so the user can tell when every key
+    /// has been entered.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The folder is not a readable ClipMate 7 database.</exception>
+    Task<int> CountDecryptableClipsAsync(string sourceFolder, IReadOnlyList<string> encryptionKeys, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Imports the source database into a new or existing ClipMate database.
     /// The import runs in a single transaction: on failure or cancellation nothing is written,
     /// and a newly created target database file is removed.

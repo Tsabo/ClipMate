@@ -7,6 +7,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Data.Repositories;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -991,112 +992,20 @@ public class ClipService : IClipService
                 var pngBlobs = await blobRepository.GetPngByClipIdAsync(item, cancellationToken);
                 var binaryBlobs = await blobRepository.GetBlobByClipIdAsync(item, cancellationToken);
 
-                // Generate encryption metadata once by encrypting Title first
-                // This ensures all data (Title + BLOBs) uses the SAME Salt/IV
-                EncryptionMetadata? sharedMetadata = null;
+                // Encrypt Title and all BLOBs with one shared Salt/IV, then persist the BLOBs
+                await ClipContentEncryption.EncryptAsync(_encryptionService, encryptionKey, clip, textBlobs, jpgBlobs, pngBlobs, binaryBlobs);
 
-                // Encrypt Title first (unless CustomTitle is set) to generate shared metadata
-                if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
-                {
-                    var titleBytes = Encoding.UTF8.GetBytes(clip.Title);
-                    var result = await _encryptionService.EncryptAsync(titleBytes, encryptionKey, 600_000);
-                    clip.Title = Convert.ToBase64String(result.EncryptedData);
-                    sharedMetadata = result.Metadata;
-
-                    // Store encryption metadata from Title encryption
-                    clip.EncryptionSalt = result.Metadata.Salt;
-                    clip.EncryptionIv = result.Metadata.IV;
-                    clip.EncryptionMethod = result.Metadata.Algorithm;
-
-                    _logger.LogDebug("Encrypted Title for clip {ClipId} and generated shared metadata", item);
-                }
-
-                // If no Title to encrypt, generate metadata from first BLOB encryption
-                // This will be set when we encrypt the first BLOB below
-
-                // Encrypt TEXT BLOBs (reuse shared metadata)
                 foreach (var blob in textBlobs)
-                {
-                    // Encrypt the text data, reusing shared metadata if available
-                    var plainTextBytes = Encoding.UTF8.GetBytes(blob.Data);
-                    var result = await _encryptionService.EncryptAsync(plainTextBytes, encryptionKey, 600_000, sharedMetadata);
-
-                    // Update BLOB with encrypted data (Base64 encoded)
-                    blob.Data = Convert.ToBase64String(result.EncryptedData);
                     await blobRepository.UpdateTextAsync(blob, cancellationToken);
 
-                    // If no shared metadata yet (no Title), use this BLOB's metadata
-                    if (sharedMetadata == null)
-                    {
-                        sharedMetadata = result.Metadata;
-                        clip.EncryptionSalt = result.Metadata.Salt;
-                        clip.EncryptionIv = result.Metadata.IV;
-                        clip.EncryptionMethod = result.Metadata.Algorithm;
-                    }
-
-                    _logger.LogDebug("Encrypted TEXT BLOB for ClipData {ClipDataId}", blob.ClipDataId);
-                }
-
-                // Encrypt JPG BLOBs (reuse shared metadata)
                 foreach (var blob in jpgBlobs)
-                {
-                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
-                    blob.Data = result.EncryptedData;
                     await blobRepository.UpdateJpgAsync(blob, cancellationToken);
 
-                    // If no shared metadata yet, use this BLOB's metadata
-                    if (sharedMetadata == null)
-                    {
-                        sharedMetadata = result.Metadata;
-                        clip.EncryptionSalt = result.Metadata.Salt;
-                        clip.EncryptionIv = result.Metadata.IV;
-                        clip.EncryptionMethod = result.Metadata.Algorithm;
-                    }
-
-                    _logger.LogDebug("Encrypted JPG BLOB for ClipData {ClipDataId}", blob.ClipDataId);
-                }
-
-                // Encrypt PNG BLOBs (reuse shared metadata)
                 foreach (var blob in pngBlobs)
-                {
-                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
-                    blob.Data = result.EncryptedData;
                     await blobRepository.UpdatePngAsync(blob, cancellationToken);
 
-                    // If no shared metadata yet, use this BLOB's metadata
-                    if (sharedMetadata == null)
-                    {
-                        sharedMetadata = result.Metadata;
-                        clip.EncryptionSalt = result.Metadata.Salt;
-                        clip.EncryptionIv = result.Metadata.IV;
-                        clip.EncryptionMethod = result.Metadata.Algorithm;
-                    }
-
-                    _logger.LogDebug("Encrypted PNG BLOB for ClipData {ClipDataId}", blob.ClipDataId);
-                }
-
-                // Encrypt binary BLOBs (reuse shared metadata)
                 foreach (var blob in binaryBlobs)
-                {
-                    var result = await _encryptionService.EncryptAsync(blob.Data, encryptionKey, 600_000, sharedMetadata);
-                    blob.Data = result.EncryptedData;
                     await blobRepository.UpdateBlobAsync(blob, cancellationToken);
-
-                    // If no shared metadata yet, use this BLOB's metadata
-                    if (sharedMetadata == null)
-                    {
-                        sharedMetadata = result.Metadata;
-                        clip.EncryptionSalt = result.Metadata.Salt;
-                        clip.EncryptionIv = result.Metadata.IV;
-                        clip.EncryptionMethod = result.Metadata.Algorithm;
-                    }
-
-                    _logger.LogDebug("Encrypted binary BLOB for ClipData {ClipDataId}", blob.ClipDataId);
-                }
-
-                // Update Clip metadata
-                clip.Encrypted = true;
-                clip.IsDecrypted = false;
 
                 // SECURITY: Clear transient properties to prevent plain text from remaining in memory
                 // and being returned by subsequent queries (Entity Framework tracking).
