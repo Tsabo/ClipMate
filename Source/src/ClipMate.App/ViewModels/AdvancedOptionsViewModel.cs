@@ -20,7 +20,7 @@ public partial class AdvancedOptionsViewModel : ObservableObject
     private bool _altKeyRequiredForDragDrop;
 
     [ObservableProperty]
-    private int _captureDelayMs;
+    private int _delayOnClipboardUpdateMs;
 
     [ObservableProperty]
     private bool _enableCachedDatabaseWrites;
@@ -35,7 +35,7 @@ public partial class AdvancedOptionsViewModel : ObservableObject
     private bool _reuseLastSelectedMoveTarget;
 
     [ObservableProperty]
-    private int _settleTimeBetweenCapturesMs;
+    private int _settleTimeMs;
 
     [ObservableProperty]
     private int _startupDelaySeconds;
@@ -57,8 +57,8 @@ public partial class AdvancedOptionsViewModel : ObservableObject
         var config = _configurationService.Configuration.Preferences;
 
         StartupDelaySeconds = config.StartupDelaySeconds;
-        CaptureDelayMs = config.CaptureDelayMs;
-        SettleTimeBetweenCapturesMs = config.SettleTimeBetweenCapturesMs;
+        DelayOnClipboardUpdateMs = config.DelayOnClipboardUpdateMs;
+        SettleTimeMs = config.SettleTimeMs;
         PowerPasteDelay = config.PowerPasteDelay;
         AltKeyRequiredForDragDrop = config.AltKeyRequiredForDragDrop;
         PayAttentionToClipboardIgnoreFlag = config.PayAttentionToClipboardIgnoreFlag;
@@ -76,8 +76,8 @@ public partial class AdvancedOptionsViewModel : ObservableObject
         var config = _configurationService.Configuration.Preferences;
 
         config.StartupDelaySeconds = StartupDelaySeconds;
-        config.CaptureDelayMs = CaptureDelayMs;
-        config.SettleTimeBetweenCapturesMs = SettleTimeBetweenCapturesMs;
+        config.DelayOnClipboardUpdateMs = DelayOnClipboardUpdateMs;
+        config.SettleTimeMs = SettleTimeMs;
         config.PowerPasteDelay = PowerPasteDelay;
         config.AltKeyRequiredForDragDrop = AltKeyRequiredForDragDrop;
         config.PayAttentionToClipboardIgnoreFlag = PayAttentionToClipboardIgnoreFlag;

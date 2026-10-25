@@ -128,16 +128,24 @@ public static partial class SystemClipboard
     /// which makes a delayed-rendering owner render it. Null while another program holds the clipboard open or when
     /// there is no text.
     /// </summary>
-    public static string? TryReadText(IntPtr window)
+    public static string? TryReadText(IntPtr window) => TryReadText(window, out _);
+
+    /// <summary>
+    /// <see cref="TryReadText(IntPtr)" />, also giving the <see cref="SequenceNumber" /> while the clipboard is open, so a
+    /// change made in response to the read (a delayed-rendering owner registering again) can be waited for.
+    /// </summary>
+    public static string? TryReadText(IntPtr window, out uint sequenceNumber)
     {
         const uint cfUnicodeText = 13;
 
+        sequenceNumber = 0;
         if (!OpenClipboard(window))
             return null;
 
         try
         {
             var handle = GetClipboardData(cfUnicodeText);
+            sequenceNumber = SequenceNumber;
             if (handle == IntPtr.Zero)
                 return null;
 

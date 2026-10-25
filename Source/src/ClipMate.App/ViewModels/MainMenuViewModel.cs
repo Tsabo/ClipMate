@@ -491,7 +491,25 @@ public partial class MainMenuViewModel : ObservableObject,
     private void SelectAll() => _messenger.Send(new SelectAllClipsRequestedEvent());
 
     [RelayCommand]
-    private void CaptureSpecial() => _messenger.Send(new ManualCaptureClipboardEvent());
+    private async Task CaptureSpecialAsync()
+    {
+        var reading = await _clipboardService.ReadClipboardAsync();
+        if (reading == null || reading.Formats.Count == 0)
+        {
+            MessageBox.Show("There is nothing on the clipboard to capture.", "Capture Special", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            return;
+        }
+
+        var viewModel = new CaptureSpecialViewModel(reading);
+        var dialog = new CaptureSpecialDialog(viewModel)
+        {
+            Owner = _serviceProvider.GetRequiredService<IActiveWindowService>().DialogOwner,
+        };
+
+        if (dialog.ShowDialog() == true && viewModel.SelectedFormatNames.Count > 0)
+            _messenger.Send(new CaptureSpecialRequestedEvent(reading, viewModel.SelectedFormatNames));
+    }
 
     [RelayCommand]
     private void AppendClips() => _messenger.Send(new AppendClipsRequestedEvent());

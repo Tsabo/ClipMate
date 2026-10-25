@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Tomlyn;
+using Tomlyn.Serialization;
 
 namespace ClipMate.Core.Models.Configuration;
 
@@ -90,11 +92,6 @@ public class PreferencesConfiguration
     public int DelayAfterCopy { get; set; } = 999;
 
     /// <summary>
-    /// Gets or sets the delay (in milliseconds) on clipboard update.
-    /// </summary>
-    public int DelayOnClipboardUpdate { get; set; } = 250;
-
-    /// <summary>
     /// Gets or sets whether to show hints/tooltips.
     /// </summary>
     public bool ShowHint { get; set; } = true;
@@ -142,16 +139,26 @@ public class PreferencesConfiguration
     public int StartupDelaySeconds { get; set; } = 0;
 
     /// <summary>
-    /// Gets or sets the capture delay in milliseconds.
-    /// Causes ClipMate to pause after copy operations to let the copying application finish.
+    /// Gets or sets how long, in milliseconds, ClipMate waits after the clipboard changes before reading it. Each
+    /// further change restarts the wait, so a program that adds its formats one at a time is captured once; 0 reads
+    /// at once.
     /// </summary>
-    public int CaptureDelayMs { get; set; } = 250;
+    public int DelayOnClipboardUpdateMs { get; set; } = 250;
 
     /// <summary>
-    /// Gets or sets the settle time between captures in milliseconds.
-    /// Minimum time to wait after capturing before accepting new items.
+    /// Gets or sets the settle time in milliseconds: a capture that would start within this long of the previous
+    /// one is dropped.
     /// </summary>
-    public int SettleTimeBetweenCapturesMs { get; set; } = 100;
+    public int SettleTimeMs { get; set; } = 100;
+
+    /// <summary>
+    /// The capture delay saved by versions before 3, read only so <see cref="ConfigurationUpgrader" /> can carry it
+    /// over to <see cref="DelayOnClipboardUpdateMs" />.
+    /// </summary>
+    [TomlInclude]
+    [TomlPropertyName("capture_delay_ms")]
+    [TomlIgnore(Condition = TomlIgnoreCondition.WhenWriting)]
+    internal int? LegacyCaptureDelayMs { get; set; }
 
     /// <summary>
     /// Gets or sets whether the ALT key is required for collection tree drag/drop.

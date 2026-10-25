@@ -60,5 +60,13 @@ public sealed record ClipContent(
         var dropEffectBlob = BinaryBlobs.FirstOrDefault(b => Formats.Any(p => p.Id == b.ClipDataId && p.FormatName == ClipboardFormats.PreferredDropEffect.Name));
         if (dropEffectBlob is { Data.Length: >= sizeof(int) })
             target.FileDropEffect = BitConverter.ToInt32(dropEffectBlob.Data);
+
+        // Every other binary format was stored raw, as the source offered it
+        var binaryBlobs = BinaryBlobs.GroupBy(p => p.ClipDataId).ToDictionary(p => p.Key, p => p.First());
+        target.RawFormats = Formats
+            .Where(p => p.StorageType == StorageType.Binary && p.Format != ClipboardFormats.HDrop.Code && p.FormatName != ClipboardFormats.PreferredDropEffect.Name)
+            .Where(p => binaryBlobs.ContainsKey(p.Id))
+            .Select(p => new RawClipboardFormat(p.FormatName, (uint)p.Format, binaryBlobs[p.Id].Data))
+            .ToList();
     }
 }

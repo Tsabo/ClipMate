@@ -1,6 +1,6 @@
 namespace ClipMate.Core.Events;
 
 /// <summary>
-/// Event to request manually capturing the current clipboard content.
+/// The Capture hotkey: capture the clipboard now (see <see cref="Models.ManualCaptureKind.CaptureHotkey" />).
 /// </summary>
 public sealed class ManualCaptureClipboardEvent;

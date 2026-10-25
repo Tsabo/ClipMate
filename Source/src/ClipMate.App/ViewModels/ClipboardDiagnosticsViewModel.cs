@@ -2,10 +2,10 @@ using System.Collections.ObjectModel;
 using System.Text;
 using ClipMate.App.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -14,8 +14,15 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
 {
+    private readonly IClipboardService _clipboardService;
     private readonly IClipboardDiagnosticsService _diagnosticsService;
     private readonly ILogger<ClipboardDiagnosticsViewModel> _logger;
+
+    /// <summary>
+    /// Gets or sets how many changes the settle gap has dropped since ClipMate started (capture stops at 100).
+    /// </summary>
+    [ObservableProperty]
+    private int _settleGapDrops;
 
     /// <summary>
     /// Gets or sets the clipboard owner process name.
@@ -45,11 +52,13 @@ public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
     /// Initializes a new instance of the <see cref="ClipboardDiagnosticsViewModel" /> class.
     /// </summary>
     /// <param name="diagnosticsService">The clipboard diagnostics service.</param>
+    /// <param name="clipboardService">The clipboard service, for its settle-gap drop count.</param>
     /// <param name="logger">The logger instance.</param>
-    public ClipboardDiagnosticsViewModel(IClipboardDiagnosticsService diagnosticsService,
+    public ClipboardDiagnosticsViewModel(IClipboardDiagnosticsService diagnosticsService, IClipboardService clipboardService,
         ILogger<ClipboardDiagnosticsViewModel> logger)
     {
         _diagnosticsService = diagnosticsService ?? throw new ArgumentNullException(nameof(diagnosticsService));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -73,6 +82,7 @@ public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
 
             ClipboardOwner = diagnostics.OwnerProcessName;
             SequenceNumber = diagnostics.SequenceNumber;
+            SettleGapDrops = _clipboardService.SettleGapDrops;
 
             foreach (var item in diagnostics.Formats)
             {
@@ -105,6 +115,7 @@ public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
         sb.AppendLine($"Time: {LastRefreshTime:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"Owner: {ClipboardOwner}");
         sb.AppendLine($"Sequence: {SequenceNumber}");
+        sb.AppendLine($"Circular clipboard chain errors: {SettleGapDrops}");
         sb.AppendLine($"Formats: {Formats.Count}");
         sb.AppendLine();
         sb.AppendLine("Format ID | Format Name                              | Size");
@@ -113,7 +124,7 @@ public sealed partial class ClipboardDiagnosticsViewModel : ObservableObject
         foreach (var item in Formats)
             sb.AppendLine($"{item.FormatId,9} | {item.FormatName,-40} | {item.SizeDisplay}");
 
-        Clipboard.SetText(sb.ToString());
+        OwnClipboardCopy.SetText(sb.ToString());
         StatusMessage = "Diagnostics copied to clipboard";
     }
 }

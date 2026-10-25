@@ -4,10 +4,10 @@ using System.ComponentModel;
 using System.Windows.Data;
 using ClipMate.Core.Services;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -94,7 +94,7 @@ public sealed partial class EventLogViewModel : ObservableObject
         var text = string.Join(Environment.NewLine, lines);
 
         if (!string.IsNullOrEmpty(text))
-            Clipboard.SetText(text);
+            OwnClipboardCopy.SetText(text);
     }
 
     /// <summary>

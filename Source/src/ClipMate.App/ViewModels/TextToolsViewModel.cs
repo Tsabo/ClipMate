@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -136,7 +136,7 @@ public partial class TextToolsViewModel : ObservableObject
 
         try
         {
-            Clipboard.SetText(OutputText);
+            OwnClipboardCopy.SetText(OutputText);
         }
         catch
         {

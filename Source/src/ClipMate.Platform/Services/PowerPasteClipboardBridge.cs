@@ -31,18 +31,24 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     // is treated as one of those, not a second paste.
     private const int MinAdvanceIntervalMs = 500;
 
+    // A reader can open the clipboard several times for one change (Remote Desktop's clipboard redirection does). Re-arming
+    // only after this settle time lets those opens read the data already rendered, instead of each one rendering it again
+    // and counting as another read.
+    private static readonly TimeSpan _reArmSettleTime = TimeSpan.FromMilliseconds(100);
+
     // Re-arming after a background read changes the clipboard, and a clipboard reader that ignores the "ignore me"
-    // markers reads every change. The first few re-arms of a waiting clip are immediate, so a paste right after a
-    // background read is still seen; after that, re-arming at most this often keeps such a reader from spinning with
-    // us, while the clip stays detectable.
-    private const int ImmediateReArmsPerClip = 3;
-    private static readonly TimeSpan _throttledReArmInterval = TimeSpan.FromSeconds(1);
+    // markers reads every change. A few re-arms per interval follow the settle time, so a paste soon after a background
+    // read is still seen; more wait for the interval, which keeps such a reader from spinning with us while the clip
+    // stays detectable, and once readers stop the next re-arm is quick again.
+    private const int QuickReArmsPerInterval = 3;
+    private static readonly TimeSpan _reArmInterval = TimeSpan.FromSeconds(1);
 
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly ITemplateService _templateService;
+    private readonly TimeProvider _timeProvider;
     private readonly IWin32InputInterop _win32;
 
     private CancellationTokenSource? _advanceDebounceCts;
@@ -59,15 +65,15 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     // Re-arming after a read that was not a paste
     private bool _reArmPending;
-    private int _reArmCount;
-    private DateTime _lastReArmAt = DateTime.MinValue;
+    private readonly Queue<DateTimeOffset> _recentReArms = new();
 
     public PowerPasteClipboardBridge(IPowerPasteService powerPasteService,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         ITemplateService templateService,
         IWin32InputInterop win32,
-        ILogger<PowerPasteClipboardBridge> logger)
+        ILogger<PowerPasteClipboardBridge> logger,
+        TimeProvider? timeProvider = null)
     {
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
@@ -75,6 +81,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -124,7 +131,6 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
         // Don't let timing from a previous PowerPaste session affect this one.
         _lastAcceptedPasteAt = DateTime.MinValue;
-        _lastReArmAt = DateTime.MinValue;
 
         // Our own delayed-render registrations broadcast WM_CLIPBOARDUPDATE like any other
         // clipboard write. Without suspending, ClipMate's own capture pipeline would read the
@@ -177,10 +183,8 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     private void RestoreAsNormalCopy(Clip clip)
     {
-        // A normal copy: the capture pipeline recognizes the clip by this hash and does not capture it again. The
-        // copy keeps the clip in the list untouched.
+        // A normal copy, marked as ClipMate's own so it is not captured again; the clip stays in the list untouched
         var copy = clip.WithText(clip.TextContent);
-        copy.ContentHash = ContentHasher.HashClip(copy);
 
         _ = Task.Run(async () =>
         {
@@ -209,7 +213,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _advanceDebounceCts?.Cancel();
         _armGeneration++;
         _reArmPending = false;
-        _reArmCount = 0;
+        _recentReArms.Clear();
 
         if (clip == null)
         {
@@ -293,8 +297,10 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         if (_hwndSource == null || _armedFormats.Count == 0)
             return;
 
-        _reArmCount++;
-        _lastReArmAt = DateTime.UtcNow;
+        _recentReArms.Enqueue(_timeProvider.GetUtcNow());
+        if (_recentReArms.Count > QuickReArmsPerInterval)
+            _recentReArms.Dequeue();
+
         if (!TryOpenClipboard(new HWND(_hwndSource.Handle)))
         {
             _logger.LogWarning("PowerPaste could not open the clipboard to re-arm clip {ClipId}", _armedClip?.Id);
@@ -424,8 +430,9 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Arms the waiting clip again once the reader has closed the clipboard: at once for its first few background reads,
-    /// then at most every <see cref="_throttledReArmInterval" />.
+    /// Arms the waiting clip again once the reader is done with the clipboard: after <see cref="_reArmSettleTime" />, or
+    /// later when the waiting clip was already re-armed <see cref="QuickReArmsPerInterval" /> times within
+    /// <see cref="_reArmInterval" />.
     /// </summary>
     private void ScheduleReArm()
     {
@@ -435,17 +442,15 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _reArmPending = true;
         var armGeneration = _armGeneration;
         var dispatcher = _hwndSource.Dispatcher;
-        var wait = _reArmCount < ImmediateReArmsPerClip
-            ? TimeSpan.Zero
-            : _lastReArmAt + _throttledReArmInterval - DateTime.UtcNow;
-        if (wait <= TimeSpan.Zero)
+        var wait = _reArmSettleTime;
+        if (_recentReArms.Count == QuickReArmsPerInterval)
         {
-            dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration));
-
-            return;
+            var throttled = _recentReArms.Peek() + _reArmInterval - _timeProvider.GetUtcNow();
+            if (throttled > wait)
+                wait = throttled;
         }
 
-        _ = Task.Delay(wait).ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
+        _ = Task.Delay(wait, _timeProvider).ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
             TaskScheduler.Default);
     }
 

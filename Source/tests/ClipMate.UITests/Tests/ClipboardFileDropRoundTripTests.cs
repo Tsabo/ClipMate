@@ -36,18 +36,20 @@ public class ClipboardFileDropRoundTripTests(AppFixture appFixture)
         var backup = SystemClipboard.Backup();
         try
         {
+            TestProgramProfile.Write(appFixture, "CF_HDROP");
             await appFixture.StartAppAsync();
             var clipList = new ClipListPage(appFixture.Process);
 
             // Arrange: an Explorer-style cut (file list plus DROPEFFECT_MOVE, no text)
-            SystemClipboard.OnSta(() =>
+            using var source = await ForegroundTestWindow.OpenAsync();
+            source.Copy(() =>
             {
                 var cut = new DataObject();
                 var fileDropList = new StringCollection();
                 fileDropList.AddRange(files);
                 cut.SetFileDropList(fileDropList);
                 cut.SetData("Preferred DropEffect", new MemoryStream(BitConverter.GetBytes(_dropEffectMove)));
-                Clipboard.SetDataObject(cut, true);
+                return cut;
             });
 
             var storedFormats = await Poll.UntilAsync(ReadStoredFormatsOfClipWithFiles, "ClipMate to capture the cut");

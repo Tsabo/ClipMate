@@ -17,14 +17,14 @@ Pause for a set number of seconds before initializing. This prevents conflicts w
 
 ### Capture Delay
 
-Pause after you copy data to let the source application finish. Default is 250ms (¼ second). Increase if you see "Can't open Clipboard" errors with:
+Pause after you copy data to let the source application finish. Each further change to the clipboard restarts the pause, so a program that adds its data in steps is captured once. Default is 250ms (¼ second); 0 captures at once. Increase if you see "Can't open Clipboard" errors with:
 - Large, complex applications
 - Slow computers
 - Very large data types
 
 ### Settle Time Between Captures
 
-Minimum wait time after capturing before accepting new items. Decrease if you're missing copies during rapid succession (macros, automation). Be careful—too short may conflict with applications that don't release the clipboard quickly.
+Minimum wait time after capturing before accepting new items: a change that would be captured sooner is dropped. Default is 100ms. Decrease if you're missing copies during rapid succession (macros, automation). Be careful—too short may conflict with applications that don't release the clipboard quickly.
 
 ### PowerPaste Delay
 

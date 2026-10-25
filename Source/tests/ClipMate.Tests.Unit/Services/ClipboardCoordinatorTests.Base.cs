@@ -23,7 +23,7 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         A.CallTo(() => mock.ClipsChannel).Returns(channel.Reader);
         A.CallTo(() => mock.StartMonitoringAsync(A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
         A.CallTo(() => mock.StopMonitoringAsync()).Returns(Task.CompletedTask);
-        A.CallTo(() => mock.GetCurrentClipboardContentAsync(A<CancellationToken>.Ignored)).Returns((Clip?)null);
+        A.CallTo(() => mock.GetCurrentClipboardContentAsync(A<ManualCaptureKind>.Ignored, A<CancellationToken>.Ignored)).Returns((Clip?)null);
 
         return mock;
     }
