@@ -53,7 +53,8 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 | `Build-Font` | Build custom color font (ClipMate.ttf) from SVG icons |
 | `Build-Docs` | Build Docusaurus documentation site |
 | `Prepare-Worktree` | Copy the gitignored font and Monaco assets from the main checkout into a fresh git worktree |
-| `Smoke-Test` | Start ClipMate against a temporary `--data-dir` and check it finishes startup (`--exe`, `--data-dir`, `--timeout`, `--keep-running`) |
+| `Smoke-Test` | Start ClipMate against a temporary `--data-dir` and check it finishes startup (`--exe`, `--data-dir`, `--timeout`, `--keep-running`). It never captures your clipboard at startup |
+| `UI-Probe` | Check a change by hand without touching your ClipMate: starts an isolated copy with `--setting section.key=value` applied, copies each `--copy` text, presses each `--press` combination and saves a PNG of each of ClipMate's windows into `--capture <folder>` (only ClipMate's pixels, fit for a PR). Use hotkeys your own ClipMate doesn't hold, e.g. `--setting hotkeys.select_next="Ctrl+Alt+Shift+F9" --press Ctrl+Alt+Shift+F9`. `--copy` replaces your clipboard; text there is put back afterwards. Also `--wait-ms`, `--data-dir`, `--exe`, `--keep-running` |
 | `UI-Test` | Run `Source/tests/ClipMate.UITests` (not in CI; uses the real clipboard; `--test-filter`). Prints the totals and each failure's first lines; the full output goes to `build/logs/ui-test-*.log` (`--full-output` streams it instead) |
 | `CI` | Full CI build (build + test) |
 | `Release` | Full release build with installer |

@@ -456,6 +456,45 @@ Task("Smoke-Test")
         process.Kill(true);
 });
 
+Task("UI-Probe")
+    .Description("Start an isolated ClipMate with given settings, copy text, press keys and capture its windows (build/ui-probe.ps1)")
+    .Does(() =>
+{
+    // --setting section.key=value, --copy text, --press Ctrl+Alt+Shift+F9 (each repeatable, in order), --wait-ms,
+    // --capture folder, --data-dir, --exe, --keep-running
+    string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+    var command = new System.Text.StringBuilder("& ")
+        .Append(Quote(MakeAbsolute(buildDir.CombineWithFilePath("ui-probe.ps1")).FullPath))
+        .Append(" -Exe ").Append(Quote(Argument("exe", BuiltExecutable(appProject).FullPath)));
+
+    foreach (var (name, parameter) in new[] { ("setting", "-Setting"), ("copy", "-Copy"), ("press", "-Press") })
+    {
+        var values = Arguments<string>(name, Array.Empty<string>());
+        if (values.Count > 0)
+            command.Append(' ').Append(parameter).Append(' ').Append(string.Join(",", values.Select(Quote)));
+    }
+
+    if (HasArgument("wait-ms"))
+        command.Append(" -WaitMs ").Append(Argument<int>("wait-ms"));
+    if (HasArgument("capture"))
+        command.Append(" -Capture ").Append(Quote(MakeAbsolute(Directory(Argument<string>("capture"))).FullPath));
+    if (HasArgument("data-dir"))
+        command.Append(" -DataDir ").Append(Quote(Argument<string>("data-dir")));
+    if (HasArgument("keep-running"))
+        command.Append(" -KeepRunning");
+
+    // -File would take each list as one string; an encoded command passes the arrays without any quoting rules
+    var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command.ToString()));
+    var exitCode = StartProcess("pwsh", new ProcessSettings
+    {
+        Arguments = new ProcessArgumentBuilder().Append("-NoProfile").Append("-NonInteractive")
+            .Append("-OutputFormat").Append("Text").Append("-EncodedCommand").Append(encoded),
+        WorkingDirectory = repoRoot,
+    });
+    if (exitCode != 0)
+        throw new Exception($"UI-Probe failed (exit code {exitCode})");
+});
+
 Task("Prepare-Worktree")
     .Description("Make a fresh git worktree buildable: copy the gitignored font and Monaco assets from the main checkout and link its local-only docs")
     .Does(() =>
