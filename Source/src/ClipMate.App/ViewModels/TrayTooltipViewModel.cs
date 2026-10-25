@@ -22,17 +22,20 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
     private const string _appName = "ClipMate";
     private const string _ellipsis = "…";
 
+    private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
     private readonly IMessenger _messenger;
     private readonly IPowerPasteService _powerPasteService;
     private string? _currentCollection;
     private Clip? _currentClip;
 
-    public TrayTooltipViewModel(IMessenger messenger, IConfigurationService configurationService, IPowerPasteService powerPasteService)
+    public TrayTooltipViewModel(IMessenger messenger, IConfigurationService configurationService, IPowerPasteService powerPasteService,
+        ICollectionService collectionService)
     {
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
 
         _messenger.Register<ClipAddedEvent>(this);
         _messenger.Register<ClipboardCopiedEvent>(this);
@@ -49,6 +52,34 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
         get;
         private set => SetProperty(ref field, value);
     } = _appName;
+
+    /// <summary>
+    /// Starts from the active collection (where captures go), since ClipMate may start in the tray, before any
+    /// collection is picked in the tree.
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        Collection active;
+        try
+        {
+            active = await _collectionService.GetActiveAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // No active collection yet: the first one picked in the tree names it
+            return;
+        }
+
+        UiThread.Run(() =>
+        {
+            // A collection picked meanwhile is newer
+            if (_currentCollection != null)
+                return;
+
+            _currentCollection = ClipDescription.Collection(active.Title);
+            Refresh();
+        });
+    }
 
     /// <summary>
     /// A captured clip becomes the Current Clip; one ClipMate made without the clipboard (Append Clips) does not.
@@ -109,6 +140,19 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
             : _currentClip == null ? null : ClipDescription.Title(_currentClip);
 
         var text = string.IsNullOrEmpty(detail) ? _appName : $"{_appName} - {detail}";
-        Text = text.Length <= MaxLength ? text : text[..(MaxLength - _ellipsis.Length)] + _ellipsis;
+        Text = text.Length <= MaxLength ? text : Shorten(text);
+    }
+
+    /// <summary>
+    /// Cuts <paramref name="text" /> to <see cref="MaxLength" /> with an ellipsis, never between the two halves of a
+    /// character outside the Basic Multilingual Plane, such as an emoji.
+    /// </summary>
+    private static string Shorten(string text)
+    {
+        var length = MaxLength - _ellipsis.Length;
+        if (char.IsLowSurrogate(text[length]) && char.IsHighSurrogate(text[length - 1]))
+            length--;
+
+        return text[..length] + _ellipsis;
     }
 }

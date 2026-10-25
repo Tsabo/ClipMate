@@ -3,8 +3,11 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
+using ClipMate.Data.Services;
+using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -13,6 +16,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 /// </summary>
 public class TrayTooltipViewModelTests
 {
+    private ICollectionService _collectionService = null!;
     private ClipMateConfiguration _configuration = null!;
     private StrongReferenceMessenger _messenger = null!;
     private IPowerPasteService _powerPasteService = null!;
@@ -26,8 +30,9 @@ public class TrayTooltipViewModelTests
         A.CallTo(() => configurationService.Configuration).Returns(_configuration);
         _messenger = new StrongReferenceMessenger();
         _powerPasteService = A.Fake<IPowerPasteService>();
+        _collectionService = A.Fake<ICollectionService>();
 
-        _viewModel = new TrayTooltipViewModel(_messenger, configurationService, _powerPasteService);
+        _viewModel = new TrayTooltipViewModel(_messenger, configurationService, _powerPasteService, _collectionService);
     }
 
     [After(Test)]
@@ -74,6 +79,19 @@ public class TrayTooltipViewModelTests
 
         // Assert
         await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
+    }
+
+    [Test]
+    public async Task Text_TooLongWithASurrogatePairAtTheCut_KeepsThePairWhole()
+    {
+        // Arrange: "ClipMate - " is 11 characters, so the emoji's two UTF-16 halves fall either side of the cut at 126
+        var title = new string('x', 114) + "\U0001F600" + new string('y', 50);
+
+        // Act
+        _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = title, CustomTitle = true }));
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - " + new string('x', 114) + "…");
     }
 
     [Test]
@@ -135,6 +153,38 @@ public class TrayTooltipViewModelTests
     }
 
     [Test]
+    public async Task Text_CollectionModeAtStartup_ShowsTheActiveCollection()
+    {
+        // Arrange: started in the tray, so no collection has been picked in the tree yet
+        _configuration.Appearance.SystemTrayHint = SystemTrayHint.Collection;
+        A.CallTo(() => _collectionService.GetActiveAsync(A<CancellationToken>.Ignored)).Returns(new Collection { Title = "Inbox" });
+
+        // Act
+        await _viewModel.InitializeAsync();
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Inbox");
+    }
+
+    [Test]
+    public async Task Text_CollectionPickedWhileStarting_KeepsThePickedCollection()
+    {
+        // Arrange
+        _configuration.Appearance.SystemTrayHint = SystemTrayHint.Collection;
+        var active = new TaskCompletionSource<Collection>();
+        A.CallTo(() => _collectionService.GetActiveAsync(A<CancellationToken>.Ignored)).Returns(active.Task);
+
+        // Act
+        var initializing = _viewModel.InitializeAsync();
+        _messenger.Send(new CurrentCollectionChangedEvent("Safe"));
+        active.SetResult(new Collection { Title = "Inbox" });
+        await initializing;
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Safe");
+    }
+
+    [Test]
     public async Task Text_OptionSwitchedToCollection_ShowsTheCollectionAtOnce()
     {
         // Arrange
@@ -147,6 +197,29 @@ public class TrayTooltipViewModelTests
 
         // Assert
         await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - InBox");
+    }
+
+    [Test]
+    public async Task Text_HotkeyMovesPowerPasteWithinItsSequence_FollowsPowerPaste()
+    {
+        // Arrange: Power Paste owns the Current Clip while it runs
+        var configurationService = A.Fake<IConfigurationService>();
+        A.CallTo(() => configurationService.Configuration).Returns(_configuration);
+        var powerPaste = new PowerPasteService(configurationService, A.Fake<ISoundService>(), A.Fake<ILogger<PowerPasteService>>());
+        using var viewModel = new TrayTooltipViewModel(_messenger, configurationService, powerPaste, _collectionService);
+        var third = new Clip { Id = Guid.NewGuid(), Title = "Third", TextContent = "Third", Type = ClipType.Text };
+        await powerPaste.StartAsync(
+        [
+            new Clip { Id = Guid.NewGuid(), Title = "First", TextContent = "First", Type = ClipType.Text },
+            new Clip { Id = Guid.NewGuid(), Title = "Second", TextContent = "Second", Type = ClipType.Text },
+            third,
+        ], PowerPasteDirection.Down);
+
+        // Act: Scroll Next reached a clip of the sequence, so the sequence moves there (ClipOperationsCoordinator)
+        powerPaste.MoveTo(third.Id);
+
+        // Assert
+        await Assert.That(viewModel.Text).IsEqualTo("ClipMate - Third");
     }
 
     [Test]

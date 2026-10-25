@@ -50,7 +50,7 @@ public class StartupOrchestrationService
         _ = _serviceProvider.GetRequiredService<DatabaseMaintenanceCoordinator>();
 
         // Follows the Current Clip and collection from the start, even while the tray icon is hidden
-        _ = _serviceProvider.GetRequiredService<TrayTooltipViewModel>();
+        await _serviceProvider.GetRequiredService<TrayTooltipViewModel>().InitializeAsync();
 
         // Check if any databases need backup
         var backupService = _serviceProvider.GetRequiredService<BackupOrchestrationService>();
