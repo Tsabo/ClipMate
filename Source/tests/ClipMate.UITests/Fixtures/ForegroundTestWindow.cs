@@ -60,6 +60,12 @@ public sealed class ForegroundTestWindow : IDisposable
     /// </summary>
     public string? Paste() => _dispatcher.Invoke(() => SystemClipboard.TryReadText(Handle));
 
+    /// <summary>
+    /// Puts a copy on the clipboard from this window's thread, so the clipboard owner (and the Source Application ClipMate
+    /// records) is the test program until the window closes. The data object is created on that thread.
+    /// </summary>
+    public void Copy(Func<DataObject> create) => _dispatcher.Invoke(() => Clipboard.SetDataObject(create(), true));
+
     private static Task BringToForegroundAsync(IntPtr handle) => Foreground.ActivateAsync(handle, "the test window");
 
     public void Dispose()
