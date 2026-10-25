@@ -109,4 +109,7 @@ public class Win32ClipboardInterop : IWin32ClipboardInterop
             PInvoke.GlobalUnlock(hMem);
         }
     }
+
+    /// <inheritdoc/>
+    public void SetClipboardDataObject(System.Windows.IDataObject dataObject) => System.Windows.Clipboard.SetDataObject(dataObject, true);
 }

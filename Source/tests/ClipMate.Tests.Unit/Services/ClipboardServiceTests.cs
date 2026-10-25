@@ -1,5 +1,6 @@
 using Windows.Win32.Foundation;
 using ClipMate.Core.Constants;
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
@@ -7,6 +8,7 @@ using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using ClipMate.Tests.Unit.Networking;
+using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using TUnit.Core.Executors;
 
@@ -755,6 +757,47 @@ public class ClipboardServiceTests : TestFixtureBase
         await Assert.That(formats.Any(p => p.FormatId == ignoreId)).IsFalse();
     }
 
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task SetClipboardContentAsync_PutsTheClipOnTheClipboard_AnnouncesItAsCopied()
+    {
+        // Arrange: every path that puts a clip on the clipboard (pick, QuickPaste, paste, the clip viewer) goes through here
+        var messenger = new StrongReferenceMessenger();
+        ClipboardCopiedEvent? copied = null;
+        messenger.Register<ClipboardCopiedEvent>(this, (_, message) => copied = message);
+        var win32 = CreateWin32ClipboardMock();
+        A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).DoesNothing();
+        var service = CreateClipboardService(win32, A.Fake<ISoundService>(), messenger: messenger);
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+
+        // Act
+        await service.SetClipboardContentAsync(clip);
+
+        // Assert
+        A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).MustHaveHappenedOnceExactly();
+        await Assert.That(copied?.Clip.Id).IsEqualTo(clip.Id);
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task SetClipboardContentAsync_WhenTheClipboardCannotBeSet_DoesNotAnnounceACopy()
+    {
+        // Arrange
+        var messenger = new StrongReferenceMessenger();
+        ClipboardCopiedEvent? copied = null;
+        messenger.Register<ClipboardCopiedEvent>(this, (_, message) => copied = message);
+        var win32 = CreateWin32ClipboardMock();
+        A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).Throws(new InvalidOperationException("No clipboard"));
+        var service = CreateClipboardService(win32, A.Fake<ISoundService>(), messenger: messenger);
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+
+        // Act
+        await Assert.That(() => service.SetClipboardContentAsync(clip)).Throws<ClipMate.Core.Exceptions.ClipboardException>();
+
+        // Assert
+        await Assert.That(copied).IsNull();
+    }
+
     private static byte[] CreatePng(int width, int height)
     {
         var bitmap = System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
@@ -772,7 +815,8 @@ public class ClipboardServiceTests : TestFixtureBase
     private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
 
     private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService,
-        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null, TimeProvider? timeProvider = null)
+        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null, TimeProvider? timeProvider = null,
+        IMessenger? messenger = null)
     {
         var logger = CreateLogger<ClipboardService>();
 
@@ -794,7 +838,8 @@ public class ClipboardServiceTests : TestFixtureBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock, timeProvider);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock,
+            messenger ?? new StrongReferenceMessenger(), timeProvider);
     }
 
     /// <summary>

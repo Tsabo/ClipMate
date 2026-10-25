@@ -76,7 +76,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => configServiceMock.Configuration).Returns(clipboardConfig);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, clipboardSoundService, blobCacheServiceMock);
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, clipboardSoundService, blobCacheServiceMock,
+            new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
 
         var clipServiceLogger = A.Fake<ILogger<ClipService>>();
 

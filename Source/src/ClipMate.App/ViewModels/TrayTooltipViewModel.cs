@@ -56,7 +56,8 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
     public void Receive(ClipAddedEvent message) => SetCurrentClip(message.Clip);
 
     /// <summary>
-    /// A clip ClipMate put on the clipboard (picked, or reached with the Scroll Next / Previous hotkeys) becomes the Current Clip.
+    /// A clip ClipMate put on the clipboard (picked, reached with the Scroll Next / Previous hotkeys, QuickPasted,
+    /// pasted or copied from the clip viewer) becomes the Current Clip.
     /// </summary>
     public void Receive(ClipboardCopiedEvent message) => SetCurrentClip(message.Clip);
 

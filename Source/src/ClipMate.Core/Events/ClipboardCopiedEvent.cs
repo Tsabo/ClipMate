@@ -3,8 +3,8 @@ using ClipMate.Core.Models;
 namespace ClipMate.Core.Events;
 
 /// <summary>
-/// Messenger event sent when a clip has been successfully copied to the system clipboard.
-/// Allows the status bar to show confirmation without direct coupling.
+/// Messenger event sent, on the UI thread, when ClipMate has put a clip on the system clipboard, by whatever path: the
+/// clip becomes the Current Clip. Allows the status bar to show confirmation without direct coupling.
 /// </summary>
 public class ClipboardCopiedEvent
 {

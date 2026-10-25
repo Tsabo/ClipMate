@@ -756,9 +756,6 @@ public partial class ClipListViewModel : ObservableObject,
             await _clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id, cancellationToken);
 
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
-
-            // Notify that clipboard has been updated
-            _messenger.Send(new ClipboardCopiedEvent(clip));
         }
         catch (Exception ex)
         {

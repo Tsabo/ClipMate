@@ -5,17 +5,17 @@ using System.Text.Json;
 using System.Threading.Channels;
 using System.Windows.Media.Imaging;
 using Windows.Win32.Foundation;
+using ClipMate.Core.Events;
 using ClipMate.Core.Exceptions;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using ThrottleDebounce.Retry;
-using Application = System.Windows.Application;
 using DataFormats = System.Windows.DataFormats;
 // Aliases to resolve WPF vs WinForms ambiguity
-using WpfClipboard = System.Windows.Clipboard;
 using WpfDataObject = System.Windows.DataObject;
 
 namespace ClipMate.Platform.Services;
@@ -40,6 +40,7 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly Task _decodeLoop;
     private readonly ClipboardSnapshotDecoder _decoder;
     private readonly ILogger<ClipboardService> _logger;
+    private readonly IMessenger _messenger;
     private readonly Channel<PendingCapture> _pendingCaptures;
     private readonly RawClipboardReader _reader;
     private readonly ISoundService _soundService;
@@ -57,6 +58,7 @@ public class ClipboardService : IClipboardService, IDisposable
         IApplicationProfileService applicationProfileService,
         ISoundService soundService,
         IDecryptedBlobCacheService blobCacheService,
+        IMessenger messenger,
         TimeProvider? timeProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -65,6 +67,7 @@ public class ClipboardService : IClipboardService, IDisposable
         ArgumentNullException.ThrowIfNull(applicationProfileService);
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
+        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _timeProvider = timeProvider ?? TimeProvider.System;
         _reader = new RawClipboardReader(_win32, _timeProvider, _logger);
         _decoder = new ClipboardSnapshotDecoder(_configurationService, applicationProfileService, _logger);
@@ -279,11 +282,16 @@ public class ClipboardService : IClipboardService, IDisposable
                 async attempt =>
                 {
                     // WPF's Clipboard needs an STA thread; awaited, so no caller blocks the UI thread waiting for it
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    await UiThread.RunAsync(() =>
                     {
                         // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                        if (CreateCopy(clip) is { } dataObject)
-                            WpfClipboard.SetDataObject(dataObject, true);
+                        if (CreateCopy(clip) is not { } dataObject)
+                            return;
+
+                        _win32.SetClipboardDataObject(dataObject);
+
+                        // Every path that puts a clip on the clipboard comes here, so the clip becomes the Current Clip
+                        _messenger.Send(new ClipboardCopiedEvent(clip));
                     });
 
                     if (attempt > 0)
