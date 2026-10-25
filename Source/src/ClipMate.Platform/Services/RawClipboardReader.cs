@@ -51,7 +51,7 @@ internal sealed class RawClipboardReader
     }
 
     /// <summary>
-    /// Reads every format on the clipboard; null if the clipboard could not be opened.
+    /// Reads every format on the clipboard; null if the clipboard could not be opened, or changed during a retry.
     /// </summary>
     /// <param name="window">The window that opens the clipboard.</param>
     /// <param name="honourIgnoreFlag">Read nothing when the change carries a clipboard-viewer ignore format.</param>
@@ -94,6 +94,7 @@ internal sealed class RawClipboardReader
                         break;
                     }
 
+                    var sequenceNumber = _win32.GetClipboardSequenceNumber();
                     _win32.CloseClipboard();
                     open = false;
                     await Task.Delay(RetryDelay, _timeProvider);
@@ -105,6 +106,14 @@ internal sealed class RawClipboardReader
                     }
 
                     open = true;
+
+                    // A copy made while the clipboard was closed would mix two copies in one clip; it is read on its own
+                    if (_win32.GetClipboardSequenceNumber() != sequenceNumber)
+                    {
+                        _logger.LogDebug("The clipboard changed while waiting to read {Format}; leaving this read", name);
+
+                        return null;
+                    }
                 }
             }
 

@@ -69,6 +69,9 @@ public class Win32ClipboardInterop : IWin32ClipboardInterop
     /// <inheritdoc/>
     public bool OpenClipboard(HWND hwnd) => PInvoke.OpenClipboard(hwnd);
 
+    /// <inheritdoc />
+    public uint GetClipboardSequenceNumber() => PInvoke.GetClipboardSequenceNumber();
+
     /// <inheritdoc/>
     public bool CloseClipboard() => PInvoke.CloseClipboard();
 

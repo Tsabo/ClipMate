@@ -170,6 +170,28 @@ public class RawClipboardReaderTests
     }
 
     [Test]
+    public async Task ReadAsync_ClipboardChangesDuringARetry_LeavesTheRead()
+    {
+        // Arrange: another copy lands while the clipboard is closed between tries
+        var timeProvider = new ManualTimeProvider();
+        var win32 = FakeClipboard(
+            ((uint)Formats.Locale.Code, null, [9, 4, 0, 0]),
+            (_privateFormat, "Acme Private", null));
+        A.CallTo(() => win32.GetClipboardData(_privateFormat)).ReturnsNextFromSequence(null, [7]);
+        A.CallTo(() => win32.GetClipboardSequenceNumber()).ReturnsNextFromSequence(1u, 2u);
+        var reader = new RawClipboardReader(win32, timeProvider, NullLogger.Instance);
+
+        // Act
+        var read = reader.ReadAsync(_window, honourIgnoreFlag: true);
+        await AdvanceUntilCompletedAsync(timeProvider, read);
+
+        // Assert
+        await Assert.That(await read).IsNull();
+        A.CallTo(() => win32.GetClipboardData(_privateFormat)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => win32.CloseClipboard()).MustHaveHappened(2, Times.Exactly);
+    }
+
+    [Test]
     public async Task ReadAsync_ClipboardStaysBusy_GivesUpAfterFourTries()
     {
         var timeProvider = new ManualTimeProvider();

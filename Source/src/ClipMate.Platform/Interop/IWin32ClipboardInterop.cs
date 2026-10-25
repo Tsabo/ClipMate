@@ -53,6 +53,11 @@ public interface IWin32ClipboardInterop
     bool OpenClipboard(HWND hwnd);
 
     /// <summary>
+    /// A number that changes every time the clipboard's content changes.
+    /// </summary>
+    uint GetClipboardSequenceNumber();
+
+    /// <summary>
     /// Closes the clipboard opened by <see cref="OpenClipboard" />.
     /// </summary>
     bool CloseClipboard();
