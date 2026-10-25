@@ -13,10 +13,17 @@
 
     <DataTemplate x:Key="Content" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
         <DockPanel Width="316" LastChildFill="True">
-            <TextBlock DockPanel.Dock="Top"
-                       Text="{Binding Description.Title}"
-                       FontWeight="SemiBold"
-                       TextTrimming="CharacterEllipsis" />
+            <DockPanel DockPanel.Dock="Top">
+                <Image Width="16" Height="16"
+                       Margin="0,0,8,0"
+                       VerticalAlignment="Center"
+                       Source="pack://application:,,,/ClipMate.App;component/Assets/icon.ico"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <TextBlock Text="{Binding Description.Title}"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" />
+            </DockPanel>
             <TextBlock DockPanel.Dock="Top"
                        Margin="0,2,0,0"
                        Opacity="0.7"
