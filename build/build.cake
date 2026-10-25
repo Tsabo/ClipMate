@@ -460,14 +460,14 @@ Task("UI-Probe")
     .Description("Start an isolated ClipMate with given settings, copy text, press keys and capture its windows (build/ui-probe.ps1)")
     .Does(() =>
 {
-    // --setting section.key=value, --copy text, --press Ctrl+Alt+Shift+F9 (each repeatable, in order), --wait-ms,
+    // --setting section.key=value, --copy text, --copy-html fragment, --press Ctrl+Alt+Shift+F9 (each repeatable, in order), --wait-ms,
     // --capture folder, --data-dir, --exe, --keep-running
     string Quote(string value) => "'" + value.Replace("'", "''") + "'";
     var command = new System.Text.StringBuilder("& ")
         .Append(Quote(MakeAbsolute(buildDir.CombineWithFilePath("ui-probe.ps1")).FullPath))
         .Append(" -Exe ").Append(Quote(Argument("exe", BuiltExecutable(appProject).FullPath)));
 
-    foreach (var (name, parameter) in new[] { ("setting", "-Setting"), ("copy", "-Copy"), ("press", "-Press") })
+    foreach (var (name, parameter) in new[] { ("setting", "-Setting"), ("copy", "-Copy"), ("copy-html", "-CopyHtml"), ("press", "-Press") })
     {
         var values = Arguments<string>(name, Array.Empty<string>());
         if (values.Count > 0)

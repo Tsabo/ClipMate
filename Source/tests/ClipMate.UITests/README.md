@@ -55,10 +55,11 @@ ClipMate.UITests/
 │   ├── AutoTargetingTests.cs                # Runs: switch between two windows, open ClipMate, QuickPaste into the last one
 │   ├── CaptureTimingTests.cs                # Runs: formats written one at a time are captured once; a slow source doesn't freeze the window
 │   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
+│   ├── MarkdownTabTests.cs                  # Runs: with the Markdown tab open, a new HTML clip replaces the Markdown shown
 │   ├── PowerPasteTests.cs                   # Runs: paste detection, and the clipboard after Power Paste ends
 │   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
 └── Fixtures/
-    ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir) and waits for startup
+    ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir), with settings changed, and waits for startup
     ├── ClipboardTestProgram.cs   # Another program that copies in steps or renders its data slowly
     ├── Foreground.cs             # Switches the foreground window and presses keys, as a user would
     ├── ForegroundTestWindow.cs   # A test window in the foreground, to paste as the user's application
