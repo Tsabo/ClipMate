@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unused Options Removed** - **Multi-User, Networked Database?** and **PowerPaste Shield** are gone; existing settings files still load.
 
 ### Fixed
+- **Scroll Hotkeys From the Tray** - Scroll Next / Previous did nothing until the ClipMate window had been opened once; they now work as soon as ClipMate starts.
 - **Search Date Filters** - **Captured After** and **Captured Before** no longer fail with a database error.
 - **Clipboard Replaced After Every Copy** - ClipMate no longer replaces what you copied with its own copy of the clip, which lost formats it doesn't store. ([#11](https://github.com/Tsabo/ClipMate/issues/11))
 - **Screenshots and Cut Files** - A screenshot copied with its file name keeps the image (when its Application Profile has images on), and cut files paste back as a move. ([#14](https://github.com/Tsabo/ClipMate/issues/14))
