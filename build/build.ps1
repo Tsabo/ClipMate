@@ -74,7 +74,11 @@ if ($RemainingArguments) {
                     $Verbosity = $RemainingArguments[++$i]
                 }
             }
-            # Anything else is a target's own argument (e.g. --keep-running, --test-filter=...): pass it to Cake
+            # Anything else is a target's own argument (e.g. --keep-running, --test-filter=...): pass it to Cake.
+            # --name=value goes as two arguments, since Cake also splits at a colon and would cut a path like C:\...
+            '^(--[\w-]+)=(.*)$' {
+                $PassThroughArguments += $Matches[1], $Matches[2]
+            }
             default {
                 $PassThroughArguments += $arg
             }

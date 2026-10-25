@@ -387,7 +387,8 @@ Task("Smoke-Test")
     .Does(() =>
 {
     // --exe (default: the configuration's build), --data-dir (default: new folder in %TEMP%; reuse one to keep its
-    // settings), --timeout seconds, --keep-running (leave it running, e.g. to pair two copies)
+    // settings), --timeout seconds, --keep-running (leave it running, e.g. to pair two copies). The copy never captures
+    // what is on the user's clipboard at startup (--no-startup-capture).
     var exe = Argument("exe", BuiltExecutable(appProject).FullPath);
     var dataDir = Argument("data-dir", System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"clipmate-smoke-{Guid.NewGuid():N}"[..23]));
     var timeout = TimeSpan.FromSeconds(Argument("timeout", 90));
@@ -402,7 +403,7 @@ Task("Smoke-Test")
     Information($"Data dir: {dataDir}");
 
     // Shell-launched like a user would, so the app's console output stays out of the build log
-    var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"--data-dir \"{dataDir}\"") { UseShellExecute = true });
+    var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"--data-dir \"{dataDir}\" --no-startup-capture") { UseShellExecute = true });
 
     // The early and configured loggers roll to separate files, so read them all; the app still has them open
     string ReadLog() => !System.IO.Directory.Exists(logDir)
@@ -453,6 +454,45 @@ Task("Smoke-Test")
         Information($"Left running. Stop it with: Stop-Process -Id {process.Id}");
     else
         process.Kill(true);
+});
+
+Task("UI-Probe")
+    .Description("Start an isolated ClipMate with given settings, copy text, press keys and capture its windows (build/ui-probe.ps1)")
+    .Does(() =>
+{
+    // --setting section.key=value, --copy text, --press Ctrl+Alt+Shift+F9 (each repeatable, in order), --wait-ms,
+    // --capture folder, --data-dir, --exe, --keep-running
+    string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+    var command = new System.Text.StringBuilder("& ")
+        .Append(Quote(MakeAbsolute(buildDir.CombineWithFilePath("ui-probe.ps1")).FullPath))
+        .Append(" -Exe ").Append(Quote(Argument("exe", BuiltExecutable(appProject).FullPath)));
+
+    foreach (var (name, parameter) in new[] { ("setting", "-Setting"), ("copy", "-Copy"), ("press", "-Press") })
+    {
+        var values = Arguments<string>(name, Array.Empty<string>());
+        if (values.Count > 0)
+            command.Append(' ').Append(parameter).Append(' ').Append(string.Join(",", values.Select(Quote)));
+    }
+
+    if (HasArgument("wait-ms"))
+        command.Append(" -WaitMs ").Append(Argument<int>("wait-ms"));
+    if (HasArgument("capture"))
+        command.Append(" -Capture ").Append(Quote(MakeAbsolute(Directory(Argument<string>("capture"))).FullPath));
+    if (HasArgument("data-dir"))
+        command.Append(" -DataDir ").Append(Quote(Argument<string>("data-dir")));
+    if (HasArgument("keep-running"))
+        command.Append(" -KeepRunning");
+
+    // -File would take each list as one string; an encoded command passes the arrays without any quoting rules
+    var encoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command.ToString()));
+    var exitCode = StartProcess("pwsh", new ProcessSettings
+    {
+        Arguments = new ProcessArgumentBuilder().Append("-NoProfile").Append("-NonInteractive")
+            .Append("-OutputFormat").Append("Text").Append("-EncodedCommand").Append(encoded),
+        WorkingDirectory = repoRoot,
+    });
+    if (exitCode != 0)
+        throw new Exception($"UI-Probe failed (exit code {exitCode})");
 });
 
 Task("Prepare-Worktree")

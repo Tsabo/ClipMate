@@ -3,6 +3,7 @@ using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
 
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceSequentialTests : ExportImportServiceTestsBase
 {
     [Test]

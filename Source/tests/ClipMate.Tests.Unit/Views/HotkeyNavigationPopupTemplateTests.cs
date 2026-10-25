@@ -8,9 +8,8 @@ namespace ClipMate.Tests.Unit.Views;
 
 /// <summary>
 /// The hotkey navigation popup draws its own frame, since the notification window does not follow the DevExpress theme.
-/// Not in parallel: WPF can deadlock when several STA threads load XAML for the first time at once.
 /// </summary>
-[NotInParallel]
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class HotkeyNavigationPopupTemplateTests
 {
     [Test]

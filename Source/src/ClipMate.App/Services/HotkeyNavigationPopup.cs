@@ -57,7 +57,10 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
     {
         ArgumentNullException.ThrowIfNull(message);
         if (!_configurationService.Configuration.Appearance.ShowClipWhenScrollingWithHotkeys)
+        {
+            _logger.LogDebug("No hotkey navigation popup: Show clip when scrolling with hotkeys is off");
             return;
+        }
 
         // One popup at a time: a new press replaces the shown popup, and a press whose clip is still loading when the
         // next one comes is never shown at all (the notification service would queue rather than replace)
@@ -75,7 +78,10 @@ public sealed class HotkeyNavigationPopup : IRecipient<ClipReachedByHotkeyEvent>
                 await LoadContentAsync(clip, message.DatabaseKey);
 
             if (request != _latestRequest)
+            {
+                _logger.LogDebug("No hotkey navigation popup for clip {ClipId}: a later press replaced it", clip.Id);
                 return;
+            }
 
             var viewModel = new HotkeyNavigationPopupViewModel
             {

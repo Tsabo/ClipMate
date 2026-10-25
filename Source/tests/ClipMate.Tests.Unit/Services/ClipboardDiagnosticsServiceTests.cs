@@ -21,6 +21,40 @@ public class ClipboardDiagnosticsServiceTests
     }
 
     [Test]
+    [Arguments(2u)] // CF_BITMAP
+    [Arguments(9u)] // CF_PALETTE
+    [Arguments(14u)] // CF_ENHMETAFILE
+    [Arguments(0x80u)] // CF_OWNERDISPLAY
+    [Arguments(0x82u)] // CF_DSPBITMAP
+    [Arguments(0x8Eu)] // CF_DSPENHMETAFILE
+    [Arguments(0x300u)] // CF_GDIOBJFIRST
+    [Arguments(0x3FFu)] // CF_GDIOBJLAST
+    public async Task HoldsGlobalMemory_GdiHandleFormat_IsFalse(uint format)
+    {
+        // Act: GlobalSize on a bitmap, palette or metafile handle corrupts the heap and ends the process
+        var holdsGlobalMemory = ClipboardDiagnosticsService.HoldsGlobalMemory(format);
+
+        // Assert
+        await Assert.That(holdsGlobalMemory).IsFalse();
+    }
+
+    [Test]
+    [Arguments(1u)] // CF_TEXT
+    [Arguments(3u)] // CF_METAFILEPICT
+    [Arguments(8u)] // CF_DIB
+    [Arguments(13u)] // CF_UNICODETEXT
+    [Arguments(15u)] // CF_HDROP
+    [Arguments(0xC0FFu)] // a registered format
+    public async Task HoldsGlobalMemory_GlobalMemoryFormat_IsTrue(uint format)
+    {
+        // Act
+        var holdsGlobalMemory = ClipboardDiagnosticsService.HoldsGlobalMemory(format);
+
+        // Assert
+        await Assert.That(holdsGlobalMemory).IsTrue();
+    }
+
+    [Test]
     public async Task Constructor_WithValidLogger_CreatesInstance()
     {
         // Arrange

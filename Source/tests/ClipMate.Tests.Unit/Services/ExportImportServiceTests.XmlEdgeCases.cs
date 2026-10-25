@@ -8,6 +8,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// <summary>
 /// Additional XML export tests for edge cases and error handling.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceXmlEdgeCaseTests : ExportImportServiceTestsBase
 {
     [Test]

@@ -18,6 +18,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// Unit tests for IClipboardService implementation.
 /// Tests written first per TDD requirement for User Story 1.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ClipboardServiceTests : TestFixtureBase
 {
     [Test]

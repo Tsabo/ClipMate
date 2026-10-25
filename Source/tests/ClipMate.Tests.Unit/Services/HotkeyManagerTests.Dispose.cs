@@ -8,6 +8,7 @@ using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Services;
 
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public partial class HotkeyManagerTests
 {
     [Test]

@@ -590,7 +590,10 @@ public partial class ClipListViewModel : ObservableObject,
         UiThread.Run(() =>
         {
             if (Clips.Count == 0)
+            {
+                _logger.LogDebug("Scroll {Direction} ignored: the clip list is empty", "Next");
                 return;
+            }
 
             var currentIndex = SelectedClip is not null
                 ? Clips.IndexOf(SelectedClip)
@@ -608,7 +611,10 @@ public partial class ClipListViewModel : ObservableObject,
         UiThread.Run(() =>
         {
             if (Clips.Count == 0)
+            {
+                _logger.LogDebug("Scroll {Direction} ignored: the clip list is empty", "Previous");
                 return;
+            }
 
             var currentIndex = SelectedClip is not null
                 ? Clips.IndexOf(SelectedClip)
@@ -630,7 +636,10 @@ public partial class ClipListViewModel : ObservableObject,
     {
         // In a one-clip list the press stays where it is: nothing to announce
         if (clip == SelectedClip)
+        {
+            _logger.LogDebug("Scroll ignored: already on the only clip {ClipId}", clip.Id);
             return;
+        }
 
         SelectedClip = clip;
 
