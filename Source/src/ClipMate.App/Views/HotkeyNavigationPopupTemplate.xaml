@@ -12,7 +12,7 @@
     <converters:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter" />
 
     <DataTemplate x:Key="Content" DataType="{x:Type vm:HotkeyNavigationPopupViewModel}">
-        <DockPanel Width="316" LastChildFill="True">
+        <DockPanel LastChildFill="True">
             <DockPanel DockPanel.Dock="Top">
                 <Image Width="16" Height="16"
                        Margin="0,0,8,0"

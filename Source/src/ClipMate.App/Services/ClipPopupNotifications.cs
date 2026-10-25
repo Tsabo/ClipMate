@@ -1,3 +1,5 @@
+using System.Windows;
+using System.Windows.Controls;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
 using ClipMate.Core.Services;
@@ -25,8 +27,19 @@ public sealed class ClipPopupNotifications : IClipPopupNotifications
     public INotification Create(HotkeyNavigationPopupViewModel viewModel)
     {
         var service = GetService();
+        var theme = _configurationService.Configuration.Appearance.AppTheme;
 
-        service.CustomNotificationTemplate = _templates!.For(_configurationService.Configuration.Appearance.AppTheme);
+        // The notification window takes its size from the style rather than its content
+        var size = _templates!.SizeOf(viewModel, theme);
+        service.CustomNotificationStyle = new Style(typeof(ContentControl))
+        {
+            Setters =
+            {
+                new Setter(FrameworkElement.WidthProperty, size.Width),
+                new Setter(FrameworkElement.HeightProperty, size.Height),
+            },
+        };
+        service.CustomNotificationTemplate = _templates.For(theme);
         return service.CreateCustomNotification(viewModel);
     }
 
