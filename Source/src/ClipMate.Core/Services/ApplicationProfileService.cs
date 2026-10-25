@@ -53,7 +53,7 @@ public class ApplicationProfileService : IApplicationProfileService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlySet<string>?> GetCapturedFormatsAsync(string applicationName, IReadOnlyCollection<string> formatNames,
+    public async Task<IReadOnlySet<string>?> ApplyProfileAsync(string applicationName, IReadOnlyCollection<string> formatNames,
         CancellationToken cancellationToken = default)
     {
         var all = formatNames.ToHashSet(StringComparer.Ordinal);
@@ -64,7 +64,7 @@ public class ApplicationProfileService : IApplicationProfileService
         await _learnLock.WaitAsync(cancellationToken);
         try
         {
-            return await GetCapturedFormatsLockedAsync(normalizedAppName, all, cancellationToken);
+            return await ApplyProfileLockedAsync(normalizedAppName, all, cancellationToken);
         }
         finally
         {
@@ -72,7 +72,7 @@ public class ApplicationProfileService : IApplicationProfileService
         }
     }
 
-    private async Task<IReadOnlySet<string>?> GetCapturedFormatsLockedAsync(string normalizedAppName, HashSet<string> all,
+    private async Task<IReadOnlySet<string>?> ApplyProfileLockedAsync(string normalizedAppName, HashSet<string> all,
         CancellationToken cancellationToken)
     {
         var profile = await _store.GetProfileAsync(normalizedAppName, cancellationToken);

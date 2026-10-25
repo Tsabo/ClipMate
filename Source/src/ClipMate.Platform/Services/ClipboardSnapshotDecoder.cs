@@ -158,7 +158,7 @@ internal sealed class ClipboardSnapshotDecoder
             return formats;
 
         var profileFormats = formats.Select(p => ProfileFormat(p.Name)).Distinct(StringComparer.Ordinal).ToList();
-        var captured = await _applicationProfileService.GetCapturedFormatsAsync(applicationName, profileFormats, cancellationToken);
+        var captured = await _applicationProfileService.ApplyProfileAsync(applicationName, profileFormats, cancellationToken);
         if (captured == null)
         {
             _logger.LogDebug("Application profile of {AppName} is switched off", applicationName);
