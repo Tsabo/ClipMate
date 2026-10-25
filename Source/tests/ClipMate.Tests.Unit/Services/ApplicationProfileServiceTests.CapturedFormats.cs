@@ -93,6 +93,18 @@ public class ApplicationProfileServiceCapturedFormatsTests : ApplicationProfileS
     }
 
     [Test]
+    public async Task ApplyProfileAsync_ProfileSwitchedOffButEvenWhenSwitchedOff_FollowsItsFormatSettings()
+    {
+        var profile = ApplicationProfileTestFixtures.GetNotepadProfile();
+        profile.Enabled = false;
+        A.CallTo(() => MockStore.GetProfileAsync("NOTEPAD", A<CancellationToken>.Ignored)).Returns(profile);
+
+        var result = await Service.ApplyProfileAsync("notepad.exe", ["CF_TEXT", "CF_UNICODETEXT"], evenWhenSwitchedOff: true);
+
+        await Assert.That(result!).IsEquivalentTo(["CF_TEXT"]);
+    }
+
+    [Test]
     public async Task ApplyProfileAsync_FormatsTheProfileKnows_FollowsItsSettingsAndSavesNothing()
     {
         // Notepad: TEXT on (stored without the CF_ prefix), CF_UNICODETEXT and LOCALE off

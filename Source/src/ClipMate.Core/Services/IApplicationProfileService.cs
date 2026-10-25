@@ -30,8 +30,9 @@ public interface IApplicationProfileService
     /// </summary>
     /// <param name="applicationName">The Source Application's name; it is normalized.</param>
     /// <param name="formatNames">The names of the formats on the clipboard, as the profile stores them.</param>
+    /// <param name="evenWhenSwitchedOff">Apply the profile's Format settings even when the profile is switched off (the Capture hotkey).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task<IReadOnlySet<string>?> ApplyProfileAsync(string applicationName, IReadOnlyCollection<string> formatNames,
+    Task<IReadOnlySet<string>?> ApplyProfileAsync(string applicationName, IReadOnlyCollection<string> formatNames, bool evenWhenSwitchedOff = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

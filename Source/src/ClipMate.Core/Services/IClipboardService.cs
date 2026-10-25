@@ -36,11 +36,13 @@ public interface IClipboardService
     Task StopMonitoringAsync();
 
     /// <summary>
-    /// Gets the current clipboard content without starting monitoring.
+    /// Reads the clipboard now, for the Capture hotkey or at startup, without the delay or settle gap of a monitored
+    /// change and whether or not monitoring is on. See <see cref="ManualCaptureKind" /> for each one's rules.
     /// </summary>
+    /// <param name="kind">Which capture this is.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The current clipboard content, or null if clipboard is empty or an error occurs.</returns>
-    Task<Clip?> GetCurrentClipboardContentAsync(CancellationToken cancellationToken = default);
+    /// <returns>The clip, or null when there is nothing to capture or an error occurs.</returns>
+    Task<Clip?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sets the system clipboard content from a clip.

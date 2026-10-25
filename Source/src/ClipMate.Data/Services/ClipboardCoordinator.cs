@@ -80,7 +80,7 @@ public class ClipboardCoordinator : IHostedService,
                 _logger.LogDebug("Capturing existing clipboard content at startup");
                 try
                 {
-                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync(cancellationToken);
+                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup, cancellationToken);
                     if (existingClip != null)
                     {
                         _logger.LogInformation("Captured existing clipboard content: Type={ClipType}", existingClip.Type);
@@ -157,7 +157,7 @@ public class ClipboardCoordinator : IHostedService,
         {
             _logger.LogInformation("Manual clipboard capture requested");
 
-            var clip = await _clipboardService.GetCurrentClipboardContentAsync();
+            var clip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
             if (clip != null)
             {
                 _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);

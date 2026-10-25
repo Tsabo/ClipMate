@@ -41,11 +41,12 @@ internal sealed class ClipboardSnapshotDecoder
 
     /// <summary>
     /// The clip for the formats read, or null when there is nothing to keep (no formats, or the Application Profile of
-    /// <paramref name="applicationName" /> is switched off).
+    /// <paramref name="applicationName" /> is switched off and <paramref name="evenWhenProfileSwitchedOff" /> isn't set).
     /// </summary>
-    public async Task<Clip?> DecodeAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName, CancellationToken cancellationToken = default)
+    public async Task<Clip?> DecodeAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName, bool evenWhenProfileSwitchedOff = false,
+        CancellationToken cancellationToken = default)
     {
-        var allowed = await GetAllowedFormatsAsync(formats, applicationName, cancellationToken);
+        var allowed = await GetAllowedFormatsAsync(formats, applicationName, evenWhenProfileSwitchedOff, cancellationToken);
         if (allowed == null)
             return null;
 
@@ -152,13 +153,13 @@ internal sealed class ClipboardSnapshotDecoder
     /// Application), or null when the application's profile is switched off.
     /// </summary>
     private async Task<IReadOnlyList<RawClipboardFormat>?> GetAllowedFormatsAsync(IReadOnlyList<RawClipboardFormat> formats, string? applicationName,
-        CancellationToken cancellationToken)
+        bool evenWhenProfileSwitchedOff, CancellationToken cancellationToken)
     {
         if (!_applicationProfileService.IsApplicationProfilesEnabled() || string.IsNullOrEmpty(applicationName))
             return formats;
 
         var profileFormats = formats.Select(p => ProfileFormat(p.Name)).Distinct(StringComparer.Ordinal).ToList();
-        var captured = await _applicationProfileService.ApplyProfileAsync(applicationName, profileFormats, cancellationToken);
+        var captured = await _applicationProfileService.ApplyProfileAsync(applicationName, profileFormats, evenWhenProfileSwitchedOff, cancellationToken);
         if (captured == null)
         {
             _logger.LogDebug("Application profile of {AppName} is switched off", applicationName);

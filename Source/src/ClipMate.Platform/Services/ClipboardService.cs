@@ -164,7 +164,8 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<Clip?> GetCurrentClipboardContentAsync(CancellationToken cancellationToken = default)
+    public async Task<Clip?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -176,17 +177,37 @@ public class ClipboardService : IClipboardService, IDisposable
                 return null;
             }
 
-            // Same read as a monitored change, without the delay, settle gap or ignore flag
+            // Same read as a monitored change, without the delay or settle gap
+            var honourIgnoreFlag = kind == ManualCaptureKind.Startup || _configurationService.Configuration.Preferences.PayAttentionToClipboardIgnoreFlag;
             var clipboardThread = await GetClipboardThreadAsync();
-            var snapshot = await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false));
+            var snapshot = await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, honourIgnoreFlag));
 
-            if (snapshot == null || snapshot.Formats.Count == 0)
+            if (snapshot == null)
+                return null;
+
+            if (snapshot.IgnoreFlag)
+            {
+                _logger.LogDebug("Not capturing a clipboard marked to be ignored by clipboard viewers ({Kind})", kind);
+
+                return null;
+            }
+
+            if (snapshot.FormatCount == 0)
+            {
+                if (kind == ManualCaptureKind.CaptureHotkey)
+                    await _soundService.PlaySoundAsync(SoundEvent.Erase, cancellationToken);
+
+                return null;
+            }
+
+            // ClipMate 7 captures the clipboard at startup only when it has text or an image
+            if (snapshot.Formats.Count == 0 || (kind == ManualCaptureKind.Startup && !snapshot.Formats.Any(p => IsTextOrImage(p.Name))))
                 return null;
 
             var source = GetSourceApplication(snapshot);
+            var pending = new PendingCapture(snapshot.Formats, source.Name, source.Title);
 
-            return await Task.Run(() => DecodeAsync(new PendingCapture(snapshot.Formats, source.Name, source.Title), cancellationToken),
-                cancellationToken);
+            return await Task.Run(() => DecodeAsync(pending, kind == ManualCaptureKind.CaptureHotkey, cancellationToken), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -447,9 +468,9 @@ public class ClipboardService : IClipboardService, IDisposable
         await _clipsChannel.Writer.WriteAsync(clip);
     }
 
-    private async Task<Clip?> DecodeAsync(PendingCapture pending, CancellationToken cancellationToken = default)
+    private async Task<Clip?> DecodeAsync(PendingCapture pending, bool evenWhenProfileSwitchedOff = false, CancellationToken cancellationToken = default)
     {
-        var clip = await _decoder.DecodeAsync(pending.Formats, pending.ApplicationName, cancellationToken);
+        var clip = await _decoder.DecodeAsync(pending.Formats, pending.ApplicationName, evenWhenProfileSwitchedOff, cancellationToken);
         if (clip == null)
             return null;
 
@@ -803,4 +824,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     private sealed record SourceApplication(string? Name, string? Title, bool IsClipMate);
+
+    private static bool IsTextOrImage(string formatName) =>
+        formatName is "CF_UNICODETEXT" or "CF_TEXT" or "CF_DIB" or "CF_DIBV5" or "PNG";
 }

@@ -194,7 +194,7 @@ public class ClipboardSnapshotDecoderTests
         ], "acme");
 
         A.CallTo(() => profiles.ApplyProfileAsync("acme",
-                A<IReadOnlyCollection<string>>.That.IsSameSequenceAs(new[] { "CF_DIB", "CF_HDROP", "Acme Private" }), A<CancellationToken>._))
+                A<IReadOnlyCollection<string>>.That.IsSameSequenceAs(new[] { "CF_DIB", "CF_HDROP", "Acme Private" }), false, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -203,7 +203,7 @@ public class ClipboardSnapshotDecoderTests
     {
         var profiles = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profiles.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profiles.ApplyProfileAsync("acme", A<IReadOnlyCollection<string>>._, A<CancellationToken>._)).Returns((IReadOnlySet<string>?)null);
+        A.CallTo(() => profiles.ApplyProfileAsync("acme", A<IReadOnlyCollection<string>>._, A<bool>._, A<CancellationToken>._)).Returns((IReadOnlySet<string>?)null);
         var decoder = CreateDecoder(profiles);
 
         await Assert.That(await decoder.DecodeAsync([UnicodeText("x"), _privateFormat], "acme")).IsNull();
@@ -214,8 +214,8 @@ public class ClipboardSnapshotDecoderTests
     {
         var profiles = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profiles.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profiles.ApplyProfileAsync("acme", A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
-            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) =>
+        A.CallTo(() => profiles.ApplyProfileAsync("acme", A<IReadOnlyCollection<string>>._, A<bool>._, A<CancellationToken>._))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, bool _, CancellationToken _) =>
                 Task.FromResult<IReadOnlySet<string>?>(names.Except(switchedOff).ToHashSet()));
 
         return profiles;

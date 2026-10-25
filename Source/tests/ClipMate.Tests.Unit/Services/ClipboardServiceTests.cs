@@ -374,16 +374,16 @@ public class ClipboardServiceTests : TestFixtureBase
         GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
         var profileService = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored))
-            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
+        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, bool _, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
         var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
 
         // Act
         await CaptureAsync(service);
 
         // Assert
-        A.CallTo(() => profileService.ApplyProfileAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappened();
-        A.CallTo(() => profileService.ApplyProfileAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => profileService.ApplyProfileAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.ApplyProfileAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -396,8 +396,8 @@ public class ClipboardServiceTests : TestFixtureBase
         GivenForegroundWindow(win32Mock, new HWND(0x20), 202, "explorer", "Desktop");
         var profileService = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored))
-            .ReturnsLazily((string _, IReadOnlyCollection<string> names, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
+        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily((string _, IReadOnlyCollection<string> names, bool _, CancellationToken _) => Task.FromResult<IReadOnlySet<string>?>(names.ToHashSet()));
         var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
 
         // Act
@@ -405,8 +405,8 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Assert
         await Assert.That(clip).IsNotNull();
-        A.CallTo(() => profileService.ApplyProfileAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappened();
-        A.CallTo(() => profileService.ApplyProfileAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => profileService.ApplyProfileAsync("notepad", A<IReadOnlyCollection<string>>.Ignored, true, A<CancellationToken>.Ignored)).MustHaveHappened();
+        A.CallTo(() => profileService.ApplyProfileAsync("explorer", A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -460,16 +460,76 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
-    public async Task GetCurrentClipboardContentAsync_IgnoreFlagPresent_IsCaptured()
+    public async Task GetCurrentClipboardContentAsync_CaptureHotkeyAndIgnoreFlagPresent_IsNotCaptured()
     {
         // Arrange
         using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>());
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+
+        // Assert
+        await Assert.That(clip).IsNull();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_CaptureHotkeyAndIgnoreFlagNotHonoured_IsCaptured()
+    {
+        // Arrange
+        var configuration = new ClipMateConfiguration { Preferences = { PayAttentionToClipboardIgnoreFlag = false } };
+        using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>(), configuration: configuration);
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_StartupAndIgnoreFlagPresent_IsNotCapturedEvenWhenNotHonoured()
+    {
+        // Arrange
+        var configuration = new ClipMateConfiguration { Preferences = { PayAttentionToClipboardIgnoreFlag = false } };
+        using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>(), configuration: configuration);
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup);
+
+        // Assert
+        await Assert.That(clip).IsNull();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_StartupWithoutTextOrImage_IsNotCaptured()
+    {
+        // Arrange
+        using var service = CreateClipboardService(CreateClipboardOffering((0xC123, "Acme Private", [1, 2, 3])), A.Fake<ISoundService>());
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup);
+
+        // Assert
+        await Assert.That(clip).IsNull();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_CaptureHotkeyOnAnEmptyClipboard_PlaysTheEraseSound()
+    {
+        // Arrange
+        var soundService = A.Fake<ISoundService>();
+        using var service = CreateClipboardService(CreateClipboardOffering(), soundService);
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+
+        // Assert
+        await Assert.That(clip).IsNull();
+        A.CallTo(() => soundService.PlaySoundAsync(SoundEvent.Erase, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
