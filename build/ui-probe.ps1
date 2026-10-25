@@ -7,8 +7,8 @@ Cake target (see build/README.md), which passes the built executable.
 .DESCRIPTION
 1. Creates the data folder's settings by starting ClipMate once, then applies each -Setting.
 2. Starts ClipMate (never capturing the clipboard at startup) and waits until clipboard monitoring runs.
-3. Copies each -Copy text, waiting until ClipMate has saved it. This replaces what is on the user's clipboard; text
-   that was there is put back at the end.
+3. Copies each -Copy text, then each -CopyHtml fragment (as HTML plus its plain text), waiting until ClipMate has
+   saved each. This replaces what is on the user's clipboard; text that was there is put back at the end.
 4. Presses each -Press key combination, -WaitMs apart.
 5. Saves a PNG of each of ClipMate's visible windows into -Capture: only ClipMate's own pixels, never the desktop,
    so the images can go in a pull request.
@@ -21,6 +21,8 @@ Param(
     # section.key=value, value written as TOML: preferences.initial_show_mode="Nothing"
     [string[]]$Setting = @(),
     [string[]]$Copy = @(),
+    # an HTML fragment such as <a href="https://example.com">Example</a>, offered as CF_HTML and as plain text
+    [string[]]$CopyHtml = @(),
     # Ctrl+Alt+Shift+F9: pick keys the user's own ClipMate does not hold, or the presses go to it
     [string[]]$Press = @(),
     [int]$WaitMs = 800,
@@ -48,6 +50,53 @@ public static class ProbeNative
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
     [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll")] static extern bool OpenClipboard(IntPtr owner);
+    [DllImport("user32.dll")] static extern bool EmptyClipboard();
+    [DllImport("user32.dll")] static extern bool CloseClipboard();
+    [DllImport("user32.dll")] static extern IntPtr SetClipboardData(uint format, IntPtr data);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern uint RegisterClipboardFormat(string name);
+    [DllImport("kernel32.dll")] static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+    [DllImport("kernel32.dll")] static extern IntPtr GlobalLock(IntPtr memory);
+    [DllImport("kernel32.dll")] static extern bool GlobalUnlock(IntPtr memory);
+
+    // Win32 rather than the WinForms clipboard, which needs an STA thread that pwsh doesn't have
+    public static void CopyHtml(string fragment, string text)
+    {
+        const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
+        var utf8 = System.Text.Encoding.UTF8;
+        var headerLength = string.Format(header, 0, 0, 0, 0).Length;
+        var before = "<html><body><!--StartFragment-->";
+        var after = "<!--EndFragment--></body></html>";
+        var startFragment = headerLength + utf8.GetByteCount(before);
+        var endFragment = startFragment + utf8.GetByteCount(fragment);
+        var endHtml = endFragment + utf8.GetByteCount(after);
+        var cfHtml = string.Format(header, headerLength, endHtml, startFragment, endFragment) + before + fragment + after;
+
+        for (var attempt = 0; !OpenClipboard(IntPtr.Zero); attempt++)
+        {
+            if (attempt == 20) throw new InvalidOperationException("The clipboard is held by another program");
+            System.Threading.Thread.Sleep(50);
+        }
+
+        try
+        {
+            EmptyClipboard();
+            SetClipboardData(13, Global(System.Text.Encoding.Unicode.GetBytes(text + "\0"))); // CF_UNICODETEXT
+            SetClipboardData(RegisterClipboardFormat("HTML Format"), Global(utf8.GetBytes(cfHtml + "\0")));
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    static IntPtr Global(byte[] bytes)
+    {
+        var memory = GlobalAlloc(0x0002, (UIntPtr)bytes.Length); // GMEM_MOVEABLE
+        Marshal.Copy(bytes, 0, GlobalLock(memory), bytes.Length);
+        GlobalUnlock(memory);
+        return memory;
+    }
 
     public static List<IntPtr> VisibleWindowsOf(int processId)
     {
@@ -133,6 +182,11 @@ try {
         $saved++
         Wait-Log "Clip saved successfully" -Count $saved -TimeoutSeconds 15
     }
+    foreach ($fragment in $CopyHtml) {
+        [ProbeNative]::CopyHtml($fragment, ($fragment -replace '<[^>]+>', ''))
+        $saved++
+        Wait-Log "Clip saved successfully" -Count $saved -TimeoutSeconds 15
+    }
 
     # 4. Key presses
     $keys = @{ Ctrl = 0x11; Alt = 0x12; Shift = 0x10; Win = 0x5B; Enter = 0x0D; Esc = 0x1B; Tab = 0x09; Space = 0x20; Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27 }
@@ -175,7 +229,7 @@ try {
     }
 }
 finally {
-    if ($Copy.Count -gt 0 -and $savedText) { Set-Clipboard -Value $savedText }
+    if ($Copy.Count + $CopyHtml.Count -gt 0 -and $savedText) { Set-Clipboard -Value $savedText }
     if ($KeepRunning) { Write-Host "Left running. Stop it with: Stop-Process -Id $($app.Id)" }
     else { Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue }
     Write-Host "Log: $logDir"

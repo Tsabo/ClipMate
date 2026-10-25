@@ -35,29 +35,19 @@ public class AppFixture : IAsyncDisposable
     /// <summary>
     /// Starts ClipMate and waits until its log reports that startup finished and clipboard monitoring is running.
     /// </summary>
-    public async Task StartAppAsync()
+    /// <param name="settings">
+    /// Settings to change first, as section.key=value with the value written as TOML: preferences.default_editor_view="Markdown".
+    /// </param>
+    public async Task StartAppAsync(params string[] settings)
     {
         if (_appProcess != null)
             return;
 
         Directory.CreateDirectory(DataDirectory);
-        var appPath = Path.Combine(AppContext.BaseDirectory, "ClipMate.App.exe");
-        if (!File.Exists(appPath))
-            throw new FileNotFoundException($"ClipMate.App.exe not found beside the tests at {appPath}. Build ClipMate.UITests first.");
+        if (settings.Length > 0)
+            await ApplySettingsAsync(settings);
 
-        // The app also logs to its console; discard that copy (the log files are read below) so test output stays readable
-        _appProcess = Process.Start(new ProcessStartInfo(appPath, ["--data-dir", DataDirectory])
-                      {
-                          UseShellExecute = false,
-                          RedirectStandardOutput = true,
-                          RedirectStandardError = true,
-                      })
-                      ?? throw new InvalidOperationException("Failed to start ClipMate process");
-
-        _appProcess.OutputDataReceived += (_, _) => { };
-        _appProcess.ErrorDataReceived += (_, _) => { };
-        _appProcess.BeginOutputReadLine();
-        _appProcess.BeginErrorReadLine();
+        _appProcess = StartProcess();
 
         // The app is a separate process, so its startup can only be observed by polling its log until a deadline
         try
@@ -79,6 +69,79 @@ public class AppFixture : IAsyncDisposable
         }
 
         await WaitUntilCapturingAsync();
+    }
+
+    private Process StartProcess()
+    {
+        var appPath = Path.Combine(AppContext.BaseDirectory, "ClipMate.App.exe");
+        if (!File.Exists(appPath))
+            throw new FileNotFoundException($"ClipMate.App.exe not found beside the tests at {appPath}. Build ClipMate.UITests first.");
+
+        // The app also logs to its console; discard that copy (the log files are read below) so test output stays readable
+        var process = Process.Start(new ProcessStartInfo(appPath, ["--data-dir", DataDirectory])
+                      {
+                          UseShellExecute = false,
+                          RedirectStandardOutput = true,
+                          RedirectStandardError = true,
+                      })
+                      ?? throw new InvalidOperationException("Failed to start ClipMate process");
+
+        process.OutputDataReceived += (_, _) => { };
+        process.ErrorDataReceived += (_, _) => { };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        return process;
+    }
+
+    /// <summary>
+    /// ClipMate rejects a settings file without its databases, so it is started once to write its defaults, which are
+    /// then changed. That run's log is removed, so startup is only ever read from the run under test.
+    /// </summary>
+    private async Task ApplySettingsAsync(string[] settings)
+    {
+        using (var first = StartProcess())
+        {
+            try
+            {
+                await Poll.UntilAsync(() => ReadLog().Contains("Initialization pipeline completed", StringComparison.Ordinal),
+                    "ClipMate's first run", _startupTimeout);
+            }
+            finally
+            {
+                // The tree includes the WebView2 processes
+                first.Kill(true);
+                await first.WaitForExitAsync();
+            }
+        }
+
+        var settingsPath = Path.Combine(DataDirectory, "clipmate.toml");
+        var lines = (await File.ReadAllLinesAsync(settingsPath)).ToList();
+        foreach (var setting in settings)
+        {
+            var equals = setting.IndexOf('=');
+            var dot = equals < 0 ? -1 : setting.LastIndexOf('.', equals);
+            if (dot < 0)
+                throw new ArgumentException($"Setting '{setting}' is not section.key=value", nameof(settings));
+
+            var header = $"[{setting[..dot]}]";
+            var key = setting[(dot + 1)..equals];
+            var start = lines.IndexOf(header);
+            if (start < 0)
+                throw new ArgumentException($"ClipMate's settings have no section {header}", nameof(settings));
+
+            var index = start + 1;
+            while (index < lines.Count && !lines[index].StartsWith('[') && !lines[index].StartsWith($"{key} =", StringComparison.Ordinal))
+                index++;
+
+            var line = $"{key} = {setting[(equals + 1)..]}";
+            if (index < lines.Count && !lines[index].StartsWith('['))
+                lines[index] = line;
+            else
+                lines.Insert(start + 1, line);
+        }
+
+        await File.WriteAllLinesAsync(settingsPath, lines);
+        await Poll.UntilAsync(() => TryDelete(LogDirectory), "the first run's log to be deleted", TimeSpan.FromSeconds(5));
     }
 
     /// <summary>
@@ -144,7 +207,7 @@ public class AppFixture : IAsyncDisposable
         // Killed child processes release their files a moment after the app exits; a folder still locked after that is left
         try
         {
-            await Poll.UntilAsync(TryDeleteDataDirectory, "the test data folder to be deleted", TimeSpan.FromSeconds(5));
+            await Poll.UntilAsync(() => TryDelete(DataDirectory), "the test data folder to be deleted", TimeSpan.FromSeconds(5));
         }
         catch (TimeoutException)
         {
@@ -153,12 +216,12 @@ public class AppFixture : IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 
-    private bool TryDeleteDataDirectory()
+    private static bool TryDelete(string directory)
     {
         try
         {
-            if (Directory.Exists(DataDirectory))
-                Directory.Delete(DataDirectory, true);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
 
             return true;
         }

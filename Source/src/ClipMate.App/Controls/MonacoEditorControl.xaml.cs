@@ -318,7 +318,7 @@ public partial class MonacoEditorControl
             if (text == Text)
                 return;
 
-            Text = text;
+            SetCurrentValue(TextProperty, text);
         }
         finally
         {
@@ -607,9 +607,9 @@ public partial class MonacoEditorControl
                 return false;
             }
 
-            // Update properties to stay in sync
-            Text = text;
-            Language = languageId;
+            // Update properties to stay in sync; SetCurrentValue keeps a one-way binding, which assigning would remove
+            SetCurrentValue(TextProperty, text);
+            SetCurrentValue(LanguageProperty, languageId);
 
             _logger.LogDebug("[{ControlName}] LoadContentAsync completed successfully", controlName);
             return true;
@@ -680,7 +680,7 @@ public partial class MonacoEditorControl
             }
 
             // Update the Language property so UI reflects the change
-            Language = languageId;
+            SetCurrentValue(LanguageProperty, languageId);
             _logger.LogTrace("[{ControlName}] SetLanguageAsync completed", controlName);
         }
         finally
