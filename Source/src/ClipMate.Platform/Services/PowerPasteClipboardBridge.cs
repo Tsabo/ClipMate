@@ -48,6 +48,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly ITemplateService _templateService;
+    private readonly TimeProvider _timeProvider;
     private readonly IWin32InputInterop _win32;
 
     private CancellationTokenSource? _advanceDebounceCts;
@@ -64,14 +65,15 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     // Re-arming after a read that was not a paste
     private bool _reArmPending;
-    private readonly Queue<DateTime> _recentReArms = new();
+    private readonly Queue<DateTimeOffset> _recentReArms = new();
 
     public PowerPasteClipboardBridge(IPowerPasteService powerPasteService,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
         ITemplateService templateService,
         IWin32InputInterop win32,
-        ILogger<PowerPasteClipboardBridge> logger)
+        ILogger<PowerPasteClipboardBridge> logger,
+        TimeProvider? timeProvider = null)
     {
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
@@ -79,6 +81,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -294,7 +297,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         if (_hwndSource == null || _armedFormats.Count == 0)
             return;
 
-        _recentReArms.Enqueue(DateTime.UtcNow);
+        _recentReArms.Enqueue(_timeProvider.GetUtcNow());
         if (_recentReArms.Count > QuickReArmsPerInterval)
             _recentReArms.Dequeue();
 
@@ -442,12 +445,12 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         var wait = _reArmSettleTime;
         if (_recentReArms.Count == QuickReArmsPerInterval)
         {
-            var throttled = _recentReArms.Peek() + _reArmInterval - DateTime.UtcNow;
+            var throttled = _recentReArms.Peek() + _reArmInterval - _timeProvider.GetUtcNow();
             if (throttled > wait)
                 wait = throttled;
         }
 
-        _ = Task.Delay(wait).ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
+        _ = Task.Delay(wait, _timeProvider).ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
             TaskScheduler.Default);
     }
 

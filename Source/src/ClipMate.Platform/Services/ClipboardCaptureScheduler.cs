@@ -73,7 +73,11 @@ internal sealed class ClipboardCaptureScheduler : IDisposable
     public void OnClipboardUpdate()
     {
         _notifications++;
+        ScheduleCapture();
+    }
 
+    private void ScheduleCapture()
+    {
         var delay = _delay();
         if (delay > TimeSpan.Zero)
         {
@@ -141,11 +145,7 @@ internal sealed class ClipboardCaptureScheduler : IDisposable
             return;
 
         _rerunWhenDone = false;
-        var delay = _delay();
-        if (delay > TimeSpan.Zero)
-            RestartTimer(delay);
-        else
-            _ = CaptureAsync(false);
+        ScheduleCapture();
     }
 
     private void RestartTimer(TimeSpan delay)

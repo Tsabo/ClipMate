@@ -43,7 +43,11 @@ public static class OwnClipboardCopy
     internal static void MarkOpenClipboard()
     {
         var hGlobal = DataObjectFormats.AllocGlobal(new byte[sizeof(int)]);
-        if (hGlobal != IntPtr.Zero)
-            PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(ClipboardIgnoreFormats.ClipboardViewerIgnore), new HANDLE(hGlobal));
+        if (hGlobal == IntPtr.Zero)
+            return;
+
+        // The clipboard owns the block only once SetClipboardData succeeds
+        if (PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(ClipboardIgnoreFormats.ClipboardViewerIgnore), new HANDLE(hGlobal)).IsNull)
+            PInvoke.GlobalFree((HGLOBAL)hGlobal);
     }
 }

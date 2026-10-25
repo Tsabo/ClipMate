@@ -27,6 +27,9 @@ public class ApplicationProfileService : IApplicationProfileService
     };
 
     private readonly ILogger<ApplicationProfileService> _logger;
+
+    // The decode loop and a manual capture can learn formats into the same profile at once
+    private readonly SemaphoreSlim _learnLock = new(1, 1);
     private readonly IApplicationProfileStore _store;
     private bool _isEnabled;
 
@@ -58,6 +61,20 @@ public class ApplicationProfileService : IApplicationProfileService
             return all;
 
         var normalizedAppName = NormalizeApplicationName(applicationName);
+        await _learnLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await GetCapturedFormatsLockedAsync(normalizedAppName, all, cancellationToken);
+        }
+        finally
+        {
+            _learnLock.Release();
+        }
+    }
+
+    private async Task<IReadOnlySet<string>?> GetCapturedFormatsLockedAsync(string normalizedAppName, HashSet<string> all,
+        CancellationToken cancellationToken)
+    {
         var profile = await _store.GetProfileAsync(normalizedAppName, cancellationToken);
         if (profile == null)
             return all;
