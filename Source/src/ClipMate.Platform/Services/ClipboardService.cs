@@ -40,7 +40,8 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly ISoundService _soundService;
     private readonly TimeProvider _timeProvider;
     private readonly IWin32ClipboardInterop _win32;
-    private bool _captureSuspended;
+    // Set on the UI thread (Power Paste), read on the clipboard thread
+    private volatile bool _captureSuspended;
     private ClipboardCaptureScheduler? _captureScheduler;
     private Task<ClipboardThread>? _clipboardThread;
     private bool _disposed;
@@ -145,22 +146,15 @@ public class ClipboardService : IClipboardService, IDisposable
 
         try
         {
-            // The clipboard thread stays for manual capture
+            // The clipboard thread and the channels stay for manual capture and for monitoring to start again
             var clipboardThread = await GetClipboardThreadAsync().ConfigureAwait(false);
             await clipboardThread.Dispatcher.InvokeAsync(StopListening(clipboardThread));
-
-            // Clips already read are still decoded and published, then the channel completes
-            _pendingCaptures.Writer.TryComplete();
-            await _decodeLoop.ConfigureAwait(false);
-            _clipsChannel.Writer.TryComplete();
 
             _logger.LogInformation("Clipboard monitoring stopped");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error stopping clipboard monitoring");
-            _pendingCaptures.Writer.TryComplete(ex);
-            _clipsChannel.Writer.TryComplete(ex);
         }
     }
 
@@ -169,6 +163,14 @@ public class ClipboardService : IClipboardService, IDisposable
     {
         try
         {
+            // Reading now would render Power Paste's waiting clip and count as a paste
+            if (_captureSuspended)
+            {
+                _logger.LogDebug("Not reading the clipboard - capture is suspended");
+
+                return null;
+            }
+
             // Same read as a monitored change, without the delay, settle gap or ignore flag
             var clipboardThread = await GetClipboardThreadAsync();
             var snapshot = await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false));
@@ -177,14 +179,9 @@ public class ClipboardService : IClipboardService, IDisposable
                 return null;
 
             var source = GetSourceApplication(snapshot.Owner);
-            var clip = await Task.Run(() => _decoder.DecodeAsync(snapshot.Formats, source.Name, cancellationToken), cancellationToken);
-            if (clip != null)
-            {
-                clip.SourceApplicationName = source.Name;
-                clip.SourceApplicationTitle = source.Title;
-            }
 
-            return clip;
+            return await Task.Run(() => DecodeAsync(new PendingCapture(snapshot.Formats, source.Name, source.Title), cancellationToken),
+                cancellationToken);
         }
         catch (Exception ex)
         {
@@ -204,7 +201,7 @@ public class ClipboardService : IClipboardService, IDisposable
             await Retrier.Attempt(
                 async attempt =>
                 {
-                    // Must run on STA thread (UI thread) for WPF Clipboard API
+                    // WPF's Clipboard needs an STA thread; awaited, so no caller blocks the UI thread waiting for it
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
@@ -434,7 +431,7 @@ public class ClipboardService : IClipboardService, IDisposable
 
     private async Task DecodeAndPublishAsync(PendingCapture pending)
     {
-        var clip = await _decoder.DecodeAsync(pending.Formats, pending.ApplicationName);
+        var clip = await DecodeAsync(pending);
         if (clip == null)
         {
             _logger.LogDebug("Clipboard change has nothing to keep");
@@ -442,10 +439,19 @@ public class ClipboardService : IClipboardService, IDisposable
             return;
         }
 
+        await _clipsChannel.Writer.WriteAsync(clip);
+    }
+
+    private async Task<Clip?> DecodeAsync(PendingCapture pending, CancellationToken cancellationToken = default)
+    {
+        var clip = await _decoder.DecodeAsync(pending.Formats, pending.ApplicationName, cancellationToken);
+        if (clip == null)
+            return null;
+
         clip.SourceApplicationName = pending.ApplicationName;
         clip.SourceApplicationTitle = pending.ApplicationTitle;
 
-        await _clipsChannel.Writer.WriteAsync(clip);
+        return clip;
     }
 
     /// <summary>

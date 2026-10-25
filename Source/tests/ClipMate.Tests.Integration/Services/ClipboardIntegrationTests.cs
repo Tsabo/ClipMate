@@ -210,7 +210,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     }
 
     [Test]
-    public async Task ClipboardCoordinator_Stop_ShouldCompleteChannel()
+    public async Task ClipboardCoordinator_Stop_ShouldStopMonitoring()
     {
         // Arrange
         await _coordinator.StartAsync(CancellationToken.None);
@@ -219,7 +219,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await _coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(_clipboardService.ClipsChannel.Completion.IsCompleted).IsTrue();
+        await Assert.That(_clipboardService.IsMonitoring).IsFalse();
     }
 
     [Test]

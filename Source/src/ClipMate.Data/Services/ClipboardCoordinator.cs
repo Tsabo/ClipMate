@@ -127,7 +127,6 @@ public class ClipboardCoordinator : IHostedService,
 
         try
         {
-            // Stop clipboard monitoring (completes the channel)
             await _clipboardService.StopMonitoringAsync();
 
             // Cancel processing and wait for it to finish

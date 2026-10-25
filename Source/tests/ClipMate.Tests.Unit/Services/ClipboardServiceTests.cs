@@ -137,7 +137,7 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
-    public async Task ClipsChannel_ShouldCompleteWhenMonitoringStopped()
+    public async Task ClipsChannel_MonitoringStoppedAndStartedAgain_StaysOpen()
     {
         // Arrange
         var service = CreateClipboardService();
@@ -145,9 +145,27 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Act
         await service.StopMonitoringAsync();
+        await service.StartMonitoringAsync();
 
         // Assert
-        // Channel should be completed
+        await Assert.That(service.IsMonitoring).IsTrue();
+        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsFalse();
+
+        await service.StopMonitoringAsync();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task ClipsChannel_ServiceDisposed_Completes()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        await service.StartMonitoringAsync();
+
+        // Act
+        service.Dispose();
+
+        // Assert
         await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
     }
 
@@ -435,6 +453,40 @@ public class ClipboardServiceTests : TestFixtureBase
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task GetCurrentClipboardContentAsync_CaptureSuspended_DoesNotReadTheClipboard()
+    {
+        // Arrange
+        var win32Mock = CreateTextOffering();
+        using var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
+        service.SuspendCapture();
+
+        // Act
+        var clip = await service.GetCurrentClipboardContentAsync();
+
+        // Assert
+        await Assert.That(clip).IsNull();
+        A.CallTo(() => win32Mock.OpenClipboard(A<HWND>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureClipboardChangeAsync_MonitoringStoppedAndStartedAgain_PublishesTheClip()
+    {
+        // Arrange
+        using var service = CreateClipboardService(CreateTextOffering(), A.Fake<ISoundService>());
+        await service.StartMonitoringAsync();
+        await service.StopMonitoringAsync();
+        await service.StartMonitoringAsync();
+
+        // Act
+        var clip = await CaptureAsync(service);
+
+        // Assert
+        await Assert.That(clip.TextContent).IsEqualTo("Hello");
     }
 
     [Test]

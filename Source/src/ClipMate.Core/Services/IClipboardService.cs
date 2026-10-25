@@ -29,8 +29,8 @@ public interface IClipboardService
     Task StartMonitoringAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Stops monitoring the system clipboard.
-    /// Completes the clips channel, preventing further writes.
+    /// Stops monitoring the system clipboard. The clips channel stays open, so monitoring can start again; it
+    /// completes when the service is disposed.
     /// </summary>
     /// <returns>A task that completes when monitoring has stopped.</returns>
     Task StopMonitoringAsync();

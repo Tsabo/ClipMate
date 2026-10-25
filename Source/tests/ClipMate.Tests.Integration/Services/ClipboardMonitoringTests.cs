@@ -77,7 +77,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task StopMonitoring_ShouldCompleteChannel()
+    public async Task StopMonitoring_ShouldLeaveChannelOpen()
     {
         // Arrange
         var service = CreateClipboardService();
@@ -87,7 +87,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
 
         // Assert
-        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
+        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsFalse();
     }
 
     /// <summary>
