@@ -10,6 +10,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// <summary>
 /// Tests for ExportImportService constructor and initialization.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceConstructorTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -48,6 +49,7 @@ public class ExportImportServiceConstructorTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for flat-file export with Sequential naming strategy.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceSequentialNamingTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -131,6 +133,7 @@ public class ExportImportServiceSequentialNamingTests : ExportImportServiceTests
 /// <summary>
 /// Tests for flat-file export with Serial (GUID) naming strategy.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceSerialNamingTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -189,6 +192,7 @@ public class ExportImportServiceSerialNamingTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for flat-file export with TitleBased naming strategy.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceTitleBasedNamingTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -258,6 +262,7 @@ public class ExportImportServiceTitleBasedNamingTests : ExportImportServiceTests
 /// <summary>
 /// Tests for empty clip collections and edge cases.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceEdgeCaseTests : ExportImportServiceTestsBase
 {
     [Test]

@@ -4,6 +4,7 @@ using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Unit.Helpers;
 
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class OwnClipboardCopyTests
 {
     [Test]

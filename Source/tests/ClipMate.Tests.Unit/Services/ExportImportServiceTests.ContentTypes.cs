@@ -8,6 +8,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// <summary>
 /// Tests for exporting different content types (Image, HTML, RTF, Files).
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -161,6 +162,7 @@ public class ExportImportServiceImageTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for exporting HTML content clips.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceHtmlTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -232,6 +234,7 @@ public class ExportImportServiceHtmlTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for exporting RichText (RTF) content clips.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceRtfTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -304,6 +307,7 @@ public class ExportImportServiceRtfTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for exporting Files-type clips.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceFilesTypeTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -335,6 +339,7 @@ public class ExportImportServiceFilesTypeTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for cancellation token support in export operations.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceCancellationTests : ExportImportServiceTestsBase
 {
     [Test]
@@ -428,6 +433,7 @@ public class ExportImportServiceCancellationTests : ExportImportServiceTestsBase
 /// <summary>
 /// Tests for mixed content type exports.
 /// </summary>
+[NotInParallel(StaTestIsolationTests.StaKey)]
 public class ExportImportServiceMixedContentTests : ExportImportServiceTestsBase
 {
     [Test]
