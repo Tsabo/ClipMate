@@ -222,6 +222,53 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<ClipboardReading?> ReadClipboardAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (_captureSuspended)
+                return null;
+
+            var clipboardThread = await GetClipboardThreadAsync();
+            var snapshot = await await clipboardThread.Dispatcher.InvokeAsync(() => _reader.ReadAsync(clipboardThread.Handle, false));
+            if (snapshot == null)
+                return null;
+
+            var source = GetSourceApplication(snapshot);
+
+            return new ClipboardReading(snapshot.Formats, source.Name, source.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to read the clipboard for Capture Special");
+
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<Clip?> CaptureSpecialAsync(ClipboardReading reading, IReadOnlyCollection<string> formatNames, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(formatNames);
+
+        var chosen = formatNames.Select(ClipboardSnapshotDecoder.ProfileFormat).ToHashSet(StringComparer.Ordinal);
+        var formats = reading.Formats.Where(p => chosen.Contains(ClipboardSnapshotDecoder.ProfileFormat(p.Name))).ToList();
+        if (formats.Count == 0)
+            return null;
+
+        // No Source Application, so no Application Profile applies
+        var clip = await Task.Run(() => _decoder.DecodeAsync(formats, null, false, cancellationToken), cancellationToken);
+        if (clip == null)
+            return null;
+
+        clip.SourceApplicationName = reading.SourceApplicationName;
+        clip.SourceApplicationTitle = reading.SourceApplicationTitle;
+
+        return clip;
+    }
+
+    /// <inheritdoc />
     public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clip);

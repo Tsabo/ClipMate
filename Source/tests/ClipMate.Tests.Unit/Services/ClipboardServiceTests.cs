@@ -568,6 +568,48 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
+    public async Task ReadClipboardAsync_IgnoreFlagPresent_ListsTheFormats()
+    {
+        // Arrange
+        using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>());
+
+        // Act
+        var reading = await service.ReadClipboardAsync();
+
+        // Assert
+        await Assert.That(reading!.Formats.Select(p => p.Name)).IsEquivalentTo(["CF_UNICODETEXT"]);
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CaptureSpecialAsync_ChosenFormats_KeptWhateverTheProfileSays()
+    {
+        // Arrange: a profile that keeps nothing
+        var profileService = A.Fake<IApplicationProfileService>();
+        A.CallTo(() => profileService.IsApplicationProfilesEnabled()).Returns(true);
+        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .Returns((IReadOnlySet<string>?)null);
+        var win32Mock = CreateClipboardOffering(
+            ((uint)Formats.UnicodeText.Code, null, System.Text.Encoding.Unicode.GetBytes("Hello\0")),
+            (0xC123, "Acme Private", [1, 2, 3]),
+            (0xC124, "Acme Other", [4]));
+        GivenClipboardOwner(win32Mock, new HWND(0x10), new HWND(0x11), 101, "notepad", "Untitled - Notepad");
+        using var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
+        var reading = await service.ReadClipboardAsync();
+
+        // Act
+        var clip = await service.CaptureSpecialAsync(reading!, ["CF_UNICODETEXT", "Acme Private"]);
+
+        // Assert
+        await Assert.That(clip!.TextContent).IsEqualTo("Hello");
+        await Assert.That(clip.RawFormats.Select(p => p.Name)).IsEquivalentTo(["Acme Private"]);
+        await Assert.That(clip.SourceApplicationName).IsEqualTo("notepad");
+        A.CallTo(() => profileService.ApplyProfileAsync(A<string>.Ignored, A<IReadOnlyCollection<string>>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task GetCurrentClipboardContentAsync_WhileMonitoring_DoesNotWaitForTheDelayOrSettleGap()
     {
         // Arrange

@@ -176,7 +176,7 @@ internal sealed class ClipboardSnapshotDecoder
 
     // Every image format follows the profile's image setting, the drop effect its file list, and Unicode text and the
     // locale (which ClipMate 7 keeps with any text) its text setting
-    private static string ProfileFormat(string name) => name switch
+    internal static string ProfileFormat(string name) => name switch
     {
         _pngFormat or "CF_DIBV5" => "CF_DIB",
         "CF_UNICODETEXT" or "CF_LOCALE" => "CF_TEXT",

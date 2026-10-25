@@ -16,7 +16,8 @@ namespace ClipMate.Data.Services;
 public class ClipboardCoordinator : IHostedService,
     IRecipient<PreferencesChangedEvent>,
     IRecipient<ToggleAutoCaptureEvent>,
-    IRecipient<ManualCaptureClipboardEvent>
+    IRecipient<ManualCaptureClipboardEvent>,
+    IRecipient<CaptureSpecialRequestedEvent>
 {
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
@@ -49,6 +50,7 @@ public class ClipboardCoordinator : IHostedService,
         _messenger.Register<PreferencesChangedEvent>(this);
         _messenger.Register<ToggleAutoCaptureEvent>(this);
         _messenger.Register<ManualCaptureClipboardEvent>(this);
+        _messenger.Register<CaptureSpecialRequestedEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -169,6 +171,25 @@ public class ClipboardCoordinator : IHostedService,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to manually capture clipboard content");
+        }
+    }
+
+    /// <summary>
+    /// Handles CaptureSpecialRequestedEvent: saves a clip of the chosen Formats, regardless of the Application Profile.
+    /// </summary>
+    public async void Receive(CaptureSpecialRequestedEvent message)
+    {
+        try
+        {
+            var clip = await _clipboardService.CaptureSpecialAsync(message.Reading, message.FormatNames);
+            if (clip != null)
+                await ProcessClipAsync(clip, CancellationToken.None);
+            else
+                _logger.LogDebug("Capture Special: nothing to keep in the chosen formats");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Capture Special failed");
         }
     }
 

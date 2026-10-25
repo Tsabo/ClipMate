@@ -56,7 +56,7 @@ Reducing captured formats speeds up clipboard processing, especially for applica
 
 Use these features to analyze what data applications actually send:
 
-- **Capture Special** - See all available formats when copying
+- **Capture Special** (Edit menu) - Lists every format on the clipboard; tick the ones to capture, regardless of the profile. Text, image, Rich Text and HTML start ticked
 - **Paste Trace** - Analyze paste operations
 
 ## See Also

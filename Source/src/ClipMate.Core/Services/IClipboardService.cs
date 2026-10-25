@@ -51,6 +51,19 @@ public interface IClipboardService
     Task<Clip?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reads every Format on the clipboard for Capture Special, ignoring the ignore flag; null when the clipboard can't
+    /// be read or capture is suspended.
+    /// </summary>
+    Task<ClipboardReading?> ReadClipboardAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Capture Special: the clip of the chosen Formats of <paramref name="reading" />, whatever the Application Profile
+    /// says. Choosing a text, image or file-list Format brings its companions (Unicode/ANSI text and locale, every
+    /// image encoding, the drop effect); null when nothing chosen can be kept.
+    /// </summary>
+    Task<Clip?> CaptureSpecialAsync(ClipboardReading reading, IReadOnlyCollection<string> formatNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sets the system clipboard content from a clip.
     /// </summary>
     /// <param name="clip">The clip to place on the clipboard.</param>
