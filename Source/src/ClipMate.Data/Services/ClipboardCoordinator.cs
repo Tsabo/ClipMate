@@ -1,4 +1,5 @@
 using ClipMate.Core.Events;
+using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
 using ClipMate.Platform;
@@ -76,8 +77,8 @@ public class ClipboardCoordinator : IHostedService,
                 await Task.Delay(TimeSpan.FromSeconds(preferences.StartupDelaySeconds), cancellationToken);
             }
 
-            // Capture existing clipboard content if enabled
-            if (preferences.CaptureExistingClipboardAtStartup)
+            // Capture existing clipboard content if enabled, unless a test copy was started with --no-startup-capture
+            if (preferences.CaptureExistingClipboardAtStartup && !StartupCaptureSwitch.IsSkipped)
             {
                 _logger.LogDebug("Capturing existing clipboard content at startup");
                 try
@@ -100,6 +101,8 @@ public class ClipboardCoordinator : IHostedService,
                     _logger.LogWarning(ex, "Failed to capture existing clipboard content");
                 }
             }
+            else if (preferences.CaptureExistingClipboardAtStartup)
+                _logger.LogInformation("Not capturing the clipboard at startup: started with --no-startup-capture");
 
             // Start clipboard monitoring (on its own clipboard thread)
             await _clipboardService.StartMonitoringAsync(cancellationToken);

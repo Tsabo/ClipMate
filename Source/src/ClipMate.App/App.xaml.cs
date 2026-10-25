@@ -53,6 +53,7 @@ public partial class App
 
         // --data-dir moves settings, databases and logs to another folder; it must apply before anything reads them
         ClipMatePaths.ApplyCommandLine(e.Args);
+        StartupCaptureSwitch.ApplyCommandLine(e.Args);
 
         // Enforce single instance - check if another instance is already running
         using var singleInstanceLoggerFactory = LoggerFactory.Create(builder => builder.AddDebug());

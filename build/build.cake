@@ -387,7 +387,8 @@ Task("Smoke-Test")
     .Does(() =>
 {
     // --exe (default: the configuration's build), --data-dir (default: new folder in %TEMP%; reuse one to keep its
-    // settings), --timeout seconds, --keep-running (leave it running, e.g. to pair two copies)
+    // settings), --timeout seconds, --keep-running (leave it running, e.g. to pair two copies). The copy never captures
+    // what is on the user's clipboard at startup (--no-startup-capture).
     var exe = Argument("exe", BuiltExecutable(appProject).FullPath);
     var dataDir = Argument("data-dir", System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"clipmate-smoke-{Guid.NewGuid():N}"[..23]));
     var timeout = TimeSpan.FromSeconds(Argument("timeout", 90));
@@ -402,7 +403,7 @@ Task("Smoke-Test")
     Information($"Data dir: {dataDir}");
 
     // Shell-launched like a user would, so the app's console output stays out of the build log
-    var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"--data-dir \"{dataDir}\"") { UseShellExecute = true });
+    var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"--data-dir \"{dataDir}\" --no-startup-capture") { UseShellExecute = true });
 
     // The early and configured loggers roll to separate files, so read them all; the app still has them open
     string ReadLog() => !System.IO.Directory.Exists(logDir)
