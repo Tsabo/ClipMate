@@ -111,13 +111,13 @@ public class HotkeyCoordinator
     private void OnScrollNextRequested()
     {
         _logger.LogDebug("Scroll Next hotkey pressed");
-        _messenger.Send(new SelectNextClipEvent());
+        _messenger.Send(new SelectNextClipEvent(FromHotkey: true));
     }
 
     private void OnScrollPreviousRequested()
     {
         _logger.LogDebug("Scroll Previous hotkey pressed");
-        _messenger.Send(new SelectPreviousClipEvent());
+        _messenger.Send(new SelectPreviousClipEvent(FromHotkey: true));
     }
 
     private void OnActivateQuickPasteRequested()

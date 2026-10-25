@@ -311,6 +311,83 @@ public class ClipListViewModelTests
             await Task.Delay(10);
     }
 
+    [Test]
+    public async Task Receive_SelectNextClipFromHotkey_AnnouncesTheClipReached()
+    {
+        // Arrange
+        var messenger = new StrongReferenceMessenger();
+        using var viewModel = CreateViewModel(messenger);
+        viewModel.CurrentDatabaseKey = "db_local";
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(first);
+        viewModel.Clips.Add(second);
+        viewModel.SelectClipWithoutCopying(first.Id);
+        ClipReachedByHotkeyEvent? reached = null;
+        messenger.Register<ClipReachedByHotkeyEvent>(this, (_, message) => reached = message);
+
+        // Act
+        messenger.Send(new SelectNextClipEvent(FromHotkey: true));
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(second);
+        await Assert.That(reached).IsNotNull();
+        await Assert.That(reached!.Clip).IsEqualTo(second);
+        await Assert.That(reached.DatabaseKey).IsEqualTo("db_local");
+    }
+
+    [Test]
+    public async Task Receive_SelectPreviousClipFromHotkey_AnnouncesTheClipReached()
+    {
+        // Arrange
+        var messenger = new StrongReferenceMessenger();
+        using var viewModel = CreateViewModel(messenger);
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(first);
+        viewModel.Clips.Add(second);
+        viewModel.SelectClipWithoutCopying(second.Id);
+        ClipReachedByHotkeyEvent? reached = null;
+        messenger.Register<ClipReachedByHotkeyEvent>(this, (_, message) => reached = message);
+
+        // Act
+        messenger.Send(new SelectPreviousClipEvent(FromHotkey: true));
+
+        // Assert
+        await Assert.That(reached?.Clip).IsEqualTo(first);
+    }
+
+    [Test]
+    public async Task Receive_SelectNextClipInsideAWindow_AnnouncesNothing()
+    {
+        // Arrange
+        var messenger = new StrongReferenceMessenger();
+        using var viewModel = CreateViewModel(messenger);
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+        var announced = false;
+        messenger.Register<ClipReachedByHotkeyEvent>(this, (_, _) => announced = true);
+
+        // Act
+        messenger.Send(new SelectNextClipEvent());
+        messenger.Send(new SelectPreviousClipEvent());
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsNotNull();
+        await Assert.That(announced).IsFalse();
+    }
+
+    private ClipListViewModel CreateViewModel(IMessenger messenger) => new(
+        _mockCollectionService,
+        _mockFolderService,
+        _mockClipService,
+        _mockQuickPasteService,
+        new PowerPasteStatus(),
+        _mockContextFactory,
+        _mockRemoteDatabases,
+        messenger,
+        _mockLogger);
+
     private ClipListViewModel CreateViewModel() => new(
         _mockCollectionService,
         _mockFolderService,

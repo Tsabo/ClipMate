@@ -585,7 +585,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public void Receive(SelectNextClipEvent message)
     {
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             if (Clips.Count == 0)
                 return;
@@ -594,16 +594,7 @@ public partial class ClipListViewModel : ObservableObject,
                 ? Clips.IndexOf(SelectedClip)
                 : -1;
 
-            var nextIndex = (currentIndex + 1) % Clips.Count;
-            var nextClip = Clips[nextIndex];
-
-            SelectedClip = nextClip;
-
-            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
-            // SelectedClip alone drives clipboard "flip" logic; SelectedClips is what the
-            // DevExpress grid's row highlight is actually bound to (see GridControlSelectionSync).
-            SelectedClips.Clear();
-            SelectedClips.Add(nextClip);
+            MoveTo(Clips[(currentIndex + 1) % Clips.Count], message.FromHotkey);
         });
     }
 
@@ -612,7 +603,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public void Receive(SelectPreviousClipEvent message)
     {
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             if (Clips.Count == 0)
                 return;
@@ -625,14 +616,26 @@ public partial class ClipListViewModel : ObservableObject,
                 ? Clips.Count - 1
                 : currentIndex - 1;
 
-            var previousClip = Clips[previousIndex];
-
-            SelectedClip = previousClip;
-
-            // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
-            SelectedClips.Clear();
-            SelectedClips.Add(previousClip);
+            MoveTo(Clips[previousIndex], message.FromHotkey);
         });
+    }
+
+    /// <summary>
+    /// Moves the selection to <paramref name="clip" /> for Scroll Next / Previous, announcing it when a hotkey asked, so
+    /// the hotkey navigation popup can show it.
+    /// </summary>
+    private void MoveTo(Clip clip, bool fromHotkey)
+    {
+        SelectedClip = clip;
+
+        // Keep the grid's highlighted/selected row in sync with the navigated-to clip.
+        // SelectedClip alone drives clipboard "flip" logic; SelectedClips is what the
+        // DevExpress grid's row highlight is actually bound to (see GridControlSelectionSync).
+        SelectedClips.Clear();
+        SelectedClips.Add(clip);
+
+        if (fromHotkey)
+            _messenger.Send(new ClipReachedByHotkeyEvent(clip, CurrentDatabaseKey));
     }
 
     /// <summary>
