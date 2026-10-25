@@ -536,7 +536,10 @@ public class ClipboardCoordinator : IHostedService,
             wasDuplicate,
             activeDatabaseKey,
             savedClip.CollectionId,
-            savedClip.FolderId);
+            savedClip.FolderId)
+        {
+            Captured = true,
+        };
 
         _messenger.Send(clipAddedEvent);
 

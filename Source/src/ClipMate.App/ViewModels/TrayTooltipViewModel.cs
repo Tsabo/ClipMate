@@ -51,9 +51,13 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
     } = _appName;
 
     /// <summary>
-    /// A captured clip becomes the Current Clip.
+    /// A captured clip becomes the Current Clip; one ClipMate made without the clipboard (Append Clips) does not.
     /// </summary>
-    public void Receive(ClipAddedEvent message) => SetCurrentClip(message.Clip);
+    public void Receive(ClipAddedEvent message)
+    {
+        if (message.Captured)
+            SetCurrentClip(message.Clip);
+    }
 
     /// <summary>
     /// A clip ClipMate put on the clipboard (picked, reached with the Scroll Next / Previous hotkeys, QuickPasted,

@@ -44,7 +44,7 @@ public class TrayTooltipViewModelTests
     public async Task Text_ClipCaptured_ShowsItsTitle()
     {
         // Act
-        _messenger.Send(new ClipAddedEvent(new Clip { Title = "Meeting notes" }, false, "db"));
+        _messenger.Send(new ClipAddedEvent(new Clip { Title = "Meeting notes" }, false, "db") { Captured = true });
 
         // Assert
         await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
@@ -54,13 +54,26 @@ public class TrayTooltipViewModelTests
     public async Task Text_ClipPutOnTheClipboard_ShowsItsTitle()
     {
         // Arrange
-        _messenger.Send(new ClipAddedEvent(new Clip { Title = "Meeting notes" }, false, "db"));
+        _messenger.Send(new ClipAddedEvent(new Clip { Title = "Meeting notes" }, false, "db") { Captured = true });
 
         // Act: picked in a ClipMate window, or reached with the Scroll Next / Previous hotkeys
         _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = "Shopping list" }));
 
         // Assert
         await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Shopping list");
+    }
+
+    [Test]
+    public async Task Text_ClipAddedWithoutTheClipboard_StillShowsTheCurrentClip()
+    {
+        // Arrange
+        _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = "Meeting notes" }));
+
+        // Act: Append Clips saves the appended clip without putting it on the clipboard
+        _messenger.Send(new ClipAddedEvent(new Clip { Title = "Appended" }, false, "db"));
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
     }
 
     [Test]
