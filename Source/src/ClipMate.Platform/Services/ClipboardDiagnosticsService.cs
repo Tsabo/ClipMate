@@ -136,8 +136,24 @@ public sealed class ClipboardDiagnosticsService : IClipboardDiagnosticsService
         return false;
     }
 
+    /// <summary>
+    /// Whether the clipboard hands out <paramref name="format" /> as global memory. Bitmaps, palettes, enhanced
+    /// metafiles and the GDI object range are GDI handles, and owner display has no data: passing any of those to
+    /// GlobalSize corrupts the heap and ends the process.
+    /// </summary>
+    internal static bool HoldsGlobalMemory(uint format) => format switch
+    {
+        2 or 9 or 14 => false, // CF_BITMAP, CF_PALETTE, CF_ENHMETAFILE
+        0x80 or 0x82 or 0x8E => false, // CF_OWNERDISPLAY, CF_DSPBITMAP, CF_DSPENHMETAFILE
+        >= 0x300 and <= 0x3FF => false, // CF_GDIOBJFIRST..CF_GDIOBJLAST
+        _ => true,
+    };
+
     private static unsafe long? GetClipboardDataSize(uint format)
     {
+        if (!HoldsGlobalMemory(format))
+            return null;
+
         var hData = PInvoke.GetClipboardData(format);
         if (hData == HANDLE.Null)
             return null;
