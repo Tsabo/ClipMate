@@ -4,7 +4,7 @@ using ClipMate.Core.Models;
 namespace ClipMate.Data.Repositories;
 
 /// <summary>
-/// Writes a clip's transient content (TextContent, RtfContent, HtmlContent, ImageData, FilePathsJson)
+/// Writes a clip's transient content (TextContent, RtfContent, HtmlContent, ImageData, FilePathsJson, RawFormats)
 /// into ClipData and BLOB table entries on a DbContext. Shared by clip capture and database import.
 /// </summary>
 internal static class ClipContentStorage
@@ -191,6 +191,30 @@ internal static class ClipContentStorage
                     Data = BitConverter.GetBytes(dropEffect),
                 });
             }
+        }
+
+        // Every other Format the source offered, raw and in its order
+        foreach (var item in clip.RawFormats)
+        {
+            var clipData = new ClipData
+            {
+                Id = Guid.NewGuid(),
+                ClipId = clip.Id,
+                FormatName = item.Name,
+                Format = (int)item.Code,
+                Size = item.Data.Length,
+                StorageType = StorageType.Binary,
+            };
+
+            clipDataEntries.Add(clipData);
+
+            context.BlobBlob.Add(new BlobBlob
+            {
+                Id = Guid.NewGuid(),
+                ClipDataId = clipData.Id,
+                ClipId = clip.Id,
+                Data = item.Data,
+            });
         }
 
         // Add all ClipData entries

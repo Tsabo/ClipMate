@@ -54,7 +54,7 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 | `Build-Docs` | Build Docusaurus documentation site |
 | `Prepare-Worktree` | Copy the gitignored font and Monaco assets from the main checkout into a fresh git worktree |
 | `Smoke-Test` | Start ClipMate against a temporary `--data-dir` and check it finishes startup (`--exe`, `--data-dir`, `--timeout`, `--keep-running`) |
-| `UI-Test` | Run `Source/tests/ClipMate.UITests` (not in CI; uses the real clipboard; `--test-filter`) |
+| `UI-Test` | Run `Source/tests/ClipMate.UITests` (not in CI; uses the real clipboard; `--test-filter`). Prints the totals and each failure's first lines; the full output goes to `build/logs/ui-test-*.log` (`--full-output` streams it instead) |
 | `CI` | Full CI build (build + test) |
 | `Release` | Full release build with installer |
 

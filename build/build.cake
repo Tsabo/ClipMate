@@ -546,22 +546,60 @@ Task("UI-Test")
     // --test-filter narrows the run with a TUnit tree filter, e.g. "/*/*/ClipboardFileDropRoundTripTests/*"
     var uiTestsProject = sourceDir.CombineWithFilePath("tests/ClipMate.UITests/ClipMate.UITests.csproj");
     var filter = Argument("test-filter", "");
+    var fullOutput = HasArgument("full-output");
 
     DotNetBuild(uiTestsProject.FullPath, new DotNetBuildSettings
     {
         Configuration = configuration,
+        Verbosity = DotNetVerbosity.Quiet,
         ArgumentCustomization = args => string.IsNullOrEmpty(artifactsPath)
             ? args
             : args.Append("--artifacts-path").AppendQuoted(MakeAbsolute(Directory(artifactsPath)).FullPath),
     });
 
     var exe = BuiltExecutable(uiTestsProject);
-    var exitCode = StartProcess(exe, new ProcessSettings
+    var processSettings = new ProcessSettings
     {
         Arguments = string.IsNullOrEmpty(filter) ? "" : $"--treenode-filter \"{filter}\"",
         WorkingDirectory = exe.GetDirectory(),
-    });
+        RedirectStandardOutput = !fullOutput,
+        RedirectStandardError = !fullOutput,
+    };
 
+    if (fullOutput)
+    {
+        if (StartProcess(exe, processSettings) != 0)
+            throw new Exception("UI tests failed");
+
+        return;
+    }
+
+    // The full output runs to thousands of lines; print the outcome and each failure's first lines, keep the rest in a log
+    var exitCode = StartProcess(exe, processSettings, out var standardOutput, out var standardError);
+    var lines = standardOutput.Concat(standardError).ToList();
+    EnsureDirectoryExists(logsDir);
+    var log = logsDir.CombineWithFilePath($"ui-test-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+    System.IO.File.WriteAllLines(log.FullPath, lines);
+
+    for (var i = 0; i < lines.Count; i++)
+    {
+        var line = lines[i].Trim();
+        if (!line.StartsWith("failed ", StringComparison.Ordinal))
+            continue;
+
+        Information(line);
+        foreach (var detail in lines.Skip(i + 1).Take(12).Select(p => p.Trim())
+                     .Where(p => p.Contains("Exception", StringComparison.Ordinal) || p.StartsWith("Expected", StringComparison.Ordinal) ||
+                                 p.StartsWith("but ", StringComparison.Ordinal) || p.StartsWith("at ClipMate.UITests.Tests", StringComparison.Ordinal))
+                     .Take(4))
+            Information($"    {detail}");
+    }
+
+    foreach (var line in lines.Select(p => p.Trim()).Where(p => p.StartsWith("total:") || p.StartsWith("failed:") ||
+                                                                 p.StartsWith("succeeded:") || p.StartsWith("skipped:")))
+        Information(line);
+
+    Information($"Full output: {log.FullPath}");
     if (exitCode != 0)
         throw new Exception($"UI tests failed with exit code {exitCode}");
 });

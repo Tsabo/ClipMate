@@ -13,10 +13,10 @@ Application Profiles prevent ClipMate from being overwhelmed by unwanted data. M
 
 ClipMate's Application Profiles let you determine which formats to capture on an **application-by-application basis**:
 
-1. When you first copy from any application, ClipMate examines the data formats
-2. ClipMate creates an entry in the Application Profile list
-3. Default settings are applied based on the data formats seen
-4. You can override settings at any time
+1. The first time you copy from an application, ClipMate creates its profile and records every format it sees. Applications ClipMate knows (such as Explorer, Word, Excel, Access and Firefox) get settings suited to them; any other application starts with HTML and text on, or the image when there is no text
+2. Each format an application offers is checked against its profile, and the formats switched off aren't stored
+3. When an application offers a format its profile doesn't list yet, ClipMate adds it: text and Rich Text start on, any other format starts off
+4. You can override settings at any time; Capture Special captures any format regardless of the profile
 
 **Example:** If your word processor sends Text, Rich Text Format, and Picture, but you only need Text, disable the other formats to save storage space.
 
@@ -56,7 +56,7 @@ Reducing captured formats speeds up clipboard processing, especially for applica
 
 Use these features to analyze what data applications actually send:
 
-- **Capture Special** - See all available formats when copying
+- **Capture Special** (Edit menu) - Lists every format on the clipboard; tick the ones to capture, regardless of the profile. Text, image, Rich Text and HTML start ticked
 - **Paste Trace** - Analyze paste operations
 
 ## See Also

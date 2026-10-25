@@ -57,4 +57,28 @@ public class ContentHasherTests
     {
         await Assert.That(ContentHasher.HashClip(new Clip())).IsEqualTo(string.Empty);
     }
+
+    [Test]
+    public async Task HashClip_KnownFormatWithRawFormats_HashesOnlyTheKnownFormat()
+    {
+        var clip = new Clip { TextContent = "hello", RawFormats = [new RawClipboardFormat("CF_LOCALE", 16, [9, 4, 0, 0])] };
+
+        await Assert.That(ContentHasher.HashClip(clip)).IsEqualTo(ContentHasher.HashText("hello"));
+    }
+
+    [Test]
+    public async Task HashClip_OnlyRawFormats_HashesAllOfThem()
+    {
+        // An application that offers only its private formats is still recognised as a duplicate
+        RawClipboardFormat first = new("Acme Private", 0xC100, [1, 2, 3]);
+        RawClipboardFormat second = new("Acme Other", 0xC101, [4]);
+
+        var hash = ContentHasher.HashClip(new Clip { RawFormats = [first, second] });
+        var sameAgain = ContentHasher.HashClip(new Clip { RawFormats = [first with { Code = 0xC200 }, second] });
+        var otherData = ContentHasher.HashClip(new Clip { RawFormats = [first, second with { Data = [5] }] });
+
+        await Assert.That(hash).IsNotEqualTo(string.Empty);
+        await Assert.That(sameAgain).IsEqualTo(hash);
+        await Assert.That(otherData).IsNotEqualTo(hash);
+    }
 }

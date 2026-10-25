@@ -32,12 +32,14 @@ public class ClipboardTextAndImageRoundTripTests(AppFixture appFixture)
         var backup = SystemClipboard.Backup();
         try
         {
+            TestProgramProfile.Write(appFixture, "CF_DIB");
             await appFixture.StartAppAsync();
             var clipList = new ClipListPage(appFixture.Process);
 
             // Arrange: the image plus its filename as text, as a screenshot tool copies it. The bitmap is created on the
             // clipboard's STA thread: a WPF bitmap can't cross threads unless frozen.
-            SystemClipboard.OnSta(() =>
+            using var source = await ForegroundTestWindow.OpenAsync();
+            source.Copy(() =>
             {
                 var copy = new DataObject();
                 copy.SetImage(BitmapFrame.Create(new MemoryStream(png)));
@@ -45,7 +47,7 @@ public class ClipboardTextAndImageRoundTripTests(AppFixture appFixture)
                     copy.SetData("PNG", new MemoryStream(png));
 
                 copy.SetText(_fileName);
-                Clipboard.SetDataObject(copy, true);
+                return copy;
             });
 
             var stored = await Poll.UntilAsync(ReadStoredFormatNamesOfClip, "ClipMate to capture the screenshot");

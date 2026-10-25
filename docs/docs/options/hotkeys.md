@@ -48,7 +48,7 @@ Some combinations are unwise:
 | **View Clip In Floating Window** | Open floating view/edit window |
 | **Pop-Up ClipBar List** | Show ClipBar dropdown (keyboard access to ClipList) |
 | **Toggle Auto-Capture** | Suspend/resume automatic clipboard capture |
-| **Manual Capture** | Capture current clipboard (useful when auto-capture is off) |
+| **Manual Capture** | Capture current clipboard, even when auto-capture is off or the application is switched off in its Application Profile; the profile's format settings still apply |
 | **Manual Filter** | Filter clipboard immediately, keeping only plain text or bitmap |
 
 ## Tip: Floating Window

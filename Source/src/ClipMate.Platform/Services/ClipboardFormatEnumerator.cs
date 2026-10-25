@@ -28,12 +28,6 @@ public sealed class ClipboardFormatEnumerator : IClipboardFormatEnumerator
 
         try
         {
-            // BUGFIX: Small delay to allow clipboard owner to finish writing formats
-            // Some applications (like SnagitEditor) write formats asynchronously after WM_CLIPBOARDUPDATE fires
-            // Without this delay, EnumClipboardFormats may return 0 formats even though formats are being written
-            // 100ms is a balance between waiting for slow apps and not delaying normal clipboard operations
-            Thread.Sleep(100);
-
             // Try to open the clipboard with retry logic (clipboard may be locked by another app)
             const int maxRetries = 5;
             const int delayMs = 10;

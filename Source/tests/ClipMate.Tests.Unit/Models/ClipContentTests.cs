@@ -31,4 +31,37 @@ public class ClipContentTests
         await Assert.That(target.TextContent).IsEqualTo("capture.png");
         await Assert.That(target.ImageData).IsEquivalentTo(png);
     }
+
+    [Test]
+    public async Task PopulateContent_StoredRawFormats_LoadsThemButNotTheFileListOrDropEffect()
+    {
+        // Arrange: text copied with an application's private format and CF_LOCALE, plus a file list and its drop effect
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text };
+        var text = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, FormatName = Formats.UnicodeText.Name, Format = Formats.UnicodeText.Code, StorageType = StorageType.Text };
+        var files = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, FormatName = Formats.HDrop.Name, Format = Formats.HDrop.Code, StorageType = StorageType.Binary };
+        var dropEffect = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, FormatName = Formats.PreferredDropEffect.Name, Format = Formats.PreferredDropEffect.Code, StorageType = StorageType.Binary };
+        var privateFormat = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, FormatName = "Acme Private", Format = 0xC123, StorageType = StorageType.Binary };
+        var locale = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, FormatName = "CF_LOCALE", Format = Formats.Locale.Code, StorageType = StorageType.Binary };
+
+        var content = new ClipContent(clip, [text, files, dropEffect, privateFormat, locale],
+            [new BlobTxt { ClipId = clip.Id, ClipDataId = text.Id, Data = "hello" }],
+            [],
+            [],
+            [
+                new BlobBlob { ClipId = clip.Id, ClipDataId = files.Id, Data = "[\"C:\\\\a.txt\"]"u8.ToArray() },
+                new BlobBlob { ClipId = clip.Id, ClipDataId = dropEffect.Id, Data = BitConverter.GetBytes(2) },
+                new BlobBlob { ClipId = clip.Id, ClipDataId = locale.Id, Data = [9, 4, 0, 0] },
+                new BlobBlob { ClipId = clip.Id, ClipDataId = privateFormat.Id, Data = [1, 2, 3] },
+            ]);
+
+        // Act
+        var target = new Clip { Id = clip.Id, Type = ClipType.Text };
+        content.PopulateContent(target);
+
+        // Assert: in the order of the stored formats
+        await Assert.That(target.RawFormats.Select(p => p.Name)).IsEquivalentTo(["Acme Private", "CF_LOCALE"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(target.RawFormats[0].Code).IsEqualTo(0xC123u);
+        await Assert.That(target.RawFormats[0].Data).IsEquivalentTo(new byte[] { 1, 2, 3 });
+        await Assert.That(target.FileDropEffect).IsEqualTo(2);
+    }
 }

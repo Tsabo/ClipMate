@@ -3,8 +3,10 @@ using System.Diagnostics;
 using System.Windows.Interop;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
@@ -99,9 +101,14 @@ public sealed class PasteTraceService : IPasteTraceService, IDisposable
                 // Note: We're just tracking which formats are requested, not actually providing data
                 foreach (var (formatId, formatName) in _registeredFormats)
                 {
+                    if (formatName == ClipboardIgnoreFormats.ClipboardViewerIgnore)
+                        continue;
+
                     PInvoke.SetClipboardData(formatId, new HANDLE(IntPtr.Zero));
                     _logger.LogDebug("Registered delayed rendering for format {FormatId} ({FormatName})", formatId, formatName);
                 }
+
+                OwnClipboardCopy.MarkOpenClipboard();
             }
             finally
             {

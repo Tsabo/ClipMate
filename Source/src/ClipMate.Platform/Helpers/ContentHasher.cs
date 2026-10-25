@@ -85,6 +85,11 @@ public static class ContentHasher
         if (!string.IsNullOrEmpty(clip.FilePathsJson))
             formats.Add(("FILES", HashText(clip.FilePathsJson + (clip.FileDropEffect is { } effect ? $"|{effect}" : ""))));
 
+        // A clip with none of those (e.g. only an application's private formats) is fingerprinted by its raw formats;
+        // their codes are left out because a registered format's code changes between Windows sessions
+        if (formats.Count == 0 && clip.RawFormats.Count > 0)
+            return HashText(string.Join("\n", clip.RawFormats.Select(p => $"{p.Name}:{HashBytes(p.Data)}")));
+
         return formats.Count switch
         {
             0 => string.Empty,

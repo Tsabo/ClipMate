@@ -1,4 +1,3 @@
-using System.Windows;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services;
@@ -17,7 +16,8 @@ namespace ClipMate.Data.Services;
 public class ClipboardCoordinator : IHostedService,
     IRecipient<PreferencesChangedEvent>,
     IRecipient<ToggleAutoCaptureEvent>,
-    IRecipient<ManualCaptureClipboardEvent>
+    IRecipient<ManualCaptureClipboardEvent>,
+    IRecipient<CaptureSpecialRequestedEvent>
 {
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
@@ -50,6 +50,7 @@ public class ClipboardCoordinator : IHostedService,
         _messenger.Register<PreferencesChangedEvent>(this);
         _messenger.Register<ToggleAutoCaptureEvent>(this);
         _messenger.Register<ManualCaptureClipboardEvent>(this);
+        _messenger.Register<CaptureSpecialRequestedEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -81,7 +82,7 @@ public class ClipboardCoordinator : IHostedService,
                 _logger.LogDebug("Capturing existing clipboard content at startup");
                 try
                 {
-                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync(cancellationToken);
+                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup, cancellationToken);
                     if (existingClip != null)
                     {
                         _logger.LogInformation("Captured existing clipboard content: Type={ClipType}", existingClip.Type);
@@ -100,20 +101,8 @@ public class ClipboardCoordinator : IHostedService,
                 }
             }
 
-            // Start clipboard monitoring
-            // Check if we have an Application dispatcher (UI thread), otherwise start directly
-            if (Application.Current?.Dispatcher != null)
-            {
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    _clipboardService.StartMonitoringAsync(cancellationToken);
-                });
-            }
-            else
-            {
-                // No dispatcher available (e.g., in tests), start directly
-                await _clipboardService.StartMonitoringAsync(cancellationToken);
-            }
+            // Start clipboard monitoring (on its own clipboard thread)
+            await _clipboardService.StartMonitoringAsync(cancellationToken);
 
             // Start background task to process clips from channel (if not already started)
             if (_processingTask == null)
@@ -140,7 +129,6 @@ public class ClipboardCoordinator : IHostedService,
 
         try
         {
-            // Stop clipboard monitoring (completes the channel)
             await _clipboardService.StopMonitoringAsync();
 
             // Cancel processing and wait for it to finish
@@ -171,7 +159,7 @@ public class ClipboardCoordinator : IHostedService,
         {
             _logger.LogInformation("Manual clipboard capture requested");
 
-            var clip = await _clipboardService.GetCurrentClipboardContentAsync();
+            var clip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
             if (clip != null)
             {
                 _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);
@@ -183,6 +171,25 @@ public class ClipboardCoordinator : IHostedService,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to manually capture clipboard content");
+        }
+    }
+
+    /// <summary>
+    /// Handles CaptureSpecialRequestedEvent: saves a clip of the chosen Formats, regardless of the Application Profile.
+    /// </summary>
+    public async void Receive(CaptureSpecialRequestedEvent message)
+    {
+        try
+        {
+            var clip = await _clipboardService.CaptureSpecialAsync(message.Reading, message.FormatNames);
+            if (clip != null)
+                await ProcessClipAsync(clip, CancellationToken.None);
+            else
+                _logger.LogDebug("Capture Special: nothing to keep in the chosen formats");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Capture Special failed");
         }
     }
 
@@ -200,15 +207,7 @@ public class ClipboardCoordinator : IHostedService,
             try
             {
                 // Start monitoring
-                if (Application.Current?.Dispatcher != null)
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        _clipboardService.StartMonitoringAsync(CancellationToken.None);
-                    });
-                }
-                else
-                    await _clipboardService.StartMonitoringAsync(CancellationToken.None);
+                await _clipboardService.StartMonitoringAsync(CancellationToken.None);
 
                 // Start processing task if not already running
                 if (_processingTask == null || _processingTask.IsCompleted)
@@ -268,22 +267,9 @@ public class ClipboardCoordinator : IHostedService,
                 _cts = new CancellationTokenSource();
                 _processingTask = ProcessClipsAsync(_cts.Token);
 
-                // Start clipboard monitoring on UI thread
-                if (Application.Current?.Dispatcher != null)
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(async () =>
-                    {
-                        await _clipboardService.StartMonitoringAsync(_cts.Token);
-                        _isMonitoring = true;
-                        _messenger.Send(new StateRefreshRequestedEvent());
-                    });
-                }
-                else
-                {
-                    await _clipboardService.StartMonitoringAsync(_cts.Token);
-                    _isMonitoring = true;
-                    _messenger.Send(new StateRefreshRequestedEvent());
-                }
+                await _clipboardService.StartMonitoringAsync(_cts.Token);
+                _isMonitoring = true;
+                _messenger.Send(new StateRefreshRequestedEvent());
             }
         }
         catch (Exception ex)
@@ -510,8 +496,8 @@ public class ClipboardCoordinator : IHostedService,
             // Check if collection accepts duplicates
             if (activeCollection is { AcceptDuplicates: false })
             {
-                _logger.LogDebug(
-                    "Duplicate clip detected and collection does not accept duplicates, ignoring: {ExistingId}",
+                _logger.LogInformation(
+                    "Not saving a duplicate clip: the collection does not accept duplicates ({ExistingId})",
                     existing.Id);
 
                 await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);

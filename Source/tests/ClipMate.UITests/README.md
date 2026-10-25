@@ -53,16 +53,19 @@ ClipMate.UITests/
 │   └── CollectionTreePage.cs     # Collection tree via WPF Pilot
 ├── Tests/
 │   ├── AutoTargetingTests.cs                # Runs: switch between two windows, open ClipMate, QuickPaste into the last one
+│   ├── CaptureTimingTests.cs                # Runs: formats written one at a time are captured once; a slow source doesn't freeze the window
 │   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
 │   ├── PowerPasteTests.cs                   # Runs: paste detection, and the clipboard after Power Paste ends
 │   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
 └── Fixtures/
     ├── AppFixture.cs             # Starts an isolated ClipMate (--data-dir) and waits for startup
+    ├── ClipboardTestProgram.cs   # Another program that copies in steps or renders its data slowly
     ├── Foreground.cs             # Switches the foreground window and presses keys, as a user would
     ├── ForegroundTestWindow.cs   # A test window in the foreground, to paste as the user's application
     ├── Poll.cs                   # Waits on another process until a deadline
     ├── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
-    └── TestAppWindow.cs          # A window in another process to paste into, with its text read back
+    ├── TestAppWindow.cs          # A window in another process to paste into, with its text read back
+    └── TestProgramProfile.cs     # The test program's Application Profile, written before ClipMate starts
 ```
 
 ## Writing New Tests
@@ -103,6 +106,20 @@ public class PickClipTests(AppFixture appFixture)
 `ClipListPage` documents how rows behave: titles are truncated (match long content by its icon), the grid recreates
 rows when a clip arrives (`SelectAsync` looks the row up afresh), and ClipMate copies a newly captured clip back by
 itself, which can overwrite what a test just put on the clipboard.
+
+### Copying as another program
+
+- Copy with `ForegroundTestWindow.Copy` and keep the window open until the test ends. A copy made on
+  `SystemClipboard.OnSta`'s short-lived thread has no clipboard owner by the time ClipMate reads it, so ClipMate takes
+  the Source Application from whatever window is in the foreground. When a copying thread ends, OLE also puts the copy
+  on the clipboard again, which ClipMate captures as a new change.
+- The test program gets an Application Profile on its first copy, with ClipMate 7's defaults: images (when there is
+  text), file lists and private formats start off. `TestProgramProfile.Write` switches formats on before ClipMate starts.
+
+### Remote Desktop
+
+In a Remote Desktop session the client (`msrdc`) reads the clipboard on every change, opening it several times. Tests
+that count clipboard reads, such as Power Paste's paste detection, see these as background reads.
 
 ## Troubleshooting
 

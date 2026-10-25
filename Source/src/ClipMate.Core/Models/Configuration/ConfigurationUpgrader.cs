@@ -10,7 +10,7 @@ public static class ConfigurationUpgrader
     /// <summary>
     /// The version this ClipMate writes. New settings start at it.
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     private const string _ctfmonBadTarget = "CTFMON:";
 
@@ -29,6 +29,9 @@ public static class ConfigurationUpgrader
         if (configuration.Version < 2)
             AddCtfmonToBadTargets(configuration.Preferences);
 
+        if (configuration.Version < 3)
+            MoveCaptureDelayToDelayOnClipboardUpdate(configuration.Preferences);
+
         configuration.Version = CurrentVersion;
 
         return true;
@@ -39,5 +42,14 @@ public static class ConfigurationUpgrader
     {
         if (!preferences.QuickPasteBadTargets.Contains(_ctfmonBadTarget, StringComparer.OrdinalIgnoreCase))
             preferences.QuickPasteBadTargets = [.. preferences.QuickPasteBadTargets, _ctfmonBadTarget];
+    }
+
+    // Version 3: the capture delay became ClipMate 7's delay on clipboard update; the old settle time is dropped
+    private static void MoveCaptureDelayToDelayOnClipboardUpdate(PreferencesConfiguration preferences)
+    {
+        if (preferences.LegacyCaptureDelayMs is { } captureDelayMs)
+            preferences.DelayOnClipboardUpdateMs = captureDelayMs;
+
+        preferences.LegacyCaptureDelayMs = null;
     }
 }

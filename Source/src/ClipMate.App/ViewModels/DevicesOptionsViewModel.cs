@@ -4,10 +4,10 @@ using System.Net;
 using ClipMate.App.Services;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Clipboard = System.Windows.Clipboard;
 
 namespace ClipMate.App.ViewModels;
 
@@ -400,7 +400,7 @@ public partial class DevicesOptionsViewModel : ObservableObject
     {
         try
         {
-            Clipboard.SetText(DeviceId!);
+            OwnClipboardCopy.SetText(DeviceId!);
         }
         catch (Exception ex)
         {

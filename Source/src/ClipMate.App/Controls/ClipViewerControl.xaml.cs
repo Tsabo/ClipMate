@@ -1520,7 +1520,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var selectedText = await TextEditor.GetSelectedTextAsync();
             if (!string.IsNullOrEmpty(selectedText))
             {
-                Clipboard.SetText(selectedText);
+                OwnClipboardCopy.SetText(selectedText);
                 await TextEditor.ReplaceSelectionAsync(string.Empty);
                 _logger.LogDebug("Cut {Length} characters", selectedText.Length);
             }
@@ -1538,7 +1538,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             var selectedText = await TextEditor.GetSelectedTextAsync();
             if (!string.IsNullOrEmpty(selectedText))
             {
-                Clipboard.SetText(selectedText);
+                OwnClipboardCopy.SetText(selectedText);
                 _logger.LogDebug("Copied {Length} characters", selectedText.Length);
             }
         }

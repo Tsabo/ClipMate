@@ -6,6 +6,7 @@ using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Windows.Win32.Foundation;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -76,7 +77,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task StopMonitoring_ShouldCompleteChannel()
+    public async Task StopMonitoring_ShouldLeaveChannelOpen()
     {
         // Arrange
         var service = CreateClipboardService();
@@ -86,7 +87,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         await service.StopMonitoringAsync();
 
         // Assert
-        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsTrue();
+        await Assert.That(service.ClipsChannel.Completion.IsCompleted).IsFalse();
     }
 
     /// <summary>
@@ -96,14 +97,12 @@ public class ClipboardMonitoringTests : IntegrationTestBase
     {
         var logger = A.Fake<ILogger<ClipboardService>>();
         var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
+        A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
 
         // Mock IApplicationProfileService (disabled by default)
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
-
-        // Mock IClipboardFormatEnumerator
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
 
         var soundService = A.Fake<ISoundService>();
         A.CallTo(() => soundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
@@ -114,6 +113,6 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, soundService, blobCacheServiceMock);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock);
     }
 }

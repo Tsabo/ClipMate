@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Windows.Win32.Foundation;
 using CoreApplicationProfile = ClipMate.Core.Models.ApplicationProfile;
 
 namespace ClipMate.Tests.Integration.Services;
@@ -61,10 +62,10 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Setup ClipboardService first (needed by ClipService)
         var win32Mock = A.Fake<IWin32ClipboardInterop>();
+        A.CallTo(() => win32Mock.AddClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
+        A.CallTo(() => win32Mock.RemoveClipboardFormatListener(A<HWND>.Ignored)).Returns(true);
         var profileServiceMock = A.Fake<IApplicationProfileService>();
         A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats()).Returns(new List<ClipboardFormatInfo>());
         var clipboardSoundService = A.Fake<ISoundService>();
         A.CallTo(() => clipboardSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
@@ -75,7 +76,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => configServiceMock.Configuration).Returns(clipboardConfig);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, formatEnumeratorMock, clipboardSoundService, blobCacheServiceMock);
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, clipboardSoundService, blobCacheServiceMock);
 
         var clipServiceLogger = A.Fake<ILogger<ClipService>>();
 
@@ -209,7 +210,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     }
 
     [Test]
-    public async Task ClipboardCoordinator_Stop_ShouldCompleteChannel()
+    public async Task ClipboardCoordinator_Stop_ShouldStopMonitoring()
     {
         // Arrange
         await _coordinator.StartAsync(CancellationToken.None);
@@ -218,7 +219,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await _coordinator.StopAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(_clipboardService.ClipsChannel.Completion.IsCompleted).IsTrue();
+        await Assert.That(_clipboardService.IsMonitoring).IsFalse();
     }
 
     [Test]
@@ -267,113 +268,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     }
 
     #region Application Profiles Integration Tests
-
-    [Test]
-    [Category("Integration")]
-    [Category("ApplicationProfiles")]
-    public Task ApplicationProfiles_WhenDisabled_ShouldCaptureAllFormats()
-    {
-        // Arrange - Mock with profiles disabled
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(false);
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        var formatEnumeratorMock = A.Fake<IClipboardFormatEnumerator>();
-        A.CallTo(() => formatEnumeratorMock.GetAllAvailableFormats())
-            .Returns(new List<ClipboardFormatInfo>
-            {
-                new("TEXT", 1),
-                new("HTML Format", 49352),
-                new("Rich Text Format", 49353),
-            });
-
-        var win32Mock = A.Fake<IWin32ClipboardInterop>();
-        var clipboardLogger = A.Fake<ILogger<ClipboardService>>();
-        var testSoundService = A.Fake<ISoundService>();
-        A.CallTo(() => testSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
-
-        // Create configuration mock with default timing values
-        var testConfigServiceMock = A.Fake<IConfigurationService>();
-        var testConfig = new ClipMateConfiguration();
-        A.CallTo(() => testConfigServiceMock.Configuration).Returns(testConfig);
-
-        var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        using var testClipboardService = new ClipboardService(clipboardLogger, win32Mock, testConfigServiceMock, profileServiceMock, formatEnumeratorMock, testSoundService, blobCacheServiceMock);
-
-        // Act & Assert - Service should not filter formats when disabled
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync(
-                A<string>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
-
-        return Task.CompletedTask;
-    }
-
-    [Test]
-    [Category("Integration")]
-    [Category("ApplicationProfiles")]
-    public async Task ApplicationProfiles_WhenEnabled_ShouldFilterFormats()
-    {
-        // Arrange - Mock with profiles enabled and specific format rules
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
-
-        // Chrome: TEXT=true, HTML=true, UNICODETEXT=false
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT", A<CancellationToken>.Ignored))
-            .Returns(false);
-
-        // Act - Call methods to test filtering behavior
-        var isEnabled = profileServiceMock.IsApplicationProfilesEnabled();
-        var shouldCaptureText = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT");
-        var shouldCaptureHtml = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format");
-        var shouldCaptureUnicode = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "CF_UNICODETEXT");
-
-        // Assert
-        await Assert.That(isEnabled).IsTrue();
-        await Assert.That(shouldCaptureText).IsTrue();
-        await Assert.That(shouldCaptureHtml).IsTrue();
-        await Assert.That(shouldCaptureUnicode).IsFalse();
-    }
-
-    [Test]
-    [Category("Integration")]
-    [Category("ApplicationProfiles")]
-    public async Task ApplicationProfiles_NewApplication_ShouldAutoCreateProfile()
-    {
-        // Arrange
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
-
-        var newAppProfile = new CoreApplicationProfile
-        {
-            ApplicationName = "NEWAPP",
-            Enabled = true,
-            Formats = new Dictionary<string, bool>
-            {
-                ["TEXT"] = true,
-                ["HTML Format"] = true,
-                ["BITMAP"] = true,
-            },
-        };
-
-        A.CallTo(() => profileServiceMock.GetOrCreateProfileAsync("NEWAPP",
-                A<CancellationToken>.Ignored))
-            .Returns(newAppProfile);
-
-        // Act - Simulate clipboard capture from new application
-        var result = await profileServiceMock.GetOrCreateProfileAsync("NEWAPP");
-
-        // Assert
-        await Assert.That(result.ApplicationName).IsEqualTo("NEWAPP");
-        await Assert.That(result.Enabled).IsTrue();
-        await Assert.That(result.Formats.Count).IsEqualTo(3);
-        await Assert.That(result.Formats["TEXT"]).IsTrue();
-    }
 
     [Test]
     [Category("Integration")]
@@ -502,71 +396,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         // Disable profiles
         profileServiceMock.SetApplicationProfilesEnabled(false);
         await Assert.That(profileServiceMock.IsApplicationProfilesEnabled()).IsFalse();
-    }
-
-    [Test]
-    [Category("Integration")]
-    [Category("ApplicationProfiles")]
-    public async Task ApplicationProfiles_FormatFiltering_ShouldRespectProfileSettings()
-    {
-        // Arrange - Notepad profile: TEXT=true, UNICODETEXT=false
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT", A<CancellationToken>.Ignored))
-            .Returns(false);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE", A<CancellationToken>.Ignored))
-            .Returns(false);
-
-        // Act & Assert
-        var shouldCaptureText = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
-        var shouldCaptureUnicode = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "CF_UNICODETEXT");
-        var shouldCaptureLocale = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "LOCALE");
-
-        await Assert.That(shouldCaptureText).IsTrue();
-        await Assert.That(shouldCaptureUnicode).IsFalse();
-        await Assert.That(shouldCaptureLocale).IsFalse();
-    }
-
-    [Test]
-    [Category("Integration")]
-    [Category("ApplicationProfiles")]
-    public async Task ApplicationProfiles_MultipleApplications_ShouldMaintainSeparateProfiles()
-    {
-        // Arrange
-        var profileServiceMock = A.Fake<IApplicationProfileService>();
-        A.CallTo(() => profileServiceMock.IsApplicationProfilesEnabled()).Returns(true);
-
-        // Notepad: only TEXT
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format", A<CancellationToken>.Ignored))
-            .Returns(false);
-
-        // Chrome: TEXT and HTML
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        A.CallTo(() => profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format", A<CancellationToken>.Ignored))
-            .Returns(true);
-
-        // Act & Assert - Notepad
-        var notepadText = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "TEXT");
-        var notepadHtml = await profileServiceMock.ShouldCaptureFormatAsync("NOTEPAD", "HTML Format");
-
-        await Assert.That(notepadText).IsTrue();
-        await Assert.That(notepadHtml).IsFalse();
-
-        // Act & Assert - Chrome
-        var chromeText = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "TEXT");
-        var chromeHtml = await profileServiceMock.ShouldCaptureFormatAsync("CHROME", "HTML Format");
-
-        await Assert.That(chromeText).IsTrue();
-        await Assert.That(chromeHtml).IsTrue();
     }
 
     #endregion
