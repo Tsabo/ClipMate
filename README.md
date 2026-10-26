@@ -71,40 +71,6 @@ For complete feature documentation, see the [documentation site](https://jeremy.
 - Windows 10 (1809+) or Windows 11
 - Visual Studio 2026+ or VS Code with C# Dev Kit (for development)
 
-## Third-Party Software
-
-ClipMate uses the following open-source and commercial libraries:
-
-**Vendored Libraries** (embedded in source):
-- **Emoji.Wpf 0.3.4** - Emoji rendering (WTFPL license)
-- **Typography** - OpenType font parsing (MIT + various permissive licenses)
-- **UnicodeEmoji** - Unicode emoji data (Unicode Inc. terms)
-- **WpfHexaEditor v2.1.7** - Binary hex editing (Apache 2.0)
-- **Icons8** - Application icons (Icons8 license)
-
-**Key Dependencies**:
-- **DevExpress WPF 25.2.3** - UI controls and theming (**Commercial license required**)
-- **Monaco Editor 0.52.0** - Code/text editing via WebView2 (MIT)
-- **CommunityToolkit.Mvvm 8.4.2** - MVVM infrastructure (MIT)
-- **Entity Framework Core 10.0** - Data access (MIT)
-- **Serilog 4.4.0** - Structured logging (Apache 2.0)
-- **Dapper 2.1.79** - Micro-ORM (Apache 2.0)
-- **Tomlyn.Signed 0.20.0** - TOML parsing (BSD-2-Clause)
-- **NAudio 2.3.0** - Sound playback (MIT)
-- **ThrottleDebounce 2.0.2** - Debouncing for auto-save operations (Apache 2.0)
-- **TUnit 1.65.0** - Testing framework (MIT)
-- **Moq 4.20.72** - Mocking framework for unit tests (BSD-3-Clause)
-
-**Build Tools**:
-- **Cake Build 4.2.0** - Build automation (MIT)
-- **nanoemoji** - Color font generation (Apache 2.0)
-- **fonttools** - Font manipulation library (MIT)
-- **Ninja** - Build system (Apache 2.0)
-
-**Complete Attribution**: See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full license texts and attribution details.
-
-**DevExpress Notice**: This application requires a commercial DevExpress license for production use, modification, or redistribution. The MIT license of ClipMate's source code does not extend to DevExpress components. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -124,4 +90,4 @@ Development in any way. All trademarks and copyrights for the original ClipMateÂ
 **Built with .NET 10, WPF, and DevExpress**  
 *A modern recreation of the classic ClipMate clipboard manager*
 
-Status: **Beta** | Version: 0.1.0 | Last Updated: August 22, 2026
+Status: **Beta** | Version: 1.0.0-beta.1 | Last Updated: October 25, 2026
