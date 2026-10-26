@@ -18,8 +18,12 @@ public class ClipboardCoordinator : IHostedService,
     IRecipient<PreferencesChangedEvent>,
     IRecipient<ToggleAutoCaptureEvent>,
     IRecipient<ManualCaptureClipboardEvent>,
-    IRecipient<CaptureSpecialRequestedEvent>
+    IRecipient<CaptureSpecialRequestedEvent>,
+    IRecipient<ManualFilterRequestedEvent>
 {
+    // The Formats Manual Filter keeps, as ClipMate 7's outbound filter does (CF_TEXT and CF_BITMAP): plain text and an image
+    private static readonly string[] _filteredFormats = ["CF_TEXT", "CF_DIB"];
+
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
@@ -52,6 +56,7 @@ public class ClipboardCoordinator : IHostedService,
         _messenger.Register<ToggleAutoCaptureEvent>(this);
         _messenger.Register<ManualCaptureClipboardEvent>(this);
         _messenger.Register<CaptureSpecialRequestedEvent>(this);
+        _messenger.Register<ManualFilterRequestedEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -193,6 +198,34 @@ public class ClipboardCoordinator : IHostedService,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Capture Special failed");
+        }
+    }
+
+    /// <summary>
+    /// Handles ManualFilterRequestedEvent: puts the clipboard's content back with only its plain text (or its image), as
+    /// ClipMate 7's Manual Filter does (manual: Hotkeys). The copy is ClipMate's own, so it is not captured as a new clip.
+    /// </summary>
+    public async void Receive(ManualFilterRequestedEvent message)
+    {
+        try
+        {
+            // Read whatever is there, even ClipMate's own copy of the Current Clip
+            if (await _clipboardService.ReadClipboardAsync() is not { } reading ||
+                await _clipboardService.CaptureSpecialAsync(reading, _filteredFormats) is not { } filtered)
+            {
+                _logger.LogDebug("Manual Filter: no plain text or image on the clipboard");
+                return;
+            }
+
+            await _clipboardService.SetClipboardContentAsync(filtered);
+
+            using var scope = _serviceProvider.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<ISoundService>().PlaySoundAsync(SoundEvent.Filter);
+            _logger.LogInformation("Manual Filter: left only plain text or an image on the clipboard");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manual Filter failed");
         }
     }
 

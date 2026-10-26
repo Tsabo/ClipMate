@@ -47,7 +47,23 @@ public static partial class Foreground
         keybd_event((byte)virtualKey, 0, _keyeventfKeyUp, 0);
     }
 
+    /// <summary>
+    /// Presses a key combination, such as Ctrl+Alt+Shift+F9, and releases it in reverse order.
+    /// </summary>
+    public static void PressKeys(params ushort[] virtualKeys)
+    {
+        foreach (var item in virtualKeys)
+            keybd_event((byte)item, 0, 0, 0);
+
+        foreach (var item in virtualKeys.Reverse())
+            keybd_event((byte)item, 0, _keyeventfKeyUp, 0);
+    }
+
     public const ushort VkReturn = 0x0D;
+    public const ushort VkShift = 0x10;
+    public const ushort VkControl = 0x11;
+    public const ushort VkAlt = 0x12;
+    public const ushort VkF9 = 0x78;
 
     private const int _swRestore = 9;
     private const uint _keyeventfKeyUp = 0x0002;
