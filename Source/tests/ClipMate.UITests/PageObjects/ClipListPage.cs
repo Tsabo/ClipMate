@@ -89,13 +89,19 @@ public class ClipListPage(Process app)
     {
         var window = MainWindow() ?? throw new InvalidOperationException("The main window is not open");
         await Foreground.ActivateAsync(window.Current.NativeWindowHandle, "ClipMate's main window");
-        var row = await WaitForRowAsync(rowText);
-        Foreground.RightClick(row.Current.BoundingRectangle);
 
-        var item = await Poll.UntilAsync(() => AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
-                new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem),
-                new PropertyCondition(AutomationElement.NameProperty, name))),
+        // A right-click made while the window is still settling can open no menu; right-click again until it is open
+        var attempt = 0;
+        var item = await Poll.UntilAsync(() =>
+            {
+                if (attempt++ % 10 == 0)
+                    Foreground.RightClick((FindRow(rowText) ?? throw new InvalidOperationException($"No row containing \"{rowText}\"")).Current.BoundingRectangle);
+
+                return AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
+                    new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem),
+                    new PropertyCondition(AutomationElement.NameProperty, name)));
+            },
             $"the context menu item \"{name}\"");
 
         ((InvokePattern)item.GetCurrentPattern(InvokePattern.Pattern)).Invoke();

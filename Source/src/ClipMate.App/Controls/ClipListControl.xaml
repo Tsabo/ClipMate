@@ -174,7 +174,7 @@
                                     <emoji:TextBlock Text="🌐" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Place Source URL On Clipboard">
+                            <MenuItem Header="Place Source URL On Clipboard" Click="PlaceSourceUrlOnClipboard_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
                                 </MenuItem.Icon>
@@ -414,7 +414,7 @@
                                     <emoji:TextBlock Text="🌐" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Place Source URL On Clipboard">
+                            <MenuItem Header="Place Source URL On Clipboard" Click="PlaceSourceUrlOnClipboard_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
                                 </MenuItem.Icon>
