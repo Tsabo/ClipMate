@@ -10,9 +10,10 @@ public static class ConfigurationUpgrader
     /// <summary>
     /// The version this ClipMate writes. New settings start at it.
     /// </summary>
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     private const string _ctfmonBadTarget = "CTFMON:";
+    private const string _oldToggleAutoCaptureDefault = "Ctrl+Alt+A";
 
     /// <summary>
     /// Runs the steps <paramref name="configuration" /> has not had yet and sets its version to
@@ -31,6 +32,9 @@ public static class ConfigurationUpgrader
 
         if (configuration.Version < 3)
             MoveCaptureDelayToDelayOnClipboardUpdate(configuration.Preferences);
+
+        if (configuration.Version < 4)
+            ClearOldToggleAutoCaptureDefault(configuration.Hotkeys);
 
         configuration.Version = CurrentVersion;
 
@@ -51,5 +55,12 @@ public static class ConfigurationUpgrader
             preferences.DelayOnClipboardUpdateMs = captureDelayMs;
 
         preferences.LegacyCaptureDelayMs = null;
+    }
+
+    // Version 4: Toggle Auto-Capture lost its default, Ctrl+Alt+A, which took Append's shortcut and turned capture off
+    private static void ClearOldToggleAutoCaptureDefault(HotkeyConfiguration hotkeys)
+    {
+        if (string.Equals(hotkeys.AutoCapture, _oldToggleAutoCaptureDefault, StringComparison.OrdinalIgnoreCase))
+            hotkeys.AutoCapture = string.Empty;
     }
 }

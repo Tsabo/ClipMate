@@ -51,7 +51,7 @@ public partial class HotkeysOptionsViewModel : ObservableObject
     private bool _testResultIsSuccess;
 
     [ObservableProperty]
-    private string _toggleAutoCapture = "Ctrl+Alt+A";
+    private string _toggleAutoCapture = string.Empty;
 
     [ObservableProperty]
     private string _viewClipInFloatingWindow = "Ctrl+Alt+F2";
@@ -283,7 +283,7 @@ public partial class HotkeysOptionsViewModel : ObservableObject
         ObjectScreenCapture = "Ctrl+Alt+F11";
         ViewClipInFloatingWindow = "Ctrl+Alt+F2";
         PopupClipBar = "Ctrl+Shift+Alt+C";
-        ToggleAutoCapture = "Ctrl+Alt+A";
+        ToggleAutoCapture = string.Empty;
         ManualCapture = "Ctrl+Shift+C";
         ManualFilter = "Ctrl+Alt+W";
 
