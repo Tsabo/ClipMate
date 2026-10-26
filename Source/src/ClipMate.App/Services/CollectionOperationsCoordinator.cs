@@ -185,8 +185,8 @@ public class CollectionOperationsCoordinator :
     }
 
     /// <summary>
-    /// Handles AppendClipsRequestedEvent to glue selected text clips together, or to toggle
-    /// Auto-Append mode when fewer than 2 clips are selected.
+    /// Handles AppendClipsRequestedEvent to glue the text of the selected clips together into a new Current Clip, or to
+    /// toggle Auto-Append mode when fewer than 2 clips are selected.
     /// </summary>
     public async void Receive(AppendClipsRequestedEvent message)
     {
@@ -215,37 +215,42 @@ public class CollectionOperationsCoordinator :
                 return;
             }
 
-            // Verify all clips are text-based
-            var nonTextClips = selectedClips.Where(p => p.Type != ClipType.Text &&
-                                                        p.Type != ClipType.RichText)
-                .ToList();
-
-            if (nonTextClips.Count > 0)
-            {
-                DXMessageBox.Show(
-                    _activeWindowService.DialogOwner,
-                    "Append (Glue) is only available for text clips.",
-                    "Append Clips",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                return;
-            }
-
             try
             {
+                var databaseKey = _collectionService.GetActiveDatabaseKey();
+
+                // Append takes the plain text of any clip that has it; clips without any (an image, say) are left out
+                foreach (var item in selectedClips.Where(p => string.IsNullOrEmpty(p.TextContent)))
+                    await _clipService.LoadBlobDataAsync(databaseKey!, item);
+
+                var textClips = selectedClips.Where(p => !string.IsNullOrEmpty(p.TextContent)).ToList();
+                var skipped = selectedClips.Except(textClips).Select(p => p.DisplayTitle).ToList();
+                var skippedNote = skipped.Count > 0
+                    ? $" (left out, no text: {string.Join(", ", skipped)})"
+                    : string.Empty;
+
+                if (textClips.Count < 2)
+                {
+                    _logger.LogInformation("Nothing to append: {Count} of the selected clips have text", textClips.Count);
+                    SendStatus($"Nothing to append: Append needs at least 2 clips with text{skippedNote}", true);
+
+                    return;
+                }
+
                 var preferences = _configurationService.Configuration.Preferences;
                 var separator = preferences.AppendSeparatorString;
                 var stripTrailing = preferences.StripTrailingLineBreak;
 
-                var resultClip = await _clipAppendService.AppendClipsAsync(selectedClips, separator, stripTrailing);
+                var resultClip = await _clipAppendService.AppendClipsAsync(textClips, separator, stripTrailing);
 
-                _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", selectedClips.Count, resultClip.Id);
-                SendStatus($"Appended {selectedClips.Count} clips");
+                _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", textClips.Count, resultClip.Id);
+                SendStatus($"Appended {textClips.Count} clips{skippedNote}");
 
                 // Insert the newly created clip into the clip list
-                var databaseKey = _collectionService.GetActiveDatabaseKey();
                 _messenger.Send(new ClipAddedEvent(resultClip, false, databaseKey!, resultClip.CollectionId, resultClip.FolderId));
+
+                // The appended clip becomes the Current Clip, ready to paste (manual: Lesson 3, Append)
+                await _clipService.LoadAndSetClipboardAsync(databaseKey!, resultClip.Id);
             }
             catch (Exception ex)
             {

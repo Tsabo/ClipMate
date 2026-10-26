@@ -63,16 +63,22 @@ public class ClipListPage(Process app)
         FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
     /// <summary>
-    /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste").
+    /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste"), or its check button
+    /// (e.g. "Append").
     /// </summary>
     public void ClickToolbarButton(string name)
     {
         var button = MainWindow()?.FindFirst(TreeScope.Descendants, new AndCondition(
-                         new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                         new OrCondition(
+                             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox)),
                          new PropertyCondition(AutomationElement.NameProperty, name)))
                      ?? throw new InvalidOperationException($"No toolbar button named \"{name}\"");
 
-        ((InvokePattern)button.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        if (button.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+            ((InvokePattern)invoke).Invoke();
+        else
+            ((TogglePattern)button.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
     }
 
     private AutomationElement? MainWindow() =>
