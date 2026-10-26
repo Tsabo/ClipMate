@@ -81,6 +81,26 @@ public class ClipListPage(Process app)
             ((TogglePattern)button.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
     }
 
+    /// <summary>
+    /// Right-clicks the row containing <paramref name="rowText" /> with the mouse, as a user opens the clip list's context
+    /// menu, and clicks the menu's item named <paramref name="name" />.
+    /// </summary>
+    public async Task ClickContextMenuItemAsync(string rowText, string name)
+    {
+        var window = MainWindow() ?? throw new InvalidOperationException("The main window is not open");
+        await Foreground.ActivateAsync(window.Current.NativeWindowHandle, "ClipMate's main window");
+        var row = await WaitForRowAsync(rowText);
+        Foreground.RightClick(row.Current.BoundingRectangle);
+
+        var item = await Poll.UntilAsync(() => AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem),
+                new PropertyCondition(AutomationElement.NameProperty, name))),
+            $"the context menu item \"{name}\"");
+
+        ((InvokePattern)item.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+    }
+
     private AutomationElement? MainWindow() =>
         AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
             new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),

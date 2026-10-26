@@ -27,6 +27,10 @@ public class AppendTests(AppFixture appFixture)
         await AppendAsync(_links.Reverse().ToArray());
 
     [Test]
+    public async Task ThreeSelectedTextClips_AreAppendedFromTheContextMenu() =>
+        await AppendAsync(_links, fromContextMenu: true);
+
+    [Test]
     public async Task AnHtmlClipWithPlainText_IsAppendedByItsPlainText() =>
         // Copied from a browser's address bar: HTML plus the link as plain text
         await AppendAsync(_links, htmlLink: _links[1]);
@@ -99,7 +103,7 @@ public class AppendTests(AppFixture appFixture)
     /// is on the clipboard with the links in that order, one per line, ready to paste. The links are copied as text only,
     /// as Edge's Copy Link does, except <paramref name="htmlLink" />, which is copied as HTML plus its plain text.
     /// </summary>
-    private async Task AppendAsync(string[] selectionOrder, string? htmlLink = null)
+    private async Task AppendAsync(string[] selectionOrder, string? htmlLink = null, bool fromContextMenu = false)
     {
         var backup = SystemClipboard.Backup();
         try
@@ -117,7 +121,10 @@ public class AppendTests(AppFixture appFixture)
             await Poll.UntilAsync(() => _links.All(clipList.IsSelected), "all three clips to be selected");
 
             // Act
-            clipList.ClickToolbarButton("Append");
+            if (fromContextMenu)
+                await clipList.ClickContextMenuItemAsync(selectionOrder[1], "Append Clips Together (Glue)");
+            else
+                clipList.ClickToolbarButton("Append");
 
             // Assert
             await clipList.WaitForRowAsync("Appended");

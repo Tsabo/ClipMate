@@ -59,6 +59,16 @@ public static partial class Foreground
             keybd_event((byte)item, 0, _keyeventfKeyUp, 0);
     }
 
+    /// <summary>
+    /// Right-clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
+    /// </summary>
+    public static void RightClick(System.Windows.Rect bounds)
+    {
+        SetCursorPos((int)(bounds.Left + bounds.Width / 2), (int)(bounds.Top + bounds.Height / 2));
+        mouse_event(_mouseeventfRightDown, 0, 0, 0, 0);
+        mouse_event(_mouseeventfRightUp, 0, 0, 0, 0);
+    }
+
     public const ushort VkReturn = 0x0D;
     public const ushort VkShift = 0x10;
     public const ushort VkControl = 0x11;
@@ -67,6 +77,15 @@ public static partial class Foreground
 
     private const int _swRestore = 9;
     private const uint _keyeventfKeyUp = 0x0002;
+    private const uint _mouseeventfRightDown = 0x0008;
+    private const uint _mouseeventfRightUp = 0x0010;
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetCursorPos(int x, int y);
+
+    [LibraryImport("user32.dll")]
+    private static partial void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, nuint dwExtraInfo);
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();
