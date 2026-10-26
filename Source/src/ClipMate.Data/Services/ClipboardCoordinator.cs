@@ -459,6 +459,15 @@ public class ClipboardCoordinator : IHostedService,
         // Create repository using the factory
         var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
 
+        // Auto-Append mode: a growing clip sent to the Trash (or purged) takes no more captures, so this capture starts a new one
+        if (_autoAppendService is { IsActive: true, GrowingClipId: { } previousGrowingClipId } &&
+            _autoAppendService.DatabaseKey == activeDatabaseKey &&
+            await clipRepository.GetByIdAsync(previousGrowingClipId, cancellationToken) == null)
+        {
+            _logger.LogInformation("Auto-Append: growing clip {ClipId} was deleted, starting a new one", previousGrowingClipId);
+            _autoAppendService.Activate();
+        }
+
         // Auto-Append mode: merge this capture into the growing clip instead of creating a new one
         if (_autoAppendService.IsActive &&
             clip.Type is ClipType.Text or ClipType.RichText &&
