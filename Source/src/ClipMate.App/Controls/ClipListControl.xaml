@@ -152,7 +152,7 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Toggle Macros On/Off For This Clip">
+                            <MenuItem Header="Toggle Macros On/Off For This Clip" Click="ToggleMacro_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="⚙" FontSize="14" />
                                 </MenuItem.Icon>
@@ -191,7 +191,8 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection">
+                            <!-- Hidden until there is a second clip list to tack: ClipMate 7's Tack pins its secondary ClipList to a collection -->
+                            <MenuItem Header="Tack (lock) this window onto this collection" Visibility="Collapsed">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>
@@ -392,7 +393,7 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Toggle Macros On/Off For This Clip">
+                            <MenuItem Header="Toggle Macros On/Off For This Clip" Click="ToggleMacro_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="⚙" FontSize="14" />
                                 </MenuItem.Icon>
@@ -431,7 +432,8 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection">
+                            <!-- Hidden until there is a second clip list to tack: ClipMate 7's Tack pins its secondary ClipList to a collection -->
+                            <MenuItem Header="Tack (lock) this window onto this collection" Visibility="Collapsed">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using ClipMate.UITests.Fixtures;
 using ClipMate.UITests.PageObjects;
+using Microsoft.Data.Sqlite;
 
 namespace ClipMate.UITests.Tests;
 
@@ -70,6 +71,50 @@ public class ClipListContextMenuTests(AppFixture appFixture)
         {
             SystemClipboard.Restore(backup);
         }
+    }
+
+    [Test]
+    public async Task ToggleMacros_MarksTheClipAsAMacroAndSavesIt()
+    {
+        var text = $"macro text {_id}";
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: a text clip, not a macro
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+            await CopyUntilListedAsync(clipList, text, () =>
+            {
+                var data = new DataObject();
+                data.SetText(text);
+                return data;
+            });
+
+            // Act
+            await clipList.ClickContextMenuItemAsync(text, "Toggle Macros On/Off For This Clip");
+
+            // Assert: the row shows the macro icon, and the flag is saved
+            await Poll.UntilAsync(() => clipList.FindRow(text)?.Current.Name.StartsWith(_macroIcon, StringComparison.Ordinal) == true,
+                "the clip to show the macro icon");
+            await Assert.That(IsSavedAsMacro(text)).IsTrue();
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    // The clip list's icon for a macro clip
+    private const string _macroIcon = "⌨";
+
+    private bool IsSavedAsMacro(string text)
+    {
+        using var connection = new SqliteConnection($"Data Source={appFixture.DatabasePath};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT c.Macro FROM Clips c JOIN BlobTxt b ON b.ClipId = c.Id WHERE b.Data = $text";
+        command.Parameters.AddWithValue("$text", text);
+        return Convert.ToBoolean(command.ExecuteScalar());
     }
 
     // Chooses a collection in the Select Collection dialog and clicks OK. UI Automation lists the dialog under the
