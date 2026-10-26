@@ -60,6 +60,16 @@ public static partial class Foreground
     }
 
     /// <summary>
+    /// Clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
+    /// </summary>
+    public static void LeftClick(System.Windows.Rect bounds)
+    {
+        SetCursorPos((int)(bounds.Left + bounds.Width / 2), (int)(bounds.Top + bounds.Height / 2));
+        mouse_event(_mouseeventfLeftDown, 0, 0, 0, 0);
+        mouse_event(_mouseeventfLeftUp, 0, 0, 0, 0);
+    }
+
+    /// <summary>
     /// Right-clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
     /// </summary>
     public static void RightClick(System.Windows.Rect bounds)
@@ -77,6 +87,8 @@ public static partial class Foreground
 
     private const int _swRestore = 9;
     private const uint _keyeventfKeyUp = 0x0002;
+    private const uint _mouseeventfLeftDown = 0x0002;
+    private const uint _mouseeventfLeftUp = 0x0004;
     private const uint _mouseeventfRightDown = 0x0008;
     private const uint _mouseeventfRightUp = 0x0010;
 

@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using ClipMate.UITests.Fixtures;
 using ClipMate.UITests.PageObjects;
 
@@ -39,6 +40,61 @@ public class ClipListContextMenuTests(AppFixture appFixture)
         {
             SystemClipboard.Restore(backup);
         }
+    }
+
+    [Test]
+    public async Task SelectAnotherCollection_ShowsTheCollectionPicked()
+    {
+        var text = $"in Inbox {_id}";
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: a clip in Inbox, the collection shown
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+            await CopyUntilListedAsync(clipList, text, () =>
+            {
+                var data = new DataObject();
+                data.SetText(text);
+                return data;
+            });
+
+            // Act: pick Safe
+            await clipList.ClickContextMenuItemAsync(text, "Select Another Collection");
+            await PickCollectionAsync("Safe");
+
+            // Assert: the clip list shows Safe, which doesn't hold the Inbox clip
+            await Poll.UntilAsync(() => clipList.FindRow(text) == null, "the clip list to show Safe");
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    // Chooses a collection in the Select Collection dialog and clicks OK. UI Automation lists the dialog under the
+    // window that owns it.
+    private async Task PickCollectionAsync(string name)
+    {
+        var dialog = await Poll.UntilAsync(() => AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ProcessIdProperty, appFixture.Process.Id),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
+            new PropertyCondition(AutomationElement.NameProperty, "Select Collection"))), "the Select Collection dialog");
+
+        // Tree items are named "Level <depth>: <name>"; the default database opens expanded
+        var collection = await Poll.UntilAsync(() => dialog
+                .FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem))
+                .Cast<AutomationElement>()
+                .FirstOrDefault(p => p.Current.Name.EndsWith($": {name}", StringComparison.Ordinal)),
+            $"\"{name}\" in the Select Collection dialog");
+        Foreground.LeftClick(collection.Current.BoundingRectangle);
+
+        var ok = await Poll.UntilAsync(() => dialog.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+            new PropertyCondition(AutomationElement.NameProperty, "OK"))) is { Current.IsEnabled: true } button ? button : null, "the OK button to be enabled");
+
+        // The dialog's buttons don't offer Invoke to UI Automation
+        Foreground.LeftClick(ok.Current.BoundingRectangle);
     }
 
     // A copy made while ClipMate is still settling can be missed; copy again until it is listed

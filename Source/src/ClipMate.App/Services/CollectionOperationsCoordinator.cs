@@ -31,6 +31,7 @@ public class CollectionOperationsCoordinator :
     IRecipient<DeactivateDatabaseRequestedEvent>,
     IRecipient<MoveToNamedCollectionRequestedEvent>,
     IRecipient<SelectNamedCollectionRequestedEvent>,
+    IRecipient<SelectCollectionRequestedEvent>,
     IRecipient<ShowCollectionPropertiesRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
@@ -89,6 +90,7 @@ public class CollectionOperationsCoordinator :
         _messenger.Register<DeactivateDatabaseRequestedEvent>(this);
         _messenger.Register<MoveToNamedCollectionRequestedEvent>(this);
         _messenger.Register<SelectNamedCollectionRequestedEvent>(this);
+        _messenger.Register<SelectCollectionRequestedEvent>(this);
         _messenger.Register<ShowCollectionPropertiesRequestedEvent>(this);
 
         // Track selection changes for "Switch to Last Collection" feature
@@ -517,6 +519,35 @@ public class CollectionOperationsCoordinator :
             _clipListViewModel.SelectedClips.Add(item);
 
         SendStatus($"Selected {_clipListViewModel.Clips.Count} clip(s)");
+    }
+
+    /// <summary>
+    /// Handles SelectCollectionRequestedEvent: asks for a collection and shows it, as ClipMate 7's Select Collection does.
+    /// </summary>
+    public async void Receive(SelectCollectionRequestedEvent message)
+    {
+        try
+        {
+            var dialog = new CollectionPickerDialog(_serviceProvider)
+            {
+                Message = "Select a collection to show:",
+                Owner = _activeWindowService.DialogOwner,
+            };
+
+            await dialog.LoadCollectionsAsync();
+
+            if (dialog.ShowDialog() != true || dialog.SelectedCollectionId is not { } collectionId)
+                return;
+
+            if (FindCollectionNode(_collectionTreeViewModel.RootNodes, collectionId) is { } node)
+                _collectionTreeViewModel.SelectedNode = node;
+            else
+                SendStatus("Collection not found in tree");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to select a collection");
+        }
     }
 
     /// <summary>

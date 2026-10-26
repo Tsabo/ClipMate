@@ -196,7 +196,7 @@
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Select Another Collection">
+                            <MenuItem Header="Select Another Collection" Click="SelectAnotherCollection_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📂" FontSize="14" />
                                 </MenuItem.Icon>
@@ -436,7 +436,7 @@
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Select Another Collection">
+                            <MenuItem Header="Select Another Collection" Click="SelectAnotherCollection_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📂" FontSize="14" />
                                 </MenuItem.Icon>

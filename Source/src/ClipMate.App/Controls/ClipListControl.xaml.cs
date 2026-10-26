@@ -472,6 +472,9 @@ public partial class ClipListControl
     private void AppendClips_Click(object sender, RoutedEventArgs e) =>
         _messenger.Send(new AppendClipsRequestedEvent());
 
+    private void SelectAnotherCollection_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new SelectCollectionRequestedEvent());
+
     private void ConvertFilePointer_Click(object sender, RoutedEventArgs e) =>
         _messenger.Send(new ConvertFilePointerRequestedEvent());
 
