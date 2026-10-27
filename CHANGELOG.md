@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Separate Data Folder** - `--data-dir <folder>` runs ClipMate with its settings, databases and logs in another folder, alongside your normal copy.
 - **Current Clip in the Tray Tooltip** - Hover over the tray icon to see the title of the clip on the clipboard, or choose **System Tray Hint: Collection** in Options > **Appearance** to see the current collection instead. Encrypted clips show only "Encrypted clip". ([#12](https://github.com/Tsabo/ClipMate/issues/12))
 - **Clip Popup When Scrolling with Hotkeys** - The Scroll Next / Previous hotkeys show the clip they reach in a popup next to the tray, with its title, collection and a short preview; click it to open ClipMate on that clip. Turn it off with **Show clip when scrolling with hotkeys** in Options > **Appearance**. ([#12](https://github.com/Tsabo/ClipMate/issues/12))
+- **Manual Filter Hotkey** - Press **Ctrl+Alt+W** to strip the clipboard down to plain text (or just the picture), so your next paste has no formatting.
 
 ### Changed
 - **Clipboard Capture Works Like ClipMate 7** - Capture follows ClipMate 7's rules: one short delay after a program's last clipboard change, the program that copied as the clip's source, Application Profiles created on your first copy from each program with ClipMate 7's defaults, and every format the profile allows kept and offered again on paste. ClipMate's own copies are no longer captured again, and the Manual Capture hotkey and capture at startup behave as in ClipMate 7. A slow program no longer freezes ClipMate while it is captured.
@@ -22,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Encrypted Clips in the ClipMate 7 Import** - The import asks for your ClipMate 7 encryption keys and brings encrypted clips across, still encrypted with the same passphrase.
 - **Uninstall Removes the Firewall Rule** - Uninstalling offers to remove the firewall rule ClipMate added for networking.
 - **Unused Options Removed** - **Multi-User, Networked Database?** and **PowerPaste Shield** are gone; existing settings files still load.
+- **Duplicates Work Like ClipMate 7** - A copy is skipped only when it matches the newest clip in its collection. Clips you deleted, older clips and clips in other collections no longer stop you copying the same thing again. Collections set to accept duplicates now keep every copy.
+- **Append Glues More, Ready to Paste** - Append now glues any selected clips that have text, including web pages and links, in the order you selected them, and puts the result on the clipboard ready to paste. Pictures are left out.
+- **Toggle Auto-Capture Has No Hotkey by Default** - It used to share **Ctrl+Alt+A** with Append. You can set your own in Options > **Hotkeys**.
 
 ### Fixed
 - **Clipboard Diagnostics Crashed With an Image on the Clipboard** - Opening **Clipboard Diagnostics** while a bitmap, palette or metafile was on the clipboard could close ClipMate without warning.
@@ -32,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Templates Dropped Rich Formats** - Copying an HTML or RTF clip with a template active keeps every format.
 - **Capture After Turning Auto-Capture Off and On** - New copies are saved again without restarting ClipMate.
 - **Capture Sounds** - A single copy no longer also plays the Ignore sound, and emptying the clipboard plays the Erase sound every time.
+- **Copying Stopped After Pressing Ctrl+Alt+A** - Trying to Append with **Ctrl+Alt+A** quietly turned capture off, so nothing more was saved until ClipMate restarted. **Ctrl+Alt+A** now only appends.
+- **Un Delete** - Restoring clips from the Trash didn't work. **Un Delete** (in the Edit menu, or when you right-click a clip in the Trash) now puts them back in the collection you choose, with their content intact.
+- **Right-Click Menu Items That Did Nothing** - **Append Clips Together**, **Place Source URL On Clipboard**, **Select Another Collection** and **Toggle Macros On/Off For This Clip** now work. **Tack this window onto this collection** is hidden until ClipMate can show a second clip list.
+- **Select Collection (F8)** - Now asks which collection to show, and the list opens with your collections showing.
+- **Auto-Append Lost Copies** - If the clip being added to was deleted, new copies were lost; they now start a new one.
 
 ## [0.1.0-beta.6] - 2026-10-13
 
