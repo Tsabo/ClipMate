@@ -473,34 +473,42 @@ public class CollectionOperationsCoordinator :
             return;
         }
 
-        // Show collection picker dialog
-        var dialog = _serviceProvider.GetRequiredService<CollectionPickerDialog>();
-        dialog.Owner = _activeWindowService.DialogOwner;
-        dialog.Title = "Restore to Collection";
-
-        if (dialog.ShowDialog() != true || dialog.SelectedCollection == null)
-            return;
-
         try
         {
+            // Show collection picker dialog
+            var dialog = new CollectionPickerDialog(_serviceProvider)
+            {
+                Title = "Restore to Collection",
+                Message = $"Select a collection to restore {selectedClips.Count} clip(s) to:",
+                Owner = _activeWindowService.DialogOwner,
+            };
+
+            await dialog.LoadCollectionsAsync();
+
+            if (dialog.ShowDialog() != true || dialog.SelectedCollection == null)
+                return;
+
             var targetCollectionId = dialog.SelectedCollection.Collection.Id;
             var targetDatabaseKey = dialog.SelectedDatabaseKey ?? sourceDatabaseKey;
+            var restored = selectedClips.ToList();
 
-            foreach (var item in selectedClips.ToList())
+            if (string.Equals(sourceDatabaseKey, targetDatabaseKey, StringComparison.OrdinalIgnoreCase))
+                await _clipService.RestoreClipsAsync(sourceDatabaseKey, restored.Select(p => p.Id).ToList(), targetCollectionId);
+            else
             {
-                // Restore from trash by moving clip back to the target collection
-                if (sourceDatabaseKey == targetDatabaseKey)
-                    await _clipService.MoveClipAsync(sourceDatabaseKey, item.Id, targetCollectionId);
-                else
+                // A clip in the Trash can't be read for a move, so it is first restored in place, then moved
+                foreach (var item in restored)
+                {
+                    await _clipService.RestoreClipsAsync(sourceDatabaseKey, [item.Id], item.CollectionId ?? targetCollectionId);
                     await _clipService.MoveClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, targetCollectionId);
+                }
             }
 
-            _logger.LogInformation("Restored {Count} clips to collection {CollectionId}", selectedClips.Count, targetCollectionId);
-            SendStatus($"Restored {selectedClips.Count} clip(s)");
+            _logger.LogInformation("Restored {Count} clips to collection {CollectionId}", restored.Count, targetCollectionId);
+            SendStatus($"Restored {restored.Count} clip(s)");
 
-            // Refresh the clip list - after restore, trigger a reload of the current collection
-            var firstClip = selectedClips.First();
-            _messenger.Send(new ClipUpdatedMessage(firstClip.Id, firstClip.Title));
+            // The restored clips leave the Trash view
+            _messenger.Send(new ClipsDeletedEvent(restored.Select(p => p.Id).ToList()));
         }
         catch (Exception ex)
         {

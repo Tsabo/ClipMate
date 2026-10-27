@@ -62,7 +62,7 @@ public class ClipListContextMenuTests(AppFixture appFixture)
 
             // Act: pick Safe
             await clipList.ClickContextMenuItemAsync(text, "Select Another Collection");
-            await PickCollectionAsync("Safe");
+            await new WindowsPage(appFixture.Process).PickCollectionAsync("Safe");
 
             // Assert: the clip list shows Safe, which doesn't hold the Inbox clip
             await Poll.UntilAsync(() => clipList.FindRow(text) == null, "the clip list to show Safe");
@@ -104,6 +104,66 @@ public class ClipListContextMenuTests(AppFixture appFixture)
         }
     }
 
+    [Test]
+    public async Task UnDelete_RestoresAClipFromTheTrashToTheCollectionPicked()
+    {
+        var text = $"deleted text {_id}";
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: a clip sent to the Trash, selected there
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+            var windows = new WindowsPage(appFixture.Process);
+            await CopyUntilListedAsync(clipList, text, () =>
+            {
+                var data = new DataObject();
+                data.SetText(text);
+                return data;
+            });
+
+            await clipList.ClickContextMenuItemAsync(text, "Delete Selected Items");
+            await windows.ClickDialogButtonAsync("Confirm Delete", "Yes");
+            await Poll.UntilAsync(() => IsInTrash(text), "the clip to be in the Trash");
+
+            await windows.SelectTreeNodeAsync("Trashcan");
+            await clipList.SelectAsync(text);
+
+            // Act: Un Delete, into Safe
+            await clipList.ClickContextMenuItemAsync(text, "Un Delete");
+            await windows.PickCollectionAsync("Safe", "Restore to Collection");
+
+            // Assert: out of the Trash, in Safe, and gone from the Trash view
+            await Poll.UntilAsync(() => !IsInTrash(text), "the clip to be restored");
+            await Assert.That(CollectionOf(text)).IsEqualTo("Safe");
+            await Poll.UntilAsync(() => clipList.FindRow(text) == null, "the clip to leave the Trash view");
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    private string? CollectionOf(string text)
+    {
+        using var connection = new SqliteConnection($"Data Source={appFixture.DatabasePath};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT co.Name FROM Clips c JOIN BlobTxt b ON b.ClipId = c.Id JOIN Collections co ON co.Id = c.CollectionId WHERE b.Data = $text";
+        command.Parameters.AddWithValue("$text", text);
+        return command.ExecuteScalar() as string;
+    }
+
+    private bool IsInTrash(string text)
+    {
+        using var connection = new SqliteConnection($"Data Source={appFixture.DatabasePath};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT c.Del FROM Clips c JOIN BlobTxt b ON b.ClipId = c.Id WHERE b.Data = $text";
+        command.Parameters.AddWithValue("$text", text);
+        return Convert.ToBoolean(command.ExecuteScalar());
+    }
+
     // The clip list's icon for a macro clip
     private const string _macroIcon = "⌨";
 
@@ -115,31 +175,6 @@ public class ClipListContextMenuTests(AppFixture appFixture)
         command.CommandText = "SELECT c.Macro FROM Clips c JOIN BlobTxt b ON b.ClipId = c.Id WHERE b.Data = $text";
         command.Parameters.AddWithValue("$text", text);
         return Convert.ToBoolean(command.ExecuteScalar());
-    }
-
-    // Chooses a collection in the Select Collection dialog and clicks OK. UI Automation lists the dialog under the
-    // window that owns it.
-    private async Task PickCollectionAsync(string name)
-    {
-        var dialog = await Poll.UntilAsync(() => AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, appFixture.Process.Id),
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window),
-            new PropertyCondition(AutomationElement.NameProperty, "Select Collection"))), "the Select Collection dialog");
-
-        // Tree items are named "Level <depth>: <name>"; the default database opens expanded
-        var collection = await Poll.UntilAsync(() => dialog
-                .FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TreeItem))
-                .Cast<AutomationElement>()
-                .FirstOrDefault(p => p.Current.Name.EndsWith($": {name}", StringComparison.Ordinal)),
-            $"\"{name}\" in the Select Collection dialog");
-        Foreground.LeftClick(collection.Current.BoundingRectangle);
-
-        var ok = await Poll.UntilAsync(() => dialog.FindFirst(TreeScope.Descendants, new AndCondition(
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
-            new PropertyCondition(AutomationElement.NameProperty, "OK"))) is { Current.IsEnabled: true } button ? button : null, "the OK button to be enabled");
-
-        // The dialog's buttons don't offer Invoke to UI Automation
-        Foreground.LeftClick(ok.Current.BoundingRectangle);
     }
 
     // A copy made while ClipMate is still settling can be missed; copy again until it is listed

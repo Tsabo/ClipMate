@@ -127,7 +127,7 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                            <MenuItem Header="Un Delete" Tag="UnDelete" Click="UnDelete_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="♻️" FontSize="14" />
                                 </MenuItem.Icon>
@@ -368,7 +368,7 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                            <MenuItem Header="Un Delete" Tag="UnDelete" Click="UnDelete_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="♻️" FontSize="14" />
                                 </MenuItem.Icon>

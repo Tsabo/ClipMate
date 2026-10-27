@@ -472,6 +472,9 @@ public partial class ClipListControl
     private void AppendClips_Click(object sender, RoutedEventArgs e) =>
         _messenger.Send(new AppendClipsRequestedEvent());
 
+    private void UnDelete_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new RestoreClipsRequestedEvent());
+
     private void ToggleMacro_Click(object sender, RoutedEventArgs e) =>
         _messenger.Send(new ToggleMacroRequestedEvent());
 
@@ -1134,6 +1137,11 @@ public partial class ClipListControl
         var isRemote = GetClipListViewModel()?.IsRemoteDatabase == true;
         foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "CopyToLocal")))
             item.Visibility = isRemote ? Visibility.Visible : Visibility.Collapsed;
+
+        // Un Delete restores clips from the Trash, so it is offered for deleted clips only
+        var hasDeletedClips = SelectedItems.Any(p => p.Del);
+        foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "UnDelete")))
+            item.IsEnabled = hasDeletedClips;
     }
 
     private ClipListViewModel? GetClipListViewModel() => DataContext switch
