@@ -1,0 +1,11 @@
+# User actions known to do nothing yet, checked by DeadActionTests. Remove a line when its action is built; the test
+# fails if a listed action is no longer found, so this list only shrinks.
+ClipMate.App/Services/HotkeyCoordinator.cs: stub OnObjectScreenCaptureRequested
+ClipMate.App/Services/HotkeyCoordinator.cs: stub OnRegionScreenCaptureRequested
+ClipMate.App/Services/HotkeyCoordinator.cs: stub OnViewClipRequested
+ClipMate.App/ViewModels/CollectionTreeViewModel.cs: stub ShowPropertiesAsync
+ClipMate.App/ViewModels/MainMenuViewModel.cs: empty command CheckSpelling
+ClipMate.App/ViewModels/MainMenuViewModel.cs: empty command ShiftLeft
+ClipMate.App/ViewModels/MainMenuViewModel.cs: empty command ShiftRight
+ClipMate.App/ViewModels/MainMenuViewModel.cs: empty command Transparency
+ClipMate.App/ViewModels/MainMenuViewModel.cs: empty command UnicodeToAnsi
