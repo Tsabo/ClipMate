@@ -257,6 +257,27 @@ public class ClipRepository : IClipRepository
         return clip;
     }
 
+    public async Task<string?> GetNewestPlainTextAsync(Guid collectionId, CancellationToken cancellationToken = default)
+    {
+        // Ordered in memory: SQLite can't ORDER BY a DateTimeOffset
+        var captures = await _context.Clips
+            .Where(p => p.CollectionId == collectionId && !p.Del)
+            .Select(p => new { p.Id, p.CapturedAt })
+            .ToListAsync(cancellationToken);
+
+        if (captures.Count == 0)
+            return null;
+
+        var newestId = captures.MaxBy(p => p.CapturedAt)!.Id;
+
+        var texts = await _context.ClipData
+            .Where(p => p.ClipId == newestId && (p.Format == Formats.UnicodeText.Code || p.Format == Formats.Text.Code))
+            .Join(_context.BlobTxt, data => data.Id, blob => blob.ClipDataId, (data, blob) => new { data.Format, blob.Data })
+            .ToListAsync(cancellationToken);
+
+        return (texts.FirstOrDefault(p => p.Format == Formats.UnicodeText.Code) ?? texts.FirstOrDefault())?.Data;
+    }
+
     public async Task<IReadOnlyList<Clip>> SearchAsync(string searchText, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchText))
@@ -331,13 +352,11 @@ public class ClipRepository : IClipRepository
         if (clip == null)
             return false;
 
-        // Soft delete (ClipMate style)
+        // Soft delete (ClipMate style): the clip keeps its content in the Trash, so restoring it gives it back intact;
+        // Empty Trash removes the content with the clip
         clip.Del = true;
         clip.DelDate = DateTimeOffset.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
-
-        // Hard delete BLOB data to save space
-        await DeleteClipBlobsAsync(id, cancellationToken);
 
         return true;
     }
@@ -358,7 +377,6 @@ public class ClipRepository : IClipRepository
         {
             item.Del = true;
             item.DelDate = DateTimeOffset.Now;
-            await DeleteClipBlobsAsync(item.Id, cancellationToken);
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -735,19 +753,6 @@ public class ClipRepository : IClipRepository
 
     public async Task<Clip> AddAsync(Clip clip, CancellationToken cancellationToken = default)
         => await CreateAsync(clip, cancellationToken);
-
-    /// <summary>
-    /// Deletes all BLOB data associated with a clip (cascades to ClipData and all BLOB tables).
-    /// </summary>
-    private async Task DeleteClipBlobsAsync(Guid clipId, CancellationToken cancellationToken)
-    {
-        // EF Core will cascade delete BLOBs when we delete ClipData (configured in OnModelCreating)
-        var clipDataEntries = await _context.ClipData
-            .Where(p => p.ClipId == clipId)
-            .ToListAsync(cancellationToken);
-
-        _context.ClipData.RemoveRange(clipDataEntries);
-    }
 
     public async Task<long> GetCountAsync(CancellationToken cancellationToken = default)
         => await _context.Clips

@@ -75,6 +75,51 @@ public class ConfigurationUpgraderTests
     }
 
     [Test]
+    public async Task Upgrade_Version3_ClearsTheOldToggleAutoCaptureDefault()
+    {
+        // Arrange: Ctrl+Alt+A was the default, and is Append's shortcut in ClipMate's windows
+        var configuration = new ClipMateConfiguration
+        {
+            Version = 3,
+            Hotkeys = new HotkeyConfiguration { AutoCapture = "Ctrl+Alt+A" },
+        };
+
+        // Act
+        var changed = ConfigurationUpgrader.Upgrade(configuration);
+
+        // Assert
+        await Assert.That(changed).IsTrue();
+        await Assert.That(configuration.Hotkeys.AutoCapture).IsEmpty();
+    }
+
+    [Test]
+    public async Task Upgrade_Version3_KeepsAToggleAutoCaptureHotkeyTheUserChose()
+    {
+        // Arrange
+        var configuration = new ClipMateConfiguration
+        {
+            Version = 3,
+            Hotkeys = new HotkeyConfiguration { AutoCapture = "Ctrl+Alt+Shift+F8" },
+        };
+
+        // Act
+        ConfigurationUpgrader.Upgrade(configuration);
+
+        // Assert
+        await Assert.That(configuration.Hotkeys.AutoCapture).IsEqualTo("Ctrl+Alt+Shift+F8");
+    }
+
+    [Test]
+    public async Task NewSettings_HaveNoToggleAutoCaptureHotkey()
+    {
+        // Act
+        var configuration = new ClipMateConfiguration();
+
+        // Assert: ClipMate 7's Win+Shift+C is held by Windows, and Ctrl+Alt+A is Append's shortcut
+        await Assert.That(configuration.Hotkeys.AutoCapture).IsEmpty();
+    }
+
+    [Test]
     public async Task Upgrade_CurrentVersion_LeavesADeletedCtfmonDeleted()
     {
         // Arrange: the user removed CTFMON: after the upgrade had run

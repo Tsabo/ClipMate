@@ -31,6 +31,7 @@ public class CollectionOperationsCoordinator :
     IRecipient<DeactivateDatabaseRequestedEvent>,
     IRecipient<MoveToNamedCollectionRequestedEvent>,
     IRecipient<SelectNamedCollectionRequestedEvent>,
+    IRecipient<SelectCollectionRequestedEvent>,
     IRecipient<ShowCollectionPropertiesRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
@@ -89,6 +90,7 @@ public class CollectionOperationsCoordinator :
         _messenger.Register<DeactivateDatabaseRequestedEvent>(this);
         _messenger.Register<MoveToNamedCollectionRequestedEvent>(this);
         _messenger.Register<SelectNamedCollectionRequestedEvent>(this);
+        _messenger.Register<SelectCollectionRequestedEvent>(this);
         _messenger.Register<ShowCollectionPropertiesRequestedEvent>(this);
 
         // Track selection changes for "Switch to Last Collection" feature
@@ -185,8 +187,8 @@ public class CollectionOperationsCoordinator :
     }
 
     /// <summary>
-    /// Handles AppendClipsRequestedEvent to glue selected text clips together, or to toggle
-    /// Auto-Append mode when fewer than 2 clips are selected.
+    /// Handles AppendClipsRequestedEvent to glue the text of the selected clips together into a new Current Clip, or to
+    /// toggle Auto-Append mode when fewer than 2 clips are selected.
     /// </summary>
     public async void Receive(AppendClipsRequestedEvent message)
     {
@@ -215,37 +217,42 @@ public class CollectionOperationsCoordinator :
                 return;
             }
 
-            // Verify all clips are text-based
-            var nonTextClips = selectedClips.Where(p => p.Type != ClipType.Text &&
-                                                        p.Type != ClipType.RichText)
-                .ToList();
-
-            if (nonTextClips.Count > 0)
-            {
-                DXMessageBox.Show(
-                    _activeWindowService.DialogOwner,
-                    "Append (Glue) is only available for text clips.",
-                    "Append Clips",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                return;
-            }
-
             try
             {
+                var databaseKey = _collectionService.GetActiveDatabaseKey();
+
+                // Append takes the plain text of any clip that has it; clips without any (an image, say) are left out
+                foreach (var item in selectedClips.Where(p => string.IsNullOrEmpty(p.TextContent)))
+                    await _clipService.LoadBlobDataAsync(databaseKey!, item);
+
+                var textClips = selectedClips.Where(p => !string.IsNullOrEmpty(p.TextContent)).ToList();
+                var skipped = selectedClips.Except(textClips).Select(p => p.DisplayTitle).ToList();
+                var skippedNote = skipped.Count > 0
+                    ? $" (left out, no text: {string.Join(", ", skipped)})"
+                    : string.Empty;
+
+                if (textClips.Count < 2)
+                {
+                    _logger.LogInformation("Nothing to append: {Count} of the selected clips have text", textClips.Count);
+                    SendStatus($"Nothing to append: Append needs at least 2 clips with text{skippedNote}", true);
+
+                    return;
+                }
+
                 var preferences = _configurationService.Configuration.Preferences;
                 var separator = preferences.AppendSeparatorString;
                 var stripTrailing = preferences.StripTrailingLineBreak;
 
-                var resultClip = await _clipAppendService.AppendClipsAsync(selectedClips, separator, stripTrailing);
+                var resultClip = await _clipAppendService.AppendClipsAsync(textClips, separator, stripTrailing);
 
-                _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", selectedClips.Count, resultClip.Id);
-                SendStatus($"Appended {selectedClips.Count} clips");
+                _logger.LogInformation("Appended {Count} clips into new clip {ClipId}", textClips.Count, resultClip.Id);
+                SendStatus($"Appended {textClips.Count} clips{skippedNote}");
 
                 // Insert the newly created clip into the clip list
-                var databaseKey = _collectionService.GetActiveDatabaseKey();
                 _messenger.Send(new ClipAddedEvent(resultClip, false, databaseKey!, resultClip.CollectionId, resultClip.FolderId));
+
+                // The appended clip becomes the Current Clip, ready to paste (manual: Lesson 3, Append)
+                await _clipService.LoadAndSetClipboardAsync(databaseKey!, resultClip.Id);
             }
             catch (Exception ex)
             {
@@ -466,34 +473,42 @@ public class CollectionOperationsCoordinator :
             return;
         }
 
-        // Show collection picker dialog
-        var dialog = _serviceProvider.GetRequiredService<CollectionPickerDialog>();
-        dialog.Owner = _activeWindowService.DialogOwner;
-        dialog.Title = "Restore to Collection";
-
-        if (dialog.ShowDialog() != true || dialog.SelectedCollection == null)
-            return;
-
         try
         {
+            // Show collection picker dialog
+            var dialog = new CollectionPickerDialog(_serviceProvider)
+            {
+                Title = "Restore to Collection",
+                Message = $"Select a collection to restore {selectedClips.Count} clip(s) to:",
+                Owner = _activeWindowService.DialogOwner,
+            };
+
+            await dialog.LoadCollectionsAsync();
+
+            if (dialog.ShowDialog() != true || dialog.SelectedCollection == null)
+                return;
+
             var targetCollectionId = dialog.SelectedCollection.Collection.Id;
             var targetDatabaseKey = dialog.SelectedDatabaseKey ?? sourceDatabaseKey;
+            var restored = selectedClips.ToList();
 
-            foreach (var item in selectedClips.ToList())
+            if (string.Equals(sourceDatabaseKey, targetDatabaseKey, StringComparison.OrdinalIgnoreCase))
+                await _clipService.RestoreClipsAsync(sourceDatabaseKey, restored.Select(p => p.Id).ToList(), targetCollectionId);
+            else
             {
-                // Restore from trash by moving clip back to the target collection
-                if (sourceDatabaseKey == targetDatabaseKey)
-                    await _clipService.MoveClipAsync(sourceDatabaseKey, item.Id, targetCollectionId);
-                else
+                // A clip in the Trash can't be read for a move, so it is first restored in place, then moved
+                foreach (var item in restored)
+                {
+                    await _clipService.RestoreClipsAsync(sourceDatabaseKey, [item.Id], item.CollectionId ?? targetCollectionId);
                     await _clipService.MoveClipCrossDatabaseAsync(sourceDatabaseKey, item.Id, targetDatabaseKey, targetCollectionId);
+                }
             }
 
-            _logger.LogInformation("Restored {Count} clips to collection {CollectionId}", selectedClips.Count, targetCollectionId);
-            SendStatus($"Restored {selectedClips.Count} clip(s)");
+            _logger.LogInformation("Restored {Count} clips to collection {CollectionId}", restored.Count, targetCollectionId);
+            SendStatus($"Restored {restored.Count} clip(s)");
 
-            // Refresh the clip list - after restore, trigger a reload of the current collection
-            var firstClip = selectedClips.First();
-            _messenger.Send(new ClipUpdatedMessage(firstClip.Id, firstClip.Title));
+            // The restored clips leave the Trash view
+            _messenger.Send(new ClipsDeletedEvent(restored.Select(p => p.Id).ToList()));
         }
         catch (Exception ex)
         {
@@ -512,6 +527,35 @@ public class CollectionOperationsCoordinator :
             _clipListViewModel.SelectedClips.Add(item);
 
         SendStatus($"Selected {_clipListViewModel.Clips.Count} clip(s)");
+    }
+
+    /// <summary>
+    /// Handles SelectCollectionRequestedEvent: asks for a collection and shows it, as ClipMate 7's Select Collection does.
+    /// </summary>
+    public async void Receive(SelectCollectionRequestedEvent message)
+    {
+        try
+        {
+            var dialog = new CollectionPickerDialog(_serviceProvider)
+            {
+                Message = "Select a collection to show:",
+                Owner = _activeWindowService.DialogOwner,
+            };
+
+            await dialog.LoadCollectionsAsync();
+
+            if (dialog.ShowDialog() != true || dialog.SelectedCollectionId is not { } collectionId)
+                return;
+
+            if (FindCollectionNode(_collectionTreeViewModel.RootNodes, collectionId) is { } node)
+                _collectionTreeViewModel.SelectedNode = node;
+            else
+                SendStatus("Collection not found in tree");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to select a collection");
+        }
     }
 
     /// <summary>

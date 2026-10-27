@@ -20,7 +20,8 @@ public class HotkeyConfiguration
     /// Gets or sets the hotkey to toggle auto-capture (e.g., "Win+Shift+C").
     /// </summary>
     // Avoid Win+Shift+C (reserved by OS)
-    public string AutoCapture { get; set; } = "Ctrl+Alt+A";
+    // None by default: ClipMate 7's Win+Shift+C is held by Windows, and Ctrl+Alt+A is Append's shortcut
+    public string AutoCapture { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the hotkey for quick paste/PowerPaste (e.g., "Shift+Ctrl+Q").

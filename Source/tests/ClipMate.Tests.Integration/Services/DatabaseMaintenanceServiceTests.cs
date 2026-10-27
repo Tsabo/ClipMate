@@ -3,7 +3,9 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Data;
+using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using FakeItEasy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -150,6 +152,43 @@ public class DatabaseMaintenanceServiceTests
         await using var context = await _contextFactory.CreateDbContextAsync();
         var canConnect = await context.Database.CanConnectAsync();
         await Assert.That(canConnect).IsTrue();
+    }
+
+    [Test]
+    public async Task EmptyTrashAsync_RemovesTheContentOfClipsInTheTrash()
+    {
+        // Arrange: a clip with text, sent to the Trash, which keeps its content
+        var config = new DatabaseConfiguration
+        {
+            Name = "test",
+            FilePath = Path.Combine(_testDirectory, "test.db"),
+        };
+
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            TextContent = "in the Trash",
+            ContentHash = "trash",
+            CapturedAt = DateTimeOffset.Now,
+        };
+
+        await using (var context = await _contextFactory.CreateDbContextAsync())
+        {
+            var repository = new ClipRepository(context, A.Fake<ILogger<ClipRepository>>());
+            await repository.CreateAsync(clip);
+            await repository.DeleteAsync(clip.Id);
+        }
+
+        // Act
+        await _service.EmptyTrashAsync(config);
+
+        // Assert
+        await using (var context = await _contextFactory.CreateDbContextAsync())
+        {
+            await Assert.That(await context.ClipData.CountAsync(p => p.ClipId == clip.Id)).IsEqualTo(0);
+            await Assert.That(await context.BlobTxt.CountAsync(p => p.ClipId == clip.Id)).IsEqualTo(0);
+        }
     }
 
     [Test]

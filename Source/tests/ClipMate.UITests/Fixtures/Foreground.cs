@@ -47,10 +47,57 @@ public static partial class Foreground
         keybd_event((byte)virtualKey, 0, _keyeventfKeyUp, 0);
     }
 
+    /// <summary>
+    /// Presses a key combination, such as Ctrl+Alt+Shift+F9, and releases it in reverse order.
+    /// </summary>
+    public static void PressKeys(params ushort[] virtualKeys)
+    {
+        foreach (var item in virtualKeys)
+            keybd_event((byte)item, 0, 0, 0);
+
+        foreach (var item in virtualKeys.Reverse())
+            keybd_event((byte)item, 0, _keyeventfKeyUp, 0);
+    }
+
+    /// <summary>
+    /// Clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
+    /// </summary>
+    public static void LeftClick(System.Windows.Rect bounds)
+    {
+        SetCursorPos((int)(bounds.Left + bounds.Width / 2), (int)(bounds.Top + bounds.Height / 2));
+        mouse_event(_mouseeventfLeftDown, 0, 0, 0, 0);
+        mouse_event(_mouseeventfLeftUp, 0, 0, 0, 0);
+    }
+
+    /// <summary>
+    /// Right-clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
+    /// </summary>
+    public static void RightClick(System.Windows.Rect bounds)
+    {
+        SetCursorPos((int)(bounds.Left + bounds.Width / 2), (int)(bounds.Top + bounds.Height / 2));
+        mouse_event(_mouseeventfRightDown, 0, 0, 0, 0);
+        mouse_event(_mouseeventfRightUp, 0, 0, 0, 0);
+    }
+
     public const ushort VkReturn = 0x0D;
+    public const ushort VkShift = 0x10;
+    public const ushort VkControl = 0x11;
+    public const ushort VkAlt = 0x12;
+    public const ushort VkF9 = 0x78;
 
     private const int _swRestore = 9;
     private const uint _keyeventfKeyUp = 0x0002;
+    private const uint _mouseeventfLeftDown = 0x0002;
+    private const uint _mouseeventfLeftUp = 0x0004;
+    private const uint _mouseeventfRightDown = 0x0008;
+    private const uint _mouseeventfRightUp = 0x0010;
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetCursorPos(int x, int y);
+
+    [LibraryImport("user32.dll")]
+    private static partial void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, nuint dwExtraInfo);
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();

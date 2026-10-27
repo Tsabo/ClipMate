@@ -127,7 +127,7 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                            <MenuItem Header="Un Delete" Tag="UnDelete" Click="UnDelete_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="♻️" FontSize="14" />
                                 </MenuItem.Icon>
@@ -152,12 +152,12 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Toggle Macros On/Off For This Clip">
+                            <MenuItem Header="Toggle Macros On/Off For This Clip" Click="ToggleMacro_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="⚙" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A">
+                            <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A" Click="AppendClips_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="🔗" FontSize="14" />
                                 </MenuItem.Icon>
@@ -174,7 +174,7 @@
                                     <emoji:TextBlock Text="🌐" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Place Source URL On Clipboard">
+                            <MenuItem Header="Place Source URL On Clipboard" Click="PlaceSourceUrlOnClipboard_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
                                 </MenuItem.Icon>
@@ -191,12 +191,13 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection">
+                            <!-- Hidden until there is a second clip list to tack: ClipMate 7's Tack pins its secondary ClipList to a collection -->
+                            <MenuItem Header="Tack (lock) this window onto this collection" Visibility="Collapsed">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Select Another Collection">
+                            <MenuItem Header="Select Another Collection" Click="SelectAnotherCollection_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📂" FontSize="14" />
                                 </MenuItem.Icon>
@@ -367,7 +368,7 @@
                                     <emoji:TextBlock Text="🗑" FontSize="14" Foreground="Red" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Un Delete" IsEnabled="False" Foreground="Gray">
+                            <MenuItem Header="Un Delete" Tag="UnDelete" Click="UnDelete_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="♻️" FontSize="14" />
                                 </MenuItem.Icon>
@@ -392,12 +393,12 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Toggle Macros On/Off For This Clip">
+                            <MenuItem Header="Toggle Macros On/Off For This Clip" Click="ToggleMacro_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="⚙" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A">
+                            <MenuItem Header="Append Clips Together (Glue)" InputGestureText="Ctrl+Alt+A" Click="AppendClips_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="🔗" FontSize="14" />
                                 </MenuItem.Icon>
@@ -414,7 +415,7 @@
                                     <emoji:TextBlock Text="🌐" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Place Source URL On Clipboard">
+                            <MenuItem Header="Place Source URL On Clipboard" Click="PlaceSourceUrlOnClipboard_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="➕" FontSize="14" Foreground="Green" />
                                 </MenuItem.Icon>
@@ -431,12 +432,13 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
-                            <MenuItem Header="Tack (lock) this window onto this collection">
+                            <!-- Hidden until there is a second clip list to tack: ClipMate 7's Tack pins its secondary ClipList to a collection -->
+                            <MenuItem Header="Tack (lock) this window onto this collection" Visibility="Collapsed">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📌" FontSize="14" />
                                 </MenuItem.Icon>
                             </MenuItem>
-                            <MenuItem Header="Select Another Collection">
+                            <MenuItem Header="Select Another Collection" Click="SelectAnotherCollection_Click">
                                 <MenuItem.Icon>
                                     <emoji:TextBlock Text="📂" FontSize="14" />
                                 </MenuItem.Icon>

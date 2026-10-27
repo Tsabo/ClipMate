@@ -7,7 +7,8 @@ namespace ClipMate.UITests.Tests;
 
 /// <summary>
 /// ClipMate marks its own copies with "Clipboard Viewer Ignore", so picking a clip doesn't capture it again, while the
-/// same content copied by another program right afterwards is captured and left to the collection's Accept Duplicates.
+/// same content copied by another program right afterwards is captured and left to the collection's Accept Duplicates:
+/// a Duplicate of the newest clip is rejected, the text of an older clip is kept.
 /// <para>Uses the real, shared clipboard and puts its previous content back afterwards.</para>
 /// </summary>
 [ClassDataSource<AppFixture>(Shared = SharedType.None)]
@@ -15,7 +16,7 @@ namespace ClipMate.UITests.Tests;
 public class OwnCopyTests(AppFixture appFixture)
 {
     private const string _ignoreMarker = "Clipboard Viewer Ignore";
-    private const string _duplicateLogLine = "Not saving a duplicate clip: the collection does not accept duplicates";
+    private const string _duplicateLogLine = "Not saving a duplicate clip";
 
     [Test]
     public async Task PickAClip_IsNotCapturedAgain_ButTheSameCopyFromAnotherProgramIsADuplicate()
@@ -44,19 +45,29 @@ public class OwnCopyTests(AppFixture appFixture)
             await Assert.That(CountClips()).IsEqualTo(clipsBefore + 1);
             await Assert.That(CountClips(picked)).IsEqualTo(1);
 
-            // Act: another program copies the same content right after ClipMate's copy
+            // Act: another program copies the newest clip's text right after ClipMate's copy of it
+            // (the newest clip, just captured, is already the current row: picking it copies nothing until another is picked)
             await PickAsync(clipList, other);
             var duplicatesBefore = CountDuplicateLines();
-            await PickAsync(clipList, picked);
+            await PickAsync(clipList, probe);
+            using (var program = ClipboardTestProgram.CopyInBackground(probe, $"ClipMate UI test copier {Guid.NewGuid():N}"))
+            {
+                await Poll.UntilAsync(() => program.HasPrinted("written"), "the test program to copy");
+
+                // Assert: captured and rejected as a Duplicate of the newest clip (Inbox doesn't accept duplicates)
+                await Poll.UntilAsync(() => CountDuplicateLines() > duplicatesBefore, "ClipMate to capture the other program's copy");
+            }
+
+            await Assert.That(CountClips(probe)).IsEqualTo(1);
+
+            // Act: another program copies an older clip's text, which ClipMate 7 keeps: only the newest clip counts
             using (var program = ClipboardTestProgram.CopyInBackground(picked, $"ClipMate UI test copier {Guid.NewGuid():N}"))
             {
                 await Poll.UntilAsync(() => program.HasPrinted("written"), "the test program to copy");
 
-                // Assert: captured and handled as a duplicate (the default collection doesn't accept duplicates)
-                await Poll.UntilAsync(() => CountDuplicateLines() > duplicatesBefore, "ClipMate to capture the other program's copy");
+                // Assert
+                await Poll.UntilAsync(() => CountClips(picked) == 2 ? "saved" : null, "ClipMate to save the older clip's text again");
             }
-
-            await Assert.That(CountClips(picked)).IsEqualTo(1);
         }
         finally
         {

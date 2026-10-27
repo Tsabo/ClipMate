@@ -134,6 +134,7 @@ public partial class ClipListControl
             typeof(RoutedEventHandler),
             typeof(ClipListControl));
 
+    private readonly IClipboardService? _clipboardService;
     private readonly IClipService? _clipService;
     private readonly ILogger<ClipListControl> _logger;
     private readonly IMessenger _messenger;
@@ -165,6 +166,7 @@ public partial class ClipListControl
         _quickPasteService = app.ServiceProvider.GetService<IQuickPasteService>();
         _pasteTargetTracker = app.ServiceProvider.GetService<IPasteTargetTracker>();
         _clipService = app.ServiceProvider.GetService<IClipService>();
+        _clipboardService = app.ServiceProvider.GetService<IClipboardService>();
         _logger = app.ServiceProvider.GetService<ILogger<ClipListControl>>()!;
         var options = app.ServiceProvider.GetService<IOptions<ClipMateConfiguration>>();
         _preferences = options?.Value.Preferences ?? new PreferencesConfiguration();
@@ -467,6 +469,18 @@ public partial class ClipListControl
             templateService.ResetSequenceCounter();
     }
 
+    private void AppendClips_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new AppendClipsRequestedEvent());
+
+    private void UnDelete_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new RestoreClipsRequestedEvent());
+
+    private void ToggleMacro_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new ToggleMacroRequestedEvent());
+
+    private void SelectAnotherCollection_Click(object sender, RoutedEventArgs e) =>
+        _messenger.Send(new SelectCollectionRequestedEvent());
+
     private void ConvertFilePointer_Click(object sender, RoutedEventArgs e) =>
         _messenger.Send(new ConvertFilePointerRequestedEvent());
 
@@ -537,6 +551,32 @@ public partial class ClipListControl
         {
             MessageBox.Show($"Failed to open URL: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Puts the clip's Source URL on the clipboard by itself, as ClipMate's own copy so it is not captured again
+    /// (manual: ClipList, "Place Source URL On Clipboard").
+    /// </summary>
+    private async void PlaceSourceUrlOnClipboard_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedItem?.SourceUrl is not { Length: > 0 } sourceUrl || _clipboardService == null)
+            return;
+
+        try
+        {
+            await _clipboardService.SetClipboardContentAsync(new Clip
+            {
+                Id = Guid.NewGuid(),
+                Type = ClipType.Text,
+                Title = sourceUrl,
+                TextContent = sourceUrl,
+                CapturedAt = DateTimeOffset.Now,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to place the source URL on the clipboard");
         }
     }
 
@@ -1097,6 +1137,11 @@ public partial class ClipListControl
         var isRemote = GetClipListViewModel()?.IsRemoteDatabase == true;
         foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "CopyToLocal")))
             item.Visibility = isRemote ? Visibility.Visible : Visibility.Collapsed;
+
+        // Un Delete restores clips from the Trash, so it is offered for deleted clips only
+        var hasDeletedClips = SelectedItems.Any(p => p.Del);
+        foreach (var item in menu.Items.OfType<FrameworkElement>().Where(p => Equals(p.Tag, "UnDelete")))
+            item.IsEnabled = hasDeletedClips;
     }
 
     private ClipListViewModel? GetClipListViewModel() => DataContext switch

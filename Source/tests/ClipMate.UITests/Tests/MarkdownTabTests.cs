@@ -1,6 +1,4 @@
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows;
 using ClipMate.UITests.Fixtures;
 using ClipMate.UITests.PageObjects;
 
@@ -30,14 +28,14 @@ public partial class MarkdownTabTests(AppFixture appFixture)
             var clipList = new ClipListPage(appFixture.Process);
             using var window = await ForegroundTestWindow.OpenAsync();
 
-            window.Copy(() => Html($"<b>{first}</b>", first));
+            window.Copy(() => HtmlCopy.Create($"<b>{first}</b>", first));
             await clipList.WaitForRowAsync(first);
             await Poll.UntilAsync(() => EditorLoads().Count > 0, "the editor to load the first clip's Markdown", TimeSpan.FromSeconds(30));
             var conversions = Conversions().Count;
             var loads = EditorLoads().Count;
 
             // Act: a link copied as a browser's address bar does, while the Markdown tab is open
-            window.Copy(() => Html($"<a href=\"{link}\">GitHub - Tsabo/ClipMate</a>", link));
+            window.Copy(() => HtmlCopy.Create($"<a href=\"{link}\">GitHub - Tsabo/ClipMate</a>", link));
             await Poll.UntilAsync(() => Conversions().Count > conversions, "the link's conversion to Markdown");
 
             // Assert: the editor loads the link's Markdown
@@ -62,25 +60,6 @@ public partial class MarkdownTabTests(AppFixture appFixture)
 
     private List<int> Lengths(Regex line) =>
         line.Matches(appFixture.ReadLog()).Select(p => int.Parse(p.Groups["length"].Value)).ToList();
-
-    /// <summary>
-    /// A copy offering <paramref name="fragment" /> as CF_HTML, with <paramref name="text" /> as its plain text.
-    /// </summary>
-    private static DataObject Html(string fragment, string text)
-    {
-        const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
-        const string before = "<html><body><!--StartFragment-->";
-        const string after = "<!--EndFragment--></body></html>";
-        var headerLength = string.Format(header, 0, 0, 0, 0).Length;
-        var startFragment = headerLength + Encoding.UTF8.GetByteCount(before);
-        var endFragment = startFragment + Encoding.UTF8.GetByteCount(fragment);
-        var endHtml = endFragment + Encoding.UTF8.GetByteCount(after);
-
-        var data = new DataObject();
-        data.SetData(DataFormats.Html, string.Format(header, headerLength, endHtml, startFragment, endFragment) + before + fragment + after);
-        data.SetText(text);
-        return data;
-    }
 
     [GeneratedRegex(@"\[MarkdownViewer\] Converted ""?\w+""? to ""?\w+""? Markdown \((?<length>\d+) chars\)")]
     private static partial Regex ConversionLine();

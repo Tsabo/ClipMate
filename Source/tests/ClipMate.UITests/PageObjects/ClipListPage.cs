@@ -63,16 +63,48 @@ public class ClipListPage(Process app)
         FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
     /// <summary>
-    /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste").
+    /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste"), or its check button
+    /// (e.g. "Append").
     /// </summary>
     public void ClickToolbarButton(string name)
     {
         var button = MainWindow()?.FindFirst(TreeScope.Descendants, new AndCondition(
-                         new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                         new OrCondition(
+                             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                             new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.CheckBox)),
                          new PropertyCondition(AutomationElement.NameProperty, name)))
                      ?? throw new InvalidOperationException($"No toolbar button named \"{name}\"");
 
-        ((InvokePattern)button.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+        if (button.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
+            ((InvokePattern)invoke).Invoke();
+        else
+            ((TogglePattern)button.GetCurrentPattern(TogglePattern.Pattern)).Toggle();
+    }
+
+    /// <summary>
+    /// Right-clicks the row containing <paramref name="rowText" /> with the mouse, as a user opens the clip list's context
+    /// menu, and clicks the menu's item named <paramref name="name" />.
+    /// </summary>
+    public async Task ClickContextMenuItemAsync(string rowText, string name)
+    {
+        var window = MainWindow() ?? throw new InvalidOperationException("The main window is not open");
+        await Foreground.ActivateAsync(window.Current.NativeWindowHandle, "ClipMate's main window");
+
+        // A right-click made while the window is still settling can open no menu; right-click again until it is open
+        var attempt = 0;
+        var item = await Poll.UntilAsync(() =>
+            {
+                if (attempt++ % 10 == 0)
+                    Foreground.RightClick((FindRow(rowText) ?? throw new InvalidOperationException($"No row containing \"{rowText}\"")).Current.BoundingRectangle);
+
+                return AutomationElement.RootElement.FindFirst(TreeScope.Descendants, new AndCondition(
+                    new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem),
+                    new PropertyCondition(AutomationElement.NameProperty, name)));
+            },
+            $"the context menu item \"{name}\"");
+
+        ((InvokePattern)item.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
     }
 
     private AutomationElement? MainWindow() =>

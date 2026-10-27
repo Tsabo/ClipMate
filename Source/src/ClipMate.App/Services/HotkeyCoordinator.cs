@@ -171,8 +171,6 @@ public class HotkeyCoordinator
     private void OnManualFilterRequested()
     {
         _logger.LogDebug("Manual Filter hotkey pressed");
-        // TODO: Implement manual filter functionality
-        // Create ManualFilterEvent and implement handler
-        _logger.LogWarning("Manual filter not yet implemented");
+        _messenger.Send(new ManualFilterRequestedEvent());
     }
 }

@@ -18,8 +18,12 @@ public class ClipboardCoordinator : IHostedService,
     IRecipient<PreferencesChangedEvent>,
     IRecipient<ToggleAutoCaptureEvent>,
     IRecipient<ManualCaptureClipboardEvent>,
-    IRecipient<CaptureSpecialRequestedEvent>
+    IRecipient<CaptureSpecialRequestedEvent>,
+    IRecipient<ManualFilterRequestedEvent>
 {
+    // The Formats Manual Filter keeps, as ClipMate 7's outbound filter does (CF_TEXT and CF_BITMAP): plain text and an image
+    private static readonly string[] _filteredFormats = ["CF_TEXT", "CF_DIB"];
+
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
@@ -52,6 +56,7 @@ public class ClipboardCoordinator : IHostedService,
         _messenger.Register<ToggleAutoCaptureEvent>(this);
         _messenger.Register<ManualCaptureClipboardEvent>(this);
         _messenger.Register<CaptureSpecialRequestedEvent>(this);
+        _messenger.Register<ManualFilterRequestedEvent>(this);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -166,7 +171,7 @@ public class ClipboardCoordinator : IHostedService,
             if (clip != null)
             {
                 _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);
-                await ProcessClipAsync(clip, CancellationToken.None);
+                await ProcessClipAsync(clip, CancellationToken.None, manualCapture: true);
             }
             else
                 _logger.LogDebug("No clipboard content to capture");
@@ -193,6 +198,34 @@ public class ClipboardCoordinator : IHostedService,
         catch (Exception ex)
         {
             _logger.LogError(ex, "Capture Special failed");
+        }
+    }
+
+    /// <summary>
+    /// Handles ManualFilterRequestedEvent: puts the clipboard's content back with only its plain text (or its image), as
+    /// ClipMate 7's Manual Filter does (manual: Hotkeys). The copy is ClipMate's own, so it is not captured as a new clip.
+    /// </summary>
+    public async void Receive(ManualFilterRequestedEvent message)
+    {
+        try
+        {
+            // Read whatever is there, even ClipMate's own copy of the Current Clip
+            if (await _clipboardService.ReadClipboardAsync() is not { } reading ||
+                await _clipboardService.CaptureSpecialAsync(reading, _filteredFormats) is not { } filtered)
+            {
+                _logger.LogDebug("Manual Filter: no plain text or image on the clipboard");
+                return;
+            }
+
+            await _clipboardService.SetClipboardContentAsync(filtered);
+
+            using var scope = _serviceProvider.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<ISoundService>().PlaySoundAsync(SoundEvent.Filter);
+            _logger.LogInformation("Manual Filter: left only plain text or an image on the clipboard");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manual Filter failed");
         }
     }
 
@@ -323,7 +356,8 @@ public class ClipboardCoordinator : IHostedService,
     /// <summary>
     /// Processes a single clip: applies filters, assigns to collection/folder, and persists.
     /// </summary>
-    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken)
+    /// <param name="manualCapture">Captured with the Manual Capture hotkey, which always keeps the clip, even a Duplicate.</param>
+    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken, bool manualCapture = false)
     {
         // Create a scope to resolve scoped services
         using var scope = _serviceProvider.CreateScope();
@@ -459,6 +493,15 @@ public class ClipboardCoordinator : IHostedService,
         // Create repository using the factory
         var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
 
+        // Auto-Append mode: a growing clip sent to the Trash (or purged) takes no more captures, so this capture starts a new one
+        if (_autoAppendService is { IsActive: true, GrowingClipId: { } previousGrowingClipId } &&
+            _autoAppendService.DatabaseKey == activeDatabaseKey &&
+            await clipRepository.GetByIdAsync(previousGrowingClipId, cancellationToken) == null)
+        {
+            _logger.LogInformation("Auto-Append: growing clip {ClipId} was deleted, starting a new one", previousGrowingClipId);
+            _autoAppendService.Activate();
+        }
+
         // Auto-Append mode: merge this capture into the growing clip instead of creating a new one
         if (_autoAppendService.IsActive &&
             clip.Type is ClipType.Text or ClipType.RichText &&
@@ -487,56 +530,28 @@ public class ClipboardCoordinator : IHostedService,
             return;
         }
 
-        // Check for duplicate by content hash (in the active database)
-        var existing = await clipRepository.GetByContentHashAsync(clip.ContentHash, cancellationToken);
-        Clip savedClip;
-        bool wasDuplicate;
-
-        if (existing != null)
+        // A Duplicate, as in ClipMate 7: the same plain text as the newest clip in the collection it is going into
+        if (!manualCapture &&
+            activeCollection is { AcceptDuplicates: false } &&
+            !string.IsNullOrEmpty(clip.TextContent) &&
+            clip.TextContent == await clipRepository.GetNewestPlainTextAsync(activeCollection.Id, cancellationToken))
         {
-            wasDuplicate = true;
+            _logger.LogInformation("Not saving a duplicate clip: the same text as the newest clip in '{Collection}', which does not accept duplicates",
+                activeCollection.Title);
 
-            // Check if collection accepts duplicates
-            if (activeCollection is { AcceptDuplicates: false })
-            {
-                _logger.LogInformation(
-                    "Not saving a duplicate clip: the collection does not accept duplicates ({ExistingId})",
-                    existing.Id);
-
-                await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-                return;
-            }
-
-            // Return existing clip instead of creating duplicate
-            savedClip = existing;
-        }
-        else
-        {
-            // Create new clip in the active database
-            savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
-            wasDuplicate = false;
+            await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+            return;
         }
 
-        if (!wasDuplicate)
-        {
-            _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
+        var savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
+        _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
 
-            // Play sound for new clipboard data captured
-            await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);
-        }
-        else
-        {
-            _logger.LogDebug(
-                "Duplicate clip detected in database '{DatabaseKey}', using existing: {ExistingId}",
-                activeDatabaseKey,
-                savedClip.Id);
-        }
+        // Play sound for new clipboard data captured
+        await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);
 
-        // Send message to notify UI - always send, even for duplicates
-        // UI can decide how to handle duplicates (update timestamp, bring to top, etc.)
         var clipAddedEvent = new ClipAddedEvent(
             savedClip,
-            wasDuplicate,
+            false,
             activeDatabaseKey,
             savedClip.CollectionId,
             savedClip.FolderId)

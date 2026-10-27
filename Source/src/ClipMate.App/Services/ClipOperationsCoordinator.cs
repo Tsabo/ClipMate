@@ -37,6 +37,7 @@ public class ClipOperationsCoordinator :
     IRecipient<PowerPasteDownRequestedEvent>,
     IRecipient<PowerPasteToggleRequestedEvent>,
     IRecipient<OpenSourceUrlRequestedEvent>,
+    IRecipient<ToggleMacroRequestedEvent>,
     IRecipient<CleanUpTextRequestedEvent>,
     IRecipient<RemoveLineBreaksRequestedEvent>,
     IRecipient<StripNonTextRequestedEvent>,
@@ -52,6 +53,9 @@ public class ClipOperationsCoordinator :
     IRecipient<ConvertFilePointerRequestedEvent>,
     IRecipient<MoveClipSortOrderRequestedEvent>
 {
+    // The clip list's icon for a macro clip
+    private const string _macroIcon = "⌨";
+
     private readonly IActiveWindowService _activeWindowService;
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
@@ -109,6 +113,7 @@ public class ClipOperationsCoordinator :
         _messenger.Register<ForgetEncryptionKeyRequestedEvent>(this);
         _messenger.Register<PowerPasteToggleRequestedEvent>(this);
         _messenger.Register<OpenSourceUrlRequestedEvent>(this);
+        _messenger.Register<ToggleMacroRequestedEvent>(this);
         _messenger.Register<CleanUpTextRequestedEvent>(this);
         _messenger.Register<RemoveLineBreaksRequestedEvent>(this);
         _messenger.Register<StripNonTextRequestedEvent>(this);
@@ -1099,6 +1104,46 @@ public class ClipOperationsCoordinator :
             SendStatus($"Failed to open URL: {ex.Message}", true);
         }
     }
+
+    /// <summary>
+    /// Handles ToggleMacroRequestedEvent: flips the selected clip's macro flag and saves it (manual: Macro Pasting).
+    /// </summary>
+    public async void Receive(ToggleMacroRequestedEvent message)
+    {
+        var selectedClip = _clipListViewModel.SelectedClip;
+        var databaseKey = _clipListViewModel.CurrentDatabaseKey;
+
+        if (selectedClip == null || string.IsNullOrEmpty(databaseKey))
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        try
+        {
+            selectedClip.Macro = !selectedClip.Macro;
+            selectedClip.LastModified = DateTimeOffset.Now;
+            await _clipService.UpdateAsync(databaseKey, selectedClip);
+
+            // The list's icon is worked out when clips load; show or hide the macro icon now
+            var icons = selectedClip.IconGlyph?.Replace(_macroIcon, string.Empty) ?? string.Empty;
+            selectedClip.IconGlyph = selectedClip.Macro ? MacroIconAfterLock(icons) : icons;
+            _messenger.Send(new ClipUpdatedMessage(selectedClip.Id, selectedClip.Title));
+
+            SendStatus(selectedClip.Macro ? "Clip is now a macro" : "Clip is no longer a macro");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to toggle the macro flag of clip {ClipId}", selectedClip.Id);
+            SendStatus($"Failed to toggle macro: {ex.Message}", true);
+        }
+    }
+
+    // The clip list shows a lock first (encrypted clips), then the macro icon, then the Format icons
+    private static string MacroIconAfterLock(string icons) =>
+        icons.StartsWith("🔒", StringComparison.Ordinal) || icons.StartsWith("🔓", StringComparison.Ordinal)
+            ? icons[..2] + _macroIcon + icons[2..]
+            : _macroIcon + icons;
 
     /// <summary>
     /// Handles PowerPasteDownRequestedEvent to start PowerPaste in downward direction.

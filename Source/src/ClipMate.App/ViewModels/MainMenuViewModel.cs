@@ -722,7 +722,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private void SwitchToFavoriteCollection() => _messenger.Send(new SwitchToFavoriteCollectionRequestedEvent());
 
     [RelayCommand]
-    private void SelectCollection() { }
+    private void SelectCollection() => _messenger.Send(new SelectCollectionRequestedEvent());
 
     [RelayCommand]
     private void OpenSourceUrl() => _messenger.Send(new OpenSourceUrlRequestedEvent());
