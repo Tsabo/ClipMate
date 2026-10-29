@@ -174,7 +174,7 @@ public partial class ExplorerWindow : IWindow,
             if (_serviceProvider.GetService(typeof(TextToolsDialog)) is not TextToolsDialog textToolsDialog)
                 return;
 
-            textToolsDialog.Owner = this;
+            textToolsDialog.CenterOnOwnerOrScreen(_activeWindowService.DialogOwner);
             textToolsDialog.ShowDialog();
         }
         catch (Exception ex)
@@ -197,7 +197,7 @@ public partial class ExplorerWindow : IWindow,
             if (!string.IsNullOrEmpty(selectedTab) && optionsDialog.DataContext is OptionsViewModel viewModel)
                 viewModel.SelectTab(selectedTab);
 
-            optionsDialog.Owner = this;
+            optionsDialog.CenterOnOwnerOrScreen(_activeWindowService.DialogOwner);
             var result = optionsDialog.ShowDialog();
 
             if (result == true)
