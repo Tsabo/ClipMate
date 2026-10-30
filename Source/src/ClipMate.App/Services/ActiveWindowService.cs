@@ -9,6 +9,15 @@ public class ActiveWindowService : IActiveWindowService
     /// <inheritdoc />
     public ActiveWindowType ActiveWindow { get; set; } = ActiveWindowType.None;
 
+    private Window? _dialogOwner;
+
     /// <inheritdoc />
-    public Window? DialogOwner { get; set; }
+    public Window? DialogOwner
+    {
+        // The last active window may since have been closed, hidden or minimized to the tray
+        get => _dialogOwner?.CanOwnDialogs() == true
+            ? _dialogOwner
+            : System.Windows.Application.Current?.GetDialogOwner();
+        set => _dialogOwner = value;
+    }
 }

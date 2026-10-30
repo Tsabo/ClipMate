@@ -71,7 +71,7 @@
         <!-- Reset Button -->
         <dxlc:LayoutItem>
             <Button Content="Reset to Defaults"
-                    Command="{Binding ResetCapturingToDefaultsCommand}"
+                    Command="{Binding ResetToDefaultsCommand}"
                     HorizontalAlignment="Left"
                     Margin="0,8,0,0" />
         </dxlc:LayoutItem>

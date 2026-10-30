@@ -4252,7 +4252,7 @@ namespace WpfHexaEditor
             //For present crash When used in Winform
             try
             {
-                window.Owner = Application.Current.MainWindow;
+                window.Owner = Window.GetWindow(this);
             }
             catch
             {
@@ -4270,7 +4270,7 @@ namespace WpfHexaEditor
             //For present crash When used in Winform
             try
             {
-                window.Owner = Application.Current.MainWindow;
+                window.Owner = Window.GetWindow(this);
             }
             catch
             {

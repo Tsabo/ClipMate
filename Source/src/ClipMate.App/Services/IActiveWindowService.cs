@@ -15,6 +15,8 @@ public interface IActiveWindowService
     /// <summary>
     /// Gets or sets the currently active window for dialog ownership.
     /// Modal dialogs should use this as their Owner property.
+    /// Null when no ClipMate window can own a dialog, e.g. when ClipMate is in the tray; such a dialog should be
+    /// placed with <see cref="WindowExtensions.CenterOnOwnerOrScreen" />.
     /// </summary>
     Window? DialogOwner { get; set; }
 }

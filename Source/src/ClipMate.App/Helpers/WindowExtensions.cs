@@ -8,23 +8,31 @@ namespace System.Windows;
 public static class WindowExtensions
 {
     /// <summary>
-    /// Finds the best owner window for modal dialogs.
-    /// Prefers the currently active ExplorerWindow or ClassicWindow, falls back to any ExplorerWindow,
-    /// then Application.Current.MainWindow if it is one of those two types.
-    /// MainWindow is excluded when it isn't an ExplorerWindow/ClassicWindow because WPF auto-assigns it
-    /// to whichever Window is constructed first - at startup that can be a hidden utility window
-    /// (e.g. HotkeyWindow), which would make a terrible, off-screen dialog owner.
+    /// Finds the best owner window for modal dialogs, or null when none can own one.
+    /// Prefers the currently active ExplorerWindow or ClassicWindow, then the ExplorerWindow, then the ClassicWindow.
+    /// Other windows are excluded: WPF makes whichever Window is constructed first the MainWindow, and at startup
+    /// that can be a hidden utility window (e.g. HotkeyWindow), which would make a terrible, off-screen dialog owner.
     /// </summary>
     public static Window? GetDialogOwner(this Application application)
     {
-        return application.Windows
-                   .OfType<Window>()
-                   .FirstOrDefault(p => p.IsActive && p is ExplorerWindow or ClassicWindow)
-               ?? application.Windows.OfType<ExplorerWindow>().FirstOrDefault()
-               ?? (application.MainWindow is ExplorerWindow or ClassicWindow
-                   ? application.MainWindow
-                   : null);
+        var candidates = application.Windows
+            .OfType<Window>()
+            .Where(p => p is ExplorerWindow or ClassicWindow && p.CanOwnDialogs())
+            .ToList();
+
+        return candidates.FirstOrDefault(p => p.IsActive)
+               ?? candidates.FirstOrDefault(p => p is ExplorerWindow)
+               ?? candidates.FirstOrDefault();
     }
+
+    /// <summary>
+    /// Whether a dialog can be owned by this window. WPF refuses a window that has never been shown or has been
+    /// closed as an Owner, and a dialog owned by a window that is hidden or minimized to the tray opens hidden too.
+    /// ClipMate starts in the tray, so the Explorer and Classic windows are often in one of those states when a
+    /// dialog is opened from the tray menu or a hotkey.
+    /// </summary>
+    public static bool CanOwnDialogs(this Window window) =>
+        window.IsVisible && window.WindowState != WindowState.Minimized;
 
     /// <summary>
     /// Centers a window on its owner, or on the primary monitor's work area if there is no owner.

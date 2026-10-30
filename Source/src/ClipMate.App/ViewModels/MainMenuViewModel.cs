@@ -688,11 +688,8 @@ public partial class MainMenuViewModel : ObservableObject,
     {
         var viewModel = _serviceProvider.GetRequiredService<EventLogViewModel>();
         var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
-        var dialog = new EventLogDialog(viewModel)
-        {
-            Owner = activeWindowService.DialogOwner,
-        };
-
+        var dialog = new EventLogDialog(viewModel);
+        dialog.CenterOnOwnerOrScreen(activeWindowService.DialogOwner);
         dialog.ShowDialog();
     }
 
@@ -825,11 +822,8 @@ public partial class MainMenuViewModel : ObservableObject,
     {
         var viewModel = _serviceProvider.GetRequiredService<AboutDialogViewModel>();
         var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
-        var dialog = new AboutDialog(viewModel)
-        {
-            Owner = activeWindowService.DialogOwner,
-        };
-
+        var dialog = new AboutDialog(viewModel);
+        dialog.CenterOnOwnerOrScreen(activeWindowService.DialogOwner);
         dialog.ShowDialog();
     }
 
