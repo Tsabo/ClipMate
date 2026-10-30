@@ -46,13 +46,13 @@ public class TrayTooltipViewModelTests
     }
 
     [Test]
-    public async Task Text_ClipCaptured_ShowsItsTitle()
+    public async Task Text_ClipCaptured_ShowsOnlyItsTitle()
     {
         // Act
         _messenger.Send(new ClipAddedEvent(new Clip { Title = "Meeting notes" }, false, "db") { Captured = true });
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
+        await Assert.That(_viewModel.Text).IsEqualTo("Meeting notes");
     }
 
     [Test]
@@ -65,7 +65,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = "Shopping list" }));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Shopping list");
+        await Assert.That(_viewModel.Text).IsEqualTo("Shopping list");
     }
 
     [Test]
@@ -78,20 +78,20 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new ClipAddedEvent(new Clip { Title = "Appended" }, false, "db"));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
+        await Assert.That(_viewModel.Text).IsEqualTo("Meeting notes");
     }
 
     [Test]
     public async Task Text_TooLongWithASurrogatePairAtTheCut_KeepsThePairWhole()
     {
-        // Arrange: "ClipMate - " is 11 characters, so the emoji's two UTF-16 halves fall either side of the cut at 126
-        var title = new string('x', 114) + "\U0001F600" + new string('y', 50);
+        // Arrange: the emoji's two UTF-16 halves fall either side of the cut at 126
+        var title = new string('x', 125) + "\U0001F600" + new string('y', 50);
 
         // Act
         _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = title, CustomTitle = true }));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - " + new string('x', 114) + "…");
+        await Assert.That(_viewModel.Text).IsEqualTo(new string('x', 125) + "…");
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class TrayTooltipViewModelTests
         _powerPasteService.PositionChanged += Raise.With(new PowerPastePositionChangedEventArgs { Position = 1, TotalCount = 2, CurrentClip = new Clip { Title = "Second" } });
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Second");
+        await Assert.That(_viewModel.Text).IsEqualTo("Second");
     }
 
     [Test]
@@ -111,7 +111,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = "Bank PIN", CustomTitle = true, Encrypted = true, IsDecrypted = true }));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Encrypted clip");
+        await Assert.That(_viewModel.Text).IsEqualTo("Encrypted clip");
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new ClipboardCopiedEvent(new Clip { Title = new string('x', 200) }));
 
         // Assert: Windows shows at most 127 characters in a tray tooltip
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - " + new string('x', 115) + "…");
+        await Assert.That(_viewModel.Text).IsEqualTo(new string('x', 126) + "…");
     }
 
     [Test]
@@ -136,7 +136,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new CurrentCollectionChangedEvent("Inbox on Work laptop"));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Inbox on Work laptop");
+        await Assert.That(_viewModel.Text).IsEqualTo("Inbox on Work laptop");
     }
 
     [Test]
@@ -149,7 +149,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new CurrentCollectionChangedEvent("InBox"));
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Meeting notes");
+        await Assert.That(_viewModel.Text).IsEqualTo("Meeting notes");
     }
 
     [Test]
@@ -163,7 +163,7 @@ public class TrayTooltipViewModelTests
         await _viewModel.InitializeAsync();
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Inbox");
+        await Assert.That(_viewModel.Text).IsEqualTo("Inbox");
     }
 
     [Test]
@@ -181,7 +181,7 @@ public class TrayTooltipViewModelTests
         await initializing;
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - Safe");
+        await Assert.That(_viewModel.Text).IsEqualTo("Safe");
     }
 
     [Test]
@@ -196,7 +196,7 @@ public class TrayTooltipViewModelTests
         _messenger.Send(new PreferencesChangedEvent());
 
         // Assert
-        await Assert.That(_viewModel.Text).IsEqualTo("ClipMate - InBox");
+        await Assert.That(_viewModel.Text).IsEqualTo("InBox");
     }
 
     [Test]
@@ -219,7 +219,7 @@ public class TrayTooltipViewModelTests
         powerPaste.MoveTo(third.Id);
 
         // Assert
-        await Assert.That(viewModel.Text).IsEqualTo("ClipMate - Third");
+        await Assert.That(viewModel.Text).IsEqualTo("Third");
     }
 
     [Test]
