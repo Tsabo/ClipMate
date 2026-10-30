@@ -139,7 +139,7 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<ClipAdde
             ? _currentCollection
             : _currentClip == null ? null : ClipDescription.TitleOf(_currentClip);
 
-        var text = string.IsNullOrEmpty(detail) ? _appName : $"{_appName} - {detail}";
+        var text = string.IsNullOrEmpty(detail) ? _appName : detail;
         Text = text.Length <= MaxLength ? text : Shorten(text);
     }
 
