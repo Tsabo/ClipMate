@@ -471,7 +471,7 @@ public class DatabaseMaintenanceServiceTests
     }
 
     [Test]
-    public async Task CheckDatabaseIntegrityAsync_ShouldReturnTrue_WhenDatabaseHealthy()
+    public async Task CheckDatabaseIntegrityAsync_ShouldReturnHealthy_WhenDatabaseHealthy()
     {
         // Arrange
         var config = new DatabaseConfiguration
@@ -487,14 +487,14 @@ public class DatabaseMaintenanceServiceTests
         }
 
         // Act
-        var isHealthy = await _service.CheckDatabaseIntegrityAsync(config);
+        var integrity = await _service.CheckDatabaseIntegrityAsync(config);
 
         // Assert
-        await Assert.That(isHealthy).IsTrue();
+        await Assert.That(integrity).IsEqualTo(DatabaseIntegrity.Healthy);
     }
 
     [Test]
-    public async Task CheckDatabaseIntegrityAsync_ShouldReturnFalse_WhenDatabaseNotFound()
+    public async Task CheckDatabaseIntegrityAsync_DatabaseFileMissing_IsUnavailableNotCorrupt()
     {
         // Arrange
         var config = new DatabaseConfiguration
@@ -504,10 +504,40 @@ public class DatabaseMaintenanceServiceTests
         };
 
         // Act
-        var isHealthy = await _service.CheckDatabaseIntegrityAsync(config);
+        var integrity = await _service.CheckDatabaseIntegrityAsync(config);
 
         // Assert
-        await Assert.That(isHealthy).IsFalse();
+        await Assert.That(integrity).IsEqualTo(DatabaseIntegrity.Unavailable);
+    }
+
+    [Test]
+    public async Task CheckDatabaseIntegrityAsync_FileIsNotADatabase_IsCorrupt()
+    {
+        // Arrange
+        var filePath = Path.Combine(_testDirectory, "garbage.db");
+        await File.WriteAllBytesAsync(filePath, Enumerable.Range(0, 4096).Select(p => (byte)(p * 31)).ToArray());
+        var config = new DatabaseConfiguration { Name = "garbage", FilePath = filePath };
+
+        // Act
+        var integrity = await _service.CheckDatabaseIntegrityAsync(config);
+
+        // Assert
+        await Assert.That(integrity).IsEqualTo(DatabaseIntegrity.Corrupt);
+    }
+
+    [Test]
+    public async Task RunCleanupAsync_DatabaseFileMissing_PurgesNothingAndCreatesNoFile()
+    {
+        // Arrange
+        var filePath = Path.Combine(_testDirectory, "missing.db");
+        var config = new DatabaseConfiguration { Name = "missing", FilePath = filePath, PurgeDays = 7 };
+
+        // Act
+        var purgedCount = await _service.RunCleanupAsync(config);
+
+        // Assert
+        await Assert.That(purgedCount).IsEqualTo(0);
+        await Assert.That(File.Exists(filePath)).IsFalse();
     }
 
     [Test]

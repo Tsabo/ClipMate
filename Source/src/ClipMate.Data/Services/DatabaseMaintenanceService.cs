@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using Microsoft.Data.Sqlite;
@@ -12,6 +13,9 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public class DatabaseMaintenanceService : IDatabaseMaintenanceService
 {
+    // SQLITE_CANTOPEN: the file could not be opened at all, as opposed to SQLITE_CORRUPT or SQLITE_NOTADB
+    private const int _sqliteCantOpen = 14;
+
     private readonly ILogger<DatabaseMaintenanceService> _logger;
 
     public DatabaseMaintenanceService(ILogger<DatabaseMaintenanceService> logger)
@@ -350,6 +354,12 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
         }
 
         var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
+        if (!File.Exists(dbFile))
+        {
+            progress?.Report($"Database file not found: {dbFile}");
+            _logger.LogWarning("Database file not found, skipping cleanup: {DbFile}", dbFile);
+            return 0;
+        }
 
         var optionsBuilder = new DbContextOptionsBuilder<ClipMateDbContext>();
         optionsBuilder.UseSqlite($"Data Source={dbFile}");
@@ -519,7 +529,7 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
     }
 
     /// <inheritdoc />
-    public async Task<bool> CheckDatabaseIntegrityAsync(DatabaseConfiguration databaseConfig,
+    public async Task<DatabaseIntegrity> CheckDatabaseIntegrityAsync(DatabaseConfiguration databaseConfig,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -532,7 +542,7 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
         {
             progress?.Report($"Database file not found: {expandedDbFile}");
             _logger.LogWarning("Database file not found during integrity check: {DbFile}", expandedDbFile);
-            return false;
+            return DatabaseIntegrity.Unavailable;
         }
 
         try
@@ -554,20 +564,27 @@ public class DatabaseMaintenanceService : IDatabaseMaintenanceService
             {
                 progress?.Report("Database integrity check passed.");
                 _logger.LogInformation("Database integrity check passed for: {DbFile}", expandedDbFile);
-                return true;
+                return DatabaseIntegrity.Healthy;
             }
 
             progress?.Report($"Database integrity check FAILED: {resultString}");
             _logger.LogError("Database integrity check failed for: {DbFile}. Result: {Result}",
                 expandedDbFile, resultString);
 
-            return false;
+            return DatabaseIntegrity.Corrupt;
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == _sqliteCantOpen)
+        {
+            // The file exists but can't be opened (locked, no permission, or its folder went away): not corruption
+            progress?.Report($"Database file cannot be opened: {ex.Message}");
+            _logger.LogWarning(ex, "Database file cannot be opened during integrity check: {DbFile}", expandedDbFile);
+            return DatabaseIntegrity.Unavailable;
         }
         catch (Exception ex)
         {
             progress?.Report($"Error during integrity check: {ex.Message}");
             _logger.LogError(ex, "Exception during database integrity check for: {DbFile}", expandedDbFile);
-            return false;
+            return DatabaseIntegrity.Corrupt;
         }
     }
 
