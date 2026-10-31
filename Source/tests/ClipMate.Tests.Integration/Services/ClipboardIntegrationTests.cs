@@ -8,6 +8,7 @@ using ClipMate.Data.Services;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,7 +89,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(),
             clipServiceLogger);
 

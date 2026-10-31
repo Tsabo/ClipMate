@@ -5,6 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -328,7 +329,7 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
             templateService,
             encryptionService,
             blobCacheService!,
-            new ClipContentService(mockFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(mockFactory),
             A.Fake<IMessenger>(),
             logger);
     }

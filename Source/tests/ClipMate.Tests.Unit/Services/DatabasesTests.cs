@@ -43,8 +43,7 @@ public class DatabasesTests
         A.CallTo(() => _remoteDatabases.GetRemoteDatabases()).Returns([_laptopClips]);
         A.CallTo(() => _remoteDatabases.Open(_laptopClips)).Returns(_laptopDatabase);
 
-        _databases = new Databases(_configurationService, _remoteDatabases, A.Fake<IDatabaseContextFactory>(), A.Fake<IClipService>(),
-            A.Fake<ISearchService>());
+        _databases = new Databases(_configurationService, _remoteDatabases, A.Fake<IDatabaseContextFactory>(), A.Fake<ISearchService>());
     }
 
     [After(Test)]

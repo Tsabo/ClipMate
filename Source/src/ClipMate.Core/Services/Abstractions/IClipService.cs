@@ -253,16 +253,6 @@ public interface IClipService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets clips in a collection and all child folders recursively from the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="collectionId">The collection ID.</param>
-    /// <param name="includeDeleted">Whether to include deleted clips.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of clips in the collection and all child folders.</returns>
-    Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Loads blob data (TextContent, ImageData, etc.) for a clip from the specified database.
     /// This populates the transient content properties that are not stored in the Clips table.
     /// Use this before exporting or when full content is needed without setting the clipboard.

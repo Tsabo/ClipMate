@@ -6,6 +6,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ namespace ClipMate.Tests.Integration.Services;
 
 /// <summary>
 /// Copy to local end to end: a clip in a Peer's Shared Database (its own SQLite file, read through the Peer's
-/// <see cref="ClipContentService" /> exactly as the Peer serves it) is copied into a local Database.
+/// <see cref="LocalDatabase" /> exactly as the Peer serves it) is copied into a local Database.
 /// </summary>
 public class CopyToLocalIntegrationTests : IntegrationTestBase
 {
@@ -48,14 +49,14 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
         Map(factory, _localDatabaseKey, DbContext);
 
         // The Peer reads its own Database; the requester reaches it through IRemoteDatabaseService
-        var peerContentService = new ClipContentService(factory, A.Fake<IRemoteDatabaseService>());
+        var peerDatabase = new RepositoryDatabases(factory).Get(_peerDatabaseKey);
         var remoteDatabases = A.Fake<IRemoteDatabaseService>();
         A.CallTo(() => remoteDatabases.GetClipContentAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<CancellationToken>._))
             .ReturnsLazily((RemoteDatabaseAddress _, Guid clipId, CancellationToken token) =>
-                peerContentService.GetClipContentAsync(_peerDatabaseKey, clipId, token));
+                peerDatabase.GetClipContentAsync(clipId, token));
 
-        _peerClipService = CreateClipService(factory, peerContentService);
-        _localClipService = CreateClipService(factory, new ClipContentService(factory, remoteDatabases));
+        _peerClipService = CreateClipService(factory, new RepositoryDatabases(factory));
+        _localClipService = CreateClipService(factory, new RepositoryDatabases(factory, remoteDatabases));
 
         _peerCollectionId = await AddCollectionAsync(_peerContext, "Peer collection");
         _localCollectionId = await AddCollectionAsync(DbContext, "Local collection");
@@ -112,8 +113,7 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
         await Assert.That(stored.Locale).IsEqualTo(1033);
         await Assert.That(stored.Macro).IsTrue();
 
-        var localContent = await new ClipContentService(CreateLocalOnlyFactory(), A.Fake<IRemoteDatabaseService>())
-            .GetClipContentAsync(_localDatabaseKey, copy.Id);
+        var localContent = await new RepositoryDatabases(CreateLocalOnlyFactory()).Get(_localDatabaseKey).GetClipContentAsync(copy.Id);
 
         await Assert.That(localContent).IsNotNull();
         await Assert.That(localContent!.Formats.Count).IsEqualTo(3);
@@ -283,7 +283,7 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
         return collection.Id;
     }
 
-    private static ClipService CreateClipService(IDatabaseContextFactory factory, IClipContentService clipContentService)
+    private static ClipService CreateClipService(IDatabaseContextFactory factory, IDatabases databases)
     {
 #pragma warning disable CA2000 // Test objects don't require explicit disposal
         var blobCacheService = new DecryptedBlobCacheService(new MemoryCache(new MemoryCacheOptions()),
@@ -296,7 +296,7 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             new AesEncryptionService(),
             blobCacheService,
-            clipContentService,
+            databases,
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipService>>());
     }

@@ -7,6 +7,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -623,7 +624,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
@@ -665,7 +666,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
@@ -707,7 +708,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(),
             serviceLogger);
     }
@@ -738,7 +739,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
             A.Fake<IClipboardService>(),
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(), A.Fake<IDecryptedBlobCacheService>(),
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(), serviceLogger);
     }
 

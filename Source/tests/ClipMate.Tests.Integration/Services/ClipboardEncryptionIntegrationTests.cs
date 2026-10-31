@@ -6,6 +6,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -229,7 +230,7 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<CommunityToolkit.Mvvm.Messaging.IMessenger>(),
             serviceLogger);
     }

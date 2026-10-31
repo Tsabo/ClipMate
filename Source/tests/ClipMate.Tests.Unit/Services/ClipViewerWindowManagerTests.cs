@@ -20,7 +20,7 @@ public class ClipViewerWindowManagerTests
     {
         var databaseManager = A.Fake<IDatabaseManager>();
         var logger = A.Fake<ILogger<ClipViewerViewModel>>();
-        return new ClipViewerViewModel(databaseManager, A.Fake<IClipContentService>(), logger);
+        return new ClipViewerViewModel(databaseManager, A.Fake<IDatabases>(), logger);
     }
 
     [Category("Constructor")]

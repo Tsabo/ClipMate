@@ -22,7 +22,7 @@ public class ClipService : IClipService
 {
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IClipboardService _clipboardService;
-    private readonly IClipContentService _clipContentService;
+    private readonly IDatabases _databases;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IEncryptionService _encryptionService;
@@ -36,7 +36,7 @@ public class ClipService : IClipService
         ITemplateService templateService,
         IEncryptionService encryptionService,
         IDecryptedBlobCacheService blobCacheService,
-        IClipContentService clipContentService,
+        IDatabases databases,
         IMessenger messenger,
         ILogger<ClipService> logger)
     {
@@ -46,7 +46,7 @@ public class ClipService : IClipService
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
-        _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -331,7 +331,7 @@ public class ClipService : IClipService
             throw new InvalidOperationException("Copy to local cannot copy into a Remote Database: Remote Databases are read-only.");
 
         // Read everything first (a Remote Database is read from its Peer), so a failed read writes nothing locally
-        var content = await _clipContentService.GetClipContentAsync(sourceDatabaseKey, sourceClipId, cancellationToken)
+        var content = await _databases.Get(sourceDatabaseKey).GetClipContentAsync(sourceClipId, cancellationToken)
                       ?? throw new InvalidOperationException($"Clip {sourceClipId} no longer exists in its Database.");
 
         var copy = CreateLocalCopy(content.Clip, targetCollectionId);
@@ -506,7 +506,7 @@ public class ClipService : IClipService
         try
         {
             // Read the clip and its content from its Database (a Remote Database is read from its Peer)
-            var content = await _clipContentService.GetClipContentAsync(databaseKey, clipId, cancellationToken);
+            var content = await _databases.Get(databaseKey).GetClipContentAsync(clipId, cancellationToken);
             if (content == null)
             {
                 _logger.LogWarning("Clip {ClipId} not found in database {DatabaseKey}", clipId, databaseKey);
@@ -547,7 +547,7 @@ public class ClipService : IClipService
         try
         {
             // Read the content from the clip's Database (a Remote Database is read from its Peer)
-            var content = await _clipContentService.GetClipContentAsync(databaseKey, clip.Id, cancellationToken);
+            var content = await _databases.Get(databaseKey).GetClipContentAsync(clip.Id, cancellationToken);
             if (content == null || content.Formats.Count == 0)
             {
                 _logger.LogDebug("No ClipData found for clip: {ClipId}", clip.Id);
@@ -572,7 +572,7 @@ public class ClipService : IClipService
             throw new ArgumentException("SQL query cannot be null or empty.", nameof(sqlQuery));
 
         // Replace placeholders with actual values
-        var processedQuery = ReplaceSqlPlaceholders(sqlQuery, retentionLimit);
+        var processedQuery = VirtualCollectionSql.ReplacePlaceholders(sqlQuery, retentionLimit);
 
         _logger.LogDebug("Executing virtual collection SQL query: {Query}", processedQuery);
 
@@ -603,7 +603,7 @@ public class ClipService : IClipService
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
-        var processedQuery = ReplaceSqlPlaceholders(sqlQuery, retentionLimit);
+        var processedQuery = VirtualCollectionSql.ReplacePlaceholders(sqlQuery, retentionLimit);
         _logger.LogDebug("Executing virtual collection SQL query for clips {Offset} to {Last}: {Query}", offset, offset + count - 1, processedQuery);
 
         try
@@ -615,43 +615,6 @@ public class ClipService : IClipService
             _logger.LogError(ex, "Failed to execute virtual collection SQL query: {Query}", processedQuery);
             throw;
         }
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Getting clips recursively for collection {CollectionId} in database {DatabaseKey}", collectionId, databaseKey);
-
-        var repository = GetRepository(databaseKey);
-        var folderRepository = _databaseContextFactory.GetFolderRepository(databaseKey);
-
-        // Get clips directly in the collection
-        var collectionClips = await repository.GetByCollectionAsync(collectionId, cancellationToken);
-
-        // Get all folders in this collection recursively
-        var allFolders = await folderRepository.GetByCollectionAsync(collectionId, cancellationToken);
-
-        // Get clips from each folder
-        var folderClips = new List<Clip>();
-        foreach (var item in allFolders)
-        {
-            var clips = await repository.GetByFolderAsync(item.Id, cancellationToken);
-            folderClips.AddRange(clips);
-        }
-
-        // Combine and deduplicate (a clip shouldn't be in multiple places, but just in case)
-        var allClips = collectionClips.Concat(folderClips)
-            .GroupBy(p => p.Id)
-            .Select(p => p.First())
-            .ToList();
-
-        // Filter by deleted status if needed
-        if (!includeDeleted)
-            allClips = allClips.Where(p => !p.Del).ToList();
-
-        _logger.LogInformation("Found {Count} clips recursively in collection {CollectionId}", allClips.Count, collectionId);
-
-        return allClips.AsReadOnly();
     }
 
     /// <summary>
@@ -893,38 +856,6 @@ public class ClipService : IClipService
     }
 
     /// <summary>
-    /// Replaces SQL query placeholders with actual values.
-    /// Supported placeholders:
-    /// - #DATE# - Today's date at midnight (YYYY-MM-DD HH:MM:SS)
-    /// - #DATEMINUSLIMIT# - Date minus retention limit days
-    /// - #DATELASTIMPORT# - Date of last import (placeholder for future feature, defaults to 30 days ago)
-    /// - #DATELASTEXPORT# - Date of last export (placeholder for future feature, defaults to 30 days ago)
-    /// </summary>
-    private static string ReplaceSqlPlaceholders(string sqlQuery, int retentionLimit)
-    {
-        var now = DateTime.Now;
-        var today = now.Date; // Midnight today
-        var dateMinusLimit = today.AddDays(-retentionLimit);
-
-        // Format dates for SQLite (ISO 8601 format: YYYY-MM-DD HH:MM:SS)
-        var todayStr = today.ToString("yyyy-MM-dd HH:mm:ss");
-        var dateMinusLimitStr = dateMinusLimit.ToString("yyyy-MM-dd HH:mm:ss");
-
-        // For now, use fixed defaults for import/export dates (feature not yet implemented)
-        var lastImportStr = today.AddDays(-30).ToString("yyyy-MM-dd HH:mm:ss");
-        var lastExportStr = today.AddDays(-30).ToString("yyyy-MM-dd HH:mm:ss");
-
-        // Replace all placeholders
-        var result = sqlQuery
-            .Replace("#DATE#", todayStr, StringComparison.OrdinalIgnoreCase)
-            .Replace("#DATEMINUSLIMIT#", dateMinusLimitStr, StringComparison.OrdinalIgnoreCase)
-            .Replace("#DATELASTIMPORT#", lastImportStr, StringComparison.OrdinalIgnoreCase)
-            .Replace("#DATELASTEXPORT#", lastExportStr, StringComparison.OrdinalIgnoreCase);
-
-        return result;
-    }
-
-    /// <summary>
     /// Resolves a database key to its file path using configuration.
     /// If the input is already a file path (contains path separators), returns it as-is.
     /// </summary>
@@ -1126,7 +1057,7 @@ public class ClipService : IClipService
         }
         else
         {
-            var content = await _clipContentService.GetClipContentAsync(databaseKey, clip.Id, cancellationToken);
+            var content = await _databases.Get(databaseKey).GetClipContentAsync(clip.Id, cancellationToken);
             textBlobs = content?.TextBlobs ?? [];
             jpgBlobs = content?.JpgBlobs ?? [];
             pngBlobs = content?.PngBlobs ?? [];

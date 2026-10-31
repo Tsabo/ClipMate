@@ -10,7 +10,6 @@ namespace ClipMate.Data.Services;
 /// </summary>
 internal sealed class Databases : IDatabases, IDisposable
 {
-    private readonly IClipService _clipService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IRemoteDatabaseService _remoteDatabases;
@@ -19,13 +18,11 @@ internal sealed class Databases : IDatabases, IDisposable
     public Databases(IConfigurationService configurationService,
         IRemoteDatabaseService remoteDatabases,
         IDatabaseContextFactory databaseContextFactory,
-        IClipService clipService,
         ISearchService searchService)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _remoteDatabases = remoteDatabases ?? throw new ArgumentNullException(nameof(remoteDatabases));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
 
         _configurationService.Saved += OnChanged;
@@ -68,7 +65,7 @@ internal sealed class Databases : IDatabases, IDisposable
     }
 
     private LocalDatabase CreateLocal(string key, DatabaseConfiguration configuration) =>
-        new(key, configuration, _databaseContextFactory, _clipService, _searchService);
+        new(key, configuration, _databaseContextFactory, _searchService);
 
     private void OnChanged(object? sender, EventArgs e) => Changed?.Invoke(this, EventArgs.Empty);
 }

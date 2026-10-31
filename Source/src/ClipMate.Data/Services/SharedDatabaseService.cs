@@ -13,12 +13,12 @@ namespace ClipMate.Data.Services;
 /// </summary>
 internal sealed class SharedDatabaseService : ISharedDatabaseService
 {
-    private readonly IClipContentService _clipContentService;
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IDatabaseIdService _databaseIdService;
+    private readonly IDatabases _databases;
     private readonly ILogger<SharedDatabaseService> _logger;
     private readonly ISearchService _searchService;
 
@@ -26,8 +26,8 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
         IDatabaseIdService databaseIdService,
         ICollectionService collectionService,
         IClipService clipService,
-        IClipContentService clipContentService,
         IDatabaseContextFactory databaseContextFactory,
+        IDatabases databases,
         ISearchService searchService,
         ILogger<SharedDatabaseService> logger)
     {
@@ -35,8 +35,8 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
         _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
-        _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -100,7 +100,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
             return null;
 
         // Served as stored: an encrypted clip stays ciphertext (this reads the database, never the decrypted cache)
-        var content = await _clipContentService.GetClipContentAsync(databaseKey, clipId, cancellationToken);
+        var content = await _databases.Get(databaseKey).GetClipContentAsync(clipId, cancellationToken);
         return content is { Clip.Del: false } ? content : null;
     }
 

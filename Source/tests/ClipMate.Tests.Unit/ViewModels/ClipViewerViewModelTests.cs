@@ -3,6 +3,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
+using ClipMate.Tests.Unit.Fakes;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -15,11 +16,13 @@ public class ClipViewerViewModelTests
     {
         // Arrange
         var databaseManager = A.Fake<IDatabaseManager>();
-        var contentService = A.Fake<IClipContentService>();
-        var key = RemoteDatabaseKey.From(new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([3]), Guid.NewGuid()));
+        var databases = new FakeDatabases();
+        var remote = databases.AddRemote(new RemoteDatabase(new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([3]), Guid.NewGuid()), "Notes", "DESKTOP",
+            PeerConnectionStatus.Online, null));
+        var key = remote.Key;
         var clip = new Clip { Id = Guid.NewGuid(), Title = "Remote note", CapturedAt = DateTimeOffset.Now };
-        A.CallTo(() => contentService.GetClipContentAsync(key, clip.Id, A<CancellationToken>._)).Returns(new ClipContent(clip, [], [], [], [], []));
-        var viewModel = new ClipViewerViewModel(databaseManager, contentService, NullLogger<ClipViewerViewModel>.Instance);
+        remote.WithContent(new ClipContent(clip, [], [], [], [], []));
+        var viewModel = new ClipViewerViewModel(databaseManager, databases, NullLogger<ClipViewerViewModel>.Instance);
 
         // Act
         await viewModel.LoadClipCommand.ExecuteAsync((clip.Id, key));

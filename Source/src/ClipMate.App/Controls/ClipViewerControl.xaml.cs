@@ -51,7 +51,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
         _blobCacheService = serviceProvider.GetRequiredService<IDecryptedBlobCacheService>();
-        _clipContentService = serviceProvider.GetRequiredService<IClipContentService>();
+        _databases = serviceProvider.GetRequiredService<IDatabases>();
 
         // Initialize toolbar ViewModel
         _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
@@ -277,7 +277,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
     private readonly IDecryptedBlobCacheService _blobCacheService;
-    private readonly IClipContentService _clipContentService;
+    private readonly IDatabases _databases;
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
     private CancellationTokenSource? _loadCancellationTokenSource;
@@ -359,7 +359,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Peer (large content arrives in chunks) and is read-only, so it has no saved editor state.
             var isRemote = RemoteDatabaseKey.IsRemote(_currentDatabaseKey);
             var monacoStateRepository = isRemote ? null : _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
-            var content = await _clipContentService.GetClipContentAsync(_currentDatabaseKey, clipId, cancellationToken);
+            var content = await _databases.Get(_currentDatabaseKey).GetClipContentAsync(clipId, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // The Clip object tells whether the content is encrypted

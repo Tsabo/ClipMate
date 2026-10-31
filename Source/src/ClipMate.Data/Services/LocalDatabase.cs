@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Data.Services;
@@ -13,7 +14,6 @@ namespace ClipMate.Data.Services;
 /// </summary>
 internal sealed class LocalDatabase : IDatabase
 {
-    private readonly IClipService _clipService;
     private readonly DatabaseConfiguration _configuration;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ISearchService _searchService;
@@ -21,14 +21,12 @@ internal sealed class LocalDatabase : IDatabase
     public LocalDatabase(string key,
         DatabaseConfiguration configuration,
         IDatabaseContextFactory databaseContextFactory,
-        IClipService clipService,
         ISearchService searchService)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         Key = key;
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
-        _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
     }
 
@@ -73,13 +71,13 @@ internal sealed class LocalDatabase : IDatabase
                 return Page(await clips.GetDeletedAsync(cancellationToken), offset, count);
 
             case ClipListScope.Collection { IncludeFolders: true } collection:
-                return Page(await _clipService.GetByCollectionRecursiveAsync(Key, collection.CollectionId, false, cancellationToken), offset, count);
+                return Page(await GetWithFoldersAsync(clips, collection.CollectionId, cancellationToken), offset, count);
 
             case ClipListScope.Collection collection:
                 // Smart and SQL-based collections run their own stored SQL, only for the page asked for
                 var entry = await _databaseContextFactory.GetCollectionRepository(Key).GetByIdAsync(collection.CollectionId, cancellationToken);
                 if (entry is { IsVirtual: true } && !string.IsNullOrWhiteSpace(entry.Sql))
-                    return await _clipService.ExecuteSqlQueryPageAsync(Key, entry.Sql, entry.RetentionLimit, offset, count, cancellationToken);
+                    return await clips.ExecuteSqlPageAsync(VirtualCollectionSql.ReplacePlaceholders(entry.Sql, entry.RetentionLimit), offset, count, cancellationToken);
 
                 return await clips.GetPageByCollectionAsync(collection.CollectionId, offset, count, cancellationToken);
 
@@ -112,6 +110,19 @@ internal sealed class LocalDatabase : IDatabase
         ArgumentNullException.ThrowIfNull(filters);
         ThrowIfUnavailable();
         return _searchService.SearchDatabaseAsync(Key, filters, maxResults, cancellationToken);
+    }
+
+    /// <summary>
+    /// The clips of a collection and of all its folders, at any depth.
+    /// </summary>
+    private async Task<List<Clip>> GetWithFoldersAsync(IClipRepository clips, Guid collectionId, CancellationToken cancellationToken)
+    {
+        var result = new List<Clip>(await clips.GetByCollectionAsync(collectionId, cancellationToken));
+        foreach (var item in await _databaseContextFactory.GetFolderRepository(Key).GetByCollectionAsync(collectionId, cancellationToken))
+            result.AddRange(await clips.GetByFolderAsync(item.Id, cancellationToken));
+
+        // A clip filed in a folder of the collection is in both lists
+        return result.Where(p => !p.Del).DistinctBy(p => p.Id).ToList();
     }
 
     /// <summary>

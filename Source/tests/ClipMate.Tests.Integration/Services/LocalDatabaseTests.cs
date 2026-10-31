@@ -215,17 +215,8 @@ public class LocalDatabaseTests : IntegrationTestBase
     }
 
     private LocalDatabase CreateDatabase(string filePath) =>
-        new(_databaseKey, new DatabaseConfiguration { Name = "My Clips", FilePath = filePath }, _factory, CreateClipService(), _searchService);
+        new(_databaseKey, new DatabaseConfiguration { Name = "My Clips", FilePath = filePath }, _factory, _searchService);
 
-    private ClipService CreateClipService()
-    {
-#pragma warning disable CA2000 // Test objects don't require explicit disposal
-        var blobCacheService = new DecryptedBlobCacheService(new MemoryCache(new MemoryCacheOptions()), A.Fake<ILogger<DecryptedBlobCacheService>>());
-#pragma warning restore CA2000
-
-        return new ClipService(_factory, A.Fake<IConfigurationService>(), A.Fake<IClipboardService>(), A.Fake<ITemplateService>(),
-            new AesEncryptionService(), blobCacheService, A.Fake<IClipContentService>(), A.Fake<IMessenger>(), A.Fake<ILogger<ClipService>>());
-    }
 
     private async Task<Collection> AddCollectionAsync(Collection collection)
     {

@@ -74,7 +74,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
         A.Fake<ITemplateService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),
-        A.Fake<IClipContentService>(),
+        A.Fake<IDatabases>(),
         A.Fake<IMessenger>(),
         _logger);
 
