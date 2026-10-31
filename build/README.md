@@ -49,7 +49,9 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 | `Test` | Run all unit tests |
 | `Publish` | Publish framework-dependent app |
 | `Publish-SingleFile` | Create self-contained single executable (~200MB) |
+| `Sign-Binaries` | Sign the published ClipMate binaries and any unsigned third-party ones (only when `CERTUM_KEY_ID` is set; see [CODE_SIGNING.md](CODE_SIGNING.md)) |
 | `Build-Installer` | Create Windows installer with InnoDependencyInstaller |
+| `Verify-Signatures` | Fail if the app or installer is not validly signed (only when `CERTUM_KEY_ID` is set) |
 | `Build-Font` | Build custom color font (ClipMate.ttf) from SVG icons |
 | `Build-Docs` | Build Docusaurus documentation site |
 | `Prepare-Worktree` | Copy the gitignored font and Monaco assets from the main checkout into a fresh git worktree |
@@ -114,6 +116,6 @@ build/
 
 ## Additional Resources
 
-- **Code Signing:** See [SIGNPATH_SETUP.md](SIGNPATH_SETUP.md)
+- **Code Signing:** See [CODE_SIGNING.md](CODE_SIGNING.md)
 - **CI/CD:** See `.github/workflows/`
 - **Issues:** https://github.com/Tsabo/ClipMate/issues

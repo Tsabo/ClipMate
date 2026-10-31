@@ -12,6 +12,11 @@ jobs:
   release:
     name: Create Release
     runs-on: windows-latest
+    # Certum signing secrets live in this environment (see build/CODE_SIGNING.md)
+    environment: signing
+    env:
+      CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+      SIMPLYSIGN_URL: 'https://files.certum.eu/software/SimplySignDesktop/Windows/9.4.3.90/SimplySignDesktop-9.4.3.90-64-bit-en.msi'
     outputs:
       version: ${{ steps.get_version.outputs.VERSION }}
       prerelease: ${{ steps.get_version.outputs.PRERELEASE }}
@@ -69,15 +74,28 @@ jobs:
     - name: Setup Ninja (for font building)
       run: choco install ninja -y
 
+    - name: Cache SimplySign Desktop installer
+      if: env.CERTUM_KEY_ID != ''
+      uses: actions/cache@v6
+      with:
+        path: SimplySignDesktop.msi
+        key: simplysign-msi-${{ env.SIMPLYSIGN_URL }}
+
+    # Installs SimplySign Desktop and logs in with the TOTP, so the Certum certificate is in the store for signtool
+    - name: Set up Certum SimplySign
+      if: env.CERTUM_KEY_ID != ''
+      uses: dismine/windows-app-signing-setup-action@v1
+      with:
+        certum-username: ${{ secrets.CERTUM_USERNAME }}
+        certum-otp-uri: ${{ secrets.CERTUM_OTP_URI }}
+        certum-key-id: ${{ secrets.CERTUM_KEY_ID }}
+        simplysign-url: ${{ env.SIMPLYSIGN_URL }}
+
     - name: Run release build
       run: dotnet cake build/build.cake --target=Release --release-version=${{ steps.get_version.outputs.VERSION }}
       env:
         DEVEXPRESS_FEED_AUTH_KEY: ${{ secrets.DEVEXPRESS_FEED_AUTH_KEY }}
         DevExpress_License: ${{ secrets.DEVEXPRESS_LICENSE }}
-        SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
-        SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-        SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
-        SIGNPATH_SIGNING_POLICY: ${{ secrets.SIGNPATH_SIGNING_POLICY }}
     
     - name: Calculate artifact sizes
       id: sizes
@@ -104,10 +122,10 @@ jobs:
         $portableSize = "${{ steps.sizes.outputs.PORTABLE_SIZE }}"
         $isPreRelease = "${{ steps.get_version.outputs.PRERELEASE }}" -eq "true"
         
-        $signedStatus = if ("${{ secrets.SIGNPATH_API_TOKEN }}" -ne "") {
-          "✅ **Code Signed** - No SmartScreen warnings"
+        $signedStatus = if ($env:CERTUM_KEY_ID) {
+          "✅ **Code Signed** - The installer, uninstaller and ClipMate binaries are signed by Jeremy Brown (Certum)"
         } else {
-          "⚠️ **Unsigned Pre-Release** - SmartScreen warnings expected. SignPath signing will be enabled after project approval."
+          "⚠️ **Unsigned** - SmartScreen warnings expected."
         }
         
         # Extract changelog section for this version
