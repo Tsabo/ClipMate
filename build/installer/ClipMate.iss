@@ -43,6 +43,13 @@ OutputBaseFilename={#OutputFilename}
 SetupIconFile=..\..\Source\src\ClipMate.App\Assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
+; Code signing: the build passes SignToolName plus a matching /S<name>=<command> switch when a certificate is
+; available, so Inno signs the setup and the uninstaller it embeds. Unsigned builds leave both undefined.
+#ifdef SignToolName
+SignTool={#SignToolName}
+SignedUninstaller=yes
+#endif
+
 ; Compression
 Compression=lzma2/max
 SolidCompression=yes

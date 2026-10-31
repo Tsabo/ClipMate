@@ -122,6 +122,6 @@ build/
 
 ## Additional Resources
 
-- **Code Signing:** See [SIGNPATH_SETUP.md](SIGNPATH_SETUP.md)
+- **Code Signing:** See [CODE_SIGNING.md](CODE_SIGNING.md)
 - **CI/CD:** See `.github/workflows/`
 - **Issues:** https://github.com/Tsabo/ClipMate/issues

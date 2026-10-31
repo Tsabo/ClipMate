@@ -52,12 +52,13 @@ var devExpressFeedUrl = !string.IsNullOrEmpty(devExpressAuthKey)
     ? $"https://nuget.devexpress.com/{devExpressAuthKey}/api/v3/index.json"
     : null;
 
-// SignPath configuration
-var signPathApiToken = EnvironmentVariable("SIGNPATH_API_TOKEN");
-var signPathOrgId = EnvironmentVariable("SIGNPATH_ORGANIZATION_ID");
-var signPathProjectSlug = EnvironmentVariable("SIGNPATH_PROJECT_SLUG") ?? "ClipMate";
-var signPathPolicySlug = EnvironmentVariable("SIGNPATH_SIGNING_POLICY") ?? "release-signing";
-bool canSign = !string.IsNullOrEmpty(signPathApiToken) && !string.IsNullOrEmpty(signPathOrgId);
+// Code signing (Certum SimplySign). The certificate lives in Certum's cloud; SimplySign Desktop must be logged in so it
+// appears in the user's certificate store, and signtool picks it by thumbprint. See CODE_SIGNING.md.
+var signingThumbprint = EnvironmentVariable("CERTUM_KEY_ID");
+var timestampUrl = "http://time.certum.pl";
+var signingDescription = "ClipMate";
+var signingDescriptionUrl = "https://github.com/Tsabo/ClipMate";
+bool canSign = !string.IsNullOrEmpty(signingThumbprint);
 
 //////////////////////////////////////////////////////////////////////
 // SETUP / TEARDOWN
@@ -719,25 +720,111 @@ Task("Publish-SingleFile")
     Information($"Single-file publish completed in {elapsed.TotalSeconds:F2}s");
 });
 
-Task("Build-Installer")
+// Newest x64 signtool from the Windows 10/11 SDK
+FilePath FindSignTool()
+{
+    var kitsBin = new DirectoryPath(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)).Combine("Windows Kits/10/bin");
+    var signTool = GetFiles($"{kitsBin}/10.*/x64/signtool.exe")
+        .OrderByDescending(f => Version.Parse(f.GetDirectory().GetParent().GetDirectoryName()))
+        .FirstOrDefault();
+
+    return signTool ?? throw new Exception($"signtool.exe not found under {kitsBin}: install the Windows SDK");
+}
+
+bool IsSigned(FilePath signTool, FilePath file)
+{
+    return StartProcess(signTool, new ProcessSettings
+    {
+        Arguments = new ProcessArgumentBuilder().Append("verify").Append("/pa").Append("/q").AppendQuoted(file.FullPath),
+        Silent = true
+    }) == 0;
+}
+
+void SignFiles(FilePath signTool, IList<FilePath> files)
+{
+    var settings = new SignToolSignSettings
+    {
+        ToolPath = signTool,
+        CertThumbprint = signingThumbprint,
+        DigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+        TimeStampUri = new Uri(timestampUrl),
+        TimeStampDigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+        Description = signingDescription,
+        DescriptionUri = new Uri(signingDescriptionUrl)
+    };
+
+    foreach (var file in files)
+    {
+        // The SimplySign session or the timestamp server occasionally refuses a request; one retry covers it
+        try
+        {
+            Sign(file, settings);
+        }
+        catch (Exception ex)
+        {
+            Warning($"Signing {file.GetFilename()} failed ({ex.Message}), retrying...");
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5));
+            Sign(file, settings);
+        }
+
+        Information($"Signed: {file.GetFilename()}");
+    }
+}
+
+Task("Sign-Binaries")
+    .Description("Sign ClipMate's own exe and dlls, and any other unsigned binary, in the publish output")
+    .WithCriteria(() => canSign)
     .IsDependentOn("Publish")
     .Does(() =>
 {
     var startTime = DateTime.Now;
+    var signTool = FindSignTool();
+    Information($"Signing published binaries with {signTool}...");
+
+    // Already-signed third-party files (Microsoft, DevExpress, ...) keep their publisher's signature
+    var toSign = GetFiles($"{publishDir}/**/*.exe")
+        .Concat(GetFiles($"{publishDir}/**/*.dll"))
+        .Where(f => f.GetFilename().FullPath.StartsWith("ClipMate", StringComparison.OrdinalIgnoreCase) || !IsSigned(signTool, f))
+        .ToList();
+
+    SignFiles(signTool, toSign);
+
+    var elapsed = DateTime.Now - startTime;
+    Information($"Signed {toSign.Count} files in {elapsed.TotalSeconds:F2}s");
+});
+
+Task("Build-Installer")
+    .IsDependentOn("Publish")
+    .IsDependentOn("Sign-Binaries")
+    .Does(() =>
+{
+    var startTime = DateTime.Now;
     Information("Building installer...");
-    
+
     var issScript = installerDir.CombineWithFilePath("ClipMate.iss");
     var outputName = $"ClipMate-Setup-{version}.exe";
-    
+
+    var defines = new Dictionary<string, string>
+    {
+        { "MyAppVersion", version },
+        { "SourcePath", publishDir.FullPath },
+        { "OutputFilename", outputName.Replace(".exe", "") }
+    };
+
+    // Inno signs both the setup and the uninstaller it embeds through a named sign tool ($f is the file, $q a quote)
+    string signToolCommand = null;
+    if (canSign)
+    {
+        defines["SignToolName"] = "certum";
+        signToolCommand = $"certum=$q{FindSignTool().FullPath.Replace('/', '\\')}$q sign /sha1 {signingThumbprint} /fd sha256 " +
+                          $"/tr {timestampUrl} /td sha256 /d $q{signingDescription}$q /du {signingDescriptionUrl} $f";
+    }
+
     InnoSetup(issScript.FullPath, new InnoSetupSettings
     {
-        Defines = new Dictionary<string, string>
-        {
-            { "MyAppVersion", version },
-            { "SourcePath", publishDir.FullPath },
-            { "OutputFilename", outputName.Replace(".exe", "") }
-        },
-        OutputDirectory = installerOutputDir.FullPath
+        Defines = defines,
+        OutputDirectory = installerOutputDir.FullPath,
+        ArgumentCustomization = args => signToolCommand == null ? args : args.AppendQuoted($"/S{signToolCommand}")
     });
     
     var installerPath = installerOutputDir.CombineWithFilePath(outputName);
@@ -750,29 +837,23 @@ Task("Build-Installer")
     Information($"Framework installer build completed in {elapsed.TotalSeconds:F2}s");
 });
 
-Task("Sign-Installer")
+Task("Verify-Signatures")
+    .Description("Fail the build if signing was requested but the app or installer is not validly signed")
     .WithCriteria(() => canSign)
     .IsDependentOn("Build-Installer")
     .Does(() =>
 {
-    var startTime = DateTime.Now;
-    Information("Signing installer with SignPath...");
-    
-    Warning("SignPath integration not yet implemented - requires SignPath CLI or REST API");
-    Warning("Installer will remain unsigned");
-    
-    // TODO: Implement SignPath signing when approved
-    // 1. Submit installers to SignPath
-    // 2. Wait for signing to complete
-    // 3. Download signed installers
-    
-    var elapsed = DateTime.Now - startTime;
-    Information($"Signing process completed in {elapsed.TotalSeconds:F2}s");
-})
-.OnError(exception =>
-{
-    Warning("Signing failed - continuing with unsigned installer");
-    Warning($"Error: {exception.Message}");
+    var signTool = FindSignTool();
+    var files = new List<FilePath> { publishDir.CombineWithFilePath("ClipMate.App.exe") };
+    files.AddRange(GetFiles($"{installerOutputDir}/ClipMate-Setup-{version}.exe"));
+
+    foreach (var file in files)
+    {
+        if (!IsSigned(signTool, file))
+            throw new Exception($"{file.GetFilename()} is not validly signed");
+
+        Information($"Verified signature: {file.GetFilename()}");
+    }
 });
 
 Task("Build-Docs")
@@ -941,7 +1022,7 @@ Task("Release")
     .IsDependentOn("Clean")
     .IsDependentOn("Test")
     .IsDependentOn("Build-Installer")
-    .IsDependentOn("Sign-Installer")
+    .IsDependentOn("Verify-Signatures")
     .IsDependentOn("Package")
     .IsDependentOn("Sanitize-Logs");
 
