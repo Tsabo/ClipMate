@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,11 +86,15 @@ public class StartupOrchestrationService
             // ===== TASK 1: Database Integrity Checks =====
             // Perform quick PRAGMA integrity_check on all databases to detect corruption early.
             // If corruption is found, prompt user for automatic repair using ComprehensiveRepairDatabaseAsync.
+            // A database whose file is missing or can't be opened isn't corrupt; the collection tree shows it with an error.
             _logger.LogDebug("Performing integrity checks on all databases...");
             foreach (var item in config.Databases.Values)
             {
-                var isHealthy = await _maintenanceService.CheckDatabaseIntegrityAsync(item);
-                if (isHealthy)
+                var integrity = await _maintenanceService.CheckDatabaseIntegrityAsync(item);
+                if (integrity == DatabaseIntegrity.Unavailable)
+                    _logger.LogWarning("Database '{Name}' is unavailable at startup: its file is missing or cannot be opened", item.Name);
+
+                if (integrity != DatabaseIntegrity.Corrupt)
                     continue;
 
                 _logger.LogWarning("Database '{Name}' failed integrity check at startup", item.Name);

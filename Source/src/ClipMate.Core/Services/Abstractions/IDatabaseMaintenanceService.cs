@@ -1,3 +1,4 @@
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 
 namespace ClipMate.Core.Services.Abstractions;
@@ -69,7 +70,7 @@ public interface IDatabaseMaintenanceService
     /// <param name="databaseConfig">The database configuration.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The number of clips purged.</returns>
+    /// <returns>The number of clips purged; none when the database file is missing.</returns>
     Task<int> RunCleanupAsync(DatabaseConfiguration databaseConfig,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default);
@@ -104,8 +105,11 @@ public interface IDatabaseMaintenanceService
     /// <param name="databaseConfig">Database configuration to check.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if database is healthy, false if corruption detected.</returns>
-    Task<bool> CheckDatabaseIntegrityAsync(DatabaseConfiguration databaseConfig,
+    /// <returns>
+    /// Whether the database is healthy, corrupt, or unavailable (its file is missing or cannot be opened, which is not
+    /// corruption).
+    /// </returns>
+    Task<DatabaseIntegrity> CheckDatabaseIntegrityAsync(DatabaseConfiguration databaseConfig,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default);
 }
