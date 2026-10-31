@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Signed Installer and Program Files** - The installer, the uninstaller and ClipMate's own program files are now code-signed by Jeremy Brown (Certum), so Windows no longer warns that the publisher is unknown.
+- **Duplicates Work Like ClipMate 7** - A copy is a Duplicate only when its text matches the newest clip in the collection it is going into. Clips in the Trash or in other collections no longer stop a copy being saved, collections that accept duplicates always get a new clip, and a Manual Capture is always kept.
+- **Append Works Like ClipMate 7** - Append glues any clips that have text: HTML clips are joined by their plain text, clips without text are left out and named, and fewer than two clips with text append nothing. The new clip becomes the Current Clip, ready to paste.
+- **Toggle Auto-Capture Has No Default Hotkey** - Its old default, Ctrl+Alt+A, is Append's shortcut, so trying to append switched capture off. ClipMate 7's Win+Shift+C is taken by Windows, so the hotkey is now unset, and the old default is cleared from existing settings.
+- **Tray Tooltip Shows Only the Clip Title** - The tooltip no longer starts with "ClipMate - "; it shows just the Current Clip's title (or the collection), as ClipMate 7 does. ([#26](https://github.com/Tsabo/ClipMate/issues/26))
+- **Tack Hidden** - **Tack (lock) this window onto this collection** is hidden from the clip list's menu until ClipMate has a second clip list for it to pin.
+
+### Fixed
+- **Dialogs From the Tray Menu** - Options, Text Tools, About and Show Event Log failed to open from the tray icon's menu while no ClipMate window was on screen. ([#27](https://github.com/Tsabo/ClipMate/issues/27))
+- **Reset to Defaults** - The **Reset to Defaults** buttons on the Capturing and Editor options tabs did nothing.
+- **Auto-Append After Deleting Its Clip** - Once the clip Auto-Append was growing had been deleted, every later copy was lost until ClipMate was restarted. A new growing clip is now started.
+- **Trash Kept Clips Without Content** - Sending a clip to the Trash deleted its content, so restoring it gave back an empty clip. The content is now kept until the Trash is emptied.
+- **Undelete** - Un Delete failed before showing the collection picker. It now restores clips from the Trash into the collection you pick, and the clip list's own **Un Delete** item is enabled for clips in the Trash.
+- **Manual Filter Hotkey** - The hotkey now leaves only the clipboard's text and image on it and plays the Filter sound, as in ClipMate 7.
+- **Clip List Menu Items That Did Nothing** - **Append Clips Together (Glue)**, **Place Source URL On Clipboard**, **Select Another Collection** and **Toggle Macros On/Off For This Clip** now work, as does **View > Select Collection** (F8). The collection picker opens the default database expanded and shows the last collection used.
+
+## [1.0.0-beta.1] - 2026-10-25
+
 ### Added
 - **Peer Networking** - Browse, search and copy clips between your own computers. Turn networking on in Options > **Devices**, pair two Devices by confirming the same Verification Code on both (Devices on your network are listed; others can be added by address), then tick **Share with Peers** in a database's Properties. Shared databases appear read-only in the collection tree and update live; **Copy to local** or drag stores clips in your own collections. Only paired Devices can connect, nothing outside a shared database is shared, and encrypted clips are decrypted only on your own Device.
 - **Database ID** - Every database has a permanent ID, shown in Database Properties.
