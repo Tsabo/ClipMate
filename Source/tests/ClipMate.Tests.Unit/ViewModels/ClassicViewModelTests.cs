@@ -68,14 +68,14 @@ public class ClassicViewModelTests
         var mockFolderService = A.Fake<IFolderService>();
         var mockClipService = A.Fake<IClipService>();
         var mockQuickPasteServiceForClipList = A.Fake<IQuickPasteService>();
-        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        var mockDatabases = A.Fake<IDatabases>();
         var clipListViewModel = new ClipListViewModel(
             mockCollectionService,
             mockFolderService,
             mockClipService,
             mockQuickPasteServiceForClipList,
             new PowerPasteStatus(),
-            mockContextFactory,
+            mockDatabases,
             A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);
@@ -130,14 +130,14 @@ public class ClassicViewModelTests
         var mockFolderService = A.Fake<IFolderService>();
         var mockClipService = A.Fake<IClipService>();
         var mockQuickPasteServiceForClipList = A.Fake<IQuickPasteService>();
-        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        var mockDatabases = A.Fake<IDatabases>();
         var clipListViewModel = new ClipListViewModel(
             mockCollectionService,
             mockFolderService,
             mockClipService,
             mockQuickPasteServiceForClipList,
             new PowerPasteStatus(),
-            mockContextFactory,
+            mockDatabases,
             A.Fake<IRemoteDatabaseService>(),
             _mockMessenger,
             NullLogger<ClipListViewModel>.Instance);

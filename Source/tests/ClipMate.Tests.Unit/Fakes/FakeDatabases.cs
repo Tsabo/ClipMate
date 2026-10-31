@@ -106,6 +106,11 @@ public sealed class FakeDatabase : IDatabase
     public List<SearchFilters> Searches { get; } = [];
 
     /// <summary>
+    /// Gets the scope and offset of every page asked for, in order.
+    /// </summary>
+    public List<(ClipListScope Scope, int Offset)> PageRequests { get; } = [];
+
+    /// <summary>
     /// Sets the clips in <paramref name="scope" />, in display order.
     /// </summary>
     public FakeDatabase WithClips(ClipListScope scope, params Clip[] clips)
@@ -134,6 +139,7 @@ public sealed class FakeDatabase : IDatabase
     public Task<ClipPage> GetClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
+        PageRequests.Add((scope, offset));
         ThrowIfUnavailable();
         if (Remote != null && scope is ClipListScope.Trash or ClipListScope.Collection { IncludeFolders: true })
             throw new NotSupportedException("A Remote Database lists only the clips of one collection or folder at a time.");

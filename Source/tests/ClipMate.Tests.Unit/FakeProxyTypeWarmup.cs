@@ -63,6 +63,7 @@ public static class FakeProxyTypeWarmup
         typeof(IDatabaseContextFactory),
         typeof(IDatabaseMaintenanceService),
         typeof(IDatabaseManager),
+        typeof(IDatabases),
         typeof(IDatabaseIdService),
         typeof(IDecryptedBlobCacheService),
         typeof(IDialogService),

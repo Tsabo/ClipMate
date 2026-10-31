@@ -28,7 +28,7 @@ public sealed class HotkeyNavigationPopupTests : IDisposable
     public HotkeyNavigationPopupTests()
     {
         _clipList = new ClipListViewModel(_collections, A.Fake<IFolderService>(), _clips, A.Fake<IQuickPasteService>(), new PowerPasteStatus(),
-            A.Fake<IDatabaseContextFactory>(), A.Fake<IRemoteDatabaseService>(), _messenger, NullLogger<ClipListViewModel>.Instance);
+            A.Fake<IDatabases>(), A.Fake<IRemoteDatabaseService>(), _messenger, NullLogger<ClipListViewModel>.Instance);
 
         A.CallTo(() => _notifications.Create(A<HotkeyNavigationPopupViewModel>._))
             .ReturnsLazily((HotkeyNavigationPopupViewModel viewModel) =>

@@ -5,7 +5,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
-using ClipMate.Data;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Logging;
@@ -21,9 +21,14 @@ public class ClipListViewModelRemoteSearchTests
     private readonly ICollectionService _collectionService = A.Fake<ICollectionService>();
     private readonly IFolderService _folderService = A.Fake<IFolderService>();
     private readonly IRemoteDatabaseService _remoteDatabases = A.Fake<IRemoteDatabaseService>();
+    private readonly FakeDatabases _databases = new();
+    private FakeDatabase _workDatabase = null!;
+
+    [Before(Test)]
+    public void Setup() => _workDatabase = _databases.AddRemote(new RemoteDatabase(_work, "Work", "LAPTOP", PeerConnectionStatus.Online, null));
 
     private ClipListViewModel CreateViewModel() => new(_collectionService, _folderService, A.Fake<IClipService>(), A.Fake<IQuickPasteService>(),
-        new PowerPasteStatus(), A.Fake<IDatabaseContextFactory>(), _remoteDatabases, A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
+        new PowerPasteStatus(), _databases, _remoteDatabases, A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
 
     [Test]
     public async Task Receive_RemoteSearchResultsSelected_ShowsTheCachedMatchesReadOnlyAndHowManyOfTheTotal()
@@ -44,7 +49,7 @@ public class ClipListViewModelRemoteSearchTests
         await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteDatabaseKey.From(_work));
         await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("Showing 1,000 of 4,212 matches");
         A.CallTo(() => _collectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
-        A.CallTo(_remoteDatabases).Where(p => p.Method.Name.EndsWith("Async", StringComparison.Ordinal)).MustNotHaveHappened();
+        await Assert.That(_workDatabase.PageRequests).IsEmpty();
     }
 
     [Test]

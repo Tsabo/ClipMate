@@ -46,14 +46,14 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         _mockServiceProvider = A.Fake<IServiceProvider>();
 
         // ClipListViewModel requires: ICollectionService, IFolderService, IClipService, 
-        // IQuickPasteService, IDatabaseContextFactory, IMessenger, ILogger<ClipListViewModel>
+        // IQuickPasteService, IDatabases, IMessenger, ILogger<ClipListViewModel>
         _mockClipListViewModel = A.Fake<ClipListViewModel>(o => o.WithArgumentsForConstructor(() => new ClipListViewModel(
             A.Fake<ICollectionService>(),
             A.Fake<IFolderService>(),
             A.Fake<IClipService>(),
             A.Fake<IQuickPasteService>(),
             new PowerPasteStatus(),
-            A.Fake<IDatabaseContextFactory>(),
+            A.Fake<IDatabases>(),
             A.Fake<IRemoteDatabaseService>(),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipListViewModel>>())));
