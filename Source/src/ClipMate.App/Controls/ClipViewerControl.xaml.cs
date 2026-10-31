@@ -464,7 +464,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             _logger.LogDebug("Load clip data cancelled for ClipId: {ClipId}", clipId);
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             // An offline or slow Peer: say so without a modal error on every selection
             _logger.LogInformation("Could not load remote clip {ClipId}: {Reason}", clipId, ex.Message);

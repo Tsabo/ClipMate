@@ -22,7 +22,6 @@ public class DatabaseConfigurationTests
         await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AfterHourIdle);
         await Assert.That(config.PurgeDays).IsEqualTo(7);
         await Assert.That(config.UserName).IsEqualTo(Environment.UserName);
-        await Assert.That(config.IsRemote).IsFalse();
         await Assert.That(config.MultiUser).IsFalse();
         await Assert.That(config.TempFileLocation).IsEqualTo(TempFileLocation.DatabaseDirectory);
         await Assert.That(config.UseModificationTimeStamp).IsTrue();
@@ -45,10 +44,7 @@ public class DatabaseConfigurationTests
         config.CleanupMethod = CleanupMethod.AfterHourIdle;
         config.PurgeDays = 30;
         config.UserName = "TestUser";
-        config.IsRemote = true;
         config.MultiUser = true;
-        config.RemoteHost = "server.example.com";
-        config.RemoteDatabase = "RemoteDB";
         config.IsCommandLineDatabase = true;
         config.UseModificationTimeStamp = false;
         config.LastBackupDate = testDate;
@@ -67,10 +63,7 @@ public class DatabaseConfigurationTests
         await Assert.That(config.CleanupMethod).IsEqualTo(CleanupMethod.AfterHourIdle);
         await Assert.That(config.PurgeDays).IsEqualTo(30);
         await Assert.That(config.UserName).IsEqualTo("TestUser");
-        await Assert.That(config.IsRemote).IsTrue();
         await Assert.That(config.MultiUser).IsTrue();
-        await Assert.That(config.RemoteHost).IsEqualTo("server.example.com");
-        await Assert.That(config.RemoteDatabase).IsEqualTo("RemoteDB");
         await Assert.That(config.IsCommandLineDatabase).IsTrue();
         await Assert.That(config.UseModificationTimeStamp).IsFalse();
         await Assert.That(config.LastBackupDate).IsEqualTo(testDate);

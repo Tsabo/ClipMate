@@ -438,7 +438,7 @@ public partial class ClipListViewModel : ObservableObject,
         {
             // Another node was selected, or the view went away
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             if (!token.IsCancellationRequested)
                 RemoteStatusMessage = ex.Message;

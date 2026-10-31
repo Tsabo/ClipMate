@@ -52,7 +52,7 @@ public class ClipDescriberTests
             .Returns([new RemoteDatabase(address, "My Clips", "Work laptop", PeerConnectionStatus.Online, null)]);
 
         A.CallTo(() => _remoteDatabases.GetCollectionTreeAsync(address, A<CancellationToken>._))
-            .Returns([new SharedCollection(inboxId, null, "Inbox", SharedCollectionKind.Collection, 0)]);
+            .Returns([new CollectionEntry(inboxId, null, "Inbox", CollectionEntryKind.Collection, 0)]);
 
         var clip = new Clip { Id = Guid.NewGuid(), CollectionId = inboxId, Title = "Build log" };
 

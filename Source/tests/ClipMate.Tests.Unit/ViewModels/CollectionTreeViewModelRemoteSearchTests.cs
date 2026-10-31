@@ -20,9 +20,9 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public class CollectionTreeViewModelRemoteSearchTests
 {
     private static readonly RemoteDatabaseAddress _work = new(DeviceId.FromCertificateBytes([1]), Guid.Parse("11111111-1111-1111-1111-111111111111"));
-    private static readonly SharedCollection _inbox = new(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
-    private static readonly SharedCollection _projects = new(Guid.NewGuid(), _inbox.Id, "Projects", SharedCollectionKind.Folder, 5);
-    private static readonly SharedCollection _today = new(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 20);
+    private static readonly CollectionEntry _inbox = new(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
+    private static readonly CollectionEntry _projects = new(Guid.NewGuid(), _inbox.Id, "Projects", CollectionEntryKind.Folder, 5);
+    private static readonly CollectionEntry _today = new(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 20);
     private RemoteSearchResultsCache _cache = null!;
     private ICollectionTreeBuilder _localTree = null!;
     private StrongReferenceMessenger _messenger = null!;

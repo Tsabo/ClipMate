@@ -398,7 +398,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     {
         // Arrange
         A.CallTo(() => _mockClipService.CopyToLocalAsync(A<string>._, A<Guid>._, A<string>._, A<Guid>._, A<CancellationToken>._))
-            .ThrowsAsync(new RemoteDatabaseUnavailableException("offline"));
+            .ThrowsAsync(new DatabaseUnavailableException("offline"));
 
         // Act
         _coordinator.Receive(new CopyToLocalRequestedEvent([Guid.NewGuid()], _remoteKey, "db_local01", Guid.NewGuid()));

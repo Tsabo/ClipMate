@@ -59,6 +59,7 @@ public static class FakeProxyTypeWarmup
         typeof(ICollectionService),
         typeof(ICollectionTreeBuilder),
         typeof(IConfigurationService),
+        typeof(IDatabase),
         typeof(IDatabaseContextFactory),
         typeof(IDatabaseMaintenanceService),
         typeof(IDatabaseManager),

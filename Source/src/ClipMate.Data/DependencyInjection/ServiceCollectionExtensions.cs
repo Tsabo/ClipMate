@@ -41,6 +41,9 @@ public static class ServiceCollectionExtensions
 
         // Reads a clip's formats and content from a local Database or a Remote Database (its Peer)
         services.AddTransient<IClipContentService, ClipContentService>();
+
+        // Every Database, local or remote, behind one interface (the Remote Databases come from IRemoteDatabaseService)
+        services.AddSingleton<IDatabases, Databases>();
         services.AddTransient<IShortcutService, ShortcutService>();
         services.AddTransient<IApplicationFilterService, ApplicationFilterService>();
         services.AddTransient<IFolderService, FolderService>();

@@ -49,7 +49,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<SharedCollection>?> GetCollectionTreeAsync(Guid databaseId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(Guid databaseId, CancellationToken cancellationToken = default)
     {
         var shared = await GetSharedDatabaseKeysAsync(cancellationToken);
         var match = shared.FirstOrDefault(p => p.DatabaseId == databaseId);
@@ -57,7 +57,7 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
             return null;
 
         var collections = await _collectionService.GetAllByDatabaseKeyAsync(match.DatabaseKey, cancellationToken);
-        return collections.Select(SharedCollection.From).ToList();
+        return collections.Select(CollectionEntry.From).ToList();
     }
 
     /// <inheritdoc />

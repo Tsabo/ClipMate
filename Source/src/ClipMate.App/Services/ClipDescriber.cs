@@ -51,7 +51,7 @@ public sealed class ClipDescriber
             var tree = await _remoteDatabases.GetCollectionTreeAsync(address, cancellationToken);
             collection = tree.FirstOrDefault(p => p.Id == collectionId)?.Title;
         }
-        catch (RemoteDatabaseUnavailableException)
+        catch (DatabaseUnavailableException)
         {
             // The Peer went offline: name the Remote Database instead of the collection
         }

@@ -52,25 +52,10 @@ public class DatabaseConfiguration
     public string UserName { get; set; } = Environment.UserName;
 
     /// <summary>
-    /// Gets or sets whether this is a remote database.
-    /// </summary>
-    public bool IsRemote { get; set; } = false;
-
-    /// <summary>
     /// Gets or sets the ClipMate 7 "Multi-User, Networked Database" setting. Not used and not shown: it is kept only so
     /// existing configuration files keep loading. Other Devices see a database through Share with Peers instead.
     /// </summary>
     public bool MultiUser { get; set; } = false;
-
-    /// <summary>
-    /// Gets or sets the remote host address (if remote).
-    /// </summary>
-    public string? RemoteHost { get; set; }
-
-    /// <summary>
-    /// Gets or sets the remote database name (if remote).
-    /// </summary>
-    public string? RemoteDatabase { get; set; }
 
     /// <summary>
     /// Gets or sets whether this is a temporary/command-line database.

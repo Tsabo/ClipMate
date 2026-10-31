@@ -22,7 +22,7 @@ public interface ISharedDatabaseService
     /// Gets the collection and folder tree of the Shared Database with <paramref name="databaseId" />, or <c>null</c>
     /// if no Shared Database has that Database ID.
     /// </summary>
-    Task<IReadOnlyList<SharedCollection>?> GetCollectionTreeAsync(Guid databaseId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(Guid databaseId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets one page of the clips (metadata only) of a collection or folder of a Shared Database. Smart and SQL-based

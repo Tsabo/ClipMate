@@ -422,7 +422,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 IsUnavailable = node.IsUnavailable,
             });
         }
-        catch (Exception ex) when (ex is RemoteDatabaseUnavailableException or OperationCanceledException)
+        catch (Exception ex) when (ex is DatabaseUnavailableException or OperationCanceledException)
         {
             node.ChildrenLoaded = false;
             _logger.LogInformation("Could not load Remote Database {RemoteDatabase}: {Reason}", node.Address, ex.Message);
@@ -473,7 +473,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
             return node switch
             {
                 // Smart and SQL-based collections have no clips of their own to search within
-                RemoteCollectionTreeNode { Collection.Kind: SharedCollectionKind.Collection or SharedCollectionKind.Folder } collection =>
+                RemoteCollectionTreeNode { Collection.Kind: CollectionEntryKind.Collection or CollectionEntryKind.Folder } collection =>
                     target with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
                 RemoteFolderTreeNode folder => folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
                     ? target with { CollectionId = parent.Collection.Id, CollectionName = parent.Name, FolderId = folder.Folder.Id, FolderName = folder.Name }

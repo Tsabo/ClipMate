@@ -171,7 +171,7 @@ public class ClipListViewModelTests
         var viewModel = CreateViewModel();
         var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
         A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .Throws(new RemoteDatabaseUnavailableException("LAPTOP is offline."));
+            .Throws(new DatabaseUnavailableException("LAPTOP is offline."));
 
         // Act
         await viewModel.LoadRemoteClipsAsync(address, Guid.NewGuid(), null);

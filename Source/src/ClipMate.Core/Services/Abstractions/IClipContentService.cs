@@ -16,6 +16,6 @@ public interface IClipContentService
     /// <param name="clipId">The clip.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The clip and its content, or <c>null</c> if the Database has no such clip.</returns>
-    /// <exception cref="RemoteDatabaseUnavailableException">A Remote Database cannot be read right now.</exception>
+    /// <exception cref="DatabaseUnavailableException">A Remote Database cannot be read right now.</exception>
     Task<ClipContent?> GetClipContentAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
 }

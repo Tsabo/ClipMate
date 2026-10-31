@@ -514,7 +514,7 @@ public class ClipOperationsCoordinator :
                     copiedCount++;
                 }
             }
-            catch (RemoteDatabaseUnavailableException ex)
+            catch (DatabaseUnavailableException ex)
             {
                 _logger.LogInformation("Copy to local stopped after {Count} clip(s): {Reason}", copiedCount, ex.Message);
                 SendStatus($"Copied {copiedCount} of {clipIds.Count} clip(s) to local: the Remote Database is unavailable", true);

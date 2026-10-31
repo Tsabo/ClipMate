@@ -202,7 +202,7 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The new local clip.</returns>
     /// <exception cref="InvalidOperationException">The target is a Remote Database, or the source clip no longer exists.</exception>
-    /// <exception cref="RemoteDatabaseUnavailableException">The Remote Database cannot be read right now.</exception>
+    /// <exception cref="DatabaseUnavailableException">The Remote Database cannot be read right now.</exception>
     Task<Clip> CopyToLocalAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetCollectionId, CancellationToken cancellationToken = default);
 
     /// <summary>

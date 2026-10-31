@@ -106,11 +106,11 @@ public partial class SharedDatabaseServiceTests
 
         // Assert
         await Assert.That(tree).IsEquivalentTo([
-            new SharedCollection(inbox.Id, null, "Inbox", SharedCollectionKind.Collection, 10),
-            new SharedCollection(safe.Id, null, "Safe", SharedCollectionKind.Collection, 20),
-            new SharedCollection(projects.Id, inbox.Id, "Projects", SharedCollectionKind.Folder, 5),
-            new SharedCollection(today.Id, null, "Today", SharedCollectionKind.Smart, 30),
-            new SharedCollection(bitmaps.Id, null, "Bitmaps", SharedCollectionKind.SqlBased, 40),
+            new CollectionEntry(inbox.Id, null, "Inbox", CollectionEntryKind.Collection, 10),
+            new CollectionEntry(safe.Id, null, "Safe", CollectionEntryKind.Collection, 20),
+            new CollectionEntry(projects.Id, inbox.Id, "Projects", CollectionEntryKind.Folder, 5),
+            new CollectionEntry(today.Id, null, "Today", CollectionEntryKind.Smart, 30),
+            new CollectionEntry(bitmaps.Id, null, "Bitmaps", CollectionEntryKind.SqlBased, 40),
         ]);
     }
 

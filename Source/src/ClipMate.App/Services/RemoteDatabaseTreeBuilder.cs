@@ -1,5 +1,5 @@
 using ClipMate.App.Models.TreeNodes;
-using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.App.Services;
@@ -13,7 +13,7 @@ public interface IRemoteDatabaseTreeBuilder
     /// Fetches the Remote Database's tree from its Peer and builds the child nodes of <paramref name="databaseNode" />
     /// (without adding them).
     /// </summary>
-    /// <exception cref="RemoteDatabaseUnavailableException">The Peer cannot be reached or no longer shares the Database.</exception>
+    /// <exception cref="DatabaseUnavailableException">The Peer cannot be reached or no longer shares the Database.</exception>
     Task<IReadOnlyList<TreeNodeBase>> BuildChildrenAsync(RemoteDatabaseTreeNode databaseNode, CancellationToken cancellationToken = default);
 }
 
@@ -43,21 +43,21 @@ public sealed class RemoteDatabaseTreeBuilder : IRemoteDatabaseTreeBuilder
     /// <summary>
     /// Builds the child nodes of <paramref name="databaseNode" /> from the flat list a Peer serves.
     /// </summary>
-    public static IReadOnlyList<TreeNodeBase> BuildChildren(TreeNodeBase databaseNode, IReadOnlyList<SharedCollection> collections,
+    public static IReadOnlyList<TreeNodeBase> BuildChildren(TreeNodeBase databaseNode, IReadOnlyList<CollectionEntry> collections,
         bool sortAlphabetically)
     {
         ArgumentNullException.ThrowIfNull(databaseNode);
         ArgumentNullException.ThrowIfNull(collections);
 
         var ids = collections.Select(p => p.Id).ToHashSet();
-        var folders = collections.Where(p => p.Kind == SharedCollectionKind.Folder && p.ParentId != null && ids.Contains(p.ParentId.Value))
+        var folders = collections.Where(p => p.Kind == CollectionEntryKind.Folder && p.ParentId != null && ids.Contains(p.ParentId.Value))
             .ToLookup(p => p.ParentId!.Value);
         var placedFolders = folders.SelectMany(p => p).Select(p => p.Id).ToHashSet();
 
         // A folder whose parent is missing is shown as a collection rather than lost.
-        var regular = collections.Where(p => p.Kind == SharedCollectionKind.Collection
-                                             || p.Kind == SharedCollectionKind.Folder && !placedFolders.Contains(p.Id));
-        var smart = collections.Where(p => p.Kind is SharedCollectionKind.Smart or SharedCollectionKind.SqlBased).ToList();
+        var regular = collections.Where(p => p.Kind == CollectionEntryKind.Collection
+                                             || p.Kind == CollectionEntryKind.Folder && !placedFolders.Contains(p.Id));
+        var smart = collections.Where(p => p.Kind is CollectionEntryKind.Smart or CollectionEntryKind.SqlBased).ToList();
 
         var result = new List<TreeNodeBase>();
         var visited = new HashSet<Guid>();
@@ -81,7 +81,7 @@ public sealed class RemoteDatabaseTreeBuilder : IRemoteDatabaseTreeBuilder
         return result;
     }
 
-    private static void AddFolders(TreeNodeBase parent, Guid parentId, ILookup<Guid, SharedCollection> folders, HashSet<Guid> visited)
+    private static void AddFolders(TreeNodeBase parent, Guid parentId, ILookup<Guid, CollectionEntry> folders, HashSet<Guid> visited)
     {
         foreach (var item in folders[parentId].OrderBy(p => p.SortKey))
         {
@@ -95,7 +95,7 @@ public sealed class RemoteDatabaseTreeBuilder : IRemoteDatabaseTreeBuilder
         }
     }
 
-    private static IEnumerable<SharedCollection> Order(IEnumerable<SharedCollection> collections, bool sortAlphabetically) =>
+    private static IEnumerable<CollectionEntry> Order(IEnumerable<CollectionEntry> collections, bool sortAlphabetically) =>
         sortAlphabetically
             ? collections.OrderBy(p => p.Title, StringComparer.CurrentCultureIgnoreCase)
             : collections.OrderBy(p => p.SortKey);

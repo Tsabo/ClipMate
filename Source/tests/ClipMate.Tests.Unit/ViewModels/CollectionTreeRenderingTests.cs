@@ -167,20 +167,20 @@ public class CollectionTreeRenderingTests
     /// The tree an online Peer serves for its Shared Database: collections, nested folders, a folder whose parent is
     /// missing, and Smart and SQL-based collections.
     /// </summary>
-    private static List<SharedCollection> RemoteTree()
+    private static List<CollectionEntry> RemoteTree()
     {
         var inbox = Guid.NewGuid();
         var projects = Guid.NewGuid();
         return
         [
-            new SharedCollection(inbox, null, "Inbox", SharedCollectionKind.Collection, 10),
-            new SharedCollection(Guid.NewGuid(), null, "Safe", SharedCollectionKind.Collection, 20),
-            new SharedCollection(Guid.NewGuid(), inbox, "Old", SharedCollectionKind.Folder, 2),
-            new SharedCollection(projects, inbox, "Projects", SharedCollectionKind.Folder, 1),
-            new SharedCollection(Guid.NewGuid(), projects, "2026", SharedCollectionKind.Folder, 1),
-            new SharedCollection(Guid.NewGuid(), Guid.NewGuid(), "Loose", SharedCollectionKind.Folder, 5),
-            new SharedCollection(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 30),
-            new SharedCollection(Guid.NewGuid(), null, "Big clips", SharedCollectionKind.SqlBased, 40),
+            new CollectionEntry(inbox, null, "Inbox", CollectionEntryKind.Collection, 10),
+            new CollectionEntry(Guid.NewGuid(), null, "Safe", CollectionEntryKind.Collection, 20),
+            new CollectionEntry(Guid.NewGuid(), inbox, "Old", CollectionEntryKind.Folder, 2),
+            new CollectionEntry(projects, inbox, "Projects", CollectionEntryKind.Folder, 1),
+            new CollectionEntry(Guid.NewGuid(), projects, "2026", CollectionEntryKind.Folder, 1),
+            new CollectionEntry(Guid.NewGuid(), Guid.NewGuid(), "Loose", CollectionEntryKind.Folder, 5),
+            new CollectionEntry(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 30),
+            new CollectionEntry(Guid.NewGuid(), null, "Big clips", CollectionEntryKind.SqlBased, 40),
         ];
     }
 

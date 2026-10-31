@@ -164,10 +164,10 @@ public class SearchViewModelRemoteSearchTests
         // Arrange
         Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
-            .Throws(new RemoteDatabaseUnavailableException("DESKTOP is offline."));
+            .Throws(new DatabaseUnavailableException("DESKTOP is offline."));
 
         // Act / Assert
-        await Assert.That(async () => await _viewModel.SearchCommand.ExecuteAsync(null)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _viewModel.SearchCommand.ExecuteAsync(null)).Throws<DatabaseUnavailableException>();
         await Assert.That(_remoteSearchResultsCache.GetResults(_work)).IsNull();
         await Assert.That(_executed).IsEmpty();
         await Assert.That(_viewModel.IsSearching).IsFalse();

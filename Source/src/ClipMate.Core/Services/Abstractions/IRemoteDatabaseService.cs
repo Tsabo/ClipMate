@@ -33,6 +33,13 @@ public interface IRemoteDatabaseService
     IReadOnlyList<RemoteDatabase> GetRemoteDatabases();
 
     /// <summary>
+    /// Gets <paramref name="database" /> (one of <see cref="GetRemoteDatabases" />) as an <see cref="IDatabase" />, so it
+    /// is read the same way as a local Database. Its availability is as of <paramref name="database" />; reads still fail
+    /// with <see cref="DatabaseUnavailableException" /> if the Peer has gone away since.
+    /// </summary>
+    IDatabase Open(RemoteDatabase database);
+
+    /// <summary>
     /// Asks every online Peer for its current Shared Databases.
     /// </summary>
     Task RefreshAsync(CancellationToken cancellationToken = default);
@@ -47,10 +54,10 @@ public interface IRemoteDatabaseService
     /// <summary>
     /// Fetches the collection and folder tree of a Remote Database from its Peer.
     /// </summary>
-    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// <exception cref="DatabaseUnavailableException">
     /// The Peer cannot be reached, is not a Peer any more, or no longer shares that Database.
     /// </exception>
-    Task<IReadOnlyList<SharedCollection>> GetCollectionTreeAsync(RemoteDatabaseAddress address, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CollectionEntry>> GetCollectionTreeAsync(RemoteDatabaseAddress address, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetches one page of the clips (metadata only) of a collection or folder of a Remote Database from its Peer.
@@ -62,7 +69,7 @@ public interface IRemoteDatabaseService
     /// <param name="offset">How many clips to skip.</param>
     /// <param name="count">The most clips to return (the Peer may return fewer).</param>
     /// <param name="cancellationToken">Cancellation token; also cancels the work on the Peer.</param>
-    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// <exception cref="DatabaseUnavailableException">
     /// The Peer cannot be reached or did not answer in time, or no longer shares that Database or collection.
     /// </exception>
     Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
@@ -73,7 +80,7 @@ public interface IRemoteDatabaseService
     /// in chunks. Encrypted clips arrive as ciphertext.
     /// </summary>
     /// <returns>The clip and its content, or <c>null</c> if the Peer has no such clip in that Database.</returns>
-    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// <exception cref="DatabaseUnavailableException">
     /// The Peer cannot be reached or did not answer in time, or no longer shares that Database.
     /// </exception>
     Task<ClipContent?> GetClipContentAsync(RemoteDatabaseAddress address, Guid clipId, CancellationToken cancellationToken = default);
@@ -85,38 +92,9 @@ public interface IRemoteDatabaseService
     /// <param name="address">The Remote Database.</param>
     /// <param name="filters">What to search for; a scope's collection or folder must be one of that Remote Database.</param>
     /// <param name="cancellationToken">Cancellation token; also stops the search on the Peer.</param>
-    /// <exception cref="RemoteDatabaseUnavailableException">
+    /// <exception cref="DatabaseUnavailableException">
     /// The Peer cannot be reached, stopped the search because it took too long, or no longer shares that Database,
     /// collection or folder.
     /// </exception>
     Task<SearchMatches> SearchAsync(RemoteDatabaseAddress address, SearchFilters filters, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Thrown when a Remote Database cannot be read right now.
-/// </summary>
-public sealed class RemoteDatabaseUnavailableException : Exception
-{
-    /// <summary>
-    /// Creates the exception.
-    /// </summary>
-    public RemoteDatabaseUnavailableException()
-    {
-    }
-
-    /// <summary>
-    /// Creates the exception with a message.
-    /// </summary>
-    public RemoteDatabaseUnavailableException(string message)
-        : base(message)
-    {
-    }
-
-    /// <summary>
-    /// Creates the exception with a message and the underlying failure.
-    /// </summary>
-    public RemoteDatabaseUnavailableException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-    }
 }
