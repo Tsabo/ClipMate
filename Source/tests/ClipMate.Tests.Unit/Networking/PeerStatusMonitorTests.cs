@@ -64,10 +64,12 @@ public class PeerStatusMonitorTests
     }
 
     [Test]
-    public async Task RefreshAsync_PeerAnswersWithAnotherMajorVersion_IsUpdateRequired()
+    [Arguments(1u)] // a Peer from before protocol version 2
+    [Arguments(PeerProtocol.Major + 1)]
+    public async Task RefreshAsync_PeerAnswersWithAnotherMajorVersion_IsUpdateRequired(uint major)
     {
         // Arrange
-        _probe.Replies["192.168.1.20:47823"] = new PeerProbeReply("LAPTOP", PeerProtocol.Major + 1, 0, []);
+        _probe.Replies["192.168.1.20:47823"] = new PeerProbeReply("LAPTOP", major, 0, []);
         await _monitor.StartAsync(_identity);
 
         // Act

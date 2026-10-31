@@ -1,5 +1,5 @@
-// The Peer wire protocol. Changes must stay backward compatible within a protocol
-// major version; new features are added as negotiated capabilities.
+// The Peer wire protocol, version 2 (PeerProtocol.cs). Changes must stay backward compatible within a protocol
+// major version; features added after 2.0 are announced as capabilities in Hello.
 //
 // Hello and the pairing calls are how Devices of different versions find out they are incompatible,
 // so their messages must never change incompatibly, even across major versions.

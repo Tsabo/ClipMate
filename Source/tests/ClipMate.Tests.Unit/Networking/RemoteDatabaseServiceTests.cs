@@ -600,31 +600,6 @@ public class RemoteDatabaseServiceTests
         await Assert.That(second.IsCancellationRequested).IsFalse();
     }
 
-    [Test]
-    public async Task PeerWithoutChangeNotifications_KeepsWorkingAndIsNotAskedAgainWhileOnline()
-    {
-        // Arrange
-        SharesOnLaptop(_work);
-        var asked = 0;
-        A.CallTo(() => _client.WatchChangesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
-            .ReturnsLazily(() =>
-            {
-                Interlocked.Increment(ref asked);
-                return ThrowsAsync(new NotSupportedException("Too old."));
-            });
-        await BringLaptopOnlineAsync();
-        await WaitUntilAsync(() => Volatile.Read(ref asked) == 1);
-
-        // Act
-        _status.StatusChanged += Raise.WithEmpty();
-        await _service.RefreshAsync();
-        await Task.Delay(100);
-
-        // Assert
-        await Assert.That(Volatile.Read(ref asked)).IsEqualTo(1);
-        await Assert.That(_service.GetRemoteDatabases().Single().IsAvailable).IsTrue();
-    }
-
     private async Task BringLaptopOnlineAsync()
     {
         var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -641,15 +616,6 @@ public class RemoteDatabaseServiceTests
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
         while (!condition() && DateTime.UtcNow < deadline)
             await Task.Delay(10);
-    }
-
-    private static async IAsyncEnumerable<PeerChangeNotice> ThrowsAsync(Exception exception)
-    {
-        await Task.Yield();
-        if (exception != null)
-            throw exception;
-
-        yield break;
     }
 
     private WatchStream WatchesOnLaptop()

@@ -21,29 +21,29 @@ service SharedDatabaseAccess {
 
   // Returns one page of the clips (metadata only) of a collection or folder of a Shared Database. Smart and SQL-based
   // collections are evaluated on the Peer with its own stored SQL. NOT_FOUND if the Peer does not share the Database
-  // or it has no such collection or folder. Capability "remote-clips".
+  // or it has no such collection or folder.
   rpc GetClipPage (GetClipPageRequest) returns (GetClipPageReply);
 
   // Returns a clip's metadata and its formats (no content). NOT_FOUND if the Peer does not share the Database or it
-  // has no such clip. Capability "remote-clips".
+  // has no such clip.
   rpc GetClipFormats (GetClipFormatsRequest) returns (GetClipFormatsReply);
 
   // Streams the stored content of every format of a clip in chunks, so a large image never needs one huge message.
-  // Encrypted clips are streamed as stored (ciphertext); the Peer never decrypts. Capability "remote-clips".
+  // Encrypted clips are streamed as stored (ciphertext); the Peer never decrypts.
   rpc ReadClipContent (ReadClipContentRequest) returns (stream ClipContentChunk);
 
   // Streams lightweight change notices for the Peer's Shared Databases for as long as the call stays open: which
   // collection changed (a clip captured, deleted, moved or edited, or the collection itself changed), and when the
   // list of Shared Databases changed. Notices carry IDs only, never clip data; the requesting Device re-fetches what it
   // shows. Databases that are not shared produce no notices. The Peer sends the response headers as soon as it is
-  // listening. Capability "change-notifications".
+  // listening.
   rpc WatchChanges (WatchChangesRequest) returns (stream ChangeNotice);
 
   // Remote Search: runs structured search criteria (never SQL) on a Shared Database. The Peer builds and runs the
   // parameterized query itself, stops it after about 15 seconds or when the caller cancels, keeps nothing afterwards,
   // and streams at most 1,000 matches (newest first) in pages, each carrying the total number of matches. NOT_FOUND if
   // the Peer does not share the Database or it has no such collection or folder; INVALID_ARGUMENT for unusable
-  // criteria; RESOURCE_EXHAUSTED when the search took too long. Capability "remote-search".
+  // criteria; RESOURCE_EXHAUSTED when the search took too long.
   rpc SearchClips (SearchClipsRequest) returns (stream SearchClipsPage);
 }
 

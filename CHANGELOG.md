@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
+
 ## [1.0.1-beta] - 2026-10-31
 
 ### Changed
