@@ -216,7 +216,7 @@ public partial class DevicesOptionsViewModelTests
     {
         using var certificate = CreateCertificate();
         return new DiscoveredDevice(DeviceId.FromCertificate(certificate), deviceName, new IPEndPoint(IPAddress.Parse("192.168.1.20"), 47823),
-            1, 0, DateTimeOffset.UtcNow);
+            ClipMate.Networking.PeerProtocol.Major, 0, DateTimeOffset.UtcNow);
     }
 
     private static X509Certificate2 CreateCertificate()

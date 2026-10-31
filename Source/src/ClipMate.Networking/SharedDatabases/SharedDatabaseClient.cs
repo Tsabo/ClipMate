@@ -19,7 +19,7 @@ namespace ClipMate.Networking.SharedDatabases;
 public interface ISharedDatabaseClient
 {
     /// <summary>
-    /// Asks <paramref name="peer" /> for its Shared Databases. A Peer too old to share Databases shares none.
+    /// Asks <paramref name="peer" /> for its Shared Databases.
     /// </summary>
     /// <exception cref="RemoteDatabaseUnavailableException">The Peer could not be reached.</exception>
     Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken = default);
@@ -57,7 +57,6 @@ public interface ISharedDatabaseClient
     /// IDs only, never clip data.
     /// </summary>
     /// <exception cref="RemoteDatabaseUnavailableException">The Peer could not be reached, or the stream broke (the Peer went away or unpaired this Device).</exception>
-    /// <exception cref="NotSupportedException">The Peer's version of ClipMate does not send change notices.</exception>
     IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -86,10 +85,9 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     private const long _maxContentLength = 512L * 1024 * 1024;
 
     // The error statuses each call handles itself; CallAsync turns any other into RemoteDatabaseUnavailableException.
-    private static readonly StatusCode[] _notFoundOrUnimplemented = [StatusCode.NotFound, StatusCode.Unimplemented];
-    private static readonly StatusCode[] _searchStatuses =
-        [StatusCode.NotFound, StatusCode.ResourceExhausted, StatusCode.InvalidArgument, StatusCode.Unimplemented];
-    private static readonly StatusCode[] _unimplemented = [StatusCode.Unimplemented];
+    private static readonly StatusCode[] _none = [];
+    private static readonly StatusCode[] _notFound = [StatusCode.NotFound];
+    private static readonly StatusCode[] _searchStatuses = [StatusCode.NotFound, StatusCode.ResourceExhausted, StatusCode.InvalidArgument];
 
     private readonly TimeSpan _contentTimeout;
     private readonly IDeviceDiscoveryService _discovery;
@@ -140,16 +138,12 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
 
             var reply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetClipPageAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                _notFoundOrUnimplemented, cancellationToken);
+                _notFound, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
             return null;
-        }
-        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
-        {
-            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to browse its clips.", ex);
         }
     }
 
@@ -162,7 +156,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var formatsRequest = new GetClipFormatsRequest { DatabaseId = databaseId.ToString("D"), ClipId = clipId.ToString("D") };
             var formatsReply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetClipFormatsAsync(formatsRequest, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                _notFoundOrUnimplemented, cancellationToken);
+                _notFound, cancellationToken);
 
             var clip = SharedDatabaseMessages.FromMessage(formatsReply.Clip ?? new ClipSummary());
             if (clip == null || clip.Id != clipId)
@@ -175,17 +169,13 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var content = await CallAsync(identity, peer, _contentTimeout,
                 (client, deadline) => ReadContentAsync(client.ReadClipContent(contentRequest, deadline: deadline, cancellationToken: cancellationToken),
                     formats, peer, cancellationToken),
-                _notFoundOrUnimplemented, cancellationToken);
+                _notFound, cancellationToken);
 
             return BuildContent(clip, formats, content);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
             return null;
-        }
-        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
-        {
-            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to show its clips.", ex);
         }
     }
 
@@ -254,8 +244,6 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
                         throw new OperationCanceledException("Stopped watching.", ex, cancellationToken);
                     case OperationCanceledException:
                         throw;
-                    case RpcException { StatusCode: StatusCode.Unimplemented }:
-                        throw new NotSupportedException($"{peer.DisplayName} needs a newer version of ClipMate to send changes.", ex);
                     case RpcException { StatusCode: StatusCode.PermissionDenied }:
                         throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
                     case RpcException rpc when PeerCallFailure.IsNoReply(rpc):
@@ -297,10 +285,6 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
         {
             throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
-        }
-        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
-        {
-            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} needs a newer version of ClipMate to search its clips.", ex);
         }
     }
 
@@ -406,17 +390,10 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     public async Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(DeviceIdentity identity, Peer peer,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var reply = await CallAsync(identity, peer, _timeout,
-                (client, deadline) => client.ListSharedDatabasesAsync(new ListSharedDatabasesRequest(), deadline: deadline,
-                    cancellationToken: cancellationToken).ResponseAsync, _unimplemented, cancellationToken);
-            return SharedDatabaseMessages.FromMessage(reply);
-        }
-        catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
-        {
-            return [];
-        }
+        var reply = await CallAsync(identity, peer, _timeout,
+            (client, deadline) => client.ListSharedDatabasesAsync(new ListSharedDatabasesRequest(), deadline: deadline,
+                cancellationToken: cancellationToken).ResponseAsync, _none, cancellationToken);
+        return SharedDatabaseMessages.FromMessage(reply);
     }
 
     /// <inheritdoc />
@@ -428,10 +405,10 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             var request = new GetCollectionTreeRequest { DatabaseId = databaseId.ToString("D") };
             var reply = await CallAsync(identity, peer, _timeout,
                 (client, deadline) => client.GetCollectionTreeAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
-                _notFoundOrUnimplemented, cancellationToken);
+                _notFound, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
         }
-        catch (RpcException ex) when (ex.StatusCode is StatusCode.NotFound or StatusCode.Unimplemented)
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
             return null;
         }

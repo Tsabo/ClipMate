@@ -102,7 +102,6 @@ public partial class PairingTests
         await Assert.That(laptopToDesktop.DeviceName).IsEqualTo("DESKTOP");
         await Assert.That(desktopToLaptop.DeviceName).IsEqualTo("LAPTOP");
         await Assert.That(laptopToDesktop.ProtocolMajor).IsEqualTo(PeerProtocol.Major);
-        await Assert.That(laptopToDesktop.Capabilities).Contains("pairing");
     }
 
     [Test]
@@ -202,14 +201,16 @@ public partial class PairingTests
     }
 
     [Test]
-    public async Task RequestPairing_FromAnIncompatibleProtocolVersion_RepliesUpdateRequiredWithoutAskingTheUser()
+    [Arguments(1u)] // a Device from before protocol version 2
+    [Arguments(PeerProtocol.Major + 1)]
+    public async Task RequestPairing_FromAnIncompatibleProtocolVersion_RepliesUpdateRequiredWithoutAskingTheUser(uint major)
     {
         // Arrange
         using var channel = PeerChannelFactory.CreateForPairing(_desktop.Address, _laptop.Identity, _desktop.DeviceId);
         var client = new PeerService.PeerServiceClient(channel);
 
         // Act
-        var reply = await client.RequestPairingAsync(new PairRequest { DeviceName = "FUTURE", ProtocolMajor = PeerProtocol.Major + 1 });
+        var reply = await client.RequestPairingAsync(new PairRequest { DeviceName = "OTHER", ProtocolMajor = major });
 
         // Assert
         await Assert.That(reply.Result).IsEqualTo(PairResult.UpdateRequired);

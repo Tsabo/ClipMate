@@ -71,10 +71,10 @@ public class SharedDatabaseProtocolTests
     }
 
     [Test]
-    public async Task PeerProtocol_AdvertisesRemoteSearch()
+    public async Task PeerProtocol_Version2_HasEverySharedDatabaseFeatureInItsBaseline()
     {
-        // Assert
-        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.RemoteSearchCapability);
+        // Assert: Shared Databases, their clips, change notices and Remote Search need no capability in version 2
+        await Assert.That(PeerProtocol.Capabilities).IsEmpty();
     }
 
     [Test]
@@ -148,13 +148,6 @@ public class SharedDatabaseProtocolTests
     }
 
     [Test]
-    public async Task PeerProtocol_AdvertisesRemoteClips()
-    {
-        // Assert
-        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.RemoteClipsCapability);
-    }
-
-    [Test]
     public async Task FromMessage_ClipPage_DropsClipsWithInvalidIdsAndCleansText()
     {
         // Arrange
@@ -172,13 +165,6 @@ public class SharedDatabaseProtocolTests
         await Assert.That(clip.Title).IsEqualTo("Hello world");
         await Assert.That(clip.SourceApplicationName!.Length).IsEqualTo(2048);
         await Assert.That(clip.Size).IsEqualTo(0);
-    }
-
-    [Test]
-    public async Task PeerProtocol_AdvertisesChangeNotifications()
-    {
-        // Assert
-        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.ChangeNotificationsCapability);
     }
 
     [Test]
@@ -242,13 +228,6 @@ public class SharedDatabaseProtocolTests
                     yield return nested;
             }
         }
-    }
-
-    [Test]
-    public async Task PeerProtocol_AdvertisesSharedDatabases()
-    {
-        // Assert
-        await Assert.That(PeerProtocol.Capabilities).Contains(PeerProtocol.SharedDatabasesCapability);
     }
 
     [Test]

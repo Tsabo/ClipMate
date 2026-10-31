@@ -17,7 +17,7 @@ namespace ClipMate.Networking.SharedDatabases;
 /// <para>
 /// While a Peer is online (and networking is on) its change notices are watched: a changed collection raises
 /// <see cref="RemoteCollectionChanged" />, and a changed share list is fetched at once rather than at the next poll (the
-/// poll stays as the fallback, and is all a Peer without change notifications gets). Watching stops when the Peer goes
+/// poll stays as the fallback for a change stream that broke). Watching stops when the Peer goes
 /// offline or is unpaired, or networking is turned off, and starts again when it comes back.
 /// </para>
 /// </summary>
@@ -38,7 +38,6 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     private readonly IPeerStatusService _status;
     private readonly ITimer _timer;
     private readonly TimeProvider _timeProvider;
-    private readonly HashSet<DeviceId> _unsupported = [];
     private readonly Dictionary<DeviceId, CancellationTokenSource> _watches = [];
     private readonly Lock _watchLock = new();
     private bool _disposed;
@@ -221,12 +220,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
                 item.Value.Cancel();
             }
 
-            // A Peer too old to send change notices is asked again only after it was away (it may have been updated).
-            _unsupported.IntersectWith(online);
-
             foreach (var item in online)
             {
-                if (_watches.ContainsKey(item) || _unsupported.Contains(item))
+                if (_watches.ContainsKey(item))
                     continue;
 
                 var watch = new CancellationTokenSource();
@@ -253,7 +249,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
                         await HandleNoticeAsync(identity, deviceId, item, cancellationToken);
                     }
                 }
-                catch (Exception ex) when (ex is not (OperationCanceledException or NotSupportedException))
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     _logger.LogDebug(ex, "Change notices from Peer {DeviceId} stopped", deviceId.ToShortDisplayString());
                 }
@@ -267,19 +263,6 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Offline, unpaired, networking off, or disposed
-        }
-        catch (NotSupportedException ex)
-        {
-            _logger.LogInformation("Peer {DeviceId} does not send change notices; its Remote Databases are refreshed by polling: {Reason}",
-                deviceId.ToShortDisplayString(), ex.Message);
-            lock (_watchLock)
-            {
-                if (_watches.TryGetValue(deviceId, out var current) && ReferenceEquals(current, watch))
-                {
-                    _watches.Remove(deviceId);
-                    _unsupported.Add(deviceId);
-                }
-            }
         }
         catch (Exception ex)
         {
