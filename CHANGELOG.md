@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1-beta] - 2026-10-31
+
 ### Changed
 - **Signed Installer and Program Files** - The installer, the uninstaller and ClipMate's own program files are now code-signed by Jeremy Brown (Certum), so Windows no longer warns that the publisher is unknown.
 - **Duplicates Work Like ClipMate 7** - A copy is a Duplicate only when its text matches the newest clip in the collection it is going into. Clips in the Trash or in other collections no longer stop a copy being saved, collections that accept duplicates always get a new clip, and a Manual Capture is always kept.
