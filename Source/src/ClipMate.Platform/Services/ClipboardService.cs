@@ -4,16 +4,16 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using System.Windows.Media.Imaging;
-using Windows.Win32.Foundation;
 using ClipMate.Core.Events;
 using ClipMate.Core.Exceptions;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using ThrottleDebounce.Retry;
+using Windows.Win32.Foundation;
 using DataFormats = System.Windows.DataFormats;
 // Aliases to resolve WPF vs WinForms ambiguity
 using WpfDataObject = System.Windows.DataObject;

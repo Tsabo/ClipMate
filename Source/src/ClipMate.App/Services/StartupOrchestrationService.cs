@@ -2,7 +2,7 @@ using System.Diagnostics;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;

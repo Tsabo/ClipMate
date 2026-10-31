@@ -1,4 +1,4 @@
-// Read access to a Peer's Shared Databases (ADR 0001: a read-only live proxy).
+// Read access to a Peer's Shared Databases (a read-only live proxy).
 //
 // Every call is coarse and service-level: the requesting Device names what it wants (a Database ID, a collection ID)
 // and the Peer runs it against its own Database. No SQL ever crosses the wire, in either direction: Smart and

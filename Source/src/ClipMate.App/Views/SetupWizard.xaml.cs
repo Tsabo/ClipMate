@@ -2,7 +2,7 @@ using System.IO;
 using ClipMate.App.Services;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 using Serilog;

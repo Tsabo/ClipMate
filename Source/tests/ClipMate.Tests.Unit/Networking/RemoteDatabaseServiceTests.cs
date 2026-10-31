@@ -5,8 +5,9 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Networking.SharedDatabases;
+using ClipMate.Networking.SharedDatabases.Notice;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
 

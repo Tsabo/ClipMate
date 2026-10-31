@@ -1,11 +1,11 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 

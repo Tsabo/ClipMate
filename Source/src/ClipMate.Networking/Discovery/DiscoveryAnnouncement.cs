@@ -34,8 +34,8 @@ public sealed record DiscoveryAnnouncement(DeviceId DeviceId, string DeviceName,
     public const int MaxDeviceNameLength = 100;
 
     private const int _headerLength = 5;
-    private static readonly byte[] _magic = "CMDA"u8.ToArray();
-    private static readonly byte[] _signingContext = "ClipMate discovery announcement v1\0"u8.ToArray();
+    private static readonly byte[] _magic = [.. "CMDA"u8];
+    private static readonly byte[] _signingContext = [.. "ClipMate discovery announcement v1\0"u8];
 
     /// <summary>
     /// Builds a signed announcement datagram for <paramref name="identity" />.

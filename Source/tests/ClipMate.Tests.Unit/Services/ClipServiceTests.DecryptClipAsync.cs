@@ -1,6 +1,6 @@
 using System.Text;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using FakeItEasy;
 

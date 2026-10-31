@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 

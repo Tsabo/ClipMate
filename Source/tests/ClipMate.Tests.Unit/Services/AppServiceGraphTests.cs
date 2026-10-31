@@ -3,7 +3,7 @@ using ClipMate.App.Services;
 using ClipMate.Core.DependencyInjection;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.DependencyInjection;
 using ClipMate.Networking.DependencyInjection;
 using ClipMate.Platform.DependencyInjection;

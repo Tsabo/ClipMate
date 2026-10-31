@@ -1,5 +1,5 @@
 using Windows.Win32.UI.Input.KeyboardAndMouse;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

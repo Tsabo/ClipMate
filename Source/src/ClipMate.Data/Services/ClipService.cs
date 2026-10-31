@@ -5,7 +5,7 @@ using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Data.Repositories;
 using ClipMate.Platform.Helpers;

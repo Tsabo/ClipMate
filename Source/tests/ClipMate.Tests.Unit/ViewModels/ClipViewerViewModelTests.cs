@@ -1,7 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;

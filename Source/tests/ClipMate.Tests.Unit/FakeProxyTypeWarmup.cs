@@ -4,8 +4,10 @@ using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Repositories;
 using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using ClipMate.Networking.Discovery.Abstraction;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
@@ -93,7 +95,7 @@ public static class FakeProxyTypeWarmup
         typeof(IPairingSession),
         typeof(ILocalDevice),
         typeof(IDeviceDiscoveryService),
-        typeof(ClipMate.Networking.Discovery.IDiscoveryTransportFactory),
+        typeof(IDiscoveryTransportFactory),
         typeof(ILogger<NetworkingService>),
         typeof(ILogger<DevicesOptionsViewModel>),
         typeof(ILogger<AboutDialogViewModel>),

@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Core.Services;
@@ -40,10 +41,10 @@ public class ApplicationProfileService : IApplicationProfileService
         ("WINWORD", true, [(_text, true), (_rtf, true), (_image, false), (_html, false)]),
     ];
 
-    private readonly ILogger<ApplicationProfileService> _logger;
-
     // The decode loop and a manual capture can learn formats into the same profile at once
     private readonly SemaphoreSlim _learnLock = new(1, 1);
+
+    private readonly ILogger<ApplicationProfileService> _logger;
     private readonly IApplicationProfileStore _store;
     private bool _isEnabled;
 
@@ -86,6 +87,37 @@ public class ApplicationProfileService : IApplicationProfileService
         }
     }
 
+    /// <inheritdoc />
+    public async Task UpdateProfileAsync(ApplicationProfile profile, CancellationToken cancellationToken = default) => await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<Dictionary<string, ApplicationProfile>> GetAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.LoadProfilesAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task DeleteProfileAsync(string applicationName, CancellationToken cancellationToken = default)
+    {
+        var normalizedAppName = NormalizeApplicationName(applicationName);
+        await _store.DeleteProfileAsync(normalizedAppName, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.DeleteAllProfilesAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public string NormalizeApplicationName(string applicationName)
+    {
+        if (string.IsNullOrWhiteSpace(applicationName))
+            return string.Empty;
+
+        var normalized = applicationName.Trim().ToUpperInvariant();
+
+        // Remove .EXE extension if present
+        if (normalized.EndsWith(".EXE", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[..^4];
+
+        return normalized;
+    }
+
     private async Task<IReadOnlySet<string>?> ApplyProfileLockedAsync(string normalizedAppName, HashSet<string> all, bool evenWhenSwitchedOff,
         CancellationToken cancellationToken)
     {
@@ -115,7 +147,9 @@ public class ApplicationProfileService : IApplicationProfileService
                 profile.Formats[formatName] = enabled;
                 changed = true;
                 _logger.LogInformation("Application profile {ApplicationName} learned format {FormatName} ({Setting})",
-                    normalizedAppName, formatName, enabled ? "on" : "off");
+                    normalizedAppName, formatName, enabled
+                        ? "on"
+                        : "off");
             }
 
             if (enabled)
@@ -190,36 +224,5 @@ public class ApplicationProfileService : IApplicationProfileService
         }
 
         return null;
-    }
-
-    /// <inheritdoc />
-    public async Task UpdateProfileAsync(ApplicationProfile profile, CancellationToken cancellationToken = default) => await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
-
-    /// <inheritdoc />
-    public async Task<Dictionary<string, ApplicationProfile>> GetAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.LoadProfilesAsync(cancellationToken);
-
-    /// <inheritdoc />
-    public async Task DeleteProfileAsync(string applicationName, CancellationToken cancellationToken = default)
-    {
-        var normalizedAppName = NormalizeApplicationName(applicationName);
-        await _store.DeleteProfileAsync(normalizedAppName, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task DeleteAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.DeleteAllProfilesAsync(cancellationToken);
-
-    /// <inheritdoc />
-    public string NormalizeApplicationName(string applicationName)
-    {
-        if (string.IsNullOrWhiteSpace(applicationName))
-            return string.Empty;
-
-        var normalized = applicationName.Trim().ToUpperInvariant();
-
-        // Remove .EXE extension if present
-        if (normalized.EndsWith(".EXE", StringComparison.OrdinalIgnoreCase))
-            normalized = normalized[..^4];
-
-        return normalized;
     }
 }

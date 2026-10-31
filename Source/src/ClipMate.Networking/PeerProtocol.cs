@@ -28,7 +28,8 @@ public static class PeerProtocol
 
     /// <summary>
     /// The capability of streaming "collection changed" notices for Shared Databases (<c>WatchChanges</c>), added in
-    /// minor version 3. A Peer without it answers <c>WatchChanges</c> with UNIMPLEMENTED; its views are refreshed by polling only.
+    /// minor version 3. A Peer without it answers <c>WatchChanges</c> with UNIMPLEMENTED; its views are refreshed by polling
+    /// only.
     /// </summary>
     public const string ChangeNotificationsCapability = "change-notifications";
 

@@ -3,7 +3,7 @@ using Windows.Win32.UI.WindowsAndMessaging;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using CommunityToolkit.Mvvm.Messaging;
@@ -53,6 +53,19 @@ public sealed class PasteTargetTracker : IPasteTargetTracker, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    public void Dispose()
+    {
+        lock (_sync)
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+        }
+
+        _foregroundMonitor.ForegroundChanged -= OnForegroundChanged;
+    }
+
     /// <inheritdoc />
     public void Start()
     {
@@ -91,19 +104,6 @@ public sealed class PasteTargetTracker : IPasteTargetTracker, IDisposable
         _messenger.Send(new StateRefreshRequestedEvent());
         if (changed)
             _messenger.Send(new QuickPasteTargetChangedEvent());
-    }
-
-    public void Dispose()
-    {
-        lock (_sync)
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-        }
-
-        _foregroundMonitor.ForegroundChanged -= OnForegroundChanged;
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ public sealed class PasteTargetTracker : IPasteTargetTracker, IDisposable
                     : string.Empty;
             }
 
-            return new TrackedWindow(hwnd, processId, new PasteTargetWindow((nint)hwnd, processName.ToUpperInvariant(), className, windowTitle));
+            return new TrackedWindow(hwnd, processId, new PasteTargetWindow(hwnd, processName.ToUpperInvariant(), className, windowTitle));
         }
         catch (Exception ex)
         {

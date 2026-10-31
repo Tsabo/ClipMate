@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using ClipMate.Core.Events;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 

@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows.Media.Imaging;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 

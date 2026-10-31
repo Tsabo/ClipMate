@@ -1,7 +1,7 @@
 using System.Xml.Serialization;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
@@ -67,12 +67,12 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         await Assert.That(loadedClip?.TextContent).IsNull();
 
         // Load blob data before export (the fix we implemented)
-        await clipService.LoadBlobDataAsync(_testDatabaseKey, loadedClip);
+        await clipService.LoadBlobDataAsync(_testDatabaseKey, loadedClip!);
 
         // Act - Export with blob data loaded
         var exportService = CreateExportImportService();
         var xmlPath = CreateTempFilePath(".xml");
-        await exportService.ExportToXmlAsync([loadedClip], [], xmlPath);
+        await exportService.ExportToXmlAsync([loadedClip!], [], xmlPath);
 
         // Assert - Verify XML contains text content
         var xmlContent = await File.ReadAllTextAsync(xmlPath);

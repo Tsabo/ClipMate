@@ -1,5 +1,5 @@
 using System.IO;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.DependencyInjection;

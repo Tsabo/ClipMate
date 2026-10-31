@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using ClipMate.Core.Events;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.Hosting;

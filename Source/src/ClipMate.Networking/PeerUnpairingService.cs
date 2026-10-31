@@ -1,5 +1,6 @@
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
+using ClipMate.Networking.Monitor;
 using ClipMate.Networking.Protocol;
 using Microsoft.Extensions.Logging;
 
@@ -47,6 +48,7 @@ public sealed class PeerUnpairingService : IUnpairingService
 
         _logger.LogInformation("Could not tell Device {DeviceId} it was unpaired; it will find out when it next reaches this Device",
             deviceId.ToDisplayString());
+
         return false;
     }
 

@@ -1,4 +1,5 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Tomlyn;
 using Tomlyn.Model;

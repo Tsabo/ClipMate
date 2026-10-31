@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.Services;

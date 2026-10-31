@@ -4,7 +4,7 @@ using System.Windows.Media.Imaging;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Mvvm;
 using IMessenger = CommunityToolkit.Mvvm.Messaging.IMessenger;

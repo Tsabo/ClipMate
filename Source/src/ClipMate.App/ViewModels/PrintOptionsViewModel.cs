@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Drawing.Printing;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ClipMate.App.ViewModels;

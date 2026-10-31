@@ -1,6 +1,6 @@
 using System.Net;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Networking;
+using ClipMate.Networking.Internal;
 
 namespace ClipMate.Tests.Unit.Networking;
 

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using DevExpress.Xpf.Core;

@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using WpfApplication = System.Windows.Application;
 

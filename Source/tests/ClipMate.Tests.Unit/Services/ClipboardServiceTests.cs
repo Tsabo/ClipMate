@@ -1,9 +1,8 @@
-using Windows.Win32.Foundation;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
@@ -11,6 +10,7 @@ using ClipMate.Tests.Unit.Networking;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using TUnit.Core.Executors;
+using Windows.Win32.Foundation;
 
 namespace ClipMate.Tests.Unit.Services;
 

@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.UI;
 

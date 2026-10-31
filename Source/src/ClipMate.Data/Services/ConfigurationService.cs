@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Tomlyn;
 

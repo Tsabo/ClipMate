@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;

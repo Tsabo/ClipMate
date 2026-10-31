@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Xpf.Grid;
 using Microsoft.Extensions.DependencyInjection;
 

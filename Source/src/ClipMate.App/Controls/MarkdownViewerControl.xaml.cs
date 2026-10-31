@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

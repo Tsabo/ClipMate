@@ -2,7 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.Services;
@@ -36,7 +36,7 @@ public sealed class DeviceIdentityService : IDeviceIdentityService
     /// <summary>
     /// Optional DPAPI entropy that ties the blob to ClipMate.
     /// </summary>
-    internal static byte[] Entropy => "ClipMate.DeviceIdentity.v1"u8.ToArray();
+    internal static byte[] Entropy => [.. "ClipMate.DeviceIdentity.v1"u8];
 
     /// <inheritdoc />
     public Task<DeviceIdentity> GetOrCreateAsync(CancellationToken cancellationToken = default) =>

@@ -1,7 +1,7 @@
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Models.Import;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;

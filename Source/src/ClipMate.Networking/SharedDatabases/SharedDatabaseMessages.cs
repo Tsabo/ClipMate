@@ -4,6 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Networking.Protocol;
+using ClipMate.Networking.SharedDatabases.Notice;
 
 namespace ClipMate.Networking.SharedDatabases;
 
@@ -16,6 +17,13 @@ internal static class SharedDatabaseMessages
     private const int _maxNameLength = 128;
     private const int _maxTextLength = 2048;
     private const int _maxTitleLength = 4096;
+
+    /// <summary>
+    /// The longest search text accepted in one criterion.
+    /// </summary>
+    internal const int MaxSearchTextLength = 1024;
+
+    private const string _dateFormat = "yyyy-MM-dd";
 
     public static SharedDatabaseInfo ToMessage(SharedDatabase database) => new()
     {
@@ -58,7 +66,10 @@ internal static class SharedDatabaseMessages
             if (!Guid.TryParse(item.Id, out var id))
                 continue;
 
-            Guid? parentId = Guid.TryParse(item.ParentId, out var parent) && parent != id ? parent : null;
+            Guid? parentId = Guid.TryParse(item.ParentId, out var parent) && parent != id
+                ? parent
+                : null;
+
             var kind = item.Kind switch
             {
                 CollectionKind.Folder => SharedCollectionKind.Folder,
@@ -159,8 +170,12 @@ internal static class SharedDatabaseMessages
             EncryptionSalt = CleanOptional(summary.EncryptionSalt, _maxTextLength),
             EncryptionIv = CleanOptional(summary.EncryptionIv, _maxTextLength),
             EncryptionMethod = CleanOptional(summary.EncryptionMethod, _maxNameLength),
-            CollectionId = Guid.TryParse(summary.CollectionId, out var collectionId) ? collectionId : null,
-            FolderId = Guid.TryParse(summary.FolderId, out var folderId) ? folderId : null,
+            CollectionId = Guid.TryParse(summary.CollectionId, out var collectionId)
+                ? collectionId
+                : null,
+            FolderId = Guid.TryParse(summary.FolderId, out var folderId)
+                ? folderId
+                : null,
         };
 
         clip.RefreshIconGlyph();
@@ -212,7 +227,8 @@ internal static class SharedDatabaseMessages
     };
 
     /// <summary>
-    /// Reads a change notice from a Peer, or <c>null</c> if it is unusable (invalid IDs, or a kind this version does not know).
+    /// Reads a change notice from a Peer, or <c>null</c> if it is unusable (invalid IDs, or a kind this version does not
+    /// know).
     /// </summary>
     public static PeerChangeNotice? FromMessage(ChangeNotice notice) => notice.ChangeCase switch
     {
@@ -222,13 +238,6 @@ internal static class SharedDatabaseMessages
         ChangeNotice.ChangeOneofCase.SharedDatabasesChanged => new SharedDatabasesChangedNotice(),
         var _ => null,
     };
-
-    /// <summary>
-    /// The longest search text accepted in one criterion.
-    /// </summary>
-    internal const int MaxSearchTextLength = 1024;
-
-    private const string _dateFormat = "yyyy-MM-dd";
 
     /// <summary>
     /// The search criteria sent for Remote Search: only what Remote Search supports (no deleted clips, no shortcuts,
@@ -270,7 +279,10 @@ internal static class SharedDatabaseMessages
     /// <summary>
     /// Reads search criteria from a Peer. Untrusted: anything unusable is rejected rather than guessed at.
     /// </summary>
-    /// <exception cref="ArgumentException">A value is invalid: a malformed ID or date, overlong text, an unknown kind or scope.</exception>
+    /// <exception cref="ArgumentException">
+    /// A value is invalid: a malformed ID or date, overlong text, an unknown kind or
+    /// scope.
+    /// </exception>
     public static SearchFilters FromMessage(SearchCriteria criteria)
     {
         ArgumentNullException.ThrowIfNull(criteria);
@@ -290,15 +302,17 @@ internal static class SharedDatabaseMessages
                 : throw new ArgumentException("Invalid collection or folder ID.", nameof(criteria));
 
         var kinds = criteria.ContentKinds.Select(p => p switch
-        {
-            ClipKind.Text => ClipType.Text,
-            ClipKind.RichText => ClipType.RichText,
-            ClipKind.Html => ClipType.Html,
-            ClipKind.Image => ClipType.Image,
-            ClipKind.Files => ClipType.Files,
-            ClipKind.Custom => ClipType.Custom,
-            var _ => throw new ArgumentException("Unknown clip kind.", nameof(criteria)),
-        }).Distinct().ToList();
+            {
+                ClipKind.Text => ClipType.Text,
+                ClipKind.RichText => ClipType.RichText,
+                ClipKind.Html => ClipType.Html,
+                ClipKind.Image => ClipType.Image,
+                ClipKind.Files => ClipType.Files,
+                ClipKind.Custom => ClipType.Custom,
+                var _ => throw new ArgumentException("Unknown clip kind.", nameof(criteria)),
+            })
+            .Distinct()
+            .ToList();
 
         var after = ReadDate(criteria.CapturedAfter);
         var before = ReadDate(criteria.CapturedBefore);
@@ -309,13 +323,23 @@ internal static class SharedDatabaseMessages
             TextContentQuery = ReadSearchText(criteria.TextContains),
             CreatorQuery = ReadSearchText(criteria.CreatorContains),
             SourceUrlQuery = ReadSearchText(criteria.SourceUrlContains),
-            ContentTypes = kinds.Count > 0 ? kinds : null,
-            DateRange = after != null || before != null ? new DateRange(after, before) : null,
+            ContentTypes = kinds.Count > 0
+                ? kinds
+                : null,
+            DateRange = after != null || before != null
+                ? new DateRange(after, before)
+                : null,
             Scope = scope,
-            CollectionId = scope == SearchScope.CurrentCollection ? scopeId : null,
-            FolderId = scope == SearchScope.SpecificFolder ? scopeId : null,
+            CollectionId = scope == SearchScope.CurrentCollection
+                ? scopeId
+                : null,
+            FolderId = scope == SearchScope.SpecificFolder
+                ? scopeId
+                : null,
             Format = ReadSearchText(criteria.Format),
-            EncryptedOnly = criteria.EncryptedOnly ? true : null,
+            EncryptedOnly = criteria.EncryptedOnly
+                ? true
+                : null,
         };
     }
 
@@ -334,7 +358,9 @@ internal static class SharedDatabaseMessages
         if (text.Length > MaxSearchTextLength)
             throw new ArgumentException("Search text is too long.", nameof(text));
 
-        return string.IsNullOrWhiteSpace(text) ? null : text;
+        return string.IsNullOrWhiteSpace(text)
+            ? null
+            : text;
     }
 
     private static DateTime? ReadDate(string text)
@@ -353,7 +379,9 @@ internal static class SharedDatabaseMessages
         if (clean.Length > maxLength)
             clean = clean[..maxLength];
 
-        return clean.Length == 0 ? null : clean;
+        return clean.Length == 0
+            ? null
+            : clean;
     }
 
     private static string CleanName(string name, string fallback)
@@ -362,6 +390,8 @@ internal static class SharedDatabaseMessages
         if (clean.Length > _maxNameLength)
             clean = clean[.._maxNameLength];
 
-        return clean.Length == 0 ? fallback : clean;
+        return clean.Length == 0
+            ? fallback
+            : clean;
     }
 }

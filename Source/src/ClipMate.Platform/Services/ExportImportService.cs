@@ -6,7 +6,7 @@ using System.Xml.Serialization;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Export;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Platform.Services;
@@ -54,8 +54,8 @@ public class ExportImportService : IExportImportService
                 Version = "1.0",
                 ClipCount = clipList.Count,
                 CollectionCount = collectionList.Count,
-                Clips = clipList.Select(ClipExportDto.FromClip).ToList(),
-                Collections = collectionList.Select(CollectionExportDto.FromCollection).ToList(),
+                Clips = [.. clipList.Select(ClipExportDto.FromClip)],
+                Collections = [.. collectionList.Select(CollectionExportDto.FromCollection)],
             };
 
             // Serialize to XML asynchronously
@@ -137,8 +137,8 @@ public class ExportImportService : IExportImportService
                 ImportedAt = DateTime.UtcNow,
                 SourceFile = xmlFilePath,
                 TargetCollectionId = targetCollectionId ?? Guid.Empty,
-                Clips = exportData.Clips.Select(p => p.ToClip()).ToList(),
-                Collections = exportData.Collections.Select(p => p.ToCollection()).ToList(),
+                Clips = [.. exportData.Clips.Select(p => p.ToClip())],
+                Collections = [.. exportData.Collections.Select(p => p.ToCollection())],
                 ClipCount = exportData.ClipCount,
                 CollectionCount = exportData.CollectionCount,
             };
@@ -303,8 +303,6 @@ public class ExportImportService : IExportImportService
             throw;
         }
     }
-
-    // ==================== Helper Methods ====================
 
     /// <summary>
     /// Extracts content from a clip based on its type and available data.

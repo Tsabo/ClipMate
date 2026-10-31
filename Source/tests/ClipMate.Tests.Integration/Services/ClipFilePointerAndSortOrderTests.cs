@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;

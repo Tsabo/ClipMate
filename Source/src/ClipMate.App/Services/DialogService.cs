@@ -1,4 +1,4 @@
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Xpf.Core;
 using CoreDialogResult = ClipMate.Core.Models.DialogResult;
 using CoreDialogButton = ClipMate.Core.Models.DialogButton;
