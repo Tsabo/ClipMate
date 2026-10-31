@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
+### Fixed
+- **Missing Database Reported as Corrupt** - A Database whose file is missing or can't be opened (for example on a drive that isn't connected) no longer brings up "Database Corruption Detected" and an offer to repair it at startup. It shows in the collection tree with its error icon, and startup cleanup skips it instead of stopping cleanup for the Databases after it.
+
 ## [1.0.1-beta] - 2026-10-31
 
 ### Changed
