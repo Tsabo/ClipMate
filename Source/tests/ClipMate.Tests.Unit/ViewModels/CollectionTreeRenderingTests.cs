@@ -37,6 +37,8 @@ public class CollectionTreeRenderingTests
 
     private static readonly Guid _inbox = Guid.Parse("a0000000-0000-0000-0000-000000000001");
     private static readonly Guid _work = Guid.Parse("f0000000-0000-0000-0000-000000000001");
+    private static readonly Guid _archive = Guid.Parse("f0000000-0000-0000-0000-000000000002");
+    private static readonly Guid _drafts = Guid.Parse("f0000000-0000-0000-0000-000000000003");
 
     private string _existingDatabaseFile = null!;
 
@@ -131,8 +133,9 @@ public class CollectionTreeRenderingTests
     }
 
     /// <summary>
-    /// A local Database's collections: regular ones with folders (see <see cref="LocalFolders" />), Smart and SQL-based
-    /// ones, read-only and Safe ones, and one with its own icon.
+    /// A local Database's collection rows as stored: regular collections, Smart and SQL-based ones, read-only and Safe
+    /// ones, one with its own icon, and the Inbox's folders (rows with the Folder type and a parent, also served by
+    /// <see cref="LocalFolders" />).
     /// </summary>
     private static List<Collection> LocalCollections() =>
     [
@@ -144,6 +147,9 @@ public class CollectionTreeRenderingTests
         new() { Id = Guid.NewGuid(), Title = "Today", SortKey = 2, ListType = CollectionListType.Smart, RetentionLimit = 200 },
         new() { Id = Guid.NewGuid(), Title = "Everything", SortKey = 1, ListType = CollectionListType.SqlBased, RetentionLimit = 200 },
         new() { Id = Guid.NewGuid(), Title = "Bitmaps", SortKey = 3, LmType = CollectionLmType.Virtual, RetentionLimit = 200 },
+        new() { Id = _work, Title = "Work", SortKey = 1, LmType = CollectionLmType.Folder, ParentId = _inbox, AcceptNewClips = true, RetentionLimit = 200 },
+        new() { Id = _archive, Title = "Archive", SortKey = 2, LmType = CollectionLmType.Folder, ParentId = _inbox, AcceptNewClips = true, RetentionLimit = 200 },
+        new() { Id = _drafts, Title = "Drafts", SortKey = 1, LmType = CollectionLmType.Folder, ParentId = _work, AcceptNewClips = true, RetentionLimit = 200 },
     ];
 
     /// <summary>
@@ -152,8 +158,8 @@ public class CollectionTreeRenderingTests
     private static Dictionary<Guid, List<Folder>> LocalFolders()
     {
         var work = new Folder { Id = _work, Name = "Work", CollectionId = _inbox, SortOrder = 1 };
-        var archive = new Folder { Id = Guid.NewGuid(), Name = "Archive", CollectionId = _inbox, SortOrder = 2 };
-        var drafts = new Folder { Id = Guid.NewGuid(), Name = "Drafts", CollectionId = _inbox, ParentFolderId = _work, SortOrder = 1 };
+        var archive = new Folder { Id = _archive, Name = "Archive", CollectionId = _inbox, SortOrder = 2 };
+        var drafts = new Folder { Id = _drafts, Name = "Drafts", CollectionId = _inbox, ParentFolderId = _work, SortOrder = 1 };
         return new Dictionary<Guid, List<Folder>> { [_inbox] = [work, archive], [_work] = [drafts] };
     }
 
