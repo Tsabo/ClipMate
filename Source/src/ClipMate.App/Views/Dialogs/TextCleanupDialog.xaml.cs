@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;
 

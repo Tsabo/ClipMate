@@ -1,6 +1,6 @@
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.App.Services;
 

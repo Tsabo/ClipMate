@@ -1,7 +1,7 @@
 using System.Data;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

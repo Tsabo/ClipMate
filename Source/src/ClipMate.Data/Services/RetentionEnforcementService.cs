@@ -1,5 +1,5 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;

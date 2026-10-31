@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;

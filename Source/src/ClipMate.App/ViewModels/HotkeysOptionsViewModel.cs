@@ -1,7 +1,7 @@
 using ClipMate.App.Helpers;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Application = System.Windows.Application;

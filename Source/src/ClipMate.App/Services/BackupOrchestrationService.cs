@@ -1,6 +1,6 @@
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;
 using Application = System.Windows.Application;

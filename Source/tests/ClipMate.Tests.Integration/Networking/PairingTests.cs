@@ -1,9 +1,10 @@
 using System.Net;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using ClipMate.Networking;
+using ClipMate.Networking.Monitor;
 using ClipMate.Networking.Protocol;
 using ClipMate.Platform.Services;
 using FakeItEasy;

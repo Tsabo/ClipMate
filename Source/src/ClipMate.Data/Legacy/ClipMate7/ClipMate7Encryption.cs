@@ -40,7 +40,10 @@ internal sealed class ClipMate7Encryption
         plainText = [];
         salt = [];
 
-        var length = Array.IndexOf(stored, (byte)0) is var nul and >= 0 ? nul : stored.Length;
+        var length = Array.IndexOf(stored, (byte)0) is var nul and >= 0
+            ? nul
+            : stored.Length;
+
         if (length <= _saltLength || stored[_saltLength] != ':')
             return false;
 
@@ -54,12 +57,15 @@ internal sealed class ClipMate7Encryption
         if (checksum != 0)
         {
             var mask = BinaryPrimitives.ReadUInt32BigEndian(rc4.Transform(new byte[4]));
-            var plainLength = Array.IndexOf(plainText, (byte)0) is var end and >= 0 ? end : plainText.Length;
+            var plainLength = Array.IndexOf(plainText, (byte)0) is var end and >= 0
+                ? end
+                : plainText.Length;
+
             return (Crc32(plainText.AsSpan(0, plainLength)) ^ mask) == unchecked((uint)checksum);
         }
 
         // No checksum: a wrong key yields binary noise, which text never contains
-        return plainText.All(p => p >= 0x20 || p is (byte)'\t' or (byte)'\r' or (byte)'\n' or 0);
+        return plainText.All(p => p is >= 0x20 or (byte)'\t' or (byte)'\r' or (byte)'\n' or 0);
     }
 
     /// <summary>
@@ -87,7 +93,7 @@ internal sealed class ClipMate7Encryption
     /// </summary>
     private byte[] CreateKey(byte[] salt)
     {
-        byte[] fullKey = [.._passphrase, ..salt];
+        byte[] fullKey = [.. _passphrase, .. salt];
         var key = new byte[_rc4KeyLength];
         for (var i = 0; i < key.Length; i++)
             key[i] = fullKey[(i + 1) % fullKey.Length];
@@ -105,7 +111,9 @@ internal sealed class ClipMate7Encryption
         {
             crc ^= item;
             for (var i = 0; i < 8; i++)
-                crc = (crc & 1) != 0 ? crc >> 1 ^ 0xEDB88320 : crc >> 1;
+                crc = (crc & 1) != 0
+                    ? crc >> 1 ^ 0xEDB88320
+                    : crc >> 1;
         }
 
         return ~crc;
@@ -137,7 +145,7 @@ internal sealed class ClipMate7Encryption
 
             for (int i = 0, j = 0; i < 256; i++)
             {
-                j = (j + _s[i] + key[i % key.Length]) & 0xFF;
+                j = j + _s[i] + key[i % key.Length] & 0xFF;
                 (_s[i], _s[j]) = (_s[j], _s[i]);
             }
         }
@@ -147,10 +155,10 @@ internal sealed class ClipMate7Encryption
             var result = new byte[data.Length];
             for (var k = 0; k < data.Length; k++)
             {
-                _i = (_i + 1) & 0xFF;
-                _j = (_j + _s[_i]) & 0xFF;
+                _i = _i + 1 & 0xFF;
+                _j = _j + _s[_i] & 0xFF;
                 (_s[_i], _s[_j]) = (_s[_j], _s[_i]);
-                result[k] = (byte)(data[k] ^ _s[(_s[_i] + _s[_j]) & 0xFF]);
+                result[k] = (byte)(data[k] ^ _s[_s[_i] + _s[_j] & 0xFF]);
             }
 
             return result;

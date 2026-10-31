@@ -1,6 +1,6 @@
 using System.IO;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 

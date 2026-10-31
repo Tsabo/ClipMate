@@ -1,4 +1,4 @@
-// The Peer wire protocol (ADR 0002). Changes must stay backward compatible within a protocol
+// The Peer wire protocol. Changes must stay backward compatible within a protocol
 // major version; new features are added as negotiated capabilities.
 //
 // Hello and the pairing calls are how Devices of different versions find out they are incompatible,

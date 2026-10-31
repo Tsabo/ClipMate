@@ -2,7 +2,7 @@ using Windows.Win32.Foundation;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;

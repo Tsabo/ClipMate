@@ -1,7 +1,7 @@
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 

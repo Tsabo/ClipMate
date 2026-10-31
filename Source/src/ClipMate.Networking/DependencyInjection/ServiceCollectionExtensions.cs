@@ -1,7 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Networking.Discovery;
+using ClipMate.Networking.Discovery.Abstraction;
+using ClipMate.Networking.Discovery.Transport;
+using ClipMate.Networking.Monitor;
+using ClipMate.Networking.Monitor.Abstraction;
 using ClipMate.Networking.SharedDatabases;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -17,7 +21,8 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Registers the Peer host factory, Pairing and LAN discovery. Registration loads none of ASP.NET Core; Kestrel is only
     /// loaded when a host is created. Requires an <see cref="IPeerStore" /> and an <see cref="ILocalDevice" />; the
-    /// application should register an <see cref="IPairingApprovalHandler" /> that asks the user (the default declines every request).
+    /// application should register an <see cref="IPairingApprovalHandler" /> that asks the user (the default declines every
+    /// request).
     /// </summary>
     public static IServiceCollection AddClipMateNetworking(this IServiceCollection services)
     {

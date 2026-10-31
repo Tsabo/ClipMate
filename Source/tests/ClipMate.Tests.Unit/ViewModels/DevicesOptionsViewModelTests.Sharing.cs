@@ -1,6 +1,5 @@
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
 using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.ViewModels;

@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
 using Microsoft.Extensions.Logging;
 

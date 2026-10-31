@@ -7,7 +7,7 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;

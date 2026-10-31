@@ -1,5 +1,5 @@
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

@@ -1,5 +1,5 @@
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.App.Views.Dialogs;
 

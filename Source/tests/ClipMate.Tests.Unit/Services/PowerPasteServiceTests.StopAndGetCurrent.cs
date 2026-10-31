@@ -1,4 +1,4 @@
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 

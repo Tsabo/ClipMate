@@ -1,12 +1,13 @@
 using System.Text;
 using System.Threading.Channels;
-using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
-using ClipMate.Core.Services;
-using Google.Protobuf;
+using ClipMate.Core.Services.Abstractions;
+using ClipMate.Networking.Internal;
 using ClipMate.Networking.Protocol;
+using Google.Protobuf;
 using Grpc.Core;
 
 namespace ClipMate.Networking.SharedDatabases;
@@ -17,6 +18,26 @@ namespace ClipMate.Networking.SharedDatabases;
 /// </summary>
 internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDatabaseAccessBase
 {
+    /// <summary>
+    /// The most search results sent in one page.
+    /// </summary>
+    internal const int SearchPageSize = 200;
+
+    /// <summary>
+    /// The most clips served in one page.
+    /// </summary>
+    internal const int MaxPageSize = 500;
+
+    /// <summary>
+    /// The size of one piece of streamed content: well below gRPC's message size limit.
+    /// </summary>
+    internal const int ChunkSize = 64 * 1024;
+
+    /// <summary>
+    /// How long changes are gathered before they are sent, so a burst of writes becomes one notice per collection.
+    /// </summary>
+    internal static readonly TimeSpan CoalesceDelay = TimeSpan.FromMilliseconds(200);
+
     private readonly ISharedDatabaseChangeFeed _changeFeed;
     private readonly PeerHostOptions _options;
     private readonly ISharedDatabaseService _sharedDatabases;
@@ -56,7 +77,10 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     {
         var databaseId = ParseId(request.DatabaseId, "Database ID");
         var collectionId = ParseId(request.CollectionId, "collection ID");
-        Guid? folderId = string.IsNullOrEmpty(request.FolderId) ? null : ParseId(request.FolderId, "folder ID");
+        Guid? folderId = string.IsNullOrEmpty(request.FolderId)
+            ? null
+            : ParseId(request.FolderId, "folder ID");
+
         if (request.Offset < 0)
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid offset."));
 
@@ -143,6 +167,7 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
                     var notice = item == null
                         ? new ChangeNotice { SharedDatabasesChanged = new SharedDatabasesChanged() }
                         : SharedDatabaseMessages.ToMessage(item);
+
                     await responseStream.WriteAsync(notice, cancellationToken);
                 }
             }
@@ -205,26 +230,6 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
         } while (offset < clips.Count);
     }
 
-    /// <summary>
-    /// The most search results sent in one page.
-    /// </summary>
-    internal const int SearchPageSize = 200;
-
-    /// <summary>
-    /// How long changes are gathered before they are sent, so a burst of writes becomes one notice per collection.
-    /// </summary>
-    internal static readonly TimeSpan CoalesceDelay = TimeSpan.FromMilliseconds(200);
-
-    /// <summary>
-    /// The most clips served in one page.
-    /// </summary>
-    internal const int MaxPageSize = 500;
-
-    /// <summary>
-    /// The size of one piece of streamed content: well below gRPC's message size limit.
-    /// </summary>
-    internal const int ChunkSize = 64 * 1024;
-
     private async Task<ClipContent> GetContentAsync(string databaseIdText, string clipIdText, CancellationToken cancellationToken)
     {
         var databaseId = ParseId(databaseIdText, "Database ID");
@@ -238,7 +243,9 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     /// </summary>
     private static byte[]? GetStoredContent(ClipContent content, ClipData format) => format.StorageType switch
     {
-        StorageType.Text => content.TextBlobs.FirstOrDefault(p => p.ClipDataId == format.Id) is { } text ? Encoding.UTF8.GetBytes(text.Data) : null,
+        StorageType.Text => content.TextBlobs.FirstOrDefault(p => p.ClipDataId == format.Id) is { } text
+            ? Encoding.UTF8.GetBytes(text.Data)
+            : null,
         StorageType.Jpeg => content.JpgBlobs.FirstOrDefault(p => p.ClipDataId == format.Id)?.Data,
         StorageType.Png => content.PngBlobs.FirstOrDefault(p => p.ClipDataId == format.Id)?.Data,
         StorageType.Binary => content.BinaryBlobs.FirstOrDefault(p => p.ClipDataId == format.Id)?.Data,
@@ -246,5 +253,7 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     };
 
     private static Guid ParseId(string text, string what) =>
-        Guid.TryParse(text, out var id) ? id : throw new RpcException(new Status(StatusCode.InvalidArgument, $"Invalid {what}."));
+        Guid.TryParse(text, out var id)
+            ? id
+            : throw new RpcException(new Status(StatusCode.InvalidArgument, $"Invalid {what}."));
 }

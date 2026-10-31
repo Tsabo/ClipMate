@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows.Data;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;

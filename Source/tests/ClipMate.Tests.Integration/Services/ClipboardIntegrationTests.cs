@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Repositories;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
@@ -9,9 +9,9 @@ using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
+using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using FakeItEasy;
 using Windows.Win32.Foundation;
 using CoreApplicationProfile = ClipMate.Core.Models.ApplicationProfile;
 

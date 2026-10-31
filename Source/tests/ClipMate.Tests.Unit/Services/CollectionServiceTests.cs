@@ -1,6 +1,6 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Repositories;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using Microsoft.Data.Sqlite;

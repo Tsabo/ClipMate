@@ -5,7 +5,7 @@ using Windows.Win32.Foundation;
 namespace ClipMate.Platform.Services;
 
 /// <summary>
-/// The dedicated clipboard thread (ADR 0003): an STA thread with a message-only window and its own dispatcher, so
+/// The dedicated clipboard thread: an STA thread with a message-only window and its own dispatcher, so
 /// clipboard notifications are handled and the clipboard read without involving the UI thread. Code on the UI
 /// thread only posts to it or awaits it, never waits on it synchronously.
 /// </summary>

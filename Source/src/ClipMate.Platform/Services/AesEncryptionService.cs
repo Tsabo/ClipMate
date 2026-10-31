@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 
 namespace ClipMate.Platform.Services;

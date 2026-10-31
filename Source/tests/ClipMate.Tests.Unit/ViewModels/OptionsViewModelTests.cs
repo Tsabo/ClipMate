@@ -1,12 +1,12 @@
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging;
 using ConfigModels = ClipMate.Core.Models.Configuration;
 
 namespace ClipMate.Tests.Unit.ViewModels;

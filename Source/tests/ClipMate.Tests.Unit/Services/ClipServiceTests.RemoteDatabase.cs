@@ -2,7 +2,7 @@ using System.Text;
 using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Helpers;
 using FakeItEasy;

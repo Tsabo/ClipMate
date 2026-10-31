@@ -6,6 +6,7 @@ using ClipMate.Data.Services;
 using ClipMate.Networking;
 using ClipMate.Networking.Protocol;
 using ClipMate.Networking.SharedDatabases;
+using ClipMate.Networking.SharedDatabases.Notice;
 using Google.Protobuf.Reflection;
 
 namespace ClipMate.Tests.Integration.Networking;
@@ -45,7 +46,7 @@ public class SharedDatabaseProtocolTests
     [Test]
     public async Task PeerProtocol_NoRequestCarriesSql()
     {
-        // ADR 0001: SQL never crosses the wire; Smart and SQL-based collections run the Peer's own stored SQL, and
+        // SQL never crosses the wire; Smart and SQL-based collections run the Peer's own stored SQL, and
         // Remote Search sends structured criteria that the Peer turns into parameterized SQL itself.
         // Act
         var requestFields = SharedDatabaseAccess.Descriptor.Methods

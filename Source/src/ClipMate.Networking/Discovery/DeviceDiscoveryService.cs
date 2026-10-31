@@ -1,6 +1,7 @@
 using System.Net;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
+using ClipMate.Networking.Discovery.Abstraction;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Networking.Discovery;

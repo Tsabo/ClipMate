@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using FakeItEasy;

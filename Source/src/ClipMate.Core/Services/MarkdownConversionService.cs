@@ -1,5 +1,6 @@
 using AngleSharp.Dom;
 using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services.Abstractions;
 using ReverseMarkdown;
 using ReverseMarkdown.Preprocessing;
 

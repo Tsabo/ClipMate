@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Threading.Channels;
-using ClipMate.Networking.Discovery;
+using ClipMate.Networking.Discovery.Abstraction;
 
 namespace ClipMate.Tests.Unit.Networking;
 

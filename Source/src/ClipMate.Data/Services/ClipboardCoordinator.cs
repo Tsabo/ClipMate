@@ -1,7 +1,7 @@
 using ClipMate.Core.Events;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;

@@ -2,7 +2,7 @@ using System.Windows;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Application = System.Windows.Application;
 using DialogResult = ClipMate.Core.Models.DialogResult;
 

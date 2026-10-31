@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

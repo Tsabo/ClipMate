@@ -3,8 +3,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Networking.Discovery;
+using ClipMate.Networking.Discovery.Abstraction;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
 

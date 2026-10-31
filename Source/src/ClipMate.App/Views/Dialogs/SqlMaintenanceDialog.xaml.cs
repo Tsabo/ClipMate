@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using ClipMate.App.ViewModels;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

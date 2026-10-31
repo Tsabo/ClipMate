@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
+using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Core.Services;
 
@@ -54,17 +55,19 @@ public class TextTransformService : ITextTransformService
 
         var sorted = mode switch
         {
-            SortMode.Alphabetical => lines.OrderBy(l => l, StringComparer.Ordinal).ToArray(),
-            SortMode.Numerical => lines.OrderBy(l =>
+            SortMode.Alphabetical => [.. lines.OrderBy(p => p, StringComparer.Ordinal)],
+            SortMode.Numerical =>
+            [
+                .. lines.OrderBy(p =>
                 {
-                    var trimmed = l.Trim();
+                    var trimmed = p.Trim();
 
                     return int.TryParse(trimmed, out var num)
                         ? num
                         : int.MaxValue;
-                })
-                .ToArray(),
-            SortMode.Reverse => lines.AsEnumerable().Reverse().ToArray(),
+                }),
+            ],
+            SortMode.Reverse => [.. lines.AsEnumerable().Reverse()],
             _ => lines
         };
 
@@ -190,7 +193,7 @@ public class TextTransformService : ITextTransformService
         var result = text;
 
         if (removeExtraSpaces)
-            result = Regex.Replace(result, @" {2,}", " ");
+            result = Regex.Replace(result, " {2,}", " ");
 
         if (removeExtraLineBreaks)
             result = Regex.Replace(result, @"\n{3,}", "\n\n");

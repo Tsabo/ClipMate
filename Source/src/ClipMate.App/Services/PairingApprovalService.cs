@@ -3,7 +3,7 @@ using Application = System.Windows.Application;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Models.Networking;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.UI;
 using Microsoft.Extensions.Logging;

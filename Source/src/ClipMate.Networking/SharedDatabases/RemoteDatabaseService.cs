@@ -1,7 +1,8 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
+using ClipMate.Networking.SharedDatabases.Notice;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Networking.SharedDatabases;
@@ -356,15 +357,17 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         if (!_configurationService.Configuration.Networking.Enabled)
             return [];
 
-        return _peerStore.GetPeers()
-            .SelectMany(peer => peer.SharedDatabases.Select(database => new RemoteDatabase(
-                new RemoteDatabaseAddress(peer.DeviceId, database.DatabaseId),
-                database.Name,
-                peer.DisplayName,
-                _status.GetStatus(peer.DeviceId),
-                peer.LastSeen) { Alias = peer.GetDatabaseAlias(database.DatabaseId) }))
-            .OrderBy(p => p.PeerName, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        return
+        [
+            .. _peerStore.GetPeers()
+                .SelectMany(peer => peer.SharedDatabases.Select(database => new RemoteDatabase(
+                    new RemoteDatabaseAddress(peer.DeviceId, database.DatabaseId),
+                    database.Name,
+                    peer.DisplayName,
+                    _status.GetStatus(peer.DeviceId),
+                    peer.LastSeen) { Alias = peer.GetDatabaseAlias(database.DatabaseId) }))
+                .OrderBy(p => p.PeerName, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase),
+        ];
     }
 }

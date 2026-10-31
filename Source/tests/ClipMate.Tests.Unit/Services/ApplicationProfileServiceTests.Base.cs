@@ -1,6 +1,7 @@
 using ClipMate.Core.Services;
-using Microsoft.Extensions.Logging;
+using ClipMate.Core.Services.Abstractions;
 using FakeItEasy;
+using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Tests.Unit.Services;
 

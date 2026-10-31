@@ -1,12 +1,12 @@
 using System.Threading.Channels;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
-using Microsoft.Extensions.DependencyInjection;
 using FakeItEasy;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Tests.Unit.Services;
 

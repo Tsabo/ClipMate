@@ -1,7 +1,7 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Models.Import;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Data.Legacy.ClipMate7;
 using ClipMate.Data.Legacy.Dbisam;

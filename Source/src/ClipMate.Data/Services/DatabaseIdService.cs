@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Data.Sqlite;
 
 namespace ClipMate.Data.Services;

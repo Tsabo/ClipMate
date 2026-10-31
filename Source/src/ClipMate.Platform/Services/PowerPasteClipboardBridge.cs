@@ -3,7 +3,7 @@ using System.Windows.Threading;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using Microsoft.Extensions.Hosting;
@@ -31,41 +31,40 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     // is treated as one of those, not a second paste.
     private const int MinAdvanceIntervalMs = 500;
 
-    // A reader can open the clipboard several times for one change (Remote Desktop's clipboard redirection does). Re-arming
-    // only after this settle time lets those opens read the data already rendered, instead of each one rendering it again
-    // and counting as another read.
-    private static readonly TimeSpan _reArmSettleTime = TimeSpan.FromMilliseconds(100);
-
     // Re-arming after a background read changes the clipboard, and a clipboard reader that ignores the "ignore me"
     // markers reads every change. A few re-arms per interval follow the settle time, so a paste soon after a background
     // read is still seen; more wait for the interval, which keeps such a reader from spinning with us while the clip
     // stays detectable, and once readers stop the next re-arm is quick again.
     private const int QuickReArmsPerInterval = 3;
+
+    // A reader can open the clipboard several times for one change (Remote Desktop's clipboard redirection does). Re-arming
+    // only after this settle time lets those opens read the data already rendered, instead of each one rendering it again
+    // and counting as another read.
+    private static readonly TimeSpan _reArmSettleTime = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan _reArmInterval = TimeSpan.FromSeconds(1);
 
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
+    private readonly Queue<DateTimeOffset> _recentReArms = new();
     private readonly ITemplateService _templateService;
     private readonly TimeProvider _timeProvider;
     private readonly IWin32InputInterop _win32;
 
     private CancellationTokenSource? _advanceDebounceCts;
-    private HwndSource? _hwndSource;
-    private bool _isReregistering;
-    private DateTime _lastAcceptedPasteAt = DateTime.MinValue;
+    private int _armGeneration;
 
     // The waiting clip: as it is pasted (template applied), its Formats, and whether a paste uses up a #SEQUENCE#
     // number. The generation moves on with every clip armed, so work queued for an earlier one is dropped.
     private Clip? _armedClip;
-    private IReadOnlyList<ClipboardFormatData> _armedFormats = [];
     private bool _armedClipIsTemplated;
-    private int _armGeneration;
+    private HwndSource? _hwndSource;
+    private bool _isReregistering;
+    private DateTime _lastAcceptedPasteAt = DateTime.MinValue;
 
     // Re-arming after a read that was not a paste
     private bool _reArmPending;
-    private readonly Queue<DateTimeOffset> _recentReArms = new();
 
     public PowerPasteClipboardBridge(IPowerPasteService powerPasteService,
         IClipboardService clipboardService,
@@ -87,7 +86,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     /// <summary>
     /// The Formats registered for the waiting clip.
     /// </summary>
-    internal IReadOnlyList<ClipboardFormatData> ArmedFormats => _armedFormats;
+    internal IReadOnlyList<ClipboardFormatData> ArmedFormats { get; private set; } = [];
 
     /// <inheritdoc />
     public void Dispose() => TearDown(false);
@@ -177,7 +176,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
                 RestoreAsNormalCopy(clip);
         }
 
-        _armedFormats = [];
+        ArmedFormats = [];
         _clipboardService.ResumeCapture();
     }
 
@@ -218,7 +217,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         if (clip == null)
         {
             _armedClip = null;
-            _armedFormats = [];
+            ArmedFormats = [];
 
             return;
         }
@@ -226,13 +225,16 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         // Only the text changes; every other Format of the clip is offered as it is
         var templatedText = _templateService.PreviewTemplateText(clip);
         _armedClipIsTemplated = templatedText != null;
-        var pastedClip = templatedText == null ? clip : clip.WithText(templatedText);
+        var pastedClip = templatedText == null
+            ? clip
+            : clip.WithText(templatedText);
+
         _armedClip = pastedClip;
-        _armedFormats = isExplodePiece
+        ArmedFormats = isExplodePiece
             ? [new ClipboardFormatData((uint)Formats.UnicodeText.Code, DataObjectFormats.EncodeUnicodeText(pastedClip.TextContent ?? string.Empty))]
             : _clipboardService.GetClipboardFormats(pastedClip);
 
-        if (_armedFormats.Count == 0)
+        if (ArmedFormats.Count == 0)
         {
             _logger.LogWarning("PowerPaste clip {ClipId} has nothing to put on the clipboard", clip.Id);
 
@@ -269,7 +271,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
                 SetArmedFormats(false);
 
                 _logger.LogInformation("PowerPaste armed clip {ClipId} for delayed rendering in {FormatCount} format(s)",
-                    _armedClip?.Id, _armedFormats.Count);
+                    _armedClip?.Id, ArmedFormats.Count);
             }
             finally
             {
@@ -294,7 +296,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
             return;
 
         _reArmPending = false;
-        if (_hwndSource == null || _armedFormats.Count == 0)
+        if (_hwndSource == null || ArmedFormats.Count == 0)
             return;
 
         _recentReArms.Enqueue(_timeProvider.GetUtcNow());
@@ -334,7 +336,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     /// </summary>
     private void SetArmedFormats(bool render)
     {
-        foreach (var item in _armedFormats)
+        foreach (var item in ArmedFormats)
         {
             var handle = IntPtr.Zero;
             if (render)
@@ -387,7 +389,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
         // Windows sends WM_RENDERFORMAT once per format; every Format is supplied now, whoever asked
         SetArmedFormats(true);
-        _logger.LogInformation("PowerPaste rendered {FormatCount} format(s) of clip {ArmedClipId}", _armedFormats.Count, _armedClip?.Id);
+        _logger.LogInformation("PowerPaste rendered {FormatCount} format(s) of clip {ArmedClipId}", ArmedFormats.Count, _armedClip?.Id);
 
         if (!reader.IsPaste(OwnProcess.Id))
         {
@@ -407,6 +409,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
             _logger.LogDebug(
                 "PowerPaste ignoring clipboard read {ElapsedMs}ms after the last accepted paste - too soon to be a new paste",
                 msSinceLastAcceptedPaste);
+
             ScheduleReArm();
 
             return;
@@ -450,8 +453,9 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
                 wait = throttled;
         }
 
-        _ = Task.Delay(wait, _timeProvider).ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
-            TaskScheduler.Default);
+        _ = Task.Delay(wait, _timeProvider)
+            .ContinueWith(_ => dispatcher.BeginInvoke(DispatcherPriority.Background, () => ReArm(armGeneration)),
+                TaskScheduler.Default);
     }
 
     private void HandleRenderAllFormats(HWND hwnd)
@@ -459,7 +463,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         // Our window is being destroyed while still owning delayed-render data - must provide
         // real data now or it's lost. Clipboard must be (re)opened explicitly here, unlike
         // WM_RENDERFORMAT where it's already open for us.
-        if (_armedFormats.Count == 0 || !TryOpenClipboard(hwnd))
+        if (ArmedFormats.Count == 0 || !TryOpenClipboard(hwnd))
             return;
 
         try

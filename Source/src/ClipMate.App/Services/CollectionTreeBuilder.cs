@@ -1,6 +1,6 @@
 using System.IO;
 using ClipMate.App.Models.TreeNodes;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.Services;

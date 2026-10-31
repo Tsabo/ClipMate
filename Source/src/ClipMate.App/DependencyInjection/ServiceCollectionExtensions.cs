@@ -3,7 +3,7 @@ using ClipMate.App.Services;
 using ClipMate.App.Services.Initialization;
 using ClipMate.App.ViewModels;
 using ClipMate.App.Views.Dialogs;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using PrintPreviewDialog = ClipMate.App.Views.Dialogs.PrintPreviewDialog;

@@ -1,7 +1,7 @@
 using System.IO;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services;
+using ClipMate.Core.Services.Abstractions;
 using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Dialogs;
 using Microsoft.Extensions.Logging;
