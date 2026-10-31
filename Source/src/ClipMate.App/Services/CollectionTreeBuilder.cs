@@ -1,5 +1,6 @@
 using System.IO;
 using ClipMate.App.Models.TreeNodes;
+using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
@@ -56,8 +57,9 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
                     // Load collections using the service (proper abstraction)
                     var allCollections = await _collectionService.GetAllByDatabaseKeyAsync(databaseId, cancellationToken);
 
-                    // Separate regular collections from virtual ones
-                    var regularCollections = allCollections.Where(p => !p.IsVirtual).ToList();
+                    // Separate regular collections from virtual ones. A folder is a collection row with a parent; it is
+                    // shown under that parent (LoadFoldersAsync), not at the top level as well.
+                    var regularCollections = allCollections.Where(p => !p.IsVirtual && !IsFolder(p)).ToList();
                     var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
 
                     _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
@@ -144,6 +146,12 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
 
         return result;
     }
+
+    /// <summary>
+    /// Whether <paramref name="collection" /> is a folder inside a collection, the rows the folder service reads. Top-level
+    /// rows with the Folder type (such as Safe) are collections.
+    /// </summary>
+    private static bool IsFolder(Collection collection) => collection is { LmType: CollectionLmType.Folder, ParentId: not null };
 
     /// <summary>
     /// Loads the folder hierarchy for a collection.

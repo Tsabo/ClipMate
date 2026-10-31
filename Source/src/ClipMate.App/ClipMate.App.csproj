@@ -11,6 +11,10 @@
     <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
+  <ItemGroup Label="Compiler Services">
+    <InternalsVisibleTo Include="ClipMate.Tests.Unit" />
+  </ItemGroup>
+
   <ItemGroup Label="Resources">
     <Resource Include="Assets\icon.ico" />
     <Resource Include="Assets\ClipMate.ttf" />
