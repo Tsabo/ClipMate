@@ -8,6 +8,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,13 +21,13 @@ namespace ClipMate.Tests.Unit.ViewModels;
 public class CollectionTreeViewModelRemoteSearchTests
 {
     private static readonly RemoteDatabaseAddress _work = new(DeviceId.FromCertificateBytes([1]), Guid.Parse("11111111-1111-1111-1111-111111111111"));
-    private static readonly SharedCollection _inbox = new(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
-    private static readonly SharedCollection _projects = new(Guid.NewGuid(), _inbox.Id, "Projects", SharedCollectionKind.Folder, 5);
-    private static readonly SharedCollection _today = new(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 20);
+    private static readonly CollectionEntry _inbox = new(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
+    private static readonly CollectionEntry _projects = new(Guid.NewGuid(), _inbox.Id, "Projects", CollectionEntryKind.Folder, 5);
+    private static readonly CollectionEntry _today = new(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 20);
     private RemoteSearchResultsCache _cache = null!;
     private ICollectionTreeBuilder _localTree = null!;
     private StrongReferenceMessenger _messenger = null!;
-    private List<RemoteDatabase> _remoteDatabases = null!;
+    private FakeDatabases _databases = null!;
     private CollectionTreeViewModel _viewModel = null!;
 
     [Before(Test)]
@@ -34,21 +35,21 @@ public class CollectionTreeViewModelRemoteSearchTests
     {
         _messenger = new StrongReferenceMessenger();
         _cache = new RemoteSearchResultsCache();
-        _remoteDatabases = [new RemoteDatabase(_work, "Work", "LAPTOP", PeerConnectionStatus.Online, null)];
-        var remoteDatabaseService = A.Fake<IRemoteDatabaseService>();
-        A.CallTo(() => remoteDatabaseService.GetRemoteDatabases()).ReturnsLazily(() => _remoteDatabases.ToList());
-        var remoteTreeBuilder = A.Fake<IRemoteDatabaseTreeBuilder>();
-        A.CallTo(() => remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
-            .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [_inbox, _projects, _today], false)));
-
-        _localTree = A.Fake<ICollectionTreeBuilder>();
-        A.CallTo(() => _localTree.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._)).Returns([]);
+        _databases = new FakeDatabases();
+        _databases.AddRemote(new RemoteDatabase(_work, "Work", "LAPTOP", PeerConnectionStatus.Online, null)).Tree = [_inbox, _projects, _today];
         var configurationService = A.Fake<IConfigurationService>();
         A.CallTo(() => configurationService.Configuration).Returns(new ClipMateConfiguration());
 
+        // The local tree is set by each test; a Remote Database's is laid out by the real builder
+        var builder = new CollectionTreeBuilder(configurationService, _databases, A.Fake<ICollectionService>(), NullLogger<CollectionTreeBuilder>.Instance);
+        _localTree = A.Fake<ICollectionTreeBuilder>();
+        A.CallTo(() => _localTree.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._)).Returns([]);
+        A.CallTo(() => _localTree.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._))
+            .ReturnsLazily(call => builder.BuildChildrenAsync(call.GetArgument<IDatabase>(0)!, call.GetArgument<TreeNodeBase>(1)!));
+
         _viewModel = new CollectionTreeViewModel(A.Fake<ICollectionService>(), A.Fake<IFolderService>(), A.Fake<IClipService>(), configurationService,
             _messenger, _localTree, NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(), A.Fake<IDatabaseIdService>(),
-            remoteDatabaseService, remoteTreeBuilder, A.Fake<ISharedDatabaseService>(), A.Fake<IPeerDialogService>(), _cache);
+            A.Fake<IRemoteDatabaseService>(), _databases, A.Fake<ISharedDatabaseService>(), A.Fake<IPeerDialogService>(), _cache);
     }
 
     [After(Test)]
@@ -143,7 +144,7 @@ public class CollectionTreeViewModelRemoteSearchTests
         // Arrange: unshared, or its Peer was unpaired
         await _viewModel.RefreshRemoteDatabasesAsync();
         _cache.SetResults(_work, new RemoteSearchResult("report", Clips(1), 1));
-        _remoteDatabases.Clear();
+        _databases.Remove(RemoteDatabaseKey.From(_work));
 
         // Act
         await _viewModel.RefreshRemoteDatabasesAsync();

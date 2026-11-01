@@ -26,7 +26,7 @@ public class ExplorerWindowViewModelTests
         var mockCollectionService = A.Fake<ICollectionService>();
         var mockConfigurationService = A.Fake<IConfigurationService>();
         var mockSearchService = A.Fake<ISearchService>();
-        var mockContextFactory = A.Fake<IDatabaseContextFactory>();
+        var mockDatabases = A.Fake<IDatabases>();
         var mockQuickPasteService = A.Fake<IQuickPasteService>();
         var mockLogger = A.Fake<ILogger<ClipListViewModel>>();
         var mockTreeLogger = A.Fake<ILogger<CollectionTreeViewModel>>();
@@ -44,7 +44,7 @@ public class ExplorerWindowViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<IDatabases>(),
             A.Fake<ISharedDatabaseService>(),
             A.Fake<ClipMate.App.Services.IPeerDialogService>());
 
@@ -54,7 +54,7 @@ public class ExplorerWindowViewModelTests
             mockClipService,
             mockQuickPasteService,
             new PowerPasteStatus(),
-            mockContextFactory,
+            mockDatabases,
             A.Fake<IRemoteDatabaseService>(),
             mockMessenger,
             mockLogger);
@@ -66,7 +66,7 @@ public class ExplorerWindowViewModelTests
             mockClipService,
             mockMessenger,
             new SearchResultsCache(),
-            A.Fake<IRemoteDatabaseService>(),
+            A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
             A.Fake<ISearchTargetSource>());
 

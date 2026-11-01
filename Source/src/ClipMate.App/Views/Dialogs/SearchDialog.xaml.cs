@@ -143,7 +143,7 @@ public partial class SearchDialog
         {
             // The dialog was closed while searching
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             DXMessageBox.Show(ex.Message, "Remote Search", MessageBoxButton.OK, MessageBoxImage.Warning);
         }

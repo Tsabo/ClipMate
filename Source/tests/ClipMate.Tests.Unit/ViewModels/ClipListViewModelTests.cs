@@ -4,7 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
-using ClipMate.Data;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
@@ -13,39 +13,36 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 public class ClipListViewModelTests
 {
+    private static readonly RemoteDatabaseAddress _laptopClips = new(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
     private readonly IClipService _mockClipService;
     private readonly ICollectionService _mockCollectionService;
-    private readonly IDatabaseContextFactory _mockContextFactory;
+    private readonly FakeDatabases _databases = new();
     private readonly IFolderService _mockFolderService;
     private readonly ILogger<ClipListViewModel> _mockLogger;
     private readonly IMessenger _mockMessenger;
     private readonly IQuickPasteService _mockQuickPasteService;
     private readonly IRemoteDatabaseService _mockRemoteDatabases = A.Fake<IRemoteDatabaseService>();
+    private readonly FakeDatabase _local;
+    private readonly FakeDatabase _remote;
 
     public ClipListViewModelTests()
     {
         _mockClipService = A.Fake<IClipService>();
-        _mockContextFactory = A.Fake<IDatabaseContextFactory>();
         _mockMessenger = A.Fake<IMessenger>();
         _mockFolderService = A.Fake<IFolderService>();
         _mockCollectionService = A.Fake<ICollectionService>();
         _mockQuickPasteService = A.Fake<IQuickPasteService>();
         _mockLogger = A.Fake<ILogger<ClipListViewModel>>();
+        _local = _databases.AddLocal("db_local", "My Clips");
+        _remote = _databases.AddRemote(new RemoteDatabase(_laptopClips, "Clips", "LAPTOP", PeerConnectionStatus.Online, null));
     }
+
+    private string RemoteKey => _remote.Key;
 
     [Test]
     public async Task IsListView_DefaultValue_IsTrue()
     {
-        var viewModel = new ClipListViewModel(
-            _mockCollectionService,
-            _mockFolderService,
-            _mockClipService,
-            _mockQuickPasteService,
-            new PowerPasteStatus(),
-            _mockContextFactory,
-            _mockRemoteDatabases,
-            _mockMessenger,
-            _mockLogger);
+        var viewModel = CreateViewModel();
 
         await Assert.That(viewModel.IsListView).IsTrue();
     }
@@ -102,18 +99,138 @@ public class ClipListViewModelTests
     [Test]
     public async Task IsGridView_DefaultValue_IsFalse()
     {
-        var viewModel = new ClipListViewModel(
-            _mockCollectionService,
-            _mockFolderService,
-            _mockClipService,
-            _mockQuickPasteService,
-            new PowerPasteStatus(),
-            _mockContextFactory,
-            _mockRemoteDatabases,
-            _mockMessenger,
-            _mockLogger);
+        var viewModel = CreateViewModel();
 
         await Assert.That(viewModel.IsGridView).IsFalse();
+    }
+
+    [Test]
+    public async Task Receive_CollectionNodeSelected_ShowsTheCollectionAndMakesItTheCaptureTarget()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var newest = Clip("Newest");
+        _local.WithClips(new ClipListScope.Collection(collectionId), newest, Clip("Older"));
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Receive(new CollectionNodeSelectedEvent(collectionId, null, "db_local"));
+        await WaitUntilAsync(() => viewModel.Clips.Count == 2 && !viewModel.IsLoading);
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Newest, Older");
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(newest);
+        await Assert.That(viewModel.AcceptsNewClips).IsTrue();
+        await Assert.That(viewModel.IsRemoteDatabase).IsFalse();
+        await Assert.That(viewModel.IsReadOnly).IsFalse();
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo("db_local");
+        await Assert.That(viewModel.CurrentCollectionId).IsEqualTo(collectionId);
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(collectionId, "db_local", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task Receive_FolderNodeSelected_ShowsTheFolder()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var folderId = Guid.NewGuid();
+        _local.WithClips(new ClipListScope.Folder(collectionId, folderId), Clip("In the folder"));
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Receive(new CollectionNodeSelectedEvent(collectionId, folderId, "db_local"));
+        await WaitUntilAsync(() => viewModel.Clips.Count == 1 && !viewModel.IsLoading);
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("In the folder");
+        await Assert.That(viewModel.CurrentFolderId).IsEqualTo(folderId);
+        await Assert.That(viewModel.AcceptsNewClips).IsTrue();
+    }
+
+    [Test]
+    public async Task Receive_TrashcanSelected_ShowsTheTrashWithoutChangingTheCaptureTarget()
+    {
+        // Arrange
+        _local.WithClips(new ClipListScope.Trash(), Clip("Deleted"));
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Receive(new CollectionNodeSelectedEvent(Guid.NewGuid(), null, "db_local", true));
+        await WaitUntilAsync(() => viewModel.Clips.Count == 1 && !viewModel.IsLoading);
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Deleted");
+        await Assert.That(viewModel.AcceptsNewClips).IsFalse();
+        await Assert.That(viewModel.CurrentCollectionId).IsNull();
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    [Arguments(CollectionEntryKind.Smart)]
+    [Arguments(CollectionEntryKind.SqlBased)]
+    public async Task LoadAsync_SmartOrSqlCollection_DoesNotAcceptNewClips(CollectionEntryKind kind)
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        _local.Tree = [new CollectionEntry(collectionId, null, "Today", kind, 1)];
+        _local.WithClips(new ClipListScope.Collection(collectionId), Clip("Found"));
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadAsync("db_local", new ClipListScope.Collection(collectionId));
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Found");
+        await Assert.That(viewModel.AcceptsNewClips).IsFalse();
+    }
+
+    [Test]
+    public async Task Receive_ShowAllClipsInChildren_ShowsTheCollectionWithItsFolders()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        _local.WithClips(new ClipListScope.Collection(collectionId, IncludeFolders: true), Clip("In a folder"), Clip("In the collection"));
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Receive(new ShowAllClipsInChildrenRequestedEvent(collectionId, "db_local"));
+        await WaitUntilAsync(() => viewModel.Clips.Count == 2 && !viewModel.IsLoading);
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("In a folder, In the collection");
+        await Assert.That(viewModel.AcceptsNewClips).IsTrue();
+    }
+
+    [Test]
+    public async Task LoadAsync_LocalDatabaseFileMissing_ShowsTheReason()
+    {
+        // Arrange
+        _local.IsAvailable = false;
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadAsync("db_local", new ClipListScope.Collection(Guid.NewGuid()));
+
+        // Assert
+        await Assert.That(viewModel.Clips).IsEmpty();
+        await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("My Clips is unavailable.");
+        await Assert.That(viewModel.IsLoading).IsFalse();
+    }
+
+    [Test]
+    public async Task RefreshAsync_LoadsTheSameListAgain()
+    {
+        // Arrange
+        _local.WithClips(new ClipListScope.Trash(), Clip("Deleted"));
+        var viewModel = CreateViewModel();
+        await viewModel.LoadAsync("db_local", new ClipListScope.Trash());
+
+        // Act
+        await viewModel.RefreshAsync();
+
+        // Assert
+        await Assert.That(_local.PageRequests.Count(p => p.Scope is ClipListScope.Trash)).IsEqualTo(2);
+        await Assert.That(Titles(viewModel)).IsEqualTo("Deleted");
     }
 
     [Test]
@@ -123,82 +240,94 @@ public class ClipListViewModelTests
         var viewModel = CreateViewModel();
         viewModel.CurrentDatabaseKey = "db_local";
         viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .Returns(new ClipPage([], 0, 0));
 
         // Act
-        viewModel.Receive(new RemoteDatabaseNodeSelectedEvent(address, Guid.NewGuid(), null));
+        viewModel.Receive(new RemoteDatabaseNodeSelectedEvent(_laptopClips, Guid.NewGuid(), null));
+        await WaitUntilAsync(() => !viewModel.IsLoading);
 
         // Assert
         await Assert.That(viewModel.Clips).IsEmpty();
         await Assert.That(viewModel.AcceptsNewClips).IsFalse();
         await Assert.That(viewModel.IsRemoteDatabase).IsTrue();
-        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteDatabaseKey.From(address));
+        await Assert.That(viewModel.IsReadOnly).IsTrue();
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteKey);
         A.CallTo(() => _mockCollectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
         A.CallTo(() => _mockFolderService.SetActiveAsync(A<Guid?>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
-    public async Task LoadRemoteClipsAsync_LargeCollection_ShowsTheFirstPageThenAppendsTheRestPageByPage()
+    public async Task LoadAsync_LargeCollection_ShowsTheFirstPageThenAppendsTheRestPageByPage()
     {
         // Arrange
-        var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
         var collectionId = Guid.NewGuid();
-        var first = Enumerable.Range(0, ClipListViewModel.RemotePageSize).Select(_ => new Clip { Id = Guid.NewGuid() }).ToList();
-        var last = new Clip { Id = Guid.NewGuid() };
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
-            .Returns(new ClipPage(first, 0, first.Count + 1));
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, first.Count, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
-            .Returns(new ClipPage([last], first.Count, first.Count + 1));
+        var clips = Enumerable.Range(0, ClipListViewModel.PageSize + 1).Select(p => Clip($"Clip {p}")).ToArray();
+        _remote.WithClips(new ClipListScope.Collection(collectionId), clips);
+        var viewModel = CreateViewModel();
 
         // Act
-        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(collectionId));
 
         // Assert
-        await Assert.That(viewModel.Clips.Count).IsEqualTo(first.Count + 1);
-        await Assert.That(viewModel.Clips[0].Id).IsEqualTo(first[0].Id);
-        await Assert.That(viewModel.Clips[^1].Id).IsEqualTo(last.Id);
+        await Assert.That(viewModel.Clips.Count).IsEqualTo(clips.Length);
+        await Assert.That(viewModel.Clips[0].Id).IsEqualTo(clips[0].Id);
+        await Assert.That(viewModel.Clips[^1].Id).IsEqualTo(clips[^1].Id);
+        await Assert.That(_remote.PageRequests.Select(p => p.Offset)).IsEquivalentTo([0, ClipListViewModel.PageSize]);
         await Assert.That(viewModel.IsLoading).IsFalse();
         await Assert.That(viewModel.RemoteStatusMessage).IsNull();
     }
 
     [Test]
-    public async Task LoadRemoteClipsAsync_PeerOffline_ShowsTheReasonInsteadOfHanging()
+    public async Task LoadAsync_PeerOffline_ShowsTheReasonInsteadOfHanging()
     {
         // Arrange
+        _remote.IsAvailable = false;
         var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .Throws(new RemoteDatabaseUnavailableException("LAPTOP is offline."));
 
         // Act
-        await viewModel.LoadRemoteClipsAsync(address, Guid.NewGuid(), null);
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(Guid.NewGuid()));
 
         // Assert
         await Assert.That(viewModel.Clips).IsEmpty();
         await Assert.That(viewModel.IsLoading).IsFalse();
-        await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("LAPTOP is offline.");
+        await Assert.That(viewModel.RemoteStatusMessage).IsEqualTo("Clips is unavailable.");
     }
 
     [Test]
-    public async Task LoadRemoteClipsAsync_Cancelled_StopsQuietly()
+    public async Task LoadAsync_RemoteDatabaseNoLongerShared_ShowsTheReason()
     {
         // Arrange
+        _databases.Remove(RemoteKey);
         var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+
+        // Act
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(Guid.NewGuid()));
+
+        // Assert
+        await Assert.That(viewModel.Clips).IsEmpty();
+        await Assert.That(viewModel.AcceptsNewClips).IsFalse();
+        await Assert.That(viewModel.RemoteStatusMessage).IsNotNull();
+    }
+
+    [Test]
+    public async Task LoadAsync_Cancelled_StopsQuietly()
+    {
+        // Arrange
         using var cancellation = new CancellationTokenSource();
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        var database = A.Fake<IDatabase>();
+        A.CallTo(() => database.GetClipPageAsync(A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .ReturnsLazily(async call =>
             {
                 await cancellation.CancelAsync();
-                call.GetArgument<CancellationToken>(5).ThrowIfCancellationRequested();
+                call.GetArgument<CancellationToken>(3).ThrowIfCancellationRequested();
                 return new ClipPage([], 0, 0);
             });
 
+        var databases = A.Fake<IDatabases>();
+        A.CallTo(() => databases.Get("db_slow")).Returns(database);
+        var viewModel = CreateViewModel(_mockMessenger, databases);
+
         // Act
-        await viewModel.LoadRemoteClipsAsync(address, Guid.NewGuid(), null, cancellation.Token);
+        await viewModel.LoadAsync("db_slow", new ClipListScope.Collection(Guid.NewGuid()), cancellation.Token);
 
         // Assert
         await Assert.That(viewModel.IsLoading).IsFalse();
@@ -210,19 +339,17 @@ public class ClipListViewModelTests
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
         var collectionId = Guid.NewGuid();
-        var first = new Clip { Id = Guid.NewGuid() };
-        var second = new Clip { Id = Guid.NewGuid() };
-        var captured = new Clip { Id = Guid.NewGuid() };
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, null, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
-            .Returns(new ClipPage([first, second], 0, 2)).Once()
-            .Then.Returns(new ClipPage([captured, first, second], 0, 3));
-        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+        var first = Clip("First");
+        var second = Clip("Second");
+        var captured = Clip("Captured");
+        _remote.WithClips(new ClipListScope.Collection(collectionId), first, second);
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(collectionId));
         viewModel.SelectedClip = viewModel.Clips[1];
+        _remote.WithClips(new ClipListScope.Collection(collectionId), captured, first, second);
 
         // Act: the Peer captured a clip into that collection
-        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, collectionId));
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(_laptopClips, collectionId));
         await WaitUntilAsync(() => viewModel.Clips.Count == 3 && !viewModel.IsLoading);
 
         // Assert
@@ -235,20 +362,16 @@ public class ClipListViewModelTests
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
         var collectionId = Guid.NewGuid();
         var folderId = Guid.NewGuid();
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, folderId, 0, ClipListViewModel.RemotePageSize, A<CancellationToken>._))
-            .Returns(new ClipPage([], 0, 0));
-        await viewModel.LoadRemoteClipsAsync(address, collectionId, folderId);
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Folder(collectionId, folderId));
 
         // Act
-        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, folderId));
-        await WaitUntilAsync(() => !viewModel.IsLoading);
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(_laptopClips, folderId));
+        await WaitUntilAsync(() => _remote.PageRequests.Count == 2 && !viewModel.IsLoading);
 
         // Assert
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(address, collectionId, folderId, 0, A<int>._, A<CancellationToken>._))
-            .MustHaveHappenedTwiceExactly();
+        await Assert.That(_remote.PageRequests.Count(p => p.Scope == new ClipListScope.Folder(collectionId, folderId))).IsEqualTo(2);
     }
 
     [Test]
@@ -256,21 +379,17 @@ public class ClipListViewModelTests
     {
         // Arrange
         var viewModel = CreateViewModel();
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
-        var otherDatabase = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        var otherDatabase = new RemoteDatabaseAddress(_laptopClips.DeviceId, Guid.NewGuid());
         var collectionId = Guid.NewGuid();
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .Returns(new ClipPage([], 0, 0));
-        await viewModel.LoadRemoteClipsAsync(address, collectionId, null);
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(collectionId));
 
         // Act
-        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, Guid.NewGuid()));
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(_laptopClips, Guid.NewGuid()));
         _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(otherDatabase, collectionId));
         await Task.Delay(50);
 
         // Assert
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .MustHaveHappenedOnceExactly();
+        await Assert.That(_remote.PageRequests.Count).IsEqualTo(1);
     }
 
     [Test]
@@ -279,17 +398,15 @@ public class ClipListViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var collectionId = Guid.NewGuid();
-        viewModel.CurrentDatabaseKey = "db_local";
-        viewModel.CurrentCollectionId = collectionId;
-        var address = new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([1]), Guid.NewGuid());
+        await viewModel.LoadAsync("db_local", new ClipListScope.Collection(collectionId));
 
         // Act
-        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(address, collectionId));
+        _mockRemoteDatabases.RemoteCollectionChanged += Raise.With(new RemoteCollectionChangedEventArgs(_laptopClips, collectionId));
         await Task.Delay(50);
 
         // Assert
-        A.CallTo(() => _mockRemoteDatabases.GetClipPageAsync(A<RemoteDatabaseAddress>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
-            .MustNotHaveHappened();
+        await Assert.That(_remote.PageRequests).IsEmpty();
+        await Assert.That(_local.PageRequests.Count).IsEqualTo(1);
     }
 
     [Test]
@@ -304,6 +421,10 @@ public class ClipListViewModelTests
         // Assert
         A.CallTo(_mockRemoteDatabases).Where(p => p.Method.Name == "remove_RemoteCollectionChanged").MustHaveHappenedOnceExactly();
     }
+
+    private static Clip Clip(string title) => new() { Id = Guid.NewGuid(), Title = title };
+
+    private static string Titles(ClipListViewModel viewModel) => string.Join(", ", viewModel.Clips.Select(p => p.Title));
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
@@ -399,27 +520,18 @@ public class ClipListViewModelTests
         await Assert.That(announced).IsFalse();
     }
 
-    private ClipListViewModel CreateViewModel(IMessenger messenger) => new(
+    private ClipListViewModel CreateViewModel(IMessenger messenger, IDatabases? databases = null) => new(
         _mockCollectionService,
         _mockFolderService,
         _mockClipService,
         _mockQuickPasteService,
         new PowerPasteStatus(),
-        _mockContextFactory,
+        databases ?? _databases,
         _mockRemoteDatabases,
         messenger,
         _mockLogger);
 
-    private ClipListViewModel CreateViewModel() => new(
-        _mockCollectionService,
-        _mockFolderService,
-        _mockClipService,
-        _mockQuickPasteService,
-        new PowerPasteStatus(),
-        _mockContextFactory,
-        _mockRemoteDatabases,
-        _mockMessenger,
-        _mockLogger);
+    private ClipListViewModel CreateViewModel() => CreateViewModel(_mockMessenger);
 
     [Test]
     public async Task Constructor_ShouldRegisterWithMessenger()
@@ -427,16 +539,7 @@ public class ClipListViewModelTests
         // Note: Cannot verify extension method calls with FakeItEasy
         // The constructor should successfully complete, which implies registration worked
         // Testing actual message handling is done via integration tests
-        var viewModel = new ClipListViewModel(
-            _mockCollectionService,
-            _mockFolderService,
-            _mockClipService,
-            _mockQuickPasteService,
-            new PowerPasteStatus(),
-            _mockContextFactory,
-            _mockRemoteDatabases,
-            _mockMessenger,
-            _mockLogger);
+        var viewModel = CreateViewModel();
 
         await Assert.That(viewModel).IsNotNull();
     }

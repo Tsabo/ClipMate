@@ -41,7 +41,7 @@ public partial class AppServiceGraphTests
     [Arguments(typeof(NetworkingService))]
     [Arguments(typeof(ILocalDevice))]
     [Arguments(typeof(IClipService))]
-    [Arguments(typeof(IClipContentService))]
+    [Arguments(typeof(IDatabases))]
     [Arguments(typeof(ISharedDatabaseService))]
     [Arguments(typeof(IPeerHostFactory))]
     [Arguments(typeof(IPairingClient))]

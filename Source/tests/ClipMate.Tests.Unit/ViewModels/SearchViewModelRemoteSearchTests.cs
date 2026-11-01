@@ -9,6 +9,9 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data;
+using ClipMate.Data.Services;
+using ClipMate.Networking.SharedDatabases;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 
@@ -31,8 +34,16 @@ public class SearchViewModelRemoteSearchTests
     public SearchViewModelRemoteSearchTests()
     {
         _messenger.Register<SearchViewModelRemoteSearchTests, SearchExecutedEvent>(this, (r, m) => r._executed.Add(m));
+        // The real adapters over the faked search service and Peer, so a search reaches whichever the target is
+        var databases = A.Fake<IDatabases>();
+        A.CallTo(() => databases.Get("db_work")).ReturnsLazily(() => new LocalDatabase("db_work",
+            new DatabaseConfiguration { Name = "Work", FilePath = typeof(SearchViewModelRemoteSearchTests).Assembly.Location },
+            A.Fake<IDatabaseContextFactory>(), _searchService));
+        A.CallTo(() => databases.Get(RemoteKey)).ReturnsLazily(() => new RemoteDatabaseProxy(
+            new RemoteDatabase(_work, "Work", "DESKTOP", PeerConnectionStatus.Online, null), _remoteDatabaseService));
+
         _viewModel = new SearchViewModel(_searchService, A.Fake<ICollectionService>(), A.Fake<IClipService>(), _messenger, new SearchResultsCache(),
-            _remoteDatabaseService, _remoteSearchResultsCache, _targetSource);
+            databases, _remoteSearchResultsCache, _targetSource);
     }
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);
@@ -63,7 +74,7 @@ public class SearchViewModelRemoteSearchTests
     public async Task RefreshTarget_RemoteCollectionSelected_OffersItAndDefaultsToAllCollections()
     {
         // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
 
         // Assert
         await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope)).IsEquivalentTo([SearchScope.AllCollections, SearchScope.CurrentCollection]);
@@ -94,7 +105,7 @@ public class SearchViewModelRemoteSearchTests
         _viewModel.SearchScope = SearchScope.SpecificFolder;
 
         // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
 
         // Assert
         await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope)).IsEquivalentTo([SearchScope.AllCollections]);
@@ -105,7 +116,7 @@ public class SearchViewModelRemoteSearchTests
     public async Task RefreshTarget_RemoteDatabase_HidesTheSqlPanel()
     {
         // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var remoteSqlAvailable = _viewModel.IsSqlAvailable;
         Target(new SearchTarget("db_work", "Work"));
 
@@ -119,7 +130,7 @@ public class SearchViewModelRemoteSearchTests
     {
         // Arrange
         var inboxId = Guid.NewGuid();
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { CollectionId = inboxId, CollectionName = "Inbox" });
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, CollectionId = inboxId, CollectionName = "Inbox" });
         _viewModel.SearchScope = SearchScope.CurrentCollection;
         var clips = new List<Clip> { new() { Id = Guid.NewGuid(), Title = "report 1" }, new() { Id = Guid.NewGuid(), Title = "report 2" } };
         A.CallTo(() => _remoteDatabaseService.SearchAsync(_work, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches(clips, 4212));
@@ -146,7 +157,7 @@ public class SearchViewModelRemoteSearchTests
     public async Task SearchCommand_RemoteTarget_NeverAsksForDeletedClipsOrShortcuts()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         _viewModel.IncludeDeletedClips = true;
         _viewModel.HasShortcutOnly = true;
 
@@ -162,12 +173,12 @@ public class SearchViewModelRemoteSearchTests
     public async Task SearchCommand_PeerUnavailable_LeavesTheCacheAloneAndReportsTheError()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
-            .Throws(new RemoteDatabaseUnavailableException("DESKTOP is offline."));
+            .Throws(new DatabaseUnavailableException("DESKTOP is offline."));
 
         // Act / Assert
-        await Assert.That(async () => await _viewModel.SearchCommand.ExecuteAsync(null)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _viewModel.SearchCommand.ExecuteAsync(null)).Throws<DatabaseUnavailableException>();
         await Assert.That(_remoteSearchResultsCache.GetResults(_work)).IsNull();
         await Assert.That(_executed).IsEmpty();
         await Assert.That(_viewModel.IsSearching).IsFalse();
@@ -177,7 +188,7 @@ public class SearchViewModelRemoteSearchTests
     public async Task CancelSearch_WhileARemoteSearchRuns_CancelsItsToken()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var token = CancellationToken.None;
         var started = new TaskCompletionSource();
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
@@ -230,7 +241,7 @@ public class SearchViewModelRemoteSearchTests
             new() { Name = "Reports", Query = "report", FiltersJson = JsonSerializer.Serialize(new SearchFilters { TitleQuery = "report" }) },
             new() { Name = "Hand-written", Query = "SELECT Clips.* FROM Clips WHERE Clips.Size > 1000" },
         });
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
 
         // Act
         await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
@@ -247,7 +258,7 @@ public class SearchViewModelRemoteSearchTests
     public async Task SavedQuerySelection_ScopeTheTargetCannotOffer_FallsBackToAllCollections()
     {
         // Arrange: saved while a folder was selected; now the Remote Database node itself is
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP"));
+        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var saved = new SavedSearchQuery
         {
             Name = "Projects", Query = "report",

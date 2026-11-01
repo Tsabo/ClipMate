@@ -5,6 +5,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Networking.Protocol;
 using ClipMate.Networking.SharedDatabases.Notice;
+using CollectionEntry = ClipMate.Core.Models.CollectionEntry;
 
 namespace ClipMate.Networking.SharedDatabases;
 
@@ -31,16 +32,16 @@ internal static class SharedDatabaseMessages
         Name = database.Name,
     };
 
-    public static CollectionEntry ToMessage(SharedCollection collection) => new()
+    public static Protocol.CollectionEntry ToMessage(CollectionEntry collection) => new()
     {
         Id = collection.Id.ToString("D", CultureInfo.InvariantCulture),
         ParentId = collection.ParentId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty,
         Title = collection.Title,
         Kind = collection.Kind switch
         {
-            SharedCollectionKind.Folder => CollectionKind.Folder,
-            SharedCollectionKind.Smart => CollectionKind.Smart,
-            SharedCollectionKind.SqlBased => CollectionKind.SqlBased,
+            CollectionEntryKind.Folder => CollectionKind.Folder,
+            CollectionEntryKind.Smart => CollectionKind.Smart,
+            CollectionEntryKind.SqlBased => CollectionKind.SqlBased,
             var _ => CollectionKind.Collection,
         },
         SortKey = collection.SortKey,
@@ -58,9 +59,9 @@ internal static class SharedDatabaseMessages
         return result;
     }
 
-    public static IReadOnlyList<SharedCollection> FromMessage(GetCollectionTreeReply reply)
+    public static IReadOnlyList<CollectionEntry> FromMessage(GetCollectionTreeReply reply)
     {
-        var result = new List<SharedCollection>(reply.Collections.Count);
+        var result = new List<CollectionEntry>(reply.Collections.Count);
         foreach (var item in reply.Collections)
         {
             if (!Guid.TryParse(item.Id, out var id))
@@ -72,13 +73,13 @@ internal static class SharedDatabaseMessages
 
             var kind = item.Kind switch
             {
-                CollectionKind.Folder => SharedCollectionKind.Folder,
-                CollectionKind.Smart => SharedCollectionKind.Smart,
-                CollectionKind.SqlBased => SharedCollectionKind.SqlBased,
-                var _ => SharedCollectionKind.Collection,
+                CollectionKind.Folder => CollectionEntryKind.Folder,
+                CollectionKind.Smart => CollectionEntryKind.Smart,
+                CollectionKind.SqlBased => CollectionEntryKind.SqlBased,
+                var _ => CollectionEntryKind.Collection,
             };
 
-            result.Add(new SharedCollection(id, parentId, CleanName(item.Title, "Collection"), kind, item.SortKey));
+            result.Add(new CollectionEntry(id, parentId, CleanName(item.Title, "Collection"), kind, item.SortKey));
         }
 
         return result;

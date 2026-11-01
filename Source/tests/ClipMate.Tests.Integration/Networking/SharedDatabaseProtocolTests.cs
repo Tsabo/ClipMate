@@ -8,6 +8,7 @@ using ClipMate.Networking.Protocol;
 using ClipMate.Networking.SharedDatabases;
 using ClipMate.Networking.SharedDatabases.Notice;
 using Google.Protobuf.Reflection;
+using CollectionEntry = ClipMate.Core.Models.CollectionEntry;
 
 namespace ClipMate.Tests.Integration.Networking;
 
@@ -254,13 +255,13 @@ public class SharedDatabaseProtocolTests
     public async Task FromMessage_CollectionTree_RoundTripsKindsAndParents()
     {
         // Arrange
-        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
+        var inbox = new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
         var tree = new[]
         {
             inbox,
-            new SharedCollection(Guid.NewGuid(), inbox.Id, "Projects", SharedCollectionKind.Folder, 5),
-            new SharedCollection(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 30),
-            new SharedCollection(Guid.NewGuid(), null, "Bitmaps", SharedCollectionKind.SqlBased, -1),
+            new CollectionEntry(Guid.NewGuid(), inbox.Id, "Projects", CollectionEntryKind.Folder, 5),
+            new CollectionEntry(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 30),
+            new CollectionEntry(Guid.NewGuid(), null, "Bitmaps", CollectionEntryKind.SqlBased, -1),
         };
         var reply = new GetCollectionTreeReply();
         reply.Collections.AddRange(tree.Select(SharedDatabaseMessages.ToMessage));

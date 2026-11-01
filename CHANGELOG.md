@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Missing Database Reported as Corrupt** - A Database whose file is missing or can't be opened (for example on a drive that isn't connected) no longer brings up "Database Corruption Detected" and an offer to repair it at startup. It shows in the collection tree with its error icon, and startup cleanup skips it instead of stopping cleanup for the Databases after it.
 - **Folders Shown Twice** - A folder inside a collection (one you created, or one imported from ClipMate 7) appeared both under its collection and again at the top of its Database in the collection tree. It now appears only under its collection.
+- **Why a Database's Clips Didn't Load** - When a Database's file is missing, the clip list now says so in its status line, as it already did for a Peer that is offline.
+- **Refresh in the Trash and "Show All Clips in Children"** - Refresh reloads the same list. It used to switch to the recent clips or the plain collection.
 
 ## [1.0.1-beta] - 2026-10-31
 

@@ -1,4 +1,3 @@
-using System.IO;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
@@ -6,139 +5,51 @@ using Microsoft.Extensions.Logging;
 
 namespace ClipMate.App.Services;
 
+/// <summary>
+/// <see cref="ICollectionTreeBuilder" /> over <see cref="IDatabases" />. Every Database's collections and folders are
+/// laid out by one rule from its flat <see cref="CollectionEntry" /> list. A local Database's nodes also carry its
+/// <see cref="Collection" /> and <see cref="Folder" /> objects, which the tree's styles and its collection commands use.
+/// </summary>
 internal class CollectionTreeBuilder : ICollectionTreeBuilder
 {
     private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
-    private readonly IFolderService _folderService;
+    private readonly IDatabases _databases;
     private readonly ILogger<CollectionTreeBuilder> _logger;
 
     public CollectionTreeBuilder(IConfigurationService configurationService,
-        IFolderService folderService,
+        IDatabases databases,
         ICollectionService collectionService,
         ILogger<CollectionTreeBuilder> logger)
     {
-        _configurationService = configurationService;
-        _folderService = folderService;
-        _collectionService = collectionService;
-        _logger = logger;
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
+        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <inheritdoc />
     public async Task<IEnumerable<TreeNodeBase>> BuildTreeAsync(TreeNodeType excludeNodes, CancellationToken cancellationToken = default)
     {
         var result = new List<TreeNodeBase>();
-
-        // Load configuration to get database definitions
-        var configuration = _configurationService.Configuration;
-
-        // Create a database node for each configured database
-        if (configuration.Databases.Count <= 0)
-            return result;
-
-        _logger.LogInformation("Creating database nodes for {Count} databases: {DatabaseKeys}",
-            configuration.Databases.Count,
-            string.Join(", ", configuration.Databases.Keys));
-
-        // Get database manager to access all loaded databases
-        foreach (var (databaseId, databaseConfig) in configuration.Databases)
+        foreach (var item in _databases.All.Where(p => p.Remote == null))
         {
-            // Check if database file exists
-            var dbFile = Environment.ExpandEnvironmentVariables(databaseConfig.FilePath);
-            var hasError = !File.Exists(dbFile);
-
-            // Create database node with title from configuration and error status
-            var databaseNode = new DatabaseTreeNode(databaseConfig.Name, databaseId, hasError);
-
-            // Load collections for this database if it exists
-            if (!hasError)
+            var databaseNode = new DatabaseTreeNode(item.Name, item.Key, !item.IsAvailable);
+            if (item.IsAvailable)
             {
                 try
                 {
-                    // Load collections using the service (proper abstraction)
-                    var allCollections = await _collectionService.GetAllByDatabaseKeyAsync(databaseId, cancellationToken);
-
-                    // Separate regular collections from virtual ones. A folder is a collection row with a parent; it is
-                    // shown under that parent (LoadFoldersAsync), not at the top level as well.
-                    var regularCollections = allCollections.Where(p => !p.IsVirtual && !IsFolder(p)).ToList();
-                    var virtualCollections = allCollections.Where(p => p.IsVirtual).ToList();
-
-                    _logger.LogInformation("Loaded {RegularCount} regular and {VirtualCount} virtual collections from database {DatabaseName}",
-                        regularCollections.Count, virtualCollections.Count, databaseConfig.Name);
-
-                    // Determine sort order based on global preference
-                    var sortByAlpha = _configurationService.Configuration.Preferences.SortCollectionsAlphabetically;
-                    var orderedCollections = sortByAlpha
-                        ? regularCollections.OrderBy(p => p.Title)
-                        : regularCollections.OrderBy(p => p.SortKey);
-
-                    // Add regular collections to database node
-                    foreach (var item in orderedCollections)
-                    {
-                        var collectionNode = new CollectionTreeNode(item)
-                        {
-                            Parent = databaseNode,
-                        };
-
-                        await LoadFoldersAsync(collectionNode, cancellationToken);
-
-                        databaseNode.Children.Add(collectionNode);
-                    }
-
-                    // Add virtual collections container if any virtual collections exist
-                    if (!excludeNodes.HasFlag(TreeNodeType.VirtualCollection) && virtualCollections.Count > 0)
-                    {
-                        var virtualContainer = new VirtualCollectionsContainerNode
-                        {
-                            Parent = databaseNode,
-                        };
-
-                        // Virtual collections also respect the SortByAlpha preference
-                        var orderedVirtualCollections = sortByAlpha
-                            ? virtualCollections.OrderBy(p => p.Title)
-                            : virtualCollections.OrderBy(p => p.SortKey);
-
-                        // Add other virtual collections
-                        foreach (var item in orderedVirtualCollections)
-                        {
-                            var virtualNode = new VirtualCollectionTreeNode(item)
-                            {
-                                Parent = virtualContainer,
-                            };
-
-                            virtualContainer.Children.Add(virtualNode);
-                        }
-
-                        databaseNode.Children.Add(virtualContainer);
-                    }
-
-                    if (!excludeNodes.HasFlag(TreeNodeType.SpecialCollection))
-                    {
-                        // Add Trashcan at bottom of collections (after all regular collections)
-                        // Trashcan is read-only (rejects new clips), which makes it display in red
-                        var trashcanNode = new TrashcanVirtualCollectionNode(databaseConfig.FilePath)
-                        {
-                            Parent = databaseNode,
-                        };
-
-                        databaseNode.Children.Add(trashcanNode);
-
-                        // Add Search Results node after Trashcan
-                        var searchResultsNode = new SearchResultsVirtualCollectionNode(databaseConfig.FilePath)
-                        {
-                            Parent = databaseNode,
-                        };
-
-                        databaseNode.Children.Add(searchResultsNode);
-                    }
+                    foreach (var child in await BuildChildrenAsync(item, databaseNode, excludeNodes, cancellationToken))
+                        databaseNode.Children.Add(child);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogError(ex, "Failed to load collections from database: {DatabaseName}", databaseConfig.Name);
+                    _logger.LogError(ex, "Failed to load collections from database: {DatabaseName}", item.Name);
                 }
             }
 
             // Expand the default database node by default
-            if (databaseId == configuration.DefaultDatabase)
+            if (item.Key == _configurationService.Configuration.DefaultDatabase)
                 databaseNode.IsExpanded = true;
 
             result.Add(databaseNode);
@@ -147,49 +58,106 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
         return result;
     }
 
-    /// <summary>
-    /// Whether <paramref name="collection" /> is a folder inside a collection, the rows the folder service reads. Top-level
-    /// rows with the Folder type (such as Safe) are collections.
-    /// </summary>
-    private static bool IsFolder(Collection collection) => collection is { LmType: CollectionLmType.Folder, ParentId: not null };
-
-    /// <summary>
-    /// Loads the folder hierarchy for a collection.
-    /// </summary>
-    private async Task LoadFoldersAsync(CollectionTreeNode collectionNode, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<TreeNodeBase>> BuildChildrenAsync(IDatabase database, TreeNodeBase databaseNode,
+        TreeNodeType excludeNodes = TreeNodeType.None, CancellationToken cancellationToken = default)
     {
-        var rootFolders = await _folderService.GetRootFoldersAsync(collectionNode.Collection.Id, cancellationToken);
+        ArgumentNullException.ThrowIfNull(database);
+        ArgumentNullException.ThrowIfNull(databaseNode);
 
-        foreach (var item in rootFolders)
+        var entries = await database.GetTreeAsync(cancellationToken);
+
+        // A local Database's nodes carry the collections themselves, for the tree's styles and its collection commands
+        var collections = database.Remote == null
+            ? (await _collectionService.GetAllByDatabaseKeyAsync(database.Key, cancellationToken)).ToDictionary(p => p.Id)
+            : [];
+
+        var result = BuildChildren(databaseNode, entries, collections, _configurationService.Configuration.Preferences.SortCollectionsAlphabetically,
+            !excludeNodes.HasFlag(TreeNodeType.VirtualCollection));
+
+        // The Trashcan and Search Results of a local Database follow its collections
+        if (database.Remote == null && !excludeNodes.HasFlag(TreeNodeType.SpecialCollection))
         {
-            var folderNode = new FolderTreeNode(item)
-            {
-                Parent = collectionNode,
-            };
-
-            await LoadSubFoldersAsync(folderNode, cancellationToken);
-
-            collectionNode.Children.Add(folderNode);
+            result.Add(new TrashcanVirtualCollectionNode(database.Key) { Parent = databaseNode });
+            result.Add(new SearchResultsVirtualCollectionNode(database.Key) { Parent = databaseNode });
         }
+
+        return result;
     }
 
     /// <summary>
-    /// Recursively loads subfolders for a folder node.
+    /// Lays out the flat list: collections with their folders (a folder whose parent is missing is shown as a
+    /// collection rather than lost), then a "Virtual" container with the Smart and SQL-based collections.
     /// </summary>
-    private async Task LoadSubFoldersAsync(FolderTreeNode folderNode, CancellationToken cancellationToken)
+    private static List<TreeNodeBase> BuildChildren(TreeNodeBase databaseNode, IReadOnlyList<CollectionEntry> entries,
+        Dictionary<Guid, Collection> collections, bool sortAlphabetically, bool includeVirtual)
     {
-        var subFolders = await _folderService.GetChildFoldersAsync(folderNode.Folder.Id, cancellationToken);
+        var ids = entries.Select(p => p.Id).ToHashSet();
+        var folders = entries.Where(p => p.Kind == CollectionEntryKind.Folder && p.ParentId != null && ids.Contains(p.ParentId.Value))
+            .ToLookup(p => p.ParentId!.Value);
+        var placedFolders = folders.SelectMany(p => p).Select(p => p.Id).ToHashSet();
 
-        foreach (var item in subFolders)
+        var regular = entries.Where(p => p.Kind == CollectionEntryKind.Collection
+                                         || p.Kind == CollectionEntryKind.Folder && !placedFolders.Contains(p.Id));
+        var smart = entries.Where(p => p.Kind is CollectionEntryKind.Smart or CollectionEntryKind.SqlBased).ToList();
+
+        var result = new List<TreeNodeBase>();
+        var visited = new HashSet<Guid>();
+        foreach (var item in Order(regular, sortAlphabetically))
         {
-            var subFolderNode = new FolderTreeNode(item)
-            {
-                Parent = folderNode,
-            };
+            var node = CreateCollectionNode(item, collections, databaseNode);
+            visited.Add(item.Id);
+            AddFolders(node, item.Id, folders, collections, visited);
+            result.Add(node);
+        }
 
-            await LoadSubFoldersAsync(subFolderNode, cancellationToken);
+        if (includeVirtual && smart.Count > 0)
+        {
+            var container = new VirtualCollectionsContainerNode { Parent = databaseNode, IsUnavailable = databaseNode.IsUnavailable };
+            foreach (var item in Order(smart, sortAlphabetically))
+                container.Children.Add(CreateCollectionNode(item, collections, container));
 
-            folderNode.Children.Add(subFolderNode);
+            result.Add(container);
+        }
+
+        return result;
+    }
+
+    private static void AddFolders(TreeNodeBase parent, Guid parentId, ILookup<Guid, CollectionEntry> folders, Dictionary<Guid, Collection> collections,
+        HashSet<Guid> visited)
+    {
+        foreach (var item in folders[parentId].OrderBy(p => p.SortKey))
+        {
+            // Stored data could contain a cycle; show each folder once
+            if (!visited.Add(item.Id))
+                continue;
+
+            TreeNodeBase node = collections.TryGetValue(item.Id, out var collection)
+                ? new FolderTreeNode(Folder.FromCollection(collection))
+                : new RemoteFolderTreeNode(item);
+
+            node.Parent = parent;
+            node.IsUnavailable = parent.IsUnavailable;
+            AddFolders(node, item.Id, folders, collections, visited);
+            parent.Children.Add(node);
         }
     }
+
+    private static TreeNodeBase CreateCollectionNode(CollectionEntry entry, Dictionary<Guid, Collection> collections, TreeNodeBase parent)
+    {
+        TreeNodeBase node = collections.TryGetValue(entry.Id, out var collection)
+            ? entry.Kind is CollectionEntryKind.Smart or CollectionEntryKind.SqlBased
+                ? new VirtualCollectionTreeNode(collection)
+                : new CollectionTreeNode(collection)
+            : new RemoteCollectionTreeNode(entry);
+
+        node.Parent = parent;
+        node.IsUnavailable = parent.IsUnavailable;
+        return node;
+    }
+
+    private static IEnumerable<CollectionEntry> Order(IEnumerable<CollectionEntry> entries, bool sortAlphabetically) =>
+        sortAlphabetically
+            ? entries.OrderBy(p => p.Title, StringComparer.CurrentCultureIgnoreCase)
+            : entries.OrderBy(p => p.SortKey);
 }

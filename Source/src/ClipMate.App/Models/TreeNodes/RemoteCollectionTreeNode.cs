@@ -1,4 +1,4 @@
-using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Models;
 
 namespace ClipMate.App.Models.TreeNodes;
 
@@ -8,7 +8,7 @@ namespace ClipMate.App.Models.TreeNodes;
 /// </summary>
 public sealed class RemoteCollectionTreeNode : TreeNodeBase
 {
-    public RemoteCollectionTreeNode(SharedCollection collection)
+    public RemoteCollectionTreeNode(CollectionEntry collection)
     {
         Collection = collection ?? throw new ArgumentNullException(nameof(collection));
         SortKey = collection.SortKey;
@@ -17,7 +17,7 @@ public sealed class RemoteCollectionTreeNode : TreeNodeBase
     /// <summary>
     /// The collection as the Peer serves it.
     /// </summary>
-    public SharedCollection Collection { get; }
+    public CollectionEntry Collection { get; }
 
     /// <inheritdoc />
     public override string Name => Collection.Title;
@@ -25,7 +25,7 @@ public sealed class RemoteCollectionTreeNode : TreeNodeBase
     /// <inheritdoc />
     public override string Icon => Collection.Kind switch
     {
-        SharedCollectionKind.Smart or SharedCollectionKind.SqlBased => "🔍",
+        CollectionEntryKind.Smart or CollectionEntryKind.SqlBased => "🔍",
         var _ => Collection.Title.ToLowerInvariant() switch
         {
             "inbox" => "📥",
@@ -37,7 +37,7 @@ public sealed class RemoteCollectionTreeNode : TreeNodeBase
     };
 
     /// <inheritdoc />
-    public override TreeNodeType NodeType => Collection.Kind is SharedCollectionKind.Smart or SharedCollectionKind.SqlBased
+    public override TreeNodeType NodeType => Collection.Kind is CollectionEntryKind.Smart or CollectionEntryKind.SqlBased
         ? TreeNodeType.VirtualCollection
         : TreeNodeType.Collection;
 }
@@ -47,7 +47,7 @@ public sealed class RemoteCollectionTreeNode : TreeNodeBase
 /// </summary>
 public sealed class RemoteFolderTreeNode : TreeNodeBase
 {
-    public RemoteFolderTreeNode(SharedCollection folder)
+    public RemoteFolderTreeNode(CollectionEntry folder)
     {
         Folder = folder ?? throw new ArgumentNullException(nameof(folder));
         SortKey = folder.SortKey;
@@ -56,7 +56,7 @@ public sealed class RemoteFolderTreeNode : TreeNodeBase
     /// <summary>
     /// The folder as the Peer serves it.
     /// </summary>
-    public SharedCollection Folder { get; }
+    public CollectionEntry Folder { get; }
 
     /// <inheritdoc />
     public override string Name => Folder.Title;

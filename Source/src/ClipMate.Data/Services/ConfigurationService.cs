@@ -300,7 +300,6 @@ public class ConfigurationService : IConfigurationService
                     CleanupMethod = CleanupMethod.AtStartup,
                     PurgeDays = 7,
                     UserName = Environment.UserName,
-                    IsRemote = false,
                     MultiUser = false,
                     UseModificationTimeStamp = true,
                 },

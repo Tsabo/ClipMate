@@ -14,6 +14,7 @@ using ClipMate.Platform.Services;
 using FakeItEasy;
 using Grpc.Core;
 using Microsoft.Extensions.Logging.Abstractions;
+using CollectionEntry = ClipMate.Core.Models.CollectionEntry;
 
 namespace ClipMate.Tests.Integration.Networking;
 
@@ -97,13 +98,13 @@ public class SharedDatabaseTransportTests
     {
         // Arrange
         var desktop = await PairAsync();
-        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
+        var inbox = new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
         var tree = new[]
         {
             inbox,
-            new SharedCollection(Guid.NewGuid(), inbox.Id, "Projects", SharedCollectionKind.Folder, 5),
-            new SharedCollection(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 30),
-            new SharedCollection(Guid.NewGuid(), null, "Bitmaps", SharedCollectionKind.SqlBased, 40),
+            new CollectionEntry(Guid.NewGuid(), inbox.Id, "Projects", CollectionEntryKind.Folder, 5),
+            new CollectionEntry(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 30),
+            new CollectionEntry(Guid.NewGuid(), null, "Bitmaps", CollectionEntryKind.SqlBased, 40),
         };
         A.CallTo(() => _sharedDatabases.GetCollectionTreeAsync(_workId, A<CancellationToken>._)).Returns(tree);
 
@@ -119,7 +120,7 @@ public class SharedDatabaseTransportTests
     {
         // Arrange
         var desktop = await PairAsync();
-        A.CallTo(() => _sharedDatabases.GetCollectionTreeAsync(A<Guid>._, A<CancellationToken>._)).Returns((IReadOnlyList<SharedCollection>?)null);
+        A.CallTo(() => _sharedDatabases.GetCollectionTreeAsync(A<Guid>._, A<CancellationToken>._)).Returns((IReadOnlyList<CollectionEntry>?)null);
 
         // Act
         var result = await _client.GetCollectionTreeAsync(_laptopIdentity!, desktop, _workId);
@@ -136,7 +137,7 @@ public class SharedDatabaseTransportTests
         var desktop = _laptopStore.Find(_desktopIdentity.DeviceId)!;
 
         // Act / Assert
-        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<DatabaseUnavailableException>();
         A.CallTo(() => _sharedDatabases.GetSharedDatabasesAsync(A<CancellationToken>._)).MustNotHaveHappened();
     }
 
@@ -161,7 +162,7 @@ public class SharedDatabaseTransportTests
         await _desktopHost.StopAsync();
 
         // Act / Assert
-        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -307,7 +308,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         await peerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
@@ -320,7 +321,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -339,7 +340,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -352,7 +353,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -371,7 +372,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.GetClipPageAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
@@ -385,7 +386,7 @@ public class SharedDatabaseTransportTests
             .Throws(new RpcException(new Status(StatusCode.ResourceExhausted, "Too busy.")));
 
         // Act / Assert
-        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _client.ListSharedDatabasesAsync(_laptopIdentity!, desktop)).Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -397,7 +398,7 @@ public class SharedDatabaseTransportTests
             .Throws(new RpcException(new Status(StatusCode.Internal, "Something went wrong.")));
 
         // Act / Assert
-        await Assert.That(async () => await _client.GetCollectionTreeAsync(_laptopIdentity!, desktop, _workId)).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await _client.GetCollectionTreeAsync(_laptopIdentity!, desktop, _workId)).Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -410,7 +411,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.GetClipContentAsync(_laptopIdentity!, desktop, _workId, Guid.NewGuid()))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -494,7 +495,7 @@ public class SharedDatabaseTransportTests
         await _desktopStore.RemoveAsync(_laptopIdentity!.DeviceId);
 
         // Assert
-        await Assert.That(async () => await next).Throws<RemoteDatabaseUnavailableException>();
+        await Assert.That(async () => await next).Throws<DatabaseUnavailableException>();
         await WaitForUnsubscribeAsync();
     }
 
@@ -511,7 +512,7 @@ public class SharedDatabaseTransportTests
             await foreach (var item in _client.WatchChangesAsync(_laptopIdentity!, desktop))
             {
             }
-        }).Throws<RemoteDatabaseUnavailableException>();
+        }).Throws<DatabaseUnavailableException>();
         await Assert.That(Fake.GetCalls(_changeFeed).Any(p => p.Method.Name.StartsWith("add_", StringComparison.Ordinal))).IsFalse();
     }
 
@@ -650,7 +651,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         var exception = await Assert.That(async () => await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "slow" }))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         await Assert.That(exception!.Message).Contains("too long");
         await peerCancelled.WaitAsync(TimeSpan.FromSeconds(10));
     }
@@ -665,7 +666,7 @@ public class SharedDatabaseTransportTests
 
         // Act / Assert
         await Assert.That(async () => await _client.SearchAsync(_laptopIdentity!, desktop, _workId, new SearchFilters { TitleQuery = "x" }))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]

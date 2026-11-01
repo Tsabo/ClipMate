@@ -15,7 +15,8 @@ public partial class SharedDatabaseServiceTests
     private static readonly Guid _workId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid _homeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private readonly Dictionary<string, List<Collection>> _collections = [];
-    private IClipContentService _clipContentService = null!;
+    private IDatabases _databases = null!;
+    private IDatabase _workDatabase = null!;
     private IClipRepository _clipRepository = null!;
     private IClipService _clipService = null!;
     private ICollectionService _collectionService = null!;
@@ -34,13 +35,15 @@ public partial class SharedDatabaseServiceTests
         _databaseIdService = A.Fake<IDatabaseIdService>();
         _collectionService = A.Fake<ICollectionService>();
         _clipService = A.Fake<IClipService>();
-        _clipContentService = A.Fake<IClipContentService>();
+        _databases = A.Fake<IDatabases>();
+        _workDatabase = A.Fake<IDatabase>();
+        A.CallTo(() => _databases.Get("db_work")).Returns(_workDatabase);
         _clipRepository = A.Fake<IClipRepository>();
         _databaseContextFactory = A.Fake<IDatabaseContextFactory>();
         _searchService = A.Fake<ISearchService>();
         A.CallTo(() => _databaseContextFactory.GetClipRepository("db_work")).Returns(_clipRepository);
         _service = new SharedDatabaseService(configurationService, _databaseIdService, _collectionService, _clipService,
-            _clipContentService, _databaseContextFactory, _searchService, NullLogger<SharedDatabaseService>.Instance);
+            _databaseContextFactory, _databases, _searchService, NullLogger<SharedDatabaseService>.Instance);
     }
 
     [Test]
@@ -106,11 +109,11 @@ public partial class SharedDatabaseServiceTests
 
         // Assert
         await Assert.That(tree).IsEquivalentTo([
-            new SharedCollection(inbox.Id, null, "Inbox", SharedCollectionKind.Collection, 10),
-            new SharedCollection(safe.Id, null, "Safe", SharedCollectionKind.Collection, 20),
-            new SharedCollection(projects.Id, inbox.Id, "Projects", SharedCollectionKind.Folder, 5),
-            new SharedCollection(today.Id, null, "Today", SharedCollectionKind.Smart, 30),
-            new SharedCollection(bitmaps.Id, null, "Bitmaps", SharedCollectionKind.SqlBased, 40),
+            new CollectionEntry(inbox.Id, null, "Inbox", CollectionEntryKind.Collection, 10),
+            new CollectionEntry(safe.Id, null, "Safe", CollectionEntryKind.Collection, 20),
+            new CollectionEntry(projects.Id, inbox.Id, "Projects", CollectionEntryKind.Folder, 5),
+            new CollectionEntry(today.Id, null, "Today", CollectionEntryKind.Smart, 30),
+            new CollectionEntry(bitmaps.Id, null, "Bitmaps", CollectionEntryKind.SqlBased, 40),
         ]);
     }
 
@@ -265,7 +268,7 @@ public partial class SharedDatabaseServiceTests
         AddDatabase("db_work", "Work", _workId, true);
         var clip = new Clip { Id = Guid.NewGuid(), Encrypted = true };
         var content = new ClipContent(clip, [], [new BlobTxt { ClipId = clip.Id, Data = "Y2lwaGVydGV4dA==" }], [], [], []);
-        A.CallTo(() => _clipContentService.GetClipContentAsync("db_work", clip.Id, A<CancellationToken>._)).Returns(content);
+        A.CallTo(() => _workDatabase.GetClipContentAsync(clip.Id, A<CancellationToken>._)).Returns(content);
 
         // Act
         var result = await _service.GetClipContentAsync(_workId, clip.Id);
@@ -280,7 +283,7 @@ public partial class SharedDatabaseServiceTests
         // Arrange
         AddDatabase("db_work", "Work", _workId, true);
         var clip = new Clip { Id = Guid.NewGuid(), Del = true };
-        A.CallTo(() => _clipContentService.GetClipContentAsync("db_work", clip.Id, A<CancellationToken>._))
+        A.CallTo(() => _workDatabase.GetClipContentAsync(clip.Id, A<CancellationToken>._))
             .Returns(new ClipContent(clip, [], [], [], [], []));
 
         // Act
@@ -301,7 +304,7 @@ public partial class SharedDatabaseServiceTests
 
         // Assert
         await Assert.That(result).IsNull();
-        A.CallTo(_clipContentService).MustNotHaveHappened();
+        A.CallTo(_databases).MustNotHaveHappened();
     }
 
     private Collection AddCollection(string key, Collection collection)

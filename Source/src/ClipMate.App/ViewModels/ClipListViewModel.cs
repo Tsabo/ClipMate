@@ -4,7 +4,6 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
-using ClipMate.Data;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
@@ -38,7 +37,7 @@ public partial class ClipListViewModel : ObservableObject,
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
-    private readonly IDatabaseContextFactory _databaseContextFactory;
+    private readonly IDatabases _databases;
     private readonly RateLimitedFunc<bool> _debouncedClipSelection;
     private readonly IFolderService _folderService;
     private readonly ILogger<ClipListViewModel> _logger;
@@ -46,7 +45,8 @@ public partial class ClipListViewModel : ObservableObject,
     private readonly PowerPasteStatus _powerPasteStatus;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IRemoteDatabaseService _remoteDatabaseService;
-    private CancellationTokenSource? _remoteLoadCts;
+    private ClipListScope? _currentScope;
+    private CancellationTokenSource? _loadCts;
 
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
@@ -77,14 +77,21 @@ public partial class ClipListViewModel : ObservableObject,
     private bool _isLoading;
 
     /// <summary>
-    /// Whether the list shows clips of a Remote Database. Remote Databases are read-only: nothing in this view may
-    /// modify, move, rename or delete their clips, and they never receive captures.
+    /// Whether the list shows clips of a Remote Database, for Copy to local (its clips are copied, never moved). Never
+    /// checked to refuse a change; that is <see cref="IsReadOnly" />.
     /// </summary>
     [ObservableProperty]
     private bool _isRemoteDatabase;
 
     /// <summary>
-    /// Progress while a Remote Database's clips load page by page, or why they could not be loaded (Peer offline,
+    /// Whether the list shows a Database nothing may be written to (every Remote Database): nothing in this view may
+    /// modify, move, rename or delete its clips, and it never receives captures.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReadOnly;
+
+    /// <summary>
+    /// Progress while a Database's clips load page by page, or why they could not be loaded (file missing, Peer offline,
     /// timeout); <c>null</c> when there is nothing to report.
     /// </summary>
     [ObservableProperty]
@@ -119,7 +126,7 @@ public partial class ClipListViewModel : ObservableObject,
         IClipService clipService,
         IQuickPasteService quickPasteService,
         PowerPasteStatus powerPasteStatus,
-        IDatabaseContextFactory databaseContextFactory,
+        IDatabases databases,
         IRemoteDatabaseService remoteDatabaseService,
         IMessenger messenger,
         ILogger<ClipListViewModel> logger)
@@ -129,7 +136,7 @@ public partial class ClipListViewModel : ObservableObject,
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _powerPasteStatus = powerPasteStatus ?? throw new ArgumentNullException(nameof(powerPasteStatus));
-        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -171,7 +178,7 @@ public partial class ClipListViewModel : ObservableObject,
         _messenger.UnregisterAll(this);
         _remoteDatabaseService.RemoteCollectionChanged -= OnRemoteCollectionChanged;
         _debouncedClipSelection?.Dispose();
-        _remoteLoadCts?.Cancel();
+        _loadCts?.Cancel();
     }
 
     /// <summary>
@@ -303,9 +310,9 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// The most clips asked for in one page from a Peer.
+    /// The most clips asked for in one page.
     /// </summary>
-    public const int RemotePageSize = 200;
+    public const int PageSize = 200;
 
     /// <summary>
     /// Receives RemoteDatabaseNodeSelectedEvent when a node in a Remote Database is selected: loads the clips of the
@@ -319,13 +326,18 @@ public partial class ClipListViewModel : ObservableObject,
 
         try
         {
+            var databaseKey = RemoteDatabaseKey.From(message.Address);
             if (message.CollectionId is { } collectionId)
-                await LoadRemoteClipsAsync(message.Address, collectionId, message.FolderId);
+            {
+                await LoadAsync(databaseKey, message.FolderId is { } folderId
+                    ? new ClipListScope.Folder(collectionId, folderId)
+                    : new ClipListScope.Collection(collectionId));
+            }
             else
             {
                 // The Remote Database node itself lists no clips
-                CancelRemoteLoad();
-                BeginRemoteView(message.Address, null, null);
+                CancelLoad();
+                BeginView(databaseKey, null, null);
             }
         }
         catch (Exception ex)
@@ -344,26 +356,25 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("RemoteSearchResultsSelectedEvent received: RemoteDatabase={RemoteDatabase}, Count={Count}, TotalMatches={TotalMatches}",
             message.Address, message.Result.Clips.Count, message.Result.TotalMatches);
 
-        CancelRemoteLoad();
-        BeginRemoteView(message.Address, null, null);
+        CancelLoad();
+        BeginView(RemoteDatabaseKey.From(message.Address), null, null);
         foreach (var item in message.Result.Clips)
             Clips.Add(item);
 
         SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-        RemoteStatusMessage = message.Result.IsTruncated
-            ? $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches"
-            : null;
+        if (message.Result.IsTruncated)
+            RemoteStatusMessage = $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches";
     }
 
     /// <summary>
-    /// Shows the clips of a collection or folder of a Remote Database, fetched from its Peer page by page: the first
-    /// page appears as soon as it arrives and the rest are appended while the user works. Selecting another node
-    /// cancels the load. A Peer that is offline or too slow ends the load with <see cref="RemoteStatusMessage" /> set,
-    /// never a hang. Must be called on the UI thread.
+    /// Shows the clips of <paramref name="scope" /> in the Database that <paramref name="databaseKey" /> names, local or
+    /// remote, fetched page by page: the first page appears as soon as it arrives and the rest are appended while the
+    /// user works. Selecting another node cancels the load. A Database that cannot be read (its file is missing, its Peer
+    /// is offline or too slow) ends the load with <see cref="RemoteStatusMessage" /> set, never a hang. Must be called on
+    /// the UI thread.
     /// </summary>
-    public Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId,
-        CancellationToken cancellationToken = default) =>
-        LoadRemoteClipsAsync(address, collectionId, folderId, null, cancellationToken);
+    public Task LoadAsync(string databaseKey, ClipListScope scope, CancellationToken cancellationToken = default) =>
+        LoadAsync(databaseKey, scope, null, cancellationToken);
 
     /// <summary>
     /// Re-fetches the open Remote Database view when its Peer reports that the collection or folder it shows changed
@@ -378,12 +389,12 @@ public partial class ClipListViewModel : ObservableObject,
     {
         try
         {
-            if (!IsRemoteDatabase || CurrentCollectionId is not { } collectionId || !RemoteDatabaseKey.TryParse(CurrentDatabaseKey, out var address) ||
-                address != change.Address || change.CollectionId != (CurrentFolderId ?? collectionId))
+            if (_currentScope == null || CurrentCollectionId is not { } collectionId || CurrentDatabaseKey == null ||
+                CurrentDatabaseKey != RemoteDatabaseKey.From(change.Address) || change.CollectionId != (CurrentFolderId ?? collectionId))
                 return;
 
-            _logger.LogDebug("Remote collection {CollectionId} of {RemoteDatabase} changed; re-fetching", change.CollectionId, address);
-            await LoadRemoteClipsAsync(address, collectionId, CurrentFolderId, SelectedClip?.Id);
+            _logger.LogDebug("Remote collection {CollectionId} of {RemoteDatabase} changed; re-fetching", change.CollectionId, change.Address);
+            await LoadAsync(CurrentDatabaseKey, _currentScope, SelectedClip?.Id, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -391,22 +402,33 @@ public partial class ClipListViewModel : ObservableObject,
         }
     }
 
-    private async Task LoadRemoteClipsAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, Guid? reselectClipId,
-        CancellationToken cancellationToken = default)
+    private async Task LoadAsync(string databaseKey, ClipListScope scope, Guid? reselectClipId, CancellationToken cancellationToken)
     {
-        CancelRemoteLoad();
-        BeginRemoteView(address, collectionId, folderId);
+        CancelLoad();
+        var (collectionId, folderId) = scope switch
+        {
+            ClipListScope.Collection collection => (collection.CollectionId, (Guid?)null),
+            ClipListScope.Folder folder => (folder.CollectionId, folder.FolderId),
+            var _ => ((Guid?)null, (Guid?)null),
+        };
+
+        var database = BeginView(databaseKey, collectionId, folderId);
+        _currentScope = scope;
         using var load = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _remoteLoadCts = load;
+        _loadCts = load;
         var token = load.Token;
 
         IsLoading = true;
         try
         {
+            if (database == null)
+                return;
+
+            AcceptsNewClips = await AcceptsNewClipsAsync(database, scope, token);
             var offset = 0;
             while (true)
             {
-                var page = await _remoteDatabaseService.GetClipPageAsync(address, collectionId, folderId, offset, RemotePageSize, token);
+                var page = await database.GetClipPageAsync(scope, offset, PageSize, token);
                 token.ThrowIfCancellationRequested();
 
                 foreach (var item in page.Clips)
@@ -432,62 +454,90 @@ public partial class ClipListViewModel : ObservableObject,
                 SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
 
             RemoteStatusMessage = null;
-            _logger.LogInformation("Loaded {Count} clips from Remote Database {RemoteDatabase}", Clips.Count, address);
+            _logger.LogInformation("Loaded {Count} clips from Database {DatabaseKey}", Clips.Count, databaseKey);
         }
         catch (OperationCanceledException)
         {
             // Another node was selected, or the view went away
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             if (!token.IsCancellationRequested)
                 RemoteStatusMessage = ex.Message;
 
-            _logger.LogInformation("Could not load the clips of Remote Database {RemoteDatabase}: {Reason}", address, ex.Message);
+            _logger.LogInformation("Could not load the clips of Database {DatabaseKey}: {Reason}", databaseKey, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading the clips of Database {DatabaseKey}", databaseKey);
         }
         finally
         {
-            if (ReferenceEquals(_remoteLoadCts, load))
+            if (ReferenceEquals(_loadCts, load))
             {
                 IsLoading = false;
-                _remoteLoadCts = null;
+                _loadCts = null;
             }
         }
     }
 
     /// <summary>
-    /// Switches the list to a read-only view of a Remote Database, never showing the previous clips as if they were the Peer's.
+    /// Whether clips captured while <paramref name="scope" /> is shown belong in it: not in a read-only Database, the
+    /// Trash, or a Smart or SQL-based collection, which show what their query finds.
     /// </summary>
-    private void BeginRemoteView(RemoteDatabaseAddress address, Guid? collectionId, Guid? folderId)
+    private static async Task<bool> AcceptsNewClipsAsync(IDatabase database, ClipListScope scope, CancellationToken cancellationToken)
     {
-        IsRemoteDatabase = true;
-        AcceptsNewClips = false;
-        RemoteStatusMessage = null;
-        CurrentDatabaseKey = RemoteDatabaseKey.From(address);
-        CurrentCollectionId = collectionId;
-        CurrentFolderId = folderId;
-        SelectedClip = null;
-        SelectedClips.Clear();
-        Clips.Clear();
+        if (database.IsReadOnly || scope is ClipListScope.Trash)
+            return false;
+
+        if (scope is not ClipListScope.Collection { IncludeFolders: false } collection)
+            return true;
+
+        var tree = await database.GetTreeAsync(cancellationToken);
+        return tree.FirstOrDefault(p => p.Id == collection.CollectionId)?.Kind is not (CollectionEntryKind.Smart or CollectionEntryKind.SqlBased);
     }
 
     /// <summary>
-    /// Leaves a Remote Database view when a local node is selected.
+    /// Switches the list to a view of a Database, never showing the previous clips as if they were this one's. A
+    /// read-only (Remote) Database's view never accepts new clips.
     /// </summary>
-    private void EndRemoteView()
+    /// <returns>The Database, or <c>null</c> if it cannot be found (its reason is in <see cref="RemoteStatusMessage" />).</returns>
+    private IDatabase? BeginView(string databaseKey, Guid? collectionId, Guid? folderId)
     {
-        CancelRemoteLoad();
-        IsRemoteDatabase = false;
         RemoteStatusMessage = null;
+        CurrentDatabaseKey = databaseKey;
+        CurrentCollectionId = collectionId;
+        CurrentFolderId = folderId;
+        _currentScope = null;
+        SelectedClip = null;
+        SelectedClips.Clear();
+        Clips.Clear();
+
+        try
+        {
+            var database = _databases.Get(databaseKey);
+            IsReadOnly = database.IsReadOnly;
+            IsRemoteDatabase = database.Remote != null;
+            AcceptsNewClips = !database.IsReadOnly;
+            return database;
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            IsReadOnly = false;
+            IsRemoteDatabase = false;
+            AcceptsNewClips = false;
+            RemoteStatusMessage = ex.Message;
+            return null;
+        }
     }
 
-    private void CancelRemoteLoad()
+    private void CancelLoad()
     {
-        var previous = _remoteLoadCts;
+        var previous = _loadCts;
         if (previous == null)
             return;
 
-        _remoteLoadCts = null;
+        _loadCts = null;
         previous.Cancel();
         IsLoading = false;
     }
@@ -501,36 +551,30 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
             message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
 
-        EndRemoteView();
-
-        // Store the current database key
-        CurrentDatabaseKey = message.DatabaseKey;
-
-        // Set the active collection and folder for new clipboard captures
-        // Skip this for virtual collections like Trashcan (they don't receive new clips)
-        if (!message.IsTrashcan)
+        try
         {
-            await _collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
-            await _folderService.SetActiveAsync(message.FolderId);
+            // Set the active collection and folder for new clipboard captures
+            // Skip this for virtual collections like Trashcan (they don't receive new clips)
+            if (!message.IsTrashcan)
+            {
+                await _collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
+                await _folderService.SetActiveAsync(message.FolderId);
 
-            _logger.LogInformation("Active collection and folder updated for new clipboard captures");
+                _logger.LogInformation("Active collection and folder updated for new clipboard captures");
+            }
+
+            ClipListScope scope = message switch
+            {
+                { IsTrashcan: true } => new ClipListScope.Trash(),
+                { FolderId: { } folderId } => new ClipListScope.Folder(message.CollectionId, folderId),
+                var _ => new ClipListScope.Collection(message.CollectionId),
+            };
+
+            await LoadAsync(message.DatabaseKey, scope);
         }
-
-        // Load clips for the selected node
-        if (message.IsTrashcan)
+        catch (Exception ex)
         {
-            // Load deleted clips for the Trashcan virtual collection
-            await LoadDeletedClipsAsync(message.DatabaseKey);
-        }
-        else if (message.FolderId.HasValue)
-        {
-            // Load clips for the selected folder
-            await LoadClipsByFolderAsync(message.CollectionId, message.FolderId.Value);
-        }
-        else
-        {
-            // Load clips for the selected collection
-            await LoadClipsByCollectionAsync(message.CollectionId);
+            _logger.LogError(ex, "Failed to show collection {CollectionId} of Database {DatabaseKey}", message.CollectionId, message.DatabaseKey);
         }
     }
 
@@ -570,14 +614,6 @@ public partial class ClipListViewModel : ObservableObject,
             message.DatabaseKey, message.Query, message.ClipIds.Count);
 
         _logger.LogInformation("Clip IDs to load: {ClipIds}", string.Join(", ", message.ClipIds.Take(10)));
-
-        EndRemoteView();
-
-        // Store the current database key
-        CurrentDatabaseKey = message.DatabaseKey;
-
-        // Search results don't accept new clips
-        AcceptsNewClips = false;
 
         // Load clips by the specific IDs from search results
         await LoadClipsByIdsAsync(message.ClipIds, message.DatabaseKey);
@@ -664,17 +700,7 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("ShowAllClipsInChildrenRequestedEvent received: CollectionId={CollectionId}, DatabaseKey={DatabaseKey}",
             message.CollectionId, message.DatabaseKey);
 
-        EndRemoteView();
-
-        // Store the current database key and collection ID
-        CurrentDatabaseKey = message.DatabaseKey;
-        CurrentCollectionId = message.CollectionId;
-
-        // These views accept new clips
-        AcceptsNewClips = true;
-
-        // Load clips recursively
-        await LoadClipsByCollectionRecursiveAsync(message.CollectionId, message.DatabaseKey);
+        await LoadAsync(message.DatabaseKey, new ClipListScope.Collection(message.CollectionId, IncludeFolders: true));
     }
 
     /// <summary>
@@ -843,6 +869,8 @@ public partial class ClipListViewModel : ObservableObject,
     /// <param name="count">Maximum number of clips to load (default 1000).</param>
     public async Task LoadClipsAsync(int count = 1000)
     {
+        CancelLoad();
+        _currentScope = null;
         try
         {
             IsLoading = true;
@@ -885,265 +913,40 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Loads clips for a specific collection.
-    /// </summary>
-    /// <param name="collectionId">The collection ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task LoadClipsByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            IsLoading = true;
-            CurrentCollectionId = collectionId;
-            CurrentFolderId = null;
-
-            _logger.LogInformation("Loading clips for collection: {CollectionId}", collectionId);
-            IReadOnlyCollection<Clip> clips;
-            // Get the active database key
-            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
-            if (string.IsNullOrEmpty(activeDatabaseKey))
-            {
-                _logger.LogError("No active database key found, cannot load clips");
-                clips = [];
-                AcceptsNewClips = true; // Default to accepting new clips
-            }
-            else
-            {
-                // Get the collection to check if it's a virtual collection with SQL query
-                var collection = await _collectionService.GetByIdAsync(collectionId, cancellationToken);
-
-                if (collection is { IsVirtual: true } && !string.IsNullOrWhiteSpace(collection.Sql))
-                {
-                    // Virtual collection - execute SQL query
-                    _logger.LogInformation("Executing SQL query for virtual collection: {CollectionName}", collection.Title);
-                    AcceptsNewClips = false; // Virtual collections don't accept new clips
-                    clips = await _clipService.ExecuteSqlQueryAsync(activeDatabaseKey, collection.Sql, collection.RetentionLimit, cancellationToken);
-                    _logger.LogInformation("Retrieved {Count} clips from SQL query for virtual collection '{CollectionName}'", clips.Count, collection.Title);
-                }
-                else
-                {
-                    // Normal collection - load by collection ID
-                    AcceptsNewClips = true; // Normal collection view accepts new clips
-                    var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
-                    clips = await clipRepository.GetByCollectionAsync(collectionId, cancellationToken);
-                    _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-                }
-            }
-
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                var clipList = clips.ToList();
-                foreach (var item in clipList)
-                    Clips.Add(item);
-
-                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading clips for collection: {CollectionId}", collectionId);
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
-    /// Loads clips for a collection and all its child folders recursively.
-    /// </summary>
-    /// <param name="collectionId">The collection ID.</param>
-    /// <param name="databaseKey">The database key.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task LoadClipsByCollectionRecursiveAsync(Guid collectionId, string databaseKey, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            IsLoading = true;
-            CurrentCollectionId = collectionId;
-            CurrentFolderId = null;
-            AcceptsNewClips = true; // This is a normal collection view
-
-            _logger.LogInformation("Loading clips recursively for collection: {CollectionId}", collectionId);
-
-            // Use the new recursive service method
-            var clips = await _clipService.GetByCollectionRecursiveAsync(databaseKey, collectionId, false, cancellationToken);
-            _logger.LogInformation("Retrieved {Count} clips recursively from collection {CollectionId}", clips.Count, collectionId);
-
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                foreach (var clip in clips)
-                    Clips.Add(clip);
-
-                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading clips recursively for collection: {CollectionId}", collectionId);
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
-    /// Loads clips for a specific folder.
-    /// </summary>
-    /// <param name="collectionId">The collection ID (for tracking).</param>
-    /// <param name="folderId">The folder ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task LoadClipsByFolderAsync(Guid collectionId, Guid folderId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            IsLoading = true;
-            CurrentCollectionId = collectionId;
-            CurrentFolderId = folderId;
-            AcceptsNewClips = true; // Normal folder view accepts new clips
-
-            _logger.LogInformation("Loading clips for folder: {FolderId}", folderId);
-            IReadOnlyCollection<Clip> clips;
-            // Get the active database key
-            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
-            if (string.IsNullOrEmpty(activeDatabaseKey))
-            {
-                _logger.LogError("No active database key found, cannot load clips");
-                clips = [];
-            }
-            else
-            {
-                // Create repository using the factory
-                var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
-                clips = await clipRepository.GetByFolderAsync(folderId, cancellationToken);
-                _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, activeDatabaseKey);
-            }
-
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                foreach (var item in clips)
-                    Clips.Add(item);
-
-                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading clips for folder: {FolderId}", folderId);
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
-    /// Loads deleted clips for the Trashcan virtual collection.
-    /// </summary>
-    /// <param name="databaseKey">The database key to load from.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task LoadDeletedClipsAsync(string databaseKey, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            IsLoading = true;
-            CurrentCollectionId = null;
-            CurrentFolderId = null;
-            AcceptsNewClips = false; // Trash doesn't accept new clips
-
-            _logger.LogInformation("Loading deleted clips for database: {DatabaseKey}", databaseKey);
-
-            // Create repository using the factory
-            var clipRepository = _databaseContextFactory.GetClipRepository(databaseKey);
-            IReadOnlyCollection<Clip> clips = await clipRepository.GetDeletedAsync(cancellationToken);
-            _logger.LogInformation("Retrieved {Count} deleted clips from database '{DatabaseKey}'", clips.Count, databaseKey);
-
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                foreach (var item in clips)
-                    Clips.Add(item);
-
-                _logger.LogInformation("Updated UI collection: {Count} deleted clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading deleted clips for database: {DatabaseKey}", databaseKey);
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
-    /// Loads specific clips by their IDs (used for search results).
+    /// Loads specific clips by their IDs (used for search results). Must be called on the UI thread.
     /// </summary>
     /// <param name="clipIds">The list of clip IDs to load.</param>
     /// <param name="databaseKey">The database key to load clips from.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     public async Task LoadClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken = default)
     {
+        CancelLoad();
+        BeginView(databaseKey, null, null);
+
+        // Search results don't accept new clips
+        AcceptsNewClips = false;
+
         try
         {
             IsLoading = true;
-            CurrentCollectionId = null;
-            CurrentFolderId = null;
-            AcceptsNewClips = false; // Loading by IDs (search results) doesn't accept new clips
-
             _logger.LogInformation("Loading {Count} clips by IDs for database: {DatabaseKey}", clipIds.Count, databaseKey);
 
-            // Create repository using the factory
-            var clipRepository = _databaseContextFactory.GetClipRepository(databaseKey);
-
-            // Load each clip by ID
-            var clips = new List<Clip>();
             foreach (var item in clipIds)
             {
-                var clip = await clipRepository.GetByIdAsync(item, cancellationToken);
+                var clip = await _clipService.GetByIdAsync(databaseKey, item, cancellationToken);
                 if (clip != null)
-                    clips.Add(clip);
+                    Clips.Add(clip);
             }
 
-            _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", clips.Count, databaseKey);
+            _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", Clips.Count, databaseKey);
 
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                foreach (var item in clips)
-                    Clips.Add(item);
-
-                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
+            // Auto-select the first (most recent) clip without triggering clipboard operation
+            SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading clips by IDs for database: {DatabaseKey}", databaseKey);
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
+            Clips.Clear();
         }
         finally
         {
@@ -1152,22 +955,12 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Refreshes the clip list by reloading from the service.
+    /// Refreshes the clip list by loading what it shows again.
     /// </summary>
     public async Task RefreshAsync()
     {
-        if (IsRemoteDatabase)
-        {
-            if (RemoteDatabaseKey.TryParse(CurrentDatabaseKey, out var address) && CurrentCollectionId.HasValue)
-                await LoadRemoteClipsAsync(address, CurrentCollectionId.Value, CurrentFolderId);
-
-            return;
-        }
-
-        if (CurrentFolderId.HasValue && CurrentCollectionId.HasValue)
-            await LoadClipsByFolderAsync(CurrentCollectionId.Value, CurrentFolderId.Value);
-        else if (CurrentCollectionId.HasValue)
-            await LoadClipsByCollectionAsync(CurrentCollectionId.Value);
+        if (CurrentDatabaseKey != null && _currentScope != null)
+            await LoadAsync(CurrentDatabaseKey, _currentScope);
         else
             await LoadClipsAsync();
     }

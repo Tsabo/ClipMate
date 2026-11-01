@@ -9,6 +9,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
@@ -29,6 +30,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     private CollectionTreeViewModel _mockCollectionTreeViewModel = null!;
     private IConfigurationService _mockConfigurationService = null!;
     private IMessenger _mockMessenger = null!;
+    private readonly FakeDatabases _databases = new();
     private IPowerPasteService _mockPowerPasteService = null!;
     private ISearchService _mockSearchService = null!;
     private IServiceProvider _mockServiceProvider = null!;
@@ -46,14 +48,14 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         _mockServiceProvider = A.Fake<IServiceProvider>();
 
         // ClipListViewModel requires: ICollectionService, IFolderService, IClipService, 
-        // IQuickPasteService, IDatabaseContextFactory, IMessenger, ILogger<ClipListViewModel>
+        // IQuickPasteService, IDatabases, IMessenger, ILogger<ClipListViewModel>
         _mockClipListViewModel = A.Fake<ClipListViewModel>(o => o.WithArgumentsForConstructor(() => new ClipListViewModel(
             A.Fake<ICollectionService>(),
             A.Fake<IFolderService>(),
             A.Fake<IClipService>(),
             A.Fake<IQuickPasteService>(),
             new PowerPasteStatus(),
-            A.Fake<IDatabaseContextFactory>(),
+            A.Fake<IDatabases>(),
             A.Fake<IRemoteDatabaseService>(),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipListViewModel>>())));
@@ -72,13 +74,16 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<IDatabases>(),
             A.Fake<ISharedDatabaseService>(),
             A.Fake<ClipMate.App.Services.IPeerDialogService>())));
 
         // Setup selected node to return a test database path (SelectedNode is not virtual, so use SetupGet with Object property)
         A.CallTo(() => _mockCollectionTreeViewModel.SelectedNode)
             .Returns(new DatabaseTreeNode("Test Database", "test-database-path"));
+
+        // The Remote Database Copy to local copies from
+        _databases.AddRemote(new RemoteDatabase(_remoteAddress, "Clips", "LAPTOP", PeerConnectionStatus.Online, null));
 
         _coordinator = new ClipOperationsCoordinator(
             _mockActiveWindowService,
@@ -90,6 +95,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             _mockPowerPasteService,
             _mockSearchService,
             _mockMessenger,
+            _databases,
             _mockServiceProvider,
             A.Fake<ILogger<ClipOperationsCoordinator>>());
 
@@ -311,14 +317,14 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         await Assert.That(EncryptionKeyDialogViewModel.HasCachedKey).IsTrue();
     }
 
-    #region Remote Databases are read-only
+    #region Read-only Databases
 
     [Test]
-    public async Task ModifyingRequests_WhileShowingARemoteDatabase_NeverChangeAnyClip()
+    public async Task ModifyingRequests_WhileShowingAReadOnlyDatabase_NeverChangeAnyClip()
     {
         // Arrange
         var clip = new Clip { Id = Guid.NewGuid(), Title = "Remote", Type = ClipType.Files };
-        _mockClipListViewModel.IsRemoteDatabase = true;
+        _mockClipListViewModel.IsReadOnly = true;
         _mockClipListViewModel.CurrentDatabaseKey =
             RemoteDatabaseKey.From(new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([5]), Guid.NewGuid()));
         _mockClipListViewModel.Clips.Add(clip);
@@ -343,8 +349,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
 
     #region Copy to local
 
-    private static readonly string _remoteKey =
-        RemoteDatabaseKey.From(new RemoteDatabaseAddress(DeviceId.FromCertificateBytes([9]), Guid.NewGuid()));
+    private static readonly RemoteDatabaseAddress _remoteAddress = new(DeviceId.FromCertificateBytes([9]), Guid.NewGuid());
+    private static readonly string _remoteKey = RemoteDatabaseKey.From(_remoteAddress);
 
     [Test]
     public async Task CopyToLocalRequestedEvent_WithTarget_CopiesEachClipIntoTheLocalCollection()
@@ -398,7 +404,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     {
         // Arrange
         A.CallTo(() => _mockClipService.CopyToLocalAsync(A<string>._, A<Guid>._, A<string>._, A<Guid>._, A<CancellationToken>._))
-            .ThrowsAsync(new RemoteDatabaseUnavailableException("offline"));
+            .ThrowsAsync(new DatabaseUnavailableException("offline"));
 
         // Act
         _coordinator.Receive(new CopyToLocalRequestedEvent([Guid.NewGuid()], _remoteKey, "db_local01", Guid.NewGuid()));

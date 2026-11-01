@@ -7,6 +7,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,7 +26,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     private List<RemoteDatabase> _remoteDatabases = null!;
     private IPeerDialogService _peerDialogs = null!;
     private IRemoteDatabaseService _remoteDatabaseService = null!;
-    private IRemoteDatabaseTreeBuilder _remoteTreeBuilder = null!;
+    private IDatabases _databases = null!;
+    private ICollectionTreeBuilder _treeBuilder = null!;
     private CollectionTreeViewModel _viewModel = null!;
 
     [Before(Test)]
@@ -36,10 +38,14 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         _remoteDatabases = [];
         var remoteDatabaseService = A.Fake<IRemoteDatabaseService>();
         A.CallTo(() => remoteDatabaseService.GetRemoteDatabases()).ReturnsLazily(() => _remoteDatabases.ToList());
-        _remoteTreeBuilder = A.Fake<IRemoteDatabaseTreeBuilder>();
 
-        var localTree = A.Fake<ICollectionTreeBuilder>();
-        A.CallTo(() => localTree.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._))
+        // The Databases are the Remote Databases in the list, each as its Peer currently is
+        _databases = A.Fake<IDatabases>();
+        A.CallTo(() => _databases.All).ReturnsLazily(() => _remoteDatabases.Select(Open).ToList());
+        A.CallTo(() => _databases.Get(A<string>._)).ReturnsLazily((string key) => _remoteDatabases.Select(Open).First(p => p.Key == key));
+
+        _treeBuilder = A.Fake<ICollectionTreeBuilder>();
+        A.CallTo(() => _treeBuilder.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._))
             .Returns([new DatabaseTreeNode("My Clips", "db_local")]);
 
         var configurationService = A.Fake<IConfigurationService>();
@@ -49,8 +55,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         _peerDialogs = A.Fake<IPeerDialogService>();
 
         _viewModel = new CollectionTreeViewModel(_collectionService, A.Fake<IFolderService>(), A.Fake<IClipService>(), configurationService,
-            _messenger, localTree, NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(), A.Fake<IDatabaseIdService>(),
-            remoteDatabaseService, _remoteTreeBuilder, A.Fake<ISharedDatabaseService>(), _peerDialogs);
+            _messenger, _treeBuilder, NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(), A.Fake<IDatabaseIdService>(),
+            remoteDatabaseService, _databases, A.Fake<ISharedDatabaseService>(), _peerDialogs);
     }
 
     [After(Test)]
@@ -61,8 +67,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        var inbox = new RemoteCollectionTreeNode(new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10));
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).Returns([inbox]);
+        var inbox = new RemoteCollectionTreeNode(new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10));
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._)).Returns([inbox]);
         await _viewModel.LoadAsync();
 
         // Act
@@ -90,7 +96,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
         var remote = (RemoteDatabaseTreeNode)_viewModel.RootNodes.Single();
         await Assert.That(remote.IsUnavailable).IsTrue();
         await Assert.That(remote.Name).IsEqualTo("Work — LAPTOP (offline · last seen 2 h ago)");
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -98,8 +104,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        var inbox = new RemoteCollectionTreeNode(new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10));
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).Returns([inbox]);
+        var inbox = new RemoteCollectionTreeNode(new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10));
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._)).Returns([inbox]);
         await _viewModel.RefreshRemoteDatabasesAsync();
         _remoteDatabases[0] = Remote(PeerConnectionStatus.Offline, DateTime.Now);
 
@@ -135,8 +141,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
-            .Throws(new RemoteDatabaseUnavailableException("LAPTOP cannot be reached."));
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._))
+            .Throws(new DatabaseUnavailableException("LAPTOP cannot be reached."));
 
         // Act
         await _viewModel.RefreshRemoteDatabasesAsync();
@@ -144,7 +150,7 @@ public class CollectionTreeViewModelRemoteDatabaseTests
 
         // Assert
         await Assert.That(_viewModel.RootNodes.Single()).IsTypeOf<RemoteDatabaseTreeNode>();
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._)).MustHaveHappenedTwiceExactly();
     }
 
     [Test]
@@ -152,10 +158,10 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
-        var projects = new SharedCollection(Guid.NewGuid(), inbox.Id, "Projects", SharedCollectionKind.Folder, 5);
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
-            .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [inbox, projects], false)));
+        var inbox = new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
+        var projects = new CollectionEntry(Guid.NewGuid(), inbox.Id, "Projects", CollectionEntryKind.Folder, 5);
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._))
+            .ReturnsLazily(call => LayOut(call.GetArgument<TreeNodeBase>(1)!, [inbox, projects]));
         await _viewModel.RefreshRemoteDatabasesAsync();
         var remote = _viewModel.RootNodes.Single();
         var folderNode = remote.Children.OfType<RemoteCollectionTreeNode>().Single().Children.Single();
@@ -185,10 +191,10 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online) with { PeerName = "Work laptop" });
-        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
-        var projects = new SharedCollection(Guid.NewGuid(), inbox.Id, "Projects", SharedCollectionKind.Folder, 5);
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
-            .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [inbox, projects], false)));
+        var inbox = new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
+        var projects = new CollectionEntry(Guid.NewGuid(), inbox.Id, "Projects", CollectionEntryKind.Folder, 5);
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._))
+            .ReturnsLazily(call => LayOut(call.GetArgument<TreeNodeBase>(1)!, [inbox, projects]));
         await _viewModel.RefreshRemoteDatabasesAsync();
         var remote = _viewModel.RootNodes.Single();
         var inboxNode = remote.Children.OfType<RemoteCollectionTreeNode>().Single();
@@ -228,10 +234,10 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        var inbox = new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10);
-        var today = new SharedCollection(Guid.NewGuid(), null, "Today", SharedCollectionKind.Smart, 20);
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._))
-            .ReturnsLazily(call => Task.FromResult(RemoteDatabaseTreeBuilder.BuildChildren(call.GetArgument<RemoteDatabaseTreeNode>(0)!, [inbox, today], false)));
+        var inbox = new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10);
+        var today = new CollectionEntry(Guid.NewGuid(), null, "Today", CollectionEntryKind.Smart, 20);
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._))
+            .ReturnsLazily(call => LayOut(call.GetArgument<TreeNodeBase>(1)!, [inbox, today]));
 
         // Act
         await _viewModel.RefreshRemoteDatabasesAsync();
@@ -301,8 +307,8 @@ public class CollectionTreeViewModelRemoteDatabaseTests
     {
         // Arrange
         _remoteDatabases.Add(Remote(PeerConnectionStatus.Online));
-        var inbox = new RemoteCollectionTreeNode(new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10));
-        A.CallTo(() => _remoteTreeBuilder.BuildChildrenAsync(A<RemoteDatabaseTreeNode>._, A<CancellationToken>._)).Returns([inbox]);
+        var inbox = new RemoteCollectionTreeNode(new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10));
+        A.CallTo(() => _treeBuilder.BuildChildrenAsync(A<IDatabase>._, A<TreeNodeBase>._, A<TreeNodeType>._, A<CancellationToken>._)).Returns([inbox]);
         await _viewModel.LoadAsync();
         await _viewModel.RefreshRemoteDatabasesAsync();
 
@@ -339,6 +345,28 @@ public class CollectionTreeViewModelRemoteDatabaseTests
 
     private static RemoteDatabase Remote(PeerConnectionStatus status, DateTime? lastSeen = null) =>
         new(_work, "Work", "LAPTOP", status, lastSeen);
+
+    private static IDatabase Open(RemoteDatabase remote)
+    {
+        var database = A.Fake<IDatabase>();
+        A.CallTo(() => database.Key).Returns(RemoteDatabaseKey.From(remote.Address));
+        A.CallTo(() => database.Remote).Returns(remote);
+        return database;
+    }
+
+    /// <summary>
+    /// Lays out a Remote Database's tree as the real builder does.
+    /// </summary>
+    private static Task<IReadOnlyList<TreeNodeBase>> LayOut(TreeNodeBase databaseNode, CollectionEntry[] tree)
+    {
+        var databases = new FakeDatabases();
+        var database = databases.AddRemote(Remote(PeerConnectionStatus.Online));
+        database.Tree = [.. tree];
+        var configurationService = A.Fake<IConfigurationService>();
+        A.CallTo(() => configurationService.Configuration).Returns(new ClipMateConfiguration());
+        return new CollectionTreeBuilder(configurationService, databases, A.Fake<ICollectionService>(), NullLogger<CollectionTreeBuilder>.Instance)
+            .BuildChildrenAsync(database, databaseNode);
+    }
 
     private static IEnumerable<TreeNodeBase> Flatten(IEnumerable<TreeNodeBase> nodes) =>
         nodes.SelectMany(p => new[] { p }.Concat(Flatten(p.Children)));

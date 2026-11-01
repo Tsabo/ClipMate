@@ -202,7 +202,7 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The new local clip.</returns>
     /// <exception cref="InvalidOperationException">The target is a Remote Database, or the source clip no longer exists.</exception>
-    /// <exception cref="RemoteDatabaseUnavailableException">The Remote Database cannot be read right now.</exception>
+    /// <exception cref="DatabaseUnavailableException">The Remote Database cannot be read right now.</exception>
     Task<Clip> CopyToLocalAsync(string sourceDatabaseKey, Guid sourceClipId, string targetDatabaseKey, Guid targetCollectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -251,16 +251,6 @@ public interface IClipService
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<ClipPage> ExecuteSqlQueryPageAsync(string databaseKey, string sqlQuery, int retentionLimit, int offset, int count,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets clips in a collection and all child folders recursively from the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="collectionId">The collection ID.</param>
-    /// <param name="includeDeleted">Whether to include deleted clips.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of clips in the collection and all child folders.</returns>
-    Task<IReadOnlyList<Clip>> GetByCollectionRecursiveAsync(string databaseKey, Guid collectionId, bool includeDeleted = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads blob data (TextContent, ImageData, etc.) for a clip from the specified database.

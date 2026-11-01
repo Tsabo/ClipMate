@@ -16,11 +16,11 @@ public partial class ClipViewerViewModel : ObservableObject
     #region Constructor
 
     public ClipViewerViewModel(IDatabaseManager databaseManager,
-        IClipContentService clipContentService,
+        IDatabases databases,
         ILogger<ClipViewerViewModel> logger)
     {
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
-        _clipContentService = clipContentService ?? throw new ArgumentNullException(nameof(clipContentService));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -28,8 +28,8 @@ public partial class ClipViewerViewModel : ObservableObject
 
     #region Fields
 
-    private readonly IClipContentService _clipContentService;
     private readonly IDatabaseManager _databaseManager;
+    private readonly IDatabases _databases;
     private readonly ILogger<ClipViewerViewModel> _logger;
     private string? _currentDatabaseKey;
 
@@ -80,20 +80,12 @@ public partial class ClipViewerViewModel : ObservableObject
         {
             Clip? clip = null;
 
-            // A Remote Database is read from its Peer
-            if (RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
-                clip = (await _clipContentService.GetClipContentAsync(_currentDatabaseKey, args.ClipId))?.Clip;
-
-            // Try to load from specified database first
-            else if (!string.IsNullOrEmpty(_currentDatabaseKey))
-            {
-                await using var context = _databaseManager.CreateDatabaseContext(_currentDatabaseKey);
-                if (context != null)
-                    clip = await context.Clips.FindAsync(args.ClipId);
-            }
+            // Read it from its Database, local or remote
+            if (!string.IsNullOrEmpty(_currentDatabaseKey))
+                clip = (await _databases.Get(_currentDatabaseKey).GetClipContentAsync(args.ClipId))?.Clip;
 
             // If no database key provided, try all loaded databases
-            if (clip == null && !RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
+            if (clip == null && string.IsNullOrEmpty(args.DatabaseKey))
             {
                 foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
                 {

@@ -3,6 +3,7 @@ using ClipMate.Core.Repositories;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Services;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
@@ -69,7 +70,7 @@ public partial class ClipServiceTests
             MockTemplateService,
             MockEncryptionService,
             MockBlobCacheService,
-            new ClipContentService(MockContextFactory, MockRemoteDatabases),
+            new RepositoryDatabases(MockContextFactory, MockRemoteDatabases),
             A.Fake<IMessenger>(),
             MockLogger);
 

@@ -51,7 +51,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
         _blobCacheService = serviceProvider.GetRequiredService<IDecryptedBlobCacheService>();
-        _clipContentService = serviceProvider.GetRequiredService<IClipContentService>();
+        _databases = serviceProvider.GetRequiredService<IDatabases>();
 
         // Initialize toolbar ViewModel
         _toolbarViewModel = serviceProvider.GetRequiredService<ClipViewerToolbarViewModel>();
@@ -277,7 +277,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
     private readonly IDecryptedBlobCacheService _blobCacheService;
-    private readonly IClipContentService _clipContentService;
+    private readonly IDatabases _databases;
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
 
     private CancellationTokenSource? _loadCancellationTokenSource;
@@ -357,9 +357,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             // Read the clip, its formats and their content from its Database. A Remote Database is read from its
             // Peer (large content arrives in chunks) and is read-only, so it has no saved editor state.
-            var isRemote = RemoteDatabaseKey.IsRemote(_currentDatabaseKey);
-            var monacoStateRepository = isRemote ? null : _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
-            var content = await _clipContentService.GetClipContentAsync(_currentDatabaseKey, clipId, cancellationToken);
+            var database = _databases.Get(_currentDatabaseKey);
+            var monacoStateRepository = database.IsReadOnly ? null : _databaseContextFactory.GetMonacoEditorStateRepository(_currentDatabaseKey);
+            var content = await database.GetClipContentAsync(clipId, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // The Clip object tells whether the content is encrypted
@@ -464,7 +464,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         {
             _logger.LogDebug("Load clip data cancelled for ClipId: {ClipId}", clipId);
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             // An offline or slow Peer: say so without a modal error on every selection
             _logger.LogInformation("Could not load remote clip {ClipId}: {Reason}", clipId, ex.Message);
@@ -547,15 +547,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             // Load everything in one atomic operation
             await TextEditor.LoadContentAsync(blobData.Data, savedLanguage, editorState?.ViewState);
 
-            // A Remote Database is read-only: its clips can be viewed and copied, never edited
-            var isRemote = RemoteDatabaseKey.IsRemote(_currentDatabaseKey);
-            TextEditor.IsReadOnly = isRemote;
+            // A read-only Database's clips can be viewed and copied, never edited
+            var isReadOnly = IsReadOnlyDatabase();
+            TextEditor.IsReadOnly = isReadOnly;
             TextEditor.Visibility = Visibility.Visible;
             NoTextMessage.Visibility = Visibility.Collapsed;
             TextTab.Visibility = Visibility.Visible;
 
-            // Track the ClipData ID for saving changes (never for a remote clip)
-            _textFormatClipDataId = isRemote ? null : textFormat.Id;
+            // Track the ClipData ID for saving changes (never for a read-only Database's clip)
+            _textFormatClipDataId = isReadOnly ? null : textFormat.Id;
             return;
         }
 
@@ -1015,6 +1015,25 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
     #region Save Methods
 
+    /// <summary>
+    /// Whether the clip shown is in a Database nothing may be written to; a Database that can no longer be found
+    /// counts as read-only, so nothing is saved to it.
+    /// </summary>
+    private bool IsReadOnlyDatabase()
+    {
+        if (string.IsNullOrEmpty(_currentDatabaseKey))
+            return false;
+
+        try
+        {
+            return _databases.Get(_currentDatabaseKey).IsReadOnly;
+        }
+        catch (DatabaseUnavailableException)
+        {
+            return true;
+        }
+    }
+
     public async Task SaveTextEditorAsync()
     {
         if (_textFormatClipDataId == null)
@@ -1023,8 +1042,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             return;
         }
 
-        // A Remote Database is read-only
-        if (RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
+        // A read-only Database's clips are never saved
+        if (IsReadOnlyDatabase())
             return;
 
         try

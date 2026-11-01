@@ -82,6 +82,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     }
 
     /// <inheritdoc />
+    public IDatabase Open(RemoteDatabase database) => new RemoteDatabaseProxy(database, this);
+
+    /// <inheritdoc />
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         await _refreshGate.WaitAsync(cancellationToken);
@@ -112,12 +115,12 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<SharedCollection>> GetCollectionTreeAsync(RemoteDatabaseAddress address,
+    public async Task<IReadOnlyList<CollectionEntry>> GetCollectionTreeAsync(RemoteDatabaseAddress address,
         CancellationToken cancellationToken = default)
     {
         var (identity, peer) = GetReachablePeer(address.DeviceId);
         return await _client.GetCollectionTreeAsync(identity, peer, address.DatabaseId, cancellationToken)
-               ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database.");
+               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database.");
     }
 
     /// <inheritdoc />
@@ -126,7 +129,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     {
         var (identity, peer) = GetReachablePeer(address.DeviceId);
         return await _client.GetClipPageAsync(identity, peer, address.DatabaseId, collectionId, folderId, offset, count, cancellationToken)
-               ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this collection.");
+               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this collection.");
     }
 
     /// <inheritdoc />
@@ -142,7 +145,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         ArgumentNullException.ThrowIfNull(filters);
         var (identity, peer) = GetReachablePeer(address.DeviceId);
         return await _client.SearchAsync(identity, peer, address.DatabaseId, filters, cancellationToken)
-               ?? throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
+               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
     }
 
     /// <inheritdoc />
@@ -163,11 +166,11 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     {
         var identity = _localDevice.Identity;
         if (!_configurationService.Configuration.Networking.Enabled || identity == null)
-            throw new RemoteDatabaseUnavailableException("Networking is off.");
+            throw new DatabaseUnavailableException("Networking is off.");
 
-        var peer = _peerStore.Find(deviceId) ?? throw new RemoteDatabaseUnavailableException("That Device is not a Peer.");
+        var peer = _peerStore.Find(deviceId) ?? throw new DatabaseUnavailableException("That Device is not a Peer.");
         if (_status.GetStatus(deviceId) != PeerConnectionStatus.Online)
-            throw new RemoteDatabaseUnavailableException($"{peer.DisplayName} is offline.");
+            throw new DatabaseUnavailableException($"{peer.DisplayName} is offline.");
 
         return (identity, peer);
     }
@@ -180,7 +183,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
             if (!shared.SequenceEqual(peer.SharedDatabases))
                 await _peerStore.RecordSharedDatabasesAsync(peer.DeviceId, shared, cancellationToken);
         }
-        catch (RemoteDatabaseUnavailableException ex)
+        catch (DatabaseUnavailableException ex)
         {
             // The status monitor notices separately; keep the last known list.
             _logger.LogDebug(ex, "Could not get the Shared Databases of Peer {DeviceId}", peer.DeviceId.ToShortDisplayString());

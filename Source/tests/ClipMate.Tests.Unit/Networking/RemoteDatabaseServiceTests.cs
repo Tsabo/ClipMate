@@ -334,7 +334,7 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        var tree = new[] { new SharedCollection(Guid.NewGuid(), null, "Inbox", SharedCollectionKind.Collection, 10) };
+        var tree = new[] { new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10) };
         A.CallTo(() => _client.GetCollectionTreeAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, A<CancellationToken>._))
             .Returns(tree);
 
@@ -353,7 +353,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId)))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
     }
 
@@ -363,11 +363,11 @@ public class RemoteDatabaseServiceTests
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
         A.CallTo(() => _client.GetCollectionTreeAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<CancellationToken>._))
-            .Returns((IReadOnlyList<SharedCollection>?)null);
+            .Returns((IReadOnlyList<CollectionEntry>?)null);
 
         // Act / Assert
         await Assert.That(async () => await _service.GetCollectionTreeAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId)))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -395,7 +395,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
     }
 
@@ -409,7 +409,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -437,7 +437,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
     }
 
@@ -451,7 +451,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
     }
 
     [Test]
@@ -463,7 +463,7 @@ public class RemoteDatabaseServiceTests
 
         // Act / Assert
         await Assert.That(async () => await _service.GetClipContentAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid()))
-            .Throws<RemoteDatabaseUnavailableException>();
+            .Throws<DatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
     }
 

@@ -33,9 +33,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     private readonly IMessenger _messenger;
     private readonly IPeerDialogService _peerDialogs;
     private readonly IDatabaseIdService _databaseIdService;
+    private readonly IDatabases _databases;
     private readonly Dictionary<RemoteDatabaseAddress, RemoteDatabaseTreeNode> _remoteDatabaseNodes = [];
     private readonly IRemoteDatabaseService _remoteDatabaseService;
-    private readonly IRemoteDatabaseTreeBuilder _remoteDatabaseTreeBuilder;
     private readonly RemoteSearchResultsCache _remoteSearchResultsCache;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISharedDatabaseService _sharedDatabaseService;
@@ -51,7 +51,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         SearchResultsCache searchResultsCache,
         IDatabaseIdService databaseIdService,
         IRemoteDatabaseService remoteDatabaseService,
-        IRemoteDatabaseTreeBuilder remoteDatabaseTreeBuilder,
+        IDatabases databases,
         ISharedDatabaseService sharedDatabaseService,
         IPeerDialogService peerDialogs,
         RemoteSearchResultsCache? remoteSearchResultsCache = null)
@@ -66,7 +66,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
         _databaseIdService = databaseIdService ?? throw new ArgumentNullException(nameof(databaseIdService));
         _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
-        _remoteDatabaseTreeBuilder = remoteDatabaseTreeBuilder ?? throw new ArgumentNullException(nameof(remoteDatabaseTreeBuilder));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _sharedDatabaseService = sharedDatabaseService ?? throw new ArgumentNullException(nameof(sharedDatabaseService));
         _peerDialogs = peerDialogs ?? throw new ArgumentNullException(nameof(peerDialogs));
         _remoteSearchResultsCache = remoteSearchResultsCache ?? new RemoteSearchResultsCache();
@@ -76,7 +76,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         _messenger.Register<RefreshCollectionTreeRequestedEvent>(this);
 
         // Remote Databases come and go with sharing, Peer status and Pairing, independently of the local tree
-        _remoteDatabaseService.RemoteDatabasesChanged += OnRemoteDatabasesChanged;
+        _databases.Changed += OnRemoteDatabasesChanged;
     }
 
     /// <summary>
@@ -356,14 +356,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     }
 
     /// <summary>
-    /// Brings the Remote Database nodes in line with <see cref="IRemoteDatabaseService" />: adds new ones, removes those
+    /// Brings the Remote Database nodes in line with <see cref="IDatabases" />: adds new ones, removes those
     /// that are no longer shared or whose Peer was unpaired, greys out those whose Peer is offline, and fetches the
     /// collection tree of each available one that has not been loaded yet. Must run on the UI thread.
     /// </summary>
     public async Task RefreshRemoteDatabasesAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
-        var remoteDatabases = _remoteDatabaseService.GetRemoteDatabases();
+        var remoteDatabases = _databases.All.Select(p => p.Remote).OfType<RemoteDatabase>().ToList();
         var current = remoteDatabases.Select(p => p.Address).ToHashSet();
 
         foreach (var item in _remoteDatabaseNodes.Values.Where(p => !current.Contains(p.Address)).ToList())
@@ -408,7 +408,8 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         node.ChildrenLoaded = true;
         try
         {
-            var children = await _remoteDatabaseTreeBuilder.BuildChildrenAsync(node, cancellationToken);
+            var children = await _collectionTreeBuilder.BuildChildrenAsync(_databases.Get(RemoteDatabaseKey.From(node.Address)), node,
+                cancellationToken: cancellationToken);
             if (!_remoteDatabaseNodes.ContainsKey(node.Address))
                 return; // Removed meanwhile
 
@@ -422,7 +423,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 IsUnavailable = node.IsUnavailable,
             });
         }
-        catch (Exception ex) when (ex is RemoteDatabaseUnavailableException or OperationCanceledException)
+        catch (Exception ex) when (ex is DatabaseUnavailableException or OperationCanceledException)
         {
             node.ChildrenLoaded = false;
             _logger.LogInformation("Could not load Remote Database {RemoteDatabase}: {Reason}", node.Address, ex.Message);
@@ -469,11 +470,11 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (FindRemoteDatabaseNode(node) is { } remoteDatabaseNode)
         {
-            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName);
+            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
             return node switch
             {
                 // Smart and SQL-based collections have no clips of their own to search within
-                RemoteCollectionTreeNode { Collection.Kind: SharedCollectionKind.Collection or SharedCollectionKind.Folder } collection =>
+                RemoteCollectionTreeNode { Collection.Kind: CollectionEntryKind.Collection or CollectionEntryKind.Folder } collection =>
                     target with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
                 RemoteFolderTreeNode folder => folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
                     ? target with { CollectionId = parent.Collection.Id, CollectionName = parent.Name, FolderId = folder.Folder.Id, FolderName = folder.Name }
@@ -1034,6 +1035,6 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     public void Dispose()
     {
         _messenger.UnregisterAll(this);
-        _remoteDatabaseService.RemoteDatabasesChanged -= OnRemoteDatabasesChanged;
+        _databases.Changed -= OnRemoteDatabasesChanged;
     }
 }

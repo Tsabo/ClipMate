@@ -276,7 +276,8 @@ public partial class CollectionTreeControl : IRecipient<ExpandAllNodesRequestedE
         {
             if (current is DatabaseTreeNode databaseNode)
             {
-                return string.IsNullOrEmpty(databaseNode.DatabasePath) || RemoteDatabaseKey.IsRemote(databaseNode.DatabasePath)
+                // Only local Databases have DatabaseTreeNodes; a Remote Database's node is a RemoteDatabaseTreeNode
+                return string.IsNullOrEmpty(databaseNode.DatabasePath)
                     ? null
                     : (databaseNode.DatabasePath, collection.Id);
             }

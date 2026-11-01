@@ -4,6 +4,7 @@ using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Logging;
@@ -68,7 +69,7 @@ public class ClipRawFormatStorageTests : IntegrationTestBase
             A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
-            new ClipContentService(contextFactory, A.Fake<IRemoteDatabaseService>()),
+            new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(),
             A.Fake<ILogger<ClipService>>());
     }

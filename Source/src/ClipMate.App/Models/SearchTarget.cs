@@ -33,9 +33,10 @@ public sealed record SearchTarget(string DatabaseKey, string DatabaseName)
     public string? FolderName { get; init; }
 
     /// <summary>
-    /// Gets whether the target is a Remote Database: searched by its Peer, with no SQL.
+    /// Gets whether the target is a Remote Database: searched by its Peer, with no SQL. Set by whoever makes the
+    /// target from a Remote Database's node.
     /// </summary>
-    public bool IsRemote => RemoteDatabaseKey.IsRemote(DatabaseKey);
+    public bool IsRemote { get; init; }
 }
 
 /// <summary>
