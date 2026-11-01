@@ -70,8 +70,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
     private ClipService CreateService() => new(
         _mockDatabaseContextFactory,
         A.Fake<IConfigurationService>(),
-        A.Fake<IClipboardService>(),
-        A.Fake<ITemplateService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),
         A.Fake<IDatabases>(),

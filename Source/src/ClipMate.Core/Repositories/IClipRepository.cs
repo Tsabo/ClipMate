@@ -25,13 +25,14 @@ public interface IClipRepository
     Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The plain text of the newest clip in a collection, outside the Trash: what a capture going into that collection
+    /// The newest clip in a collection, outside the Trash, and its plain text: what a capture going into that collection
     /// is compared with to find a Duplicate.
     /// </summary>
     /// <param name="collectionId">The collection.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The text; null when the collection has no clips or its newest clip has no plain text.</returns>
-    Task<string?> GetNewestPlainTextAsync(Guid collectionId, CancellationToken cancellationToken = default);
+    /// <returns>The clip's ID and its text (null when it has no plain text); null when the collection has no clips.</returns>
+    Task<(Guid ClipId, string? Text)?> GetNewestPlainTextAsync(Guid collectionId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the most recent clips, ordered by captured date descending.

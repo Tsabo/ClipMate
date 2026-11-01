@@ -325,8 +325,6 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
         return new ClipService(
             mockFactory,
             configService,
-            clipboardService,
-            templateService,
             encryptionService,
             blobCacheService!,
             new RepositoryDatabases(mockFactory),

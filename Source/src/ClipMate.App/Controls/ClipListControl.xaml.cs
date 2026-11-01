@@ -144,8 +144,7 @@ public partial class ClipListControl
             typeof(RoutedEventHandler),
             typeof(ClipListControl));
 
-    private readonly IClipboardService? _clipboardService;
-    private readonly IClipService? _clipService;
+    private readonly ICurrentClipWriter? _currentClipWriter;
     private readonly ILogger<ClipListControl> _logger;
     private readonly IMessenger _messenger;
     private readonly PreferencesConfiguration _preferences;
@@ -175,8 +174,7 @@ public partial class ClipListControl
         _shortcutService = app.ServiceProvider.GetService<IShortcutService>();
         _quickPasteService = app.ServiceProvider.GetService<IQuickPasteService>();
         _pasteTargetTracker = app.ServiceProvider.GetService<IPasteTargetTracker>();
-        _clipService = app.ServiceProvider.GetService<IClipService>();
-        _clipboardService = app.ServiceProvider.GetService<IClipboardService>();
+        _currentClipWriter = app.ServiceProvider.GetService<ICurrentClipWriter>();
         _logger = app.ServiceProvider.GetService<ILogger<ClipListControl>>()!;
         var options = app.ServiceProvider.GetService<IOptions<ClipMateConfiguration>>();
         _preferences = options?.Value.Preferences ?? new PreferencesConfiguration();
@@ -428,11 +426,11 @@ public partial class ClipListControl
         RaiseEvent(new RoutedEventArgs(SelectionChangedEvent, this));
 
         // For shortcut selections, explicitly push to clipboard
-        if (shortcutVm == null || newClip == null || _clipService == null)
+        if (shortcutVm == null || newClip == null || _currentClipWriter == null)
             return;
 
         _logger.LogDebug("Pushing shortcut selection to clipboard: {ClipId}", newClip.Id);
-        await _clipService.LoadAndSetClipboardAsync(shortcutVm.DatabaseKey, newClip.Id);
+        await _currentClipWriter.MakeCurrentAsync(shortcutVm.DatabaseKey, newClip.Id);
     }
 
     private async void ClipProperties_Click(object sender, RoutedEventArgs e)
@@ -585,12 +583,12 @@ public partial class ClipListControl
     /// </summary>
     private async void PlaceSourceUrlOnClipboard_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem?.SourceUrl is not { Length: > 0 } sourceUrl || _clipboardService == null)
+        if (SelectedItem?.SourceUrl is not { Length: > 0 } sourceUrl || _currentClipWriter == null)
             return;
 
         try
         {
-            await _clipboardService.SetClipboardContentAsync(new Clip
+            await _currentClipWriter.PutOnClipboardAsync(new Clip
             {
                 Id = Guid.NewGuid(),
                 Type = ClipType.Text,
@@ -915,7 +913,8 @@ public partial class ClipListControl
         {
             var vm = shortcutViewModels[0];
             _logger.LogDebug("Single shortcut - automatically pushing to clipboard: {ClipId}", vm.Clip.Id);
-            await clipService.LoadAndSetClipboardAsync(vm.DatabaseKey, vm.Clip.Id);
+            if (_currentClipWriter != null)
+                await _currentClipWriter.MakeCurrentAsync(vm.DatabaseKey, vm.Clip.Id);
         }
     }
 
@@ -1033,7 +1032,7 @@ public partial class ClipListControl
     /// </summary>
     private async Task TriggerQuickPasteAsync()
     {
-        if (_quickPasteService == null || _clipService == null)
+        if (_quickPasteService == null)
         {
             _logger.LogDebug("QuickPaste services not available");
             return;
@@ -1065,23 +1064,11 @@ public partial class ClipListControl
 
         try
         {
-            // Load full clip with all formats from database
-            var fullClip = await _clipService.GetByIdAsync(databaseKey, selectedClip.Id);
-            if (fullClip == null)
-            {
-                _logger.LogDebug("QuickPaste: Could not load clip {ClipId}", selectedClip.Id);
-                return;
-            }
-
-            // GetByIdAsync only loads format flags (HasText/HasFiles/etc), not the actual blob
-            // content - load TextContent/ImageData/etc. before handing the clip to QuickPaste.
-            await _clipService.LoadBlobDataAsync(databaseKey, fullClip);
-
             _logger.LogDebug("QuickPaste: Pasting clip (ID: {ClipId}, Title: {Title}) to target application",
-                fullClip.Id, fullClip.Title);
+                selectedClip.Id, selectedClip.Title);
 
-            // Execute QuickPaste
-            var success = await _quickPasteService.PasteClipAsync(fullClip);
+            // QuickPaste loads the clip's content itself
+            var success = await _quickPasteService.PasteClipAsync(databaseKey, selectedClip);
             if (success)
                 _logger.LogDebug("QuickPaste: Paste successful");
             else

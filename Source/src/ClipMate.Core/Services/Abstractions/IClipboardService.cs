@@ -64,20 +64,23 @@ public interface IClipboardService
     Task<Clip?> CaptureSpecialAsync(ClipboardReading reading, IReadOnlyCollection<string> formatNames, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sets the system clipboard content from a clip.
+    /// Sets the system clipboard content from a clip, marked as ClipMate's own copy. Only the Current Clip writer calls
+    /// this (ADR-0004).
     /// </summary>
-    /// <param name="clip">The clip to place on the clipboard.</param>
+    /// <param name="clip">The clip to place on the clipboard, with its content loaded.</param>
+    /// <param name="filtered">Only the clip's plain text, or its image when it has no text.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that completes when the clipboard has been updated.</returns>
-    Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default);
+    Task SetClipboardContentAsync(Clip clip, bool filtered = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The Formats that <see cref="SetClipboardContentAsync" /> would put on the clipboard for a clip, as raw data,
     /// without touching the clipboard. Used by Power Paste to offer the clip by delayed rendering. Call on the UI thread.
     /// </summary>
     /// <param name="clip">The clip, with its content loaded.</param>
+    /// <param name="filtered">Only the clip's plain text, or its image when it has no text.</param>
     /// <returns>One entry per clipboard format, empty if the clip has nothing to put on the clipboard.</returns>
-    IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip);
+    IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip, bool filtered = false);
 
     /// <summary>
     /// Suspends reacting to clipboard change notifications without stopping monitoring or

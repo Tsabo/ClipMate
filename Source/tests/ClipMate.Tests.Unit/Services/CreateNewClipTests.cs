@@ -35,8 +35,6 @@ public class CreateNewClipTests : TestFixtureBase
     private ClipService CreateService() => new(
         _mockContextFactory,
         A.Fake<IConfigurationService>(),
-        A.Fake<IClipboardService>(),
-        A.Fake<ITemplateService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),
         A.Fake<IDatabases>(),

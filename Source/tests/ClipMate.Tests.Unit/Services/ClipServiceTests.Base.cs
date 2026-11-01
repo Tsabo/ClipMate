@@ -27,9 +27,7 @@ public partial class ClipServiceTests
     protected IDatabaseContextFactory MockContextFactory = null!;
     protected IEncryptionService MockEncryptionService = null!;
     protected ILogger<ClipService> MockLogger = null!;
-    protected IClipboardService MockClipboardService = null!;
     protected IRemoteDatabaseService MockRemoteDatabases = null!;
-    protected ITemplateService MockTemplateService = null!;
 
     [Before(Test)]
     public void Setup()
@@ -42,10 +40,7 @@ public partial class ClipServiceTests
         MockConfigService = A.Fake<IConfigurationService>();
         MockContextFactory = A.Fake<IDatabaseContextFactory>();
         MockLogger = A.Fake<ILogger<ClipService>>();
-        MockClipboardService = A.Fake<IClipboardService>();
         MockRemoteDatabases = A.Fake<IRemoteDatabaseService>();
-        MockTemplateService = A.Fake<ITemplateService>();
-        A.CallTo(() => MockTemplateService.TryApplyTemplate(A<Clip>._)).Returns(null);
 
         // Setup factory to return our mock repositories
         A.CallTo(() => MockContextFactory.GetClipRepository(A<string>.Ignored))
@@ -66,8 +61,6 @@ public partial class ClipServiceTests
         new ClipService(
             MockContextFactory,
             MockConfigService,
-            MockClipboardService,
-            MockTemplateService,
             MockEncryptionService,
             MockBlobCacheService,
             new RepositoryDatabases(MockContextFactory, MockRemoteDatabases),

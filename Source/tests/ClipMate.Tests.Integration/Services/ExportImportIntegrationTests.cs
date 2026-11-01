@@ -620,8 +620,6 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
@@ -662,8 +660,6 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
             new RepositoryDatabases(contextFactory),
@@ -704,8 +700,6 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
             new RepositoryDatabases(contextFactory),
@@ -736,8 +730,6 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(), A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
             A.Fake<IMessenger>(), serviceLogger);

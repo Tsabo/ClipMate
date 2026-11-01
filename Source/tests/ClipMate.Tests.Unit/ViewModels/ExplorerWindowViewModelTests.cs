@@ -55,6 +55,7 @@ public class ExplorerWindowViewModelTests
             mockCollectionService,
             mockFolderService,
             mockClipService,
+            A.Fake<ICurrentClipWriter>(),
             mockQuickPasteService,
             new PowerPasteStatus(),
             mockDatabases,

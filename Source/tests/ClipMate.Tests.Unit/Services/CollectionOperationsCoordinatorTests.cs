@@ -1,3 +1,4 @@
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.App.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -25,13 +26,16 @@ public class CollectionOperationsCoordinatorTests
         // Act & Assert
         await Assert.That(() => new CollectionOperationsCoordinator(
                 null!,
-                null!, // IAutoAppendService
-                null!, // ClipListViewModel - required but can be null for this test
+                null!,
+                // IAutoAppendService
+                null!,
+                // ClipListViewModel - required but can be null for this test
                 null!,
                 null!,
                 null!,
                 null!,
                 null!,
+                A.Fake<ICurrentClipWriter>(),
                 null!,
                 messenger,
                 null!,
@@ -56,8 +60,10 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!,
                 null!,
+                A.Fake<ICurrentClipWriter>(),
                 null!,
-                null!, // messenger is null
+                null!,
+                // messenger is null
                 null!,
                 logger))
             .Throws<ArgumentNullException>();
@@ -80,6 +86,7 @@ public class CollectionOperationsCoordinatorTests
                 null!,
                 null!,
                 null!,
+                A.Fake<ICurrentClipWriter>(),
                 null!,
                 messenger,
                 null!,

@@ -27,7 +27,9 @@ public class ClipListViewModelRemoteSearchTests
     [Before(Test)]
     public void Setup() => _workDatabase = _databases.AddRemote(new RemoteDatabase(_work, "Work", "LAPTOP", PeerConnectionStatus.Online, null));
 
-    private ClipListViewModel CreateViewModel() => new(_collectionService, _folderService, A.Fake<IClipService>(), A.Fake<IQuickPasteService>(),
+    private ClipListViewModel CreateViewModel() => new(_collectionService, _folderService, A.Fake<IClipService>(),
+        A.Fake<ICurrentClipWriter>(),
+        A.Fake<IQuickPasteService>(),
         new PowerPasteStatus(), _databases, _remoteDatabases, A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
 
     [Test]

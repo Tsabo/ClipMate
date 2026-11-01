@@ -45,6 +45,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly ILogger<PowerPasteClipboardBridge> _logger;
     private readonly IPowerPasteService _powerPasteService;
     private readonly Queue<DateTimeOffset> _recentReArms = new();
@@ -69,6 +70,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
     public PowerPasteClipboardBridge(IPowerPasteService powerPasteService,
         IClipboardService clipboardService,
         IConfigurationService configurationService,
+        ICurrentClipWriter currentClipWriter,
         ITemplateService templateService,
         IWin32InputInterop win32,
         ILogger<PowerPasteClipboardBridge> logger,
@@ -77,6 +79,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -193,7 +196,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
 
             try
             {
-                await _clipboardService.SetClipboardContentAsync(copy);
+                await _currentClipWriter.PutOnClipboardAsync(copy);
                 _logger.LogInformation("PowerPaste left the waiting clip {ClipId} on the clipboard", copy.Id);
             }
             catch (Exception ex)
@@ -230,9 +233,14 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
             : clip.WithText(templatedText);
 
         _armedClip = pastedClip;
-        ArmedFormats = isExplodePiece
-            ? [new ClipboardFormatData((uint)Formats.UnicodeText.Code, DataObjectFormats.EncodeUnicodeText(pastedClip.TextContent ?? string.Empty))]
-            : _clipboardService.GetClipboardFormats(pastedClip);
+        if (isExplodePiece)
+        {
+            ArmedFormats = [new ClipboardFormatData((uint)Formats.UnicodeText.Code,
+                DataObjectFormats.EncodeUnicodeText(pastedClip.TextContent ?? string.Empty))];
+            _currentClipWriter.ReportCurrent(pastedClip, null);
+        }
+        else
+            ArmedFormats = _currentClipWriter.Prepare(pastedClip);
 
         if (ArmedFormats.Count == 0)
         {

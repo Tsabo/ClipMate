@@ -37,10 +37,11 @@ public interface IQuickPasteService
     /// <summary>
     /// Pastes the specified clip to the current target using the selected formatting string.
     /// </summary>
-    /// <param name="clip">The clip to paste.</param>
+    /// <param name="databaseKey">The Database the clip is stored in.</param>
+    /// <param name="clip">The clip to paste; its content needn't be loaded.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if paste was successful, false otherwise.</returns>
-    Task<bool> PasteClipAsync(Clip clip, CancellationToken cancellationToken = default);
+    Task<bool> PasteClipAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Switches focus to the current target and sends a TAB keystroke.

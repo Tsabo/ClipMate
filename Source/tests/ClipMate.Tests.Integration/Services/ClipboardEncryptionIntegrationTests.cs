@@ -226,8 +226,6 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             encryptionService,
             decryptedBlobCacheService,
             new RepositoryDatabases(contextFactory),

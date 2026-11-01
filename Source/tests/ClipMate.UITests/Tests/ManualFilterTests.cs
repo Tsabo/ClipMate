@@ -8,7 +8,8 @@ using ClipMate.UITests.PageObjects;
 namespace ClipMate.UITests.Tests;
 
 /// <summary>
-/// The Manual Filter hotkey leaves only the clipboard's plain text (or its image), as ClipMate 7's does.
+/// The Manual Filter hotkey puts the Current Clip back on the clipboard with only its plain text (or its image), as
+/// ClipMate 7's does.
 /// <para>
 /// Uses a hotkey the user's own ClipMate doesn't hold, and the real, shared clipboard, whose previous content it puts
 /// back afterwards.

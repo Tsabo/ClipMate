@@ -14,9 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Searching Shows Progress** - While a search runs, the dialog says which Database it is searching and **Go!** is disabled. **Cancel** stops the search and leaves the dialog open.
 
 ### Changed
+- **Manual Filter Filters the Current Clip** - The Manual Filter hotkey puts the Current Clip back on the clipboard with only its plain text (or its image, when it has no text), as ClipMate 7 does, instead of filtering whatever is on the clipboard. When nothing has been captured or picked yet, it does nothing.
+- **QuickPaste Uses the Template** - QuickPaste now applies the active template, like every other way of putting a clip on the clipboard.
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **QuickPaste Now Pasted an Empty Clip** - The QuickPaste Now command could paste the selected clip before its content was loaded. It now loads the clip from its Database first, including the text of a macro.
 - **Searching a Peer's Database Did Nothing** - The search dialog closed as soon as **Go!** was pressed, and closing it canceled the search, so a Peer never had time to answer. The dialog now stays open until the search finishes. **Help** no longer closes it either.
 - **Search Searched the Last Database Selected** - The toolbar's **Search** always searched whichever Database was last selected in the collection tree. **Search in** now shows what will be searched and lets you change it.
 - **SQL Maintenance Closed After a Failed Commit** - When committing changes failed, the window closed anyway instead of staying open so you could try again.

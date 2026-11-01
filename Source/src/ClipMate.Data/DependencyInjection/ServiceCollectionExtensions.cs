@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
 
         // Every Database, local or remote, behind one interface (the Remote Databases come from IRemoteDatabaseService)
         services.AddSingleton<IDatabases, Databases>();
+        services.AddSingleton<ICurrentClipWriter, CurrentClipWriter>();
         services.AddTransient<IShortcutService, ShortcutService>();
         services.AddTransient<IApplicationFilterService, ApplicationFilterService>();
         services.AddTransient<IFolderService, FolderService>();

@@ -14,14 +14,15 @@ public partial class PowerPasteClipboardBridgeTests
         var bridge = CreateBridge();
         var clip = CreateImageClip();
         var formats = new List<ClipboardFormatData> { new((uint)Formats.Dib.Code, [1, 2, 3]), new(49_000, [4]) };
-        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip)).Returns(formats);
+        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip, false)).Returns(formats);
 
         // Act
         bridge.Arm(clip);
 
         // Assert
         await Assert.That(bridge.ArmedFormats).IsEquivalentTo(formats);
-        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<bool>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -38,14 +39,15 @@ public partial class PowerPasteClipboardBridgeTests
             new((uint)Formats.HtmlAlt.Code, [3]),
         };
 
-        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip)).Returns(formats);
+        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip, false)).Returns(formats);
 
         // Act
         bridge.Arm(clip);
 
         // Assert
         await Assert.That(bridge.ArmedFormats).IsEquivalentTo(formats);
-        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<bool>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -59,8 +61,8 @@ public partial class PowerPasteClipboardBridgeTests
         clip.HtmlContent = "<b>Hello</b>";
         A.CallTo(() => _mockTemplateService.PreviewTemplateText(clip)).Returns("Dear Hello, #1");
         Clip? offered = null;
-        A.CallTo(() => _mockClipboardService.GetClipboardFormats(A<Clip>.Ignored))
-            .Invokes((Clip p) => offered = p)
+        A.CallTo(() => _mockClipboardService.GetClipboardFormats(A<Clip>.Ignored, A<bool>.Ignored))
+            .Invokes((Clip p, bool _) => offered = p)
             .Returns([new ClipboardFormatData((uint)Formats.UnicodeText.Code, [1])]);
 
         // Act
@@ -128,6 +130,36 @@ public partial class PowerPasteClipboardBridgeTests
 
     [Test]
     [Category("Arm")]
+    public async Task Arm_Clip_BecomesTheCurrentClip()
+    {
+        // Arrange
+        var bridge = CreateBridge();
+        var clip = CreateTextClip();
+
+        // Act
+        bridge.Arm(clip);
+
+        // Assert
+        await Assert.That(_currentClipWriter.CurrentClip?.Clip).IsSameReferenceAs(clip);
+    }
+
+    [Test]
+    [Category("Arm")]
+    public async Task Arm_WithExplodePiece_BecomesTheCurrentClip()
+    {
+        // Arrange
+        var bridge = CreateBridge();
+        var piece = CreateTextClip("piece");
+
+        // Act
+        bridge.Arm(piece, true);
+
+        // Assert
+        await Assert.That(_currentClipWriter.CurrentClip?.Clip).IsSameReferenceAs(piece);
+    }
+
+    [Test]
+    [Category("Arm")]
     public async Task Arm_WithExplodePiece_OffersPlainTextOnly()
     {
         // Arrange
@@ -141,7 +173,8 @@ public partial class PowerPasteClipboardBridgeTests
         await Assert.That(bridge.ArmedFormats.Count).IsEqualTo(1);
         await Assert.That(bridge.ArmedFormats[0].FormatId).IsEqualTo((uint)Formats.UnicodeText.Code);
         await Assert.That(System.Text.Encoding.Unicode.GetString(bridge.ArmedFormats[0].Data)).IsEqualTo("piece\0");
-        A.CallTo(() => _mockClipboardService.GetClipboardFormats(A<Clip>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => _mockClipboardService.GetClipboardFormats(A<Clip>.Ignored,
+            A<bool>.Ignored)).MustNotHaveHappened();
     }
 
     [Test]
@@ -180,7 +213,8 @@ public partial class PowerPasteClipboardBridgeTests
         // registration is skipped rather than thrown
         var bridge = CreateBridge();
         var clip = CreateTextClip();
-        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip)).Returns([new ClipboardFormatData((uint)Formats.UnicodeText.Code, [1])]);
+        A.CallTo(() => _mockClipboardService.GetClipboardFormats(clip,
+            false)).Returns([new ClipboardFormatData((uint)Formats.UnicodeText.Code, [1])]);
 
         // Act & Assert
         await Assert.That(() => bridge.Arm(clip)).ThrowsNothing();

@@ -53,6 +53,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             A.Fake<ICollectionService>(),
             A.Fake<IFolderService>(),
             A.Fake<IClipService>(),
+            A.Fake<ICurrentClipWriter>(),
             A.Fake<IQuickPasteService>(),
             new PowerPasteStatus(),
             A.Fake<IDatabases>(),

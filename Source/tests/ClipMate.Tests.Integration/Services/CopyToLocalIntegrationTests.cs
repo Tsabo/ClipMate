@@ -292,8 +292,6 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
 
         return new ClipService(factory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             new AesEncryptionService(),
             blobCacheService,
             databases,

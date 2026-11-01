@@ -77,16 +77,14 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         A.CallTo(() => configServiceMock.Configuration).Returns(clipboardConfig);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock, clipboardSoundService, blobCacheServiceMock,
-            new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+        _clipboardService = new ClipboardService(clipboardLogger, win32Mock, configServiceMock, profileServiceMock,
+            clipboardSoundService, blobCacheServiceMock);
 
         var clipServiceLogger = A.Fake<ILogger<ClipService>>();
 
         _clipService = new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            _clipboardService,
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
@@ -157,7 +155,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
         var autoAppendService = _serviceProvider.GetRequiredService<IAutoAppendService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, contextFactory, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, A.Fake<ICurrentClipWriter>(),
+            contextFactory, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed

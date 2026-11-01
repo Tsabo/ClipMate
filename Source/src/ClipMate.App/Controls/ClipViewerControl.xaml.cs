@@ -50,6 +50,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
+        _currentClipWriter = serviceProvider.GetRequiredService<ICurrentClipWriter>();
         _blobCacheService = serviceProvider.GetRequiredService<IDecryptedBlobCacheService>();
         _databases = serviceProvider.GetRequiredService<IDatabases>();
 
@@ -276,6 +277,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly ITextTransformService _textTransformService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly IDecryptedBlobCacheService _blobCacheService;
     private readonly IDatabases _databases;
     private readonly SemaphoreSlim _loadSemaphore = new(1, 1);
@@ -1201,8 +1203,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 return;
             }
 
-            // Use the centralized service method to load and set clipboard
-            await _clipService.LoadAndSetClipboardAsync(_currentDatabaseKey, ClipId.Value);
+            await _currentClipWriter.MakeCurrentAsync(_currentDatabaseKey, ClipId.Value);
             _logger.LogInformation("[ClipViewer] Updated clipboard after editing clip: {ClipId}", ClipId.Value);
         }
         catch (Exception ex)

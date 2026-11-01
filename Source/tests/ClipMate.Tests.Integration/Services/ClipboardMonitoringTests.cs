@@ -113,7 +113,7 @@ public class ClipboardMonitoringTests : IntegrationTestBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock,
-            new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService,
+            blobCacheServiceMock);
     }
 }

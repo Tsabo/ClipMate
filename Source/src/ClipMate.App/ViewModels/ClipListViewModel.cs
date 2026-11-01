@@ -37,6 +37,7 @@ public partial class ClipListViewModel : ObservableObject,
     IDisposable
 {
     private readonly IClipService _clipService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly ICollectionService _collectionService;
     private readonly IDatabases _databases;
     private readonly RateLimitedFunc<bool> _debouncedClipSelection;
@@ -132,6 +133,7 @@ public partial class ClipListViewModel : ObservableObject,
     public ClipListViewModel(ICollectionService collectionService,
         IFolderService folderService,
         IClipService clipService,
+        ICurrentClipWriter currentClipWriter,
         IQuickPasteService quickPasteService,
         PowerPasteStatus powerPasteStatus,
         IDatabases databases,
@@ -142,6 +144,7 @@ public partial class ClipListViewModel : ObservableObject,
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _powerPasteStatus = powerPasteStatus ?? throw new ArgumentNullException(nameof(powerPasteStatus));
         _databases = databases ?? throw new ArgumentNullException(nameof(databases));
@@ -622,8 +625,11 @@ public partial class ClipListViewModel : ObservableObject,
 
         try
         {
-            // Paste the clip using QuickPaste
-            await _quickPasteService.PasteClipAsync(SelectedClip);
+            if (string.IsNullOrEmpty(CurrentDatabaseKey))
+                return;
+
+            // QuickPaste loads the clip's content itself; the list row has only its metadata
+            await _quickPasteService.PasteClipAsync(CurrentDatabaseKey, SelectedClip);
         }
         catch (Exception ex)
         {
@@ -826,8 +832,8 @@ public partial class ClipListViewModel : ObservableObject,
             if (string.IsNullOrEmpty(CurrentDatabaseKey))
                 throw new InvalidOperationException("No database is currently selected");
 
-            // Use the centralized service method to load and set clipboard
-            await _clipService.LoadAndSetClipboardAsync(CurrentDatabaseKey, clip.Id, cancellationToken);
+            await _currentClipWriter.MakeCurrentAsync(CurrentDatabaseKey, clip.Id,
+                cancellationToken: cancellationToken);
 
             _logger.LogInformation("[ClipListViewModel] Set clipboard content for clip: {ClipId}", clip.Id);
         }
