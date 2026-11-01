@@ -90,7 +90,7 @@ public class SearchViewModelSearchInTests
 
         // Assert: the Trashcan and Search Results have no clips of their own either, so they are left out
         await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Depth}:{p.Name}"))
-            .IsEquivalentTo(["0:My Clips", "1:Inbox", "2:Projects", "1:Safe", "0:Work — DESKTOP", "1:Reports", "0:Notes — LAPTOP"], CollectionOrdering.Matching);
+            .IsEquivalentTo(["0:All Databases", "0:My Clips", "1:Inbox", "2:Projects", "1:Safe", "0:Work — DESKTOP", "1:Reports", "0:Notes — LAPTOP"], CollectionOrdering.Matching);
         await Assert.That(_viewModel.SearchInOptions.Where(p => !p.IsAvailable).Select(p => p.Name)).IsEquivalentTo(["Notes — LAPTOP"]);
     }
 
@@ -108,7 +108,7 @@ public class SearchViewModelSearchInTests
 
         // Assert
         await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Icon} {p.Name}"))
-            .IsEquivalentTo(["💾 My Clips", "📥 Inbox", "📁 Projects", "🔒 Safe", "❌ Archive", "🖥️ Work — DESKTOP", "📁 Reports", "🖥️ Notes — LAPTOP"],
+            .IsEquivalentTo(["🗃️ All Databases", "💾 My Clips", "📥 Inbox", "📁 Projects", "🔒 Safe", "❌ Archive", "🖥️ Work — DESKTOP", "📁 Reports", "🖥️ Notes — LAPTOP"],
                 CollectionOrdering.Matching);
     }
 
@@ -127,7 +127,7 @@ public class SearchViewModelSearchInTests
         await loading;
 
         // Assert
-        await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Icon} {p.Name}")).IsEquivalentTo(["❌ My Clips"]);
+        await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Icon} {p.Name}")).IsEquivalentTo(["🗃️ All Databases", "❌ My Clips"], CollectionOrdering.Matching);
     }
 
     private SearchInOption Option(string path) => _viewModel.SearchInOptions.Single(p => p.Path == path);
@@ -338,7 +338,7 @@ public class SearchViewModelSearchInTests
         await loading;
 
         // Assert
-        await Assert.That(whileWaiting).IsEquivalentTo(["My Clips", "My Clips › Inbox", "My Clips › Inbox › Projects", "My Clips › Safe", "Work — DESKTOP"],
+        await Assert.That(whileWaiting).IsEquivalentTo(["All Databases", "My Clips", "My Clips › Inbox", "My Clips › Inbox › Projects", "My Clips › Safe", "Work — DESKTOP"],
             CollectionOrdering.Matching);
         await Assert.That(selectedWhileWaiting).IsEqualTo("My Clips › Inbox");
         await Assert.That(_viewModel.SearchInOptions.Select(p => p.Path)).Contains("Work — DESKTOP › Reports");

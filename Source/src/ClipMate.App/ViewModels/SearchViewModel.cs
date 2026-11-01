@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using ClipMate.App.Models;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
@@ -42,6 +43,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
     private readonly ISearchTargetSource _searchTargetSource;
+    private string? _allDatabasesProgress;
     private CancellationTokenSource? _loadingSearchIn;
     private RunningSearch? _runningSearch;
 
@@ -136,6 +138,8 @@ public partial class SearchViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRemoteTarget))]
+    [NotifyPropertyChangedFor(nameof(IsAllDatabasesTarget))]
+    [NotifyPropertyChangedFor(nameof(ShowsPeerFiltersNote))]
     [NotifyPropertyChangedFor(nameof(IsSqlAvailable))]
     [NotifyPropertyChangedFor(nameof(CanSearchDeletedAndShortcuts))]
     [NotifyPropertyChangedFor(nameof(SelectedSearchIn))]
@@ -174,6 +178,7 @@ public partial class SearchViewModel : ObservableObject
                 e.PropertyName != nameof(TotalMatches) && e.PropertyName != nameof(IsRemoteTarget) &&
                 e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(SelectedSearchIn) &&
                 e.PropertyName != nameof(SearchingDescription) && e.PropertyName != nameof(CanSearchDeletedAndShortcuts) &&
+                e.PropertyName != nameof(IsAllDatabasesTarget) && e.PropertyName != nameof(ShowsPeerFiltersNote) &&
                 e.PropertyName != null)
                 UpdateSqlQuery();
         };
@@ -218,6 +223,13 @@ public partial class SearchViewModel : ObservableObject
         try
         {
             SearchInOptions.Clear();
+            var allDatabases = SearchTarget.AllDatabases;
+            SearchInOptions.Add(new SearchInOption(allDatabases, allDatabases.DatabaseName, 0, true)
+            {
+                Path = allDatabases.DatabaseName,
+                Icon = SearchTarget.AllDatabasesIcon,
+            });
+
             var databases = _databases.All;
             foreach (var item in databases)
             {
@@ -337,20 +349,35 @@ public partial class SearchViewModel : ObservableObject
     public bool IsRemoteTarget => Target?.IsRemote == true;
 
     /// <summary>
-    /// Gets whether the SQL panel is shown. No SQL is ever sent to a Peer, so it is hidden for Remote Databases.
+    /// Gets whether the target is "All Databases": every available Database, local and remote.
     /// </summary>
-    public bool IsSqlAvailable => !IsRemoteTarget;
+    public bool IsAllDatabasesTarget => Target?.IsAllDatabases == true;
+
+    /// <summary>
+    /// Gets whether the SQL panel is shown. No SQL is ever sent to a Peer, so it is hidden for Remote Databases and for
+    /// "All Databases", which includes them.
+    /// </summary>
+    public bool IsSqlAvailable => IsSqlAvailableFor(Target);
 
     /// <summary>
     /// Gets whether the deleted-clips and shortcut filters apply. Peers never serve deleted clips or shortcuts, so they
-    /// are disabled for Remote Databases.
+    /// are disabled for Remote Databases; "All Databases" applies them to its local Databases.
     /// </summary>
     public bool CanSearchDeletedAndShortcuts => !IsRemoteTarget;
 
     /// <summary>
-    /// Gets what the dialog says while a search runs, naming the Database searched.
+    /// Gets whether the dialog notes that the deleted-clips and shortcut filters don't apply to Peers: for "All
+    /// Databases", which searches local and Remote Databases alike.
     /// </summary>
-    public string SearchingDescription => $"Searching {Target?.DatabaseName ?? "the active Database"}…";
+    public bool ShowsPeerFiltersNote => IsAllDatabasesTarget;
+
+    /// <summary>
+    /// Gets what the dialog says while a search runs: the Database searched, or for "All Databases" how many have
+    /// answered and which are still searching.
+    /// </summary>
+    public string SearchingDescription => _allDatabasesProgress ?? $"Searching {Target?.DatabaseName ?? "the active Database"}…";
+
+    private static bool IsSqlAvailableFor(SearchTarget? target) => target is not ({ IsRemote: true } or { IsAllDatabases: true });
 
     /// <summary>
     /// Starts "Search in" at what is selected in the collection tree (a local or Remote Database, collection or folder),
@@ -389,6 +416,9 @@ public partial class SearchViewModel : ObservableObject
     {
         if (target == null)
             return "the active Database";
+
+        if (target.IsAllDatabases)
+            return target.DatabaseName;
 
         var description = $"Database {target.DatabaseKey} ('{target.DatabaseName}'{(target.IsRemote ? ", remote" : string.Empty)})";
         if (target.CollectionName != null)
@@ -466,8 +496,8 @@ public partial class SearchViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A different Database chosen in "Search in" brings its own formats, and a Remote one hides the saved searches that
-    /// need SQL.
+    /// A different Database chosen in "Search in" brings its own formats, and a Remote one (or "All Databases") hides
+    /// the saved searches that need SQL.
     /// </summary>
     partial void OnTargetChanged(SearchTarget? oldValue, SearchTarget? newValue)
     {
@@ -475,7 +505,7 @@ public partial class SearchViewModel : ObservableObject
             return;
 
         LoadFormatsCommand.Execute(null);
-        if (oldValue?.IsRemote != newValue?.IsRemote)
+        if (IsSqlAvailableFor(oldValue) != IsSqlAvailableFor(newValue))
             LoadSavedQueriesCommand.Execute(null);
     }
 
@@ -638,7 +668,7 @@ public partial class SearchViewModel : ObservableObject
         _runningSearch?.Cancel("another search started");
         using var search = new RunningSearch();
         _runningSearch = search;
-        var searchedKey = Target?.DatabaseKey ?? "the active Database";
+        var searchedKey = Target is { IsAllDatabases: true } ? Target.DatabaseName : Target?.DatabaseKey ?? "the active Database";
         var started = Stopwatch.GetTimestamp();
         try
         {
@@ -654,6 +684,12 @@ public partial class SearchViewModel : ObservableObject
                 "(filtered search)";
 
             _logger.LogInformation("Searching {DatabaseKey}, scope {Scope}, for {Criteria}", searchedKey, filters.Scope, DescribeCriteria(filters));
+
+            if (Target is { IsAllDatabases: true })
+            {
+                await SearchAllDatabasesAsync(queryDescription, search);
+                return;
+            }
 
             IReadOnlyList<Clip> clips;
             string? databaseKey;
@@ -721,9 +757,151 @@ public partial class SearchViewModel : ObservableObject
             if (ReferenceEquals(_runningSearch, search))
             {
                 _runningSearch = null;
+                SetAllDatabasesProgress(null);
                 IsSearching = false;
             }
         }
+    }
+
+    /// <summary>
+    /// Searches every available Database at once, local and remote, each with the filters it can apply. Each Database's
+    /// matches (or none) go to its own Search Results node as it answers, without selecting it; a Database that is
+    /// unavailable or fails is skipped and its node left as it was. When all have answered, the first Database in tree
+    /// order with matches is selected and the status bar gives the total and the skipped Databases' reasons.
+    /// </summary>
+    private async Task SearchAllDatabasesAsync(string queryDescription, RunningSearch search)
+    {
+        var databases = _databases.All;
+        var skipped = new Dictionary<IDatabase, string>();
+        var searching = new Dictionary<Task<SearchMatches>, IDatabase>();
+        foreach (var item in databases)
+        {
+            if (item.IsAvailable)
+                searching[SearchDatabaseAsync(item, search.Token)] = item;
+            else
+            {
+                skipped[item] = item.Remote is { } remote ? $"{remote.PeerName} is offline" : $"the file of {item.Name} is missing";
+                _logger.LogInformation("Search of {DatabaseKey} skipped: {Reason}", item.Key, skipped[item]);
+            }
+        }
+
+        var found = new Dictionary<IDatabase, SearchMatches>();
+        var count = searching.Count;
+        ReportProgress();
+        while (searching.Count > 0)
+        {
+            var answered = await Task.WhenAny(searching.Keys);
+            var database = searching[answered];
+            searching.Remove(answered);
+            try
+            {
+                var matches = await answered;
+                search.Token.ThrowIfCancellationRequested();
+                found[database] = matches;
+                ShowResults(database, matches);
+            }
+            catch (OperationCanceledException) when (search.Token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Logged by SearchDatabaseAsync; an offline Peer or a missing file doesn't fail the search as a whole
+                skipped[database] = ex.Message.TrimEnd('.');
+            }
+
+            ReportProgress();
+        }
+
+        var clips = databases.Where(found.ContainsKey).SelectMany(p => found[p].Clips).ToList();
+        TotalMatches = found.Values.Sum(p => p.TotalMatches);
+        SearchResults.Clear();
+        foreach (var item in clips)
+            SearchResults.Add(item);
+
+        _messenger.Send(new SearchResultsChangedEvent(queryDescription, clips));
+
+        // One selection, at the end, so the tree doesn't jump with every answer
+        if (databases.FirstOrDefault(p => found.TryGetValue(p, out var matches) && matches.Clips.Count > 0) is { } first)
+            _messenger.Send(new SearchExecutedEvent(first.Key, queryDescription, found[first].Clips.Select(p => p.Id).ToList()));
+
+        var summary = $"{TotalMatches:N0} {(TotalMatches == 1 ? "match" : "matches")} in {found.Count} {(found.Count == 1 ? "Database" : "Databases")}";
+        if (skipped.Count > 0)
+            summary += $". {skipped.Count} couldn't be searched: {string.Join("; ", databases.Where(skipped.ContainsKey).Select(p => skipped[p]))}";
+
+        _logger.LogInformation("Searched {Count} of {DatabaseCount} Databases: {Summary}", found.Count, databases.Count, summary);
+        ShowSummaryAfterTheResults(summary);
+
+        void ReportProgress()
+        {
+            var still = databases.Where(searching.ContainsValue).Select(p => p.Remote?.DisplayName ?? p.Name).ToList();
+            SetAllDatabasesProgress(still.Count == 0
+                ? $"Searched {count} of {count} Databases"
+                : $"Searched {count - still.Count} of {count} Databases… still searching {string.Join(", ", still)}");
+        }
+
+        void ShowResults(IDatabase database, SearchMatches matches)
+        {
+            // Every Database searched gets this search's results, even none, so no node shows an older query's matches
+            if (database.Remote is { } remote)
+                _remoteSearchResultsCache.SetResults(remote.Address, new RemoteSearchResult(queryDescription, matches.Clips, matches.TotalMatches));
+            else
+                _searchResultsCache.SetResults(database.Key, new SearchResult(queryDescription, matches.Clips.Select(p => p.Id).ToList()));
+
+            _messenger.Send(new SearchExecutedEvent(database.Key, queryDescription, matches.Clips.Select(p => p.Id).ToList()) { SelectsNode = false });
+        }
+    }
+
+    /// <summary>
+    /// Searches one Database of an "All Databases" search with the filters it can apply, and logs its outcome.
+    /// </summary>
+    private async Task<SearchMatches> SearchDatabaseAsync(IDatabase database, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            var matches = await database.SearchAsync(BuildSearchFilters(remote: database.Remote != null), cancellationToken: cancellationToken);
+            _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", database.Key,
+                matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            return matches;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            _logger.LogInformation("Search of {DatabaseKey} failed after {ElapsedMs:F0} ms: {Reason}", database.Key,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", database.Key, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            throw;
+        }
+    }
+
+    private void SetAllDatabasesProgress(string? progress)
+    {
+        _allDatabasesProgress = progress;
+        OnPropertyChanged(nameof(SearchingDescription));
+    }
+
+    /// <summary>
+    /// Shows an "All Databases" summary in the status bar after the tree has selected a Search Results node, kept while
+    /// the clip list loads that node's clips and selects the first, until the user picks a clip or node.
+    /// </summary>
+    private void ShowSummaryAfterTheResults(string summary)
+    {
+        // Queued at a low priority, which UiThread.Run doesn't give: the tree selects the node at normal priority, and
+        // that selection would otherwise end the kept summary
+        var status = new StatusUpdateEvent(summary) { KeepUntilUserSelects = true };
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            _messenger.Send(status);
+        else
+            dispatcher.BeginInvoke(() => _messenger.Send(status), DispatcherPriority.ApplicationIdle);
     }
 
     /// <summary>
@@ -752,9 +930,9 @@ public partial class SearchViewModel : ObservableObject
         {
             var queries = await _searchService.GetSavedQueriesAsync();
 
-            // A saved search that relies on SQL cannot run against a Remote Database
+            // A saved search that relies on SQL cannot run against a Remote Database, nor "All Databases"
             SavedQueries.Clear();
-            foreach (var item in queries.Where(p => !IsRemoteTarget || !DependsOnSql(p)))
+            foreach (var item in queries.Where(p => IsSqlAvailable || !DependsOnSql(p)))
                 SavedQueries.Add(item);
         }
         catch (Exception)
@@ -780,11 +958,17 @@ public partial class SearchViewModel : ObservableObject
                 return;
             }
 
-            var databaseKey = Target?.DatabaseKey ?? _collectionService.GetActiveDatabaseKey();
-            if (string.IsNullOrEmpty(databaseKey))
+            // "All Databases": the formats of every local Database
+            var databaseKeys = Target is { IsAllDatabases: true }
+                ? _databases.All.Where(p => p is { Remote: null, IsAvailable: true }).Select(p => p.Key).ToList()
+                : new[] { Target?.DatabaseKey ?? _collectionService.GetActiveDatabaseKey() }.OfType<string>().Where(p => p.Length > 0).ToList();
+
+            if (databaseKeys.Count == 0)
                 return;
 
-            var formats = await _clipService.GetDistinctFormatsAsync(databaseKey);
+            var formats = new List<string>();
+            foreach (var item in databaseKeys)
+                formats.AddRange((await _clipService.GetDistinctFormatsAsync(item)).Except(formats, StringComparer.OrdinalIgnoreCase).ToList());
 
             AvailableFormats.Clear();
             foreach (var item in formats)
@@ -971,7 +1155,11 @@ public partial class SearchViewModel : ObservableObject
     /// The filters for the form as filled in.
     /// </summary>
     /// <param name="withScope">Whether to include what "Search in" chose; a saved search leaves it out.</param>
-    private SearchFilters BuildSearchFilters(bool withScope = true)
+    /// <param name="remote">
+    /// Whether the filters are for a Remote Database, which can't apply the deleted-clips and shortcut filters;
+    /// <c>null</c> for the target's kind. "All Databases" builds each Database's filters for its own kind.
+    /// </param>
+    private SearchFilters BuildSearchFilters(bool withScope = true, bool? remote = null)
     {
         var contentTypes = new List<ClipType>();
 
@@ -997,7 +1185,7 @@ public partial class SearchViewModel : ObservableObject
         }
 
         var scope = withScope ? Scope : SearchScope.AllCollections;
-        var remote = IsRemoteTarget;
+        var forPeer = remote ?? IsRemoteTarget;
         return new SearchFilters
         {
             // All boxes checked (or none) means no type restriction, so rich text, HTML and custom clips still match
@@ -1029,10 +1217,10 @@ public partial class SearchViewModel : ObservableObject
                 ? true
                 : null,
             // Peers never serve deleted clips or shortcuts
-            HasShortcutOnly = HasShortcutOnly && !remote
+            HasShortcutOnly = HasShortcutOnly && !forPeer
                 ? true
                 : null,
-            IncludeDeleted = IncludeDeletedClips && !remote,
+            IncludeDeleted = IncludeDeletedClips && !forPeer,
         };
     }
 

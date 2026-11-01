@@ -14,6 +14,22 @@ namespace ClipMate.App.Models;
 public sealed record SearchTarget(string DatabaseKey, string DatabaseName)
 {
     /// <summary>
+    /// Every available Database, local and remote, searched at once; each one's matches go to its own Search Results
+    /// node. Its <see cref="DatabaseKey" /> names no Database.
+    /// </summary>
+    public static SearchTarget AllDatabases { get; } = new(string.Empty, "All Databases") { IsAllDatabases = true };
+
+    /// <summary>
+    /// The collection tree has no node for "All Databases", so it has an icon of its own.
+    /// </summary>
+    public const string AllDatabasesIcon = "🗃️";
+
+    /// <summary>
+    /// Gets whether the target is <see cref="AllDatabases" />.
+    /// </summary>
+    public bool IsAllDatabases { get; private init; }
+
+    /// <summary>
     /// The selected collection, or <c>null</c> when none is selected or it cannot be searched by membership (a Smart or
     /// SQL-based collection, the Trashcan, search results).
     /// </summary>

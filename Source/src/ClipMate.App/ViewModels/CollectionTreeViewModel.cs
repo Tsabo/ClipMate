@@ -113,9 +113,9 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         {
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher == null)
-                ShowRemoteSearchResults(remoteAddress);
+                ShowRemoteSearchResults(remoteAddress, message.SelectsNode);
             else
-                dispatcher.InvokeAsync(() => ShowRemoteSearchResults(remoteAddress));
+                dispatcher.InvokeAsync(() => ShowRemoteSearchResults(remoteAddress, message.SelectsNode));
 
             return;
         }
@@ -158,13 +158,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 }
 
                 // If the node is already selected, manually trigger the selection changed logic
-                // to refresh the ClipList. Otherwise, just set SelectedNode.
+                // to refresh the ClipList. Otherwise, just set SelectedNode, unless an "All Databases" search is
+                // filling each node and selects one at the end.
                 if (SelectedNode == existingNode)
                 {
                     _logger.LogInformation("Search results node already selected, manually triggering refresh");
                     _messenger.Send(new SearchResultsSelectedEvent(message.DatabaseKey, searchResult.Query, searchResult.ClipIds));
                 }
-                else
+                else if (message.SelectsNode)
                 {
                     // Automatically select the SearchResults node to display results
                     _logger.LogInformation("Selecting search results node to display results");
@@ -436,10 +437,10 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     }
 
     /// <summary>
-    /// Shows the cached Remote Search results of a Remote Database in its Search Results node and selects it, so the
-    /// clip list shows them. Must run on the UI thread.
+    /// Shows the cached Remote Search results of a Remote Database in its Search Results node and, when
+    /// <paramref name="selectsNode" />, selects it, so the clip list shows them. Must run on the UI thread.
     /// </summary>
-    private void ShowRemoteSearchResults(RemoteDatabaseAddress address)
+    private void ShowRemoteSearchResults(RemoteDatabaseAddress address, bool selectsNode)
     {
         var result = _remoteSearchResultsCache.GetResults(address);
         if (result == null || !_remoteDatabaseNodes.TryGetValue(address, out var databaseNode))
@@ -457,7 +458,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (SelectedNode == searchNode)
             _messenger.Send(new RemoteSearchResultsSelectedEvent(address, result));
-        else
+        else if (selectsNode)
             SelectedNode = searchNode;
     }
 

@@ -105,6 +105,24 @@ public class CollectionTreeViewModelRemoteSearchTests
     }
 
     [Test]
+    public async Task Receive_RemoteSearchExecutedThatDoesNotSelect_ShowsTheResultsAndKeepsTheSelection()
+    {
+        // Arrange: an "All Databases" search fills each node, then selects one at the end
+        await _viewModel.RefreshRemoteDatabasesAsync();
+        var inbox = Remote.Children.OfType<RemoteCollectionTreeNode>().Single();
+        _viewModel.SelectedNode = inbox;
+        var result = new RemoteSearchResult("report", Clips(2), 2);
+        _cache.SetResults(_work, result);
+
+        // Act
+        _viewModel.Receive(new SearchExecutedEvent(RemoteDatabaseKey.From(_work), "report", result.Clips.Select(p => p.Id).ToList()) { SelectsNode = false });
+
+        // Assert
+        await Assert.That(_viewModel.SelectedNode).IsSameReferenceAs(inbox);
+        await Assert.That(SearchNode.Name).IsEqualTo("Search: \"report\" (2 results)");
+    }
+
+    [Test]
     public async Task Receive_RemoteSearchExecutedWhileItsNodeIsSelected_ShowsTheNewResults()
     {
         // Arrange

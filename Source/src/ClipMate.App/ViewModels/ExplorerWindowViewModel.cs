@@ -270,7 +270,10 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private void OnCollectionTreePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(CollectionTreeViewModel.SelectedNode))
+        {
+            _keptStatus = null;
             UpdateStatusMessage(_selectedClip);
+        }
     }
 
     /// <summary>
@@ -348,6 +351,13 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// <param name="selectedClip">The currently selected clip, or null to show collection info.</param>
     private void UpdateStatusMessage(Clip? selectedClip)
     {
+        // A message kept until the user selects something (an "All Databases" summary) outlasts the list loading
+        if (_keptStatus != null)
+        {
+            StatusMessage = _keptStatus;
+            return;
+        }
+
         var clipCount = PrimaryClipList.Clips.Count;
 
         // Empty state: no clips in collection and no clip selected
@@ -520,6 +530,12 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private Clip? _selectedClip;
 
     /// <summary>
+    /// A status message kept until the user picks a clip or node (see <see cref="StatusUpdateEvent.KeepUntilUserSelects" />),
+    /// or <c>null</c>.
+    /// </summary>
+    private string? _keptStatus;
+
+    /// <summary>
     /// The database key for the currently selected clip.
     /// </summary>
     private string? _selectedClipDatabaseKey;
@@ -552,6 +568,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     {
         _selectedClip = message.SelectedClip;
         _selectedClipDatabaseKey = message.DatabaseKey;
+        if (message.IsUserSelection)
+            _keptStatus = null;
+
         _clipboardCopied = false; // Reset clipboard status when clip changes
 
         // Reset image-related state
@@ -611,7 +630,11 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// <summary>
     /// Handles StatusUpdateEvent from the ClipOperationsCoordinator to update the status bar.
     /// </summary>
-    public void Receive(StatusUpdateEvent message) => SetStatus(message.Message);
+    public void Receive(StatusUpdateEvent message)
+    {
+        _keptStatus = message.KeepUntilUserSelects ? message.Message : null;
+        SetStatus(message.Message);
+    }
 
     /// <summary>
     /// Handles ReloadClipsRequestedEvent to refresh the clip list after operations.

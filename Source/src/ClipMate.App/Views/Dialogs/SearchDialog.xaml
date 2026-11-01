@@ -37,7 +37,7 @@
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
-        <!-- Search in: any Database (local or remote), collection or folder; starts at the tree selection -->
+        <!-- Search in: All Databases, or any Database (local or remote), collection or folder; starts at the tree selection -->
         <dxlc:LayoutGroup Orientation="Horizontal">
             <dxlc:LayoutItem HorizontalAlignment="Left" MinWidth="150">
                 <TextBlock Text="Search in:" VerticalAlignment="Center" />
@@ -88,7 +88,7 @@
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
-        <!-- While a search runs (a Peer can take minutes): what is being searched -->
+        <!-- While a search runs (a Peer can take minutes): what is being searched; for All Databases, which are still searching -->
         <dxlc:LayoutItem Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock Text="{Binding SearchingDescription}" FontStyle="Italic" VerticalAlignment="Center" />
 
@@ -189,9 +189,14 @@
                 <CheckBox Content="Included Deleted Clips" IsChecked="{Binding IncludeDeletedClips}"
                           IsEnabled="{Binding CanSearchDeletedAndShortcuts}" />
             </dxlc:LayoutGroup>
+            <!-- All Databases: Peers never serve deleted clips or shortcuts -->
+            <dxlc:LayoutItem Visibility="{Binding ShowsPeerFiltersNote, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Has Shortcut and Included Deleted Clips don't apply to Peers' Databases."
+                           FontStyle="Italic" TextWrapping="Wrap" />
+            </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
-        <!-- SQL Section: hidden for Remote Databases, since no SQL is ever sent to a Peer -->
+        <!-- SQL Section: hidden for Remote Databases and All Databases, since no SQL is ever sent to a Peer -->
         <dxlc:LayoutGroup Header="🔍 SQL" View="GroupBox" Orientation="Vertical" IsCollapsible="True"
                           IsCollapsed="True"
                           Visibility="{Binding IsSqlAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">

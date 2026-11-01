@@ -79,12 +79,14 @@ public partial class SearchDialog
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
-        _logger.LogInformation("Search pressed: {Kind} search of {DatabaseKey}", _viewModel.IsRemoteTarget ? "Remote" : "local",
-            _viewModel.Target?.DatabaseKey ?? "the active Database");
+        _logger.LogInformation("Search pressed: {Kind} search of {DatabaseKey}",
+            _viewModel.IsAllDatabasesTarget ? "All Databases" : _viewModel.IsRemoteTarget ? "Remote" : "local",
+            _viewModel.IsAllDatabasesTarget ? "every Database" : _viewModel.Target?.DatabaseKey ?? "the active Database");
 
-        if (_viewModel.IsRemoteTarget)
+        // A search that includes a Peer has no SQL to validate: each Database builds its query from the filters
+        if (!_viewModel.IsSqlAvailable)
         {
-            await SearchRemoteDatabaseAsync();
+            await SearchWithoutSqlAsync();
             return;
         }
 
@@ -146,13 +148,15 @@ public partial class SearchDialog
     }
 
     /// <summary>
-    /// Runs a Remote Search. There is no SQL to validate: the Peer builds the query from the filters.
+    /// Runs a Remote Search, or an "All Databases" search (which reports the Databases it couldn't search in the status
+    /// bar). There is no SQL to validate: each Database builds its query from the filters.
     /// </summary>
-    private async Task SearchRemoteDatabaseAsync()
+    private async Task SearchWithoutSqlAsync()
     {
         if (!_viewModel.SearchCommand.CanExecute(null))
         {
-            _logger.LogInformation("Remote Search not run: another search is still running");
+            _logger.LogInformation("{Kind} not run: another search is still running",
+                _viewModel.IsAllDatabasesTarget ? "All Databases search" : "Remote Search");
             return;
         }
 
@@ -196,10 +200,10 @@ public partial class SearchDialog
 
     /// <summary>
     /// The local Database whose SQL the dialog validates and suggests: the chosen one, or the active Database when none
-    /// is chosen. <c>null</c> for a Remote Database, which is never sent SQL.
+    /// is chosen. <c>null</c> for a Remote Database, which is never sent SQL, and for "All Databases".
     /// </summary>
     private string? SqlDatabaseKey => _viewModel.Target is { } target
-        ? target.IsRemote ? null : target.DatabaseKey
+        ? target.IsRemote || target.IsAllDatabases ? null : target.DatabaseKey
         : _collectionService.GetActiveDatabaseKey();
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
