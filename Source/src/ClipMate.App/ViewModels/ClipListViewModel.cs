@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Models;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
@@ -1041,7 +1042,7 @@ public partial class ClipListViewModel : ObservableObject,
                 names.Add(entry.Title);
 
             names.Reverse();
-            return string.Join(" › ", names);
+            return TreePath.Join(names);
         }
     }
 

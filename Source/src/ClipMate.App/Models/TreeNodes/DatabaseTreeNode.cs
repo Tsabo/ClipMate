@@ -24,9 +24,15 @@ public class DatabaseTreeNode : TreeNodeBase
 
     public override string Name { get; }
 
-    public override string Icon => HasError
+    public override string Icon => IconFor(HasError);
+
+    /// <summary>
+    /// The icon of a local Database: a red X when it has an error, else the database icon. Also shown for it in the
+    /// search dialog's "Search in".
+    /// </summary>
+    public static string IconFor(bool hasError) => hasError
         ? "❌"
-        : "💾"; // Red X for error, database icon for normal
+        : "💾";
 
     public override TreeNodeType NodeType => TreeNodeType.Database;
 }
