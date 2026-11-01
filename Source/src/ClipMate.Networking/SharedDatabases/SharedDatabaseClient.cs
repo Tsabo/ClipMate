@@ -94,10 +94,11 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<GrpcSharedDatabaseClient> _logger;
     private readonly TimeSpan _searchTimeout;
+    private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _timeout;
 
-    public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger)
-        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30))
+    public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeProvider? timeProvider = null)
+        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30), timeProvider)
     {
     }
 
@@ -113,13 +114,14 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// defaults to <paramref name="timeout" />.
     /// </param>
     internal GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeSpan timeout,
-        TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null)
+        TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null, TimeProvider? timeProvider = null)
     {
         _searchTimeout = searchTimeout ?? timeout;
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeout = timeout;
         _contentTimeout = contentTimeout ?? timeout;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -268,23 +270,31 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
+        var started = _timeProvider.GetTimestamp();
         try
         {
             var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
-            return await CallAsync(identity, peer, _searchTimeout,
+            var matches = await CallAsync(identity, peer, _searchTimeout,
                 (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
                 _searchStatuses, cancellationToken);
+            _logger.LogDebug("Peer {DeviceId} answered the Remote Search with {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms",
+                peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
+            return matches;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
+            _logger.LogDebug("Peer {DeviceId} does not share the Database, collection or folder searched", peer.DeviceId.ToShortDisplayString());
             return null;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.ResourceExhausted)
         {
+            _logger.LogDebug("Peer {DeviceId} gave up the Remote Search after {ElapsedMs:F0} ms", peer.DeviceId.ToShortDisplayString(),
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw new DatabaseUnavailableException($"The search took too long on {peer.DisplayName}. Try narrower criteria.", ex);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
         {
+            _logger.LogDebug("Peer {DeviceId} refused the Remote Search criteria: {Detail}", peer.DeviceId.ToShortDisplayString(), ex.Status.Detail);
             throw new DatabaseUnavailableException($"{peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
         }
     }

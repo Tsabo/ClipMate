@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using ClipMate.App.ViewModels;
@@ -16,26 +17,34 @@ namespace ClipMate.App.Views.Dialogs;
 /// </summary>
 public partial class SearchDialog
 {
-    private readonly ICollectionService _collectionService;
     private readonly ILogger<SearchDialog> _logger;
     private readonly ISearchService _searchService;
     private readonly SearchViewModel _viewModel;
 
-    public SearchDialog(SearchViewModel viewModel, ISearchService searchService, ICollectionService collectionService, ILogger<SearchDialog> logger)
+    public SearchDialog(SearchViewModel viewModel, ISearchService searchService, ILogger<SearchDialog> logger)
     {
         InitializeComponent();
 
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Search what is selected in the collection tree: a local or Remote Database, collection or folder
+        // "Search in" starts at what is selected in the collection tree: a local or Remote Database, collection or folder
         _viewModel.RefreshTarget();
         DataContext = _viewModel;
 
+        // SQL validation and IntelliSense follow the Database chosen in "Search in"; Go! waits while a search runs
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        UpdateSqlDatabase();
+        UpdateGoButton();
+
         // Closing the dialog stops a search that is still running (on the Peer too, for a Remote Database)
-        Closed += (_, _) => _viewModel.CancelSearch();
+        Closed += (_, _) =>
+        {
+            _logger.LogInformation("Search dialog closed (searched: {Searched})", DialogResult == true);
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.CancelSearch("the search dialog was closed");
+        };
 
         var app = (App)Application.Current;
         var configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
@@ -47,22 +56,19 @@ public partial class SearchDialog
 
         SqlEditor.EditorOptions = monacoOptions;
 
-        // Set database key for SQL validation
-        var databaseKey = _collectionService.GetActiveDatabaseKey();
-        if (!string.IsNullOrEmpty(databaseKey))
-            SqlEditor.DatabaseKey = databaseKey;
-
-        // Load formats, collections, and saved queries when dialog opens
+        // Load "Search in", formats and saved queries when the dialog opens. "Search in" lists each Database at once
+        // and fills in a Peer's collections when they arrive, so the rest doesn't wait for it.
         Loaded += async (_, _) =>
         {
+            var loadingSearchIn = _viewModel.LoadSearchInOptionsAsync();
+
             if (_viewModel.LoadFormatsCommand.CanExecute(null))
                 await _viewModel.LoadFormatsCommand.ExecuteAsync(null);
 
-            if (_viewModel.LoadCollectionsCommand.CanExecute(null))
-                await _viewModel.LoadCollectionsCommand.ExecuteAsync(null);
-
             if (_viewModel.LoadSavedQueriesCommand.CanExecute(null))
                 await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
+
+            await loadingSearchIn;
 
             // Initialize SQL IntelliSense after editor is loaded
             await InitializeSqlIntelliSenseAsync();
@@ -71,17 +77,20 @@ public partial class SearchDialog
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.IsRemoteTarget)
+        _logger.LogInformation("Search pressed: search of {Target}", _viewModel.Target?.Describe() ?? "the active Database");
+
+        // A search that includes a Peer has no SQL to validate: each Database builds its query from the filters
+        if (!_viewModel.IsSqlAvailable)
         {
-            await SearchRemoteDatabaseAsync();
+            await SearchWithoutSqlAsync();
             return;
         }
 
-        // Validate SQL query if user has modified it
-        // Get active database key for validation
-        var databaseKey = _collectionService.GetActiveDatabaseKey();
+        // Validate the SQL against the Database chosen in "Search in"
+        var databaseKey = _viewModel.SqlDatabaseKey;
         if (string.IsNullOrEmpty(databaseKey))
         {
+            _logger.LogInformation("Search not run: no active Database");
             DXMessageBox.Show(
                 "No active database selected. Please select a database first.",
                 "Database Required",
@@ -95,6 +104,7 @@ public partial class SearchDialog
 
         if (!isValid)
         {
+            _logger.LogInformation("Search not run: invalid SQL ({Error})", errorMessage);
             DXMessageBox.Show(
                 $"Invalid SQL query:\n\n{errorMessage}\n\nPlease correct the query and try again.",
                 "SQL Validation Error",
@@ -106,7 +116,10 @@ public partial class SearchDialog
 
         // Execute search
         if (!_viewModel.SearchCommand.CanExecute(null))
+        {
+            _logger.LogInformation("Search not run: another search is still running");
             return;
+        }
 
         try
         {
@@ -114,8 +127,13 @@ public partial class SearchDialog
             DialogResult = true;
             Close();
         }
+        catch (OperationCanceledException)
+        {
+            // The dialog was closed while searching; the view model logged who canceled it
+        }
         catch (Exception ex)
         {
+            // The view model logged the failure
             // Show error but keep dialog open so user can fix the SQL
             DXMessageBox.Show(
                 $"Search execution failed:\n\n{ex.Message}\n\nPlease correct the query and try again.",
@@ -126,12 +144,16 @@ public partial class SearchDialog
     }
 
     /// <summary>
-    /// Runs a Remote Search. There is no SQL to validate: the Peer builds the query from the filters.
+    /// Runs a Remote Search, or an "All Databases" search (which reports the Databases it couldn't search in the status
+    /// bar). There is no SQL to validate: each Database builds its query from the filters.
     /// </summary>
-    private async Task SearchRemoteDatabaseAsync()
+    private async Task SearchWithoutSqlAsync()
     {
         if (!_viewModel.SearchCommand.CanExecute(null))
+        {
+            _logger.LogInformation("Search of {Target} not run: another search is still running", _viewModel.Target?.Describe());
             return;
+        }
 
         try
         {
@@ -141,18 +163,51 @@ public partial class SearchDialog
         }
         catch (OperationCanceledException)
         {
-            // The dialog was closed while searching
+            // The dialog was closed while searching; the view model logged who canceled it
         }
         catch (DatabaseUnavailableException ex)
         {
+            // The view model logged the failure
             DXMessageBox.Show(ex.Message, "Remote Search", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Remote Search failed");
+            // The view model logged the failure, with the exception
             DXMessageBox.Show($"Search execution failed:\n\n{ex.Message}", "Search Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    /// <summary>
+    /// Cancel stops a running search and keeps the dialog open, so the search can be changed; otherwise it closes the
+    /// dialog.
+    /// </summary>
+    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.IsSearching)
+        {
+            _viewModel.CancelSearch("Cancel was pressed");
+            return;
+        }
+
+        DialogResult = false;
+        Close();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SearchViewModel.Target))
+            UpdateSqlDatabase();
+        else if (e.PropertyName == nameof(SearchViewModel.IsSearching))
+            UpdateGoButton();
+    }
+
+    private void UpdateSqlDatabase()
+    {
+        if (_viewModel.SqlDatabaseKey is { } databaseKey)
+            SqlEditor.DatabaseKey = databaseKey;
+    }
+
+    private void UpdateGoButton() => GoButton.IsEnabled = !_viewModel.IsSearching;
 
     private void HelpButton_Click(object sender, RoutedEventArgs e)
     {

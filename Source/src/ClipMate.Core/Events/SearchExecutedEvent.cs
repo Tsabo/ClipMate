@@ -33,4 +33,10 @@ public class SearchExecutedEvent
     /// The list of clip IDs that matched the search query.
     /// </summary>
     public IReadOnlyList<Guid> ClipIds { get; }
+
+    /// <summary>
+    /// Gets whether the collection tree selects the Database's Search Results node to show the results. An "All
+    /// Databases" search fills each Database's node without selecting it, then selects one node once at the end.
+    /// </summary>
+    public bool SelectsNode { get; init; } = true;
 }

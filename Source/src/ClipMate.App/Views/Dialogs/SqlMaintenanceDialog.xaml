@@ -34,10 +34,12 @@
                                      Placement="Left" />
         <dx:ThemedWindowDialogButton Content="OK"
                                      Click="OkButton_Click"
-                                     IsDefault="True" />
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      Click="CancelButton_Click"
-                                     IsCancel="True" />
+                                     IsCancel="True"
+                                     AllowCloseWindow="False" />
         <dx:ThemedWindowDialogButton Content="Help"
                                      Click="HelpButton_Click" />
     </dx:ThemedWindow.DialogButtons>

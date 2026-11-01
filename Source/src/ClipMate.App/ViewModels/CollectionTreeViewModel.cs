@@ -8,6 +8,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -111,12 +112,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         // A Remote Search: its results are cached on this Device and shown under the Remote Database
         if (RemoteDatabaseKey.TryParse(message.DatabaseKey, out var remoteAddress))
         {
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher == null)
-                ShowRemoteSearchResults(remoteAddress);
-            else
-                dispatcher.InvokeAsync(() => ShowRemoteSearchResults(remoteAddress));
-
+            UiThread.Run(() => ShowRemoteSearchResults(remoteAddress, message.SelectsNode));
             return;
         }
 
@@ -158,13 +154,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
                 }
 
                 // If the node is already selected, manually trigger the selection changed logic
-                // to refresh the ClipList. Otherwise, just set SelectedNode.
+                // to refresh the ClipList. Otherwise, just set SelectedNode, unless an "All Databases" search is
+                // filling each node and selects one at the end.
                 if (SelectedNode == existingNode)
                 {
                     _logger.LogInformation("Search results node already selected, manually triggering refresh");
                     _messenger.Send(new SearchResultsSelectedEvent(message.DatabaseKey, searchResult.Query, searchResult.ClipIds));
                 }
-                else
+                else if (message.SelectsNode)
                 {
                     // Automatically select the SearchResults node to display results
                     _logger.LogInformation("Selecting search results node to display results");
@@ -436,10 +433,10 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     }
 
     /// <summary>
-    /// Shows the cached Remote Search results of a Remote Database in its Search Results node and selects it, so the
-    /// clip list shows them. Must run on the UI thread.
+    /// Shows the cached Remote Search results of a Remote Database in its Search Results node and, when
+    /// <paramref name="selectsNode" />, selects it, so the clip list shows them. Must run on the UI thread.
     /// </summary>
-    private void ShowRemoteSearchResults(RemoteDatabaseAddress address)
+    private void ShowRemoteSearchResults(RemoteDatabaseAddress address, bool selectsNode)
     {
         var result = _remoteSearchResultsCache.GetResults(address);
         if (result == null || !_remoteDatabaseNodes.TryGetValue(address, out var databaseNode))
@@ -457,12 +454,12 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (SelectedNode == searchNode)
             _messenger.Send(new RemoteSearchResultsSelectedEvent(address, result));
-        else
+        else if (selectsNode)
             SelectedNode = searchNode;
     }
 
     /// <inheritdoc />
-    public SearchTarget? GetSearchTarget()
+    public DatabaseSearchTarget? GetSearchTarget()
     {
         var node = SelectedNode;
         if (node == null)
@@ -470,15 +467,19 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (FindRemoteDatabaseNode(node) is { } remoteDatabaseNode)
         {
-            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
+            var target = new DatabaseSearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
             return node switch
             {
                 // Smart and SQL-based collections have no clips of their own to search within
                 RemoteCollectionTreeNode { Collection.Kind: CollectionEntryKind.Collection or CollectionEntryKind.Folder } collection =>
-                    target with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
-                RemoteFolderTreeNode folder => folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
-                    ? target with { CollectionId = parent.Collection.Id, CollectionName = parent.Name, FolderId = folder.Folder.Id, FolderName = folder.Name }
-                    : target with { FolderId = folder.Folder.Id, FolderName = folder.Name },
+                    target with { Collection = new NamedEntry(collection.Collection.Id, collection.Name) },
+                RemoteFolderTreeNode folder => target with
+                {
+                    Collection = folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
+                        ? new NamedEntry(parent.Collection.Id, parent.Name)
+                        : null,
+                    Folder = new NamedEntry(folder.Folder.Id, folder.Name),
+                },
                 var _ => target,
             };
         }
@@ -486,17 +487,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         if (FindAncestor<DatabaseTreeNode>(node) is not { } databaseNode)
             return null;
 
-        var local = new SearchTarget(databaseNode.DatabasePath, databaseNode.Name);
+        var local = new DatabaseSearchTarget(databaseNode.DatabasePath, databaseNode.Name);
         return node switch
         {
-            CollectionTreeNode { Collection.IsVirtual: false } collection =>
-                local with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
+            CollectionTreeNode { Collection.IsVirtual: false } collection => local with { Collection = new NamedEntry(collection.Collection.Id, collection.Name) },
             FolderTreeNode folder => local with
             {
-                CollectionId = folder.Folder.CollectionId,
-                CollectionName = FindAncestor<CollectionTreeNode>(folder)?.Name,
-                FolderId = folder.Folder.Id,
-                FolderName = folder.Name,
+                Collection = FindAncestor<CollectionTreeNode>(folder) is { } parent ? new NamedEntry(folder.Folder.CollectionId, parent.Name) : null,
+                Folder = new NamedEntry(folder.Folder.Id, folder.Name),
             },
             var _ => local,
         };

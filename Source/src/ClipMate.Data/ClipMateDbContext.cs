@@ -205,6 +205,7 @@ public class ClipMateDbContext : DbContext
             entity.Ignore(p => p.FileDropEffect);
             entity.Ignore(p => p.RawFormats);
             entity.Ignore(p => p.IsDecrypted); // Runtime-only decryption state
+            entity.Ignore(p => p.CollectionDisplay); // Set by the clip list for search results
 
             // Format flag properties - NOT stored in Clips table
             entity.Ignore(p => p.IconGlyph);

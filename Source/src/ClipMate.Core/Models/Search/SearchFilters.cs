@@ -3,7 +3,7 @@ namespace ClipMate.Core.Models.Search;
 /// <summary>
 /// Filters for advanced search operations.
 /// </summary>
-public class SearchFilters
+public record SearchFilters
 {
     /// <summary>
     /// Search in clip titles.

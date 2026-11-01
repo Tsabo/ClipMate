@@ -1,6 +1,8 @@
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.ViewModels;
+using ClipMate.Core.Events;
+using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
@@ -9,6 +11,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -68,7 +71,9 @@ public class ExplorerWindowViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
-            A.Fake<ISearchTargetSource>());
+            A.Fake<ISearchTargetSource>(),
+            A.Fake<ICollectionTreeBuilder>(),
+            NullLogger<SearchViewModel>.Instance);
 
         // Create QuickPasteToolbarViewModel mock
         var mockQuickPasteServiceForToolbar = A.Fake<IQuickPasteService>();
@@ -321,5 +326,26 @@ public class ExplorerWindowViewModelTests
 
         // Assert
         A.CallTo(() => treeBuilder.BuildTreeAsync(A<TreeNodeType>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task Receive_StatusKeptUntilTheUserSelects_SurvivesTheListLoadingAndItsFirstClipUntilTheUserPicksOne()
+    {
+        // Arrange: an "All Databases" summary, sent after the tree selected a Search Results node
+        var viewModel = CreateViewModel();
+        var first = new Clip { Id = Guid.NewGuid(), Title = "Report 1", Type = ClipType.Text };
+        var second = new Clip { Id = Guid.NewGuid(), Title = "Report 2", Type = ClipType.Text };
+
+        // Act: the clip list loads and selects its first clip itself
+        viewModel.Receive(new StatusUpdateEvent("2 matches in 2 Databases") { KeepUntilUserSelects = true });
+        viewModel.PrimaryClipList.Clips.Add(first);
+        viewModel.PrimaryClipList.Clips.Add(second);
+        viewModel.Receive(new ClipSelectedEvent(first, "db_mine", false));
+        var afterLoading = viewModel.StatusMessage;
+        viewModel.Receive(new ClipSelectedEvent(second, "db_mine"));
+
+        // Assert
+        await Assert.That(afterLoading).IsEqualTo("2 matches in 2 Databases");
+        await Assert.That(viewModel.StatusMessage).IsEqualTo("📋Clip Item [Report 2]");
     }
 }

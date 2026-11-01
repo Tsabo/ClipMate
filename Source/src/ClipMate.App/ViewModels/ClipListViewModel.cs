@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ClipMate.App.Models;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
@@ -96,6 +97,13 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     [ObservableProperty]
     private string? _remoteStatusMessage;
+
+    /// <summary>
+    /// Whether the list shows a Search Results node (local or Remote), whose clips each carry their
+    /// <see cref="Clip.CollectionDisplay" /> for the Collection column.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showsSearchResults;
 
     private Clip? _previousSelectedClip; // Track previous clip to reset IsDecrypted flag
 
@@ -351,19 +359,37 @@ public partial class ClipListViewModel : ObservableObject,
     /// Remote Search results cached on this Device, read-only, and how many of the matches the Peer returned. Leaves the
     /// active collection alone.
     /// </summary>
-    public void Receive(RemoteSearchResultsSelectedEvent message)
+    public async void Receive(RemoteSearchResultsSelectedEvent message)
     {
         _logger.LogInformation("RemoteSearchResultsSelectedEvent received: RemoteDatabase={RemoteDatabase}, Count={Count}, TotalMatches={TotalMatches}",
             message.Address, message.Result.Clips.Count, message.Result.TotalMatches);
 
-        CancelLoad();
-        BeginView(RemoteDatabaseKey.From(message.Address), null, null);
-        foreach (var item in message.Result.Clips)
-            Clips.Add(item);
+        using var load = new CancellationTokenSource();
+        try
+        {
+            CancelLoad();
+            var database = BeginView(RemoteDatabaseKey.From(message.Address), null, null);
+            ShowsSearchResults = true;
+            _loadCts = load;
+            foreach (var item in message.Result.Clips)
+                Clips.Add(item);
 
-        SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-        if (message.Result.IsTruncated)
-            RemoteStatusMessage = $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches";
+            SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
+            if (message.Result.IsTruncated)
+                RemoteStatusMessage = $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches";
+
+            // The matches show at once; the Collection column fills in when the Peer's tree arrives
+            await NameCollectionsAsync(database, message.Result.Clips, load.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to show the Remote Search results of {RemoteDatabase}", message.Address);
+        }
+        finally
+        {
+            if (ReferenceEquals(_loadCts, load))
+                _loadCts = null;
+        }
     }
 
     /// <summary>
@@ -509,6 +535,7 @@ public partial class ClipListViewModel : ObservableObject,
         CurrentCollectionId = collectionId;
         CurrentFolderId = folderId;
         _currentScope = null;
+        ShowsSearchResults = false;
         SelectedClip = null;
         SelectedClips.Clear();
         Clips.Clear();
@@ -871,6 +898,7 @@ public partial class ClipListViewModel : ObservableObject,
     {
         CancelLoad();
         _currentScope = null;
+        ShowsSearchResults = false;
         try
         {
             IsLoading = true;
@@ -921,7 +949,8 @@ public partial class ClipListViewModel : ObservableObject,
     public async Task LoadClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken = default)
     {
         CancelLoad();
-        BeginView(databaseKey, null, null);
+        var database = BeginView(databaseKey, null, null);
+        ShowsSearchResults = true;
 
         // Search results don't accept new clips
         AcceptsNewClips = false;
@@ -942,6 +971,7 @@ public partial class ClipListViewModel : ObservableObject,
 
             // Auto-select the first (most recent) clip without triggering clipboard operation
             SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
+            await NameCollectionsAsync(database, Clips.ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -951,6 +981,68 @@ public partial class ClipListViewModel : ObservableObject,
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Fills in the Collection column of search results already shown, from <paramref name="database" />'s tree, read
+    /// once. A tree that cannot be read (the Peer went offline since the search, a damaged file) leaves the column
+    /// empty and the results as they are; a tree that arrives after another view was shown is dropped.
+    /// </summary>
+    private async Task NameCollectionsAsync(IDatabase? database, IReadOnlyList<Clip> clips, CancellationToken cancellationToken)
+    {
+        if (database == null || clips.Count == 0)
+            return;
+
+        CollectionNames names;
+        try
+        {
+            names = new CollectionNames(await database.GetTreeAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Collection names of Database {DatabaseKey} dropped: another view was shown before its tree arrived", database.Key);
+            return;
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            _logger.LogInformation("Could not read the tree of Database {DatabaseKey} to name the search results' collections: {Reason}", database.Key, ex.Message);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the tree of Database {DatabaseKey} to name the search results' collections", database.Key);
+            return;
+        }
+
+        foreach (var item in clips)
+            item.CollectionDisplay = names.Describe(item);
+    }
+
+    /// <summary>
+    /// The collection and folder names of one Database's tree, looked up by the IDs a clip carries. IDs repeat across
+    /// Databases, so one is only ever used for the clips of its own Database.
+    /// </summary>
+    private sealed class CollectionNames(IReadOnlyList<CollectionEntry> tree)
+    {
+        private readonly Dictionary<Guid, CollectionEntry> _entries = tree.ToDictionary(p => p.Id);
+
+        /// <summary>
+        /// Names the clip's collection, then each folder down to its own ("Inbox › Projects"); empty if the tree has
+        /// no entry for it.
+        /// </summary>
+        public string Describe(Clip clip)
+        {
+            if ((clip.FolderId ?? clip.CollectionId) is not { } id)
+                return string.Empty;
+
+            var names = new List<string>();
+            var seen = new HashSet<Guid>();
+            for (Guid? current = id; current is { } entryId && seen.Add(entryId) && _entries.TryGetValue(entryId, out var entry); current = entry.ParentId)
+                names.Add(entry.Title);
+
+            names.Reverse();
+            return TreePath.Join(names);
         }
     }
 

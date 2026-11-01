@@ -14,6 +14,7 @@ public partial class Clip
     public Clip WithText(string? text)
     {
         var copy = (Clip)MemberwiseClone();
+        copy.PropertyChanged = null; // Whoever watches this clip isn't watching the copy
         copy.TextContent = text;
 
         return copy;

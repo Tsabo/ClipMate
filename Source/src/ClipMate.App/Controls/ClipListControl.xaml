@@ -501,6 +501,23 @@
                             </dxg:GridColumn.CellTemplate>
                         </dxg:GridColumn>
 
+                        <!-- Collection Column - Where each search result came from, shown only for search results -->
+                        <dxg:GridColumn x:Name="CollectionColumn"
+                                        FieldName="CollectionDisplay"
+                                        Header="Collection"
+                                        Width="160"
+                                        Visible="False">
+                            <dxg:GridColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Value}"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"
+                                               Padding="2,0"
+                                               ToolTip="{Binding Value}" />
+                                </DataTemplate>
+                            </dxg:GridColumn.CellTemplate>
+                        </dxg:GridColumn>
+
                         <!-- SortKey Column - For manual ordering -->
                         <dxg:GridColumn FieldName="SortKey"
                                         Header="SortKey"

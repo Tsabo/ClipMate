@@ -1,11 +1,17 @@
+using System.ComponentModel;
+
 namespace ClipMate.Core.Models;
 
 /// <summary>
 /// Partial class for Clip containing display-related computed properties.
-/// These properties are used for UI binding in the ClipMate DataGrid.
+/// These properties are used for UI binding in the ClipMate DataGrid. Only <see cref="CollectionDisplay" />, which
+/// can be filled in after the clip is shown, raises <see cref="PropertyChanged" />.
 /// </summary>
-public partial class Clip
+public partial class Clip : INotifyPropertyChanged
 {
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     /// <summary>
     /// Gets the display title for the clip.
     /// Returns the stored Title field, computing a fallback only if Title is empty.
@@ -93,6 +99,24 @@ public partial class Clip
         string.IsNullOrWhiteSpace(SourceApplicationName)
             ? string.Empty
             : Path.GetFileNameWithoutExtension(SourceApplicationName)?.ToUpperInvariant() ?? SourceApplicationName;
+
+    /// <summary>
+    /// The collection the clip is in, and its folder if it has one ("Inbox › Projects"), named by the clip's own
+    /// Database. Set by the clip list while it shows search results, once that Database's tree arrives; empty until
+    /// then, and when the names could not be read. NOT stored in Clips table.
+    /// </summary>
+    public string CollectionDisplay
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CollectionDisplay)));
+        }
+    } = string.Empty;
 
     /// <summary>
     /// Gets formatted size string (bytes, K, M).

@@ -1385,7 +1385,7 @@ public class ClipOperationsCoordinator :
         {
             var searchViewModel = _serviceProvider.GetRequiredService<SearchViewModel>();
             var logger = _serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
-            var dialog = new SearchDialog(searchViewModel, _searchService, _collectionService, logger)
+            var dialog = new SearchDialog(searchViewModel, _searchService, logger)
             {
                 Owner = _activeWindowService.DialogOwner,
             };

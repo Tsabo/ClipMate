@@ -21,30 +21,78 @@
 
     <!-- Dialog Buttons -->
     <dx:ThemedWindow.DialogButtons>
-        <dx:ThemedWindowDialogButton Content="Go!"
+        <dx:ThemedWindowDialogButton x:Name="GoButton"
+                                     Content="Go!"
                                      Click="GoButton_Click"
-                                     IsDefault="True" />
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
+        <!-- Stops a running search and keeps the dialog open; otherwise closes it -->
         <dx:ThemedWindowDialogButton Content="Cancel"
+                                     Click="CancelButton_Click"
                                      IsCancel="True"
-                                     DialogResult="Cancel" />
+                                     AllowCloseWindow="False" />
         <dx:ThemedWindowDialogButton Content="Help"
-                                     Click="HelpButton_Click" />
+                                     Click="HelpButton_Click"
+                                     AllowCloseWindow="False" />
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
-        <!-- Search In: the Database (local or remote) selected in the collection tree, and the scope within it -->
+        <!-- Search in: All Databases, or any Database (local or remote), collection or folder; starts at the tree selection -->
         <dxlc:LayoutGroup Orientation="Horizontal">
-            <dxlc:LayoutItem Label="Search in:" HorizontalAlignment="Left" MinWidth="150">
-                <TextBlock Text="{Binding TargetDescription}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <dxlc:LayoutItem HorizontalAlignment="Left" MinWidth="150">
+                <TextBlock Text="Search in:" VerticalAlignment="Center" />
             </dxlc:LayoutItem>
             <dxlc:LayoutItem HorizontalAlignment="Stretch">
-                <dxe:ComboBoxEdit ItemsSource="{Binding AvailableScopes}"
-                                  DisplayMember="Label"
-                                  ValueMember="Scope"
-                                  EditValue="{Binding SearchScope}"
-                                  IsTextEditable="False" />
+                <dxe:ComboBoxEdit x:Name="SearchInEdit"
+                                  ItemsSource="{Binding SearchInOptions}"
+                                  DisplayMember="Path"
+                                  SelectedItem="{Binding SelectedSearchIn}"
+                                  IsTextEditable="False"
+                                  AutomationProperties.Name="Search in">
+                    <dxe:ComboBoxEdit.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="{Binding Indent}" />
+                                <!-- The collection tree's icon -->
+                                <Image x:Name="SearchInIcon" Source="{Binding IconImage}" Width="16" Height="16" Margin="0,0,4,0" />
+                                <TextBlock x:Name="SearchInName" Text="{Binding Name}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Depth}" Value="0">
+                                    <Setter TargetName="SearchInName" Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                    <Setter TargetName="SearchInName" Property="Opacity" Value="0.5" />
+                                    <Setter TargetName="SearchInIcon" Property="Opacity" Value="0.5" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </dxe:ComboBoxEdit.ItemTemplate>
+                    <!-- Closed: the chosen entry's icon and where it is -->
+                    <dxe:ComboBoxEdit.EditNonEditableTemplate>
+                        <ControlTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="3,0">
+                                <Image Source="{Binding SelectedItem.IconImage, RelativeSource={RelativeSource AncestorType=dxe:ComboBoxEdit}}"
+                                       Width="16" Height="16" Margin="0,0,4,0" />
+                                <TextBlock Text="{Binding SelectedItem.Path, RelativeSource={RelativeSource AncestorType=dxe:ComboBoxEdit}}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </ControlTemplate>
+                    </dxe:ComboBoxEdit.EditNonEditableTemplate>
+                    <dxe:ComboBoxEdit.ItemContainerStyle>
+                        <Style TargetType="dxe:ComboBoxEditItem">
+                            <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+                        </Style>
+                    </dxe:ComboBoxEdit.ItemContainerStyle>
+                </dxe:ComboBoxEdit>
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
+
+        <!-- While a search runs (a Peer can take minutes): what is being searched; for All Databases, which are still searching -->
+        <dxlc:LayoutItem Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <TextBlock Text="{Binding SearchingDescription}" FontStyle="Italic" VerticalAlignment="Center" />
+
+        </dxlc:LayoutItem>
 
         <!-- Clips Containing Section -->
         <dxlc:LayoutGroup Header="🔍 Clips Containing..." View="GroupBox" Orientation="Vertical" IsCollapsible="True">
@@ -135,27 +183,20 @@
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
             <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem HorizontalAlignment="Left" MinWidth="150">
-                    <CheckBox Content="Member of Collection" IsChecked="{Binding MemberOfCollectionEnabled}" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem HorizontalAlignment="Stretch">
-                    <dxe:ComboBoxEdit NullText="Select collection..."
-                                      ItemsSource="{Binding AvailableCollections}"
-                                      EditValue="{Binding SelectedCollection}"
-                                      IsEnabled="{Binding MemberOfCollectionEnabled}" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
-            <dxlc:LayoutGroup Orientation="Horizontal">
                 <CheckBox Content="Encrypted" IsChecked="{Binding EncryptedOnly}" Margin="0,0,20,0" />
                 <CheckBox Content="Has Shortcut" IsChecked="{Binding HasShortcutOnly}" Margin="0,0,20,0"
                           IsEnabled="{Binding CanSearchDeletedAndShortcuts}" />
                 <CheckBox Content="Included Deleted Clips" IsChecked="{Binding IncludeDeletedClips}"
                           IsEnabled="{Binding CanSearchDeletedAndShortcuts}" />
             </dxlc:LayoutGroup>
+            <!-- All Databases: Peers never serve deleted clips or shortcuts -->
+            <dxlc:LayoutItem Visibility="{Binding ShowsPeerFiltersNote, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="Has Shortcut and Included Deleted Clips don't apply to Peers' Databases."
+                           FontStyle="Italic" TextWrapping="Wrap" />
+            </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
 
-        <!-- SQL Section: hidden for Remote Databases, since no SQL is ever sent to a Peer -->
+        <!-- SQL Section: hidden for Remote Databases and All Databases, since no SQL is ever sent to a Peer -->
         <dxlc:LayoutGroup Header="🔍 SQL" View="GroupBox" Orientation="Vertical" IsCollapsible="True"
                           IsCollapsed="True"
                           Visibility="{Binding IsSqlAvailable, Converter={StaticResource BooleanToVisibilityConverter}}">

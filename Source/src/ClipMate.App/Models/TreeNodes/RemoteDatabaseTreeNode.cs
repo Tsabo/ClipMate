@@ -41,8 +41,13 @@ public sealed class RemoteDatabaseTreeNode : TreeNodeBase
     /// <inheritdoc />
     public override string Name => _name;
 
+    /// <summary>
+    /// The icon of a Remote Database, also shown for it in the search dialog's "Search in".
+    /// </summary>
+    public const string DatabaseIcon = "🖥️";
+
     /// <inheritdoc />
-    public override string Icon => "🖥️";
+    public override string Icon => DatabaseIcon;
 
     /// <inheritdoc />
     public override TreeNodeType NodeType => TreeNodeType.RemoteDatabase;
