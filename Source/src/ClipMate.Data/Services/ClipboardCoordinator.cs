@@ -536,10 +536,11 @@ public class ClipboardCoordinator : IHostedService,
             _logger.LogInformation("Not saving a duplicate clip: the same text as the newest clip in '{Collection}', which does not accept duplicates",
                 activeCollection.Title);
 
+            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy.
+            // It's read before the sound, so the Outbound Filter's sound still follows the Ignore sound.
+            var existingClip = await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken);
             await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-
-            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy
-            if (await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken) is { } existingClip)
+            if (existingClip != null)
                 await _currentClipWriter.ReportCapturedAsync(existingClip, activeDatabaseKey, cancellationToken);
 
             return;
