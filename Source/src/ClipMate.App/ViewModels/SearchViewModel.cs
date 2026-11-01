@@ -282,10 +282,16 @@ public partial class SearchViewModel : ObservableObject
             return;
 
         var position = SearchInOptions.IndexOf(databaseOption) + 1;
+        var choosesOne = false;
         foreach (var item in CollectionOptions(databaseOption, nodes, null))
+        {
             SearchInOptions.Insert(position++, item);
+            choosesOne |= item.Searches(Target);
+        }
 
-        OnPropertyChanged(nameof(SelectedSearchIn));
+        // The collection or folder chosen before its Database's tree arrived is now listed
+        if (choosesOne)
+            OnPropertyChanged(nameof(SelectedSearchIn));
     }
 
     // The collection tree's icon for a Database: a local one that can't be read shows the error icon
@@ -802,6 +808,10 @@ public partial class SearchViewModel : ObservableObject
             }
             catch (OperationCanceledException) when (search.Token.IsCancellationRequested)
             {
+                // The others stop too, but may still fail on the way (logged by SearchDatabaseAsync); nobody waits for them
+                foreach (var item in searching.Keys)
+                    _ = item.ContinueWith(static p => _ = p.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+
                 throw;
             }
             catch (Exception ex)

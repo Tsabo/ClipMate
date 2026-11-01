@@ -107,6 +107,12 @@ public sealed class FakeDatabase : IDatabase
     public Task SearchReady { get; set; } = Task.CompletedTask;
 
     /// <summary>
+    /// Gets or sets whether <see cref="SearchAsync" /> keeps waiting for <see cref="SearchReady" /> when it is canceled,
+    /// as a Peer call that fails only after it was canceled does.
+    /// </summary>
+    public bool SearchIgnoresCancellation { get; set; }
+
+    /// <summary>
     /// Gets or sets what <see cref="SearchAsync" /> returns.
     /// </summary>
     public SearchMatches SearchResults { get; set; } = new([], 0);
@@ -173,7 +179,7 @@ public sealed class FakeDatabase : IDatabase
         ArgumentNullException.ThrowIfNull(filters);
         ThrowIfUnavailable();
         Searches.Add(filters);
-        await SearchReady.WaitAsync(cancellationToken);
+        await (SearchIgnoresCancellation ? SearchReady : SearchReady.WaitAsync(cancellationToken));
         return maxResults is { } most && SearchResults.Clips.Count > most
             ? SearchResults with { Clips = SearchResults.Clips.Take(most).ToList() }
             : SearchResults;

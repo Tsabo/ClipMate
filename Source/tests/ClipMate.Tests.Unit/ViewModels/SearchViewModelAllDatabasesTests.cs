@@ -247,4 +247,53 @@ public class SearchViewModelAllDatabasesTests
         await Assert.That(_executed.Where(p => p.SelectsNode)).IsEmpty();
         await Assert.That(_statuses).IsEmpty();
     }
+
+    [Test]
+    public async Task CancelSearch_AllDatabasesWithAPeerThatFailsAfterwards_LeavesNoFailureUnobserved()
+    {
+        // Arrange: My Clips stops when canceled; the Peer's call fails only later
+        AddMyClips().SearchReady = new TaskCompletionSource().Task;
+        var work = AddWork();
+        var peerAnswer = new TaskCompletionSource();
+        work.SearchReady = peerAnswer.Task;
+        work.SearchIgnoresCancellation = true;
+        var lateFailure = new DatabaseUnavailableException("DESKTOP dropped the call.");
+        var unobserved = new List<Exception>();
+        EventHandler<UnobservedTaskExceptionEventArgs> recordUnobserved = (_, e) =>
+        {
+            if (!e.Exception.InnerExceptions.Contains(lateFailure))
+                return;
+
+            lock (unobserved)
+                unobserved.Add(e.Exception);
+        };
+
+        TaskScheduler.UnobservedTaskException += recordUnobserved;
+        try
+        {
+            await OpenOnAllDatabases();
+            await StartAndCancelSearch();
+
+            // Act
+            peerAnswer.SetException(lateFailure);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // Assert
+            await Assert.That(unobserved).IsEmpty();
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= recordUnobserved;
+        }
+    }
+
+    // Kept out of the test so nothing there holds the canceled search's tasks
+    private async Task StartAndCancelSearch()
+    {
+        var search = _viewModel.SearchCommand.ExecuteAsync(null);
+        _viewModel.CancelSearch("Cancel was pressed");
+        await Assert.That(async () => await search).Throws<OperationCanceledException>();
+    }
 }

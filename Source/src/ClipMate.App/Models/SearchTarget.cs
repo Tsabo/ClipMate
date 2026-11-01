@@ -79,20 +79,29 @@ public sealed record SearchInOption(SearchTarget Target, string Name, int Depth,
     /// <summary>
     /// Gets the collection tree's icon for the entry (an emoji).
     /// </summary>
-    public string Icon { get; init; } = "📁";
+    public required string Icon
+    {
+        get;
+        init
+        {
+            field = value;
+            _iconImage = null;
+        }
+    }
+
+    // Drawn when first shown, on the UI thread; a copy with another icon draws its own
+    private ImageSource? _iconImage;
 
     /// <summary>
-    /// Gets <see cref="Icon" /> as an image, drawn as the collection tree draws it.
+    /// Gets <see cref="Icon" /> as an image, drawn as the collection tree draws it, once.
     /// </summary>
-    public ImageSource IconImage
-    {
-        get
-        {
-            var image = new DrawingImage();
-            Image.SetSource(image, Icon);
+    public ImageSource IconImage => _iconImage ??= DrawIcon(Icon);
 
-            return image;
-        }
+    private static DrawingImage DrawIcon(string icon)
+    {
+        var image = new DrawingImage();
+        Image.SetSource(image, icon);
+        return image;
     }
 
     /// <summary>
