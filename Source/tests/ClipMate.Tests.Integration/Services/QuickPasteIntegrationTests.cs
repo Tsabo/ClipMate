@@ -20,7 +20,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     private IConfigurationService _configurationService = null!;
     private IForegroundWindowMonitor _foregroundMonitor = null!;
     private IMessenger _messenger = null!;
-    private IClipboardService _mockClipboardService = null!;
+    private ICurrentClipWriter _mockCurrentClipWriter = null!;
     private IWin32InputInterop _mockWin32 = null!;
     private PasteTarget _pasteTarget = null!;
     private PasteTargetTracker _pasteTargetTracker = null!;
@@ -33,7 +33,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         await SetupAsync();
 
         _mockWin32 = A.Fake<IWin32InputInterop>();
-        _mockClipboardService = A.Fake<IClipboardService>();
+        _mockCurrentClipWriter = A.Fake<ICurrentClipWriter>();
         _messenger = WeakReferenceMessenger.Default;
 
         // Create test configuration with realistic QuickPaste settings
@@ -111,7 +111,8 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         _quickPasteService = new QuickPasteService(
             _mockWin32,
             _pasteTarget,
-            _mockClipboardService,
+            _mockCurrentClipWriter,
+            A.Fake<IDatabases>(),
             _configurationService,
             _messenger,
             A.Fake<IMacroExecutionService>(),
@@ -216,7 +217,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
         };
 
         // Act
-        var result = await _quickPasteService.PasteClipAsync(clip);
+        var result = await _quickPasteService.PasteClipAsync("db", clip);
 
         // Assert - Should fail because no target is set
         await Assert.That(result).IsFalse();
@@ -226,7 +227,7 @@ public class QuickPasteIntegrationTests : IntegrationTestBase
     public async Task QuickPaste_PasteClip_ThrowsArgumentNullException_WhenClipIsNull()
     {
         // Act & Assert
-        await Assert.That(async () => await _quickPasteService.PasteClipAsync(null!))
+        await Assert.That(async () => await _quickPasteService.PasteClipAsync("db", null!))
             .Throws<ArgumentNullException>();
     }
 

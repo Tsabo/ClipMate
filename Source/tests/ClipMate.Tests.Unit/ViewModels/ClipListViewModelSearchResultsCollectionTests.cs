@@ -39,7 +39,9 @@ public class ClipListViewModelSearchResultsCollectionTests
         ];
     }
 
-    private ClipListViewModel CreateViewModel() => new(A.Fake<ICollectionService>(), A.Fake<IFolderService>(), _clipService, A.Fake<IQuickPasteService>(),
+    private ClipListViewModel CreateViewModel() => new(A.Fake<ICollectionService>(), A.Fake<IFolderService>(),
+        _clipService, A.Fake<ICurrentClipWriter>(),
+        A.Fake<IQuickPasteService>(),
         new PowerPasteStatus(), _databases, A.Fake<IRemoteDatabaseService>(), A.Fake<IMessenger>(), A.Fake<ILogger<ClipListViewModel>>());
 
     private Clip LocalClip(Guid collectionId, Guid? folderId = null)
@@ -194,8 +196,9 @@ public class ClipListViewModelSearchResultsCollectionTests
         var databases = A.Fake<IDatabases>();
         A.CallTo(() => databases.Get(A<string>._)).Throws(new InvalidOperationException("The Database list is being rebuilt."));
         var logger = new RecordingLogger<ClipListViewModel>();
-        var viewModel = new ClipListViewModel(A.Fake<ICollectionService>(), A.Fake<IFolderService>(), _clipService, A.Fake<IQuickPasteService>(),
-            new PowerPasteStatus(), databases, A.Fake<IRemoteDatabaseService>(), A.Fake<IMessenger>(), logger);
+        var viewModel = new ClipListViewModel(A.Fake<ICollectionService>(), A.Fake<IFolderService>(), _clipService,
+            A.Fake<ICurrentClipWriter>(), A.Fake<IQuickPasteService>(), new PowerPasteStatus(), databases,
+            A.Fake<IRemoteDatabaseService>(), A.Fake<IMessenger>(), logger);
         var context = new RecordingSynchronizationContext();
         var previous = SynchronizationContext.Current;
 

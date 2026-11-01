@@ -21,8 +21,9 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public class QuickPasteService : IQuickPasteService, IDisposable
 {
-    private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
+    private readonly ICurrentClipWriter _currentClipWriter;
+    private readonly IDatabases _databases;
     private readonly IDialogService _dialogService;
     private readonly ILogger<QuickPasteService> _logger;
     private readonly IMacroExecutionService _macroExecutionService;
@@ -42,7 +43,8 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     /// </summary>
     public QuickPasteService(IWin32InputInterop win32Interop,
         IPasteTarget pasteTarget,
-        IClipboardService clipboardService,
+        ICurrentClipWriter currentClipWriter,
+        IDatabases databases,
         IConfigurationService configurationService,
         IMessenger messenger,
         IMacroExecutionService macroExecutionService,
@@ -52,7 +54,8 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     {
         _win32 = win32Interop ?? throw new ArgumentNullException(nameof(win32Interop));
         _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
-        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _macroExecutionService = macroExecutionService ?? throw new ArgumentNullException(nameof(macroExecutionService));
@@ -105,8 +108,9 @@ public class QuickPasteService : IQuickPasteService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<bool> PasteClipAsync(Clip clip, CancellationToken cancellationToken = default)
+    public async Task<bool> PasteClipAsync(string databaseKey, Clip clip, CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrEmpty(databaseKey);
         ArgumentNullException.ThrowIfNull(clip);
 
         // The Paste Target is kept up to date by tracking the foreground window, so it is used as it stands
@@ -150,7 +154,17 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             else
                 _logger.LogWarning("No valid window handle for target application");
 
-            // Check if clip is a macro - if so, execute as macro instead of clipboard paste
+            // A macro is typed instead of pasted, so it needs its text but doesn't go on the clipboard
+            if (clip.Macro)
+            {
+                var content = await _databases.Get(databaseKey).GetClipContentAsync(clip.Id, cancellationToken);
+                if (content != null)
+                {
+                    clip = content.Clip;
+                    content.PopulateContent(clip);
+                }
+            }
+
             _logger.LogDebug("Checking macro execution: Macro={Macro}, HasTextContent={HasText}",
                 clip.Macro, !string.IsNullOrEmpty(clip.TextContent));
 
@@ -195,9 +209,12 @@ public class QuickPasteService : IQuickPasteService, IDisposable
             }
             else
             {
-                // Normal clipboard paste
-                // Set clipboard content
-                await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
+                // The clip becomes the Current Clip, loaded from its Database and templated, then is pasted
+                if (await _currentClipWriter.MakeCurrentAsync(databaseKey, clip.Id,
+                    cancellationToken: cancellationToken) is not { } written)
+                    return false;
+
+                clip = written;
                 await Task.Delay(50, cancellationToken);
 
                 // Select formatting string based on title trigger if no manual selection

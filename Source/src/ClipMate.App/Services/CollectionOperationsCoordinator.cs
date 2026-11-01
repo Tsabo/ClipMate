@@ -42,6 +42,7 @@ public class CollectionOperationsCoordinator :
     private readonly ICollectionService _collectionService;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly IConfigurationService _configurationService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<CollectionOperationsCoordinator> _logger;
     private readonly IMessenger _messenger;
@@ -58,6 +59,7 @@ public class CollectionOperationsCoordinator :
         IClipAppendService clipAppendService,
         ICollectionService collectionService,
         IConfigurationService configurationService,
+        ICurrentClipWriter currentClipWriter,
         IDatabaseManager databaseManager,
         IMessenger messenger,
         IServiceProvider serviceProvider,
@@ -71,6 +73,7 @@ public class CollectionOperationsCoordinator :
         _clipAppendService = clipAppendService ?? throw new ArgumentNullException(nameof(clipAppendService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
         _databaseManager = databaseManager ?? throw new ArgumentNullException(nameof(databaseManager));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -252,7 +255,7 @@ public class CollectionOperationsCoordinator :
                 _messenger.Send(new ClipAddedEvent(resultClip, false, databaseKey!, resultClip.CollectionId, resultClip.FolderId));
 
                 // The appended clip becomes the Current Clip, ready to paste (manual: Lesson 3, Append)
-                await _clipService.LoadAndSetClipboardAsync(databaseKey!, resultClip.Id);
+                await _currentClipWriter.MakeCurrentAsync(databaseKey!, resultClip.Id);
             }
             catch (Exception ex)
             {

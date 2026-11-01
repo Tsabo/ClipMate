@@ -1,4 +1,6 @@
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Services;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -8,7 +10,7 @@ public partial class QuickPasteServiceTests
     public async Task Constructor_ThrowsArgumentNullException_WhenWin32InteropIsNull()
     {
         // Arrange
-        var mockClipboard = CreateMockClipboardService();
+        var mockCurrentClipWriter = CreateMockCurrentClipWriter();
         var mockConfig = CreateMockConfigurationService();
         var mockMessenger = CreateMockMessenger();
         var mockLogger = CreateMockLogger();
@@ -17,7 +19,8 @@ public partial class QuickPasteServiceTests
         await Assert.That(() => new QuickPasteService(
                 null!,
                 CreateMockPasteTarget(),
-                mockClipboard,
+                mockCurrentClipWriter,
+                A.Fake<IDatabases>(),
                 mockConfig,
                 mockMessenger,
                 CreateMockMacroExecutionService(),
@@ -28,7 +31,7 @@ public partial class QuickPasteServiceTests
     }
 
     [Test]
-    public async Task Constructor_ThrowsArgumentNullException_WhenClipboardServiceIsNull()
+    public async Task Constructor_ThrowsArgumentNullException_WhenCurrentClipWriterIsNull()
     {
         // Arrange
         var mockWin32 = CreateMockWin32();
@@ -41,6 +44,7 @@ public partial class QuickPasteServiceTests
                 mockWin32,
                 CreateMockPasteTarget(),
                 null!,
+                A.Fake<IDatabases>(),
                 mockConfig,
                 mockMessenger,
                 CreateMockMacroExecutionService(),
@@ -55,7 +59,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockWin32 = CreateMockWin32();
-        var mockClipboard = CreateMockClipboardService();
+        var mockCurrentClipWriter = CreateMockCurrentClipWriter();
         var mockMessenger = CreateMockMessenger();
         var mockLogger = CreateMockLogger();
 
@@ -63,7 +67,8 @@ public partial class QuickPasteServiceTests
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
                 CreateMockPasteTarget(),
-                mockClipboard,
+                mockCurrentClipWriter,
+                A.Fake<IDatabases>(),
                 null!,
                 mockMessenger,
                 CreateMockMacroExecutionService(),
@@ -78,7 +83,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockWin32 = CreateMockWin32();
-        var mockClipboard = CreateMockClipboardService();
+        var mockCurrentClipWriter = CreateMockCurrentClipWriter();
         var mockConfig = CreateMockConfigurationService();
         var mockLogger = CreateMockLogger();
 
@@ -86,7 +91,8 @@ public partial class QuickPasteServiceTests
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
                 CreateMockPasteTarget(),
-                mockClipboard,
+                mockCurrentClipWriter,
+                A.Fake<IDatabases>(),
                 mockConfig,
                 null!,
                 CreateMockMacroExecutionService(),
@@ -101,7 +107,7 @@ public partial class QuickPasteServiceTests
     {
         // Arrange
         var mockWin32 = CreateMockWin32();
-        var mockClipboard = CreateMockClipboardService();
+        var mockCurrentClipWriter = CreateMockCurrentClipWriter();
         var mockConfig = CreateMockConfigurationService();
         var mockMessenger = CreateMockMessenger();
 
@@ -109,7 +115,8 @@ public partial class QuickPasteServiceTests
         await Assert.That(() => new QuickPasteService(
                 mockWin32,
                 CreateMockPasteTarget(),
-                mockClipboard,
+                mockCurrentClipWriter,
+                A.Fake<IDatabases>(),
                 mockConfig,
                 mockMessenger,
                 CreateMockMacroExecutionService(),
@@ -126,7 +133,8 @@ public partial class QuickPasteServiceTests
         await Assert.That(() => new QuickPasteService(
                 CreateMockWin32(),
                 null!,
-                CreateMockClipboardService(),
+                CreateMockCurrentClipWriter(),
+                A.Fake<IDatabases>(),
                 CreateMockConfigurationService(),
                 CreateMockMessenger(),
                 CreateMockMacroExecutionService(),

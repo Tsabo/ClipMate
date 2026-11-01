@@ -4,7 +4,6 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
-using ClipMate.Platform.Helpers;
 using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
@@ -18,29 +17,6 @@ public partial class ClipServiceTests
         new(DeviceId.FromCertificateBytes([9, 9]), Guid.Parse("44444444-4444-4444-4444-444444444444"));
 
     private static string RemoteKey => RemoteDatabaseKey.From(_remoteAddress);
-
-    [Test]
-    public async Task LoadAndSetClipboardAsync_RemoteClip_PutsThePeersContentOnTheClipboardWithTheHashThatSuppressesCapture()
-    {
-        // Arrange
-        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, Title = "Hello" };
-        var text = new ClipData { Id = Guid.NewGuid(), ClipId = clip.Id, Format = Formats.UnicodeText.Code, StorageType = StorageType.Text };
-        A.CallTo(() => MockRemoteDatabases.GetClipContentAsync(_remoteAddress, clip.Id, A<CancellationToken>._))
-            .Returns(new ClipContent(clip, [text], [new BlobTxt { ClipId = clip.Id, ClipDataId = text.Id, Data = "Hello from the desktop" }], [], [], []));
-        Clip? placed = null;
-        A.CallTo(() => MockClipboardService.SetClipboardContentAsync(A<Clip>._, A<CancellationToken>._))
-            .Invokes(call => placed = call.GetArgument<Clip>(0));
-        var service = CreateClipService();
-
-        // Act
-        await service.LoadAndSetClipboardAsync(RemoteKey, clip.Id);
-
-        // Assert
-        await Assert.That(placed).IsNotNull();
-        await Assert.That(placed!.TextContent).IsEqualTo("Hello from the desktop");
-        await Assert.That(placed.ContentHash).IsEqualTo(ContentHasher.HashText("Hello from the desktop"));
-        A.CallTo(MockContextFactory).MustNotHaveHappened();
-    }
 
     [Test]
     public async Task LoadBlobDataAsync_RemoteClip_FillsTheContentFromThePeer()

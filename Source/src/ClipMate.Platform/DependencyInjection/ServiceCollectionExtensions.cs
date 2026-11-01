@@ -49,9 +49,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFirewallRuleService, WindowsFirewallRuleService>();
         services.AddSingleton<INetworkProfileService, WindowsNetworkProfileService>();
 
-        // Register PasteService for PowerPaste functionality
-        services.AddSingleton<IPasteService, PasteService>();
-
         // Register QuickPasteService for QuickPaste functionality
         services.AddSingleton<IQuickPasteService, QuickPasteService>();
 

@@ -22,7 +22,8 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider();
         var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);

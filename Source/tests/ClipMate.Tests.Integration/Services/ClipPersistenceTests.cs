@@ -203,8 +203,6 @@ public class ClipPersistenceTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
@@ -230,8 +228,6 @@ public class ClipPersistenceTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),

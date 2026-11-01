@@ -1,4 +1,6 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Services.Abstractions;
+using FakeItEasy;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -9,6 +11,29 @@ namespace ClipMate.Tests.Integration.Services;
 public class DuplicateCaptureIntegrationTests : CapturePipelineTestBase
 {
     private const string _link = "https://example.com/page";
+
+    [Test]
+    public async Task SavedCapture_BecomesTheCurrentClip()
+    {
+        var clip = TextClip(_link);
+        await CaptureAsync(clip);
+
+        A.CallTo(() => CurrentClipWriter.ReportCurrent(A<Clip>.That.Matches(p => p.Id == clip.Id), A<string?>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task Duplicate_LeavesTheClipAlreadyThereCurrent()
+    {
+        // As in ClipMate 7, so the Outbound Filter can still put the clipboard back filtered
+        var first = TextClip(_link);
+        await CaptureAsync(first);
+
+        await CaptureAsync(TextClip(_link));
+
+        A.CallTo(() => CurrentClipWriter.ReportCurrent(A<Clip>.That.Matches(p => p.Id == first.Id), A<string?>._))
+            .MustHaveHappenedTwiceExactly();
+    }
 
     [Test]
     public async Task SameTextAsAClipSentToTheTrash_IsSaved()

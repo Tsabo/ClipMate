@@ -21,12 +21,10 @@ public class ClipboardCoordinator : IHostedService,
     IRecipient<CaptureSpecialRequestedEvent>,
     IRecipient<ManualFilterRequestedEvent>
 {
-    // The Formats Manual Filter keeps, as ClipMate 7's outbound filter does (CF_TEXT and CF_BITMAP): plain text and an image
-    private static readonly string[] _filteredFormats = ["CF_TEXT", "CF_DIB"];
-
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
@@ -37,6 +35,7 @@ public class ClipboardCoordinator : IHostedService,
 
     public ClipboardCoordinator(IClipboardService clipboardService,
         IConfigurationService configurationService,
+        ICurrentClipWriter currentClipWriter,
         IDatabaseContextFactory databaseContextFactory,
         IAutoAppendService autoAppendService,
         IServiceProvider serviceProvider,
@@ -45,6 +44,7 @@ public class ClipboardCoordinator : IHostedService,
     {
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -202,22 +202,24 @@ public class ClipboardCoordinator : IHostedService,
     }
 
     /// <summary>
-    /// Handles ManualFilterRequestedEvent: puts the clipboard's content back with only its plain text (or its image), as
-    /// ClipMate 7's Manual Filter does (manual: Hotkeys). The copy is ClipMate's own, so it is not captured as a new clip.
+    /// Handles ManualFilterRequestedEvent: puts the Current Clip back on the clipboard with only its plain text (or its
+    /// image), as ClipMate 7's Manual Filter does (manual: Hotkeys). With no Current Clip it does nothing.
     /// </summary>
     public async void Receive(ManualFilterRequestedEvent message)
     {
         try
         {
-            // Read whatever is there, even ClipMate's own copy of the Current Clip
-            if (await _clipboardService.ReadClipboardAsync() is not { } reading ||
-                await _clipboardService.CaptureSpecialAsync(reading, _filteredFormats) is not { } filtered)
+            if (_currentClipWriter.CurrentClip is not { } currentClip)
             {
-                _logger.LogDebug("Manual Filter: no plain text or image on the clipboard");
+                _logger.LogDebug("Manual Filter: there is no Current Clip");
                 return;
             }
 
-            await _clipboardService.SetClipboardContentAsync(filtered);
+            var filtered = new WriteOptions(FilterMode.Forced);
+            if (currentClip.DatabaseKey is { } databaseKey)
+                await _currentClipWriter.MakeCurrentAsync(databaseKey, currentClip.Clip.Id, filtered);
+            else
+                await _currentClipWriter.PutOnClipboardAsync(currentClip.Clip, filtered);
 
             using var scope = _serviceProvider.CreateScope();
             await scope.ServiceProvider.GetRequiredService<ISoundService>().PlaySoundAsync(SoundEvent.Filter);
@@ -534,10 +536,15 @@ public class ClipboardCoordinator : IHostedService,
         if (!manualCapture &&
             activeCollection is { AcceptDuplicates: false } &&
             !string.IsNullOrEmpty(clip.TextContent) &&
-            clip.TextContent == await clipRepository.GetNewestPlainTextAsync(activeCollection.Id, cancellationToken))
+            await clipRepository.GetNewestPlainTextAsync(activeCollection.Id, cancellationToken) is { } newest &&
+            clip.TextContent == newest.Text)
         {
             _logger.LogInformation("Not saving a duplicate clip: the same text as the newest clip in '{Collection}', which does not accept duplicates",
                 activeCollection.Title);
+
+            // The clip already there stays the Current Clip, as in ClipMate 7
+            if (await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken) is { } existingClip)
+                _currentClipWriter.ReportCurrent(existingClip, activeDatabaseKey);
 
             await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
             return;
@@ -545,6 +552,7 @@ public class ClipboardCoordinator : IHostedService,
 
         var savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
         _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
+        _currentClipWriter.ReportCurrent(savedClip, activeDatabaseKey);
 
         // Play sound for new clipboard data captured
         await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);

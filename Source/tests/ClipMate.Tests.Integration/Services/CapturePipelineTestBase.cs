@@ -33,6 +33,11 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
 
     protected AutoAppendService AutoAppendService { get; } = new();
 
+    /// <summary>
+    /// Told about each clip that becomes the Current Clip.
+    /// </summary>
+    protected ICurrentClipWriter CurrentClipWriter { get; } = A.Fake<ICurrentClipWriter>();
+
     protected ClipRepository ClipRepository { get; private set; } = null!;
 
     /// <summary>
@@ -111,8 +116,8 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         _messenger = new StrongReferenceMessenger();
         _messenger.Register<ClipAddedEvent>(this, (_, message) => _addedClipIds.Add(message.Clip.Id));
 
-        _coordinator = new ClipboardCoordinator(_clipboardService, configurationService, contextFactory, AutoAppendService, _serviceProvider,
-            _messenger, A.Fake<ILogger<ClipboardCoordinator>>());
+        _coordinator = new ClipboardCoordinator(_clipboardService, configurationService, CurrentClipWriter,
+            contextFactory, AutoAppendService, _serviceProvider, _messenger, A.Fake<ILogger<ClipboardCoordinator>>());
 
         await _coordinator.StartAsync(CancellationToken.None);
     }

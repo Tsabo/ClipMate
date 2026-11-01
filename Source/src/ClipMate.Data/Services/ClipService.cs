@@ -21,19 +21,15 @@ namespace ClipMate.Data.Services;
 public class ClipService : IClipService
 {
     private readonly IDecryptedBlobCacheService _blobCacheService;
-    private readonly IClipboardService _clipboardService;
     private readonly IDatabases _databases;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<ClipService> _logger;
     private readonly IMessenger _messenger;
-    private readonly ITemplateService _templateService;
 
     public ClipService(IDatabaseContextFactory databaseContextFactory,
         IConfigurationService configurationService,
-        IClipboardService clipboardService,
-        ITemplateService templateService,
         IEncryptionService encryptionService,
         IDecryptedBlobCacheService blobCacheService,
         IDatabases databases,
@@ -42,8 +38,6 @@ public class ClipService : IClipService
     {
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
-        _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
         _databases = databases ?? throw new ArgumentNullException(nameof(databases));
@@ -498,47 +492,6 @@ public class ClipService : IClipService
             sourceClipId, copiedClip.Id);
 
         return copiedClip;
-    }
-
-    /// <inheritdoc />
-    public async Task LoadAndSetClipboardAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            // Read the clip and its content from its Database (a Remote Database is read from its Peer)
-            var content = await _databases.Get(databaseKey).GetClipContentAsync(clipId, cancellationToken);
-            if (content == null)
-            {
-                _logger.LogWarning("Clip {ClipId} not found in database {DatabaseKey}", clipId, databaseKey);
-                return;
-            }
-
-            if (content.Formats.Count == 0)
-            {
-                _logger.LogWarning("No ClipData found for clip: {ClipId}", clipId);
-                return;
-            }
-
-            var clip = content.Clip;
-            content.PopulateContent(clip);
-
-            // Apply template transformation if active
-            var transformedClip = _templateService.TryApplyTemplate(clip);
-            if (transformedClip != null)
-                clip = transformedClip;
-
-            // Recompute after loading the content, by the same rule as capture
-            clip.ContentHash = ContentHasher.HashClip(clip);
-
-            // Update the Windows clipboard
-            await _clipboardService.SetClipboardContentAsync(clip, cancellationToken);
-            _logger.LogInformation("Set clipboard content for clip: {ClipId} from database {DatabaseKey}", clip.Id, databaseKey);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load and set clipboard for clip {ClipId} from database {DatabaseKey}", clipId, databaseKey);
-            throw;
-        }
     }
 
     /// <inheritdoc />

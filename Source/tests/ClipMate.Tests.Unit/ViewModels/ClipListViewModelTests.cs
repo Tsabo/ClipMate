@@ -524,6 +524,7 @@ public class ClipListViewModelTests
         _mockCollectionService,
         _mockFolderService,
         _mockClipService,
+        A.Fake<ICurrentClipWriter>(),
         _mockQuickPasteService,
         new PowerPasteStatus(),
         databases ?? _databases,

@@ -10,7 +10,6 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
-using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using ThrottleDebounce.Retry;
 using Windows.Win32.Foundation;
@@ -40,7 +39,6 @@ public class ClipboardService : IClipboardService, IDisposable
     private readonly Task _decodeLoop;
     private readonly ClipboardSnapshotDecoder _decoder;
     private readonly ILogger<ClipboardService> _logger;
-    private readonly IMessenger _messenger;
     private readonly Channel<PendingCapture> _pendingCaptures;
     private readonly RawClipboardReader _reader;
     private readonly ISoundService _soundService;
@@ -58,7 +56,6 @@ public class ClipboardService : IClipboardService, IDisposable
         IApplicationProfileService applicationProfileService,
         ISoundService soundService,
         IDecryptedBlobCacheService blobCacheService,
-        IMessenger messenger,
         TimeProvider? timeProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -67,7 +64,6 @@ public class ClipboardService : IClipboardService, IDisposable
         ArgumentNullException.ThrowIfNull(applicationProfileService);
         _soundService = soundService ?? throw new ArgumentNullException(nameof(soundService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
-        _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _timeProvider = timeProvider ?? TimeProvider.System;
         _reader = new RawClipboardReader(_win32, _timeProvider, _logger);
         _decoder = new ClipboardSnapshotDecoder(_configurationService, applicationProfileService, _logger);
@@ -272,7 +268,8 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task SetClipboardContentAsync(Clip clip, CancellationToken cancellationToken = default)
+    public async Task SetClipboardContentAsync(Clip clip, bool filtered = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clip);
 
@@ -285,13 +282,10 @@ public class ClipboardService : IClipboardService, IDisposable
                     await UiThread.RunAsync(() =>
                     {
                         // WPF Clipboard API handles OpenClipboard/CloseClipboard internally
-                        if (CreateCopy(clip) is not { } dataObject)
+                        if (CreateCopy(clip, filtered) is not { } dataObject)
                             return;
 
                         _win32.SetClipboardDataObject(dataObject);
-
-                        // Every path that puts a clip on the clipboard comes here, so the clip becomes the Current Clip
-                        _messenger.Send(new ClipboardCopiedEvent(clip));
                     });
 
                     if (attempt > 0)
@@ -325,11 +319,11 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip)
+    public IReadOnlyList<ClipboardFormatData> GetClipboardFormats(Clip clip, bool filtered = false)
     {
         ArgumentNullException.ThrowIfNull(clip);
 
-        var dataObject = CreateDataObject(clip);
+        var dataObject = CreateDataObject(clip, filtered);
         if (dataObject == null)
             return [];
 
@@ -337,7 +331,9 @@ public class ClipboardService : IClipboardService, IDisposable
 
         // A copy offers its image as a GDI bitmap, which the clipboard keeps as a handle rather than memory; offer the
         // DIB (Windows derives the bitmap from it) so a delayed-rendered copy has the image too
-        if (formats.All(p => p.FormatId != (uint)Formats.Dib.Code) && GetPlainImageData(clip) is { } imageData)
+        if (formats.All(p => p.FormatId != (uint)Formats.Dib.Code) &&
+            !(filtered && !string.IsNullOrEmpty(GetPlainText(clip))) &&
+            GetPlainImageData(clip) is { } imageData)
         {
             try
             {
@@ -624,8 +620,11 @@ public class ClipboardService : IClipboardService, IDisposable
     /// The data object a copy of the clip puts on the clipboard, with every Format the clip has; null for an unsupported
     /// clip type.
     /// </summary>
-    private WpfDataObject? CreateDataObject(Clip clip)
+    private WpfDataObject? CreateDataObject(Clip clip, bool filtered)
     {
+        if (filtered)
+            return CreateFilteredDataObject(clip);
+
         var dataObject = clip.Type switch
         {
             ClipType.Text or ClipType.Html or ClipType.RichText or ClipType.Custom => CreateTextDataObject(clip),
@@ -651,9 +650,9 @@ public class ClipboardService : IClipboardService, IDisposable
     /// <summary>
     /// The data object a copy of the clip puts on the clipboard: every Format the clip has, marked as ClipMate's own copy.
     /// </summary>
-    internal WpfDataObject? CreateCopy(Clip clip)
+    internal WpfDataObject? CreateCopy(Clip clip, bool filtered = false)
     {
-        var dataObject = CreateDataObject(clip);
+        var dataObject = CreateDataObject(clip, filtered);
         if (dataObject != null)
             OwnClipboardCopy.Mark(dataObject);
 
@@ -677,38 +676,54 @@ public class ClipboardService : IClipboardService, IDisposable
         }
     }
 
+    /// <summary>
+    /// The data object for a filtered write: only the clip's plain text, or its image when it has no text.
+    /// </summary>
+    private WpfDataObject? CreateFilteredDataObject(Clip clip)
+    {
+        var dataObject = new WpfDataObject();
+        if (GetPlainText(clip) is { Length: > 0 } text)
+            dataObject.SetText(text);
+        else if (GetPlainImageData(clip) is { } imageData)
+            AddImageFormats(dataObject, imageData);
+        else
+            return null;
+
+        return dataObject;
+    }
+
+    /// <summary>
+    /// The clip's plain text, decrypted from the cache for an encrypted clip that has been decrypted.
+    /// </summary>
+    private string? GetPlainText(Clip clip)
+    {
+        if (!clip.Encrypted)
+            return clip.TextContent;
+
+        if (clip.IsDecrypted)
+        {
+            if (_blobCacheService.GetDecryptedBlobs(clip.Id) is { TextBlobs.Count: > 0 } cachedBlobs)
+                return cachedBlobs.TextBlobs[0].Data;
+
+            _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
+
+            return clip.TextContent;
+        }
+
+        // Encrypted base64 from transient properties, loaded by the caller via IClipService.LoadEncryptedContentAsync
+        if (clip.TextContent == null)
+            _logger.LogWarning("Clip {ClipId} is encrypted but TextContent not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
+
+        return clip.TextContent;
+    }
+
     private WpfDataObject CreateTextDataObject(Clip clip)
     {
         try
         {
-            var textContent = clip.TextContent;
+            var textContent = GetPlainText(clip);
             var rtfContent = clip.RtfContent;
             var htmlContent = clip.HtmlContent;
-
-            // Handle encrypted clips - load decrypted content from cache OR encrypted base64 from transient properties
-            if (clip.Encrypted)
-            {
-                if (clip.IsDecrypted)
-                {
-                    // Load decrypted content from cache
-                    var cachedBlobs = _blobCacheService.GetDecryptedBlobs(clip.Id);
-                    if (cachedBlobs is { TextBlobs.Count: > 0 })
-                    {
-                        // Use first text BLOB as plain text (decrypted)
-                        textContent = cachedBlobs.TextBlobs[0].Data;
-                        _logger.LogDebug("Loaded decrypted text content from cache for clip {ClipId}", clip.Id);
-                    }
-                    else
-                        _logger.LogWarning("Clip {ClipId} is marked as decrypted but cache is empty", clip.Id);
-                }
-                else
-                {
-                    // Use encrypted base64 from transient properties (loaded by caller via IClipService.LoadEncryptedContentAsync)
-                    // If textContent is still null, caller forgot to load - log warning
-                    if (textContent == null)
-                        _logger.LogWarning("Clip {ClipId} is encrypted but TextContent not loaded. Call IClipService.LoadEncryptedContentAsync first.", clip.Id);
-                }
-            }
 
             var dataObject = new WpfDataObject();
 

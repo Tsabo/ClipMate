@@ -23,7 +23,8 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(null!, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(null!, configurationService, A.Fake<ICurrentClipWriter>(),
+            contextFactory, autoAppendService, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -39,7 +40,8 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, null!, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, null!, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -55,7 +57,8 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService, contextFactory, null!, serviceProvider, messenger, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, null!, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -71,7 +74,8 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, null!, logger))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, null!, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -87,7 +91,8 @@ public partial class ClipboardCoordinatorTests
         var messenger = A.Fake<IMessenger>();
 
         // Act & Assert
-        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, null!))
+        await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -104,7 +109,8 @@ public partial class ClipboardCoordinatorTests
         var logger = CreateLogger<ClipboardCoordinator>();
 
         // Act
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();

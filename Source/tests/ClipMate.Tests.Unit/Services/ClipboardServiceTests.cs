@@ -7,7 +7,6 @@ using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using ClipMate.Tests.Unit.Networking;
-using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using TUnit.Core.Executors;
 using Windows.Win32.Foundation;
@@ -744,6 +743,48 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
+    public async Task CreateCopy_FilteredHtmlClip_HasOnlyThePlainText()
+    {
+        // Arrange
+        var service = CreateClipboardService();
+        var clip = new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Html,
+            TextContent = "Hello",
+            HtmlContent = "<b>Hello</b>",
+            RtfContent = @"{\rtf1 Hello}",
+            RawFormats = [new RawClipboardFormat("App Private", 0xC123, [1, 2, 3])],
+        };
+
+        // Act
+        var dataObject = service.CreateCopy(clip, true);
+
+        // Assert
+        await Assert.That(dataObject!.GetData(System.Windows.DataFormats.UnicodeText)).IsEqualTo("Hello");
+        await Assert.That(dataObject.GetDataPresent(System.Windows.DataFormats.Html, false)).IsFalse();
+        await Assert.That(dataObject.GetDataPresent(System.Windows.DataFormats.Rtf, false)).IsFalse();
+        await Assert.That(dataObject.GetDataPresent("App Private", false)).IsFalse();
+        await Assert.That(dataObject.GetDataPresent(ClipboardIgnoreFormats.ClipboardViewerIgnore, false)).IsTrue();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
+    public async Task CreateCopy_FilteredClipWithNoText_HasNothingToWrite()
+    {
+        // Arrange: a file list has neither plain text nor an image
+        var service = CreateClipboardService();
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Files, FilePathsJson = System.Text.Json.JsonSerializer.Serialize(new[] { Environment.ProcessPath! }) };
+
+        // Act
+        var dataObject = service.CreateCopy(clip, true);
+
+        // Assert
+        await Assert.That(dataObject).IsNull();
+    }
+
+    [Test]
+    [TestExecutor<STAThreadExecutor>]
     public async Task GetClipboardFormats_TextClip_DoesNotIncludeTheIgnoreFormat()
     {
         // Arrange
@@ -760,43 +801,16 @@ public class ClipboardServiceTests : TestFixtureBase
 
     [Test]
     [TestExecutor<STAThreadExecutor>]
-    public async Task SetClipboardContentAsync_PutsTheClipOnTheClipboard_AnnouncesItAsCopied()
-    {
-        // Arrange: every path that puts a clip on the clipboard (pick, QuickPaste, paste, the clip viewer) goes through here
-        var messenger = new StrongReferenceMessenger();
-        ClipboardCopiedEvent? copied = null;
-        messenger.Register<ClipboardCopiedEvent>(this, (_, message) => copied = message);
-        var win32 = CreateWin32ClipboardMock();
-        A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).DoesNothing();
-        var service = CreateClipboardService(win32, A.Fake<ISoundService>(), messenger: messenger);
-        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
-
-        // Act
-        await service.SetClipboardContentAsync(clip);
-
-        // Assert
-        A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).MustHaveHappenedOnceExactly();
-        await Assert.That(copied?.Clip.Id).IsEqualTo(clip.Id);
-    }
-
-    [Test]
-    [TestExecutor<STAThreadExecutor>]
-    public async Task SetClipboardContentAsync_WhenTheClipboardCannotBeSet_DoesNotAnnounceACopy()
+    public async Task SetClipboardContentAsync_WhenTheClipboardCannotBeSet_Throws()
     {
         // Arrange
-        var messenger = new StrongReferenceMessenger();
-        ClipboardCopiedEvent? copied = null;
-        messenger.Register<ClipboardCopiedEvent>(this, (_, message) => copied = message);
         var win32 = CreateWin32ClipboardMock();
         A.CallTo(() => win32.SetClipboardDataObject(A<System.Windows.IDataObject>.Ignored)).Throws(new InvalidOperationException("No clipboard"));
-        var service = CreateClipboardService(win32, A.Fake<ISoundService>(), messenger: messenger);
+        var service = CreateClipboardService(win32, A.Fake<ISoundService>());
         var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
 
-        // Act
+        // Act & Assert
         await Assert.That(() => service.SetClipboardContentAsync(clip)).Throws<ClipMate.Core.Exceptions.ClipboardException>();
-
-        // Assert
-        await Assert.That(copied).IsNull();
     }
 
     private static byte[] CreatePng(int width, int height)
@@ -816,8 +830,7 @@ public class ClipboardServiceTests : TestFixtureBase
     private ClipboardService CreateClipboardService() => CreateClipboardService(CreateWin32ClipboardMock(), A.Fake<ISoundService>());
 
     private ClipboardService CreateClipboardService(IWin32ClipboardInterop win32Mock, ISoundService soundService,
-        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null, TimeProvider? timeProvider = null,
-        IMessenger? messenger = null)
+        IApplicationProfileService? profileServiceMock = null, ClipMateConfiguration? configuration = null, TimeProvider? timeProvider = null)
     {
         var logger = CreateLogger<ClipboardService>();
 
@@ -839,8 +852,8 @@ public class ClipboardServiceTests : TestFixtureBase
         A.CallTo(() => configServiceMock.Configuration).Returns(config);
 
         var blobCacheServiceMock = A.Fake<IDecryptedBlobCacheService>();
-        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService, blobCacheServiceMock,
-            messenger ?? new StrongReferenceMessenger(), timeProvider);
+        return new ClipboardService(logger, win32Mock, configServiceMock, profileServiceMock, soundService,
+            blobCacheServiceMock, timeProvider);
     }
 
     /// <summary>

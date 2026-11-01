@@ -257,7 +257,8 @@ public class ClipRepository : IClipRepository
         return clip;
     }
 
-    public async Task<string?> GetNewestPlainTextAsync(Guid collectionId, CancellationToken cancellationToken = default)
+    public async Task<(Guid ClipId, string? Text)?> GetNewestPlainTextAsync(Guid collectionId,
+        CancellationToken cancellationToken = default)
     {
         // Ordered in memory: SQLite can't ORDER BY a DateTimeOffset
         var captures = await _context.Clips
@@ -275,7 +276,8 @@ public class ClipRepository : IClipRepository
             .Join(_context.BlobTxt, data => data.Id, blob => blob.ClipDataId, (data, blob) => new { data.Format, blob.Data })
             .ToListAsync(cancellationToken);
 
-        return (texts.FirstOrDefault(p => p.Format == Formats.UnicodeText.Code) ?? texts.FirstOrDefault())?.Data;
+        return (newestId,
+            (texts.FirstOrDefault(p => p.Format == Formats.UnicodeText.Code) ?? texts.FirstOrDefault())?.Data);
     }
 
     public async Task<IReadOnlyList<Clip>> SearchAsync(string searchText, CancellationToken cancellationToken = default)

@@ -1,8 +1,10 @@
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data.Services;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
 
@@ -14,6 +16,7 @@ public partial class PowerPasteClipboardBridgeTests
 {
     private IClipboardService _mockClipboardService = null!;
     private IConfigurationService _mockConfigService = null!;
+    private CurrentClipWriter _currentClipWriter = null!;
     private ILogger<PowerPasteClipboardBridge> _mockLogger = null!;
     private IPowerPasteService _mockPowerPasteService = null!;
     private ITemplateService _mockTemplateService = null!;
@@ -28,6 +31,10 @@ public partial class PowerPasteClipboardBridgeTests
         _mockTemplateService = A.Fake<ITemplateService>();
         A.CallTo(() => _mockTemplateService.PreviewTemplateText(A<Clip>.Ignored)).Returns(null);
 
+        // The real writer, so arming prepares the clip's Formats through it
+        _currentClipWriter = new CurrentClipWriter(_mockClipboardService, A.Fake<IDatabases>(), _mockTemplateService,
+            new StrongReferenceMessenger(), A.Fake<ILogger<CurrentClipWriter>>());
+
         var config = new ClipMateConfiguration
         {
             Preferences = new PreferencesConfiguration { PowerPasteDelay = 200 },
@@ -35,7 +42,8 @@ public partial class PowerPasteClipboardBridgeTests
 
         A.CallTo(() => _mockConfigService.Configuration).Returns(config);
 
-        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<bool>.Ignored,
+            A<CancellationToken>.Ignored))
             .Returns(Task.CompletedTask);
 
         A.CallTo(() => _mockPowerPasteService.AdvanceToNextAsync()).Returns(Task.CompletedTask);
@@ -45,6 +53,7 @@ public partial class PowerPasteClipboardBridgeTests
         _mockPowerPasteService,
         _mockClipboardService,
         _mockConfigService,
+        _currentClipWriter,
         _mockTemplateService,
         A.Fake<IWin32InputInterop>(),
         _mockLogger);

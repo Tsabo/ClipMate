@@ -40,7 +40,8 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipServiceMock, filterService: filterServiceMock);
         var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -81,7 +82,8 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -132,7 +134,8 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipServiceMock);
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -181,7 +184,9 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
+            logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -249,7 +254,9 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
+            logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -307,7 +314,9 @@ public partial class ClipboardCoordinatorTests
         var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, contextFactory, autoAppendServiceMock, serviceProvider, messengerMock, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
+            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
+            logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);

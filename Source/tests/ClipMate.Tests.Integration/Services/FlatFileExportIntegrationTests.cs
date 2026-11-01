@@ -433,8 +433,6 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
@@ -465,8 +463,6 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
         return new ClipService(
             contextFactory,
             A.Fake<IConfigurationService>(),
-            A.Fake<IClipboardService>(),
-            A.Fake<ITemplateService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),

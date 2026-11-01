@@ -14,7 +14,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class QuickPasteServiceTests : TestFixtureBase
 {
-    private IClipboardService _mockClipboardService = null!;
+    private ICurrentClipWriter _mockCurrentClipWriter = null!;
     private IConfigurationService _mockConfigurationService = null!;
     private IDialogService _mockDialogService = null!;
     private ILogger<QuickPasteService> _mockLogger = null!;
@@ -27,7 +27,7 @@ public partial class QuickPasteServiceTests : TestFixtureBase
     private QuickPasteService CreateService()
     {
         _mockWin32 = A.Fake<IWin32InputInterop>();
-        _mockClipboardService = A.Fake<IClipboardService>();
+        _mockCurrentClipWriter = A.Fake<ICurrentClipWriter>();
         _mockConfigurationService = A.Fake<IConfigurationService>();
         _mockMessenger = A.Fake<IMessenger>();
         _mockMacroExecutionService = A.Fake<IMacroExecutionService>();
@@ -90,7 +90,8 @@ public partial class QuickPasteServiceTests : TestFixtureBase
         return new QuickPasteService(
             _mockWin32,
             CreateMockPasteTarget(),
-            _mockClipboardService,
+            _mockCurrentClipWriter,
+            A.Fake<IDatabases>(),
             _mockConfigurationService,
             _mockMessenger,
             _mockMacroExecutionService,
@@ -120,7 +121,7 @@ public partial class QuickPasteServiceTests : TestFixtureBase
         return pasteTarget;
     }
 
-    private IClipboardService CreateMockClipboardService() => A.Fake<IClipboardService>();
+    private ICurrentClipWriter CreateMockCurrentClipWriter() => A.Fake<ICurrentClipWriter>();
 
     private IMacroExecutionService CreateMockMacroExecutionService() => A.Fake<IMacroExecutionService>();
 
