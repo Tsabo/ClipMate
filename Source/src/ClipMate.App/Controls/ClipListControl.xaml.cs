@@ -125,6 +125,16 @@ public partial class ClipListControl
             new PropertyMetadata(false));
 
     /// <summary>
+    /// Dependency property for whether the main grid shows the Collection column (while search results are shown)
+    /// </summary>
+    public static readonly DependencyProperty ShowsCollectionColumnProperty =
+        DependencyProperty.Register(
+            nameof(ShowsCollectionColumn),
+            typeof(bool),
+            typeof(ClipListControl),
+            new PropertyMetadata(false, OnShowsCollectionColumnChanged));
+
+    /// <summary>
     /// Routed event for selection changes
     /// </summary>
     public static readonly RoutedEvent SelectionChangedEvent =
@@ -258,6 +268,21 @@ public partial class ClipListControl
     {
         get => (bool)GetValue(CanLockSelectionProperty);
         private set => SetValue(CanLockSelectionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the main grid shows the Collection column, which names where each search result came from
+    /// </summary>
+    public bool ShowsCollectionColumn
+    {
+        get => (bool)GetValue(ShowsCollectionColumnProperty);
+        set => SetValue(ShowsCollectionColumnProperty, value);
+    }
+
+    private static void OnShowsCollectionColumnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is ClipListControl control)
+            control.CollectionColumn.Visible = (bool)e.NewValue;
     }
 
     /// <summary>

@@ -518,7 +518,8 @@
                                                       Grid.Row="1"
                                                       Items="{Binding PrimaryClipList.Clips, Mode=OneWay}"
                                                       SelectedItem="{Binding PrimaryClipList.SelectedClip}"
-                                                      SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}" />
+                                                      SelectedItems="{Binding PrimaryClipList.SelectedClips, Mode=TwoWay}"
+                                                      ShowsCollectionColumn="{Binding PrimaryClipList.ShowsSearchResults}" />
                         </Grid>
                     </dxdo:LayoutPanel>
                 </dxdo:LayoutGroup>

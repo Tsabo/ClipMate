@@ -453,7 +453,8 @@
                                       DataContext="{Binding ClipListViewModel}"
                                       Items="{Binding Clips}"
                                       SelectedItem="{Binding SelectedClip}"
-                                      SelectedItems="{Binding SelectedClips, Mode=TwoWay}" />
+                                      SelectedItems="{Binding SelectedClips, Mode=TwoWay}"
+                                      ShowsCollectionColumn="{Binding ShowsSearchResults}" />
 
             <controls:QuickPasteToolbar Grid.Row="1"
                                         DataContext="{Binding QuickPasteToolbarViewModel}" />

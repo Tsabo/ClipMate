@@ -95,6 +95,13 @@ public partial class Clip
             : Path.GetFileNameWithoutExtension(SourceApplicationName)?.ToUpperInvariant() ?? SourceApplicationName;
 
     /// <summary>
+    /// The collection the clip is in, and its folder if it has one ("Inbox › Projects"), named by the clip's own
+    /// Database. Set by the clip list while it shows search results; empty when the names could not be read. NOT
+    /// stored in Clips table.
+    /// </summary>
+    public string CollectionDisplay { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets formatted size string (bytes, K, M).
     /// </summary>
     public string SizeDisplay
