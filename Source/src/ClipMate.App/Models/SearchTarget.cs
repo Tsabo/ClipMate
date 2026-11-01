@@ -1,5 +1,7 @@
+using System.Windows.Media;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using Image = Emoji.Wpf.Image;
 
 namespace ClipMate.App.Models;
 
@@ -57,6 +59,25 @@ public sealed record SearchInOption(SearchTarget Target, string Name, int Depth,
     /// Gets how far the entry is indented in the open list, in pixels, so it reads like the collection tree.
     /// </summary>
     public double Indent => Depth * 16;
+
+    /// <summary>
+    /// Gets the collection tree's icon for the entry (an emoji).
+    /// </summary>
+    public string Icon { get; init; } = "📁";
+
+    /// <summary>
+    /// Gets <see cref="Icon" /> as an image, drawn as the collection tree draws it.
+    /// </summary>
+    public ImageSource IconImage
+    {
+        get
+        {
+            var image = new DrawingImage();
+            Image.SetSource(image, Icon);
+
+            return image;
+        }
+    }
 
     /// <summary>
     /// Gets whether choosing this entry searches <paramref name="target" />: the same Database and the same folder, or with

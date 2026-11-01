@@ -53,7 +53,9 @@
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="{Binding Indent}" />
-                                <TextBlock x:Name="SearchInName" Text="{Binding Name}" />
+                                <!-- The collection tree's icon -->
+                                <Image x:Name="SearchInIcon" Source="{Binding IconImage}" Width="16" Height="16" Margin="0,0,4,0" />
+                                <TextBlock x:Name="SearchInName" Text="{Binding Name}" VerticalAlignment="Center" />
                             </StackPanel>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding Depth}" Value="0">
@@ -61,10 +63,22 @@
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsAvailable}" Value="False">
                                     <Setter TargetName="SearchInName" Property="Opacity" Value="0.5" />
+                                    <Setter TargetName="SearchInIcon" Property="Opacity" Value="0.5" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
                     </dxe:ComboBoxEdit.ItemTemplate>
+                    <!-- Closed: the chosen entry's icon and where it is -->
+                    <dxe:ComboBoxEdit.EditNonEditableTemplate>
+                        <ControlTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="3,0">
+                                <Image Source="{Binding SelectedItem.IconImage, RelativeSource={RelativeSource AncestorType=dxe:ComboBoxEdit}}"
+                                       Width="16" Height="16" Margin="0,0,4,0" />
+                                <TextBlock Text="{Binding SelectedItem.Path, RelativeSource={RelativeSource AncestorType=dxe:ComboBoxEdit}}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </ControlTemplate>
+                    </dxe:ComboBoxEdit.EditNonEditableTemplate>
                     <dxe:ComboBoxEdit.ItemContainerStyle>
                         <Style TargetType="dxe:ComboBoxEditItem">
                             <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />

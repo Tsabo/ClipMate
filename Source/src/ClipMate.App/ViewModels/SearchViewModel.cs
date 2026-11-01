@@ -225,6 +225,7 @@ public partial class SearchViewModel : ObservableObject
                 SearchInOptions.Add(new SearchInOption(new SearchTarget(item.Key, name) { IsRemote = item.Remote != null }, name, 0, item.IsAvailable)
                 {
                     Path = name,
+                    Icon = DatabaseIcon(item, item.IsAvailable),
                 });
             }
 
@@ -259,7 +260,7 @@ public partial class SearchViewModel : ObservableObject
             _logger.LogInformation("Search in: couldn't read the collections of {DatabaseKey}: {Reason}", database.Key, ex.Message);
             var index = SearchInOptions.ToList().FindIndex(p => p.Depth == 0 && p.Target.DatabaseKey == database.Key);
             if (index >= 0 && !cancellationToken.IsCancellationRequested)
-                SearchInOptions[index] = SearchInOptions[index] with { IsAvailable = false };
+                SearchInOptions[index] = SearchInOptions[index] with { IsAvailable = false, Icon = DatabaseIcon(database, false) };
 
             return;
         }
@@ -274,6 +275,11 @@ public partial class SearchViewModel : ObservableObject
 
         OnPropertyChanged(nameof(SelectedSearchIn));
     }
+
+    // The collection tree's icon for a Database: a local one that can't be read shows the error icon
+    private static string DatabaseIcon(IDatabase database, bool isAvailable) => database.Remote != null
+        ? RemoteDatabaseTreeNode.DatabaseIcon
+        : new DatabaseTreeNode(database.Name, database.Key) { HasError = !isAvailable }.Icon;
 
     /// <summary>
     /// The entries for <paramref name="nodes" /> and their folders, in tree order, under <paramref name="parent" />.
@@ -301,7 +307,7 @@ public partial class SearchViewModel : ObservableObject
                 ? parent.Target with { CollectionId = collection?.Id, CollectionName = collection?.Name, FolderId = id, FolderName = item.Name }
                 : parent.Target with { CollectionId = id, CollectionName = item.Name, FolderId = null, FolderName = null };
 
-            var option = new SearchInOption(target, item.Name, parent.Depth + 1, parent.IsAvailable) { Path = $"{parent.Path} › {item.Name}" };
+            var option = new SearchInOption(target, item.Name, parent.Depth + 1, parent.IsAvailable) { Path = $"{parent.Path} › {item.Name}", Icon = item.Icon };
             yield return option;
 
             foreach (var child in CollectionOptions(option, item.Children, collection ?? (id, item.Name)))

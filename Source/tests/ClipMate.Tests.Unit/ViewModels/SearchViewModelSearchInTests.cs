@@ -94,6 +94,42 @@ public class SearchViewModelSearchInTests
         await Assert.That(_viewModel.SearchInOptions.Where(p => !p.IsAvailable).Select(p => p.Name)).IsEquivalentTo(["Notes — LAPTOP"]);
     }
 
+    [Test]
+    public async Task LoadSearchInOptions_LocalAndRemoteDatabases_ShowsEachWithTheCollectionTreesIcon()
+    {
+        // Arrange
+        AddMyClips();
+        AddWork();
+        _databases.AddRemote(new RemoteDatabase(_laptop, "Notes", "LAPTOP", PeerConnectionStatus.Offline, null));
+        _databases.AddLocal("db_missing", "Archive").IsAvailable = false;
+
+        // Act
+        await _viewModel.LoadSearchInOptionsAsync();
+
+        // Assert
+        await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Icon} {p.Name}"))
+            .IsEquivalentTo(["💾 My Clips", "📥 Inbox", "📁 Projects", "🔒 Safe", "❌ Archive", "🖥️ Work — DESKTOP", "📁 Reports", "🖥️ Notes — LAPTOP"],
+                CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task LoadSearchInOptions_TreeCannotBeRead_ShowsTheLocalDatabaseWithTheErrorIcon()
+    {
+        // Arrange
+        var myClips = AddMyClips();
+        var tree = new TaskCompletionSource();
+        myClips.TreeReady = tree.Task;
+
+        // Act
+        var loading = _viewModel.LoadSearchInOptionsAsync();
+        myClips.IsAvailable = false;
+        tree.SetResult();
+        await loading;
+
+        // Assert
+        await Assert.That(_viewModel.SearchInOptions.Select(p => $"{p.Icon} {p.Name}")).IsEquivalentTo(["❌ My Clips"]);
+    }
+
     private SearchInOption Option(string path) => _viewModel.SearchInOptions.Single(p => p.Path == path);
 
     private async Task OpenOn(SearchTarget? selection)
