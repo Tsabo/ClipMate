@@ -225,6 +225,24 @@ public class PreferencesConfiguration
     public string? PowerPasteLastDirection { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the Outbound Filter is on: clips go on the clipboard with only their plain text, or their
+    /// image when they have no text (ClipMate 7's OBFilter).
+    /// </summary>
+    public bool OutboundFilter { get; set; }
+
+    /// <summary>
+    /// Gets or sets when the Outbound Filter cleanses a copy made in another program: right after it is captured, or when
+    /// ClipMate loses focus (ClipMate 7's OBFilterActive71; Passive by default, as there).
+    /// </summary>
+    public OutboundFilterMode OutboundFilterMode { get; set; } = OutboundFilterMode.Passive;
+
+    /// <summary>
+    /// Gets or sets the Source Applications whose clips the Outbound Filter leaves whole, by program name without
+    /// ".exe", ignoring case (ClipMate 7's FilterExclusionList). Explorer by default, so files can still be copied.
+    /// </summary>
+    public List<string> OutboundFilterExclusions { get; set; } = ["EXPLORER"];
+
+    /// <summary>
     /// Gets or sets how timestamps should be displayed in the UI.
     /// True = show in local timezone, False = show in original captured timezone with offset.
     /// </summary>

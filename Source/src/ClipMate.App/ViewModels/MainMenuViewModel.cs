@@ -56,13 +56,6 @@ public partial class MainMenuViewModel : ObservableObject,
     private bool _hasMultipleDatabases;
 
     /// <summary>
-    /// Gets or sets whether outbound clip filtering is enabled.
-    /// When enabled, clipboard contents are replaced with plain-text version after capture.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isOutboundFilterEnabled;
-
-    /// <summary>
     /// Gets or sets whether target is locked for QuickPaste.
     /// </summary>
     [ObservableProperty]
@@ -104,7 +97,7 @@ public partial class MainMenuViewModel : ObservableObject,
         // Subscribe to PowerPaste state changes to update icon
         _powerPasteService.StateChanged += OnPowerPasteStateChanged;
 
-        // Explode and Loop can also be changed on the Options dialog
+        // Explode, Loop and the Outbound Filter can also be changed on the Options dialog
         _configurationService = _serviceProvider.GetRequiredService<IConfigurationService>();
         _configurationService.Saved += OnConfigurationSaved;
 
@@ -169,7 +162,7 @@ public partial class MainMenuViewModel : ObservableObject,
     public bool IsExplodeMode
     {
         get => _configurationService.Configuration.Preferences.PowerPasteExplode;
-        set => SetPowerPastePreference(IsExplodeMode, value, p => p.PowerPasteExplode = value);
+        set => SetPreference(IsExplodeMode, value, p => p.PowerPasteExplode = value);
     }
 
     /// <summary>
@@ -178,7 +171,24 @@ public partial class MainMenuViewModel : ObservableObject,
     public bool IsLoopMode
     {
         get => _configurationService.Configuration.Preferences.PowerPasteLoop;
-        set => SetPowerPastePreference(IsLoopMode, value, p => p.PowerPasteLoop = value);
+        set => SetPreference(IsLoopMode, value, p => p.PowerPasteLoop = value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the Outbound Filter is on: the saved OutboundFilter setting, which the menu, the toolbar and
+    /// the Options dialog all show. Turning it on or off puts the Current Clip back on the clipboard at once, filtered or
+    /// whole, as ClipMate 7's Filter Outbound Clips does.
+    /// </summary>
+    public bool IsOutboundFilterEnabled
+    {
+        get => _configurationService.Configuration.Preferences.OutboundFilter;
+        set
+        {
+            if (!SetPreference(IsOutboundFilterEnabled, value, p => p.OutboundFilter = value))
+                return;
+
+            _ = RewriteCurrentClipAsync();
+        }
     }
 
     /// <summary>
@@ -196,19 +206,34 @@ public partial class MainMenuViewModel : ObservableObject,
         _configurationService.Saved -= OnConfigurationSaved;
     }
 
-    private void SetPowerPastePreference(bool oldValue, bool newValue, Action<PreferencesConfiguration> apply)
+    private bool SetPreference(bool oldValue, bool newValue, Action<PreferencesConfiguration> apply)
     {
         if (oldValue == newValue)
-            return;
+            return false;
 
         apply(_configurationService.Configuration.Preferences);
         _ = _configurationService.SaveAsync();
+
+        return true;
+    }
+
+    private async Task RewriteCurrentClipAsync()
+    {
+        try
+        {
+            await _serviceProvider.GetRequiredService<ICurrentClipWriter>().RewriteCurrentAsync();
+        }
+        catch (Exception ex)
+        {
+            _serviceProvider.GetRequiredService<ILogger<MainMenuViewModel>>().LogError(ex, "Could not put the Current Clip back on the clipboard");
+        }
     }
 
     private void OnConfigurationSaved(object? sender, EventArgs e)
     {
         OnPropertyChanged(nameof(IsExplodeMode));
         OnPropertyChanged(nameof(IsLoopMode));
+        OnPropertyChanged(nameof(IsOutboundFilterEnabled));
     }
 
     /// <summary>
@@ -576,8 +601,6 @@ public partial class MainMenuViewModel : ObservableObject,
         _messenger.Send(new ToggleAutoCaptureEvent());
         // Note: IsAutoCapturing will be updated via StateRefreshRequestedEvent
     }
-
-    partial void OnIsOutboundFilterEnabledChanged(bool value) => _messenger.Send(new OutboundFilterToggleEvent(value));
 
     [RelayCommand]
     private void Options() => _messenger.Send(new OpenOptionsDialogEvent());

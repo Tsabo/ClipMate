@@ -75,6 +75,7 @@ public class OptionsViewModelTests
 
         _powerPasteViewModel = new PowerPasteOptionsViewModel(
             _mockConfigurationService,
+            new OutboundFilterOptionsViewModel(_mockConfigurationService, A.Fake<ICurrentClipWriter>()),
             A.Fake<ILogger<PowerPasteOptionsViewModel>>());
 
         _quickPasteViewModel = new QuickPasteOptionsViewModel(

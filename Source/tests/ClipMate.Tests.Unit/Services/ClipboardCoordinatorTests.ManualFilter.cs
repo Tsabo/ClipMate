@@ -15,12 +15,11 @@ namespace ClipMate.Tests.Unit.Services;
 public partial class ClipboardCoordinatorTests
 {
     [Test]
-    public async Task ManualFilter_StoredCurrentClip_IsWrittenAgainFiltered()
+    public async Task ManualFilter_CurrentClip_IsWrittenAgainFiltered()
     {
         // Arrange
         var writer = A.Fake<ICurrentClipWriter>();
-        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Html, TextContent = "Hello" };
-        A.CallTo(() => writer.CurrentClip).Returns(new CurrentClip(clip, "db"));
+        A.CallTo(() => writer.RewriteCurrentAsync(A<WriteOptions>._, A<CancellationToken>._)).Returns(true);
         var messenger = new StrongReferenceMessenger();
         CreateCoordinator(writer, messenger);
 
@@ -28,27 +27,8 @@ public partial class ClipboardCoordinatorTests
         messenger.Send(new ManualFilterRequestedEvent());
 
         // Assert
-        await WaitForAsync(() => Fake.GetCalls(writer).Any(p => p.Method.Name == nameof(ICurrentClipWriter.MakeCurrentAsync)));
-        A.CallTo(() => writer.MakeCurrentAsync("db", clip.Id, new WriteOptions(FilterMode.Forced), A<CancellationToken>._))
-            .MustHaveHappenedOnceExactly();
-    }
-
-    [Test]
-    public async Task ManualFilter_CurrentClipNotStored_IsWrittenAgainFilteredAsItIs()
-    {
-        // Arrange: a Source URL placed on the clipboard
-        var writer = A.Fake<ICurrentClipWriter>();
-        var content = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "https://example.com" };
-        A.CallTo(() => writer.CurrentClip).Returns(new CurrentClip(content, null));
-        var messenger = new StrongReferenceMessenger();
-        CreateCoordinator(writer, messenger);
-
-        // Act
-        messenger.Send(new ManualFilterRequestedEvent());
-
-        // Assert
-        await WaitForAsync(() => Fake.GetCalls(writer).Any(p => p.Method.Name == nameof(ICurrentClipWriter.PutOnClipboardAsync)));
-        A.CallTo(() => writer.PutOnClipboardAsync(content, new WriteOptions(FilterMode.Forced), A<CancellationToken>._))
+        await WaitForAsync(() => Fake.GetCalls(writer).Any(p => p.Method.Name == nameof(ICurrentClipWriter.RewriteCurrentAsync)));
+        A.CallTo(() => writer.RewriteCurrentAsync(new WriteOptions(FilterMode.Forced), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -57,13 +37,13 @@ public partial class ClipboardCoordinatorTests
     {
         // Arrange: ClipMate just started, nothing captured or picked yet
         var writer = A.Fake<ICurrentClipWriter>();
-        A.CallTo(() => writer.CurrentClip).Returns(null);
+        A.CallTo(() => writer.RewriteCurrentAsync(A<WriteOptions>._, A<CancellationToken>._)).Returns(false);
         var messenger = new StrongReferenceMessenger();
         CreateCoordinator(writer, messenger);
 
         // Act
         messenger.Send(new ManualFilterRequestedEvent());
-        await Task.Delay(100);
+        await WaitForAsync(() => Fake.GetCalls(writer).Any(p => p.Method.Name == nameof(ICurrentClipWriter.RewriteCurrentAsync)));
 
         // Assert
         A.CallTo(() => writer.MakeCurrentAsync(A<string>._, A<Guid>._, A<WriteOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
