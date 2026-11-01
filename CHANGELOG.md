@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Search In** - The search dialog's **Search in** box chooses what to search: a Database (yours or a Peer's) or one of its collections or folders, each with its collection tree icon. It starts on what's selected in the collection tree. It replaces the scope list and the **Member of Collection** filter, which did nothing.
+- **Search All Databases** - **All Databases** in **Search in** searches every Database at once, Peers included. Each Database's **Search Results** gets its own matches, and the status bar shows the total and names any Database that couldn't be searched, with the reason. **Has Shortcut** and **Included Deleted Clips** apply to your own Databases only.
+- **Collection Column in Search Results** - While a **Search Results** node is selected, the clip list shows each clip's collection (and folder, if it has one).
+- **Searching Shows Progress** - While a search runs, the dialog says which Database it is searching and **Go!** is disabled. **Cancel** stops the search and leaves the dialog open.
+
 ### Changed
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **Searching a Peer's Database Did Nothing** - The search dialog closed as soon as **Go!** was pressed, and closing it canceled the search, so a Peer never had time to answer. The dialog now stays open until the search finishes. **Help** no longer closes it either.
+- **Search Searched the Last Database Selected** - The toolbar's **Search** always searched whichever Database was last selected in the collection tree. **Search in** now shows what will be searched and lets you change it.
+- **SQL Maintenance Closed After a Failed Commit** - When committing changes failed, the window closed anyway instead of staying open so you could try again.
 - **Missing Database Reported as Corrupt** - A Database whose file is missing or can't be opened (for example on a drive that isn't connected) no longer brings up "Database Corruption Detected" and an offer to repair it at startup. It shows in the collection tree with its error icon, and startup cleanup skips it instead of stopping cleanup for the Databases after it.
 - **Folders Shown Twice** - A folder inside a collection (one you created, or one imported from ClipMate 7) appeared both under its collection and again at the top of its Database in the collection tree. It now appears only under its collection.
 - **Why a Database's Clips Didn't Load** - When a Database's file is missing, the clip list now says so in its status line, as it already did for a Peer that is offline.
