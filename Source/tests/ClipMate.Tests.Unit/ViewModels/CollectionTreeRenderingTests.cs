@@ -8,6 +8,7 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,14 +40,6 @@ public class CollectionTreeRenderingTests
     private static readonly Guid _work = Guid.Parse("f0000000-0000-0000-0000-000000000001");
     private static readonly Guid _archive = Guid.Parse("f0000000-0000-0000-0000-000000000002");
     private static readonly Guid _drafts = Guid.Parse("f0000000-0000-0000-0000-000000000003");
-
-    private string _existingDatabaseFile = null!;
-
-    [Before(Test)]
-    public void Setup() => _existingDatabaseFile = Path.GetTempFileName();
-
-    [After(Test)]
-    public void Cleanup() => File.Delete(_existingDatabaseFile);
 
     [Test]
     public async Task Tree_SortedBySortKey_RendersAsBefore()
@@ -134,8 +127,7 @@ public class CollectionTreeRenderingTests
 
     /// <summary>
     /// A local Database's collection rows as stored: regular collections, Smart and SQL-based ones, read-only and Safe
-    /// ones, one with its own icon, and the Inbox's folders (rows with the Folder type and a parent, also served by
-    /// <see cref="LocalFolders" />).
+    /// ones, one with its own icon, and the Inbox's folders (rows with the Folder type and a parent).
     /// </summary>
     private static List<Collection> LocalCollections() =>
     [
@@ -151,17 +143,6 @@ public class CollectionTreeRenderingTests
         new() { Id = _archive, Title = "Archive", SortKey = 2, LmType = CollectionLmType.Folder, ParentId = _inbox, AcceptNewClips = true, RetentionLimit = 200 },
         new() { Id = _drafts, Title = "Drafts", SortKey = 1, LmType = CollectionLmType.Folder, ParentId = _work, AcceptNewClips = true, RetentionLimit = 200 },
     ];
-
-    /// <summary>
-    /// The Inbox's folders, by parent: two root folders (in the order the folder service returns them) and one nested folder.
-    /// </summary>
-    private static Dictionary<Guid, List<Folder>> LocalFolders()
-    {
-        var work = new Folder { Id = _work, Name = "Work", CollectionId = _inbox, SortOrder = 1 };
-        var archive = new Folder { Id = _archive, Name = "Archive", CollectionId = _inbox, SortOrder = 2 };
-        var drafts = new Folder { Id = _drafts, Name = "Drafts", CollectionId = _inbox, ParentFolderId = _work, SortOrder = 1 };
-        return new Dictionary<Guid, List<Folder>> { [_inbox] = [work, archive], [_work] = [drafts] };
-    }
 
     /// <summary>
     /// The tree an online Peer serves for its Shared Database: collections, nested folders, a folder whose parent is
@@ -189,50 +170,35 @@ public class CollectionTreeRenderingTests
     /// and one whose file is missing), then four Remote Databases: one online with a Remote Database Alias and cached
     /// Remote Search results, two offline (never seen, and seen two hours ago) and one that needs an update.
     /// </summary>
-    private async Task<string> BuildTreeAsync(bool sortAlphabetically)
+    private static async Task<string> BuildTreeAsync(bool sortAlphabetically)
     {
-        var configuration = new ClipMateConfiguration
-        {
-            Databases = new Dictionary<string, DatabaseConfiguration>
-            {
-                ["db_main"] = new() { Name = "My Clips", FilePath = _existingDatabaseFile },
-                ["db_archive"] = new() { Name = "Archive", FilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db") },
-            },
-            DefaultDatabase = "db_main",
-        };
-
+        var configuration = new ClipMateConfiguration { DefaultDatabase = "db_main" };
         configuration.Preferences.SortCollectionsAlphabetically = sortAlphabetically;
         var configurationService = A.Fake<IConfigurationService>();
         A.CallTo(() => configurationService.Configuration).Returns(configuration);
 
+        // The local Database's collection rows: its tree as entries, and the rows themselves for its nodes
+        var localCollections = LocalCollections();
         var collectionService = A.Fake<ICollectionService>();
-        A.CallTo(() => collectionService.GetAllByDatabaseKeyAsync("db_main", A<CancellationToken>._)).Returns(LocalCollections());
+        A.CallTo(() => collectionService.GetAllByDatabaseKeyAsync("db_main", A<CancellationToken>._)).Returns(localCollections);
 
-        var folders = LocalFolders();
-        var folderService = A.Fake<IFolderService>();
-        A.CallTo(() => folderService.GetRootFoldersAsync(A<Guid>._, A<CancellationToken>._))
-            .ReturnsLazily((Guid id, CancellationToken _) => (IReadOnlyList<Folder>)folders.GetValueOrDefault(id, []));
-        A.CallTo(() => folderService.GetChildFoldersAsync(A<Guid>._, A<CancellationToken>._))
-            .ReturnsLazily((Guid id, CancellationToken _) => (IReadOnlyList<Folder>)folders.GetValueOrDefault(id, []));
-
-        var remoteDatabaseService = A.Fake<IRemoteDatabaseService>();
-        A.CallTo(() => remoteDatabaseService.GetRemoteDatabases()).Returns(
-        [
-            new RemoteDatabase(_laptopClips, "Shared Clips", "LAPTOP", PeerConnectionStatus.Online, DateTime.Now) { Alias = "Laptop clips" },
-            new RemoteDatabase(_desktopRecipes, "Recipes", "DESKTOP", PeerConnectionStatus.Offline, null),
-            new RemoteDatabase(_desktopNotes, "Notes", "DESKTOP", PeerConnectionStatus.Offline, DateTime.Now.AddHours(-2)),
-            new RemoteDatabase(_tabletClips, "Clips", "TABLET", PeerConnectionStatus.UpdateRequired, DateTime.Now),
-        ]);
-        A.CallTo(() => remoteDatabaseService.GetCollectionTreeAsync(_laptopClips, A<CancellationToken>._)).Returns(RemoteTree());
+        var databases = new FakeDatabases();
+        databases.AddLocal("db_main", "My Clips").Tree = localCollections.Select(CollectionEntry.From).ToList();
+        databases.AddLocal("db_archive", "Archive").IsAvailable = false;
+        databases.AddRemote(new RemoteDatabase(_laptopClips, "Shared Clips", "LAPTOP", PeerConnectionStatus.Online, DateTime.Now) { Alias = "Laptop clips" })
+            .Tree = RemoteTree();
+        databases.AddRemote(new RemoteDatabase(_desktopRecipes, "Recipes", "DESKTOP", PeerConnectionStatus.Offline, null));
+        databases.AddRemote(new RemoteDatabase(_desktopNotes, "Notes", "DESKTOP", PeerConnectionStatus.Offline, DateTime.Now.AddHours(-2)));
+        databases.AddRemote(new RemoteDatabase(_tabletClips, "Clips", "TABLET", PeerConnectionStatus.UpdateRequired, DateTime.Now));
 
         var remoteSearchResults = new RemoteSearchResultsCache();
         remoteSearchResults.SetResults(_laptopClips, new RemoteSearchResult("budget", [], 0));
 
-        using var viewModel = new CollectionTreeViewModel(collectionService, folderService, A.Fake<IClipService>(), configurationService,
-            new StrongReferenceMessenger(), new CollectionTreeBuilder(configurationService, folderService, collectionService,
+        using var viewModel = new CollectionTreeViewModel(collectionService, A.Fake<IFolderService>(), A.Fake<IClipService>(), configurationService,
+            new StrongReferenceMessenger(), new CollectionTreeBuilder(configurationService, databases, collectionService,
                 NullLogger<CollectionTreeBuilder>.Instance), NullLogger<CollectionTreeViewModel>.Instance, new SearchResultsCache(),
-            A.Fake<IDatabaseIdService>(), remoteDatabaseService, new RemoteDatabaseTreeBuilder(remoteDatabaseService, configurationService),
-            A.Fake<ISharedDatabaseService>(), A.Fake<IPeerDialogService>(), remoteSearchResults);
+            A.Fake<IDatabaseIdService>(), A.Fake<IRemoteDatabaseService>(), databases, A.Fake<ISharedDatabaseService>(), A.Fake<IPeerDialogService>(),
+            remoteSearchResults);
 
         await viewModel.LoadAsync();
         await viewModel.RefreshRemoteDatabasesAsync();

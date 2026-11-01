@@ -44,7 +44,7 @@ public class ExplorerWindowViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabaseIdService>(),
             A.Fake<IRemoteDatabaseService>(),
-            A.Fake<IRemoteDatabaseTreeBuilder>(),
+            A.Fake<IDatabases>(),
             A.Fake<ISharedDatabaseService>(),
             A.Fake<ClipMate.App.Services.IPeerDialogService>());
 

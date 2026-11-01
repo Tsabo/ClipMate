@@ -25,7 +25,7 @@ public class FolderRepository : IFolderRepository
             .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
-        return collections.Select(ConvertToFolder).ToList();
+        return collections.Select(Folder.FromCollection).ToList();
     }
 
     public async Task<IReadOnlyList<Folder>> GetChildFoldersAsync(Guid parentFolderId, CancellationToken cancellationToken = default)
@@ -35,7 +35,7 @@ public class FolderRepository : IFolderRepository
             .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
-        return collections.Select(ConvertToFolder).ToList();
+        return collections.Select(Folder.FromCollection).ToList();
     }
 
     public async Task<IReadOnlyList<Folder>> GetRootFoldersAsync(Guid collectionId, CancellationToken cancellationToken = default)
@@ -45,7 +45,7 @@ public class FolderRepository : IFolderRepository
             .OrderBy(p => p.SortKey)
             .ToListAsync(cancellationToken);
 
-        return collections.Select(ConvertToFolder).ToList();
+        return collections.Select(Folder.FromCollection).ToList();
     }
 
     public async Task<Folder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -54,7 +54,7 @@ public class FolderRepository : IFolderRepository
             .FirstOrDefaultAsync(p => p.Id == id && p.LmType == CollectionLmType.Folder, cancellationToken);
 
         return collection != null
-            ? ConvertToFolder(collection)
+            ? Folder.FromCollection(collection)
             : null;
     }
 
@@ -67,7 +67,7 @@ public class FolderRepository : IFolderRepository
         _context.Collections.Add(collection);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return ConvertToFolder(collection);
+        return Folder.FromCollection(collection);
     }
 
     public async Task<bool> UpdateAsync(Folder folder, CancellationToken cancellationToken = default)
@@ -109,7 +109,7 @@ public class FolderRepository : IFolderRepository
                 cancellationToken);
 
         return collection != null
-            ? ConvertToFolder(collection)
+            ? Folder.FromCollection(collection)
             : null;
     }
 
@@ -121,7 +121,7 @@ public class FolderRepository : IFolderRepository
                 cancellationToken);
 
         return collection != null
-            ? ConvertToFolder(collection)
+            ? Folder.FromCollection(collection)
             : null;
     }
 
@@ -143,26 +143,6 @@ public class FolderRepository : IFolderRepository
         }
 
         await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Converts a Collection (with LmType=2) to a Folder model.
-    /// </summary>
-    private static Folder ConvertToFolder(Collection collection)
-    {
-        return new Folder
-        {
-            Id = collection.Id,
-            Name = collection.Title,
-            CollectionId = collection.ParentId ?? Guid.Empty,
-            ParentFolderId = collection.ParentId,
-            SortOrder = collection.SortKey,
-            CreatedAt = collection.CreatedAt,
-            ModifiedAt = collection.LastUpdateTime,
-            IsSystemFolder = false, // Could be derived from specific GUIDs
-            FolderType = FolderType.Normal, // Default
-            IconName = collection.IlIndex.ToString(),
-        };
     }
 
     /// <summary>

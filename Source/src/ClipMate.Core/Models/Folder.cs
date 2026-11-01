@@ -54,4 +54,25 @@ public class Folder
     /// Icon identifier for displaying in the tree view (optional).
     /// </summary>
     public string? IconName { get; set; }
+
+    /// <summary>
+    /// The folder a collection row with the Folder type and a parent is: folders are stored as collection rows.
+    /// </summary>
+    public static Folder FromCollection(Collection collection)
+    {
+        ArgumentNullException.ThrowIfNull(collection);
+        return new Folder
+        {
+            Id = collection.Id,
+            Name = collection.Title,
+            CollectionId = collection.ParentId ?? Guid.Empty,
+            ParentFolderId = collection.ParentId,
+            SortOrder = collection.SortKey,
+            CreatedAt = collection.CreatedAt,
+            ModifiedAt = collection.LastUpdateTime,
+            IsSystemFolder = false, // Could be derived from specific GUIDs
+            FolderType = FolderType.Normal, // Default
+            IconName = collection.IlIndex.ToString(),
+        };
+    }
 }

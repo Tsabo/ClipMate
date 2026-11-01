@@ -88,7 +88,6 @@ public static class FakeProxyTypeWarmup
         typeof(ISharedDatabaseService),
         typeof(ISharedDatabaseChangeFeed),
         typeof(IRemoteDatabaseService),
-        typeof(IRemoteDatabaseTreeBuilder),
         typeof(ClipMate.Networking.SharedDatabases.ISharedDatabaseClient),
         typeof(IPairingDialogService),
         typeof(IPeerDialogService),
