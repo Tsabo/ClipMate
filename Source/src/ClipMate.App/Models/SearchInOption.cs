@@ -12,8 +12,10 @@ namespace ClipMate.App.Models;
 /// <param name="IsAvailable">Whether it can be searched right now; an unavailable Database (offline Peer, missing file) is shown grayed out.</param>
 public sealed record SearchInOption(SearchTarget Target, string Name, int Depth, bool IsAvailable)
 {
-    // Drawn when first shown, on the UI thread; a copy with another icon draws its own
-    private ImageSource? _iconImage;
+    // Each icon drawn once and shared, outside the record, so drawing it never changes how an entry compares: the
+    // combo finds the chosen entry by value. Emoji.Wpf's drawing isn't thread-safe, hence the lock.
+    private static readonly Dictionary<string, ImageSource> _iconImages = [];
+    private static readonly Lock _iconImagesLock = new();
 
     /// <summary>
     /// Gets where it is, for the closed control: e.g. "My Clips › Inbox › Projects".
@@ -28,20 +30,24 @@ public sealed record SearchInOption(SearchTarget Target, string Name, int Depth,
     /// <summary>
     /// Gets the collection tree's icon for the entry (an emoji).
     /// </summary>
-    public required string Icon
-    {
-        get;
-        init
-        {
-            field = value;
-            _iconImage = null;
-        }
-    }
+    public required string Icon { get; init; }
 
     /// <summary>
     /// Gets <see cref="Icon" /> as an image, drawn as the collection tree draws it, once.
     /// </summary>
-    public ImageSource IconImage => _iconImage ??= DrawIcon(Icon);
+    public ImageSource IconImage
+    {
+        get
+        {
+            lock (_iconImagesLock)
+            {
+                if (!_iconImages.TryGetValue(Icon, out var image))
+                    _iconImages[Icon] = image = DrawIcon(Icon);
+
+                return image;
+            }
+        }
+    }
 
     /// <summary>
     /// The entry for one of <paramref name="parent" />'s collections or folders, with its path under the parent's.
