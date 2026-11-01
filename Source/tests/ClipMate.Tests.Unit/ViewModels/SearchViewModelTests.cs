@@ -40,7 +40,7 @@ public class SearchViewModelTests
             _mockClipService,
             _mockMessenger,
             _searchResultsCache,
-            A.Fake<IRemoteDatabaseService>(),
+            A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
             A.Fake<ISearchTargetSource>());
     }
@@ -55,7 +55,7 @@ public class SearchViewModelTests
                 _mockClipService,
                 _mockMessenger,
                 _searchResultsCache,
-                A.Fake<IRemoteDatabaseService>(),
+                A.Fake<IDatabases>(),
                 new RemoteSearchResultsCache(),
                 A.Fake<ISearchTargetSource>()))
             .Throws<ArgumentNullException>();

@@ -66,7 +66,7 @@ public class ExplorerWindowViewModelTests
             mockClipService,
             mockMessenger,
             new SearchResultsCache(),
-            A.Fake<IRemoteDatabaseService>(),
+            A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
             A.Fake<ISearchTargetSource>());
 

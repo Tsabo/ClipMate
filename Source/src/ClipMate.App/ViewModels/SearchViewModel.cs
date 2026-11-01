@@ -31,8 +31,8 @@ public partial class SearchViewModel : ObservableObject
 {
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
+    private readonly IDatabases _databases;
     private readonly IMessenger _messenger;
-    private readonly IRemoteDatabaseService _remoteDatabaseService;
     private readonly RemoteSearchResultsCache _remoteSearchResultsCache;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
@@ -153,7 +153,7 @@ public partial class SearchViewModel : ObservableObject
         IClipService clipService,
         IMessenger messenger,
         SearchResultsCache searchResultsCache,
-        IRemoteDatabaseService remoteDatabaseService,
+        IDatabases databases,
         RemoteSearchResultsCache remoteSearchResultsCache,
         ISearchTargetSource searchTargetSource)
     {
@@ -162,7 +162,7 @@ public partial class SearchViewModel : ObservableObject
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _searchResultsCache = searchResultsCache ?? throw new ArgumentNullException(nameof(searchResultsCache));
-        _remoteDatabaseService = remoteDatabaseService ?? throw new ArgumentNullException(nameof(remoteDatabaseService));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _remoteSearchResultsCache = remoteSearchResultsCache ?? throw new ArgumentNullException(nameof(remoteSearchResultsCache));
         _searchTargetSource = searchTargetSource ?? throw new ArgumentNullException(nameof(searchTargetSource));
 
@@ -443,20 +443,24 @@ public partial class SearchViewModel : ObservableObject
                 !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
                 "(filtered search)";
 
-            if (Target is { } remoteTarget && RemoteDatabaseKey.TryParse(remoteTarget.DatabaseKey, out var address))
-            {
-                await SearchRemoteDatabaseAsync(address, remoteTarget.DatabaseKey, filters, queryDescription, search.Token);
-                return;
-            }
-
             IReadOnlyList<Clip> clips;
             string? databaseKey;
-            if (Target is { } localTarget)
+            if (Target is { } target)
             {
-                var matches = await _searchService.SearchDatabaseAsync(localTarget.DatabaseKey, filters, cancellationToken: search.Token);
+                // The Database searches itself: a local one with SQL, a Remote one on its Peer (criteria only, never SQL)
+                var database = _databases.Get(target.DatabaseKey);
+                var matches = await database.SearchAsync(filters, cancellationToken: search.Token);
+                search.Token.ThrowIfCancellationRequested();
                 clips = matches.Clips;
                 TotalMatches = matches.TotalMatches;
-                databaseKey = localTarget.DatabaseKey;
+                databaseKey = target.DatabaseKey;
+
+                // A Remote Database's results are kept with their clips, as they can't be read again by ID; the one
+                // place search reads Remote (spec Q22 exception, see database-seam ticket 09)
+                if (database.Remote is { } remote)
+                    _remoteSearchResultsCache.SetResults(remote.Address, new RemoteSearchResult(queryDescription, clips, matches.TotalMatches));
+                else
+                    _searchResultsCache.SetResults(databaseKey, new SearchResult(queryDescription, clips.Select(p => p.Id).ToList()));
             }
             else
             {
@@ -465,6 +469,8 @@ public partial class SearchViewModel : ObservableObject
                 clips = results.Clips;
                 TotalMatches = results.TotalMatches;
                 databaseKey = _collectionService.GetActiveDatabaseKey();
+                if (!string.IsNullOrEmpty(databaseKey))
+                    _searchResultsCache.SetResults(databaseKey, new SearchResult(queryDescription, clips.Select(p => p.Id).ToList()));
             }
 
             SearchResults.Clear();
@@ -474,15 +480,8 @@ public partial class SearchViewModel : ObservableObject
             // Send messenger event with search results
             _messenger.Send(new SearchResultsChangedEvent(queryDescription, SearchResults.ToList()));
 
-            // Update SearchResultsCache and send SearchExecutedEvent if we have a database key
             if (!string.IsNullOrEmpty(databaseKey))
-            {
-                var clipIds = clips.Select(p => p.Id).ToList();
-                var searchResult = new SearchResult(queryDescription, clipIds);
-                _searchResultsCache.SetResults(databaseKey, searchResult);
-
-                _messenger.Send(new SearchExecutedEvent(databaseKey, queryDescription, clipIds));
-            }
+                _messenger.Send(new SearchExecutedEvent(databaseKey, queryDescription, clips.Select(p => p.Id).ToList()));
         }
         finally
         {
@@ -492,27 +491,6 @@ public partial class SearchViewModel : ObservableObject
                 IsSearching = false;
             }
         }
-    }
-
-    /// <summary>
-    /// Runs a Remote Search: the Peer searches with the filters (never SQL) and returns at most 1,000 matches and the
-    /// total; the results are kept on this Device only and shown in the Remote Database's Search Results node.
-    /// </summary>
-    private async Task SearchRemoteDatabaseAsync(RemoteDatabaseAddress address, string databaseKey, SearchFilters filters, string queryDescription,
-        CancellationToken cancellationToken)
-    {
-        var matches = await _remoteDatabaseService.SearchAsync(address, filters, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        SearchResults.Clear();
-        foreach (var item in matches.Clips)
-            SearchResults.Add(item);
-
-        TotalMatches = matches.TotalMatches;
-        _messenger.Send(new SearchResultsChangedEvent(queryDescription, SearchResults.ToList()));
-
-        _remoteSearchResultsCache.SetResults(address, new RemoteSearchResult(queryDescription, matches.Clips, matches.TotalMatches));
-        _messenger.Send(new SearchExecutedEvent(databaseKey, queryDescription, matches.Clips.Select(p => p.Id).ToList()));
     }
 
     /// <summary>

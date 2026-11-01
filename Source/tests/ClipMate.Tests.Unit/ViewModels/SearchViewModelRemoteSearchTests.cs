@@ -9,6 +9,9 @@ using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data;
+using ClipMate.Data.Services;
+using ClipMate.Networking.SharedDatabases;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 
@@ -31,8 +34,16 @@ public class SearchViewModelRemoteSearchTests
     public SearchViewModelRemoteSearchTests()
     {
         _messenger.Register<SearchViewModelRemoteSearchTests, SearchExecutedEvent>(this, (r, m) => r._executed.Add(m));
+        // The real adapters over the faked search service and Peer, so a search reaches whichever the target is
+        var databases = A.Fake<IDatabases>();
+        A.CallTo(() => databases.Get("db_work")).ReturnsLazily(() => new LocalDatabase("db_work",
+            new DatabaseConfiguration { Name = "Work", FilePath = typeof(SearchViewModelRemoteSearchTests).Assembly.Location },
+            A.Fake<IDatabaseContextFactory>(), _searchService));
+        A.CallTo(() => databases.Get(RemoteKey)).ReturnsLazily(() => new RemoteDatabaseProxy(
+            new RemoteDatabase(_work, "Work", "DESKTOP", PeerConnectionStatus.Online, null), _remoteDatabaseService));
+
         _viewModel = new SearchViewModel(_searchService, A.Fake<ICollectionService>(), A.Fake<IClipService>(), _messenger, new SearchResultsCache(),
-            _remoteDatabaseService, _remoteSearchResultsCache, _targetSource);
+            databases, _remoteSearchResultsCache, _targetSource);
     }
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);
