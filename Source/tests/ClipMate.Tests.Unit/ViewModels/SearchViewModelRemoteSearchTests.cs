@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace ClipMate.Tests.Unit.ViewModels;
 
 /// <summary>
-/// The search dialog's target and scope, and Remote Search through it.
+/// The search dialog's target, and Remote Search through it.
 /// </summary>
 public class SearchViewModelRemoteSearchTests
 {
@@ -44,7 +44,7 @@ public class SearchViewModelRemoteSearchTests
             new RemoteDatabase(_work, "Work", "DESKTOP", PeerConnectionStatus.Online, null), _remoteDatabaseService));
 
         _viewModel = new SearchViewModel(_searchService, A.Fake<ICollectionService>(), A.Fake<IClipService>(), _messenger, new SearchResultsCache(),
-            databases, _remoteSearchResultsCache, _targetSource, NullLogger<SearchViewModel>.Instance);
+            databases, _remoteSearchResultsCache, _targetSource, A.Fake<ICollectionTreeBuilder>(), NullLogger<SearchViewModel>.Instance);
     }
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);
@@ -56,37 +56,10 @@ public class SearchViewModelRemoteSearchTests
     }
 
     [Test]
-    public async Task RefreshTarget_FolderSelected_OffersAllThreeScopesAndDefaultsToAllCollections()
-    {
-        // Arrange: a scope picked the last time the dialog was open
-        _viewModel.SearchScope = SearchScope.SpecificFolder;
-
-        // Act
-        Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox", FolderId = Guid.NewGuid(), FolderName = "Projects" });
-
-        // Assert
-        await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope))
-            .IsEquivalentTo([SearchScope.AllCollections, SearchScope.CurrentCollection, SearchScope.SpecificFolder]);
-        await Assert.That(_viewModel.AvailableScopes.Select(p => p.Label)).Contains("Folder: Projects");
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
-    }
-
-    [Test]
-    public async Task RefreshTarget_RemoteCollectionSelected_OffersItAndDefaultsToAllCollections()
-    {
-        // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
-
-        // Assert
-        await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope)).IsEquivalentTo([SearchScope.AllCollections, SearchScope.CurrentCollection]);
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
-    }
-
-    [Test]
-    public async Task SearchCommand_LocalTargetWithTheDefaultScope_SearchesAllCollectionsOfTheSelectedDatabase()
+    public async Task SearchCommand_LocalDatabaseTarget_SearchesAllItsCollections()
     {
         // Arrange
-        Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
+        Target(new SearchTarget("db_work", "Work"));
         A.CallTo(() => _searchService.SearchDatabaseAsync("db_work", A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
             .Returns(new SearchMatches([], 0));
 
@@ -97,20 +70,6 @@ public class SearchViewModelRemoteSearchTests
         A.CallTo(() => _searchService.SearchDatabaseAsync("db_work",
             A<SearchFilters>.That.Matches(p => p.Scope == SearchScope.AllCollections && p.CollectionId == null && p.FolderId == null), null,
             A<CancellationToken>._)).MustHaveHappenedOnceExactly();
-    }
-
-    [Test]
-    public async Task RefreshTarget_NoCollectionSelected_SearchesAllCollections()
-    {
-        // Arrange: e.g. a Smart collection or the Remote Database node itself
-        _viewModel.SearchScope = SearchScope.SpecificFolder;
-
-        // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
-
-        // Assert
-        await Assert.That(_viewModel.AvailableScopes.Select(p => p.Scope)).IsEquivalentTo([SearchScope.AllCollections]);
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
     }
 
     [Test]
@@ -132,7 +91,6 @@ public class SearchViewModelRemoteSearchTests
         // Arrange
         var inboxId = Guid.NewGuid();
         Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, CollectionId = inboxId, CollectionName = "Inbox" });
-        _viewModel.SearchScope = SearchScope.CurrentCollection;
         var clips = new List<Clip> { new() { Id = Guid.NewGuid(), Title = "report 1" }, new() { Id = Guid.NewGuid(), Title = "report 2" } };
         A.CallTo(() => _remoteDatabaseService.SearchAsync(_work, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches(clips, 4212));
         _viewModel.SearchText = "report";
@@ -213,12 +171,11 @@ public class SearchViewModelRemoteSearchTests
     }
 
     [Test]
-    public async Task SearchCommand_LocalTargetWithFolderScope_SearchesThatDatabaseAndFolder()
+    public async Task SearchCommand_LocalFolderTarget_SearchesThatDatabaseAndFolder()
     {
         // Arrange
         var folderId = Guid.NewGuid();
         Target(new SearchTarget("db_work", "Work") { CollectionId = Guid.NewGuid(), CollectionName = "Inbox", FolderId = folderId, FolderName = "Projects" });
-        _viewModel.SearchScope = SearchScope.SpecificFolder;
         A.CallTo(() => _searchService.SearchDatabaseAsync("db_work", A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
             .Returns(new SearchMatches([new Clip { Id = Guid.NewGuid() }], 1));
 
@@ -253,27 +210,5 @@ public class SearchViewModelRemoteSearchTests
         // Assert
         await Assert.That(remote).IsEquivalentTo(["Reports"]);
         await Assert.That(_viewModel.SavedQueries.Select(p => p.Name)).IsEquivalentTo(["Reports", "Hand-written"]);
-    }
-
-    [Test]
-    public async Task SavedQuerySelection_ScopeTheTargetCannotOffer_FallsBackToAllCollections()
-    {
-        // Arrange: saved while a folder was selected; now the Remote Database node itself is
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
-        var saved = new SavedSearchQuery
-        {
-            Name = "Projects", Query = "report",
-            FiltersJson = JsonSerializer.Serialize(new SearchFilters { TitleQuery = "report", Scope = SearchScope.SpecificFolder, FolderId = Guid.NewGuid() }),
-        };
-
-        // Act
-        _viewModel.SelectedSavedQuery = saved;
-        await _viewModel.SearchCommand.ExecuteAsync(null);
-
-        // Assert
-        await Assert.That(_viewModel.SearchScope).IsEqualTo(SearchScope.AllCollections);
-        A.CallTo(() => _remoteDatabaseService.SearchAsync(_work,
-            A<SearchFilters>.That.Matches(p => p.Scope == SearchScope.AllCollections && p.FolderId == null && p.TitleQuery == "report"),
-            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 }

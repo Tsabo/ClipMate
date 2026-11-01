@@ -44,6 +44,7 @@ public class SearchViewModelTests
             A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
             A.Fake<ISearchTargetSource>(),
+            A.Fake<ICollectionTreeBuilder>(),
             NullLogger<SearchViewModel>.Instance);
     }
 
@@ -60,6 +61,7 @@ public class SearchViewModelTests
                 A.Fake<IDatabases>(),
                 new RemoteSearchResultsCache(),
                 A.Fake<ISearchTargetSource>(),
+                A.Fake<ICollectionTreeBuilder>(),
                 NullLogger<SearchViewModel>.Instance))
             .Throws<ArgumentNullException>();
     }

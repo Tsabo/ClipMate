@@ -96,6 +96,17 @@ public sealed class FakeDatabase : IDatabase
     public List<CollectionEntry> Tree { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets what <see cref="GetTreeAsync" /> waits for before answering, as a Peer does over the network.
+    /// Availability is checked when it completes.
+    /// </summary>
+    public Task TreeReady { get; set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Gets or sets what <see cref="SearchAsync" /> waits for before answering, as a Peer does over the network.
+    /// </summary>
+    public Task SearchReady { get; set; } = Task.CompletedTask;
+
+    /// <summary>
     /// Gets or sets what <see cref="SearchAsync" /> returns.
     /// </summary>
     public SearchMatches SearchResults { get; set; } = new([], 0);
@@ -129,10 +140,11 @@ public sealed class FakeDatabase : IDatabase
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<CollectionEntry>> GetTreeAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CollectionEntry>> GetTreeAsync(CancellationToken cancellationToken = default)
     {
+        await TreeReady.WaitAsync(cancellationToken);
         ThrowIfUnavailable();
-        return Task.FromResult<IReadOnlyList<CollectionEntry>>(Tree.ToList());
+        return Tree.ToList();
     }
 
     /// <inheritdoc />
@@ -156,16 +168,15 @@ public sealed class FakeDatabase : IDatabase
     }
 
     /// <inheritdoc />
-    public Task<SearchMatches> SearchAsync(SearchFilters filters, int? maxResults = null, CancellationToken cancellationToken = default)
+    public async Task<SearchMatches> SearchAsync(SearchFilters filters, int? maxResults = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
         ThrowIfUnavailable();
         Searches.Add(filters);
-        var results = maxResults is { } most && SearchResults.Clips.Count > most
+        await SearchReady.WaitAsync(cancellationToken);
+        return maxResults is { } most && SearchResults.Clips.Count > most
             ? SearchResults with { Clips = SearchResults.Clips.Take(most).ToList() }
             : SearchResults;
-
-        return Task.FromResult(results);
     }
 
     private void ThrowIfUnavailable()

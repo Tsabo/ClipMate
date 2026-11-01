@@ -39,7 +39,7 @@ public class SearchViewModelLoggingTests
             new RemoteDatabase(_work, "Work", "DESKTOP", PeerConnectionStatus.Online, null), _remoteDatabaseService));
 
         _viewModel = new SearchViewModel(_searchService, A.Fake<ICollectionService>(), A.Fake<IClipService>(), new StrongReferenceMessenger(),
-            new SearchResultsCache(), databases, new RemoteSearchResultsCache(), _targetSource, _logger);
+            new SearchResultsCache(), databases, new RemoteSearchResultsCache(), _targetSource, A.Fake<ICollectionTreeBuilder>(), _logger);
     }
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);

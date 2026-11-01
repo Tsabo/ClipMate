@@ -21,32 +21,64 @@
 
     <!-- Dialog Buttons -->
     <dx:ThemedWindow.DialogButtons>
-        <dx:ThemedWindowDialogButton Content="Go!"
+        <dx:ThemedWindowDialogButton x:Name="GoButton"
+                                     Content="Go!"
                                      Click="GoButton_Click"
                                      IsDefault="True"
                                      AllowCloseWindow="False" />
+        <!-- Stops a running search and keeps the dialog open; otherwise closes it -->
         <dx:ThemedWindowDialogButton Content="Cancel"
+                                     Click="CancelButton_Click"
                                      IsCancel="True"
-                                     DialogResult="Cancel" />
+                                     AllowCloseWindow="False" />
         <dx:ThemedWindowDialogButton Content="Help"
                                      Click="HelpButton_Click"
                                      AllowCloseWindow="False" />
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
-        <!-- Search In: the Database (local or remote) selected in the collection tree, and the scope within it -->
+        <!-- Search in: any Database (local or remote), collection or folder; starts at the tree selection -->
         <dxlc:LayoutGroup Orientation="Horizontal">
-            <dxlc:LayoutItem Label="Search in:" HorizontalAlignment="Left" MinWidth="150">
-                <TextBlock Text="{Binding TargetDescription}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <dxlc:LayoutItem HorizontalAlignment="Left" MinWidth="150">
+                <TextBlock Text="Search in:" VerticalAlignment="Center" />
             </dxlc:LayoutItem>
             <dxlc:LayoutItem HorizontalAlignment="Stretch">
-                <dxe:ComboBoxEdit ItemsSource="{Binding AvailableScopes}"
-                                  DisplayMember="Label"
-                                  ValueMember="Scope"
-                                  EditValue="{Binding SearchScope}"
-                                  IsTextEditable="False" />
+                <dxe:ComboBoxEdit x:Name="SearchInEdit"
+                                  ItemsSource="{Binding SearchInOptions}"
+                                  DisplayMember="Path"
+                                  SelectedItem="{Binding SelectedSearchIn}"
+                                  IsTextEditable="False"
+                                  AutomationProperties.Name="Search in">
+                    <dxe:ComboBoxEdit.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="{Binding Indent}" />
+                                <TextBlock x:Name="SearchInName" Text="{Binding Name}" />
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Depth}" Value="0">
+                                    <Setter TargetName="SearchInName" Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                    <Setter TargetName="SearchInName" Property="Opacity" Value="0.5" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </dxe:ComboBoxEdit.ItemTemplate>
+                    <dxe:ComboBoxEdit.ItemContainerStyle>
+                        <Style TargetType="dxe:ComboBoxEditItem">
+                            <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+                        </Style>
+                    </dxe:ComboBoxEdit.ItemContainerStyle>
+                </dxe:ComboBoxEdit>
             </dxlc:LayoutItem>
         </dxlc:LayoutGroup>
+
+        <!-- While a search runs (a Peer can take minutes): what is being searched -->
+        <dxlc:LayoutItem Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <TextBlock Text="{Binding SearchingDescription}" FontStyle="Italic" VerticalAlignment="Center" />
+
+        </dxlc:LayoutItem>
 
         <!-- Clips Containing Section -->
         <dxlc:LayoutGroup Header="🔍 Clips Containing..." View="GroupBox" Orientation="Vertical" IsCollapsible="True">
@@ -136,18 +168,6 @@
                                   IsEnabled="{Binding CapturedBeforeEnabled}" />
                 </dxlc:LayoutItem>
             </dxlc:LayoutGroup>
-            <dxlc:LayoutGroup Orientation="Horizontal">
-                <dxlc:LayoutItem HorizontalAlignment="Left" MinWidth="150">
-                    <CheckBox Content="Member of Collection" IsChecked="{Binding MemberOfCollectionEnabled}" />
-                </dxlc:LayoutItem>
-                <dxlc:LayoutItem HorizontalAlignment="Stretch">
-                    <dxe:ComboBoxEdit NullText="Select collection..."
-                                      ItemsSource="{Binding AvailableCollections}"
-                                      EditValue="{Binding SelectedCollection}"
-                                      IsEnabled="{Binding MemberOfCollectionEnabled}" />
-                </dxlc:LayoutItem>
-            </dxlc:LayoutGroup>
-
             <dxlc:LayoutGroup Orientation="Horizontal">
                 <CheckBox Content="Encrypted" IsChecked="{Binding EncryptedOnly}" Margin="0,0,20,0" />
                 <CheckBox Content="Has Shortcut" IsChecked="{Binding HasShortcutOnly}" Margin="0,0,20,0"

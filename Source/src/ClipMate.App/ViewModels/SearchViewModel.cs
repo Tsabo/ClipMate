@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Windows.Controls;
 using ClipMate.App.Models;
+using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
@@ -32,6 +33,7 @@ namespace ClipMate.App.ViewModels;
 public partial class SearchViewModel : ObservableObject
 {
     private readonly IClipService _clipService;
+    private readonly ICollectionTreeBuilder _collectionTreeBuilder;
     private readonly ICollectionService _collectionService;
     private readonly IDatabases _databases;
     private readonly ILogger<SearchViewModel> _logger;
@@ -40,6 +42,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
     private readonly ISearchTargetSource _searchTargetSource;
+    private CancellationTokenSource? _loadingSearchIn;
     private RunningSearch? _runningSearch;
 
     // Filtering Criteria - Captured After
@@ -88,10 +91,6 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSearching;
 
-    // Filtering Criteria - Member of Collection
-    [ObservableProperty]
-    private bool _memberOfCollectionEnabled;
-
     [ObservableProperty]
     private string _searchClipText = string.Empty;
 
@@ -105,9 +104,6 @@ public partial class SearchViewModel : ObservableObject
     // Clips Containing - Creator
     [ObservableProperty]
     private bool _searchCreatorEnabled;
-
-    [ObservableProperty]
-    private SearchScope _searchScope = SearchScope.AllCollections;
 
     [ObservableProperty]
     private string _searchSourceUrl = string.Empty;
@@ -124,9 +120,6 @@ public partial class SearchViewModel : ObservableObject
     private bool _searchTitleEnabled = true;
 
     [ObservableProperty]
-    private string? _selectedCollection;
-
-    [ObservableProperty]
     private string? _selectedFormat;
 
     // Saved Queries
@@ -138,14 +131,15 @@ public partial class SearchViewModel : ObservableObject
     private string _sqlQuery = "Select Clip.* from Clip\nWhere Clip.Del = False\nOrder By Clip.ID;";
 
     /// <summary>
-    /// What the dialog searches: the Database (local or remote), collection and folder selected in the collection tree.
-    /// <c>null</c> searches the active Database.
+    /// What the dialog searches: the Database (local or remote), collection or folder chosen in "Search in", which
+    /// starts at the one selected in the collection tree. <c>null</c> (no Database at all) searches the active Database.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRemoteTarget))]
     [NotifyPropertyChangedFor(nameof(IsSqlAvailable))]
     [NotifyPropertyChangedFor(nameof(CanSearchDeletedAndShortcuts))]
-    [NotifyPropertyChangedFor(nameof(TargetDescription))]
+    [NotifyPropertyChangedFor(nameof(SelectedSearchIn))]
+    [NotifyPropertyChangedFor(nameof(SearchingDescription))]
     private SearchTarget? _target;
 
     [ObservableProperty]
@@ -159,6 +153,7 @@ public partial class SearchViewModel : ObservableObject
         IDatabases databases,
         RemoteSearchResultsCache remoteSearchResultsCache,
         ISearchTargetSource searchTargetSource,
+        ICollectionTreeBuilder collectionTreeBuilder,
         ILogger<SearchViewModel> logger)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
@@ -169,6 +164,7 @@ public partial class SearchViewModel : ObservableObject
         _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _remoteSearchResultsCache = remoteSearchResultsCache ?? throw new ArgumentNullException(nameof(remoteSearchResultsCache));
         _searchTargetSource = searchTargetSource ?? throw new ArgumentNullException(nameof(searchTargetSource));
+        _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Subscribe to property changes to regenerate SQL
@@ -176,8 +172,9 @@ public partial class SearchViewModel : ObservableObject
         {
             if (e.PropertyName != nameof(SqlQuery) && e.PropertyName != nameof(IsSearching) &&
                 e.PropertyName != nameof(TotalMatches) && e.PropertyName != nameof(IsRemoteTarget) &&
-                e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(TargetDescription) &&
-                e.PropertyName != nameof(CanSearchDeletedAndShortcuts) && e.PropertyName != null)
+                e.PropertyName != nameof(IsSqlAvailable) && e.PropertyName != nameof(SelectedSearchIn) &&
+                e.PropertyName != nameof(SearchingDescription) && e.PropertyName != nameof(CanSearchDeletedAndShortcuts) &&
+                e.PropertyName != null)
                 UpdateSqlQuery();
         };
 
@@ -201,14 +198,132 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<string> AvailableFormats { get; } = [];
 
     /// <summary>
-    /// Collection of available collections for filtering.
+    /// What "Search in" offers: every Database, local and remote, each followed by its collections and folders as the
+    /// collection tree lays them out. Filled by <see cref="LoadSearchInOptionsAsync" />.
     /// </summary>
-    public ObservableCollection<string> AvailableCollections { get; } = [];
+    public ObservableCollection<SearchInOption> SearchInOptions { get; } = [];
 
     /// <summary>
-    /// The scopes the target allows: all collections, plus the selected collection and folder when there are.
+    /// Fills <see cref="SearchInOptions" />: every Database at once, then each one's collections and folders as its tree
+    /// arrives, so a slow Peer holds up only its own. A Database that can't be read is grayed out. Call when the
+    /// dialog opens; a load still running from the last time is dropped.
     /// </summary>
-    public ObservableCollection<SearchScopeOption> AvailableScopes { get; } = [new(SearchScope.AllCollections, "All collections")];
+    public async Task LoadSearchInOptionsAsync()
+    {
+        if (_loadingSearchIn != null)
+            await _loadingSearchIn.CancelAsync();
+
+        using var loading = new CancellationTokenSource();
+        _loadingSearchIn = loading;
+        try
+        {
+            SearchInOptions.Clear();
+            var databases = _databases.All;
+            foreach (var item in databases)
+            {
+                var name = item.Remote?.DisplayName ?? item.Name;
+                SearchInOptions.Add(new SearchInOption(new SearchTarget(item.Key, name) { IsRemote = item.Remote != null }, name, 0, item.IsAvailable)
+                {
+                    Path = name,
+                });
+            }
+
+            await Task.WhenAll(databases.Where(p => p.IsAvailable).Select(p => AddCollectionsAsync(p, loading.Token)));
+        }
+        finally
+        {
+            if (ReferenceEquals(_loadingSearchIn, loading))
+                _loadingSearchIn = null;
+        }
+    }
+
+    /// <summary>
+    /// Adds a Database's collections and folders under its entry, or grays it out if its tree can't be read.
+    /// </summary>
+    private async Task AddCollectionsAsync(IDatabase database, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<TreeNodeBase> nodes;
+        try
+        {
+            // Smart and SQL-based collections, the Trashcan and Search Results have no clips of their own to search within
+            nodes = await _collectionTreeBuilder.BuildChildrenAsync(database, new DatabaseTreeNode(database.Name, database.Key),
+                TreeNodeType.VirtualCollection | TreeNodeType.SpecialCollection, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            // An offline Peer or a missing file: the Database is still listed, grayed out
+            _logger.LogInformation("Search in: couldn't read the collections of {DatabaseKey}: {Reason}", database.Key, ex.Message);
+            var index = SearchInOptions.ToList().FindIndex(p => p.Depth == 0 && p.Target.DatabaseKey == database.Key);
+            if (index >= 0 && !cancellationToken.IsCancellationRequested)
+                SearchInOptions[index] = SearchInOptions[index] with { IsAvailable = false };
+
+            return;
+        }
+
+        var databaseOption = SearchInOptions.FirstOrDefault(p => p.Depth == 0 && p.Target.DatabaseKey == database.Key);
+        if (cancellationToken.IsCancellationRequested || databaseOption == null)
+            return;
+
+        var position = SearchInOptions.IndexOf(databaseOption) + 1;
+        foreach (var item in CollectionOptions(databaseOption, nodes, null))
+            SearchInOptions.Insert(position++, item);
+
+        OnPropertyChanged(nameof(SelectedSearchIn));
+    }
+
+    /// <summary>
+    /// The entries for <paramref name="nodes" /> and their folders, in tree order, under <paramref name="parent" />.
+    /// </summary>
+    /// <param name="parent">The Database, collection or folder the nodes are in.</param>
+    /// <param name="nodes">The collection tree's nodes for it.</param>
+    /// <param name="collection">The collection the nodes are in, or <c>null</c> at the top of the Database.</param>
+    private static IEnumerable<SearchInOption> CollectionOptions(SearchInOption parent, IEnumerable<TreeNodeBase> nodes, (Guid Id, string Name)? collection)
+    {
+        foreach (var item in nodes)
+        {
+            var (id, isFolder) = item switch
+            {
+                CollectionTreeNode { Collection.IsVirtual: false } node => (node.Collection.Id, false),
+                RemoteCollectionTreeNode { Collection.Kind: CollectionEntryKind.Collection or CollectionEntryKind.Folder } node => (node.Collection.Id, false),
+                FolderTreeNode node => (node.Folder.Id, true),
+                RemoteFolderTreeNode node => (node.Folder.Id, true),
+                var _ => (Guid.Empty, false),
+            };
+
+            if (id == Guid.Empty)
+                continue;
+
+            var target = isFolder
+                ? parent.Target with { CollectionId = collection?.Id, CollectionName = collection?.Name, FolderId = id, FolderName = item.Name }
+                : parent.Target with { CollectionId = id, CollectionName = item.Name, FolderId = null, FolderName = null };
+
+            var option = new SearchInOption(target, item.Name, parent.Depth + 1, parent.IsAvailable) { Path = $"{parent.Path} › {item.Name}" };
+            yield return option;
+
+            foreach (var child in CollectionOptions(option, item.Children, collection ?? (id, item.Name)))
+                yield return child;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the "Search in" entry chosen: the one that searches <see cref="Target" />, or <c>null</c> while its
+    /// collection hasn't arrived yet. An unavailable entry can't be chosen.
+    /// </summary>
+    public SearchInOption? SelectedSearchIn
+    {
+        get => SearchInOptions.FirstOrDefault(p => p.Searches(Target));
+        set
+        {
+            if (value is { IsAvailable: true })
+                Target = value.Target;
+
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>
     /// Gets whether the target is a Remote Database, searched by its Peer.
@@ -227,21 +342,39 @@ public partial class SearchViewModel : ObservableObject
     public bool CanSearchDeletedAndShortcuts => !IsRemoteTarget;
 
     /// <summary>
-    /// Gets the name of the Database the dialog searches, for display.
+    /// Gets what the dialog says while a search runs, naming the Database searched.
     /// </summary>
-    public string TargetDescription => Target?.DatabaseName ?? "Active database";
+    public string SearchingDescription => $"Searching {Target?.DatabaseName ?? "the active Database"}…";
 
     /// <summary>
-    /// Takes the target (the Database selected in the collection tree, local or remote) from the current selection, and
-    /// starts the scope at all collections of it, as searches did before the scope list existed. The selected collection
-    /// and folder are offered as narrower scopes. Call when the dialog opens.
+    /// Starts "Search in" at what is selected in the collection tree (a local or Remote Database, collection or folder),
+    /// or at the active Database when nothing is. Call when the dialog opens; the user can then choose another.
     /// </summary>
     public void RefreshTarget()
     {
-        Target = _searchTargetSource.GetSearchTarget();
-        SearchScope = SearchScope.AllCollections;
+        Target = _searchTargetSource.GetSearchTarget() ?? ActiveDatabaseTarget();
         _logger.LogInformation("Search dialog opened on {Target}", DescribeTarget(Target));
     }
+
+    /// <summary>
+    /// The active Database, as a target, or <c>null</c> when there is none.
+    /// </summary>
+    private SearchTarget? ActiveDatabaseTarget()
+    {
+        var key = _collectionService.GetActiveDatabaseKey();
+        var database = string.IsNullOrEmpty(key) ? null : _databases.All.FirstOrDefault(p => p.Key == key);
+        return database == null ? null : new SearchTarget(database.Key, database.Remote?.DisplayName ?? database.Name) { IsRemote = database.Remote != null };
+    }
+
+    /// <summary>
+    /// The scope the target means: a folder, a collection, or all collections of its Database.
+    /// </summary>
+    private SearchScope Scope => Target switch
+    {
+        { FolderId: not null } => SearchScope.SpecificFolder,
+        { CollectionId: not null } => SearchScope.CurrentCollection,
+        var _ => SearchScope.AllCollections,
+    };
 
     /// <summary>
     /// Describes a search target for the log: the Database key and name, and the selected collection and folder.
@@ -326,25 +459,23 @@ public partial class SearchViewModel : ObservableObject
         return criteria.Count == 0 ? "everything" : string.Join(", ", criteria);
     }
 
-    partial void OnTargetChanged(SearchTarget? value)
+    /// <summary>
+    /// A different Database chosen in "Search in" brings its own formats, and a Remote one hides the saved searches that
+    /// need SQL.
+    /// </summary>
+    partial void OnTargetChanged(SearchTarget? oldValue, SearchTarget? newValue)
     {
-        AvailableScopes.Clear();
-        AvailableScopes.Add(new SearchScopeOption(SearchScope.AllCollections, "All collections"));
-        if (value?.CollectionId != null)
-            AvailableScopes.Add(new SearchScopeOption(SearchScope.CurrentCollection, $"Collection: {value.CollectionName}"));
+        if (oldValue?.DatabaseKey == newValue?.DatabaseKey)
+            return;
 
-        if (value?.FolderId != null)
-            AvailableScopes.Add(new SearchScopeOption(SearchScope.SpecificFolder, $"Folder: {value.FolderName}"));
+        LoadFormatsCommand.Execute(null);
+        if (oldValue?.IsRemote != newValue?.IsRemote)
+            LoadSavedQueriesCommand.Execute(null);
     }
 
     /// <summary>
-    /// The scope actually searched: one the target cannot offer (no collection or folder selected) falls back to all
-    /// collections.
-    /// </summary>
-    private SearchScope EffectiveScope => AvailableScopes.Any(p => p.Scope == SearchScope) ? SearchScope : SearchScope.AllCollections;
-
-    /// <summary>
-    /// Called when SelectedSavedQuery changes. Loads the saved filters into the search form.
+    /// Called when SelectedSavedQuery changes. Loads the saved filters and text into the search form. A saved search
+    /// never changes "Search in"; the scope older ones stored is ignored.
     /// </summary>
     partial void OnSelectedSavedQueryChanged(SavedSearchQuery? value)
     {
@@ -483,9 +614,6 @@ public partial class SearchViewModel : ObservableObject
         EncryptedOnly = filters.EncryptedOnly == true;
         HasShortcutOnly = filters.HasShortcutOnly == true;
         IncludeDeletedClips = filters.IncludeDeleted;
-
-        // Search scope: the collection or folder it means comes from the current selection, not the saved IDs
-        SearchScope = AvailableScopes.Any(p => p.Scope == filters.Scope) ? filters.Scope : SearchScope.AllCollections;
     }
 
     private void UpdateSqlQuery()
@@ -638,12 +766,19 @@ public partial class SearchViewModel : ObservableObject
     {
         try
         {
-            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
+            // The chosen Database's formats; a Peer doesn't list its formats, so a Remote Database offers none (one can
+            // still be typed)
+            if (Target is { IsRemote: true })
+            {
+                AvailableFormats.Clear();
+                return;
+            }
 
-            if (string.IsNullOrEmpty(activeDatabaseKey))
+            var databaseKey = Target?.DatabaseKey ?? _collectionService.GetActiveDatabaseKey();
+            if (string.IsNullOrEmpty(databaseKey))
                 return;
 
-            var formats = await _clipService.GetDistinctFormatsAsync(activeDatabaseKey);
+            var formats = await _clipService.GetDistinctFormatsAsync(databaseKey);
 
             AvailableFormats.Clear();
             foreach (var item in formats)
@@ -658,27 +793,6 @@ public partial class SearchViewModel : ObservableObject
         {
             // Other errors - also just clear the list
             AvailableFormats.Clear();
-        }
-    }
-
-    /// <summary>
-    /// Loads available collections from the database.
-    /// </summary>
-    [RelayCommand]
-    private async Task LoadCollectionsAsync()
-    {
-        try
-        {
-            var collections = await _collectionService.GetAllAsync();
-
-            AvailableCollections.Clear();
-            foreach (var item in collections.Where(p => !p.IsVirtual).OrderBy(p => p.Title))
-                AvailableCollections.Add(item.Title);
-        }
-        catch (Exception)
-        {
-            // Database error - just clear the list
-            AvailableCollections.Clear();
         }
     }
 
@@ -700,8 +814,8 @@ public partial class SearchViewModel : ObservableObject
             !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
             "(filtered search)";
 
-        // Serialize filters to JSON
-        var filters = BuildSearchFilters();
+        // A saved search keeps only its filters and text, so loading it never changes "Search in"
+        var filters = BuildSearchFilters(withScope: false);
         var filtersJson = JsonSerializer.Serialize(filters);
 
         await _searchService.SaveSearchQueryAsync(name, queryDescription, IsCaseSensitive, IsRegex, filtersJson);
@@ -847,7 +961,11 @@ public partial class SearchViewModel : ObservableObject
         });
     }
 
-    private SearchFilters BuildSearchFilters()
+    /// <summary>
+    /// The filters for the form as filled in.
+    /// </summary>
+    /// <param name="withScope">Whether to include what "Search in" chose; a saved search leaves it out.</param>
+    private SearchFilters BuildSearchFilters(bool withScope = true)
     {
         var contentTypes = new List<ClipType>();
 
@@ -872,7 +990,7 @@ public partial class SearchViewModel : ObservableObject
                     : null);
         }
 
-        var scope = EffectiveScope;
+        var scope = withScope ? Scope : SearchScope.AllCollections;
         var remote = IsRemoteTarget;
         return new SearchFilters
         {

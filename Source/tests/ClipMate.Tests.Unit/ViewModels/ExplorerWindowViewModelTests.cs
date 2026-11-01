@@ -70,6 +70,7 @@ public class ExplorerWindowViewModelTests
             A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
             A.Fake<ISearchTargetSource>(),
+            A.Fake<ICollectionTreeBuilder>(),
             NullLogger<SearchViewModel>.Instance);
 
         // Create QuickPasteToolbarViewModel mock
