@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ClipMate.Core.Constants;
@@ -268,23 +269,31 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
+        var started = Stopwatch.GetTimestamp();
         try
         {
             var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
-            return await CallAsync(identity, peer, _searchTimeout,
+            var matches = await CallAsync(identity, peer, _searchTimeout,
                 (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
                 _searchStatuses, cancellationToken);
+            _logger.LogDebug("Peer {DeviceId} answered the Remote Search with {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms",
+                peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            return matches;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
+            _logger.LogDebug("Peer {DeviceId} does not share the Database, collection or folder searched", peer.DeviceId.ToShortDisplayString());
             return null;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.ResourceExhausted)
         {
+            _logger.LogDebug("Peer {DeviceId} gave up the Remote Search after {ElapsedMs:F0} ms", peer.DeviceId.ToShortDisplayString(),
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds);
             throw new DatabaseUnavailableException($"The search took too long on {peer.DisplayName}. Try narrower criteria.", ex);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
         {
+            _logger.LogDebug("Peer {DeviceId} refused the Remote Search criteria: {Detail}", peer.DeviceId.ToShortDisplayString(), ex.Status.Detail);
             throw new DatabaseUnavailableException($"{peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
         }
     }

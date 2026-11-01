@@ -9,6 +9,8 @@ using ClipMate.Core.Services.Abstractions;
 using ClipMate.Networking.SharedDatabases;
 using ClipMate.Networking.SharedDatabases.Notice;
 using FakeItEasy;
+using ClipMate.Tests.Unit.Fakes;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Networking;
@@ -24,6 +26,7 @@ public class RemoteDatabaseServiceTests
     private RemoteDatabaseService _service = null!;
     private IPeerStatusService _status = null!;
     private InMemoryPeerStore _store = null!;
+    private RecordingLogger<RemoteDatabaseService> _logger = null!;
 
     [Before(Test)]
     public void Setup()
@@ -40,8 +43,9 @@ public class RemoteDatabaseServiceTests
         _store.Add(new Peer(_laptop, "LAPTOP", null, ["192.168.1.20:47823"], new DateTime(2026, 10, 20, 9, 0, 0)));
         _status = A.Fake<IPeerStatusService>();
         _client = A.Fake<ISharedDatabaseClient>();
+        _logger = new RecordingLogger<RemoteDatabaseService>();
         _service = new RemoteDatabaseService(_store, _status, localDevice, configurationService, _client, new NoTimers(),
-            NullLogger<RemoteDatabaseService>.Instance);
+            _logger);
     }
 
     [After(Test)]
@@ -268,7 +272,7 @@ public class RemoteDatabaseServiceTests
         var localDevice = A.Fake<ILocalDevice>();
         A.CallTo(() => localDevice.Identity).Returns(_identity);
         using var service = new RemoteDatabaseService(store, _status, localDevice, configurationService, _client, new NoTimers(),
-            NullLogger<RemoteDatabaseService>.Instance);
+            _logger);
         await Assert.That(service.GetRemoteDatabases()).IsNotEmpty();
         var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         service.RemoteDatabasesChanged += (_, _) => raised.TrySetResult();
@@ -452,6 +456,59 @@ public class RemoteDatabaseServiceTests
         // Act / Assert
         await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
             .Throws<DatabaseUnavailableException>();
+    }
+
+    [Test]
+    public async Task SearchAsync_PeerAnswers_LogsThePeerAndTheOutcomeAtDebug()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+            .Returns(new SearchMatches([new Clip { Id = Guid.NewGuid() }], 4212));
+
+        // Act
+        await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters());
+
+        // Assert
+        var answered = _logger.MessagesAt(LogLevel.Debug).Single(p => p.Contains("Remote Search", StringComparison.Ordinal));
+        await Assert.That(answered).Contains("LAPTOP");
+        await Assert.That(answered).Contains("1 of 4212");
+        await Assert.That(_logger.MessagesAt(LogLevel.Information)).IsEmpty();
+    }
+
+    [Test]
+    public async Task SearchAsync_PeerOffline_LogsWhyAtInformation()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Offline);
+
+        // Act
+        await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters()))
+            .Throws<DatabaseUnavailableException>();
+
+        // Assert
+        var failed = _logger.MessagesAt(LogLevel.Information).Single();
+        await Assert.That(failed).Contains("Remote Search");
+        await Assert.That(failed).Contains("LAPTOP is offline.");
+    }
+
+    [Test]
+    public async Task SearchAsync_Canceled_LogsItAtDebugOnly()
+    {
+        // Arrange
+        SetStatus(PeerConnectionStatus.Online);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+            .Throws(new OperationCanceledException(cancellation.Token));
+
+        // Act
+        await Assert.That(async () => await _service.SearchAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new SearchFilters(),
+            cancellation.Token)).Throws<OperationCanceledException>();
+
+        // Assert
+        await Assert.That(_logger.MessagesAt(LogLevel.Debug).Single(p => p.Contains("Remote Search", StringComparison.Ordinal))).Contains("canceled");
+        await Assert.That(_logger.MessagesAt(LogLevel.Information)).IsEmpty();
     }
 
     [Test]

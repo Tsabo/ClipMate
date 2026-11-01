@@ -8,6 +8,7 @@ using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -42,7 +43,8 @@ public class SearchViewModelTests
             _searchResultsCache,
             A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
-            A.Fake<ISearchTargetSource>());
+            A.Fake<ISearchTargetSource>(),
+            NullLogger<SearchViewModel>.Instance);
     }
 
     [Test]
@@ -57,7 +59,8 @@ public class SearchViewModelTests
                 _searchResultsCache,
                 A.Fake<IDatabases>(),
                 new RemoteSearchResultsCache(),
-                A.Fake<ISearchTargetSource>()))
+                A.Fake<ISearchTargetSource>(),
+                NullLogger<SearchViewModel>.Instance))
             .Throws<ArgumentNullException>();
     }
 

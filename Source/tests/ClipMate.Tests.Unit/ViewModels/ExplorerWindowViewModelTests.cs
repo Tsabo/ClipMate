@@ -9,6 +9,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -68,7 +69,8 @@ public class ExplorerWindowViewModelTests
             new SearchResultsCache(),
             A.Fake<IDatabases>(),
             new RemoteSearchResultsCache(),
-            A.Fake<ISearchTargetSource>());
+            A.Fake<ISearchTargetSource>(),
+            NullLogger<SearchViewModel>.Instance);
 
         // Create QuickPasteToolbarViewModel mock
         var mockQuickPasteServiceForToolbar = A.Fake<IQuickPasteService>();

@@ -35,7 +35,11 @@ public partial class SearchDialog
         DataContext = _viewModel;
 
         // Closing the dialog stops a search that is still running (on the Peer too, for a Remote Database)
-        Closed += (_, _) => _viewModel.CancelSearch();
+        Closed += (_, _) =>
+        {
+            _logger.LogInformation("Search dialog closed (searched: {Searched})", DialogResult == true);
+            _viewModel.CancelSearch("the search dialog was closed");
+        };
 
         var app = (App)Application.Current;
         var configurationService = app.ServiceProvider.GetRequiredService<IConfigurationService>();
@@ -71,6 +75,9 @@ public partial class SearchDialog
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
+        _logger.LogInformation("Search pressed: {Kind} search of {DatabaseKey}", _viewModel.IsRemoteTarget ? "Remote" : "local",
+            _viewModel.Target?.DatabaseKey ?? "the active Database");
+
         if (_viewModel.IsRemoteTarget)
         {
             await SearchRemoteDatabaseAsync();
@@ -82,6 +89,7 @@ public partial class SearchDialog
         var databaseKey = _collectionService.GetActiveDatabaseKey();
         if (string.IsNullOrEmpty(databaseKey))
         {
+            _logger.LogInformation("Search not run: no active Database");
             DXMessageBox.Show(
                 "No active database selected. Please select a database first.",
                 "Database Required",
@@ -95,6 +103,7 @@ public partial class SearchDialog
 
         if (!isValid)
         {
+            _logger.LogInformation("Search not run: invalid SQL ({Error})", errorMessage);
             DXMessageBox.Show(
                 $"Invalid SQL query:\n\n{errorMessage}\n\nPlease correct the query and try again.",
                 "SQL Validation Error",
@@ -106,7 +115,10 @@ public partial class SearchDialog
 
         // Execute search
         if (!_viewModel.SearchCommand.CanExecute(null))
+        {
+            _logger.LogInformation("Search not run: another search is still running");
             return;
+        }
 
         try
         {
@@ -114,8 +126,13 @@ public partial class SearchDialog
             DialogResult = true;
             Close();
         }
+        catch (OperationCanceledException)
+        {
+            // The dialog was closed while searching; the view model logged who canceled it
+        }
         catch (Exception ex)
         {
+            // The view model logged the failure
             // Show error but keep dialog open so user can fix the SQL
             DXMessageBox.Show(
                 $"Search execution failed:\n\n{ex.Message}\n\nPlease correct the query and try again.",
@@ -131,7 +148,10 @@ public partial class SearchDialog
     private async Task SearchRemoteDatabaseAsync()
     {
         if (!_viewModel.SearchCommand.CanExecute(null))
+        {
+            _logger.LogInformation("Remote Search not run: another search is still running");
             return;
+        }
 
         try
         {
@@ -141,15 +161,16 @@ public partial class SearchDialog
         }
         catch (OperationCanceledException)
         {
-            // The dialog was closed while searching
+            // The dialog was closed while searching; the view model logged who canceled it
         }
         catch (DatabaseUnavailableException ex)
         {
+            // The view model logged the failure
             DXMessageBox.Show(ex.Message, "Remote Search", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Remote Search failed");
+            // The view model logged the failure, with the exception
             DXMessageBox.Show($"Search execution failed:\n\n{ex.Message}", "Search Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

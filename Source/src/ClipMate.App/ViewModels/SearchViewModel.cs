@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows.Controls;
 using ClipMate.App.Models;
@@ -16,6 +17,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 using HorizontalAlignment = System.Windows.HorizontalAlignment;
 using Orientation = System.Windows.Controls.Orientation;
@@ -32,12 +34,13 @@ public partial class SearchViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IDatabases _databases;
+    private readonly ILogger<SearchViewModel> _logger;
     private readonly IMessenger _messenger;
     private readonly RemoteSearchResultsCache _remoteSearchResultsCache;
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
     private readonly ISearchTargetSource _searchTargetSource;
-    private CancellationTokenSource? _searchCts;
+    private RunningSearch? _runningSearch;
 
     // Filtering Criteria - Captured After
     [ObservableProperty]
@@ -155,7 +158,8 @@ public partial class SearchViewModel : ObservableObject
         SearchResultsCache searchResultsCache,
         IDatabases databases,
         RemoteSearchResultsCache remoteSearchResultsCache,
-        ISearchTargetSource searchTargetSource)
+        ISearchTargetSource searchTargetSource,
+        ILogger<SearchViewModel> logger)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
@@ -165,6 +169,7 @@ public partial class SearchViewModel : ObservableObject
         _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _remoteSearchResultsCache = remoteSearchResultsCache ?? throw new ArgumentNullException(nameof(remoteSearchResultsCache));
         _searchTargetSource = searchTargetSource ?? throw new ArgumentNullException(nameof(searchTargetSource));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // Subscribe to property changes to regenerate SQL
         PropertyChanged += (_, e) =>
@@ -235,12 +240,36 @@ public partial class SearchViewModel : ObservableObject
     {
         Target = _searchTargetSource.GetSearchTarget();
         SearchScope = SearchScope.AllCollections;
+        _logger.LogInformation("Search dialog opened on {Target}", DescribeTarget(Target));
+    }
+
+    /// <summary>
+    /// Describes a search target for the log: the Database key and name, and the selected collection and folder.
+    /// </summary>
+    private static string DescribeTarget(SearchTarget? target)
+    {
+        if (target == null)
+            return "the active Database";
+
+        var description = $"Database {target.DatabaseKey} ('{target.DatabaseName}'{(target.IsRemote ? ", remote" : string.Empty)})";
+        if (target.CollectionName != null)
+            description += $", collection '{target.CollectionName}'";
+
+        if (target.FolderName != null)
+            description += $", folder '{target.FolderName}'";
+
+        return description;
     }
 
     /// <summary>
     /// Cancels a search that is running; a Remote Search stops on the Peer too.
     /// </summary>
-    public void CancelSearch() => _searchCts?.Cancel();
+    /// <param name="reason">Who canceled it, for the log, e.g. "the search dialog was closed".</param>
+    public void CancelSearch(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        _runningSearch?.Cancel(reason);
+    }
 
     /// <summary>
     /// Gets whether a saved search relies on hand-written SQL (a stored query that is a SELECT statement rather than
@@ -250,6 +279,51 @@ public partial class SearchViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(query);
         return string.IsNullOrWhiteSpace(query.FiltersJson) && query.Query.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Names the criteria a search uses, for the log. Never the text searched for, which may be private.
+    /// </summary>
+    private static string DescribeCriteria(SearchFilters filters)
+    {
+        var criteria = new List<string>();
+        if (filters.TitleQuery != null)
+            criteria.Add("title");
+
+        if (filters.TextContentQuery != null)
+            criteria.Add("clip text");
+
+        if (filters.CreatorQuery != null)
+            criteria.Add("creator");
+
+        if (filters.SourceUrlQuery != null)
+            criteria.Add("source URL");
+
+        if (filters.Format != null)
+            criteria.Add("format");
+
+        if (filters.ContentTypes != null)
+            criteria.Add($"types {string.Join("/", filters.ContentTypes)}");
+
+        if (filters.DateRange != null)
+            criteria.Add("date range");
+
+        if (filters.EncryptedOnly == true)
+            criteria.Add("encrypted only");
+
+        if (filters.HasShortcutOnly == true)
+            criteria.Add("with shortcut only");
+
+        if (filters.IncludeDeleted)
+            criteria.Add("including deleted");
+
+        if (filters.IsRegex)
+            criteria.Add("regex");
+
+        if (filters.CaseSensitive)
+            criteria.Add("case-sensitive");
+
+        return criteria.Count == 0 ? "everything" : string.Join(", ", criteria);
     }
 
     partial void OnTargetChanged(SearchTarget? value)
@@ -427,9 +501,11 @@ public partial class SearchViewModel : ObservableObject
     [RelayCommand]
     private async Task SearchAsync()
     {
-        _searchCts?.Cancel();
-        using var search = new CancellationTokenSource();
-        _searchCts = search;
+        _runningSearch?.Cancel("another search started");
+        using var search = new RunningSearch();
+        _runningSearch = search;
+        var searchedKey = Target?.DatabaseKey ?? "the active Database";
+        var started = Stopwatch.GetTimestamp();
         try
         {
             IsSearching = true;
@@ -443,6 +519,8 @@ public partial class SearchViewModel : ObservableObject
                 !string.IsNullOrWhiteSpace(SearchSourceUrl) ? SearchSourceUrl :
                 "(filtered search)";
 
+            _logger.LogInformation("Searching {DatabaseKey}, scope {Scope}, for {Criteria}", searchedKey, filters.Scope, DescribeCriteria(filters));
+
             IReadOnlyList<Clip> clips;
             string? databaseKey;
             if (Target is { } target)
@@ -451,6 +529,8 @@ public partial class SearchViewModel : ObservableObject
                 var database = _databases.Get(target.DatabaseKey);
                 var matches = await database.SearchAsync(filters, cancellationToken: search.Token);
                 search.Token.ThrowIfCancellationRequested();
+                _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", searchedKey,
+                    matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
                 clips = matches.Clips;
                 TotalMatches = matches.TotalMatches;
                 databaseKey = target.DatabaseKey;
@@ -466,6 +546,8 @@ public partial class SearchViewModel : ObservableObject
             {
                 // Pass empty string for query parameter since all search criteria are in filters
                 var results = await _searchService.SearchAsync("", filters, search.Token);
+                _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", searchedKey,
+                    results.Clips.Count, results.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
                 clips = results.Clips;
                 TotalMatches = results.TotalMatches;
                 databaseKey = _collectionService.GetActiveDatabaseKey();
@@ -483,11 +565,28 @@ public partial class SearchViewModel : ObservableObject
             if (!string.IsNullOrEmpty(databaseKey))
                 _messenger.Send(new SearchExecutedEvent(databaseKey, queryDescription, clips.Select(p => p.Id).ToList()));
         }
+        catch (OperationCanceledException) when (search.Token.IsCancellationRequested)
+        {
+            _logger.LogInformation("Search of {DatabaseKey} canceled after {ElapsedMs:F0} ms: {Reason}", searchedKey,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, search.CancelReason);
+            throw;
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            _logger.LogInformation("Search of {DatabaseKey} failed after {ElapsedMs:F0} ms: {Reason}", searchedKey,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", searchedKey, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            throw;
+        }
         finally
         {
-            if (ReferenceEquals(_searchCts, search))
+            if (ReferenceEquals(_runningSearch, search))
             {
-                _searchCts = null;
+                _runningSearch = null;
                 IsSearching = false;
             }
         }
@@ -811,5 +910,28 @@ public partial class SearchViewModel : ObservableObject
                 : null,
             IncludeDeleted = IncludeDeletedClips && !remote,
         };
+    }
+
+    /// <summary>
+    /// The search that is running, and who canceled it, so the log can say.
+    /// </summary>
+    private sealed class RunningSearch : IDisposable
+    {
+        private readonly CancellationTokenSource _cancellation = new();
+
+        public CancellationToken Token => _cancellation.Token;
+
+        /// <summary>
+        /// Who canceled the search, or <c>null</c> while it has not been.
+        /// </summary>
+        public string? CancelReason { get; private set; }
+
+        public void Cancel(string reason)
+        {
+            CancelReason ??= reason;
+            _cancellation.Cancel();
+        }
+
+        public void Dispose() => _cancellation.Dispose();
     }
 }

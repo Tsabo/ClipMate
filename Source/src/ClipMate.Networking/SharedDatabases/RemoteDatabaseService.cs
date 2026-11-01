@@ -143,9 +143,35 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     public async Task<SearchMatches> SearchAsync(RemoteDatabaseAddress address, SearchFilters filters, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
-        var (identity, peer) = GetReachablePeer(address.DeviceId);
-        return await _client.SearchAsync(identity, peer, address.DatabaseId, filters, cancellationToken)
-               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
+        var peerName = _peerStore.Find(address.DeviceId)?.DisplayName ?? address.DeviceId.ToShortDisplayString();
+        var started = _timeProvider.GetTimestamp();
+        try
+        {
+            var (identity, peer) = GetReachablePeer(address.DeviceId);
+            var matches = await _client.SearchAsync(identity, peer, address.DatabaseId, filters, cancellationToken)
+                          ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
+            _logger.LogDebug("Remote Search of {RemoteDatabase} on {Peer}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", address,
+                peerName, matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
+            return matches;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Remote Search of {RemoteDatabase} on {Peer} canceled after {ElapsedMs:F0} ms", address, peerName,
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds);
+            throw;
+        }
+        catch (DatabaseUnavailableException ex)
+        {
+            _logger.LogInformation(ex.InnerException, "Remote Search of {RemoteDatabase} on {Peer} failed after {ElapsedMs:F0} ms: {Reason}", address,
+                peerName, _timeProvider.GetElapsedTime(started).TotalMilliseconds, ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogInformation(ex, "Remote Search of {RemoteDatabase} on {Peer} failed after {ElapsedMs:F0} ms", address, peerName,
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds);
+            throw;
+        }
     }
 
     /// <inheritdoc />

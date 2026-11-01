@@ -14,6 +14,7 @@ using ClipMate.Data.Services;
 using ClipMate.Networking.SharedDatabases;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -43,7 +44,7 @@ public class SearchViewModelRemoteSearchTests
             new RemoteDatabase(_work, "Work", "DESKTOP", PeerConnectionStatus.Online, null), _remoteDatabaseService));
 
         _viewModel = new SearchViewModel(_searchService, A.Fake<ICollectionService>(), A.Fake<IClipService>(), _messenger, new SearchResultsCache(),
-            databases, _remoteSearchResultsCache, _targetSource);
+            databases, _remoteSearchResultsCache, _targetSource, NullLogger<SearchViewModel>.Instance);
     }
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);
@@ -203,7 +204,7 @@ public class SearchViewModelRemoteSearchTests
         // Act
         var search = _viewModel.SearchCommand.ExecuteAsync(null);
         await started.Task;
-        _viewModel.CancelSearch();
+        _viewModel.CancelSearch("the search dialog was closed");
 
         // Assert
         await Assert.That(async () => await search).Throws<OperationCanceledException>();
