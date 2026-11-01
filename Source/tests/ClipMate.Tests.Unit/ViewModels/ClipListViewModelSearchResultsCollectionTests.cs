@@ -137,4 +137,102 @@ public class ClipListViewModelSearchResultsCollectionTests
         // Assert
         await Assert.That(viewModel.ShowsSearchResults).IsFalse();
     }
+
+    [Test]
+    public async Task Receive_RemoteSearchResultsSelected_PeerTreeNotAnsweringYet_ShowsTheMatchesAtOnceAndNamesThemWhenItArrives()
+    {
+        // Arrange
+        var work = _databases.AddRemote(new RemoteDatabase(_work, "Work", "LAPTOP", PeerConnectionStatus.Online, null));
+        work.Tree = [new CollectionEntry(_inboxId, null, "Work Inbox", CollectionEntryKind.Collection, 0)];
+        var treeAnswer = new TaskCompletionSource();
+        work.TreeReady = treeAnswer.Task;
+        var viewModel = CreateViewModel();
+        var clip = new Clip { Id = Guid.NewGuid(), CollectionId = _inboxId };
+        var named = new TaskCompletionSource();
+        clip.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Clip.CollectionDisplay))
+                named.TrySetResult();
+        };
+
+        // Act
+        viewModel.Receive(new RemoteSearchResultsSelectedEvent(_work, new RemoteSearchResult("report", [clip], 1)));
+        var shownBeforeTheTree = viewModel.Clips.ToList();
+        var selectedBeforeTheTree = viewModel.SelectedClip;
+        treeAnswer.SetResult();
+        await Task.WhenAny(named.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+
+        // Assert
+        await Assert.That(shownBeforeTheTree).IsEquivalentTo(new[] { clip });
+        await Assert.That(selectedBeforeTheTree).IsSameReferenceAs(clip);
+        await Assert.That(named.Task.IsCompleted).IsTrue();
+        await Assert.That(clip.CollectionDisplay).IsEqualTo("Work Inbox");
+    }
+
+    [Test]
+    public async Task LoadClipsByIds_TreeFailsToRead_ShowsTheMatchesWithNoCollection()
+    {
+        // Arrange
+        _local.TreeReady = Task.FromException(new InvalidOperationException("The tree is corrupt."));
+        var viewModel = CreateViewModel();
+        var inbox = LocalClip(_inboxId);
+        var safe = LocalClip(_safeId);
+
+        // Act
+        await viewModel.LoadClipsByIdsAsync([inbox.Id, safe.Id], _localKey);
+
+        // Assert
+        await Assert.That(viewModel.Clips.Select(p => p.Id)).IsEquivalentTo(new[] { inbox.Id, safe.Id });
+        await Assert.That(viewModel.Clips.Select(p => p.CollectionDisplay)).IsEquivalentTo(new[] { string.Empty, string.Empty });
+        await Assert.That(viewModel.SelectedClip).IsSameReferenceAs(viewModel.Clips[0]);
+    }
+
+    [Test]
+    public async Task Receive_RemoteSearchResultsSelected_DatabasesFailToAnswer_LogsTheFailureWithoutCrashing()
+    {
+        // Arrange
+        var databases = A.Fake<IDatabases>();
+        A.CallTo(() => databases.Get(A<string>._)).Throws(new InvalidOperationException("The Database list is being rebuilt."));
+        var logger = new RecordingLogger<ClipListViewModel>();
+        var viewModel = new ClipListViewModel(A.Fake<ICollectionService>(), A.Fake<IFolderService>(), _clipService, A.Fake<IQuickPasteService>(),
+            new PowerPasteStatus(), databases, A.Fake<IRemoteDatabaseService>(), A.Fake<IMessenger>(), logger);
+        var context = new RecordingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+
+        // Act: an async void handler's failure reaches the synchronization context, where WPF's would crash the app
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            viewModel.Receive(new RemoteSearchResultsSelectedEvent(_work, new RemoteSearchResult("report", [new Clip { Id = Guid.NewGuid() }], 1)));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        // Assert
+        await Assert.That(context.Failures).IsEmpty();
+        await Assert.That(logger.Entries.Where(p => p.Level == LogLevel.Error).Select(p => p.Exception?.Message))
+            .Contains("The Database list is being rebuilt.");
+    }
+
+    /// <summary>
+    /// Runs what is posted to it at once, and keeps what that throws, as an async void method's failure is posted.
+    /// </summary>
+    private sealed class RecordingSynchronizationContext : SynchronizationContext
+    {
+        public List<Exception> Failures { get; } = [];
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            try
+            {
+                d(state);
+            }
+            catch (Exception ex)
+            {
+                Failures.Add(ex);
+            }
+        }
+    }
 }

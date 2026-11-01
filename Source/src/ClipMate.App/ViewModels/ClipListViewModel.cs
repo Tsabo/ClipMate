@@ -363,27 +363,22 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("RemoteSearchResultsSelectedEvent received: RemoteDatabase={RemoteDatabase}, Count={Count}, TotalMatches={TotalMatches}",
             message.Address, message.Result.Clips.Count, message.Result.TotalMatches);
 
-        CancelLoad();
-        var database = BeginView(RemoteDatabaseKey.From(message.Address), null, null);
-        ShowsSearchResults = true;
         using var load = new CancellationTokenSource();
-        _loadCts = load;
         try
         {
-            var collectionNames = await ReadCollectionNamesAsync(database, load.Token);
+            CancelLoad();
+            var database = BeginView(RemoteDatabaseKey.From(message.Address), null, null);
+            ShowsSearchResults = true;
+            _loadCts = load;
             foreach (var item in message.Result.Clips)
-            {
-                item.CollectionDisplay = collectionNames.Describe(item);
                 Clips.Add(item);
-            }
 
             SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
             if (message.Result.IsTruncated)
                 RemoteStatusMessage = $"Showing {message.Result.Clips.Count:N0} of {message.Result.TotalMatches:N0} matches";
-        }
-        catch (OperationCanceledException)
-        {
-            // Another node was selected while the Peer's tree was read
+
+            // The matches show at once; the Collection column fills in when the Peer's tree arrives
+            await NameCollectionsAsync(database, message.Result.Clips, load.Token);
         }
         catch (Exception ex)
         {
@@ -964,21 +959,18 @@ public partial class ClipListViewModel : ObservableObject,
             IsLoading = true;
             _logger.LogInformation("Loading {Count} clips by IDs for database: {DatabaseKey}", clipIds.Count, databaseKey);
 
-            var collectionNames = await ReadCollectionNamesAsync(database, cancellationToken);
             foreach (var item in clipIds)
             {
                 var clip = await _clipService.GetByIdAsync(databaseKey, item, cancellationToken);
-                if (clip == null)
-                    continue;
-
-                clip.CollectionDisplay = collectionNames.Describe(clip);
-                Clips.Add(clip);
+                if (clip != null)
+                    Clips.Add(clip);
             }
 
             _logger.LogInformation("Retrieved {Count} clips from database '{DatabaseKey}'", Clips.Count, databaseKey);
 
             // Auto-select the first (most recent) clip without triggering clipboard operation
             SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
+            await NameCollectionsAsync(database, Clips.ToList(), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -992,23 +984,38 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Reads <paramref name="database" />'s tree once, to name the collection of each search result it holds. A tree
-    /// that cannot be read (the Peer went offline since the search) names nothing, leaving the Collection column empty.
+    /// Fills in the Collection column of search results already shown, from <paramref name="database" />'s tree, read
+    /// once. A tree that cannot be read (the Peer went offline since the search, a damaged file) leaves the column
+    /// empty and the results as they are; a tree that arrives after another view was shown is dropped.
     /// </summary>
-    private async Task<CollectionNames> ReadCollectionNamesAsync(IDatabase? database, CancellationToken cancellationToken)
+    private async Task NameCollectionsAsync(IDatabase? database, IReadOnlyList<Clip> clips, CancellationToken cancellationToken)
     {
-        if (database == null)
-            return CollectionNames.None;
+        if (database == null || clips.Count == 0)
+            return;
 
+        CollectionNames names;
         try
         {
-            return new CollectionNames(await database.GetTreeAsync(cancellationToken));
+            names = new CollectionNames(await database.GetTreeAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Collection names of Database {DatabaseKey} dropped: another view was shown before its tree arrived", database.Key);
+            return;
         }
         catch (DatabaseUnavailableException ex)
         {
             _logger.LogInformation("Could not read the tree of Database {DatabaseKey} to name the search results' collections: {Reason}", database.Key, ex.Message);
-            return CollectionNames.None;
+            return;
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the tree of Database {DatabaseKey} to name the search results' collections", database.Key);
+            return;
+        }
+
+        foreach (var item in clips)
+            item.CollectionDisplay = names.Describe(item);
     }
 
     /// <summary>
@@ -1017,7 +1024,6 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     private sealed class CollectionNames(IReadOnlyList<CollectionEntry> tree)
     {
-        public static readonly CollectionNames None = new([]);
         private readonly Dictionary<Guid, CollectionEntry> _entries = tree.ToDictionary(p => p.Id);
 
         /// <summary>
