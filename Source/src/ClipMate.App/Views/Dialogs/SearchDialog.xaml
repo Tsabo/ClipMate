@@ -23,12 +23,14 @@
     <dx:ThemedWindow.DialogButtons>
         <dx:ThemedWindowDialogButton Content="Go!"
                                      Click="GoButton_Click"
-                                     IsDefault="True" />
+                                     IsDefault="True"
+                                     AllowCloseWindow="False" />
         <dx:ThemedWindowDialogButton Content="Cancel"
                                      IsCancel="True"
                                      DialogResult="Cancel" />
         <dx:ThemedWindowDialogButton Content="Help"
-                                     Click="HelpButton_Click" />
+                                     Click="HelpButton_Click"
+                                     AllowCloseWindow="False" />
     </dx:ThemedWindow.DialogButtons>
 
     <dxlc:LayoutControl Orientation="Vertical" Padding="0">
