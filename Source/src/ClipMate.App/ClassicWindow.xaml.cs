@@ -76,7 +76,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
         try
         {
             var logger = _serviceProvider.GetRequiredService<ILogger<SearchDialog>>();
-            var dialog = new SearchDialog(_searchViewModel, _searchService, _collectionService, logger);
+            var dialog = new SearchDialog(_searchViewModel, _searchService, logger);
             dialog.CenterOnOwnerOrScreen(this.CanOwnDialogs() ? this : _activeWindowService.DialogOwner);
             dialog.ShowDialog();
         }

@@ -132,7 +132,7 @@ public class SearchViewModelSearchInTests
 
     private SearchInOption Option(string path) => _viewModel.SearchInOptions.Single(p => p.Path == path);
 
-    private async Task OpenOn(SearchTarget? selection)
+    private async Task OpenOn(DatabaseSearchTarget? selection)
     {
         A.CallTo(() => _targetSource.GetSearchTarget()).Returns(selection);
         _viewModel.RefreshTarget();
@@ -147,7 +147,7 @@ public class SearchViewModelSearchInTests
         AddMyClips();
 
         // Act
-        await OpenOn(new SearchTarget("db_mine", "My Clips") { CollectionId = _inboxId, CollectionName = "Inbox" });
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips") { Collection = new NamedEntry(_inboxId, "Inbox") });
 
         // Assert
         await Assert.That(_viewModel.SelectedSearchIn?.Path).IsEqualTo("My Clips › Inbox");
@@ -159,7 +159,7 @@ public class SearchViewModelSearchInTests
         // Arrange
         var mine = AddMyClips();
         var second = AddSecondaryClips();
-        await OpenOn(new SearchTarget("db_mine", "My Clips") { CollectionId = _inboxId, CollectionName = "Inbox" });
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips") { Collection = new NamedEntry(_inboxId, "Inbox") });
 
         // Act
         _viewModel.SelectedSearchIn = Option("Secondary Clips › Inbox");
@@ -194,7 +194,7 @@ public class SearchViewModelSearchInTests
     {
         // Arrange
         var mine = AddMyClips();
-        await OpenOn(new SearchTarget("db_mine", "My Clips") { CollectionId = _inboxId, CollectionName = "Inbox" });
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips") { Collection = new NamedEntry(_inboxId, "Inbox") });
 
         // Act
         _viewModel.SelectedSearchIn = Option("My Clips");
@@ -213,7 +213,7 @@ public class SearchViewModelSearchInTests
         // Arrange
         AddMyClips();
         _databases.AddRemote(new RemoteDatabase(_laptop, "Notes", "LAPTOP", PeerConnectionStatus.Offline, null));
-        await OpenOn(new SearchTarget("db_mine", "My Clips"));
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips"));
 
         // Act
         _viewModel.SelectedSearchIn = Option("Notes — LAPTOP");
@@ -243,7 +243,7 @@ public class SearchViewModelSearchInTests
         // Arrange
         AddMyClips();
         AddWork();
-        await OpenOn(new SearchTarget("db_mine", "My Clips"));
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips"));
         var localSqlAvailable = _viewModel.IsSqlAvailable;
 
         // Act
@@ -252,7 +252,7 @@ public class SearchViewModelSearchInTests
         // Assert
         await Assert.That(localSqlAvailable).IsTrue();
         await Assert.That(_viewModel.IsSqlAvailable).IsFalse();
-        await Assert.That(_viewModel.Target?.DatabaseKey).IsEqualTo(WorkKey);
+        await Assert.That((_viewModel.Target as DatabaseSearchTarget)?.DatabaseKey).IsEqualTo(WorkKey);
     }
 
     [Test]
@@ -264,7 +264,7 @@ public class SearchViewModelSearchInTests
         A.CallTo(() => _clipService.GetDistinctFormatsAsync("db_mine", A<CancellationToken>._)).Returns(new List<string> { "CF_TEXT" });
         A.CallTo(() => _clipService.GetDistinctFormatsAsync("db_second", A<CancellationToken>._)).Returns(new List<string> { "HTML Format" });
         A.CallTo(() => _collectionService.GetActiveDatabaseKey()).Returns("db_mine");
-        await OpenOn(new SearchTarget("db_mine", "My Clips"));
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips"));
         await _viewModel.LoadFormatsCommand.ExecuteAsync(null);
 
         // Act
@@ -279,7 +279,7 @@ public class SearchViewModelSearchInTests
     {
         // Arrange
         var mine = AddMyClips();
-        await OpenOn(new SearchTarget("db_mine", "My Clips") { CollectionId = _inboxId, CollectionName = "Inbox" });
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips") { Collection = new NamedEntry(_inboxId, "Inbox") });
         var saved = new SavedSearchQuery
         {
             Name = "Projects", Query = "report",
@@ -310,7 +310,7 @@ public class SearchViewModelSearchInTests
             new() { Name = "Reports", Query = "report", FiltersJson = JsonSerializer.Serialize(new SearchFilters { TitleQuery = "report" }) },
             new() { Name = "Hand-written", Query = "SELECT Clips.* FROM Clips WHERE Clips.Size > 1000" },
         });
-        await OpenOn(new SearchTarget("db_mine", "My Clips"));
+        await OpenOn(new DatabaseSearchTarget("db_mine", "My Clips"));
         await _viewModel.LoadSavedQueriesCommand.ExecuteAsync(null);
 
         // Act
@@ -327,7 +327,7 @@ public class SearchViewModelSearchInTests
         AddMyClips();
         var tree = new TaskCompletionSource();
         AddWork().TreeReady = tree.Task;
-        A.CallTo(() => _targetSource.GetSearchTarget()).Returns(new SearchTarget("db_mine", "My Clips") { CollectionId = _inboxId, CollectionName = "Inbox" });
+        A.CallTo(() => _targetSource.GetSearchTarget()).Returns(new DatabaseSearchTarget("db_mine", "My Clips") { Collection = new NamedEntry(_inboxId, "Inbox") });
         _viewModel.RefreshTarget();
 
         // Act

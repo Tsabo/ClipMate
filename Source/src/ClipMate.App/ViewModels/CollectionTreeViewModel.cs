@@ -459,7 +459,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
     }
 
     /// <inheritdoc />
-    public SearchTarget? GetSearchTarget()
+    public DatabaseSearchTarget? GetSearchTarget()
     {
         var node = SelectedNode;
         if (node == null)
@@ -467,15 +467,19 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (FindRemoteDatabaseNode(node) is { } remoteDatabaseNode)
         {
-            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
+            var target = new DatabaseSearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
             return node switch
             {
                 // Smart and SQL-based collections have no clips of their own to search within
                 RemoteCollectionTreeNode { Collection.Kind: CollectionEntryKind.Collection or CollectionEntryKind.Folder } collection =>
-                    target with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
-                RemoteFolderTreeNode folder => folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
-                    ? target with { CollectionId = parent.Collection.Id, CollectionName = parent.Name, FolderId = folder.Folder.Id, FolderName = folder.Name }
-                    : target with { FolderId = folder.Folder.Id, FolderName = folder.Name },
+                    target with { Collection = new NamedEntry(collection.Collection.Id, collection.Name) },
+                RemoteFolderTreeNode folder => target with
+                {
+                    Collection = folder.Parent is { } folderParent && FindAncestor<RemoteCollectionTreeNode>(folderParent) is { } parent
+                        ? new NamedEntry(parent.Collection.Id, parent.Name)
+                        : null,
+                    Folder = new NamedEntry(folder.Folder.Id, folder.Name),
+                },
                 var _ => target,
             };
         }
@@ -483,17 +487,14 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         if (FindAncestor<DatabaseTreeNode>(node) is not { } databaseNode)
             return null;
 
-        var local = new SearchTarget(databaseNode.DatabasePath, databaseNode.Name);
+        var local = new DatabaseSearchTarget(databaseNode.DatabasePath, databaseNode.Name);
         return node switch
         {
-            CollectionTreeNode { Collection.IsVirtual: false } collection =>
-                local with { CollectionId = collection.Collection.Id, CollectionName = collection.Name },
+            CollectionTreeNode { Collection.IsVirtual: false } collection => local with { Collection = new NamedEntry(collection.Collection.Id, collection.Name) },
             FolderTreeNode folder => local with
             {
-                CollectionId = folder.Folder.CollectionId,
-                CollectionName = FindAncestor<CollectionTreeNode>(folder)?.Name,
-                FolderId = folder.Folder.Id,
-                FolderName = folder.Name,
+                Collection = FindAncestor<CollectionTreeNode>(folder) is { } parent ? new NamedEntry(folder.Folder.CollectionId, parent.Name) : null,
+                Folder = new NamedEntry(folder.Folder.Id, folder.Name),
             },
             var _ => local,
         };

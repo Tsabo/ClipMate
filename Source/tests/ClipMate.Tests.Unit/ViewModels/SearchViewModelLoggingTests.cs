@@ -44,7 +44,7 @@ public class SearchViewModelLoggingTests
 
     private static string RemoteKey => RemoteDatabaseKey.From(_work);
 
-    private void Target(SearchTarget target)
+    private void Target(DatabaseSearchTarget target)
     {
         A.CallTo(() => _targetSource.GetSearchTarget()).Returns(target);
         _viewModel.RefreshTarget();
@@ -54,7 +54,7 @@ public class SearchViewModelLoggingTests
     public async Task RefreshTarget_RemoteCollectionSelected_LogsTheTarget()
     {
         // Act
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, CollectionId = Guid.NewGuid(), CollectionName = "Inbox" });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true, Collection = new NamedEntry(Guid.NewGuid(), "Inbox") });
 
         // Assert
         var message = _logger.MessagesAt(LogLevel.Information).Single();
@@ -67,7 +67,7 @@ public class SearchViewModelLoggingTests
     public async Task SearchCommand_RemoteTarget_LogsTheSearchWithoutTheTextSearchedFor()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         _viewModel.SearchText = "my bank password";
 
         // Act
@@ -85,7 +85,7 @@ public class SearchViewModelLoggingTests
     public async Task SearchCommand_RemoteTargetAnswers_LogsTheMatchCountAndTotal()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var clips = new List<Clip> { new() { Id = Guid.NewGuid() }, new() { Id = Guid.NewGuid() } };
         A.CallTo(() => _remoteDatabaseService.SearchAsync(_work, A<SearchFilters>._, A<CancellationToken>._)).Returns(new SearchMatches(clips, 4212));
 
@@ -102,7 +102,7 @@ public class SearchViewModelLoggingTests
     public async Task CancelSearch_WhileASearchRuns_LogsWhoCanceledIt()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var started = new TaskCompletionSource();
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
             .ReturnsLazily(async call =>
@@ -128,7 +128,7 @@ public class SearchViewModelLoggingTests
     public async Task SearchCommand_WhileAnotherSearchRuns_LogsThatTheNewSearchCanceledTheOldOne()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var started = new TaskCompletionSource();
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
             .ReturnsLazily(async call =>
@@ -154,7 +154,7 @@ public class SearchViewModelLoggingTests
     public async Task SearchCommand_PeerUnavailable_LogsTheFailure()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._))
             .Throws(new DatabaseUnavailableException("DESKTOP is offline."));
 
@@ -171,7 +171,7 @@ public class SearchViewModelLoggingTests
     public async Task SearchCommand_UnexpectedError_LogsItWithTheException()
     {
         // Arrange
-        Target(new SearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
+        Target(new DatabaseSearchTarget(RemoteKey, "Work — DESKTOP") { IsRemote = true });
         var error = new InvalidOperationException("Something broke.");
         A.CallTo(() => _remoteDatabaseService.SearchAsync(A<RemoteDatabaseAddress>._, A<SearchFilters>._, A<CancellationToken>._)).Throws(error);
 

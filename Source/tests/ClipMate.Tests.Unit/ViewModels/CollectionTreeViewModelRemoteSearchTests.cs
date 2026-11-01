@@ -186,10 +186,10 @@ public class CollectionTreeViewModelRemoteSearchTests
         await Assert.That(target!.DatabaseKey).IsEqualTo(RemoteDatabaseKey.From(_work));
         await Assert.That(target.IsRemote).IsTrue();
         await Assert.That(target.DatabaseName).IsEqualTo("Work — LAPTOP");
-        await Assert.That(target.CollectionId).IsEqualTo(_inbox.Id);
-        await Assert.That(target.CollectionName).IsEqualTo("Inbox");
-        await Assert.That(target.FolderId).IsEqualTo(_projects.Id);
-        await Assert.That(target.FolderName).IsEqualTo("Projects");
+        await Assert.That(target.Collection?.Id).IsEqualTo(_inbox.Id);
+        await Assert.That(target.Collection?.Name).IsEqualTo("Inbox");
+        await Assert.That(target.Folder?.Id).IsEqualTo(_projects.Id);
+        await Assert.That(target.Folder?.Name).IsEqualTo("Projects");
     }
 
     [Test]
@@ -204,8 +204,8 @@ public class CollectionTreeViewModelRemoteSearchTests
 
         // Assert
         await Assert.That(target!.IsRemote).IsTrue();
-        await Assert.That(target.CollectionId).IsNull();
-        await Assert.That(target.FolderId).IsNull();
+        await Assert.That(target.Collection?.Id).IsNull();
+        await Assert.That(target.Folder?.Id).IsNull();
     }
 
     [Test]
@@ -228,9 +228,9 @@ public class CollectionTreeViewModelRemoteSearchTests
         await Assert.That(target!.DatabaseKey).IsEqualTo("db_local");
         await Assert.That(target.IsRemote).IsFalse();
         await Assert.That(target.DatabaseName).IsEqualTo("My Clips");
-        await Assert.That(target.CollectionId).IsEqualTo(inbox.Collection.Id);
-        await Assert.That(target.FolderId).IsEqualTo(folder.Folder.Id);
-        await Assert.That(target.FolderName).IsEqualTo("Projects");
+        await Assert.That(target.Collection?.Id).IsEqualTo(inbox.Collection.Id);
+        await Assert.That(target.Folder?.Id).IsEqualTo(folder.Folder.Id);
+        await Assert.That(target.Folder?.Name).IsEqualTo("Projects");
     }
 
     [Test]

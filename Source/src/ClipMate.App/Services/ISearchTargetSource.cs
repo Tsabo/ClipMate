@@ -11,5 +11,5 @@ public interface ISearchTargetSource
     /// Gets the Database (local or remote), collection and folder of the selected tree node, or <c>null</c> when nothing
     /// is selected.
     /// </summary>
-    SearchTarget? GetSearchTarget();
+    DatabaseSearchTarget? GetSearchTarget();
 }

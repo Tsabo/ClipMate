@@ -17,18 +17,16 @@ namespace ClipMate.App.Views.Dialogs;
 /// </summary>
 public partial class SearchDialog
 {
-    private readonly ICollectionService _collectionService;
     private readonly ILogger<SearchDialog> _logger;
     private readonly ISearchService _searchService;
     private readonly SearchViewModel _viewModel;
 
-    public SearchDialog(SearchViewModel viewModel, ISearchService searchService, ICollectionService collectionService, ILogger<SearchDialog> logger)
+    public SearchDialog(SearchViewModel viewModel, ISearchService searchService, ILogger<SearchDialog> logger)
     {
         InitializeComponent();
 
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
-        _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // "Search in" starts at what is selected in the collection tree: a local or Remote Database, collection or folder
@@ -79,9 +77,7 @@ public partial class SearchDialog
 
     private async void GoButton_Click(object sender, RoutedEventArgs e)
     {
-        _logger.LogInformation("Search pressed: {Kind} search of {DatabaseKey}",
-            _viewModel.IsAllDatabasesTarget ? "All Databases" : _viewModel.IsRemoteTarget ? "Remote" : "local",
-            _viewModel.IsAllDatabasesTarget ? "every Database" : _viewModel.Target?.DatabaseKey ?? "the active Database");
+        _logger.LogInformation("Search pressed: search of {Target}", _viewModel.Target?.Describe() ?? "the active Database");
 
         // A search that includes a Peer has no SQL to validate: each Database builds its query from the filters
         if (!_viewModel.IsSqlAvailable)
@@ -91,7 +87,7 @@ public partial class SearchDialog
         }
 
         // Validate the SQL against the Database chosen in "Search in"
-        var databaseKey = SqlDatabaseKey;
+        var databaseKey = _viewModel.SqlDatabaseKey;
         if (string.IsNullOrEmpty(databaseKey))
         {
             _logger.LogInformation("Search not run: no active Database");
@@ -155,8 +151,7 @@ public partial class SearchDialog
     {
         if (!_viewModel.SearchCommand.CanExecute(null))
         {
-            _logger.LogInformation("{Kind} not run: another search is still running",
-                _viewModel.IsAllDatabasesTarget ? "All Databases search" : "Remote Search");
+            _logger.LogInformation("Search of {Target} not run: another search is still running", _viewModel.Target?.Describe());
             return;
         }
 
@@ -198,14 +193,6 @@ public partial class SearchDialog
         Close();
     }
 
-    /// <summary>
-    /// The local Database whose SQL the dialog validates and suggests: the chosen one, or the active Database when none
-    /// is chosen. <c>null</c> for a Remote Database, which is never sent SQL, and for "All Databases".
-    /// </summary>
-    private string? SqlDatabaseKey => _viewModel.Target is { } target
-        ? target.IsRemote || target.IsAllDatabases ? null : target.DatabaseKey
-        : _collectionService.GetActiveDatabaseKey();
-
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SearchViewModel.Target))
@@ -216,7 +203,7 @@ public partial class SearchDialog
 
     private void UpdateSqlDatabase()
     {
-        if (SqlDatabaseKey is { Length: > 0 } databaseKey)
+        if (_viewModel.SqlDatabaseKey is { } databaseKey)
             SqlEditor.DatabaseKey = databaseKey;
     }
 
