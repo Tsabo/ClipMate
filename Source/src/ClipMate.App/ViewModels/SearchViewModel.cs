@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Text.Json;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -43,6 +42,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly SearchResultsCache _searchResultsCache;
     private readonly ISearchService _searchService;
     private readonly ISearchTargetSource _searchTargetSource;
+    private readonly TimeProvider _timeProvider;
     private string? _allDatabasesProgress;
     private CancellationTokenSource? _loadingSearchIn;
     private RunningSearch? _runningSearch;
@@ -158,7 +158,8 @@ public partial class SearchViewModel : ObservableObject
         RemoteSearchResultsCache remoteSearchResultsCache,
         ISearchTargetSource searchTargetSource,
         ICollectionTreeBuilder collectionTreeBuilder,
-        ILogger<SearchViewModel> logger)
+        ILogger<SearchViewModel> logger,
+        TimeProvider? timeProvider = null)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
@@ -170,6 +171,7 @@ public partial class SearchViewModel : ObservableObject
         _searchTargetSource = searchTargetSource ?? throw new ArgumentNullException(nameof(searchTargetSource));
         _collectionTreeBuilder = collectionTreeBuilder ?? throw new ArgumentNullException(nameof(collectionTreeBuilder));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         // Subscribe to property changes to regenerate SQL
         PropertyChanged += (_, e) =>
@@ -344,6 +346,8 @@ public partial class SearchViewModel : ObservableObject
         {
             if (value is { IsAvailable: true })
                 Target = value.Target;
+            else if (value != null)
+                _logger.LogDebug("Search in: {Path} not chosen: it is unavailable", value.Path);
 
             OnPropertyChanged();
         }
@@ -675,7 +679,7 @@ public partial class SearchViewModel : ObservableObject
         using var search = new RunningSearch();
         _runningSearch = search;
         var searchedKey = Target is { IsAllDatabases: true } ? Target.DatabaseName : Target?.DatabaseKey ?? "the active Database";
-        var started = Stopwatch.GetTimestamp();
+        var started = _timeProvider.GetTimestamp();
         try
         {
             IsSearching = true;
@@ -706,7 +710,7 @@ public partial class SearchViewModel : ObservableObject
                 var matches = await database.SearchAsync(filters, cancellationToken: search.Token);
                 search.Token.ThrowIfCancellationRequested();
                 _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", searchedKey,
-                    matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                    matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
                 clips = matches.Clips;
                 TotalMatches = matches.TotalMatches;
                 databaseKey = target.DatabaseKey;
@@ -723,7 +727,7 @@ public partial class SearchViewModel : ObservableObject
                 // Pass empty string for query parameter since all search criteria are in filters
                 var results = await _searchService.SearchAsync("", filters, search.Token);
                 _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", searchedKey,
-                    results.Clips.Count, results.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                    results.Clips.Count, results.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
                 clips = results.Clips;
                 TotalMatches = results.TotalMatches;
                 databaseKey = _collectionService.GetActiveDatabaseKey();
@@ -744,18 +748,18 @@ public partial class SearchViewModel : ObservableObject
         catch (OperationCanceledException) when (search.Token.IsCancellationRequested)
         {
             _logger.LogInformation("Search of {DatabaseKey} canceled after {ElapsedMs:F0} ms: {Reason}", searchedKey,
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds, search.CancelReason);
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds, search.CancelReason);
             throw;
         }
         catch (DatabaseUnavailableException ex)
         {
             _logger.LogInformation("Search of {DatabaseKey} failed after {ElapsedMs:F0} ms: {Reason}", searchedKey,
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds, ex.Message);
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds, ex.Message);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", searchedKey, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", searchedKey, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw;
         }
         finally
@@ -867,12 +871,12 @@ public partial class SearchViewModel : ObservableObject
     /// </summary>
     private async Task<SearchMatches> SearchDatabaseAsync(IDatabase database, CancellationToken cancellationToken)
     {
-        var started = Stopwatch.GetTimestamp();
+        var started = _timeProvider.GetTimestamp();
         try
         {
             var matches = await database.SearchAsync(BuildSearchFilters(remote: database.Remote != null), cancellationToken: cancellationToken);
             _logger.LogInformation("Searched {DatabaseKey}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", database.Key,
-                matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return matches;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -882,12 +886,12 @@ public partial class SearchViewModel : ObservableObject
         catch (DatabaseUnavailableException ex)
         {
             _logger.LogInformation("Search of {DatabaseKey} failed after {ElapsedMs:F0} ms: {Reason}", database.Key,
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds, ex.Message);
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds, ex.Message);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", database.Key, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            _logger.LogWarning(ex, "Search of {DatabaseKey} failed after {ElapsedMs:F0} ms", database.Key, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw;
         }
     }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using ClipMate.Core.Constants;
@@ -95,10 +94,11 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<GrpcSharedDatabaseClient> _logger;
     private readonly TimeSpan _searchTimeout;
+    private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _timeout;
 
-    public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger)
-        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30))
+    public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeProvider? timeProvider = null)
+        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30), timeProvider)
     {
     }
 
@@ -114,13 +114,14 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// defaults to <paramref name="timeout" />.
     /// </param>
     internal GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeSpan timeout,
-        TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null)
+        TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null, TimeProvider? timeProvider = null)
     {
         _searchTimeout = searchTimeout ?? timeout;
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeout = timeout;
         _contentTimeout = contentTimeout ?? timeout;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -269,7 +270,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
-        var started = Stopwatch.GetTimestamp();
+        var started = _timeProvider.GetTimestamp();
         try
         {
             var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
@@ -277,7 +278,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
                 (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
                 _searchStatuses, cancellationToken);
             _logger.LogDebug("Peer {DeviceId} answered the Remote Search with {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms",
-                peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return matches;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
@@ -288,7 +289,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         catch (RpcException ex) when (ex.StatusCode == StatusCode.ResourceExhausted)
         {
             _logger.LogDebug("Peer {DeviceId} gave up the Remote Search after {ElapsedMs:F0} ms", peer.DeviceId.ToShortDisplayString(),
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             throw new DatabaseUnavailableException($"The search took too long on {peer.DisplayName}. Try narrower criteria.", ex);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)

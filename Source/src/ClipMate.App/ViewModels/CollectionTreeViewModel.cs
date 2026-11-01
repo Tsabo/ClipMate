@@ -8,6 +8,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -111,12 +112,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
         // A Remote Search: its results are cached on this Device and shown under the Remote Database
         if (RemoteDatabaseKey.TryParse(message.DatabaseKey, out var remoteAddress))
         {
-            var dispatcher = Application.Current?.Dispatcher;
-            if (dispatcher == null)
-                ShowRemoteSearchResults(remoteAddress, message.SelectsNode);
-            else
-                dispatcher.InvokeAsync(() => ShowRemoteSearchResults(remoteAddress, message.SelectsNode));
-
+            UiThread.Run(() => ShowRemoteSearchResults(remoteAddress, message.SelectsNode));
             return;
         }
 
