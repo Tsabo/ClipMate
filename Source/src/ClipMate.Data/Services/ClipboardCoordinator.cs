@@ -209,17 +209,11 @@ public class ClipboardCoordinator : IHostedService,
     {
         try
         {
-            if (_currentClipWriter.CurrentClip is not { } currentClip)
+            if (!await _currentClipWriter.RewriteCurrentAsync(new WriteOptions(FilterMode.Forced)))
             {
                 _logger.LogDebug("Manual Filter: there is no Current Clip");
                 return;
             }
-
-            var filtered = new WriteOptions(FilterMode.Forced);
-            if (currentClip.DatabaseKey is { } databaseKey)
-                await _currentClipWriter.MakeCurrentAsync(databaseKey, currentClip.Clip.Id, filtered);
-            else
-                await _currentClipWriter.PutOnClipboardAsync(currentClip.Clip, filtered);
 
             using var scope = _serviceProvider.CreateScope();
             await scope.ServiceProvider.GetRequiredService<ISoundService>().PlaySoundAsync(SoundEvent.Filter);
@@ -542,17 +536,18 @@ public class ClipboardCoordinator : IHostedService,
             _logger.LogInformation("Not saving a duplicate clip: the same text as the newest clip in '{Collection}', which does not accept duplicates",
                 activeCollection.Title);
 
-            // The clip already there stays the Current Clip, as in ClipMate 7
-            if (await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken) is { } existingClip)
-                _currentClipWriter.ReportCurrent(existingClip, activeDatabaseKey);
-
+            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy.
+            // It's read before the sound, so the Outbound Filter's sound still follows the Ignore sound.
+            var existingClip = await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken);
             await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
+            if (existingClip != null)
+                await _currentClipWriter.ReportCapturedAsync(existingClip, activeDatabaseKey, cancellationToken);
+
             return;
         }
 
         var savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
         _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
-        _currentClipWriter.ReportCurrent(savedClip, activeDatabaseKey);
 
         // Play sound for new clipboard data captured
         await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);
@@ -568,6 +563,9 @@ public class ClipboardCoordinator : IHostedService,
         };
 
         _messenger.Send(clipAddedEvent);
+
+        // After the capture sound, so the Outbound Filter's sound follows it, as in ClipMate 7
+        await _currentClipWriter.ReportCapturedAsync(savedClip, activeDatabaseKey, cancellationToken);
 
         // Auto-Append mode: the first capture since activation becomes the growing clip
         if (_autoAppendService is { IsActive: true, GrowingClipId: null } &&

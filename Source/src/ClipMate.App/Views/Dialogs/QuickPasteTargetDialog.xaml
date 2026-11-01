@@ -35,6 +35,8 @@
                 </TextBlock>
                 <TextBlock x:Name="TitleHelp" TextWrapping="Wrap" Visibility="Collapsed"
                            Text="Enter a window title. Windows whose title starts with it (ignoring case) are never the Paste Target." />
+                <TextBlock x:Name="ProgramHelp" TextWrapping="Wrap" Visibility="Collapsed"
+                           Text="Enter a program name without .exe, such as EXPLORER. Its clips go on the clipboard with all their formats." />
             </Grid>
         </dxlc:LayoutItem>
 

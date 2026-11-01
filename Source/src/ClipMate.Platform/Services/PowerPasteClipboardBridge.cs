@@ -237,7 +237,7 @@ public sealed class PowerPasteClipboardBridge : IHostedService, IDisposable
         {
             ArmedFormats = [new ClipboardFormatData((uint)Formats.UnicodeText.Code,
                 DataObjectFormats.EncodeUnicodeText(pastedClip.TextContent ?? string.Empty))];
-            _currentClipWriter.ReportCurrent(pastedClip, null);
+            _currentClipWriter.ReportCurrent(pastedClip);
         }
         else
             ArmedFormats = _currentClipWriter.Prepare(pastedClip);

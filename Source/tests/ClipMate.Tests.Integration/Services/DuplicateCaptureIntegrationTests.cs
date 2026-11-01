@@ -16,10 +16,9 @@ public class DuplicateCaptureIntegrationTests : CapturePipelineTestBase
     public async Task SavedCapture_BecomesTheCurrentClip()
     {
         var clip = TextClip(_link);
-        await CaptureAsync(clip);
+        await CaptureAsync(clip, () => ReportedCapturedCount(clip.Id) > 0);
 
-        A.CallTo(() => CurrentClipWriter.ReportCurrent(A<Clip>.That.Matches(p => p.Id == clip.Id), A<string?>._))
-            .MustHaveHappenedOnceExactly();
+        await Assert.That(ReportedCapturedCount(clip.Id)).IsEqualTo(1);
     }
 
     [Test]
@@ -27,12 +26,11 @@ public class DuplicateCaptureIntegrationTests : CapturePipelineTestBase
     {
         // As in ClipMate 7, so the Outbound Filter can still put the clipboard back filtered
         var first = TextClip(_link);
-        await CaptureAsync(first);
+        await CaptureAsync(first, () => ReportedCapturedCount(first.Id) > 0);
 
-        await CaptureAsync(TextClip(_link));
+        await CaptureAsync(TextClip(_link), () => ReportedCapturedCount(first.Id) > 1);
 
-        A.CallTo(() => CurrentClipWriter.ReportCurrent(A<Clip>.That.Matches(p => p.Id == first.Id), A<string?>._))
-            .MustHaveHappenedTwiceExactly();
+        await Assert.That(ReportedCapturedCount(first.Id)).IsEqualTo(2);
     }
 
     [Test]
@@ -129,4 +127,8 @@ public class DuplicateCaptureIntegrationTests : CapturePipelineTestBase
         ContentHash = Convert.ToHexString(pixels),
         CapturedAt = DateTimeOffset.Now,
     };
+
+    private int ReportedCapturedCount(Guid clipId) =>
+        Fake.GetCalls(CurrentClipWriter).Count(p => p.Method.Name == nameof(ICurrentClipWriter.ReportCapturedAsync) &&
+                                                     p.GetArgument<Clip>(0)?.Id == clipId);
 }

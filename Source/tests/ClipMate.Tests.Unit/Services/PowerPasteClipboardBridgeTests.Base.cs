@@ -2,6 +2,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.Messaging;
@@ -31,16 +32,16 @@ public partial class PowerPasteClipboardBridgeTests
         _mockTemplateService = A.Fake<ITemplateService>();
         A.CallTo(() => _mockTemplateService.PreviewTemplateText(A<Clip>.Ignored)).Returns(null);
 
-        // The real writer, so arming prepares the clip's Formats through it
-        _currentClipWriter = new CurrentClipWriter(_mockClipboardService, A.Fake<IDatabases>(), _mockTemplateService,
-            new StrongReferenceMessenger(), A.Fake<ILogger<CurrentClipWriter>>());
-
         var config = new ClipMateConfiguration
         {
             Preferences = new PreferencesConfiguration { PowerPasteDelay = 200 },
         };
 
         A.CallTo(() => _mockConfigService.Configuration).Returns(config);
+
+        // The real writer, so arming prepares the clip's Formats through it
+        _currentClipWriter = new CurrentClipWriter(_mockClipboardService, A.Fake<IDatabases>(), _mockTemplateService,
+            _mockConfigService, A.Fake<ISoundService>(), new StrongReferenceMessenger(), A.Fake<ILogger<CurrentClipWriter>>());
 
         A.CallTo(() => _mockClipboardService.SetClipboardContentAsync(A<Clip>.Ignored, A<bool>.Ignored,
             A<CancellationToken>.Ignored))

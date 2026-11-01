@@ -80,7 +80,8 @@ public class PowerPasteSettingsTests : TestFixtureBase
     {
         // Arrange - Shield is no longer on the dialog; an imported value must survive saving it
         _configuration.Preferences.PowerPasteShield = false;
-        var options = new PowerPasteOptionsViewModel(_configurationService, A.Fake<ILogger<PowerPasteOptionsViewModel>>());
+        var options = new PowerPasteOptionsViewModel(_configurationService,
+            new OutboundFilterOptionsViewModel(_configurationService, A.Fake<ICurrentClipWriter>()), A.Fake<ILogger<PowerPasteOptionsViewModel>>());
         options.LoadAsync();
 
         // Act

@@ -34,12 +34,29 @@ public interface ICurrentClipWriter
     IReadOnlyList<ClipboardFormatData> Prepare(Clip clip, WriteOptions options = default);
 
     /// <summary>
-    /// A clip became the Current Clip without the writer writing it: capture saved it or found it already there as a
-    /// Duplicate, or Power Paste armed an Explode piece.
+    /// Puts the Current Clip on the clipboard again, loaded from its Database when it is stored: after the Outbound Filter
+    /// is turned on or off, or filtered for Manual Filter.
     /// </summary>
-    /// <param name="clip">The clip.</param>
-    /// <param name="databaseKey">The Database it is stored in; null for content that isn't a stored clip.</param>
-    void ReportCurrent(Clip clip, string? databaseKey);
+    /// <returns>False when there is no Current Clip.</returns>
+    Task<bool> RewriteCurrentAsync(WriteOptions options = default, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Power Paste armed an Explode piece: it becomes the Current Clip without the writer writing it.
+    /// </summary>
+    void ReportCurrent(Clip clip);
+
+    /// <summary>
+    /// Capture saved <paramref name="clip" />, or found it already there as a Duplicate: it becomes the Current Clip, and
+    /// with the Outbound Filter on in Active mode it is put back on the clipboard filtered at once.
+    /// </summary>
+    Task ReportCapturedAsync(Clip clip, string databaseKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// ClipMate lost focus: with the Outbound Filter on in Passive mode, a Current Clip captured from another program and
+    /// not yet filtered is put back on the clipboard filtered.
+    /// </summary>
+    /// <returns>True when it was put back.</returns>
+    Task<bool> FilterCapturedClipAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -59,7 +76,8 @@ public enum FilterMode
     FromSettings,
 
     /// <summary>
-    /// Always filtered, as Manual Filter does.
+    /// Filtered whatever the setting, as Manual Filter does; a clip from an excluded Source Application is still left
+    /// whole.
     /// </summary>
     Forced,
 }

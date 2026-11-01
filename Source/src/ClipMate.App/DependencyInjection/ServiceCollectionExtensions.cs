@@ -32,6 +32,9 @@ public static class ServiceCollectionExtensions
 
         // Register Update Checker as hosted service
         services.AddHostedService<UpdateCheckerService>();
+
+        // Passive Outbound Filtering, when ClipMate loses focus
+        services.AddHostedService<PassiveOutboundFilter>();
         // Register Peer networking lifecycle (starts the Peer host only when networking is enabled)
         services.AddSingleton<NetworkingService>();
         services.AddHostedService(p => p.GetRequiredService<NetworkingService>());
@@ -117,6 +120,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<GeneralOptionsViewModel>();
         services.AddTransient<AppearanceOptionsViewModel>();
         services.AddTransient<PowerPasteOptionsViewModel>();
+        services.AddTransient<OutboundFilterOptionsViewModel>();
         services.AddTransient<QuickPasteOptionsViewModel>();
         services.AddTransient<EditorOptionsViewModel>();
         services.AddTransient<CapturingOptionsViewModel>();

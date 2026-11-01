@@ -29,11 +29,18 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     private bool _powerPasteTrim;
 
     public PowerPasteOptionsViewModel(IConfigurationService configurationService,
+        OutboundFilterOptionsViewModel outboundFilter,
         ILogger<PowerPasteOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        OutboundFilter = outboundFilter ?? throw new ArgumentNullException(nameof(outboundFilter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+
+    /// <summary>
+    /// The Outbound Clip Filtering section, on the same Pasting page.
+    /// </summary>
+    public OutboundFilterOptionsViewModel OutboundFilter { get; }
 
     /// <summary>
     /// Loads PowerPaste configuration.
@@ -47,6 +54,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteIncludeDelimiter = config.PowerPasteIncludeDelimiter;
         PowerPasteLoop = config.PowerPasteLoop;
         PowerPasteExplode = config.PowerPasteExplode;
+        OutboundFilter.Load();
 
         _logger.LogDebug("PowerPaste configuration loaded");
     }
@@ -63,6 +71,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         config.PowerPasteIncludeDelimiter = PowerPasteIncludeDelimiter;
         config.PowerPasteLoop = PowerPasteLoop;
         config.PowerPasteExplode = PowerPasteExplode;
+        OutboundFilter.Save();
 
         _logger.LogDebug("PowerPaste configuration saved");
     }
@@ -78,6 +87,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteIncludeDelimiter = false;
         PowerPasteLoop = false;
         PowerPasteExplode = false;
+        OutboundFilter.ResetToDefaults();
 
         _logger.LogInformation("PowerPaste settings reset to defaults");
     }

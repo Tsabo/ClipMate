@@ -3,7 +3,8 @@ using DevExpress.Xpf.Editors;
 namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
-/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME), or bad window titles.
+/// Dialog for adding/editing QuickPaste target specifications (PROCESSNAME:CLASSNAME), bad window titles, or program
+/// names.
 /// </summary>
 public partial class QuickPasteTargetDialog
 {
@@ -33,6 +34,20 @@ public partial class QuickPasteTargetDialog
         dialog.SpecificationHelp.Visibility = Visibility.Collapsed;
         dialog.TitleHelp.Visibility = Visibility.Visible;
         dialog.TargetItem.Label = "Title:";
+
+        return dialog;
+    }
+
+    /// <summary>
+    /// Creates a dialog for a program name, such as an Outbound Filter exclusion.
+    /// </summary>
+    /// <param name="currentProgram">The program name to start from.</param>
+    public static QuickPasteTargetDialog ForProgram(string currentProgram = "")
+    {
+        var dialog = new QuickPasteTargetDialog(currentProgram);
+        dialog.SpecificationHelp.Visibility = Visibility.Collapsed;
+        dialog.ProgramHelp.Visibility = Visibility.Visible;
+        dialog.TargetItem.Label = "Program:";
 
         return dialog;
     }

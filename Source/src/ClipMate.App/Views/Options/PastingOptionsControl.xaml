@@ -7,6 +7,8 @@
              xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
              xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
              xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
+             xmlns:controls="clr-namespace:ClipMate.App.Controls"
+             xmlns:models="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
              d:DataContext="{d:DesignInstance Type=vm:PowerPasteOptionsViewModel}"
              mc:Ignorable="d">
 
@@ -62,47 +64,33 @@
 
         </dxlc:LayoutGroup>
 
-        <!-- Outbound Clip Filtering Section (Stubbed) -->
-        <dxlc:LayoutGroup View="GroupBox" Header="Outbound Clip Filtering" Orientation="Vertical">
+        <!-- Outbound Clip Filtering (manual: Pasting Options, "Filter Outbound Clips") -->
+        <dxlc:LayoutGroup View="GroupBox" Header="Outbound Clip Filtering" Orientation="Vertical"
+                          DataContext="{Binding OutboundFilter}">
 
             <dxlc:LayoutItem>
-                <TextBlock Text="Filter clips before pasting based on content, format, or application."
-                           TextWrapping="Wrap"
-                           Foreground="Gray"
-                           Margin="0,0,0,8" />
+                <dxe:CheckEdit Content="Filter Outbound Clips"
+                               IsChecked="{Binding IsEnabled}"
+                               ToolTip="Put clips on the clipboard as plain text only, or as just their image when they have no text. The clip itself keeps all its formats." />
             </dxlc:LayoutItem>
 
-            <!-- Placeholder for future implementation -->
-            <dxlc:LayoutItem>
-                <dxe:CheckEdit Content="Enable Outbound Filtering"
-                               IsEnabled="False"
-                               ToolTip="Feature coming soon" />
+            <dxlc:LayoutItem Label="Filter copies from other programs:" IsEnabled="{Binding IsEnabled}">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Active"
+                                 IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:OutboundFilterMode.Active}}"
+                                 GroupName="OutboundFilterMode" Margin="0,0,5,0"
+                                 ToolTip="As soon as a copy is captured, put it back on the clipboard as plain text." />
+                    <RadioButton Content="Passive"
+                                 IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static models:OutboundFilterMode.Passive}}"
+                                 GroupName="OutboundFilterMode"
+                                 ToolTip="Put it back as plain text when ClipMate loses focus, as ClipMate 6.5 did." />
+                </StackPanel>
             </dxlc:LayoutItem>
 
-            <dxlc:LayoutItem Label="Filter by format:" LabelPosition="Left">
-                <dxe:ComboBoxEdit IsEnabled="False"
-                                  ToolTip="Feature coming soon">
-                    <dxe:ComboBoxEditItem Content="Text Only" />
-                    <dxe:ComboBoxEditItem Content="Rich Text" />
-                    <dxe:ComboBoxEditItem Content="Images" />
-                    <dxe:ComboBoxEditItem Content="All Formats" />
-                </dxe:ComboBoxEdit>
-            </dxlc:LayoutItem>
-
-            <dxlc:LayoutItem>
-                <dxe:CheckEdit Content="Strip formatting on paste"
-                               IsEnabled="False"
-                               ToolTip="Feature coming soon" />
-            </dxlc:LayoutItem>
-
-            <dxlc:LayoutItem>
-                <TextBlock Text="Note: Outbound Clip Filtering functionality will be implemented in a future release."
-                           TextWrapping="Wrap"
-                           FontStyle="Italic"
-                           Foreground="Orange"
-                           FontSize="10"
-                           Margin="0,8,0,0" />
-            </dxlc:LayoutItem>
+            <dxlc:LayoutGroup View="GroupBox" Header="Don't filter clips from these programs" Orientation="Horizontal"
+                              ToolTip="Clips copied from these programs go on the clipboard with all their formats. Exclude EXPLORER so files can still be copied.">
+                <controls:EditableStringList DataContext="{Binding Exclusions}" />
+            </dxlc:LayoutGroup>
 
         </dxlc:LayoutGroup>
 
