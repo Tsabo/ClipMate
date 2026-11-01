@@ -140,8 +140,9 @@ public class EncryptionServiceTests : TestFixtureBase
         var (encryptedData, metadata) = await _service.EncryptAsync(plaintext, key, _testIterations);
         var decryptedData = await _service.DecryptAsync(encryptedData, metadata, key, _testIterations);
 
-        // Assert
-        await Assert.That(decryptedData).IsEquivalentTo(plaintext);
+        // Assert: compared in order, as bytes; IsEquivalentTo matches a megabyte element by element, ignoring order, and
+        // took over a minute on CI runners
+        await Assert.That(decryptedData.AsSpan().SequenceEqual(plaintext)).IsTrue();
     }
 
     [Test]
