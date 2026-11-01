@@ -483,10 +483,10 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
             if (string.IsNullOrEmpty(sourceDatabaseKey))
                 return;
 
-            // Remote Databases are read-only: their clips can be copied to local, never moved
-            if (_viewModel.ClipListViewModel.IsRemoteDatabase)
+            // A read-only Database's clips can be copied, never moved
+            if (_viewModel.ClipListViewModel.IsReadOnly)
             {
-                _messenger.Send(new StatusUpdateEvent("Remote Databases are read-only.", true));
+                _messenger.Send(new StatusUpdateEvent(DatabaseMessages.ReadOnly, true));
                 return;
             }
 

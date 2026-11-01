@@ -592,7 +592,7 @@ public partial class ClipListControl
         if (viewModel?.IsRemoteDatabase == true)
         {
             var remoteClipIds = e.Records.OfType<Clip>().Select(p => p.Id).ToList();
-            if (remoteClipIds.Count == 0 || !RemoteDatabaseKey.IsRemote(viewModel.CurrentDatabaseKey))
+            if (remoteClipIds.Count == 0 || viewModel.CurrentDatabaseKey == null)
             {
                 e.Handled = true;
                 e.AllowDrag = false;
@@ -722,10 +722,10 @@ public partial class ClipListControl
             _logger.LogDebug("Fell back to _currentDatabaseKey: '{DatabaseKey}'", databaseKey);
         }
 
-        // A Remote Database is read-only: its clips cannot be renamed
-        if (clipListViewModel?.IsRemoteDatabase == true || RemoteDatabaseKey.IsRemote(databaseKey))
+        // A read-only Database's clips cannot be renamed
+        if (clipListViewModel?.IsReadOnly == true)
         {
-            _messenger.Send(new StatusUpdateEvent("Remote Databases are read-only.", true));
+            _messenger.Send(new StatusUpdateEvent(DatabaseMessages.ReadOnly, true));
             return;
         }
 

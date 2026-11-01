@@ -122,6 +122,7 @@ public class ClipListViewModelTests
         await Assert.That(viewModel.SelectedClip).IsEqualTo(newest);
         await Assert.That(viewModel.AcceptsNewClips).IsTrue();
         await Assert.That(viewModel.IsRemoteDatabase).IsFalse();
+        await Assert.That(viewModel.IsReadOnly).IsFalse();
         await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo("db_local");
         await Assert.That(viewModel.CurrentCollectionId).IsEqualTo(collectionId);
         A.CallTo(() => _mockCollectionService.SetActiveAsync(collectionId, "db_local", A<CancellationToken>._)).MustHaveHappenedOnceExactly();
@@ -248,6 +249,7 @@ public class ClipListViewModelTests
         await Assert.That(viewModel.Clips).IsEmpty();
         await Assert.That(viewModel.AcceptsNewClips).IsFalse();
         await Assert.That(viewModel.IsRemoteDatabase).IsTrue();
+        await Assert.That(viewModel.IsReadOnly).IsTrue();
         await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteKey);
         A.CallTo(() => _mockCollectionService.SetActiveAsync(A<Guid>._, A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
         A.CallTo(() => _mockFolderService.SetActiveAsync(A<Guid?>._, A<CancellationToken>._)).MustNotHaveHappened();

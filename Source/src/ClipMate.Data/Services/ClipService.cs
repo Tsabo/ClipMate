@@ -327,8 +327,8 @@ public class ClipService : IClipService
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceDatabaseKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetDatabaseKey);
 
-        if (RemoteDatabaseKey.IsRemote(targetDatabaseKey))
-            throw new InvalidOperationException("Copy to local cannot copy into a Remote Database: Remote Databases are read-only.");
+        if (_databases.Get(targetDatabaseKey).IsReadOnly)
+            throw new InvalidOperationException($"Copy to local cannot copy into a read-only Database: {DatabaseMessages.ReadOnly}");
 
         // Read everything first (a Remote Database is read from its Peer), so a failed read writes nothing locally
         var content = await _databases.Get(sourceDatabaseKey).GetClipContentAsync(sourceClipId, cancellationToken)
@@ -1018,8 +1018,8 @@ public class ClipService : IClipService
         }
 
         // A Remote Database is read-only: its clips can be decrypted for viewing here, never decrypted in place
-        if (isPermanent && RemoteDatabaseKey.IsRemote(databaseKey))
-            throw new InvalidOperationException("A clip in a Remote Database cannot be decrypted permanently: Remote Databases are read-only.");
+        if (isPermanent && _databases.Get(databaseKey).IsReadOnly)
+            throw new InvalidOperationException($"A clip in a read-only Database cannot be decrypted permanently: {DatabaseMessages.ReadOnly}");
 
         var metadata = new EncryptionMetadata(
             clip.EncryptionSalt,

@@ -470,7 +470,7 @@ public partial class CollectionTreeViewModel : ObservableObject, IRecipient<Sear
 
         if (FindRemoteDatabaseNode(node) is { } remoteDatabaseNode)
         {
-            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName);
+            var target = new SearchTarget(RemoteDatabaseKey.From(remoteDatabaseNode.Address), remoteDatabaseNode.Database.DisplayName) { IsRemote = true };
             return node switch
             {
                 // Smart and SQL-based collections have no clips of their own to search within

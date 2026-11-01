@@ -60,6 +60,7 @@ public class ClipOperationsCoordinator :
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
+    private readonly IDatabases _databases;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipOperationsCoordinator> _logger;
@@ -80,6 +81,7 @@ public class ClipOperationsCoordinator :
         IPowerPasteService powerPasteService,
         ISearchService searchService,
         IMessenger messenger,
+        IDatabases databases,
         IServiceProvider serviceProvider,
         ILogger<ClipOperationsCoordinator> logger)
     {
@@ -92,6 +94,7 @@ public class ClipOperationsCoordinator :
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -135,7 +138,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(CaseConversionRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -156,7 +159,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(CleanUpTextRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -320,7 +323,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(ConvertFilePointerRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClips = _clipListViewModel.SelectedClips.Where(p => p.Type == ClipType.Files).ToList();
@@ -368,7 +371,7 @@ public class ClipOperationsCoordinator :
     public async void Receive(CopyToCollectionRequestedEvent message)
     {
         // Copying a remote clip to a collection is Copy to local
-        if (IsShowingRemoteDatabase())
+        if (IsShowingReadOnlyDatabase())
         {
             await CopyToLocalAsync(new CopyToLocalRequestedEvent(message.ClipIds));
             return;
@@ -466,7 +469,7 @@ public class ClipOperationsCoordinator :
         try
         {
             var sourceDatabaseKey = message.SourceDatabaseKey ?? _clipListViewModel.CurrentDatabaseKey;
-            if (!RemoteDatabaseKey.IsRemote(sourceDatabaseKey))
+            if (string.IsNullOrEmpty(sourceDatabaseKey) || _databases.Get(sourceDatabaseKey).Remote == null)
             {
                 SendStatus("Copy to local copies clips from a Remote Database.", true);
                 return;
@@ -586,7 +589,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(DecryptClipsRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var clipIds = message.ClipIds.Any()
@@ -647,7 +650,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(DeleteClipsRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClips = _clipListViewModel.SelectedClips;
@@ -709,7 +712,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(EncryptClipsRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var clipIds = message.ClipIds.Any()
@@ -946,7 +949,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(MoveClipSortOrderRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -988,7 +991,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(MoveToCollectionRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClips = _clipListViewModel.SelectedClips;
@@ -1226,7 +1229,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(RemoveLineBreaksRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -1246,7 +1249,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public async void Receive(RenameClipRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -1401,7 +1404,7 @@ public class ClipOperationsCoordinator :
     /// </summary>
     public void Receive(StripNonTextRequestedEvent message)
     {
-        if (RejectIfRemoteDatabase())
+        if (RejectIfReadOnlyDatabase())
             return;
 
         var selectedClip = _clipListViewModel.SelectedClip;
@@ -1461,21 +1464,20 @@ public class ClipOperationsCoordinator :
     /// <param name="message">The status message.</param>
     /// <param name="isError">Whether this is an error message.</param>
     /// <summary>
-    /// Remote Databases are read-only: refuses any request that would change, move, rename, delete, encrypt or decrypt
-    /// clips while the clip list shows a Remote Database.
+    /// A read-only Database (every Remote Database) can't be changed: refuses any request that would change, move,
+    /// rename, delete, encrypt or decrypt the clips it shows.
     /// </summary>
     /// <returns><c>true</c> if the request was refused.</returns>
-    private bool RejectIfRemoteDatabase()
+    private bool RejectIfReadOnlyDatabase()
     {
-        if (!IsShowingRemoteDatabase())
+        if (!IsShowingReadOnlyDatabase())
             return false;
 
-        SendStatus("Remote Databases are read-only.", true);
+        SendStatus(DatabaseMessages.ReadOnly, true);
         return true;
     }
 
-    private bool IsShowingRemoteDatabase() =>
-        _clipListViewModel.IsRemoteDatabase || RemoteDatabaseKey.IsRemote(_clipListViewModel.CurrentDatabaseKey);
+    private bool IsShowingReadOnlyDatabase() => _clipListViewModel.IsReadOnly;
 
     private void SendStatus(string message, bool isError = false) => _messenger.Send(new StatusUpdateEvent(message, isError));
 }

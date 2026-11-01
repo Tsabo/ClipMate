@@ -77,11 +77,18 @@ public partial class ClipListViewModel : ObservableObject,
     private bool _isLoading;
 
     /// <summary>
-    /// Whether the list shows clips of a Remote Database. Remote Databases are read-only: nothing in this view may
-    /// modify, move, rename or delete their clips, and they never receive captures.
+    /// Whether the list shows clips of a Remote Database, for Copy to local (its clips are copied, never moved). Never
+    /// checked to refuse a change; that is <see cref="IsReadOnly" />.
     /// </summary>
     [ObservableProperty]
     private bool _isRemoteDatabase;
+
+    /// <summary>
+    /// Whether the list shows a Database nothing may be written to (every Remote Database): nothing in this view may
+    /// modify, move, rename or delete its clips, and it never receives captures.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReadOnly;
 
     /// <summary>
     /// Progress while a Database's clips load page by page, or why they could not be loaded (file missing, Peer offline,
@@ -382,7 +389,7 @@ public partial class ClipListViewModel : ObservableObject,
     {
         try
         {
-            if (!IsRemoteDatabase || _currentScope == null || CurrentCollectionId is not { } collectionId || CurrentDatabaseKey == null ||
+            if (_currentScope == null || CurrentCollectionId is not { } collectionId || CurrentDatabaseKey == null ||
                 CurrentDatabaseKey != RemoteDatabaseKey.From(change.Address) || change.CollectionId != (CurrentFolderId ?? collectionId))
                 return;
 
@@ -509,12 +516,14 @@ public partial class ClipListViewModel : ObservableObject,
         try
         {
             var database = _databases.Get(databaseKey);
-            IsRemoteDatabase = database.IsReadOnly;
+            IsReadOnly = database.IsReadOnly;
+            IsRemoteDatabase = database.Remote != null;
             AcceptsNewClips = !database.IsReadOnly;
             return database;
         }
         catch (DatabaseUnavailableException ex)
         {
+            IsReadOnly = false;
             IsRemoteDatabase = false;
             AcceptsNewClips = false;
             RemoteStatusMessage = ex.Message;

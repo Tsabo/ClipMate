@@ -1,5 +1,4 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.App.Services;
@@ -10,13 +9,11 @@ namespace ClipMate.App.Services;
 /// </summary>
 public sealed class ClipDescriber
 {
-    private readonly ICollectionService _collections;
-    private readonly IRemoteDatabaseService _remoteDatabases;
+    private readonly IDatabases _databases;
 
-    public ClipDescriber(ICollectionService collections, IRemoteDatabaseService remoteDatabases)
+    public ClipDescriber(IDatabases databases)
     {
-        _collections = collections ?? throw new ArgumentNullException(nameof(collections));
-        _remoteDatabases = remoteDatabases ?? throw new ArgumentNullException(nameof(remoteDatabases));
+        _databases = databases ?? throw new ArgumentNullException(nameof(databases));
     }
 
     /// <summary>
@@ -25,37 +22,38 @@ public sealed class ClipDescriber
     public async Task<ClipDescription> DescribeAsync(Clip clip, string? databaseKey, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clip);
-
-        var collection = RemoteDatabaseKey.TryParse(databaseKey, out var address)
-            ? await DescribeRemoteCollectionAsync(address, clip.CollectionId, cancellationToken)
-            : await DescribeLocalCollectionAsync(databaseKey, clip.CollectionId, cancellationToken);
-
-        return new ClipDescription(ClipDescription.TitleOf(clip), collection);
+        return new ClipDescription(ClipDescription.TitleOf(clip), await DescribeCollectionAsync(databaseKey, clip.CollectionId, cancellationToken));
     }
 
-    private async Task<string> DescribeLocalCollectionAsync(string? databaseKey, Guid? collectionId, CancellationToken cancellationToken)
+    private async Task<string> DescribeCollectionAsync(string? databaseKey, Guid? collectionId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(databaseKey))
             return string.Empty;
 
-        var collections = await _collections.GetAllByDatabaseKeyAsync(databaseKey, cancellationToken);
-        return collections.FirstOrDefault(p => p.Id == collectionId)?.Title ?? string.Empty;
-    }
+        IDatabase database;
+        try
+        {
+            database = _databases.Get(databaseKey);
+        }
+        catch (DatabaseUnavailableException)
+        {
+            return string.Empty;
+        }
 
-    private async Task<string> DescribeRemoteCollectionAsync(RemoteDatabaseAddress address, Guid? collectionId, CancellationToken cancellationToken)
-    {
-        var database = _remoteDatabases.GetRemoteDatabases().FirstOrDefault(p => p.Address == address);
         string? collection = null;
         try
         {
-            var tree = await _remoteDatabases.GetCollectionTreeAsync(address, cancellationToken);
+            var tree = await database.GetTreeAsync(cancellationToken);
             collection = tree.FirstOrDefault(p => p.Id == collectionId)?.Title;
         }
         catch (DatabaseUnavailableException)
         {
-            // The Peer went offline: name the Remote Database instead of the collection
+            // The Peer went offline (or the file went missing): a Remote Database is named instead of the collection
         }
 
-        return ClipDescription.CollectionOf(collection ?? database?.Name ?? string.Empty, database?.PeerName);
+        // A Remote Database's clip is named with its Peer's
+        return database.Remote is { } remote
+            ? ClipDescription.CollectionOf(collection ?? database.Name, remote.PeerName)
+            : ClipDescription.CollectionOf(collection ?? string.Empty);
     }
 }

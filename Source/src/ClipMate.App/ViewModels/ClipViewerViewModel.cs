@@ -85,7 +85,7 @@ public partial class ClipViewerViewModel : ObservableObject
                 clip = (await _databases.Get(_currentDatabaseKey).GetClipContentAsync(args.ClipId))?.Clip;
 
             // If no database key provided, try all loaded databases
-            if (clip == null && !RemoteDatabaseKey.IsRemote(_currentDatabaseKey))
+            if (clip == null && string.IsNullOrEmpty(args.DatabaseKey))
             {
                 foreach (var (dbKey, context) in _databaseManager.CreateAllDatabaseContexts())
                 {

@@ -661,10 +661,10 @@ public partial class ExplorerWindow : IWindow,
                 return;
             }
 
-            // Remote Databases are read-only: their clips can be copied to local, never moved
-            if (_viewModel.PrimaryClipList.IsRemoteDatabase)
+            // A read-only Database's clips can be copied, never moved
+            if (_viewModel.PrimaryClipList.IsReadOnly)
             {
-                _viewModel.SetStatus("Remote Databases are read-only.");
+                _viewModel.SetStatus(DatabaseMessages.ReadOnly);
                 return;
             }
 
