@@ -31,6 +31,9 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
         if (File.Exists(_tempFilePath))
             File.Delete(_tempFilePath);
 
+        foreach (var kept in Directory.GetFiles(Path.GetDirectoryName(_tempFilePath)!, Path.GetFileName(_tempFilePath) + ".unreadable-*"))
+            File.Delete(kept);
+
         await Task.CompletedTask;
     }
 
@@ -71,6 +74,38 @@ public class ApplicationProfileStoreTests : IAsyncDisposable
         await Assert.That(fileContent).Contains("[profiles.NOTEPAD]");
         await Assert.That(fileContent).Contains("enabled = true");
         await Assert.That(fileContent).Contains("TEXT = true");
+    }
+
+    [Test]
+    public async Task LoadProfilesAsync_FileThatCannotBeParsed_IsKeptAndNotSavedOver()
+    {
+        // Arrange: a damaged profiles file
+        var store = new ApplicationProfileStore(_tempFilePath, A.Fake<ILogger<ApplicationProfileStore>>());
+        await File.WriteAllTextAsync(_tempFilePath, "[profiles.NOTEPAD\nenabled = ");
+
+        // Act: loading, then learning a new profile, which saves
+        var loaded = await store.LoadProfilesAsync();
+        await store.AddOrUpdateProfileAsync(ApplicationProfileTestFixtures.GetChromeProfile());
+
+        // Assert: the damaged file is kept beside the new one
+        await Assert.That(loaded).IsEmpty();
+        var kept = Directory.GetFiles(Path.GetDirectoryName(_tempFilePath)!, Path.GetFileName(_tempFilePath) + ".unreadable-*");
+        await Assert.That(kept.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(kept[0])).IsEqualTo("[profiles.NOTEPAD\nenabled = ");
+    }
+
+    [Test]
+    public async Task LoadProfilesAsync_ProfileWithoutEnabledKey_IsOn()
+    {
+        // Arrange: a profile written without the key, as a new profile defaults to on
+        var store = new ApplicationProfileStore(_tempFilePath, A.Fake<ILogger<ApplicationProfileStore>>());
+        await File.WriteAllTextAsync(_tempFilePath, "[profiles.NOTEPAD]\nTEXT = true\n");
+
+        // Act
+        var loaded = await store.LoadProfilesAsync();
+
+        // Assert
+        await Assert.That(loaded["NOTEPAD"].Enabled).IsTrue();
     }
 
     [Test]

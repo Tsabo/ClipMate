@@ -60,11 +60,21 @@ public class ApplicationProfileStore : IApplicationProfileStore
 
             return profiles;
         }
-        catch (Exception ex)
+        catch (TomlException ex)
         {
-            _logger.LogError(ex, "Error loading application profiles from {FilePath}", _filePath);
+            // The next save would write over every profile it holds, so it is kept beside the new file for repair
+            var keptAs = KeepUnreadableFile();
+            _logger.LogError(ex, "Could not read application profiles from {FilePath}; the file was kept as {KeptAs} and profiles start empty",
+                _filePath, keptAs);
 
             return new Dictionary<string, ApplicationProfile>();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Not read, so nothing may be saved over it: an empty result here was written back as the only profile
+            _logger.LogError(ex, "Error loading application profiles from {FilePath}", _filePath);
+
+            throw;
         }
         finally
         {
@@ -176,6 +186,26 @@ public class ApplicationProfileStore : IApplicationProfileStore
     }
 
     /// <summary>
+    /// Renames the profiles file that could not be read, so a save doesn't write over it; null when it can't be moved.
+    /// </summary>
+    private string? KeepUnreadableFile()
+    {
+        try
+        {
+            var keptAs = $"{_filePath}.unreadable-{DateTime.Now:yyyyMMdd-HHmmss}";
+            File.Move(_filePath, keptAs);
+
+            return keptAs;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not keep the unreadable application profiles file {FilePath}", _filePath);
+
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Parses an application profile from a TOML table.
     /// </summary>
     private ApplicationProfile ParseProfile(string appName, TomlTable profileTable)
@@ -183,7 +213,9 @@ public class ApplicationProfileStore : IApplicationProfileStore
         var profile = new ApplicationProfile
         {
             ApplicationName = appName,
-            Enabled = profileTable.TryGetValue("enabled", out var enabledObj) && enabledObj is true,
+
+            // A profile with no "enabled" key is on, as a new profile is
+            Enabled = !profileTable.TryGetValue("enabled", out var enabledObj) || enabledObj is not false,
         };
 
         // Parse format settings (all entries except "enabled")

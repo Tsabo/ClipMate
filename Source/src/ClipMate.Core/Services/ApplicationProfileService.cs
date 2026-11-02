@@ -44,24 +44,25 @@ public class ApplicationProfileService : IApplicationProfileService
     // The decode loop and a manual capture can learn formats into the same profile at once
     private readonly SemaphoreSlim _learnLock = new(1, 1);
 
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<ApplicationProfileService> _logger;
     private readonly IApplicationProfileStore _store;
-    private bool _isEnabled;
 
-    public ApplicationProfileService(IApplicationProfileStore store, ILogger<ApplicationProfileService> logger)
+    public ApplicationProfileService(IApplicationProfileStore store, IConfigurationService configurationService,
+        ILogger<ApplicationProfileService> logger)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _isEnabled = true; // Session-only, defaults to enabled (disable for troubleshooting)
     }
 
     /// <inheritdoc />
-    public bool IsApplicationProfilesEnabled() => _isEnabled;
+    public bool IsApplicationProfilesEnabled() => _configurationService.Configuration.Preferences.ApplicationProfilesEnabled;
 
     /// <inheritdoc />
     public void SetApplicationProfilesEnabled(bool enabled)
     {
-        _isEnabled = enabled;
+        _configurationService.Configuration.Preferences.ApplicationProfilesEnabled = enabled;
         _logger.LogInformation("Application profiles {Status}", enabled
             ? "enabled"
             : "disabled");
@@ -72,7 +73,7 @@ public class ApplicationProfileService : IApplicationProfileService
         CancellationToken cancellationToken = default)
     {
         var all = formatNames.ToHashSet(StringComparer.Ordinal);
-        if (!_isEnabled)
+        if (!IsApplicationProfilesEnabled())
             return all;
 
         var normalizedAppName = NormalizeApplicationName(applicationName);
@@ -88,7 +89,14 @@ public class ApplicationProfileService : IApplicationProfileService
     }
 
     /// <inheritdoc />
-    public async Task UpdateProfileAsync(ApplicationProfile profile, CancellationToken cancellationToken = default) => await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
+    public async Task UpdateProfileAsync(ApplicationProfile profile, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        // Keyed by the same name every other call looks it up by
+        profile.ApplicationName = NormalizeApplicationName(profile.ApplicationName);
+        await _store.AddOrUpdateProfileAsync(profile, cancellationToken);
+    }
 
     /// <inheritdoc />
     public async Task<Dictionary<string, ApplicationProfile>> GetAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.LoadProfilesAsync(cancellationToken);
