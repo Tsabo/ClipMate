@@ -9,6 +9,7 @@ using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -291,6 +292,7 @@ public class ClipFilePointerAndSortOrderTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),

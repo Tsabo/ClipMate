@@ -12,6 +12,7 @@ using FakeItEasy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -106,7 +107,7 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
         await Assert.That(stored.SourceApplicationName).IsEqualTo("msedge.exe");
         await Assert.That(stored.SourceApplicationTitle).IsEqualTo("Notes - Edge");
         await Assert.That(stored.CapturedAt).IsEqualTo(capturedAt);
-        await Assert.That(stored.ContentHash).IsEqualTo("hash-release-notes");
+        await Assert.That(stored.ContentHash).IsEqualTo(source.ContentHash);
         await Assert.That(stored.Type).IsEqualTo(ClipType.Html);
         await Assert.That(stored.Label).IsEqualTo("work");
         await Assert.That(stored.IsFavorite).IsTrue();
@@ -291,6 +292,7 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
 #pragma warning restore CA2000
 
         return new ClipService(factory,
+            new ClipStore(factory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             new AesEncryptionService(),
             blobCacheService,

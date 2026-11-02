@@ -5,6 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -52,7 +53,7 @@ public partial class ClipboardCoordinatorTests
 
     private ClipboardCoordinator CreateCoordinator(ICurrentClipWriter writer, IMessenger messenger) =>
         new(CreateMockClipboardService(out _), CreateMockConfigurationService(), writer, A.Fake<IDatabaseContextFactory>(),
-            A.Fake<IAutoAppendService>(), CreateMockServiceProvider(), messenger, CreateLogger<ClipboardCoordinator>());
+            A.Fake<IClipStore>(), A.Fake<IAutoAppendService>(), CreateMockServiceProvider(), messenger, CreateLogger<ClipboardCoordinator>());
 
     private static async Task WaitForAsync(Func<bool> condition)
     {

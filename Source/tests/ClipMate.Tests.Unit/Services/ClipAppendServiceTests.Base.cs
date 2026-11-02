@@ -30,6 +30,12 @@ public partial class ClipAppendServiceTests
 
         // Default: return test database key
         A.CallTo(() => _mockCollectionService.GetActiveDatabaseKey()).Returns(_testDatabaseKey);
+
+        // New clips go through the real clip store, onto the repository each test sets up
+        var clipStore = new ClipStore(_mockContextFactory, A.Fake<ILogger<ClipStore>>());
+        A.CallTo(() => _mockClipService.CreateAsync(A<string>._, A<Clip>._, A<CancellationToken>._))
+            .ReturnsLazily(async (string databaseKey, Clip clip, CancellationToken cancellationToken) =>
+                ((ClipAdded)await clipStore.AddAsync(databaseKey, clip, clip.CollectionId, clip.FolderId, false, cancellationToken)).Clip);
     }
 
     private ClipAppendService CreateService() => new(

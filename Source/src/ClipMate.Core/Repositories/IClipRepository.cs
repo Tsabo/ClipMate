@@ -17,14 +17,6 @@ public interface IClipRepository
     Task<Clip?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves a clip by its content hash (for duplicate detection).
-    /// </summary>
-    /// <param name="contentHash">The SHA256 content hash.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The clip if found; otherwise, null.</returns>
-    Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// The newest clip in a collection, outside the Trash, and its plain text: what a capture going into that collection
     /// is compared with to find a Duplicate.
     /// </summary>

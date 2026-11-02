@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -160,31 +161,6 @@ public class ClipPersistenceTests : IntegrationTestBase
         await Assert.That(deletedClip).IsNull();
     }
 
-    [Test]
-    public async Task DuplicateCheck_ShouldWorkAcrossContexts()
-    {
-        // Arrange
-        var clipService = CreateClipService();
-        const string contentHash = "duplicate_hash_test";
-
-        var clip = new Clip
-        {
-            Type = ClipType.Text,
-            TextContent = "Duplicate content",
-            ContentHash = contentHash,
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        // Act
-        await clipService.CreateAsync(_testDatabaseKey, clip);
-        await DbContext.SaveChangesAsync();
-
-        var isDuplicate = await clipService.IsDuplicateAsync(_testDatabaseKey, contentHash);
-
-        // Assert
-        await Assert.That(isDuplicate).IsTrue();
-    }
-
     /// <summary>
     /// Creates a clip service instance for testing.
     /// </summary>
@@ -202,6 +178,7 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
@@ -227,6 +204,7 @@ public class ClipPersistenceTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),

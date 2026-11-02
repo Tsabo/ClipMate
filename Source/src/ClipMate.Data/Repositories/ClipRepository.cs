@@ -243,20 +243,6 @@ public class ClipRepository : IClipRepository
         return clips;
     }
 
-    public async Task<Clip?> GetByContentHashAsync(string contentHash, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(contentHash))
-            return null;
-
-        var clip = await _context.Clips
-            .FirstOrDefaultAsync(p => p.ContentHash == contentHash, cancellationToken);
-
-        if (clip != null)
-            await LoadFormatFlagsAsync([clip], cancellationToken);
-
-        return clip;
-    }
-
     public async Task<(Guid ClipId, string? Text)?> GetNewestPlainTextAsync(Guid collectionId,
         CancellationToken cancellationToken = default)
     {

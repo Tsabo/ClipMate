@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -324,6 +325,7 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             mockFactory,
+            new ClipStore(mockFactory, NullLogger<ClipStore>.Instance),
             configService,
             encryptionService,
             blobCacheService!,

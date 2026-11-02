@@ -1,9 +1,9 @@
-using System.Security.Cryptography;
 using System.Text;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
+using ClipMate.Platform.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -46,8 +46,6 @@ public class ClipAppendService : IClipAppendService
         var databaseKey = _collectionService.GetActiveDatabaseKey();
         if (string.IsNullOrEmpty(databaseKey))
             throw new InvalidOperationException("No active database selected");
-
-        var clipRepository = _contextFactory.GetClipRepository(databaseKey);
 
         _logger.LogInformation("Appending {Count} clips together", clipList.Count);
 
@@ -101,14 +99,12 @@ public class ClipAppendService : IClipAppendService
                 Type = ClipType.Text,
                 TextContent = finalText,
                 Size = Encoding.UTF8.GetByteCount(finalText),
-                ContentHash = ComputeContentHash(finalText),
-                Checksum = ComputeChecksum(finalText),
                 CollectionId = clipList.First().CollectionId, // Use first clip's collection
                 Creator = Environment.UserName,
             };
 
-            // Save the new clip to the repository
-            var savedClip = await clipRepository.CreateAsync(newClip, cancellationToken);
+            // Saved through the clip store (its hash and checksum), and never refused as a Duplicate
+            var savedClip = await _clipService.CreateAsync(databaseKey, newClip, cancellationToken);
 
             // Play append sound notification
             await _soundService.PlaySoundAsync(SoundEvent.Append, cancellationToken);
@@ -199,8 +195,8 @@ public class ClipAppendService : IClipAppendService
 
             targetClip.TextContent = finalText;
             targetClip.Size = Encoding.UTF8.GetByteCount(finalText);
-            targetClip.ContentHash = ComputeContentHash(finalText);
-            targetClip.Checksum = ComputeChecksum(finalText);
+            targetClip.ContentHash = ContentHasher.HashClip(targetClip);
+            targetClip.Checksum = ContentHasher.Checksum(targetClip.ContentHash);
 
             await clipRepository.UpdateAsync(targetClip, cancellationToken);
 
@@ -223,7 +219,7 @@ public class ClipAppendService : IClipAppendService
     /// Processes escape sequences in the separator string.
     /// Converts \n to newline, \t to tab, \r to carriage return.
     /// </summary>
-    private static string ProcessEscapeSequences(string separator)
+    internal static string ProcessEscapeSequences(string separator)
     {
         if (string.IsNullOrEmpty(separator))
             return string.Empty;
@@ -237,23 +233,7 @@ public class ClipAppendService : IClipAppendService
     /// <summary>
     /// Strips trailing line breaks (\r\n, \n, or \r) from the text.
     /// </summary>
-    private static string StripTrailingLineBreaks(string text) => string.IsNullOrEmpty(text)
+    internal static string StripTrailingLineBreaks(string text) => string.IsNullOrEmpty(text)
         ? text
         : RegexPatterns.TrailingLineBreak().Replace(text, string.Empty);
-
-    /// <summary>
-    /// Computes a SHA-256 hash of the text content for duplicate detection.
-    /// </summary>
-    private static string ComputeContentHash(string text)
-    {
-        var bytes = Encoding.UTF8.GetBytes(text);
-        var hash = SHA256.HashData(bytes);
-
-        return Convert.ToHexString(hash);
-    }
-
-    /// <summary>
-    /// Computes a simple checksum for ClipMate 7.5 compatibility.
-    /// </summary>
-    private static int ComputeChecksum(string text) => text.GetHashCode();
 }

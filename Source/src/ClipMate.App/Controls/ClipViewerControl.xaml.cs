@@ -1094,7 +1094,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                             clip.ContentHash = newHash;
 
                             // Also update Checksum for ClipMate 7.5 compatibility
-                            clip.Checksum = newHash.GetHashCode();
+                            clip.Checksum = ContentHasher.Checksum(newHash);
 
                             _logger.LogDebug("[ClipViewer] Updated ContentHash after text edit");
                         }

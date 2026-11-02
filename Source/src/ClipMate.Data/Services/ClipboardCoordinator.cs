@@ -23,6 +23,7 @@ public class ClipboardCoordinator : IHostedService,
 {
     private readonly IAutoAppendService _autoAppendService;
     private readonly IClipboardService _clipboardService;
+    private readonly IClipStore _clipStore;
     private readonly IConfigurationService _configurationService;
     private readonly ICurrentClipWriter _currentClipWriter;
     private readonly IDatabaseContextFactory _databaseContextFactory;
@@ -37,6 +38,7 @@ public class ClipboardCoordinator : IHostedService,
         IConfigurationService configurationService,
         ICurrentClipWriter currentClipWriter,
         IDatabaseContextFactory databaseContextFactory,
+        IClipStore clipStore,
         IAutoAppendService autoAppendService,
         IServiceProvider serviceProvider,
         IMessenger messenger,
@@ -46,6 +48,7 @@ public class ClipboardCoordinator : IHostedService,
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _clipStore = clipStore ?? throw new ArgumentNullException(nameof(clipStore));
         _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
@@ -171,7 +174,7 @@ public class ClipboardCoordinator : IHostedService,
             if (clip != null)
             {
                 _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);
-                await ProcessClipAsync(clip, CancellationToken.None, manualCapture: true);
+                await ProcessClipAsync(clip, CancellationToken.None, manualCapture: true, checkDuplicate: false);
             }
             else
                 _logger.LogDebug("No clipboard content to capture");
@@ -191,7 +194,7 @@ public class ClipboardCoordinator : IHostedService,
         {
             var clip = await _clipboardService.CaptureSpecialAsync(message.Reading, message.FormatNames);
             if (clip != null)
-                await ProcessClipAsync(clip, CancellationToken.None);
+                await ProcessClipAsync(clip, CancellationToken.None, checkDuplicate: false);
             else
                 _logger.LogDebug("Capture Special: nothing to keep in the chosen formats");
         }
@@ -353,7 +356,7 @@ public class ClipboardCoordinator : IHostedService,
     /// Processes a single clip: applies filters, assigns to collection/folder, and persists.
     /// </summary>
     /// <param name="manualCapture">Captured with the Manual Capture hotkey, which always keeps the clip, even a Duplicate.</param>
-    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken, bool manualCapture = false)
+    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken, bool manualCapture = false, bool checkDuplicate = true)
     {
         // Create a scope to resolve scoped services
         using var scope = _serviceProvider.CreateScope();
@@ -526,27 +529,19 @@ public class ClipboardCoordinator : IHostedService,
             return;
         }
 
-        // A Duplicate, as in ClipMate 7: the same plain text as the newest clip in the collection it is going into
-        if (!manualCapture &&
-            activeCollection is { AcceptDuplicates: false } &&
-            !string.IsNullOrEmpty(clip.TextContent) &&
-            await clipRepository.GetNewestPlainTextAsync(activeCollection.Id, cancellationToken) is { } newest &&
-            clip.TextContent == newest.Text)
+        // A Manual Capture and Capture Special are never Duplicates, as in ClipMate 7
+        var added = await _clipStore.AddAsync(activeDatabaseKey, clip, clip.CollectionId, clip.FolderId, checkDuplicate && !manualCapture,
+            cancellationToken);
+        if (added is DuplicateFound { Existing: var existingClip })
         {
-            _logger.LogInformation("Not saving a duplicate clip: the same text as the newest clip in '{Collection}', which does not accept duplicates",
-                activeCollection.Title);
-
-            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy.
-            // It's read before the sound, so the Outbound Filter's sound still follows the Ignore sound.
-            var existingClip = await clipRepository.GetByIdAsync(newest.ClipId, cancellationToken);
+            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy
             await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-            if (existingClip != null)
-                await _currentClipWriter.ReportCapturedAsync(existingClip, activeDatabaseKey, cancellationToken);
+            await _currentClipWriter.ReportCapturedAsync(existingClip, activeDatabaseKey, cancellationToken);
 
             return;
         }
 
-        var savedClip = await clipRepository.CreateAsync(clip, cancellationToken);
+        var savedClip = ((ClipAdded)added).Clip;
         _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
 
         // Play sound for new clipboard data captured

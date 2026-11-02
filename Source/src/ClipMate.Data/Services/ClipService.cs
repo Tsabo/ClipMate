@@ -21,6 +21,7 @@ namespace ClipMate.Data.Services;
 public class ClipService : IClipService
 {
     private readonly IDecryptedBlobCacheService _blobCacheService;
+    private readonly IClipStore _clipStore;
     private readonly IDatabases _databases;
     private readonly IConfigurationService _configurationService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
@@ -29,6 +30,7 @@ public class ClipService : IClipService
     private readonly IMessenger _messenger;
 
     public ClipService(IDatabaseContextFactory databaseContextFactory,
+        IClipStore clipStore,
         IConfigurationService configurationService,
         IEncryptionService encryptionService,
         IDecryptedBlobCacheService blobCacheService,
@@ -37,6 +39,7 @@ public class ClipService : IClipService
         ILogger<ClipService> logger)
     {
         _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
+        _clipStore = clipStore ?? throw new ArgumentNullException(nameof(clipStore));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
         _blobCacheService = blobCacheService ?? throw new ArgumentNullException(nameof(blobCacheService));
@@ -95,17 +98,8 @@ public class ClipService : IClipService
     {
         ArgumentNullException.ThrowIfNull(clip);
 
-        var repository = GetRepository(databaseKey);
-
-        // Check for duplicate by content hash
-        var existing = await repository.GetByContentHashAsync(clip.ContentHash, cancellationToken);
-        if (existing != null)
-        {
-            _logger.LogInformation("Clip with content hash {Hash} already exists in database {DatabaseKey}, returning existing clip", clip.ContentHash, databaseKey);
-            return existing;
-        }
-
-        var createdClip = await repository.CreateAsync(clip, cancellationToken);
+        // A clip made by hand or imported is always added; only capture checks for Duplicates
+        var createdClip = ((ClipAdded)await _clipStore.AddAsync(databaseKey, clip, clip.CollectionId, clip.FolderId, false, cancellationToken)).Clip;
 
         // Raise the ClipAdded event
         ClipAdded?.Invoke(this, createdClip);
@@ -143,18 +137,6 @@ public class ClipService : IClipService
             await repository.DeleteAsync(item.Id, cancellationToken);
 
         return clipsToDelete.Count;
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> IsDuplicateAsync(string databaseKey, string contentHash, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(contentHash))
-            throw new ArgumentException("Content hash cannot be null or empty.", nameof(contentHash));
-
-        var repository = GetRepository(databaseKey);
-        var existing = await repository.GetByContentHashAsync(contentHash, cancellationToken);
-
-        return existing != null;
     }
 
     /// <inheritdoc />
@@ -216,7 +198,7 @@ public class ClipService : IClipService
             CapturedAt = DateTime.UtcNow,
         };
 
-        var createdClip = await repository.CreateAsync(copiedClip, cancellationToken);
+        var createdClip = ((ClipAdded)await _clipStore.AddAsync(databaseKey, copiedClip, targetCollectionId, null, false, cancellationToken)).Clip;
 
         // Copy all ClipData formats and associated BLOB data (same database for both source and target)
         await CopyClipDataAndBlobsAsync(databaseKey, sourceClipId, databaseKey, createdClip.Id, cancellationToken);
@@ -287,7 +269,6 @@ public class ClipService : IClipService
             throw new ArgumentException($"Source clip {sourceClipId} not found in database {sourceDatabaseKey}", nameof(sourceClipId));
 
         // Create new clip in target database
-        var targetRepository = GetRepository(targetDatabaseKey);
         var copiedClip = new Clip
         {
             Title = $"{sourceClip.Title} (Copy)",
@@ -300,7 +281,7 @@ public class ClipService : IClipService
             CapturedAt = sourceClip.CapturedAt, // Preserve original capture timestamp
         };
 
-        var createdClip = await targetRepository.CreateAsync(copiedClip, cancellationToken);
+        var createdClip = ((ClipAdded)await _clipStore.AddAsync(targetDatabaseKey, copiedClip, targetCollectionId, null, false, cancellationToken)).Clip;
 
         // Copy all ClipData formats and associated BLOB data from source database to target database
         await CopyClipDataAndBlobsAsync(sourceDatabaseKey, sourceClipId, targetDatabaseKey, createdClip.Id, cancellationToken);
@@ -334,7 +315,7 @@ public class ClipService : IClipService
         var clipDataRepository = _databaseContextFactory.GetClipDataRepository(targetDatabaseKey);
         var blobRepository = _databaseContextFactory.GetBlobRepository(targetDatabaseKey);
 
-        await clipRepository.CreateAsync(copy, cancellationToken);
+        await _clipStore.AddAsync(targetDatabaseKey, copy, copy.CollectionId, copy.FolderId, false, cancellationToken);
 
         try
         {
