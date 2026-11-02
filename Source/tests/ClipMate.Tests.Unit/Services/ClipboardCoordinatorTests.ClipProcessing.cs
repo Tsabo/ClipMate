@@ -1,338 +1,152 @@
+using ClipMate.Core.Events;
 using ClipMate.Core.Models;
-using ClipMate.Core.Repositories;
+using ClipMate.Core.Models.Capture;
 using ClipMate.Core.Services.Abstractions;
-using ClipMate.Data;
 using ClipMate.Data.Services;
+using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClipMate.Tests.Unit.Services;
 
 /// <summary>
-/// Tests for ClipboardCoordinator clip processing functionality.
+/// The coordinator acts on the Capture Policy's verdict: it saves through the clip store, appends or drops, with
+/// ClipMate 7's sound for the outcome (ADR-0005). The policy's rules have their own tests.
 /// </summary>
 public partial class ClipboardCoordinatorTests
 {
+    private const string _db = "db";
+
     [Test]
-    public async Task ProcessClipsAsync_WithFilteredClip_ShouldNotSaveClip()
+    public async Task SaveVerdict_ClipAdded_PlaysTheCaptureSoundAndMakesItCurrent()
     {
         // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = A.Fake<IClipService>();
-        var filterServiceMock = A.Fake<IApplicationFilterService>();
-
-        A.CallTo(() => filterServiceMock.ShouldFilterAsync(A<string?>.Ignored, A<string?>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(true); // Filter out the clip
-
-        var clip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Filtered content",
-            ContentHash = "hash456",
-            CapturedAt = DateTime.UtcNow,
-            SourceApplicationName = "FilteredApp",
-        };
-
-        var configurationService = CreateMockConfigurationService();
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        var autoAppendService = A.Fake<IAutoAppendService>();
-        var serviceProvider = CreateMockServiceProvider(clipServiceMock, filterService: filterServiceMock);
-        var messenger = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+        var harness = new Harness(new SaveVerdict(clip, Target(), true, false));
+        A.CallTo(() => harness.Store.AddAsync(_db, clip, A<Guid?>._, A<Guid?>._, true, A<CancellationToken>._)).Returns(new ClipAdded(clip));
 
         // Act
-        await channel.Writer.WriteAsync(clip);
-        await Task.Delay(200);
-
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
+        await harness.CaptureAsync(clip);
 
         // Assert
-        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => harness.Sound.PlaySoundAsync(SoundEvent.ClipboardUpdate, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => harness.Writer.ReportCapturedAsync(clip, _db, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        await Assert.That(harness.Added.Single().Clip).IsSameReferenceAs(clip);
     }
 
     [Test]
-    public async Task ProcessClipsAsync_WithValidClip_ShouldSendClipAddedEvent()
+    public async Task SaveVerdict_DuplicateFound_PlaysIgnoreAndKeepsTheClipAlreadyThereCurrent()
     {
         // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = A.Fake<IClipService>();
-        var clip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Test content",
-            ContentHash = "hash789",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(clip);
-
-        var configurationService = CreateMockConfigurationService();
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        var autoAppendService = A.Fake<IAutoAppendService>();
-        var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messengerMock = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messengerMock, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+        var existing = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Hello" };
+        var harness = new Harness(new SaveVerdict(clip, Target(), true, false));
+        A.CallTo(() => harness.Store.AddAsync(_db, clip, A<Guid?>._, A<Guid?>._, true, A<CancellationToken>._)).Returns(new DuplicateFound(existing));
 
         // Act
-        await channel.Writer.WriteAsync(clip);
-        await Task.Delay(200);
+        await harness.CaptureAsync(clip);
 
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert - Messenger sends are tested in other tests, extension methods can't be verified
-        // Test passes if no exception is thrown
+        // Assert
+        A.CallTo(() => harness.Sound.PlaySoundAsync(SoundEvent.Ignore, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => harness.Writer.ReportCapturedAsync(existing, _db, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        await Assert.That(harness.Added).IsEmpty();
     }
 
     [Test]
-    public async Task ProcessClipsAsync_WithDuplicateClip_ShouldStillSendEvent()
+    public async Task SaveVerdict_EndingAutoAppend_TurnsItOff()
     {
-        // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-        var clipServiceMock = A.Fake<IClipService>();
-
-        var originalClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Duplicate content",
-            ContentHash = "duplicate-hash",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        var existingClip = new Clip
-        {
-            Id = Guid.NewGuid(), // Different ID indicates it's an existing clip
-            Type = ClipType.Text,
-            TextContent = "Duplicate content",
-            ContentHash = "duplicate-hash",
-            CapturedAt = DateTime.UtcNow.AddMinutes(-1),
-        };
-
-        A.CallTo(() => clipServiceMock.CreateAsync(A<string>.Ignored, A<Clip>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(existingClip); // Return existing clip to simulate duplicate detection
-
-        var configurationService = CreateMockConfigurationService();
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        var autoAppendService = A.Fake<IAutoAppendService>();
-        var serviceProvider = CreateMockServiceProvider(clipServiceMock);
-        var messengerMock = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messengerMock, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        // Arrange: a copy with no text while Auto-Append is on
+        var clip = new Clip { Id = Guid.NewGuid(), Type = ClipType.Image, ImageData = [1] };
+        var harness = new Harness(new SaveVerdict(clip, Target(), true, true));
+        A.CallTo(() => harness.Store.AddAsync(A<string>._, clip, A<Guid?>._, A<Guid?>._, A<bool>._, A<CancellationToken>._)).Returns(new ClipAdded(clip));
 
         // Act
-        await channel.Writer.WriteAsync(originalClip);
-        await Task.Delay(200);
+        await harness.CaptureAsync(clip);
 
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert - Messenger sends are tested in other tests, extension methods can't be verified
-        // Test passes if no exception is thrown
+        // Assert
+        A.CallTo(() => harness.AppendMode.Stop()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
-    public async Task ProcessClipsAsync_WhenAutoAppendActiveWithNoGrowingClip_ShouldCreateNormallyAndMarkAsGrowingClip()
+    public async Task RejectedVerdict_PlaysEraseAndKeepsNothing()
     {
-        // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-
-        var clip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "First capture",
-            ContentHash = "hash-seed",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        var clipRepositoryMock = A.Fake<IClipRepository>();
-        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
-
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
-
-        var clipAppendServiceMock = A.Fake<IClipAppendService>();
-
-        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
-        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
-        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns((Guid?)null);
-
-        var configurationService = CreateMockConfigurationService();
-        var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        // Arrange: the Application Profile kept nothing
+        var harness = new Harness(new RejectedVerdict(CaptureRejection.NoAcceptableFormats));
 
         // Act
-        await channel.Writer.WriteAsync(clip);
-        await Task.Delay(200);
+        await harness.CaptureAsync(null);
 
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert - first capture since activation goes through the normal create path...
-        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
-        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(A<Guid>.Ignored, A<string>.Ignored, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
-
-        // ...and is then marked as the growing clip for subsequent captures
-        A.CallTo(() => autoAppendServiceMock.SetGrowingClip(clip.Id, "test-database")).MustHaveHappenedOnceExactly();
+        // Assert
+        A.CallTo(() => harness.Sound.PlaySoundAsync(SoundEvent.Erase, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => harness.Store.AddAsync(A<string>._, A<Clip>._, A<Guid?>._, A<Guid?>._, A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
-    public async Task ProcessClipsAsync_WhenAutoAppendActiveWithGrowingClip_ShouldMergeInsteadOfCreating()
+    public async Task AppendVerdict_AddsTheTextToTheGrowingClip()
     {
         // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
-
-        var capturedClip = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Second capture",
-            ContentHash = "hash-second",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        var growingClipId = Guid.NewGuid();
-        var updatedClip = new Clip
-        {
-            Id = growingClipId,
-            Type = ClipType.Text,
-            TextContent = "First capture\r\nSecond capture",
-            Title = "Auto-Append (2 items)",
-            Size = 30,
-        };
-
-        var clipRepositoryMock = A.Fake<IClipRepository>();
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
-
-        var clipAppendServiceMock = A.Fake<IClipAppendService>();
-        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(
-                growingClipId,
-                capturedClip.TextContent!,
-                A<string>.Ignored,
-                A<bool>.Ignored,
-                A<CancellationToken>.Ignored))
-            .Returns(updatedClip);
-
-        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
-        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
-        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns(growingClipId);
-        A.CallTo(() => autoAppendServiceMock.DatabaseKey).Returns("test-database");
-
-        var configurationService = CreateMockConfigurationService();
-        var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
-
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        var growingId = Guid.NewGuid();
+        var harness = new Harness(new AppendVerdict(_db, growingId, "more"));
+        A.CallTo(() => harness.Append.AppendCapturedTextAsync(growingId, "more", A<string>._, A<bool>._, A<CancellationToken>._))
+            .Returns(new Clip { Id = growingId, TextContent = "first\nmore" });
 
         // Act
-        await channel.Writer.WriteAsync(capturedClip);
-        await Task.Delay(200);
+        await harness.CaptureAsync(new Clip { Id = Guid.NewGuid(), TextContent = "more" });
 
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
-
-        // Assert - merged into the growing clip instead of creating a new one
-        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(
-            growingClipId, capturedClip.TextContent!, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
-
-        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
-        A.CallTo(() => autoAppendServiceMock.SetGrowingClip(A<Guid>.Ignored, A<string>.Ignored)).MustNotHaveHappened();
-
-        // Messenger sends (ClipContentUpdatedEvent) are tested via extension methods that FakeItEasy can't verify directly -
-        // covered indirectly by ClipListViewModelTests for the receiving side.
+        // Assert
+        A.CallTo(() => harness.Append.AppendCapturedTextAsync(growingId, "more", A<string>._, A<bool>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => harness.Store.AddAsync(A<string>._, A<Clip>._, A<Guid?>._, A<Guid?>._, A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
-    [Test]
-    public async Task ProcessClipsAsync_WhenAutoAppendActiveWithNonTextClip_ShouldCreateNormally()
+    private static CaptureTarget Target() => new(_db, new Collection { Id = Guid.NewGuid(), Title = "Inbox" }, null);
+
+    /// <summary>
+    /// A coordinator whose policy always returns one verdict, with every collaborator faked.
+    /// </summary>
+    private sealed class Harness
     {
-        // Arrange
-        var clipboardService = CreateMockClipboardService(out var channel);
+        private readonly ClipboardCoordinator _coordinator;
 
-        var clip = new Clip
+        public Harness(CaptureVerdict verdict)
         {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Html,
-            TextContent = "<b>html</b>",
-            ContentHash = "hash-html",
-            CapturedAt = DateTime.UtcNow,
-        };
+            var clipboard = A.Fake<IClipboardService>();
 
-        var clipRepositoryMock = A.Fake<IClipRepository>();
-        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
+            var configuration = A.Fake<IConfigurationService>();
+            A.CallTo(() => configuration.Configuration).Returns(new Core.Models.Configuration.ClipMateConfiguration
+            {
+                Preferences = new Core.Models.Configuration.PreferencesConfiguration { EnableAutoCaptureAtStartup = true, CaptureExistingClipboardAtStartup = false },
+            });
 
-        var contextFactory = A.Fake<IDatabaseContextFactory>();
-        A.CallTo(() => contextFactory.GetClipRepository(A<string>.Ignored)).Returns(clipRepositoryMock);
+            var policy = A.Fake<ICapturePolicy>();
+            A.CallTo(() => policy.DecideAsync(A<CaptureAttempt>._, A<CancellationToken>._)).Returns(verdict);
 
-        var clipAppendServiceMock = A.Fake<IClipAppendService>();
+            var services = new ServiceCollection();
+            services.AddSingleton(policy);
+            services.AddSingleton(Sound);
+            services.AddSingleton(Append);
+            var messenger = new StrongReferenceMessenger();
+            messenger.Register<ClipAddedEvent>(this, (_, message) => Added.Add(message));
 
-        var growingClipId = Guid.NewGuid();
-        var autoAppendServiceMock = A.Fake<IAutoAppendService>();
-        A.CallTo(() => autoAppendServiceMock.IsActive).Returns(true);
-        A.CallTo(() => autoAppendServiceMock.GrowingClipId).Returns(growingClipId);
-        A.CallTo(() => autoAppendServiceMock.DatabaseKey).Returns("test-database");
+            _coordinator = new ClipboardCoordinator(clipboard, configuration, Writer, Store, AppendMode, services.BuildServiceProvider(), messenger,
+                A.Fake<Microsoft.Extensions.Logging.ILogger<ClipboardCoordinator>>());
+        }
 
-        var configurationService = CreateMockConfigurationService();
-        var serviceProvider = CreateMockServiceProvider(clipAppendService: clipAppendServiceMock);
-        var messengerMock = A.Fake<IMessenger>();
-        var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
+        public IClipStore Store { get; } = A.Fake<IClipStore>();
 
-        await coordinator.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        public ISoundService Sound { get; } = A.Fake<ISoundService>();
 
-        // Act
-        await channel.Writer.WriteAsync(clip);
-        await Task.Delay(200);
+        public IClipAppendService Append { get; } = A.Fake<IClipAppendService>();
 
-        // Cleanup
-        channel.Writer.Complete();
-        await coordinator.StopAsync(CancellationToken.None);
+        public ICurrentClipWriter Writer { get; } = A.Fake<ICurrentClipWriter>();
 
-        // Assert - non-text captures are unaffected by Auto-Append mode
-        A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
-        A.CallTo(() => clipAppendServiceMock.AppendCapturedTextAsync(A<Guid>.Ignored, A<string>.Ignored, A<string>.Ignored, A<bool>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        public IAppendMode AppendMode { get; } = A.Fake<IAppendMode>();
+
+        public List<ClipAddedEvent> Added { get; } = [];
+
+        // The step the channel loop runs for each capture, without starting the loop
+        public Task CaptureAsync(Clip? clip) =>
+            _coordinator.ProcessAttemptAsync(new CaptureAttempt(clip, clip?.TextContent, null, CaptureKind.Monitored, 0), CancellationToken.None);
     }
 }

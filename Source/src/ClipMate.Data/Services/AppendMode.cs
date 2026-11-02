@@ -2,8 +2,8 @@ using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Data.Services;
 
-/// <inheritdoc cref="IAutoAppendService" />
-public class AutoAppendService : IAutoAppendService
+/// <inheritdoc cref="IAppendMode" />
+public class AppendMode : IAppendMode
 {
     public bool IsActive { get; private set; }
 
@@ -11,23 +11,17 @@ public class AutoAppendService : IAutoAppendService
 
     public string? DatabaseKey { get; private set; }
 
-    public void Activate()
+    public void Start(Guid growingClipId, string databaseKey)
     {
         IsActive = true;
-        GrowingClipId = null;
-        DatabaseKey = null;
+        GrowingClipId = growingClipId;
+        DatabaseKey = databaseKey;
     }
 
-    public void Deactivate()
+    public void Stop()
     {
         IsActive = false;
         GrowingClipId = null;
         DatabaseKey = null;
-    }
-
-    public void SetGrowingClip(Guid clipId, string databaseKey)
-    {
-        GrowingClipId = clipId;
-        DatabaseKey = databaseKey;
     }
 }

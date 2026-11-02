@@ -27,7 +27,7 @@ public class CollectionOperationsCoordinatorTests
         await Assert.That(() => new CollectionOperationsCoordinator(
                 null!,
                 null!,
-                // IAutoAppendService
+                // IAppendMode
                 null!,
                 // ClipListViewModel - required but can be null for this test
                 null!,

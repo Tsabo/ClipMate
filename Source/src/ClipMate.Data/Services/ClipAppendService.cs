@@ -152,14 +152,16 @@ public class ClipAppendService : IClipAppendService
                 ? textBlobs.FirstOrDefault(p => p.ClipDataId == textClipData.Id)
                 : null;
 
+            // ClipMate 7 removes one line break from the end of the growing clip, once, before adding the separator
             var existingText = existingBlob?.Data ?? string.Empty;
             if (stripTrailingLineBreaks)
-                existingText = StripTrailingLineBreaks(existingText);
+                existingText = StripOneTrailingLineBreak(existingText);
 
             var processedSeparator = ProcessEscapeSequences(separator);
 
+            // The first text added to the empty growing clip needs no separator before it
             var combinedText = new StringBuilder(existingText);
-            if (!string.IsNullOrEmpty(processedSeparator))
+            if (existingText.Length > 0 && !string.IsNullOrEmpty(processedSeparator))
                 combinedText.Append(processedSeparator);
 
             combinedText.Append(capturedText);
@@ -228,6 +230,20 @@ public class ClipAppendService : IClipAppendService
             .Replace("\\n", "\n")
             .Replace("\\t", "\t")
             .Replace("\\r", "\r");
+    }
+
+    /// <summary>
+    /// Removes one line break (\r\n, \n or \r) from the end of the text, as ClipMate 7's "strip trailing line break" does
+    /// to the growing clip of Auto-Append.
+    /// </summary>
+    internal static string StripOneTrailingLineBreak(string text)
+    {
+        if (text.EndsWith("\r\n", StringComparison.Ordinal))
+            return text[..^2];
+
+        return text.EndsWith('\n') || text.EndsWith('\r')
+            ? text[..^1]
+            : text;
     }
 
     /// <summary>

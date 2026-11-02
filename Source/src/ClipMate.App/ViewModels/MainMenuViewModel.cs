@@ -28,7 +28,7 @@ public partial class MainMenuViewModel : ObservableObject,
     IRecipient<StateRefreshRequestedEvent>,
     IDisposable
 {
-    private readonly IAutoAppendService _autoAppendService;
+    private readonly IAppendMode _appendMode;
     private readonly IClipboardService _clipboardService;
     private readonly ClipListViewModel? _clipListViewModel;
     private readonly IClipViewerWindowManager _clipViewerWindowManager;
@@ -72,7 +72,7 @@ public partial class MainMenuViewModel : ObservableObject,
         IUndoService undoService,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
-        IAutoAppendService autoAppendService,
+        IAppendMode appendMode,
         IPowerPasteService powerPasteService,
         IQuickPasteService quickPasteService,
         IPasteTarget pasteTarget,
@@ -85,7 +85,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _undoService = undoService ?? throw new ArgumentNullException(nameof(undoService));
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
-        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
+        _appendMode = appendMode ?? throw new ArgumentNullException(nameof(appendMode));
         _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
@@ -140,7 +140,7 @@ public partial class MainMenuViewModel : ObservableObject,
     /// Gets whether Auto-Append mode is currently active.
     /// This property is read directly from the auto-append service for live state.
     /// </summary>
-    public bool IsAutoAppendActive => _autoAppendService.IsActive;
+    public bool IsAutoAppendActive => _appendMode.IsActive;
 
     /// <summary>
     /// Gets whether QuickPrint is enabled (bypasses print preview dialog).

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Capture;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
@@ -15,15 +16,15 @@ namespace ClipMate.Tests.Unit.Services;
 /// </summary>
 public partial class ClipboardCoordinatorTests : TestFixtureBase
 {
-    private IClipboardService CreateMockClipboardService(out Channel<Clip> channel)
+    private IClipboardService CreateMockClipboardService(out Channel<CaptureAttempt> channel)
     {
         var mock = A.Fake<IClipboardService>();
-        channel = Channel.CreateUnbounded<Clip>();
+        channel = Channel.CreateUnbounded<CaptureAttempt>();
 
         A.CallTo(() => mock.ClipsChannel).Returns(channel.Reader);
         A.CallTo(() => mock.StartMonitoringAsync(A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
         A.CallTo(() => mock.StopMonitoringAsync()).Returns(Task.CompletedTask);
-        A.CallTo(() => mock.GetCurrentClipboardContentAsync(A<ManualCaptureKind>.Ignored, A<CancellationToken>.Ignored)).Returns((Clip?)null);
+        A.CallTo(() => mock.GetCurrentClipboardContentAsync(A<ManualCaptureKind>.Ignored, A<CancellationToken>.Ignored)).Returns((CaptureAttempt?)null);
 
         return mock;
     }

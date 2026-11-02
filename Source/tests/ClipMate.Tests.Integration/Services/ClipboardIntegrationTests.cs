@@ -129,7 +129,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddTransient<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         services.AddSingleton(contextFactory);
-        services.AddSingleton<IAutoAppendService, AutoAppendService>();
+        services.AddSingleton<IAppendMode, AppendMode>();
 
         // Register sound service mock
         var soundServiceMock = A.Fake<ISoundService>();
@@ -157,10 +157,8 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         var messenger = _serviceProvider.GetRequiredService<IMessenger>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
-        var autoAppendService = _serviceProvider.GetRequiredService<IAutoAppendService>();
-        _coordinator = new ClipboardCoordinator(_clipboardService, configService, A.Fake<ICurrentClipWriter>(),
-            contextFactory, new ClipStore(contextFactory, NullLogger<ClipStore>.Instance), autoAppendService,
-            _serviceProvider, messenger, coordinatorLogger);
+        var appendMode = _serviceProvider.GetRequiredService<IAppendMode>();
+        _coordinator = new ClipboardCoordinator(_clipboardService, configService, A.Fake<ICurrentClipWriter>(), new ClipStore(contextFactory, NullLogger<ClipStore>.Instance), appendMode, _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed

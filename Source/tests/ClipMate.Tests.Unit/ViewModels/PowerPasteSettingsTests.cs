@@ -102,7 +102,7 @@ public class PowerPasteSettingsTests : TestFixtureBase
             A.Fake<IUndoService>(),
             A.Fake<IClipViewerWindowManager>(),
             A.Fake<IClipboardService>(),
-            A.Fake<IAutoAppendService>(),
+            A.Fake<IAppendMode>(),
             A.Fake<IPowerPasteService>(),
             A.Fake<IQuickPasteService>(),
             A.Fake<IPasteTarget>(),

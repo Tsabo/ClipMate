@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Capture;
 
 namespace ClipMate.Core.Services.Abstractions;
 
@@ -10,10 +11,10 @@ namespace ClipMate.Core.Services.Abstractions;
 public interface IClipboardService
 {
     /// <summary>
-    /// Gets a channel reader for consuming captured clipboard clips.
-    /// The consumer reads from this channel to process clipboard changes asynchronously.
+    /// Gets a channel reader for the capture attempts of monitored clipboard changes, including those whose Application
+    /// Profile kept nothing, for the Capture Policy to decide.
     /// </summary>
-    ChannelReader<Clip> ClipsChannel { get; }
+    ChannelReader<CaptureAttempt> ClipsChannel { get; }
 
     /// <summary>
     /// Gets a value indicating whether clipboard monitoring is active.
@@ -47,8 +48,8 @@ public interface IClipboardService
     /// </summary>
     /// <param name="kind">Which capture this is.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The clip, or null when there is nothing to capture or an error occurs.</returns>
-    Task<Clip?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey, CancellationToken cancellationToken = default);
+    /// <returns>The capture attempt, or null when there is nothing to capture or an error occurs.</returns>
+    Task<CaptureAttempt?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads every Format on the clipboard for Capture Special, ignoring the ignore flag; null when the clipboard can't

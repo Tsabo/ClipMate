@@ -168,9 +168,11 @@ public class AppendTests(AppFixture appFixture)
             {
                 SystemClipboard.OnSta(() =>
                 {
-                    var pixels = new byte[16 * 16 * 4];
+                    // Over 4 KB: a smaller image with no owner and no text is ClipMate 7's "small graphic" (a toolbar button), and
+                    // a flushed WPF copy has no owner
+                    var pixels = new byte[48 * 48 * 4];
                     Random.Shared.NextBytes(pixels);
-                    Clipboard.SetImage(BitmapSource.Create(16, 16, 96, 96, PixelFormats.Bgra32, null, pixels, 16 * 4));
+                    Clipboard.SetImage(BitmapSource.Create(48, 48, 96, 96, PixelFormats.Bgra32, null, pixels, 48 * 4));
                 });
             }
 

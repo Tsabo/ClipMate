@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Capture;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
@@ -23,15 +24,21 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
 {
     private const string _databaseKey = "db_capture";
 
+    /// <summary>
+    /// The Database captures go into.
+    /// </summary>
+    protected static string DatabaseKey => _databaseKey;
+
     private readonly ConcurrentBag<Guid> _addedClipIds = [];
-    private Channel<Clip> _channel = null!;
+    private readonly ConcurrentBag<Guid> _updatedClipIds = [];
+    private Channel<CaptureAttempt> _channel = null!;
     private IClipboardService _clipboardService = null!;
     private ClipboardCoordinator _coordinator = null!;
     private int _ignoreSounds;
     private StrongReferenceMessenger _messenger = null!;
     private ServiceProvider _serviceProvider = null!;
 
-    protected AutoAppendService AutoAppendService { get; } = new();
+    protected AppendMode AppendMode { get; } = new();
 
     /// <summary>
     /// Told about each clip that becomes the Current Clip.
@@ -105,21 +112,26 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         services.AddSingleton(filterService);
         services.AddSingleton(soundService);
         services.AddSingleton(contextFactory);
+        services.AddTransient<ICaptureTargetResolver>(_ => new CaptureTargetResolver(collectionService, folderService,
+            A.Fake<ILogger<CaptureTargetResolver>>()));
+        services.AddTransient<ICapturePolicy>(p => new CapturePolicy(AppendMode, p.GetRequiredService<ICaptureTargetResolver>(), contextFactory,
+            A.Fake<ILogger<CapturePolicy>>()));
         services.AddTransient<IClipAppendService>(_ => new ClipAppendService(contextFactory, collectionService, A.Fake<IClipService>(),
             soundService, A.Fake<ILogger<ClipAppendService>>()));
 
         _serviceProvider = services.BuildServiceProvider();
 
         _clipboardService = A.Fake<IClipboardService>();
-        _channel = Channel.CreateUnbounded<Clip>();
+        _channel = Channel.CreateUnbounded<CaptureAttempt>();
         A.CallTo(() => _clipboardService.ClipsChannel).Returns(_channel.Reader);
 
         _messenger = new StrongReferenceMessenger();
         _messenger.Register<ClipAddedEvent>(this, (_, message) => _addedClipIds.Add(message.Clip.Id));
+        _messenger.Register<ClipContentUpdatedEvent>(this, (_, message) => _updatedClipIds.Add(message.ClipId));
 
         _coordinator = new ClipboardCoordinator(_clipboardService, configurationService, CurrentClipWriter,
-            contextFactory, new ClipStore(contextFactory, A.Fake<ILogger<ClipStore>>()), AutoAppendService,
-            _serviceProvider, _messenger, A.Fake<ILogger<ClipboardCoordinator>>());
+            new ClipStore(contextFactory, A.Fake<ILogger<ClipStore>>()), AppendMode, _serviceProvider, _messenger,
+            A.Fake<ILogger<ClipboardCoordinator>>());
 
         await _coordinator.StartAsync(CancellationToken.None);
     }
@@ -144,9 +156,15 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
     protected async Task CaptureAsync(Clip clip, Func<bool>? done)
     {
         var ignoredBefore = Volatile.Read(ref _ignoreSounds);
-        await _channel.Writer.WriteAsync(clip);
+        await _channel.Writer.WriteAsync(new CaptureAttempt(clip, clip.TextContent, clip.SourceApplicationName, CaptureKind.Monitored,
+            clip.ImageData?.Length ?? clip.TextContent?.Length * 2 ?? 0));
         await WaitAsync(done ?? (() => _addedClipIds.Contains(clip.Id) || Volatile.Read(ref _ignoreSounds) > ignoredBefore));
     }
+
+    /// <summary>
+    /// Whether a capture's text was added to <paramref name="clipId" /> (Auto-Append).
+    /// </summary>
+    protected bool WasUpdated(Guid clipId) => _updatedClipIds.Contains(clipId);
 
     /// <summary>
     /// Captures <paramref name="clip" /> with Capture Special, and waits until it is saved or rejected.
@@ -166,7 +184,8 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
     protected async Task ManualCaptureAsync(Clip clip)
     {
         var ignoredBefore = Volatile.Read(ref _ignoreSounds);
-        A.CallTo(() => _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey, A<CancellationToken>.Ignored)).Returns(clip);
+        A.CallTo(() => _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey, A<CancellationToken>.Ignored))
+            .Returns(new CaptureAttempt(clip, clip.TextContent, clip.SourceApplicationName, CaptureKind.CaptureHotkey, 0));
         _messenger.Send(new ManualCaptureClipboardEvent());
         await WaitAsync(() => _addedClipIds.Contains(clip.Id) || Volatile.Read(ref _ignoreSounds) > ignoredBefore);
     }

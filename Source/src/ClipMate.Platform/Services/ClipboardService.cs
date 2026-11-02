@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using ClipMate.Core.Events;
 using ClipMate.Core.Exceptions;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Capture;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
@@ -33,7 +34,7 @@ public class ClipboardService : IClipboardService, IDisposable
     /// </summary>
     public const string NoOwnerApplication = "WINDOWS";
     private readonly IDecryptedBlobCacheService _blobCacheService;
-    private readonly Channel<Clip> _clipsChannel;
+    private readonly Channel<CaptureAttempt> _clipsChannel;
     private readonly Lock _clipboardThreadLock = new();
     private readonly IConfigurationService _configurationService;
     private readonly Task _decodeLoop;
@@ -69,7 +70,7 @@ public class ClipboardService : IClipboardService, IDisposable
         _decoder = new ClipboardSnapshotDecoder(_configurationService, applicationProfileService, _logger);
 
         // Create bounded channel with drop oldest policy to prevent memory issues
-        _clipsChannel = Channel.CreateBounded<Clip>(new BoundedChannelOptions(_channelCapacity)
+        _clipsChannel = Channel.CreateBounded<CaptureAttempt>(new BoundedChannelOptions(_channelCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleWriter = true, // Only the decode loop writes
@@ -87,7 +88,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
-    public ChannelReader<Clip> ClipsChannel => _clipsChannel.Reader;
+    public ChannelReader<CaptureAttempt> ClipsChannel => _clipsChannel.Reader;
 
     /// <inheritdoc />
     public bool IsMonitoring { get; private set; }
@@ -167,7 +168,7 @@ public class ClipboardService : IClipboardService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<Clip?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey,
+    public async Task<CaptureAttempt?> GetCurrentClipboardContentAsync(ManualCaptureKind kind = ManualCaptureKind.CaptureHotkey,
         CancellationToken cancellationToken = default)
     {
         try
@@ -210,7 +211,9 @@ public class ClipboardService : IClipboardService, IDisposable
             var source = GetSourceApplication(snapshot);
             var pending = new PendingCapture(snapshot.Formats, source.Name, source.Title);
 
-            return await Task.Run(() => DecodeAsync(pending, kind == ManualCaptureKind.CaptureHotkey, cancellationToken), cancellationToken);
+            var captureKind = kind == ManualCaptureKind.CaptureHotkey ? CaptureKind.CaptureHotkey : CaptureKind.Startup;
+
+            return await Task.Run(() => DecodeAttemptAsync(pending, captureKind, kind == ManualCaptureKind.CaptureHotkey, cancellationToken), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -516,15 +519,17 @@ public class ClipboardService : IClipboardService, IDisposable
 
     private async Task DecodeAndPublishAsync(PendingCapture pending)
     {
-        var clip = await DecodeAsync(pending);
-        if (clip == null)
-        {
-            _logger.LogDebug("Clipboard change has nothing to keep");
+        // Published even when the Application Profile keeps nothing, so the Capture Policy can say so
+        await _clipsChannel.Writer.WriteAsync(await DecodeAttemptAsync(pending, CaptureKind.Monitored));
+    }
 
-            return;
-        }
+    private async Task<CaptureAttempt> DecodeAttemptAsync(PendingCapture pending, CaptureKind kind, bool evenWhenProfileSwitchedOff = false,
+        CancellationToken cancellationToken = default)
+    {
+        var clip = await DecodeAsync(pending, evenWhenProfileSwitchedOff, cancellationToken);
+        var largestFormatSize = pending.Formats.Count == 0 ? 0 : pending.Formats.Max(p => p.Data.Length);
 
-        await _clipsChannel.Writer.WriteAsync(clip);
+        return new CaptureAttempt(clip, ClipboardSnapshotDecoder.ReadPlainText(pending.Formats), pending.ApplicationName, kind, largestFormatSize);
     }
 
     private async Task<Clip?> DecodeAsync(PendingCapture pending, bool evenWhenProfileSwitchedOff = false, CancellationToken cancellationToken = default)

@@ -35,7 +35,7 @@ public class CollectionOperationsCoordinator :
     IRecipient<ShowCollectionPropertiesRequestedEvent>
 {
     private readonly IActiveWindowService _activeWindowService;
-    private readonly IAutoAppendService _autoAppendService;
+    private readonly IAppendMode _appendMode;
     private readonly IClipAppendService _clipAppendService;
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
@@ -52,7 +52,7 @@ public class CollectionOperationsCoordinator :
     private TreeNodeBase? _lastSelectedNode;
 
     public CollectionOperationsCoordinator(IActiveWindowService activeWindowService,
-        IAutoAppendService autoAppendService,
+        IAppendMode appendMode,
         ClipListViewModel clipListViewModel,
         CollectionTreeViewModel collectionTreeViewModel,
         IClipService clipService,
@@ -66,7 +66,7 @@ public class CollectionOperationsCoordinator :
         ILogger<CollectionOperationsCoordinator> logger)
     {
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
-        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
+        _appendMode = appendMode ?? throw new ArgumentNullException(nameof(appendMode));
         _clipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
@@ -190,6 +190,39 @@ public class CollectionOperationsCoordinator :
     }
 
     /// <summary>
+    /// Starts Auto-Append as ClipMate 7 does: an empty growing clip, titled "Append...", goes where a capture would, and each
+    /// copy's text is added to it until Append is used again.
+    /// </summary>
+    private async Task StartAutoAppendAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        if (await scope.ServiceProvider.GetRequiredService<ICaptureTargetResolver>().ResolveAsync() is not { } target)
+        {
+            SendStatus("Auto-Append needs an open Database", true);
+
+            return;
+        }
+
+        var growingClip = await _clipService.CreateAsync(target.DatabaseKey, new Clip
+        {
+            Id = Guid.NewGuid(),
+            Type = ClipType.Text,
+            Title = "Append...",
+            CustomTitle = true,
+            CapturedAt = DateTimeOffset.Now,
+            CollectionId = target.Collection.Id,
+            FolderId = target.FolderId,
+            Creator = Environment.UserName,
+        });
+
+        _messenger.Send(new ClipAddedEvent(growingClip, false, target.DatabaseKey, growingClip.CollectionId, growingClip.FolderId));
+        _appendMode.Start(growingClip.Id, target.DatabaseKey);
+
+        _logger.LogInformation("Auto-Append mode activated, growing clip {ClipId}", growingClip.Id);
+        SendStatus("Auto-Append mode on — new copies will be combined until you click Append again");
+    }
+
+    /// <summary>
     /// Handles AppendClipsRequestedEvent to glue the text of the selected clips together into a new Current Clip, or to
     /// toggle Auto-Append mode when fewer than 2 clips are selected.
     /// </summary>
@@ -200,9 +233,9 @@ public class CollectionOperationsCoordinator :
         // to resync the toolbar button back to the real IsAutoAppendActive state.
         try
         {
-            if (_autoAppendService.IsActive)
+            if (_appendMode.IsActive)
             {
-                _autoAppendService.Deactivate();
+                _appendMode.Stop();
                 _logger.LogInformation("Auto-Append mode deactivated");
                 SendStatus("Auto-Append mode off");
 
@@ -213,9 +246,7 @@ public class CollectionOperationsCoordinator :
 
             if (selectedClips.Count < 2)
             {
-                _autoAppendService.Activate();
-                _logger.LogInformation("Auto-Append mode activated");
-                SendStatus("Auto-Append mode on — new copies will be combined until you click Append again");
+                await StartAutoAppendAsync();
 
                 return;
             }
