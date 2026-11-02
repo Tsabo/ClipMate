@@ -89,9 +89,6 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         A.CallTo(() => folderService.GetActiveAsync(A<CancellationToken>.Ignored)).Returns((Folder?)null);
         A.CallTo(() => folderService.GetRootFoldersAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored)).Returns([]);
 
-        var filterService = A.Fake<IApplicationFilterService>();
-        A.CallTo(() => filterService.ShouldFilterAsync(A<string?>.Ignored, A<string?>.Ignored, A<CancellationToken>.Ignored)).Returns(false);
-
         var soundService = A.Fake<ISoundService>();
         A.CallTo(() => soundService.PlaySoundAsync(SoundEvent.Ignore, A<CancellationToken>.Ignored))
             .Invokes(() => Interlocked.Increment(ref _ignoreSounds));
@@ -109,7 +106,6 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         var services = new ServiceCollection();
         services.AddSingleton(collectionService);
         services.AddSingleton(folderService);
-        services.AddSingleton(filterService);
         services.AddSingleton(soundService);
         services.AddSingleton(contextFactory);
         services.AddTransient<ICaptureTargetResolver>(_ => new CaptureTargetResolver(collectionService, folderService,

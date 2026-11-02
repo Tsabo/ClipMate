@@ -240,20 +240,6 @@ public class DatabaseContextFactory : IDatabaseContextFactory
     }
 
     /// <summary>
-    /// Creates an ApplicationFilterRepository instance for the specified database.
-    /// </summary>
-    public IApplicationFilterRepository GetApplicationFilterRepository(string databaseKey)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        var databasePath = ResolveDatabaseKeyToPath(databaseKey);
-        var context = CreateContext(databasePath);
-
-        return ActivatorUtilities.CreateInstance<ApplicationFilterRepository>(_serviceProvider, context) as IApplicationFilterRepository
-               ?? throw new InvalidOperationException("Failed to create ApplicationFilterRepository instance.");
-    }
-
-    /// <summary>
     /// Creates a TemplateRepository instance for the specified database.
     /// </summary>
     public ITemplateRepository GetTemplateRepository(string databaseKey)

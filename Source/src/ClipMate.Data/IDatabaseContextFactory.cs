@@ -96,13 +96,6 @@ public interface IDatabaseContextFactory : IDisposable
     IFolderRepository GetFolderRepository(string databaseKey);
 
     /// <summary>
-    /// Creates an ApplicationFilterRepository instance for the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <returns>A repository instance bound to the specified database.</returns>
-    IApplicationFilterRepository GetApplicationFilterRepository(string databaseKey);
-
-    /// <summary>
     /// Creates a TemplateRepository instance for the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

@@ -307,7 +307,6 @@ public class DatabaseManagerIntegrationTests : IntegrationTestBase
         public IMonacoEditorStateRepository GetMonacoEditorStateRepository(string databaseKey) => throw new NotImplementedException();
         public ICollectionRepository GetCollectionRepository(string databaseKey) => throw new NotImplementedException();
         public IFolderRepository GetFolderRepository(string databaseKey) => throw new NotImplementedException();
-        public IApplicationFilterRepository GetApplicationFilterRepository(string databaseKey) => throw new NotImplementedException();
         public ITemplateRepository GetTemplateRepository(string databaseKey) => throw new NotImplementedException();
         public ISearchQueryRepository GetSearchQueryRepository(string databaseKey) => throw new NotImplementedException();
 

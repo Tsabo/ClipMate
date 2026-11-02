@@ -1,10 +1,3 @@
-ApplicationFilters.CreatedAt TEXT NOT NULL
-ApplicationFilters.Id TEXT NOT NULL
-ApplicationFilters.IsEnabled INTEGER NOT NULL
-ApplicationFilters.ModifiedAt TEXT
-ApplicationFilters.Name TEXT NOT NULL
-ApplicationFilters.ProcessName TEXT
-ApplicationFilters.WindowTitlePattern TEXT
 BlobBlob.ClipDataId TEXT NOT NULL
 BlobBlob.ClipId TEXT NOT NULL
 BlobBlob.Data BLOB NOT NULL

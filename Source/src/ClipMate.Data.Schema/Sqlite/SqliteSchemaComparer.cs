@@ -9,15 +9,34 @@ namespace ClipMate.Data.Schema.Sqlite;
 /// </summary>
 public class SqliteSchemaComparer : ISchemaComparer
 {
+    private readonly SchemaOptions _options;
+
+    public SqliteSchemaComparer(SchemaOptions? options = null)
+    {
+        _options = options ?? new SchemaOptions();
+    }
+
     public SchemaDiff Compare(SchemaDefinition current, SchemaDefinition expected)
     {
         var diff = new SchemaDiff();
 
-        // Check for removed tables
+        // Check for removed tables: only a retired one is dropped, any other is left alone
         foreach (var item in current.Tables.Values)
         {
-            if (!expected.Tables.ContainsKey(item.Name))
-                diff.Warnings.Add($"Table '{item.Name}' exists in current schema but not in expected schema (will be removed)");
+            if (expected.Tables.ContainsKey(item.Name))
+                continue;
+
+            if (_options.RetiredTables.Contains(item.Name))
+            {
+                diff.Operations.Add(new MigrationOperation
+                {
+                    Type = MigrationOperationType.DropTable,
+                    TableName = item.Name,
+                    Sql = $"DROP TABLE {item.Name}",
+                });
+            }
+            else
+                diff.Warnings.Add($"Table '{item.Name}' exists in current schema but not in expected schema");
         }
 
         foreach (var item in expected.Tables.Values)

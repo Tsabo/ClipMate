@@ -46,7 +46,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDatabases, Databases>();
         services.AddSingleton<ICurrentClipWriter, CurrentClipWriter>();
         services.AddTransient<IShortcutService, ShortcutService>();
-        services.AddTransient<IApplicationFilterService, ApplicationFilterService>();
         services.AddTransient<IFolderService, FolderService>();
         services.AddTransient<ISqlValidationService, SqlValidationService>();
         services.AddTransient<ISetupService, SetupService>();
