@@ -52,8 +52,8 @@ public partial class ClipboardCoordinatorTests
     }
 
     private ClipboardCoordinator CreateCoordinator(ICurrentClipWriter writer, IMessenger messenger) =>
-        new(CreateMockClipboardService(out _), CreateMockConfigurationService(), writer, A.Fake<IDatabaseContextFactory>(),
-            A.Fake<IClipStore>(), A.Fake<IAutoAppendService>(), CreateMockServiceProvider(), messenger, CreateLogger<ClipboardCoordinator>());
+        new(CreateMockClipboardService(out _), CreateMockConfigurationService(), writer,
+            A.Fake<IClipStore>(), A.Fake<IAppendMode>(), CreateMockServiceProvider(), messenger, CreateLogger<ClipboardCoordinator>());
 
     private static async Task WaitForAsync(Func<bool> condition)
     {

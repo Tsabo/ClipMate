@@ -1,6 +1,7 @@
 using ClipMate.Core.Events;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Capture;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Platform;
 using CommunityToolkit.Mvvm.Messaging;
@@ -21,15 +22,15 @@ public class ClipboardCoordinator : IHostedService,
     IRecipient<CaptureSpecialRequestedEvent>,
     IRecipient<ManualFilterRequestedEvent>
 {
-    private readonly IAutoAppendService _autoAppendService;
+    private readonly IAppendMode _appendMode;
     private readonly IClipboardService _clipboardService;
     private readonly IClipStore _clipStore;
     private readonly IConfigurationService _configurationService;
     private readonly ICurrentClipWriter _currentClipWriter;
-    private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly ILogger<ClipboardCoordinator> _logger;
     private readonly IMessenger _messenger;
     private readonly IServiceProvider _serviceProvider;
+    private int _capturedCount;
     private CancellationTokenSource? _cts;
     private bool _isMonitoring;
     private Task? _processingTask;
@@ -37,9 +38,8 @@ public class ClipboardCoordinator : IHostedService,
     public ClipboardCoordinator(IClipboardService clipboardService,
         IConfigurationService configurationService,
         ICurrentClipWriter currentClipWriter,
-        IDatabaseContextFactory databaseContextFactory,
         IClipStore clipStore,
-        IAutoAppendService autoAppendService,
+        IAppendMode appendMode,
         IServiceProvider serviceProvider,
         IMessenger messenger,
         ILogger<ClipboardCoordinator> logger)
@@ -47,9 +47,8 @@ public class ClipboardCoordinator : IHostedService,
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
-        _databaseContextFactory = databaseContextFactory ?? throw new ArgumentNullException(nameof(databaseContextFactory));
         _clipStore = clipStore ?? throw new ArgumentNullException(nameof(clipStore));
-        _autoAppendService = autoAppendService ?? throw new ArgumentNullException(nameof(autoAppendService));
+        _appendMode = appendMode ?? throw new ArgumentNullException(nameof(appendMode));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -91,17 +90,16 @@ public class ClipboardCoordinator : IHostedService,
                 _logger.LogDebug("Capturing existing clipboard content at startup");
                 try
                 {
-                    var existingClip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup, cancellationToken);
-                    if (existingClip != null)
+                    var existing = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup, cancellationToken);
+                    if (existing != null)
                     {
-                        _logger.LogInformation("Captured existing clipboard content: Type={ClipType}", existingClip.Type);
+                        _logger.LogInformation("Captured existing clipboard content: Type={ClipType}", existing.Clip?.Type);
 
                         // Start background processing task before capturing
                         _cts = new CancellationTokenSource();
                         _processingTask = ProcessClipsAsync(_cts.Token);
 
-                        // Process the existing clip
-                        await ProcessClipAsync(existingClip, cancellationToken);
+                        await ProcessAttemptAsync(existing, cancellationToken);
                     }
                 }
                 catch (Exception ex)
@@ -170,11 +168,11 @@ public class ClipboardCoordinator : IHostedService,
         {
             _logger.LogInformation("Manual clipboard capture requested");
 
-            var clip = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
-            if (clip != null)
+            var attempt = await _clipboardService.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+            if (attempt != null)
             {
-                _logger.LogDebug("Captured clipboard content: Type={ClipType}", clip.Type);
-                await ProcessClipAsync(clip, CancellationToken.None, manualCapture: true, checkDuplicate: false);
+                _logger.LogDebug("Captured clipboard content: Type={ClipType}", attempt.Clip?.Type);
+                await ProcessAttemptAsync(attempt, CancellationToken.None);
             }
             else
                 _logger.LogDebug("No clipboard content to capture");
@@ -194,7 +192,8 @@ public class ClipboardCoordinator : IHostedService,
         {
             var clip = await _clipboardService.CaptureSpecialAsync(message.Reading, message.FormatNames);
             if (clip != null)
-                await ProcessClipAsync(clip, CancellationToken.None, checkDuplicate: false);
+                await ProcessAttemptAsync(new CaptureAttempt(clip, clip.TextContent, clip.SourceApplicationName, CaptureKind.CaptureSpecial, 0),
+                    CancellationToken.None);
             else
                 _logger.LogDebug("Capture Special: nothing to keep in the chosen formats");
         }
@@ -328,15 +327,12 @@ public class ClipboardCoordinator : IHostedService,
             {
                 try
                 {
-                    await ProcessClipAsync(item, cancellationToken);
+                    await ProcessAttemptAsync(item, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     // Log error but continue processing other clips
-                    _logger.LogError(ex,
-                        "Failed to process clip: Type={ClipType}, Hash={ContentHash}",
-                        item.Type,
-                        item.ContentHash);
+                    _logger.LogError(ex, "Failed to process a capture: Type={ClipType}", item.Clip?.Type);
                 }
             }
 
@@ -353,218 +349,92 @@ public class ClipboardCoordinator : IHostedService,
     }
 
     /// <summary>
-    /// Processes a single clip: applies filters, assigns to collection/folder, and persists.
+    /// Acts on the Capture Policy's verdict for <paramref name="attempt" />: appends, saves through the clip store or drops
+    /// it, with ClipMate 7's sound and Event Log line for the outcome (ADR-0005).
     /// </summary>
-    /// <param name="manualCapture">Captured with the Manual Capture hotkey, which always keeps the clip, even a Duplicate.</param>
-    private async Task ProcessClipAsync(Clip clip, CancellationToken cancellationToken, bool manualCapture = false, bool checkDuplicate = true)
+    internal async Task ProcessAttemptAsync(CaptureAttempt attempt, CancellationToken cancellationToken)
     {
-        // Create a scope to resolve scoped services
         using var scope = _serviceProvider.CreateScope();
-        var collectionService = scope.ServiceProvider.GetRequiredService<ICollectionService>();
-        var folderService = scope.ServiceProvider.GetRequiredService<IFolderService>();
-        var filterService = scope.ServiceProvider.GetRequiredService<IApplicationFilterService>();
         var soundService = scope.ServiceProvider.GetRequiredService<ISoundService>();
+        var verdict = await scope.ServiceProvider.GetRequiredService<ICapturePolicy>().DecideAsync(attempt, cancellationToken);
 
-        // Check if clip should be filtered based on source application
-        var shouldFilter = await filterService.ShouldFilterAsync(
-            clip.SourceApplicationName,
-            clip.SourceApplicationTitle,
+        switch (verdict)
+        {
+            case AppendVerdict append:
+                await AppendAsync(scope.ServiceProvider.GetRequiredService<IClipAppendService>(), append, cancellationToken);
+                break;
+
+            case RejectedVerdict rejected:
+                LogRejection(rejected);
+                await soundService.PlaySoundAsync(SoundEvent.Erase, cancellationToken);
+                break;
+
+            case SaveVerdict save:
+                await SaveAsync(soundService, save, cancellationToken);
+                break;
+        }
+    }
+
+    private async Task AppendAsync(IClipAppendService clipAppendService, AppendVerdict append, CancellationToken cancellationToken)
+    {
+        var preferences = _configurationService.Configuration.Preferences;
+        var updatedClip = await clipAppendService.AppendCapturedTextAsync(append.GrowingClipId, append.Text, preferences.AppendSeparatorString,
+            preferences.StripTrailingLineBreak, cancellationToken);
+
+        _logger.LogInformation("Auto-Append: added the captured text to the growing clip {ClipId}", updatedClip.Id);
+        _messenger.Send(new ClipContentUpdatedEvent(updatedClip.Id, append.DatabaseKey, updatedClip.TextContent ?? string.Empty,
+            updatedClip.Title ?? string.Empty, updatedClip.Size));
+    }
+
+    private async Task SaveAsync(ISoundService soundService, SaveVerdict save, CancellationToken cancellationToken)
+    {
+        // A copy with no text ends Auto-Append, as in ClipMate 7, and is then captured normally
+        if (save.EndsAppendMode)
+        {
+            _appendMode.Stop();
+            _logger.LogInformation("Auto-Append ended by a copy with no text");
+        }
+
+        var target = save.Target;
+        var added = await _clipStore.AddAsync(target.DatabaseKey, save.Clip, target.Collection.Id, target.FolderId, save.RejectDuplicate,
             cancellationToken);
 
-        if (shouldFilter)
-        {
-            _logger.LogDebug(
-                "Clip filtered out: Process={ProcessName}, Title={WindowTitle}",
-                clip.SourceApplicationName,
-                clip.SourceApplicationTitle);
-
-            return;
-        }
-
-        _logger.LogDebug(
-            "Processing clip: Type={ClipType}, Hash={ContentHash}, Length={Length}",
-            clip.Type,
-            clip.ContentHash,
-            clip.TextContent?.Length ?? 0);
-
-        Collection? activeCollection = null;
-
-        // Assign clip to the active collection and folder
-        try
-        {
-            activeCollection = await collectionService.GetActiveAsync(cancellationToken);
-
-            // Check if collection is read-only
-            if (activeCollection.ReadOnly)
-            {
-                _logger.LogDebug("Active collection is read-only, ignoring clip: {CollectionName}", activeCollection.Title);
-                await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-                return;
-            }
-
-            // Check if collection is virtual - virtual collections cannot accept new clips
-            if (activeCollection.IsVirtual)
-            {
-                _logger.LogDebug("Active collection is virtual, bouncing: {CollectionName}", activeCollection.Title);
-
-                var bounceCollection = await collectionService.GetFirstAcceptingCollectionAsync(cancellationToken);
-                if (bounceCollection != null)
-                {
-                    _logger.LogInformation("Clip bounced from virtual collection '{FromCollection}' to '{ToCollection}'",
-                        activeCollection.Title, bounceCollection.Title);
-
-                    activeCollection = bounceCollection;
-                }
-                else
-                {
-                    _logger.LogWarning("No accepting collection found for bounce from virtual collection, clip will be ignored");
-                    await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-                    return;
-                }
-            }
-
-            // Bounce tracking: if active collection doesn't accept new clips, find first collection that does
-            if (!activeCollection.AcceptNewClips)
-            {
-                _logger.LogDebug("Active collection does not accept new clips, bouncing: {CollectionName}", activeCollection.Title);
-
-                var bounceCollection = await collectionService.GetFirstAcceptingCollectionAsync(cancellationToken);
-                if (bounceCollection != null)
-                {
-                    _logger.LogInformation("Clip bounced from '{FromCollection}' to '{ToCollection}'",
-                        activeCollection.Title, bounceCollection.Title);
-
-                    activeCollection = bounceCollection;
-                }
-                else
-                {
-                    _logger.LogWarning("No accepting collection found for bounce, clip will be ignored");
-                    await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-                    return;
-                }
-            }
-
-            clip.CollectionId = activeCollection.Id;
-
-            // Get the active folder (or default to Inbox folder)
-            var activeFolder = await folderService.GetActiveAsync(cancellationToken);
-            if (activeFolder is { FolderType: FolderType.SearchResults }) // Check if folder accepts clipboard captures
-            {
-                _logger.LogWarning("Active folder is SearchResults (read-only), falling back to Inbox");
-                activeFolder = null; // Fall through to Inbox
-            }
-
-            if (activeFolder != null)
-            {
-                clip.FolderId = activeFolder.Id;
-                _logger.LogDebug("Assigning clip to folder: CollectionId={CollectionId}, FolderId={FolderId}, FolderName={FolderName}, FolderType={FolderType}",
-                    activeCollection.Id, activeFolder.Id, activeFolder.Name, activeFolder.FolderType);
-            }
-            else
-            {
-                // Fallback: Find the Inbox folder in the active collection
-                var rootFolders = await folderService.GetRootFoldersAsync(activeCollection.Id, cancellationToken);
-                var inboxFolder = rootFolders.FirstOrDefault(p => p.FolderType == FolderType.Inbox);
-                if (inboxFolder != null)
-                {
-                    clip.FolderId = inboxFolder.Id;
-                    _logger.LogDebug("No active folder, using Inbox: CollectionId={CollectionId}, FolderId={FolderId}",
-                        activeCollection.Id, inboxFolder.Id);
-                }
-                else
-                    _logger.LogWarning("No active folder and no Inbox folder found, clip will not be assigned to a folder");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to assign clip to collection/folder, clip will be saved without assignment");
-            // Continue saving the clip even if we can't get active collection/folder
-        }
-
-        // Get the active database key
-        var activeDatabaseKey = collectionService.GetActiveDatabaseKey();
-        if (string.IsNullOrEmpty(activeDatabaseKey))
-        {
-            _logger.LogError("No active database key found, cannot save clip");
-            return;
-        }
-
-        // Create repository using the factory
-        var clipRepository = _databaseContextFactory.GetClipRepository(activeDatabaseKey);
-
-        // Auto-Append mode: a growing clip sent to the Trash (or purged) takes no more captures, so this capture starts a new one
-        if (_autoAppendService is { IsActive: true, GrowingClipId: { } previousGrowingClipId } &&
-            _autoAppendService.DatabaseKey == activeDatabaseKey &&
-            await clipRepository.GetByIdAsync(previousGrowingClipId, cancellationToken) == null)
-        {
-            _logger.LogInformation("Auto-Append: growing clip {ClipId} was deleted, starting a new one", previousGrowingClipId);
-            _autoAppendService.Activate();
-        }
-
-        // Auto-Append mode: merge this capture into the growing clip instead of creating a new one
-        if (_autoAppendService.IsActive &&
-            clip.Type is ClipType.Text or ClipType.RichText &&
-            _autoAppendService.GrowingClipId is { } growingClipId &&
-            _autoAppendService.DatabaseKey == activeDatabaseKey)
-        {
-            var clipAppendService = scope.ServiceProvider.GetRequiredService<IClipAppendService>();
-            var preferences = _configurationService.Configuration.Preferences;
-
-            var updatedClip = await clipAppendService.AppendCapturedTextAsync(
-                growingClipId,
-                clip.TextContent ?? string.Empty,
-                preferences.AppendSeparatorString,
-                preferences.StripTrailingLineBreak,
-                cancellationToken);
-
-            _logger.LogInformation("Auto-Append: merged captured text into growing clip {ClipId}", updatedClip.Id);
-
-            _messenger.Send(new ClipContentUpdatedEvent(
-                updatedClip.Id,
-                activeDatabaseKey,
-                updatedClip.TextContent ?? string.Empty,
-                updatedClip.Title ?? string.Empty,
-                updatedClip.Size));
-
-            return;
-        }
-
-        // A Manual Capture and Capture Special are never Duplicates, as in ClipMate 7
-        var added = await _clipStore.AddAsync(activeDatabaseKey, clip, clip.CollectionId, clip.FolderId, checkDuplicate && !manualCapture,
-            cancellationToken);
         if (added is DuplicateFound { Existing: var existingClip })
         {
-            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy
+            _logger.LogInformation("Duplicate Item Ignored.");
             await soundService.PlaySoundAsync(SoundEvent.Ignore, cancellationToken);
-            await _currentClipWriter.ReportCapturedAsync(existingClip, activeDatabaseKey, cancellationToken);
+
+            // The clip already there stays the Current Clip, as in ClipMate 7, so the Outbound Filter still cleanses the copy
+            await _currentClipWriter.ReportCapturedAsync(existingClip, target.DatabaseKey, cancellationToken);
 
             return;
         }
 
         var savedClip = ((ClipAdded)added).Clip;
-        _logger.LogInformation("Clip saved successfully to database '{DatabaseKey}': {ClipId}", activeDatabaseKey, savedClip.Id);
-
-        // Play sound for new clipboard data captured
+        _logger.LogInformation("Captured Item # {Number} And Placed In: {Collection}", Interlocked.Increment(ref _capturedCount),
+            target.Collection.Title);
         await soundService.PlaySoundAsync(SoundEvent.ClipboardUpdate, cancellationToken);
 
-        var clipAddedEvent = new ClipAddedEvent(
-            savedClip,
-            false,
-            activeDatabaseKey,
-            savedClip.CollectionId,
-            savedClip.FolderId)
-        {
-            Captured = true,
-        };
-
-        _messenger.Send(clipAddedEvent);
+        _messenger.Send(new ClipAddedEvent(savedClip, false, target.DatabaseKey, savedClip.CollectionId, savedClip.FolderId) { Captured = true });
 
         // After the capture sound, so the Outbound Filter's sound follows it, as in ClipMate 7
-        await _currentClipWriter.ReportCapturedAsync(savedClip, activeDatabaseKey, cancellationToken);
+        await _currentClipWriter.ReportCapturedAsync(savedClip, target.DatabaseKey, cancellationToken);
+    }
 
-        // Auto-Append mode: the first capture since activation becomes the growing clip
-        if (_autoAppendService is { IsActive: true, GrowingClipId: null } &&
-            clip.Type is ClipType.Text or ClipType.RichText)
-            _autoAppendService.SetGrowingClip(savedClip.Id, activeDatabaseKey);
+    // ClipMate 7's Event Log text for each rejection
+    private void LogRejection(RejectedVerdict rejected)
+    {
+        switch (rejected.Reason)
+        {
+            case CaptureRejection.NoAcceptableFormats:
+                _logger.LogInformation("New Clipboard Data Ignored - No Acceptable Formats, According To Application Profile.");
+                break;
+            case CaptureRejection.SmallGraphic:
+                _logger.LogInformation("Small Graphic Ignored - Probably a button being copied to a toolbar.");
+                break;
+            default:
+                _logger.LogError("Capture Failed - {Detail}", rejected.Detail);
+                break;
+        }
     }
 }

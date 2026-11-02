@@ -263,6 +263,20 @@ internal sealed class ClipboardSnapshotDecoder
         return list.Split('\0').TakeWhile(p => p.Length > 0).ToList();
     }
 
+    /// <summary>
+    /// The clipboard's plain text, read before any Application Profile: Unicode text, else ANSI text. Auto-Append adds
+    /// it to the growing clip, as ClipMate 7 does from CF_TEXT.
+    /// </summary>
+    public static string? ReadPlainText(IReadOnlyList<RawClipboardFormat> formats)
+    {
+        if (formats.FirstOrDefault(p => p.Name == "CF_UNICODETEXT") is { } unicode)
+            return NullIfEmpty(DecodeUnicode(unicode.Data));
+
+        return formats.FirstOrDefault(p => p.Name == "CF_TEXT") is { } ansi
+            ? NullIfEmpty(DecodeAnsi(ansi.Data))
+            : null;
+    }
+
     private static string DecodeUnicode(byte[] data)
     {
         var text = Encoding.Unicode.GetString(data, 0, data.Length & ~1);

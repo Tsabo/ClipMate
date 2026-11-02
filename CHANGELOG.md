@@ -15,11 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Searching Shows Progress** - While a search runs, the dialog says which Database it is searching and **Go!** is disabled. **Cancel** stops the search and leaves the dialog open.
 
 ### Changed
+- **Auto-Append Works as in ClipMate 7** - Append with fewer than two clips selected now creates an empty "Append..." clip at once, and each copy's text is added to it.
+  - The text is added even when the copying program's Application Profile wouldn't capture it.
+  - A copy with no text, such as an image, ends Auto-Append and is captured normally.
+  - "Strip trailing line break" removes one line break from the growing clip, not all of them.
+- **Captures Into a Read-Only Collection** - A capture while a Read-only collection is selected now goes to the first collection that accepts new clips, as with one that doesn't accept new clips, instead of being ignored. If no collection accepts new clips, it goes to the first collection.
+- **Capture Messages in the Event Log** - Each capture now logs ClipMate 7's message: where it was placed, a Duplicate ignored, nothing captured because of the Application Profile, or a small graphic ignored.
 - **Manual Filter Filters the Current Clip** - The Manual Filter hotkey puts the Current Clip back on the clipboard with only its plain text (or its image, when it has no text), as ClipMate 7 does, instead of filtering whatever is on the clipboard. When nothing has been captured or picked yet, it does nothing.
 - **QuickPaste Uses the Template** - QuickPaste now applies the active template, like every other way of putting a clip on the clipboard.
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **Copies Dropped Silently by an Application Profile** - When a program's Application Profile kept none of what it copied, the copy vanished without a sound. It now plays the Erase sound and logs why, as ClipMate 7 does.
+- **Toolbar Buttons Captured as Clips** - A tiny bitmap with no owning program, as when a toolbar button is copied, is now ignored with the Erase sound, as in ClipMate 7.
+- **Captures Lost Outside Any Collection** - If choosing the collection failed, the capture was saved with no collection and never showed in the tree. It's now not kept, and the error is logged.
+- **Captures Placed in Another Collection's Folder** - A capture that bounced to another collection could be put in the folder selected in the first one. It now goes to the target collection's Inbox.
 - **New Clips and Imports Silently Reused Old Clips** - New Clip, saving from the Markdown viewer and XML import returned an existing clip, even one in the Trash or another collection, whenever its content matched, instead of creating one. They now always create. Only a capture is checked for Duplicates, against the newest clip in its collection.
 - **Capture Special Rejected as a Duplicate** - A Capture Special could be ignored as a Duplicate. As in ClipMate 7, it never is now.
 - **Importing the Same XML File Twice** - Clips already in the Database are now skipped, and the import says how many.

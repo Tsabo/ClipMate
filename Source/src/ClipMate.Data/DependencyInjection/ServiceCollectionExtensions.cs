@@ -39,6 +39,8 @@ public static class ServiceCollectionExtensions
         // They get scoped contexts via repository factories, so no need to be Singleton
         services.AddTransient<IClipService, ClipService>();
         services.AddTransient<IClipStore, ClipStore>();
+        services.AddTransient<ICaptureTargetResolver, CaptureTargetResolver>();
+        services.AddTransient<ICapturePolicy, CapturePolicy>();
 
         // Every Database, local or remote, behind one interface (the Remote Databases come from IRemoteDatabaseService)
         services.AddSingleton<IDatabases, Databases>();
@@ -74,8 +76,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PowerPasteStatus>();
         services.AddSingleton<IPowerPasteService, PowerPasteService>();
 
-        // AutoAppendService maintains Auto-Append mode toggle state
-        services.AddSingleton<IAutoAppendService, AutoAppendService>();
+        // AppendMode maintains Auto-Append mode toggle state
+        services.AddSingleton<IAppendMode, AppendMode>();
 
         // UndoService maintains undo/redo state
         services.AddSingleton<IUndoService, UndoService>();

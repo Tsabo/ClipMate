@@ -35,17 +35,16 @@ public class BounceTrackingTests(AppFixture appFixture)
     }
 
     /// <summary>
-    /// Verifies clip is ignored (with sound) when no accepting collection exists.
+    /// Verifies the first collection takes the clip when no collection accepts new clips, as in ClipMate 7.
     /// </summary>
     [Test]
     [Skip("Requires clipboard simulation and all collections rejecting")]
-    public async Task BounceTracking_NoAcceptingCollection_IgnoresClip()
+    public async Task BounceTracking_NoAcceptingCollection_GoesToTheFirstCollection()
     {
         // TODO:
         // 1. Set all collections to AcceptNewClips=false
         // 2. Simulate clipboard capture
-        // 3. Verify no clip created in database
-        // 4. Verify sound notification played (if possible)
+        // 3. Verify clip created in the collection with the lowest SortKey
         await Task.CompletedTask;
     }
 

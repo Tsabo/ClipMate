@@ -19,13 +19,12 @@ public partial class ClipboardCoordinatorTests
         var clipboardService = CreateMockClipboardService(out var channel);
         var configurationService = CreateMockConfigurationService();
         var contextFactory = A.Fake<IDatabaseContextFactory>();
-        var autoAppendService = A.Fake<IAutoAppendService>();
+        var appendMode = A.Fake<IAppendMode>();
         var serviceProvider = CreateMockServiceProvider();
         var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
-        var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
-            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, logger);
+        var coordinator = new ClipboardCoordinator(clipboardService, configurationService, A.Fake<ICurrentClipWriter>(), new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), appendMode, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100); // Let background task start

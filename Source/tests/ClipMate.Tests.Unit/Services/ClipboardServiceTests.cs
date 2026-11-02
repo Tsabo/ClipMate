@@ -74,7 +74,7 @@ public class ClipboardServiceTests : TestFixtureBase
         // TODO: Need to mock empty clipboard
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = (await service.GetCurrentClipboardContentAsync())?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -120,7 +120,7 @@ public class ClipboardServiceTests : TestFixtureBase
         {
             await foreach (var item in service.ClipsChannel.ReadAllAsync(cts.Token))
             {
-                clips.Add(item);
+                clips.Add(item.Clip!);
                 if (clips.Count >= 2)
                     break;
             }
@@ -267,7 +267,7 @@ public class ClipboardServiceTests : TestFixtureBase
         // Act
         var result = await service.CaptureClipboardChangeAsync(HWND.Null);
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var clip = await service.ClipsChannel.ReadAsync(cts.Token);
+        var clip = (await service.ClipsChannel.ReadAsync(cts.Token)).Clip!;
 
         // Assert
         await Assert.That(result.Outcome).IsEqualTo(ClipboardCaptureOutcome.Captured);
@@ -403,7 +403,7 @@ public class ClipboardServiceTests : TestFixtureBase
         var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>(), profileService);
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = (await service.GetCurrentClipboardContentAsync())?.Clip;
 
         // Assert
         await Assert.That(clip).IsNotNull();
@@ -428,7 +428,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(win32Mock, A.Fake<ISoundService>());
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = (await service.GetCurrentClipboardContentAsync())?.Clip;
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
@@ -453,7 +453,7 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.StopMonitoringAsync();
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = (await service.GetCurrentClipboardContentAsync())?.Clip;
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
@@ -468,7 +468,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>());
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+        var clip = (await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey))?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -483,7 +483,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>(), configuration: configuration);
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+        var clip = (await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey))?.Clip;
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
@@ -498,7 +498,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(CreateIgnoredTextOffering(), A.Fake<ISoundService>(), configuration: configuration);
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup);
+        var clip = (await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup))?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -512,7 +512,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(CreateClipboardOffering((0xC123, "Acme Private", [1, 2, 3])), A.Fake<ISoundService>());
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup);
+        var clip = (await service.GetCurrentClipboardContentAsync(ManualCaptureKind.Startup))?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -527,7 +527,7 @@ public class ClipboardServiceTests : TestFixtureBase
         using var service = CreateClipboardService(CreateClipboardOffering(), soundService);
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey);
+        var clip = (await service.GetCurrentClipboardContentAsync(ManualCaptureKind.CaptureHotkey))?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -544,7 +544,7 @@ public class ClipboardServiceTests : TestFixtureBase
         service.SuspendCapture();
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync();
+        var clip = (await service.GetCurrentClipboardContentAsync())?.Clip;
 
         // Assert
         await Assert.That(clip).IsNull();
@@ -622,7 +622,7 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.CaptureClipboardChangeAsync(HWND.Null);
 
         // Act
-        var clip = await service.GetCurrentClipboardContentAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        var clip = (await service.GetCurrentClipboardContentAsync().WaitAsync(TimeSpan.FromSeconds(5)))?.Clip;
 
         // Assert
         await Assert.That(clip?.TextContent).IsEqualTo("Hello");
@@ -892,7 +892,7 @@ public class ClipboardServiceTests : TestFixtureBase
         await service.CaptureClipboardChangeAsync(HWND.Null);
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        return await service.ClipsChannel.ReadAsync(cts.Token);
+        return (await service.ClipsChannel.ReadAsync(cts.Token)).Clip!;
     }
 
     /// <summary>
