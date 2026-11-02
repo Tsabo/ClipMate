@@ -59,25 +59,3 @@ public interface ICurrentClipWriter
     Task<bool> FilterCapturedClipAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// How a write treats the Outbound Filter.
-/// </summary>
-/// <param name="Filter">Whether the clip is filtered to its plain text, or its image when it has no text.</param>
-public readonly record struct WriteOptions(FilterMode Filter = FilterMode.FromSettings);
-
-/// <summary>
-/// Whether a write keeps only the plain text, or the image when there is no text.
-/// </summary>
-public enum FilterMode
-{
-    /// <summary>
-    /// As the Outbound Filter setting says.
-    /// </summary>
-    FromSettings,
-
-    /// <summary>
-    /// Filtered whatever the setting, as Manual Filter does; a clip from an excluded Source Application is still left
-    /// whole.
-    /// </summary>
-    Forced,
-}

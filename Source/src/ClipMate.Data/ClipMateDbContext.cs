@@ -82,11 +82,6 @@ public class ClipMateDbContext : DbContext
     public DbSet<SearchQuery> SearchQueries => Set<SearchQuery>();
 
     /// <summary>
-    /// Gets or sets the application filters.
-    /// </summary>
-    public DbSet<ApplicationFilter> ApplicationFilters => Set<ApplicationFilter>();
-
-    /// <summary>
     /// Gets or sets the Monaco Editor states.
     /// </summary>
     public DbSet<MonacoEditorState> MonacoEditorStates => Set<MonacoEditorState>();
@@ -158,7 +153,6 @@ public class ClipMateDbContext : DbContext
         ConfigureUser(modelBuilder);
         ConfigureTemplate(modelBuilder);
         ConfigureSearchQuery(modelBuilder);
-        ConfigureApplicationFilter(modelBuilder);
         ConfigureMonacoEditorState(modelBuilder);
         ConfigureDatabaseInfo(modelBuilder);
     }
@@ -424,18 +418,6 @@ public class ClipMateDbContext : DbContext
 
             entity.HasIndex(p => p.LastExecutedAt).HasDatabaseName("IX_SearchQueries_LastExecutedAt");
             entity.HasIndex(p => p.QueryText).HasDatabaseName("IX_SearchQueries_QueryText");
-        });
-    }
-
-    private static void ConfigureApplicationFilter(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<ApplicationFilter>(entity =>
-        {
-            entity.Property(p => p.CreatedAt).IsRequired();
-
-            entity.HasIndex(p => p.Name).HasDatabaseName("IX_ApplicationFilters_Name");
-            entity.HasIndex(p => p.ProcessName).HasDatabaseName("IX_ApplicationFilters_ProcessName");
-            entity.HasIndex(p => p.IsEnabled).HasDatabaseName("IX_ApplicationFilters_IsEnabled");
         });
     }
 

@@ -80,23 +80,6 @@ public static class TestDataBuilder
         };
 
     /// <summary>
-    /// Creates an ApplicationFilter entity with default or custom values.
-    /// </summary>
-    public static ApplicationFilter CreateApplicationFilter(Guid? id = null,
-        string name = "Test Filter",
-        string processName = "notepad.exe",
-        string? windowTitlePattern = null) =>
-        new()
-        {
-            Id = id ?? Guid.NewGuid(),
-            Name = name,
-            ProcessName = processName,
-            WindowTitlePattern = windowTitlePattern,
-            IsEnabled = true,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-    /// <summary>
     /// Creates a SearchQuery entity with default or custom values.
     /// </summary>
     public static SearchQuery CreateSearchQuery(Guid? id = null,

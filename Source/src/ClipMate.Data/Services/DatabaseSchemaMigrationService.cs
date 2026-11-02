@@ -52,7 +52,8 @@ public class DatabaseSchemaMigrationService
 
         try
         {
-            var options = new SchemaOptions();
+            // ApplicationFilters held the old per-application capture filter, replaced by Application Profiles
+            var options = new SchemaOptions { RetiredTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ApplicationFilters" } };
 
             // Read current schema from database
             var schemaReader = new SqliteSchemaReader(connection, options);
@@ -77,7 +78,7 @@ public class DatabaseSchemaMigrationService
                 _logger?.LogWarning("Schema validation warnings: {Warnings}", string.Join(", ", validationResult.Warnings));
 
             // Compare schemas
-            var comparer = new SqliteSchemaComparer();
+            var comparer = new SqliteSchemaComparer(options);
             var diff = comparer.Compare(currentSchema, expectedSchema);
 
             if (diff.HasChanges)
@@ -299,6 +300,7 @@ public class DatabaseSchemaMigrationService
                 MigrationOperationType.CreateTable => $"Create table '{operation.TableName}'",
                 MigrationOperationType.AddColumn => $"Add column '{operation.ColumnName}' to '{operation.TableName}'",
                 MigrationOperationType.CreateIndex => $"Create index '{operation.IndexName}'",
+                MigrationOperationType.DropTable => $"Drop table '{operation.TableName}'",
                 var _ => operation.Type.ToString(),
             };
         }

@@ -34,7 +34,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     private IClipRepository _clipRepository = null!;
     private IClipService _clipService = null!;
     private ClipboardCoordinator _coordinator = null!;
-    private IApplicationFilterService _filterService = null!;
     private ServiceProvider _serviceProvider = null!;
 
     public void Dispose()
@@ -52,7 +51,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         // Create real services using base DbContext
         var clipboardLogger = A.Fake<ILogger<ClipboardService>>();
-        var filterLogger = A.Fake<ILogger<ApplicationFilterService>>();
         var coordinatorLogger = A.Fake<ILogger<ClipboardCoordinator>>();
         var clipRepoLogger = A.Fake<ILogger<ClipRepository>>();
 
@@ -94,23 +92,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
             A.Fake<IMessenger>(),
             clipServiceLogger);
 
-        var filterRepository = new ApplicationFilterRepository(DbContext);
-        var mockFilterContextFactory = A.Fake<IDatabaseContextFactory>();
-        A.CallTo(() => mockFilterContextFactory.GetApplicationFilterRepository(A<string>.Ignored))
-            .Returns(filterRepository);
-
-        var mockFilterCollectionService = A.Fake<ICollectionService>();
-        A.CallTo(() => mockFilterCollectionService.GetActiveDatabaseKey()).Returns("test-db");
-        var filterSoundService = A.Fake<ISoundService>();
-        A.CallTo(() => filterSoundService.PlaySoundAsync(A<SoundEvent>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(Task.CompletedTask);
-
-        _filterService = new ApplicationFilterService(
-            mockFilterContextFactory,
-            mockFilterCollectionService,
-            filterSoundService,
-            filterLogger);
-
         var collectionRepository = new CollectionRepository(DbContext);
 
         var folderRepository = new FolderRepository(DbContext);
@@ -126,7 +107,6 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         services.AddTransient<ICollectionRepository>(_ => collectionRepository);
         services.AddSingleton<ICollectionService, CollectionService>();
         services.AddTransient<IFolderService>(_ => folderService);
-        services.AddTransient<IApplicationFilterService>(_ => _filterService);
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
         services.AddSingleton(contextFactory);
         services.AddSingleton<IAppendMode, AppendMode>();

@@ -48,7 +48,6 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
     private IServiceProvider CreateMockServiceProvider(IClipService? clipService = null,
         ICollectionService? collectionService = null,
         IFolderService? folderService = null,
-        IApplicationFilterService? filterService = null,
         IDatabaseManager? databaseManager = null,
         IDatabaseContextFactory? contextFactory = null,
         IClipAppendService? clipAppendService = null)
@@ -56,13 +55,11 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         var clipServiceProvided = clipService != null;
         var collectionServiceProvided = collectionService != null;
         var folderServiceProvided = folderService != null;
-        var filterServiceProvided = filterService != null;
         var databaseManagerProvided = databaseManager != null;
 
         clipService ??= A.Fake<IClipService>();
         collectionService ??= A.Fake<ICollectionService>();
         folderService ??= A.Fake<IFolderService>();
-        filterService ??= A.Fake<IApplicationFilterService>();
         databaseManager ??= A.Fake<IDatabaseManager>();
         contextFactory ??= A.Fake<IDatabaseContextFactory>();
         clipAppendService ??= A.Fake<IClipAppendService>();
@@ -102,12 +99,6 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
                 });
         }
 
-        if (!filterServiceProvided)
-        {
-            A.CallTo(() => filterService.ShouldFilterAsync(A<string?>.Ignored, A<string?>.Ignored, A<CancellationToken>.Ignored))
-                .Returns(false);
-        }
-
         if (!databaseManagerProvided)
         {
             // Setup DatabaseManager to return a mock DbContext
@@ -121,7 +112,6 @@ public partial class ClipboardCoordinatorTests : TestFixtureBase
         services.AddTransient(_ => clipService);
         services.AddTransient(_ => collectionService);
         services.AddTransient(_ => folderService);
-        services.AddTransient(_ => filterService);
         services.AddTransient(_ => databaseManager);
         services.AddTransient(_ => contextFactory);
         services.AddTransient(_ => clipAppendService);

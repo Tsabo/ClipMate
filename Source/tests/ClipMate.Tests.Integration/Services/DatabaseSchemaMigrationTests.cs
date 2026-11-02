@@ -71,7 +71,6 @@ public class DatabaseSchemaMigrationTests
         await Assert.That(tables).Contains("Users");
         await Assert.That(tables).Contains("Templates");
         await Assert.That(tables).Contains("SearchQueries");
-        await Assert.That(tables).Contains("ApplicationFilters");
         await Assert.That(tables).Contains("MonacoEditorState");
     }
 
@@ -167,6 +166,32 @@ public class DatabaseSchemaMigrationTests
     }
 
     [Test]
+    public async Task MigrateAsync_ApplicationFiltersTable_IsDropped_AndAnUnknownTableIsKept()
+    {
+        // Arrange: a Database from before Application Profiles replaced the old filter, plus a table ClipMate doesn't know
+        var migrationService = new DatabaseSchemaMigrationService();
+        await migrationService.MigrateAsync(_context!);
+        await using (var command = _connection!.CreateCommand())
+        {
+            command.CommandText = """
+                                  CREATE TABLE ApplicationFilters (Id TEXT PRIMARY KEY, ProcessName TEXT);
+                                  CREATE INDEX IX_ApplicationFilters_ProcessName ON ApplicationFilters (ProcessName);
+                                  CREATE TABLE SomethingElse (Id INTEGER PRIMARY KEY);
+                                  """;
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        // Act
+        await migrationService.MigrateAsync(_context!);
+
+        // Assert
+        var tables = await GetTableNamesAsync();
+        await Assert.That(tables).DoesNotContain("ApplicationFilters");
+        await Assert.That(tables).Contains("SomethingElse");
+    }
+
+    [Test]
     public async Task MigrateAsync_ExistingSchema_AllowsDataOperations()
     {
         // Arrange
@@ -188,28 +213,15 @@ public class DatabaseSchemaMigrationTests
         _context.Templates.Add(template);
         await _context.SaveChangesAsync();
 
-        var appFilter = new ApplicationFilter
-        {
-            ProcessName = "notepad.exe",
-            IsEnabled = true,
-        };
-
-        _context.ApplicationFilters.Add(appFilter);
-        await _context.SaveChangesAsync();
-
         // Assert - Verify data was saved and can be retrieved
         var savedCollection = await _context.Collections.FindAsync(collection.Id);
         var savedTemplate = await _context.Templates.FindAsync(template.Id);
-        var savedFilter = await _context.ApplicationFilters.FindAsync(appFilter.Id);
 
         await Assert.That(savedCollection).IsNotNull();
         await Assert.That(savedCollection!.Name).IsEqualTo("Integration Test");
 
         await Assert.That(savedTemplate).IsNotNull();
         await Assert.That(savedTemplate!.Content).IsEqualTo("Hello {NAME}");
-
-        await Assert.That(savedFilter).IsNotNull();
-        await Assert.That(savedFilter!.ProcessName).IsEqualTo("notepad.exe");
     }
 
     [Test]

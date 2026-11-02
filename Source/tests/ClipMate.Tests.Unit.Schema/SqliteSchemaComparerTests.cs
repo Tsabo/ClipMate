@@ -183,6 +183,33 @@ public class SqliteSchemaComparerTests
         // Assert
         await Assert.That(diff.Warnings).Count().IsGreaterThan(0);
         await Assert.That(diff.Warnings.Any(p => p.Contains("Users"))).IsTrue();
+        await Assert.That(diff.Operations).IsEmpty();
+    }
+
+    [Test]
+    public async Task Compare_RetiredTable_GeneratesDropTableOperation()
+    {
+        // Arrange
+        var comparer = new SqliteSchemaComparer(new SchemaOptions { RetiredTables = ["OldFilters"] });
+        var current = new SchemaDefinition
+        {
+            Tables = new Dictionary<string, TableDefinition>
+            {
+                ["OldFilters"] = new()
+                {
+                    Name = "OldFilters",
+                    Columns = [new ColumnDefinition { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 }],
+                },
+            },
+        };
+
+        // Act
+        var diff = comparer.Compare(current, new SchemaDefinition());
+
+        // Assert
+        await Assert.That(diff.Operations).Count().IsEqualTo(1);
+        await Assert.That(diff.Operations[0].Type).IsEqualTo(MigrationOperationType.DropTable);
+        await Assert.That(diff.Operations[0].Sql).IsEqualTo("DROP TABLE OldFilters");
     }
 
     [Test]
