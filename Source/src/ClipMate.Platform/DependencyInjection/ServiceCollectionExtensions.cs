@@ -91,10 +91,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClipboardDiagnosticsService, ClipboardDiagnosticsService>();
         services.AddSingleton<IPasteTraceService, PasteTraceService>();
 
-        // Register PowerPasteClipboardBridge as singleton first (so it can be injected), then
-        // as a hosted service so it starts listening for PowerPaste state changes at app startup
-        services.AddSingleton<PowerPasteClipboardBridge>();
-        services.AddHostedService(p => p.GetRequiredService<PowerPasteClipboardBridge>());
+        // Power Paste's delayed-rendering clipboard; hosted so it hands the waiting clip over when ClipMate closes
+        services.AddSingleton<PowerPasteClipboard>();
+        services.AddSingleton<IPowerPasteClipboard>(p => p.GetRequiredService<PowerPasteClipboard>());
+        services.AddHostedService(p => p.GetRequiredService<PowerPasteClipboard>());
 
         // Register UpdateCheckService with HttpClient
         services.AddTransient<IUpdateCheckService>(p =>

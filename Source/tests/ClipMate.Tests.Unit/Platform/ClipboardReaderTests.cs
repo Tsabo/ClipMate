@@ -1,10 +1,12 @@
 using Windows.Win32.Foundation;
 using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Unit.Services;
 
-namespace ClipMate.Tests.Unit.Services;
+namespace ClipMate.Tests.Unit.Platform;
 
-public partial class PowerPasteClipboardBridgeTests
+[Category("Unit")]
+public class ClipboardReaderTests
 {
     private const uint _ownProcessId = 100;
 

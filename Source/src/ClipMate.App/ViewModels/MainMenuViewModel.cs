@@ -37,7 +37,7 @@ public partial class MainMenuViewModel : ObservableObject,
     private readonly IMessenger _messenger;
     private readonly IPasteTarget _pasteTarget;
     private readonly IPasteTargetTracker _pasteTargetTracker;
-    private readonly IPowerPasteService _powerPasteService;
+    private readonly IPowerPaste _powerPaste;
     private readonly IQuickPasteService _quickPasteService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IUndoService _undoService;
@@ -73,7 +73,7 @@ public partial class MainMenuViewModel : ObservableObject,
         IClipViewerWindowManager clipViewerWindowManager,
         IClipboardService clipboardService,
         IAppendMode appendMode,
-        IPowerPasteService powerPasteService,
+        IPowerPaste powerPaste,
         IQuickPasteService quickPasteService,
         IPasteTarget pasteTarget,
         IPasteTargetTracker pasteTargetTracker,
@@ -86,7 +86,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _clipViewerWindowManager = clipViewerWindowManager ?? throw new ArgumentNullException(nameof(clipViewerWindowManager));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _appendMode = appendMode ?? throw new ArgumentNullException(nameof(appendMode));
-        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _powerPaste = powerPaste ?? throw new ArgumentNullException(nameof(powerPaste));
         _quickPasteService = quickPasteService ?? throw new ArgumentNullException(nameof(quickPasteService));
         _pasteTarget = pasteTarget ?? throw new ArgumentNullException(nameof(pasteTarget));
         _pasteTargetTracker = pasteTargetTracker ?? throw new ArgumentNullException(nameof(pasteTargetTracker));
@@ -95,7 +95,7 @@ public partial class MainMenuViewModel : ObservableObject,
         _collectionTreeViewModel = collectionTreeViewModel;
 
         // Subscribe to PowerPaste state changes to update icon
-        _powerPasteService.StateChanged += OnPowerPasteStateChanged;
+        _powerPaste.StateChanged += OnPowerPasteStateChanged;
 
         // Explode, Loop and the Outbound Filter can also be changed on the Options dialog
         _configurationService = _serviceProvider.GetRequiredService<IConfigurationService>();
@@ -202,7 +202,7 @@ public partial class MainMenuViewModel : ObservableObject,
     public void Dispose()
     {
         _messenger.UnregisterAll(this);
-        _powerPasteService.StateChanged -= OnPowerPasteStateChanged;
+        _powerPaste.StateChanged -= OnPowerPasteStateChanged;
         _configurationService.Saved -= OnConfigurationSaved;
     }
 

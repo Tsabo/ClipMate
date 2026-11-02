@@ -110,7 +110,7 @@ public class ExplorerWindowViewModelTests
             mockClipViewerWindowManager,
             A.Fake<IClipboardService>(),
             A.Fake<IAppendMode>(),
-            A.Fake<IPowerPasteService>(),
+            A.Fake<IPowerPaste>(),
             A.Fake<IQuickPasteService>(),
             A.Fake<IPasteTarget>(),
             A.Fake<IPasteTargetTracker>(),

@@ -65,7 +65,7 @@ public class ClipOperationsCoordinator :
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<ClipOperationsCoordinator> _logger;
     private readonly IMessenger _messenger;
-    private readonly IPowerPasteService _powerPasteService;
+    private readonly IPowerPaste _powerPaste;
     private readonly ISearchService _searchService;
     private readonly IServiceProvider _serviceProvider;
 
@@ -78,7 +78,7 @@ public class ClipOperationsCoordinator :
         IClipService clipService,
         ICollectionService collectionService,
         IConfigurationService configurationService,
-        IPowerPasteService powerPasteService,
+        IPowerPaste powerPaste,
         ISearchService searchService,
         IMessenger messenger,
         IDatabases databases,
@@ -91,7 +91,7 @@ public class ClipOperationsCoordinator :
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _collectionService = collectionService ?? throw new ArgumentNullException(nameof(collectionService));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-        _powerPasteService = powerPasteService ?? throw new ArgumentNullException(nameof(powerPasteService));
+        _powerPaste = powerPaste ?? throw new ArgumentNullException(nameof(powerPaste));
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
         _databases = databases ?? throw new ArgumentNullException(nameof(databases));
@@ -128,7 +128,7 @@ public class ClipOperationsCoordinator :
         _messenger.Register<MoveClipSortOrderRequestedEvent>(this);
 
         // The clip list shows the clip waiting to be pasted
-        _powerPasteService.PositionChanged += OnPowerPastePositionChanged;
+        _powerPaste.PositionChanged += OnPowerPastePositionChanged;
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
     }
@@ -182,10 +182,10 @@ public class ClipOperationsCoordinator :
     public async void Receive(ClipSelectedEvent message)
     {
         // Selections PowerPaste makes itself (following the sequence) are not the user's
-        if (_powerPasteService.State == PowerPasteState.Active
+        if (_powerPaste.State == PowerPasteState.Active
             && message is { IsUserSelection: true, SelectedClip: not null })
         {
-            if (_powerPasteService.MoveTo(message.SelectedClip.Id))
+            if (_powerPaste.MoveTo(message.SelectedClip.Id))
                 SendStatus("PowerPaste moved to the selected clip");
             else
             {
@@ -193,7 +193,7 @@ public class ClipOperationsCoordinator :
                     message.SelectedClip.Id);
 
                 // The picked clip is copied next, so the waiting clip is not put back
-                _powerPasteService.Stop(false);
+                _powerPaste.Stop(false);
                 SendStatus("PowerPaste stopped - different clip selected");
             }
         }
@@ -1154,32 +1154,35 @@ public class ClipOperationsCoordinator :
     public async void Receive(PowerPasteDownRequestedEvent message) => await StartPowerPasteAsync(PowerPasteDirection.Down);
 
     /// <summary>
-    /// Handles PowerPasteToggleRequestedEvent to toggle PowerPaste state.
-    /// Cycles through: Off → Down → Up → Off
+    /// Handles PowerPasteToggleRequestedEvent: off starts going down, down starts again going up, and up stops.
     /// </summary>
     public async void Receive(PowerPasteToggleRequestedEvent message)
     {
-        if (_powerPasteService.State != PowerPasteState.Active)
+        var wasActive = _powerPaste.State == PowerPasteState.Active;
+        var clipCount = 0;
+
+        try
         {
-            // Off → Down
-            await StartPowerPasteAsync(PowerPasteDirection.Down);
+            await _powerPaste.ToggleAsync(async () =>
+            {
+                var clips = await LoadSelectionForPowerPasteAsync();
+                clipCount = clips.Count;
+
+                return clips;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to toggle PowerPaste");
+            SendStatus("Error starting PowerPaste", true);
 
             return;
         }
 
-        if (_powerPasteService.Direction == PowerPasteDirection.Down)
-        {
-            // Down → Up: restarting replaces the sequence without giving up the clipboard
-            _logger.LogInformation("PowerPaste direction changed from Down to Up");
-            await StartPowerPasteAsync(PowerPasteDirection.Up);
-
-            return;
-        }
-
-        // Up → Off
-        _logger.LogInformation("PowerPaste stopped via toggle");
-        _powerPasteService.Stop();
-        SendStatus("PowerPaste stopped");
+        if (clipCount > 0)
+            SendStatus($"PowerPaste {_powerPaste.Direction} started with {clipCount} clip(s)");
+        else if (wasActive && _powerPaste.State != PowerPasteState.Active)
+            SendStatus("PowerPaste stopped");
     }
 
     /// <summary>
@@ -1192,20 +1195,13 @@ public class ClipOperationsCoordinator :
     /// </summary>
     private async Task StartPowerPasteAsync(PowerPasteDirection direction)
     {
-        var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
-
-        if (selectedClips.Count == 0)
-        {
-            SendStatus("No clips selected for PowerPaste");
-            return;
-        }
-
         try
         {
-            var preferences = _configurationService.Configuration.Preferences;
-            await HydrateClipsForPowerPasteAsync(selectedClips);
-            await _powerPasteService.StartAsync(selectedClips, direction, preferences.PowerPasteExplode);
-            preferences.PowerPasteLastDirection = direction.ToString();
+            var selectedClips = await LoadSelectionForPowerPasteAsync();
+            if (selectedClips.Count == 0)
+                return;
+
+            await _powerPaste.StartAsync(selectedClips, direction);
             SendStatus($"PowerPaste {direction} started with {selectedClips.Count} clip(s)");
         }
         catch (Exception ex)
@@ -1420,18 +1416,26 @@ public class ClipOperationsCoordinator :
     }
 
     /// <summary>
-    /// Loads full blob content (TextContent, ImageData, etc.) for clips selected for PowerPaste.
-    /// Clips from the grid only carry metadata until hydrated - PowerPaste needs full content to
-    /// decide how to arm each clip for paste detection.
+    /// The selected clips in on-screen order, with their content loaded: clips from the grid only carry metadata until
+    /// loaded, and Power Paste offers every Format of each one. Says so when nothing is selected.
     /// </summary>
-    private async Task HydrateClipsForPowerPasteAsync(IReadOnlyList<Clip> clips)
+    private async Task<IReadOnlyList<Clip>> LoadSelectionForPowerPasteAsync()
     {
-        var databaseKey = GetDatabaseKeyForSelectedNode();
-        if (string.IsNullOrEmpty(databaseKey))
-            return;
+        var clips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
+        if (clips.Count == 0)
+        {
+            SendStatus("No clips selected for PowerPaste");
+            return clips;
+        }
 
-        foreach (var clip in clips)
-            await _clipService.LoadBlobDataAsync(databaseKey, clip);
+        var databaseKey = GetDatabaseKeyForSelectedNode();
+        if (!string.IsNullOrEmpty(databaseKey))
+        {
+            foreach (var clip in clips)
+                await _clipService.LoadBlobDataAsync(databaseKey, clip);
+        }
+
+        return clips;
     }
 
     /// <summary>

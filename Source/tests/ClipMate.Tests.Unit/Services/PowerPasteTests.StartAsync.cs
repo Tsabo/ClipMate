@@ -2,7 +2,7 @@ using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public partial class PowerPasteServiceTests
+public partial class PowerPasteTests
 {
     [Test]
     [Category("StartAsync")]
@@ -137,7 +137,8 @@ public partial class PowerPasteServiceTests
         var clip = CreateTestClip("Line1\nLine2\nLine3");
 
         // Act
-        await service.StartAsync([clip], PowerPasteDirection.Down, true);
+        UseExplode();
+        await service.StartAsync([clip], PowerPasteDirection.Down);
 
         // Assert
         await Assert.That(service.TotalCount).IsEqualTo(3);
