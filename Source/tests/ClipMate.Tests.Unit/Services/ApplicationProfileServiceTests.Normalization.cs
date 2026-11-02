@@ -1,3 +1,6 @@
+using ClipMate.Core.Models;
+using FakeItEasy;
+
 namespace ClipMate.Tests.Unit.Services;
 
 /// <summary>
@@ -7,6 +10,21 @@ namespace ClipMate.Tests.Unit.Services;
 [Category("Normalization")]
 public class ApplicationProfileServiceNormalizationTests : ApplicationProfileServiceTestsBase
 {
+    [Test]
+    public async Task UpdateProfileAsync_SavesUnderTheNormalizedName()
+    {
+        // Arrange: the name as a caller might give it; every lookup uses the normalized one
+        var profile = new ApplicationProfile { ApplicationName = " notepad.exe " };
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>._, A<CancellationToken>._)).Returns(Task.CompletedTask);
+
+        // Act
+        await Service.UpdateProfileAsync(profile);
+
+        // Assert
+        A.CallTo(() => MockStore.AddOrUpdateProfileAsync(A<ApplicationProfile>.That.Matches(p => p.ApplicationName == "NOTEPAD"),
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
     [Test]
     public async Task NormalizeApplicationName_RemovesExeExtension()
     {

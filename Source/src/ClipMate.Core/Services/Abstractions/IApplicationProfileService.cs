@@ -9,15 +9,13 @@ namespace ClipMate.Core.Services.Abstractions;
 public interface IApplicationProfileService
 {
     /// <summary>
-    /// Gets whether application profiles feature is currently enabled.
-    /// This is a session-only setting controlled from the Options dialog.
+    /// Gets whether Application Profiles are on: the saved ApplicationProfilesEnabled setting.
     /// </summary>
     /// <returns>True if application profiles are enabled, false otherwise.</returns>
     bool IsApplicationProfilesEnabled();
 
     /// <summary>
-    /// Sets whether application profiles feature is enabled for the current session.
-    /// This setting is not persisted and resets to false on application restart.
+    /// Turns Application Profiles on or off in the settings; saving the configuration keeps it.
     /// </summary>
     /// <param name="enabled">True to enable application profiles, false to disable.</param>
     void SetApplicationProfilesEnabled(bool enabled);

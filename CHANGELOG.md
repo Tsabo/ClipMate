@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **Application Profiles Switch Forgotten** - Turning Application Profiles off in Options lasted only until ClipMate restarted. It's now saved. Its checkbox, labeled "Disable…" while checking it turned profiles on, now reads **Use Application Profiles**.
+- **Application Profiles Lost to a Damaged File** - If the Application Profiles file couldn't be read, the next profile learned replaced every profile in it. The damaged file is now kept beside the new one, renamed `.unreadable-<date>`.
 - **QuickPaste Now Pasted an Empty Clip** - The QuickPaste Now command could paste the selected clip before its content was loaded. It now loads the clip from its Database first, including the text of a macro.
 - **Searching a Peer's Database Did Nothing** - The search dialog closed as soon as **Go!** was pressed, and closing it canceled the search, so a Peer never had time to answer. The dialog now stays open until the search finishes. **Help** no longer closes it either.
 - **Search Searched the Last Database Selected** - The toolbar's **Search** always searched whichever Database was last selected in the collection tree. **Search in** now shows what will be searched and lets you change it.

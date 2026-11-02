@@ -29,6 +29,26 @@ public class ApplicationProfileServiceEnabledStateTests : ApplicationProfileServ
     }
 
     [Test]
+    public async Task SetApplicationProfilesEnabled_IsKeptInTheSavedSettings()
+    {
+        // Act: the Options checkbox, saved with the rest of the configuration
+        Service.SetApplicationProfilesEnabled(false);
+
+        // Assert
+        await Assert.That(Configuration.Preferences.ApplicationProfilesEnabled).IsFalse();
+    }
+
+    [Test]
+    public async Task IsApplicationProfilesEnabled_ReadsTheSavedSetting()
+    {
+        // Arrange: switched off in an earlier session
+        Configuration.Preferences.ApplicationProfilesEnabled = false;
+
+        // Act & Assert
+        await Assert.That(Service.IsApplicationProfilesEnabled()).IsFalse();
+    }
+
+    [Test]
     public async Task SetApplicationProfilesEnabled_CanToggle()
     {
         // Act & Assert

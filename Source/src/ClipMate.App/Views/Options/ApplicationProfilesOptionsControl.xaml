@@ -17,9 +17,9 @@
 
             <!-- Enable Application Profiles -->
             <dxlc:LayoutItem>
-                <dxe:CheckEdit Content="Disable application-specific format filtering (for troubleshooting only)"
+                <dxe:CheckEdit Content="Use Application Profiles (uncheck to capture every format, for troubleshooting)"
                                IsChecked="{Binding EnableApplicationProfiles}"
-                               ToolTip="Uncheck to temporarily disable format filtering by application. Enabled by default. This setting is not saved between sessions." />
+                               ToolTip="Uncheck to capture every format from every application. On by default." />
             </dxlc:LayoutItem>
 
             <!-- Information Text -->

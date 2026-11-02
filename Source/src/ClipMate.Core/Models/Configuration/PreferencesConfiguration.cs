@@ -173,6 +173,11 @@ public class PreferencesConfiguration
     public bool PayAttentionToClipboardIgnoreFlag { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether Application Profiles decide which Formats are captured. When off, every Format is captured.
+    /// </summary>
+    public bool ApplicationProfilesEnabled { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets whether cached database writes are enabled.
     /// For performance, database updates are cached. Disable only if experiencing data loss from crashes.
     /// </summary>
