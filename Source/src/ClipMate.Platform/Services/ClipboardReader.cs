@@ -1,0 +1,44 @@
+using Windows.Win32.Foundation;
+using ClipMate.Platform.Interop;
+
+namespace ClipMate.Platform.Services;
+
+/// <summary>
+/// Who is reading the clipboard during a WM_RENDERFORMAT: the process of the window holding it open, and the process
+/// in the foreground. Process ID 0 means no window.
+/// </summary>
+internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint ForegroundProcessId, string ForegroundProcessName)
+{
+    /// <summary>
+    /// The reader as seen now, while the clipboard is open to <paramref name="openClipboardWindow" />.
+    /// </summary>
+    public static ClipboardReader Current(IWin32InputInterop win32, HWND openClipboardWindow)
+    {
+        var processId = GetProcessId(win32, openClipboardWindow);
+        var foregroundProcessId = GetProcessId(win32, win32.GetForegroundWindow());
+
+        return new ClipboardReader(processId, GetProcessName(win32, processId), foregroundProcessId, GetProcessName(win32, foregroundProcessId));
+    }
+
+    /// <summary>
+    /// A read is a paste when the window holding the clipboard open belongs to the application in the foreground, and
+    /// that application is not ClipMate. A read by a window-less caller never is.
+    /// </summary>
+    public bool IsPaste(uint ownProcessId) =>
+        ProcessId != 0 && ProcessId == ForegroundProcessId && ProcessId != ownProcessId;
+
+    private static uint GetProcessId(IWin32InputInterop win32, HWND window)
+    {
+        if (window.IsNull)
+            return 0;
+
+        win32.GetWindowThreadProcessId(window, out var processId);
+
+        return processId;
+    }
+
+    private static string GetProcessName(IWin32InputInterop win32, uint processId) =>
+        processId == 0
+            ? "(no window)"
+            : win32.GetProcessName(processId) ?? "(unknown)";
+}

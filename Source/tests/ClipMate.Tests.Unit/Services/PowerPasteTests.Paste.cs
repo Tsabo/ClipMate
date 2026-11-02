@@ -5,11 +5,11 @@ using FakeItEasy;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public partial class PowerPasteServiceTests
+public partial class PowerPasteTests
 {
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_WithDirectionDown_IncrementsPosition()
+    [Category("Paste")]
+    public async Task Paste_WithDirectionDown_IncrementsPosition()
     {
         // Arrange
         var service = CreateService();
@@ -17,15 +17,15 @@ public partial class PowerPasteServiceTests
         await service.StartAsync(clips, PowerPasteDirection.Down);
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(service.CurrentPosition).IsEqualTo(1);
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_WithDirectionUp_DecrementsPosition()
+    [Category("Paste")]
+    public async Task Paste_WithDirectionUp_DecrementsPosition()
     {
         // Arrange
         var service = CreateService();
@@ -33,21 +33,21 @@ public partial class PowerPasteServiceTests
         await service.StartAsync(clips, PowerPasteDirection.Up);
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(service.CurrentPosition).IsEqualTo(1);
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_WhenInactive_DoesNothing()
+    [Category("Paste")]
+    public async Task Paste_WhenInactive_DoesNothing()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
@@ -55,17 +55,17 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_AtEndWithoutLoop_StopsService()
+    [Category("Paste")]
+    public async Task Paste_AtEndWithoutLoop_StopsService()
     {
         // Arrange
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second") };
         await service.StartAsync(clips, PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync(); // Position 1
+        await PasteAsync(); // Position 1
 
         // Act
-        await service.AdvanceToNextAsync(); // Position 2 (beyond end)
+        await PasteAsync(); // Position 2 (beyond end)
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
@@ -73,8 +73,8 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_AtEndWithLoop_RestartsFromBeginning()
+    [Category("Paste")]
+    public async Task Paste_AtEndWithLoop_RestartsFromBeginning()
     {
         // Arrange
         var config = new ClipMateConfiguration
@@ -87,10 +87,10 @@ public partial class PowerPasteServiceTests
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second") };
         await service.StartAsync(clips, PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync(); // Position 1
+        await PasteAsync(); // Position 1
 
         // Act
-        await service.AdvanceToNextAsync(); // Should loop to position 0
+        await PasteAsync(); // Should loop to position 0
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
@@ -98,17 +98,17 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_AtBeginningWithUpDirectionWithoutLoop_StopsService()
+    [Category("Paste")]
+    public async Task Paste_AtBeginningWithUpDirectionWithoutLoop_StopsService()
     {
         // Arrange
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second") };
         await service.StartAsync(clips, PowerPasteDirection.Up);
-        await service.AdvanceToNextAsync(); // Position 0
+        await PasteAsync(); // Position 0
 
         // Act
-        await service.AdvanceToNextAsync(); // Position -1 (before beginning)
+        await PasteAsync(); // Position -1 (before beginning)
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
@@ -116,8 +116,8 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_AtBeginningWithUpDirectionWithLoop_RestartsFromEnd()
+    [Category("Paste")]
+    public async Task Paste_AtBeginningWithUpDirectionWithLoop_RestartsFromEnd()
     {
         // Arrange
         var config = new ClipMateConfiguration
@@ -130,11 +130,11 @@ public partial class PowerPasteServiceTests
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third") };
         await service.StartAsync(clips, PowerPasteDirection.Up);
-        await service.AdvanceToNextAsync(); // Position 1
-        await service.AdvanceToNextAsync(); // Position 0
+        await PasteAsync(); // Position 1
+        await PasteAsync(); // Position 0
 
         // Act
-        await service.AdvanceToNextAsync(); // Should loop to position 2
+        await PasteAsync(); // Should loop to position 2
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
@@ -142,8 +142,8 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("AdvanceToNextAsync")]
-    public async Task AdvanceToNextAsync_FiresPositionChangedEvent()
+    [Category("Paste")]
+    public async Task Paste_FiresPositionChangedEvent()
     {
         // Arrange
         var service = CreateService();
@@ -154,7 +154,7 @@ public partial class PowerPasteServiceTests
         service.PositionChanged += (_, e) => eventArgs = e;
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(eventArgs).IsNotNull();

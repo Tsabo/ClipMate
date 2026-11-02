@@ -10,7 +10,7 @@ namespace ClipMate.Tests.Unit.Services;
 /// The sequence rules agreed with ClipMate 7: when "complete" sounds, Loop, a single clip, Explode pieces and moving
 /// the sequence to a clip.
 /// </summary>
-public partial class PowerPasteServiceTests
+public partial class PowerPasteTests
 {
     [Test]
     [Category("CompleteSound")]
@@ -34,7 +34,7 @@ public partial class PowerPasteServiceTests
         // Arrange
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Act
         service.Stop();
@@ -45,7 +45,7 @@ public partial class PowerPasteServiceTests
 
     [Test]
     [Category("CompleteSound")]
-    public async Task AdvanceToNextAsync_WhenLooping_PlaysCompleteSoundTwice250MillisecondsApart()
+    public async Task Paste_WhenLooping_PlaysCompleteSoundTwice250MillisecondsApart()
     {
         // Arrange
         UseConfiguration(new PreferencesConfiguration { PowerPasteLoop = true });
@@ -62,10 +62,10 @@ public partial class PowerPasteServiceTests
 
         var service = CreateService(clock);
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Act
-        await service.AdvanceToNextAsync(); // starts over
+        await PasteAsync(); // starts over
 
         // Assert
         await Assert.That(beeps).IsEqualTo(1);
@@ -80,7 +80,7 @@ public partial class PowerPasteServiceTests
 
     [Test]
     [Category("SingleClip")]
-    public async Task AdvanceToNextAsync_SingleClipWithoutExplodeAndLoopOn_StopsAfterOnePaste()
+    public async Task Paste_SingleClipWithoutExplodeAndLoopOn_StopsAfterOnePaste()
     {
         // Arrange
         UseConfiguration(new PreferencesConfiguration { PowerPasteLoop = true });
@@ -88,7 +88,7 @@ public partial class PowerPasteServiceTests
         await service.StartAsync([CreateTestClip("Only")], PowerPasteDirection.Down);
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
@@ -97,20 +97,21 @@ public partial class PowerPasteServiceTests
 
     [Test]
     [Category("SingleClip")]
-    public async Task AdvanceToNextAsync_SingleExplodedClipWithLoopOn_StartsOver()
+    public async Task Paste_SingleExplodedClipWithLoopOn_StartsOver()
     {
         // Arrange
         UseConfiguration(new PreferencesConfiguration { PowerPasteLoop = true, PowerPasteDelimiter = ",", PowerPasteTrim = true });
         var service = CreateService();
-        await service.StartAsync([CreateTestClip("a,b")], PowerPasteDirection.Down, true);
-        await service.AdvanceToNextAsync();
+        UseExplode();
+        await service.StartAsync([CreateTestClip("a,b")], PowerPasteDirection.Down);
+        await PasteAsync();
 
         // Act
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
-        await Assert.That(service.GetCurrentClip()?.TextContent).IsEqualTo("a");
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("a");
     }
 
     [Test]
@@ -124,7 +125,8 @@ public partial class PowerPasteServiceTests
         service.PositionChanged += (_, e) => position = e;
 
         // Act
-        await service.StartAsync([CreateTestClip("a,b")], PowerPasteDirection.Down, true);
+        UseExplode();
+        await service.StartAsync([CreateTestClip("a,b")], PowerPasteDirection.Down);
 
         // Assert
         await Assert.That(position?.IsExplodePiece).IsTrue();
@@ -145,43 +147,6 @@ public partial class PowerPasteServiceTests
 
         // Assert
         await Assert.That(position?.IsExplodePiece).IsFalse();
-    }
-
-    [Test]
-    [Category("Stop")]
-    [Arguments(true)]
-    [Arguments(false)]
-    public async Task Stop_TellsWhetherToKeepTheWaitingClip(bool keepWaitingClip)
-    {
-        // Arrange - a stop by picking another clip, or by a copy elsewhere, must not put the waiting clip back
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        PowerPasteStateChangedEventArgs? stopped = null;
-        service.StateChanged += (_, e) => stopped = e;
-
-        // Act
-        service.Stop(keepWaitingClip);
-
-        // Assert
-        await Assert.That(stopped?.KeepWaitingClip).IsEqualTo(keepWaitingClip);
-    }
-
-    [Test]
-    [Category("Stop")]
-    public async Task AdvanceToNextAsync_AtTheEnd_KeepsTheLastClip()
-    {
-        // Arrange
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync();
-        PowerPasteStateChangedEventArgs? stopped = null;
-        service.StateChanged += (_, e) => stopped = e;
-
-        // Act
-        await service.AdvanceToNextAsync();
-
-        // Assert
-        await Assert.That(stopped?.KeepWaitingClip).IsTrue();
     }
 
     [Test]
@@ -258,16 +223,17 @@ public partial class PowerPasteServiceTests
         UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
         var target = CreateTestClip("c,d");
         var down = CreateService();
-        await down.StartAsync([CreateTestClip("a,b"), target], PowerPasteDirection.Down, true);
+        UseExplode();
+        await down.StartAsync([CreateTestClip("a,b"), target], PowerPasteDirection.Down);
         var up = CreateService();
-        await up.StartAsync([target, CreateTestClip("a,b")], PowerPasteDirection.Up, true);
+        UseExplode();
+        await up.StartAsync([target, CreateTestClip("a,b")], PowerPasteDirection.Up);
 
-        // Act
+        // Act & Assert - both share the fake writer, so each is read straight after its move
         down.MoveTo(target.Id);
-        up.MoveTo(target.Id);
+        await Assert.That(WaitingClip(down)?.TextContent).IsEqualTo("c");
 
-        // Assert
-        await Assert.That(down.GetCurrentClip()?.TextContent).IsEqualTo("c");
-        await Assert.That(up.GetCurrentClip()?.TextContent).IsEqualTo("d");
+        up.MoveTo(target.Id);
+        await Assert.That(WaitingClip(up)?.TextContent).IsEqualTo("d");
     }
 }

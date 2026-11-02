@@ -1,7 +1,7 @@
 namespace ClipMate.Core.Services;
 
 /// <summary>
-/// Whether Power Paste is running, for code that only needs to know that. <see cref="IPowerPasteService" /> keeps it
+/// Whether Power Paste is running, for code that only needs to know that. <see cref="IPowerPaste" /> keeps it
 /// up to date.
 /// </summary>
 public sealed class PowerPasteStatus

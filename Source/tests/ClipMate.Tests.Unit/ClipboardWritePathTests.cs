@@ -16,7 +16,7 @@ public class ClipboardWritePathTests
 
         // Raw writes: the port's implementation, Power Paste's delayed rendering (offered through the writer's prepare
         // step), the Paste Trace diagnostic, and plain text that isn't a clip (selected text, diagnostics)
-        ("SetClipboardData(", ["PowerPasteClipboardBridge.cs", "PasteTraceService.cs", "OwnClipboardCopy.cs"]),
+        ("SetClipboardData(", ["PowerPasteClipboard.cs", "PasteTraceService.cs", "OwnClipboardCopy.cs"]),
         ("SetClipboardDataObject(", ["ClipboardService.cs", "IWin32ClipboardInterop.cs", "Win32ClipboardInterop.cs"]),
         ("Clipboard.SetDataObject(", ["Win32ClipboardInterop.cs", "OwnClipboardCopy.cs"]),
     ];

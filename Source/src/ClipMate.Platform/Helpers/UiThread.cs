@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using Application = System.Windows.Application;
 
 namespace ClipMate.Platform.Helpers;
@@ -20,6 +21,23 @@ public static class UiThread
             action();
         else
             dispatcher.BeginInvoke(action);
+    }
+
+    /// <summary>
+    /// Queues the action on the UI thread at background priority, even when called there, so it runs after the message
+    /// being handled and after work already queued; runs it now when there is no application, as in unit tests. For
+    /// work that must not run inside the message that triggered it, such as opening the clipboard from a clipboard
+    /// message.
+    /// </summary>
+    public static void Queue(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            action();
+        else
+            dispatcher.BeginInvoke(DispatcherPriority.Background, action);
     }
 
     /// <summary>

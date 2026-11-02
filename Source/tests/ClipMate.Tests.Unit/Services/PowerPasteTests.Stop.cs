@@ -2,7 +2,7 @@ using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
-public partial class PowerPasteServiceTests
+public partial class PowerPasteTests
 {
     [Test]
     [Category("Stop")]
@@ -59,8 +59,8 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("GetCurrentClip")]
-    public async Task GetCurrentClip_WhenActive_ReturnsClipAtPosition()
+    [Category("WaitingClip")]
+    public async Task WaitingClip_WhenActive_ReturnsClipAtPosition()
     {
         // Arrange
         var service = CreateService();
@@ -68,7 +68,7 @@ public partial class PowerPasteServiceTests
         await service.StartAsync(clips, PowerPasteDirection.Down);
 
         // Act
-        var current = service.GetCurrentClip();
+        var current = WaitingClip(service);
 
         // Assert
         await Assert.That(current).IsNotNull();
@@ -76,31 +76,31 @@ public partial class PowerPasteServiceTests
     }
 
     [Test]
-    [Category("GetCurrentClip")]
-    public async Task GetCurrentClip_WhenInactive_ReturnsNull()
+    [Category("WaitingClip")]
+    public async Task WaitingClip_WhenInactive_ReturnsNull()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        var current = service.GetCurrentClip();
+        var current = WaitingClip(service);
 
         // Assert
         await Assert.That(current).IsNull();
     }
 
     [Test]
-    [Category("GetCurrentClip")]
-    public async Task GetCurrentClip_AfterAdvancing_ReturnsNextClip()
+    [Category("WaitingClip")]
+    public async Task WaitingClip_AfterAdvancing_ReturnsNextClip()
     {
         // Arrange
         var service = CreateService();
         var clips = new[] { CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third") };
         await service.StartAsync(clips, PowerPasteDirection.Down);
-        await service.AdvanceToNextAsync();
+        await PasteAsync();
 
         // Act
-        var current = service.GetCurrentClip();
+        var current = WaitingClip(service);
 
         // Assert
         await Assert.That(current).IsNotNull();
