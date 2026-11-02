@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -69,6 +70,7 @@ public class ClipServiceExtendedTests : TestFixtureBase
 
     private ClipService CreateService() => new(
         _mockDatabaseContextFactory,
+        new ClipStore(_mockDatabaseContextFactory, NullLogger<ClipStore>.Instance),
         A.Fake<IConfigurationService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),

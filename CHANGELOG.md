@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **New Clips and Imports Silently Reused Old Clips** - New Clip, saving from the Markdown viewer and XML import returned an existing clip, even one in the Trash or another collection, whenever its content matched, instead of creating one. They now always create. Only a capture is checked for Duplicates, against the newest clip in its collection.
+- **Capture Special Rejected as a Duplicate** - A Capture Special could be ignored as a Duplicate. As in ClipMate 7, it never is now.
+- **Importing the Same XML File Twice** - Clips already in the Database are now skipped, and the import says how many.
 - **Application Profiles Switch Forgotten** - Turning Application Profiles off in Options lasted only until ClipMate restarted. It's now saved. Its checkbox, labeled "Disable…" while checking it turned profiles on, now reads **Use Application Profiles**.
 - **Application Profiles Lost to a Damaged File** - If the Application Profiles file couldn't be read, the next profile learned replaced every profile in it. The damaged file is now kept beside the new one, renamed `.unreadable-<date>`.
 - **QuickPaste Now Pasted an Empty Clip** - The QuickPaste Now command could paste the selected clip before its content was loaded. It now loads the clip from its Database first, including the text of a macro.

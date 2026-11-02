@@ -6,6 +6,7 @@ using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform;
+using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Interop;
 using ClipMate.Platform.Services;
 using ClipMate.Tests.Integration.Fakes;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Windows.Win32.Foundation;
 using CoreApplicationProfile = ClipMate.Core.Models.ApplicationProfile;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -84,6 +86,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
 
         _clipService = new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
@@ -156,46 +159,13 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
         var autoAppendService = _serviceProvider.GetRequiredService<IAutoAppendService>();
         _coordinator = new ClipboardCoordinator(_clipboardService, configService, A.Fake<ICurrentClipWriter>(),
-            contextFactory, autoAppendService, _serviceProvider, messenger, coordinatorLogger);
+            contextFactory, new ClipStore(contextFactory, NullLogger<ClipStore>.Instance), autoAppendService,
+            _serviceProvider, messenger, coordinatorLogger);
     }
 
     // Note: ClipboardCapture_ShouldSaveToDatabase test removed
     // Requires access to internal channel writer which is not exposed.
     // The full pipeline is tested end-to-end via ClipboardCoordinator tests below.
-
-    [Test]
-    public async Task ClipboardCapture_DuplicateContent_ShouldNotCreateNewRecord()
-    {
-        // Arrange
-        var clip1 = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Duplicate content",
-            ContentHash = "duplicate-hash",
-            CapturedAt = DateTime.UtcNow,
-        };
-
-        await _clipService.CreateAsync(_testDatabaseKey, clip1);
-
-        // Act - Try to create duplicate
-        var clip2 = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Duplicate content",
-            ContentHash = "duplicate-hash", // Same hash
-            CapturedAt = DateTime.UtcNow.AddSeconds(1),
-        };
-
-        var result = await _clipService.CreateAsync(_testDatabaseKey, clip2);
-
-        // Assert
-        await Assert.That(result.Id).IsEqualTo(clip1.Id);
-
-        var allClips = await _clipRepository.GetRecentAsync(100);
-        await Assert.That(allClips.Count(p => p.ContentHash == "duplicate-hash")).IsEqualTo(1);
-    }
 
     [Test]
     public async Task ClipboardCoordinator_Start_ShouldEnableMonitoring()
@@ -224,48 +194,19 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
     }
 
     [Test]
-    public async Task ClipService_CreateAsync_ShouldDetectDuplicates()
+    public async Task ClipService_CreateAsync_SameContentTwice_CreatesTwoClips()
     {
-        // Arrange
-        var clip1 = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Same content",
-            ContentHash = "same-hash",
-            CapturedAt = DateTime.UtcNow,
-        };
+        // Arrange: New Clip and import always create; only capture checks for Duplicates (the clip store)
+        var clip1 = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Same content", CapturedAt = DateTime.UtcNow };
+        var clip2 = new Clip { Id = Guid.NewGuid(), Type = ClipType.Text, TextContent = "Same content", CapturedAt = DateTime.UtcNow.AddSeconds(5) };
 
         // Act
         var saved1 = await _clipService.CreateAsync(_testDatabaseKey, clip1);
-
-        var clip2 = new Clip
-        {
-            Id = Guid.NewGuid(),
-            Type = ClipType.Text,
-            TextContent = "Same content",
-            ContentHash = "same-hash",
-            CapturedAt = DateTime.UtcNow.AddSeconds(5),
-        };
-
         var saved2 = await _clipService.CreateAsync(_testDatabaseKey, clip2);
 
         // Assert
-        await Assert.That(saved1.Id).IsEqualTo(saved2.Id);
-
-        var recentClips = await _clipRepository.GetRecentAsync(100);
-        await Assert.That(recentClips.Count(p => p.ContentHash == "same-hash")).IsEqualTo(1);
-    }
-
-    [After(Test)]
-    public async Task CleanupTestAsync()
-    {
-        await _coordinator.StopAsync(CancellationToken.None);
-        if (_clipboardService is IDisposable disposable)
-            disposable.Dispose();
-
-        await _serviceProvider.DisposeAsync();
-        await CleanupAsync();
+        await Assert.That(saved2.Id).IsNotEqualTo(saved1.Id);
+        await Assert.That(saved2.ContentHash).IsEqualTo(ContentHasher.HashText("Same content"));
     }
 
     #region Application Profiles Integration Tests
@@ -424,7 +365,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         // Assert - Verify clip was saved
         var retrievedClip = await _clipRepository.GetByIdAsync(savedClip.Id);
         await Assert.That(retrievedClip).IsNotNull();
-        await Assert.That(retrievedClip!.ContentHash).IsEqualTo("hash_integration_123");
+        await Assert.That(retrievedClip!.ContentHash).IsEqualTo(ContentHasher.HashText("Integration test content"));
         await Assert.That(retrievedClip.SourceApplicationName).IsEqualTo("TestApp");
     }
 
@@ -469,9 +410,9 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         // Assert - Verify all clips were saved
         var savedClips = await _clipRepository.GetRecentAsync(10);
         await Assert.That(savedClips.Count).IsEqualTo(3);
-        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash1");
-        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash2");
-        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains("hash3");
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains(ContentHasher.HashText("Clip 1"));
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains(ContentHasher.HashText("Clip 2"));
+        await Assert.That(savedClips.Select(c => c.ContentHash)).Contains(ContentHasher.HashText("Clip 3"));
     }
 
     #endregion

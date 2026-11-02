@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ClipMate.Core.Models;
@@ -97,4 +98,15 @@ public static class ContentHasher
             var _ => HashText(string.Join("\n", formats.Select(p => $"{p.Name}:{p.Hash}"))),
         };
     }
+
+    /// <summary>
+    /// The clip's checksum (ClipMate 7's CHECKSUM column), from its content hash: the same in every run, unlike
+    /// <see cref="string.GetHashCode()" />.
+    /// </summary>
+    /// <param name="contentHash">The content hash, a hex string.</param>
+    /// <returns>The first four bytes of the hash as a number, or 0 for a clip with no content.</returns>
+    public static int Checksum(string? contentHash) =>
+        contentHash is { Length: >= 8 } && int.TryParse(contentHash.AsSpan(0, 8), NumberStyles.HexNumber, null, out var value)
+            ? value
+            : 0;
 }

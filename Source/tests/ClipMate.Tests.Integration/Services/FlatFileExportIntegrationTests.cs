@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -432,6 +433,7 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
@@ -462,6 +464,7 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),

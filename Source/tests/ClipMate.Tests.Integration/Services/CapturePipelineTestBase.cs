@@ -72,6 +72,7 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         A.CallTo(() => contextFactory.GetClipRepository(_databaseKey)).Returns(ClipRepository);
         A.CallTo(() => contextFactory.GetClipDataRepository(_databaseKey)).Returns(new ClipDataRepository(DbContext));
         A.CallTo(() => contextFactory.GetBlobRepository(_databaseKey)).Returns(new BlobRepository(DbContext));
+        A.CallTo(() => contextFactory.GetCollectionRepository(_databaseKey)).Returns(new CollectionRepository(DbContext));
 
         var collectionService = A.Fake<ICollectionService>();
         A.CallTo(() => collectionService.GetActiveDatabaseKey()).Returns(_databaseKey);
@@ -117,7 +118,8 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         _messenger.Register<ClipAddedEvent>(this, (_, message) => _addedClipIds.Add(message.Clip.Id));
 
         _coordinator = new ClipboardCoordinator(_clipboardService, configurationService, CurrentClipWriter,
-            contextFactory, AutoAppendService, _serviceProvider, _messenger, A.Fake<ILogger<ClipboardCoordinator>>());
+            contextFactory, new ClipStore(contextFactory, A.Fake<ILogger<ClipStore>>()), AutoAppendService,
+            _serviceProvider, _messenger, A.Fake<ILogger<ClipboardCoordinator>>());
 
         await _coordinator.StartAsync(CancellationToken.None);
     }
@@ -144,6 +146,18 @@ public abstract class CapturePipelineTestBase : IntegrationTestBase
         var ignoredBefore = Volatile.Read(ref _ignoreSounds);
         await _channel.Writer.WriteAsync(clip);
         await WaitAsync(done ?? (() => _addedClipIds.Contains(clip.Id) || Volatile.Read(ref _ignoreSounds) > ignoredBefore));
+    }
+
+    /// <summary>
+    /// Captures <paramref name="clip" /> with Capture Special, and waits until it is saved or rejected.
+    /// </summary>
+    protected async Task CaptureSpecialAsync(Clip clip)
+    {
+        var ignoredBefore = Volatile.Read(ref _ignoreSounds);
+        var reading = new ClipboardReading([], null, null);
+        A.CallTo(() => _clipboardService.CaptureSpecialAsync(reading, A<IReadOnlyCollection<string>>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
+        _messenger.Send(new CaptureSpecialRequestedEvent(reading, ["CF_TEXT"]));
+        await WaitAsync(() => _addedClipIds.Contains(clip.Id) || Volatile.Read(ref _ignoreSounds) > ignoredBefore);
     }
 
     /// <summary>

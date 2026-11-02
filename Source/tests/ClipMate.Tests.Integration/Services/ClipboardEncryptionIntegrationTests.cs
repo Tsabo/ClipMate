@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 using TUnit.Core.Executors;
 
 namespace ClipMate.Tests.Integration.Services;
@@ -225,6 +226,7 @@ public class ClipboardEncryptionIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             encryptionService,
             decryptedBlobCacheService,

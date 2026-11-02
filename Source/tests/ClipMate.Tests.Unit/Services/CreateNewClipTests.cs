@@ -6,6 +6,7 @@ using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -34,6 +35,7 @@ public class CreateNewClipTests : TestFixtureBase
 
     private ClipService CreateService() => new(
         _mockContextFactory,
+        new ClipStore(_mockContextFactory, NullLogger<ClipStore>.Instance),
         A.Fake<IConfigurationService>(),
         A.Fake<IEncryptionService>(),
         A.Fake<IDecryptedBlobCacheService>(),
@@ -64,10 +66,6 @@ public class CreateNewClipTests : TestFixtureBase
             CapturedAt = newClip.CapturedAt,
             Type = ClipType.Text,
         };
-
-        // Mock duplicate check (no existing clip)
-        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns((Clip?)null);
 
         A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
             .Returns(createdClip);
@@ -108,10 +106,6 @@ public class CreateNewClipTests : TestFixtureBase
             Type = ClipType.Text,
         };
 
-        // Mock duplicate check (no existing clip)
-        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns((Clip?)null);
-
         A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
             .Returns(createdClip);
 
@@ -150,10 +144,6 @@ public class CreateNewClipTests : TestFixtureBase
             CapturedAt = newClip.CapturedAt,
             Type = ClipType.Text,
         };
-
-        // Mock duplicate check (no existing clip)
-        A.CallTo(() => _mockClipRepository.GetByContentHashAsync(A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns((Clip?)null);
 
         A.CallTo(() => _mockClipRepository.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
             .Returns(createdClip);

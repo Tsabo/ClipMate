@@ -101,15 +101,6 @@ public interface IClipService
     Task<int> DeleteOlderThanAsync(string databaseKey, DateTime olderThan, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if a clip with the same content hash already exists in the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="contentHash">The content hash to check.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if duplicate exists; otherwise, false.</returns>
-    Task<bool> IsDuplicateAsync(string databaseKey, string contentHash, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets the clipboard format data for a clip from the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

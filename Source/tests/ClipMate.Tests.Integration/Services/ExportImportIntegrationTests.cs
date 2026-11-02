@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Integration.Services;
 
@@ -473,6 +474,8 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         // Act 2 - Export the encrypted clip to XML
         var exportService = CreateExportImportService();
         var xmlPath = CreateTempFilePath(".xml");
+        // Its content is loaded first, as the Export dialog does
+        await clipService.LoadBlobDataAsync(_testDatabaseKey, encryptedClip!);
         await exportService.ExportToXmlAsync([encryptedClip], [], xmlPath);
 
         // Verify XML contains encrypted data
@@ -494,6 +497,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         // Save imported clip to database
         var importClipService = CreateClipServiceWithRealEncryptionAndContext(importContext);
+        importedClip.Id = Guid.NewGuid(); // the original is still in this Database
         var reimportedClip = await importClipService.CreateAsync(_testDatabaseKey, importedClip);
         await importContext.SaveChangesAsync();
 
@@ -563,6 +567,8 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         // Act 2 - Export, import, decrypt cycle
         var exportService = CreateExportImportService();
         var xmlPath = CreateTempFilePath(".xml");
+        // Its content is loaded first, as the Export dialog does
+        await clipService.LoadBlobDataAsync(_testDatabaseKey, encryptedClip!);
         await exportService.ExportToXmlAsync([encryptedClip], [], xmlPath);
 
         var importData = await exportService.ImportFromXmlAsync(xmlPath);
@@ -575,6 +581,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
                 .Options);
 
         var importClipService = CreateClipServiceWithRealEncryptionAndContext(importContext);
+        importedClip.Id = Guid.NewGuid(); // the original is still in this Database
         var reimportedClip = await importClipService.CreateAsync(_testDatabaseKey, importedClip);
         await importContext.SaveChangesAsync();
 
@@ -619,6 +626,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             A.Fake<IEncryptionService>(),
             A.Fake<IDecryptedBlobCacheService>(),
@@ -659,6 +667,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             encryptionService,
             decryptedBlobCacheService,
@@ -699,6 +708,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
             encryptionService,
             decryptedBlobCacheService,
@@ -729,10 +739,13 @@ public class ExportImportIntegrationTests : IntegrationTestBase
 
         return new ClipService(
             contextFactory,
+            new ClipStore(contextFactory, NullLogger<ClipStore>.Instance),
             A.Fake<IConfigurationService>(),
-            A.Fake<IEncryptionService>(), A.Fake<IDecryptedBlobCacheService>(),
+            A.Fake<IEncryptionService>(),
+            A.Fake<IDecryptedBlobCacheService>(),
             new RepositoryDatabases(contextFactory),
-            A.Fake<IMessenger>(), serviceLogger);
+            A.Fake<IMessenger>(),
+            serviceLogger);
     }
 
     private IExportImportService CreateExportImportService()

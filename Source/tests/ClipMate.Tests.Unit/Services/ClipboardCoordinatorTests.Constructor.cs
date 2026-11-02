@@ -3,6 +3,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -24,7 +25,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act & Assert
         await Assert.That(() => new ClipboardCoordinator(null!, configurationService, A.Fake<ICurrentClipWriter>(),
-            contextFactory, autoAppendService, serviceProvider, messenger, logger))
+            contextFactory, new ClipStore(contextFactory, NullLogger<ClipStore>.Instance), autoAppendService,
+            serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -41,7 +43,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act & Assert
         await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, null!, messenger, logger))
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, null!, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -58,7 +61,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act & Assert
         await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, null!, serviceProvider, messenger, logger))
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), null!, serviceProvider, messenger, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -75,7 +79,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act & Assert
         await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, null!, logger))
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, null!, logger))
             .Throws<ArgumentNullException>();
     }
 
@@ -92,7 +97,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act & Assert
         await Assert.That(() => new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, null!))
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -110,7 +116,8 @@ public partial class ClipboardCoordinatorTests
 
         // Act
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, logger);
 
         // Assert
         await Assert.That(coordinator).IsNotNull();

@@ -183,22 +183,33 @@ public partial class XmlImportViewModel : ObservableObject
             ProcessingLog += $"Saving {importData.Clips.Count} clip(s) to database...\n";
 
             var savedCount = 0;
+            var skippedCount = 0;
             foreach (var item in importData.Clips)
             {
                 _cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
-                // Set the collection ID if a target was selected
-                if (SelectedCollectionId != Guid.Empty)
-                    item.CollectionId = SelectedCollectionId;
+                // A clip already in this Database (the same file imported again) is skipped, as the ClipMate 7 import does
+                if (await _clipService.GetByIdAsync(databaseKey, item.Id) != null)
+                    skippedCount++;
+                else
+                {
+                    // Set the collection ID if a target was selected
+                    if (SelectedCollectionId != Guid.Empty)
+                        item.CollectionId = SelectedCollectionId;
 
-                await _clipService.CreateAsync(databaseKey, item);
-                savedCount++;
-                ProgressValue = savedCount;
+                    await _clipService.CreateAsync(databaseKey, item);
+                    savedCount++;
+                }
+
+                ProgressValue = savedCount + skippedCount;
 
                 // Update progress every 10 clips or on last clip
-                if (savedCount % 10 == 0 || savedCount == importData.Clips.Count)
+                if (ProgressValue % 10 == 0 || ProgressValue == importData.Clips.Count)
                     ProcessingLog += $"Saved {savedCount} of {importData.Clips.Count} clip(s)...\n";
             }
+
+            if (skippedCount > 0)
+                ProcessingLog += $"Skipped {skippedCount} clip(s) already in this database.\n";
 
             // Update last import date and save directory
             _configurationService.Configuration.Export.DateLastImport = DateTime.Now;

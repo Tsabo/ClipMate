@@ -3,6 +3,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -23,7 +24,8 @@ public partial class ClipboardCoordinatorTests
         var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, logger);
 
         // Act
         await coordinator.StartAsync(CancellationToken.None);

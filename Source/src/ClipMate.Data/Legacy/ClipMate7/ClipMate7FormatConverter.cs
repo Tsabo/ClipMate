@@ -73,7 +73,7 @@ internal static class ClipMate7FormatConverter
 
         clip.Type = DetermineType(clip);
         clip.ContentHash = ContentHasher.HashClip(clip);
-        clip.Checksum = clip.ContentHash.GetHashCode();
+        clip.Checksum = ContentHasher.Checksum(clip.ContentHash);
 
         return unsupported;
     }

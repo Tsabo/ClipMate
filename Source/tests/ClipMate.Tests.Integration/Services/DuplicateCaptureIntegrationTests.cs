@@ -109,6 +109,18 @@ public class DuplicateCaptureIntegrationTests : CapturePipelineTestBase
     }
 
     [Test]
+    public async Task ACaptureSpecial_IsNeverRejectedAsADuplicate()
+    {
+        // As in ClipMate 7, which skips the Duplicate check for Capture Special
+        await CaptureAsync(TextClip(_link));
+
+        var again = TextClip(_link);
+        await CaptureSpecialAsync(again);
+
+        await Assert.That(await IsSavedAsync(again)).IsTrue();
+    }
+
+    [Test]
     public async Task AManualCapture_IsNeverRejectedAsADuplicate()
     {
         await CaptureAsync(TextClip(_link));

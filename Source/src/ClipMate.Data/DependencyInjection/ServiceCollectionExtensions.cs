@@ -38,6 +38,7 @@ public static class ServiceCollectionExtensions
         // Stateless services that coordinate repository operations - registered as Transient
         // They get scoped contexts via repository factories, so no need to be Singleton
         services.AddTransient<IClipService, ClipService>();
+        services.AddTransient<IClipStore, ClipStore>();
 
         // Every Database, local or remote, behind one interface (the Remote Databases come from IRemoteDatabaseService)
         services.AddSingleton<IDatabases, Databases>();

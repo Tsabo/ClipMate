@@ -5,6 +5,7 @@ using ClipMate.Data;
 using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ClipMate.Tests.Unit.Services;
 
@@ -41,7 +42,8 @@ public partial class ClipboardCoordinatorTests
         var messenger = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messenger, logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messenger, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -83,7 +85,8 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -135,7 +138,8 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendService, serviceProvider, messengerMock, logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendService, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -168,7 +172,6 @@ public partial class ClipboardCoordinatorTests
         };
 
         var clipRepositoryMock = A.Fake<IClipRepository>();
-        A.CallTo(() => clipRepositoryMock.GetByContentHashAsync(clip.ContentHash, A<CancellationToken>.Ignored)).Returns((Clip?)null);
         A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
 
         var contextFactory = A.Fake<IDatabaseContextFactory>();
@@ -185,8 +188,8 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
-            logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -255,8 +258,8 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
-            logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
@@ -296,7 +299,6 @@ public partial class ClipboardCoordinatorTests
         };
 
         var clipRepositoryMock = A.Fake<IClipRepository>();
-        A.CallTo(() => clipRepositoryMock.GetByContentHashAsync(clip.ContentHash, A<CancellationToken>.Ignored)).Returns((Clip?)null);
         A.CallTo(() => clipRepositoryMock.CreateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).Returns(clip);
 
         var contextFactory = A.Fake<IDatabaseContextFactory>();
@@ -315,8 +317,8 @@ public partial class ClipboardCoordinatorTests
         var messengerMock = A.Fake<IMessenger>();
         var logger = CreateLogger<ClipboardCoordinator>();
         var coordinator = new ClipboardCoordinator(clipboardService, configurationService,
-            A.Fake<ICurrentClipWriter>(), contextFactory, autoAppendServiceMock, serviceProvider, messengerMock,
-            logger);
+            A.Fake<ICurrentClipWriter>(), contextFactory, new ClipStore(contextFactory,
+            NullLogger<ClipStore>.Instance), autoAppendServiceMock, serviceProvider, messengerMock, logger);
 
         await coordinator.StartAsync(CancellationToken.None);
         await Task.Delay(100);
