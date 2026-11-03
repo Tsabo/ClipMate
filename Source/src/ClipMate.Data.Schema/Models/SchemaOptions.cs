@@ -14,6 +14,12 @@ public class SchemaOptions
     /// </summary>
     public HashSet<string> RetiredTables { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Indexes that are no longer in the model and are dropped when found. Any other index missing from the model is
+    /// left alone.
+    /// </summary>
+    public HashSet<string> RetiredIndexes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public bool ValidateBeforeMigration { get; set; } = true;
     public bool EnableCaching { get; set; } = true;
 }

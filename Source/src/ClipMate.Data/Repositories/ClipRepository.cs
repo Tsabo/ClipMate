@@ -67,12 +67,20 @@ public class ClipRepository : IClipRepository
     }
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(NewestFirst(_context.Clips.Where(p => p.CollectionId == collectionId && !p.Del)), offset, count, cancellationToken);
+    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // Compared with a parameter: SQLite seeks the (CollectionId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
+        var deleted = false;
+        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.CollectionId == collectionId && p.Del == deleted)), offset, count, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(NewestFirst(_context.Clips.Where(p => p.FolderId == folderId && !p.Del)), offset, count, cancellationToken);
+    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // Compared with a parameter: SQLite seeks the (FolderId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
+        var deleted = false;
+        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.FolderId == folderId && p.Del == deleted)), offset, count, cancellationToken);
+    }
 
     /// <inheritdoc />
     public Task<ClipPage> GetPageWithFoldersAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
@@ -87,8 +95,11 @@ public class ClipRepository : IClipRepository
             Select Id as Value from Folders
             """);
 
-        // One condition, so a clip filed in a folder of the collection is listed once
-        return GetPageAsync(NewestFirst(_context.Clips.Where(p => !p.Del &&
+        // One condition, so a clip filed in a folder of the collection is listed once. Del is compared with a
+        // parameter: SQLite seeks the (CollectionId, Del, SortKey) and (FolderId, Del, SortKey) indexes on "Del = ?",
+        // but not on "NOT Del"
+        var deleted = false;
+        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.Del == deleted &&
                 (p.CollectionId == collectionId || (p.FolderId != null && folderIds.Contains(p.FolderId.Value))))),
             offset, count, cancellationToken);
     }
