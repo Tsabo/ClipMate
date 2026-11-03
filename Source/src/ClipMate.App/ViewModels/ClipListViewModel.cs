@@ -455,10 +455,15 @@ public partial class ClipListViewModel : ObservableObject,
 
             AcceptsNewClips = await AcceptsNewClipsAsync(database, scope, token);
             var offset = 0;
+            var total = 0;
             while (true)
             {
                 var page = await database.GetClipPageAsync(scope, offset, PageSize, token);
                 token.ThrowIfCancellationRequested();
+
+                // Only the first page counts the whole list
+                if (offset == 0)
+                    total = page.TotalCount;
 
                 foreach (var item in page.Clips)
                     Clips.Add(item);
@@ -476,7 +481,7 @@ public partial class ClipListViewModel : ObservableObject,
                 if (!page.HasMore)
                     break;
 
-                RemoteStatusMessage = $"Loading clips… {offset:N0} of {page.TotalCount:N0}";
+                RemoteStatusMessage = $"Loading clips… {offset:N0} of {total:N0}";
             }
 
             if (reselectClipId != null)

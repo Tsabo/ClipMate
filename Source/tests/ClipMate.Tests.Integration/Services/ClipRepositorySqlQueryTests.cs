@@ -93,7 +93,7 @@ public class ClipRepositorySqlQueryTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task ExecuteSqlPageAsync_StoredCollectionSql_ReturnsOnlyThatPageNewestFirstWithTheTotal()
+    public async Task ExecuteSqlPageAsync_StoredCollectionSqlFirstPage_ReturnsOnlyThatPageNewestFirstWithTheTotal()
     {
         // Arrange: written like the default SQL-based collections, with its own ORDER BY, a join and a trailing semicolon
         await AddClipsAsync(7);
@@ -106,17 +106,17 @@ public class ClipRepositorySqlQueryTests : IntegrationTestBase
                            """;
 
         // Act
-        var page = await repository.ExecuteSqlPageAsync(sql, 2, 3);
+        var page = await repository.ExecuteSqlPageAsync(sql, 0, 3);
 
         // Assert
-        await Assert.That(page.Offset).IsEqualTo(2);
+        await Assert.That(page.Offset).IsEqualTo(0);
         await Assert.That(page.TotalCount).IsEqualTo(7);
-        await Assert.That(string.Join(", ", page.Clips.Select(p => p.Title))).IsEqualTo("clip 5, clip 4, clip 3");
+        await Assert.That(string.Join(", ", page.Clips.Select(p => p.Title))).IsEqualTo("clip 7, clip 6, clip 5");
         await Assert.That(_probeCalls).IsEqualTo(7);
     }
 
     [Test]
-    public async Task ExecuteSqlPageAsync_OffsetPastTheLastClip_ReturnsAnEmptyPageWithTheTotal()
+    public async Task ExecuteSqlPageAsync_OffsetPastTheLastClip_ReturnsAnEmptyPageWithNoMore()
     {
         // Arrange
         await AddClipsAsync(3);
@@ -127,7 +127,7 @@ public class ClipRepositorySqlQueryTests : IntegrationTestBase
 
         // Assert
         await Assert.That(page.Clips).IsEmpty();
-        await Assert.That(page.TotalCount).IsEqualTo(3);
+        await Assert.That(page.HasMore).IsFalse();
     }
 
     [Test]

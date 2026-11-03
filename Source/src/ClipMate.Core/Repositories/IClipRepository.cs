@@ -43,14 +43,6 @@ public interface IClipRepository
     Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves clips for a specific folder.
-    /// </summary>
-    /// <param name="folderId">The folder's unique identifier.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of clips in the folder.</returns>
-    Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Retrieves one page of the clips of a collection, in the same order as <see cref="GetByCollectionAsync" />,
     /// with format flags but no content.
     /// </summary>
@@ -61,8 +53,8 @@ public interface IClipRepository
     Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves one page of the clips of a folder, in the same order as <see cref="GetByFolderAsync" />,
-    /// with format flags but no content.
+    /// Retrieves one page of the clips of a folder, newest first (SortKey descending, then ID), with format flags but no
+    /// content.
     /// </summary>
     /// <param name="folderId">The folder's unique identifier.</param>
     /// <param name="offset">How many clips to skip.</param>
@@ -71,18 +63,30 @@ public interface IClipRepository
     Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves one page of the clips of a collection and of its folders at any depth, each clip once, newest first
+    /// (SortKey descending, then ID), with format flags but no content.
+    /// </summary>
+    /// <param name="collectionId">The collection's unique identifier.</param>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetPageWithFoldersAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves one page of the deleted clips (the Trash), most recently deleted first; deleted clips with no deletion
+    /// date follow, newest first (SortKey descending), then by ID. With format flags but no content.
+    /// </summary>
+    /// <param name="offset">How many clips to skip.</param>
+    /// <param name="count">The most clips to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ClipPage> GetDeletedPageAsync(int offset, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves favorite clips.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of favorite clips.</returns>
     Task<IReadOnlyList<Clip>> GetFavoritesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Retrieves deleted clips (where Del=true) for the Trashcan virtual collection.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of deleted clips.</returns>
-    Task<IReadOnlyList<Clip>> GetDeletedAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Searches clips by text content.

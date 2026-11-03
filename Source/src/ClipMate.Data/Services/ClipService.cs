@@ -73,13 +73,6 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Clip>> GetByFolderAsync(string databaseKey, Guid folderId, CancellationToken cancellationToken = default)
-    {
-        var repository = GetRepository(databaseKey);
-        return await repository.GetByFolderAsync(folderId, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public async Task<IReadOnlyList<Clip>> GetFavoritesAsync(string databaseKey, CancellationToken cancellationToken = default)
     {
         var repository = GetRepository(databaseKey);

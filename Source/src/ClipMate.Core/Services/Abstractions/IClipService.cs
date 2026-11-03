@@ -42,15 +42,6 @@ public interface IClipService
     Task<IReadOnlyList<Clip>> GetByCollectionAsync(string databaseKey, Guid collectionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets clips in a folder from the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="folderId">The folder ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of clips in the folder.</returns>
-    Task<IReadOnlyList<Clip>> GetByFolderAsync(string databaseKey, Guid folderId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets favorite clips from the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

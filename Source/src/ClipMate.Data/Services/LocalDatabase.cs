@@ -68,10 +68,10 @@ internal sealed class LocalDatabase : IDatabase
                 return await clips.GetPageByFolderAsync(folder.FolderId, offset, count, cancellationToken);
 
             case ClipListScope.Trash:
-                return Page(await clips.GetDeletedAsync(cancellationToken), offset, count);
+                return await clips.GetDeletedPageAsync(offset, count, cancellationToken);
 
             case ClipListScope.Collection { IncludeFolders: true } collection:
-                return Page(await GetWithFoldersAsync(clips, collection.CollectionId, cancellationToken), offset, count);
+                return await clips.GetPageWithFoldersAsync(collection.CollectionId, offset, count, cancellationToken);
 
             case ClipListScope.Collection collection:
                 // Smart and SQL-based collections run their own stored SQL, only for the page asked for
@@ -111,25 +111,6 @@ internal sealed class LocalDatabase : IDatabase
         ThrowIfUnavailable();
         return _searchService.SearchDatabaseAsync(Key, filters, maxResults, cancellationToken);
     }
-
-    /// <summary>
-    /// The clips of a collection and of all its folders, at any depth.
-    /// </summary>
-    private async Task<List<Clip>> GetWithFoldersAsync(IClipRepository clips, Guid collectionId, CancellationToken cancellationToken)
-    {
-        var result = new List<Clip>(await clips.GetByCollectionAsync(collectionId, cancellationToken));
-        foreach (var item in await _databaseContextFactory.GetFolderRepository(Key).GetByCollectionAsync(collectionId, cancellationToken))
-            result.AddRange(await clips.GetByFolderAsync(item.Id, cancellationToken));
-
-        // A clip filed in a folder of the collection is in both lists
-        return result.Where(p => !p.Del).DistinctBy(p => p.Id).ToList();
-    }
-
-    /// <summary>
-    /// Pages a list that is already in display order.
-    /// </summary>
-    private static ClipPage Page(IReadOnlyList<Clip> clips, int offset, int count) =>
-        new(clips.Skip(offset).Take(count).ToList(), offset, clips.Count);
 
     private void ThrowIfUnavailable()
     {
