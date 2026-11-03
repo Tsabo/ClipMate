@@ -4,6 +4,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Core.ValueObjects;
 using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
@@ -146,17 +147,151 @@ public class ClipListViewModelTests
         var viewModel = CreateViewModel();
 
         // Act
-        viewModel.Receive(new CollectionNodeSelectedEvent(first, null, "db_local"));
-        viewModel.Receive(new CollectionNodeSelectedEvent(second, null, "db_local"));
+        var showingFirst = viewModel.ShowCollectionNodeAsync(new CollectionNodeSelectedEvent(first, null, "db_local"));
+        var showingSecond = viewModel.ShowCollectionNodeAsync(new CollectionNodeSelectedEvent(second, null, "db_local"));
         firstActivation.SetResult();
-        await WaitUntilAsync(() => viewModel.Clips.Count == 1 && !viewModel.IsLoading);
-        await Task.Delay(50);
+        await Task.WhenAll(showingFirst, showingSecond);
 
         // Assert: the later node is both shown and made active last, so it is the capture target
         await Assert.That(Titles(viewModel)).IsEqualTo("In the second");
         await Assert.That(viewModel.CurrentCollectionId).IsEqualTo(second);
         await Assert.That(_local.PageRequests.Any(p => p.Scope == new ClipListScope.Collection(first))).IsFalse();
         await Assert.That(active).IsEqualTo(second);
+    }
+
+    [Test]
+    public async Task ShowCollectionNodeAsync_RemoteDatabaseNodeSelectedWhileTheCollectionIsBeingMadeActive_KeepsTheRemoteView()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var remoteCollectionId = Guid.NewGuid();
+        _local.WithClips(new ClipListScope.Collection(collectionId), Clip("Local"));
+        _remote.WithClips(new ClipListScope.Collection(remoteCollectionId), Clip("Remote"));
+        var activation = new TaskCompletionSource();
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(collectionId, "db_local", A<CancellationToken>._)).Returns(activation.Task);
+        var viewModel = CreateViewModel();
+
+        // Act
+        var showingCollection = viewModel.ShowCollectionNodeAsync(new CollectionNodeSelectedEvent(collectionId, null, "db_local"));
+        await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(remoteCollectionId));
+        activation.SetResult();
+        await showingCollection;
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Remote");
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteKey);
+        await Assert.That(_local.PageRequests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ShowCollectionNodeAsync_SearchResultsSelectedWhileTheCollectionIsBeingMadeActive_KeepsTheSearchResults()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var found = Clip("Found");
+        _local.WithClips(new ClipListScope.Collection(collectionId), Clip("In the collection"));
+        A.CallTo(() => _mockClipService.GetByIdAsync("db_local", found.Id, A<CancellationToken>._)).Returns(found);
+        var activation = new TaskCompletionSource();
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(collectionId, "db_local", A<CancellationToken>._)).Returns(activation.Task);
+        var viewModel = CreateViewModel();
+
+        // Act
+        var showingCollection = viewModel.ShowCollectionNodeAsync(new CollectionNodeSelectedEvent(collectionId, null, "db_local"));
+        await viewModel.LoadClipsByIdsAsync([found.Id], "db_local");
+        activation.SetResult();
+        await showingCollection;
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Found");
+        await Assert.That(viewModel.ShowsSearchResults).IsTrue();
+        await Assert.That(_local.PageRequests).IsEmpty();
+    }
+
+    [Test]
+    public async Task ShowCollectionNodeAsync_RemoteSearchResultsSelectedWhileTheCollectionIsBeingMadeActive_KeepsTheSearchResults()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        _local.WithClips(new ClipListScope.Collection(collectionId), Clip("In the collection"));
+        var activation = new TaskCompletionSource();
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(collectionId, "db_local", A<CancellationToken>._)).Returns(activation.Task);
+        var viewModel = CreateViewModel();
+
+        // Act
+        var showingCollection = viewModel.ShowCollectionNodeAsync(new CollectionNodeSelectedEvent(collectionId, null, "db_local"));
+        viewModel.Receive(new RemoteSearchResultsSelectedEvent(_laptopClips, new RemoteSearchResult("report", [Clip("Found on the Peer")], 1)));
+        activation.SetResult();
+        await showingCollection;
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Found on the Peer");
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteKey);
+        await Assert.That(_local.PageRequests).IsEmpty();
+    }
+
+    [Test]
+    public async Task LoadAsync_LoadedClipDeletedMidLoad_StillShowsEveryRemainingClip()
+    {
+        // Arrange
+        var scope = new ClipListScope.Collection(Guid.NewGuid());
+        var clips = Enumerable.Range(0, 2_201).Select(p => Clip($"Clip {p}")).ToArray();
+        _local.WithClips(scope, clips);
+        var secondPage = new TaskCompletionSource();
+        _local.PageReady = offset => offset != 0 ? secondPage.Task : Task.CompletedTask;
+        var viewModel = CreateViewModel();
+        var load = viewModel.LoadAsync("db_local", scope);
+        await WaitUntilAsync(() => _local.PageRequests.Count == 2);
+
+        // Act: two clips of the first page are deleted while the second page is on its way, moving every later clip up
+        var deleted = new[] { clips[3], clips[150] };
+        var remaining = clips.Except(deleted).ToArray();
+        _local.WithClips(scope, remaining);
+        viewModel.Receive(new ClipsDeletedEvent(deleted.Select(p => p.Id).ToList()));
+        secondPage.SetResult();
+        await load;
+
+        // Assert
+        await Assert.That(viewModel.Clips.Select(p => p.Id)).IsEquivalentTo(remaining.Select(p => p.Id), CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task RefreshAsync_WhileShowingSearchResults_ShowsThemAgainWithoutClipsNoLongerThere()
+    {
+        // Arrange
+        var first = Clip("First");
+        var deleted = Clip("Deleted");
+        var last = Clip("Last");
+        foreach (var item in new[] { first, deleted, last })
+            A.CallTo(() => _mockClipService.GetByIdAsync("db_local", item.Id, A<CancellationToken>._)).Returns(item);
+
+        var viewModel = CreateViewModel();
+        await viewModel.LoadClipsByIdsAsync([first.Id, deleted.Id, last.Id], "db_local");
+        A.CallTo(() => _mockClipService.GetByIdAsync("db_local", deleted.Id, A<CancellationToken>._)).Returns((Clip?)null);
+
+        // Act: a clip of the results was re-encrypted (say), and another was deleted meanwhile
+        await viewModel.RefreshAsync();
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("First, Last");
+        await Assert.That(viewModel.ShowsSearchResults).IsTrue();
+        await Assert.That(viewModel.AcceptsNewClips).IsFalse();
+    }
+
+    [Test]
+    public async Task RefreshAsync_WhileShowingRemoteSearchResults_ShowsThemAgain()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        viewModel.Receive(new RemoteSearchResultsSelectedEvent(_laptopClips, new RemoteSearchResult("report", [Clip("Found on the Peer")], 1)));
+        await WaitUntilAsync(() => !viewModel.IsLoading);
+
+        // Act
+        await viewModel.RefreshAsync();
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Found on the Peer");
+        await Assert.That(viewModel.ShowsSearchResults).IsTrue();
+        await Assert.That(viewModel.CurrentDatabaseKey).IsEqualTo(RemoteKey);
     }
 
     [Test]

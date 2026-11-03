@@ -50,9 +50,22 @@ public partial class ClipListViewModel : ObservableObject,
     private ClipListScope? _currentScope;
     private CancellationTokenSource? _loadCts;
 
-    // The activation of the collection node selected last, and how many collection nodes have been selected
+    // The activation of the collection node selected last
     private Task _activation = Task.CompletedTask;
-    private int _nodeSelection;
+
+    // Counts the views the user has picked (a collection, folder or Trash, a Remote Database node, search results): a
+    // collection still being made active when a later view is picked is not shown, so it can't replace that view
+    private int _viewSelectionGeneration;
+
+    // Where the load in progress reads its next page: the clips its pages added, less those deleted since (a deletion
+    // moves every later clip up one). Reading a clip twice is harmless, since clips shown are skipped; skipping one is not
+    private int _loadOffset;
+    private readonly HashSet<Guid> _pagedClipIds = [];
+
+    // The search results shown, so a refresh shows them again: local ones are read again by ID, Remote ones are kept
+    // as the Peer returned them
+    private IReadOnlyList<Guid>? _shownSearchClipIds;
+    private RemoteSearchResultsSelectedEvent? _shownRemoteSearch;
 
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
@@ -305,7 +318,7 @@ public partial class ClipListViewModel : ObservableObject,
     /// </summary>
     public void Receive(ClipsDeletedEvent message)
     {
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             foreach (var item in message.DeletedClipIds)
             {
@@ -314,6 +327,10 @@ public partial class ClipListViewModel : ObservableObject,
                     continue;
 
                 Clips.Remove(clipToRemove);
+
+                // A clip a page of the load in progress added: the clips not loaded yet each moved up one
+                if (_pagedClipIds.Remove(item))
+                    _loadOffset--;
 
                 // If the deleted clip was selected, clear selection
                 if (SelectedClip?.Id == item)
@@ -356,6 +373,7 @@ public partial class ClipListViewModel : ObservableObject,
             else
             {
                 // The Remote Database node itself lists no clips
+                SupersedeViewSelection();
                 CancelLoad();
                 BeginView(databaseKey, null, null);
             }
@@ -376,12 +394,19 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("RemoteSearchResultsSelectedEvent received: RemoteDatabase={RemoteDatabase}, Count={Count}, TotalMatches={TotalMatches}",
             message.Address, message.Result.Clips.Count, message.Result.TotalMatches);
 
+        SupersedeViewSelection();
+        await ShowRemoteSearchResultsAsync(message);
+    }
+
+    private async Task ShowRemoteSearchResultsAsync(RemoteSearchResultsSelectedEvent message)
+    {
         using var load = new CancellationTokenSource();
         try
         {
             CancelLoad();
             var database = BeginView(RemoteDatabaseKey.From(message.Address), null, null);
             ShowsSearchResults = true;
+            _shownRemoteSearch = message;
             _loadCts = load;
             foreach (var item in message.Result.Clips)
                 Clips.Add(item);
@@ -411,8 +436,17 @@ public partial class ClipListViewModel : ObservableObject,
     /// is offline or too slow) ends the load with <see cref="RemoteStatusMessage" /> set, never a hang. Must be called on
     /// the UI thread.
     /// </summary>
-    public Task LoadAsync(string databaseKey, ClipListScope scope, CancellationToken cancellationToken = default) =>
-        LoadAsync(databaseKey, scope, null, cancellationToken);
+    public Task LoadAsync(string databaseKey, ClipListScope scope, CancellationToken cancellationToken = default)
+    {
+        SupersedeViewSelection();
+        return LoadAsync(databaseKey, scope, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Records that the user picked another view, so a collection still being made active is not shown over it.
+    /// </summary>
+    /// <returns>The generation of the view picked.</returns>
+    private int SupersedeViewSelection() => ++_viewSelectionGeneration;
 
     /// <summary>
     /// Re-fetches the open Remote Database view when its Peer reports that the collection or folder it shows changed
@@ -463,20 +497,30 @@ public partial class ClipListViewModel : ObservableObject,
                 return;
 
             AcceptsNewClips = await AcceptsNewClipsAsync(database, scope, token);
-            var offset = 0;
+            _loadOffset = 0;
+            _pagedClipIds.Clear();
+            var firstPage = true;
             var total = 0;
             while (true)
             {
-                var page = await database.GetClipPageAsync(scope, offset, offset == 0 ? FirstPageSize : PageSize, token);
+                var offset = _loadOffset;
+                var page = await database.GetClipPageAsync(scope, offset, firstPage ? FirstPageSize : PageSize, token);
                 token.ThrowIfCancellationRequested();
 
+                // Clips shown were deleted while this page was on its way, so it may have been read after the clips
+                // following them moved up, skipping some: it is read again from where the list now is
+                if (_loadOffset != offset)
+                    continue;
+
                 // Only the first page counts the whole list
-                if (offset == 0)
+                if (firstPage)
                     total = page.TotalCount;
 
                 // A clip captured while loading is already at the top, and pushes the clips after it one page later
                 var shown = Clips.Select(p => p.Id).ToHashSet();
                 Clips.AddRange(page.Clips.Where(p => !shown.Contains(p.Id)));
+                _pagedClipIds.UnionWith(page.Clips.Select(p => p.Id));
+                _loadOffset += page.Clips.Count;
 
                 // A re-fetch keeps the clip that was selected, wherever it now is
                 if (reselectClipId is { } clipId && page.Clips.FirstOrDefault(p => p.Id == clipId) is { } reselect)
@@ -484,14 +528,14 @@ public partial class ClipListViewModel : ObservableObject,
                     SetSelectedClipWithoutClipboardOperation(reselect);
                     reselectClipId = null;
                 }
-                else if (offset == 0 && reselectClipId == null)
+                else if (firstPage && reselectClipId == null)
                     SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
 
-                offset += page.Clips.Count;
+                firstPage = false;
                 if (!page.HasMore)
                     break;
 
-                RemoteStatusMessage = $"Loading clips… {offset:N0} of {total:N0}";
+                RemoteStatusMessage = $"Loading clips… {_loadOffset:N0} of {total:N0}";
             }
 
             if (reselectClipId != null)
@@ -553,6 +597,8 @@ public partial class ClipListViewModel : ObservableObject,
         CurrentCollectionId = collectionId;
         CurrentFolderId = folderId;
         _currentScope = null;
+        _shownSearchClipIds = null;
+        _shownRemoteSearch = null;
         ShowsSearchResults = false;
         SelectedClip = null;
         SelectedClips.Clear();
@@ -588,16 +634,22 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Receives CollectionNodeSelectedEvent messages from the messenger.
-    /// Loads clips for the selected collection/folder.
+    /// Receives CollectionNodeSelectedEvent messages from the messenger (see <see cref="ShowCollectionNodeAsync" />).
     /// </summary>
-    public async void Receive(CollectionNodeSelectedEvent message)
+    public async void Receive(CollectionNodeSelectedEvent message) => await ShowCollectionNodeAsync(message);
+
+    /// <summary>
+    /// Makes the selected collection or folder the target of new captures, then shows its clips (the Trash is shown
+    /// without changing the capture target). A view selected while it is being made active shows instead. Must be called
+    /// on the UI thread; never throws.
+    /// </summary>
+    public async Task ShowCollectionNodeAsync(CollectionNodeSelectedEvent message)
     {
         _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
             message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
 
         // Selecting another node stops the load in progress at once, before this node is made active
-        var selection = ++_nodeSelection;
+        var selection = SupersedeViewSelection();
         CancelLoad();
 
         try
@@ -610,9 +662,13 @@ public partial class ClipListViewModel : ObservableObject,
                 _activation = activation;
                 await activation;
 
-                // A node selected meanwhile shows instead, and was made active after this one
-                if (selection != _nodeSelection)
+                // A view picked meanwhile shows instead; a collection or folder among them was made active after this one
+                if (selection != _viewSelectionGeneration)
+                {
+                    _logger.LogDebug("Collection {CollectionId} of Database {DatabaseKey} not shown: another view was picked while it was being made active",
+                        message.CollectionId, message.DatabaseKey);
                     return;
+                }
 
                 _logger.LogInformation("Active collection and folder updated for new clipboard captures");
             }
@@ -946,15 +1002,30 @@ public partial class ClipListViewModel : ObservableObject,
     /// <param name="clipIds">The list of clip IDs to load.</param>
     /// <param name="databaseKey">The database key to load clips from.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task LoadClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken = default)
+    public Task LoadClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(clipIds);
+        SupersedeViewSelection();
+        return ShowClipsByIdsAsync(clipIds, databaseKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Shows the clips with <paramref name="clipIds" /> as search results, in that order, leaving out any that no longer
+    /// exist. Selecting another view stops it.
+    /// </summary>
+    private async Task ShowClipsByIdsAsync(IReadOnlyList<Guid> clipIds, string databaseKey, CancellationToken cancellationToken)
     {
         CancelLoad();
         var database = BeginView(databaseKey, null, null);
         ShowsSearchResults = true;
+        _shownSearchClipIds = clipIds;
 
         // Search results don't accept new clips
         AcceptsNewClips = false;
 
+        using var load = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _loadCts = load;
+        var token = load.Token;
         try
         {
             IsLoading = true;
@@ -962,7 +1033,8 @@ public partial class ClipListViewModel : ObservableObject,
 
             foreach (var item in clipIds)
             {
-                var clip = await _clipService.GetByIdAsync(databaseKey, item, cancellationToken);
+                var clip = await _clipService.GetByIdAsync(databaseKey, item, token);
+                token.ThrowIfCancellationRequested();
                 if (clip != null)
                     Clips.Add(clip);
             }
@@ -971,7 +1043,11 @@ public partial class ClipListViewModel : ObservableObject,
 
             // Auto-select the first (most recent) clip without triggering clipboard operation
             SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            await NameCollectionsAsync(database, Clips.ToList(), cancellationToken);
+            await NameCollectionsAsync(database, Clips.ToList(), token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Another view was selected, or the view went away
         }
         catch (Exception ex)
         {
@@ -980,7 +1056,11 @@ public partial class ClipListViewModel : ObservableObject,
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_loadCts, load))
+            {
+                IsLoading = false;
+                _loadCts = null;
+            }
         }
     }
 
@@ -1047,14 +1127,27 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Refreshes the clip list by loading what it shows again. With no view shown (no node selected yet), the list
-    /// shows nothing.
+    /// Refreshes the clip list by loading what it shows again: a collection, folder or Trash is read again, local search
+    /// results are read again by ID (leaving out clips deleted since), and Remote search results are shown again as the
+    /// Peer returned them. With no view shown (no node selected yet), the list shows nothing.
     /// </summary>
     public async Task RefreshAsync()
     {
         if (CurrentDatabaseKey != null && _currentScope != null)
         {
-            await LoadAsync(CurrentDatabaseKey, _currentScope);
+            await LoadAsync(CurrentDatabaseKey, _currentScope, null, CancellationToken.None);
+            return;
+        }
+
+        if (CurrentDatabaseKey != null && _shownSearchClipIds != null)
+        {
+            await ShowClipsByIdsAsync(_shownSearchClipIds, CurrentDatabaseKey, CancellationToken.None);
+            return;
+        }
+
+        if (_shownRemoteSearch != null)
+        {
+            await ShowRemoteSearchResultsAsync(_shownRemoteSearch);
             return;
         }
 
