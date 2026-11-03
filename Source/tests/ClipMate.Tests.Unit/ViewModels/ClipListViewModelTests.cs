@@ -479,6 +479,32 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    public async Task LoadAsync_LargeCollection_ReportsProgressForTheStatusBarNotTheBanner()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var scope = new ClipListScope.Collection(collectionId);
+        _local.WithClips(scope, Enumerable.Range(0, 2_201).Select(p => Clip($"Clip {p}")).ToArray());
+        var secondPage = new TaskCompletionSource();
+        _local.PageReady = offset => offset == ClipListViewModel.FirstPageSize ? secondPage.Task : Task.CompletedTask;
+        var viewModel = CreateViewModel();
+
+        // Act: the first page has arrived and the second is on its way
+        var load = viewModel.LoadAsync("db_local", scope);
+        await WaitUntilAsync(() => _local.PageRequests.Count == 2);
+
+        // Assert
+        await Assert.That(viewModel.LoadProgressMessage).IsEqualTo("Loading clips… 200 of 2,201");
+        await Assert.That(viewModel.LoadProgressPercent).IsEqualTo(9);
+        await Assert.That(viewModel.RemoteStatusMessage).IsNull();
+
+        secondPage.SetResult();
+        await load;
+        await Assert.That(viewModel.LoadProgressMessage).IsNull();
+        await Assert.That(viewModel.LoadProgressPercent).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task LoadAsync_ClipCapturedMidLoad_AppearsOnceAtTheTop()
     {
         // Arrange

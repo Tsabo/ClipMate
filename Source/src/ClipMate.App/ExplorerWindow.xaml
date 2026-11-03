@@ -499,20 +499,12 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <!-- Remote Database clip lists load page by page; shows progress, or why the Peer could not be read -->
-                            <DockPanel Grid.Row="0"
+                            <!-- Why the Database could not be read, or how many of a remote search's matches are shown; load progress is in the status bar -->
+                            <TextBlock Grid.Row="0"
                                        Margin="4,2"
-                                       Visibility="{Binding PrimaryClipList.RemoteStatusMessage, Converter={StaticResource NotNullToVisibilityConverter}}">
-                                <dxe:ProgressBarEdit DockPanel.Dock="Left"
-                                                     Width="60"
-                                                     Height="12"
-                                                     Margin="0,0,6,0"
-                                                     StyleSettings="{dxe:ProgressBarMarqueeStyleSettings}"
-                                                     Visibility="{Binding PrimaryClipList.IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                <TextBlock Text="{Binding PrimaryClipList.RemoteStatusMessage}"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center" />
-                            </DockPanel>
+                                       Text="{Binding PrimaryClipList.RemoteStatusMessage}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding PrimaryClipList.RemoteStatusMessage, Converter={StaticResource NotNullToVisibilityConverter}}" />
 
                             <controls:ClipListControl x:Name="DockedClipListView"
                                                       Grid.Row="1"
@@ -546,20 +538,25 @@
         <!-- Status Bar at Bottom -->
         <dxb:BarContainerControl ContainerType="Bottom" Grid.Row="3">
             <dxb:StatusBarControl>
-                <!-- Far Left: Loading progress bar (visible when loading) -->
-                <!-- TODO: Implement progress tracking for clip loading
-                <dxb:BarStaticItem>
+                <!-- Far left: how far a list loading page by page has got -->
+                <dxb:BarStaticItem Content="{Binding PrimaryClipList}"
+                                   IsVisible="{Binding PrimaryClipList.ShowsLoadProgress}">
                     <dxb:BarStaticItem.ContentTemplate>
                         <DataTemplate>
-                            <dxe:ProgressBarEdit Width="50"
-                                                 MaxWidth="200" 
-                                                 Height="16" 
-                                                 StyleSettings="{dxe:ProgressBarMarqueeStyleSettings}"
-                                                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <StackPanel Orientation="Horizontal">
+                                <dxe:ProgressBarEdit Width="100"
+                                                     Height="12"
+                                                     Margin="0,0,6,0"
+                                                     VerticalAlignment="Center"
+                                                     Maximum="100"
+                                                     Value="{Binding LoadProgressPercent, Mode=OneWay}"
+                                                     ContentDisplayMode="None" />
+                                <TextBlock Text="{Binding LoadProgressMessage}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </DataTemplate>
                     </dxb:BarStaticItem.ContentTemplate>
                 </dxb:BarStaticItem>
-                -->
 
                 <!-- Left side: Status message -->
                 <dxb:BarStaticItem Content="{Binding StatusMessage}">

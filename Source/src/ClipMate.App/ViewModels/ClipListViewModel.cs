@@ -110,8 +110,27 @@ public partial class ClipListViewModel : ObservableObject,
     private bool _isReadOnly;
 
     /// <summary>
-    /// Progress while a Database's clips load page by page, or why they could not be loaded (file missing, Peer offline,
-    /// timeout); <c>null</c> when there is nothing to report.
+    /// How far a list loading page by page has got, for the status bar ("Loading clips… 2,200 of 9,000"); <c>null</c>
+    /// when no load is in progress or the whole list came in its first page.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsLoadProgress))]
+    private string? _loadProgressMessage;
+
+    /// <summary>
+    /// Whether the status bar shows <see cref="LoadProgressMessage" /> and its progress bar.
+    /// </summary>
+    public bool ShowsLoadProgress => LoadProgressMessage != null;
+
+    /// <summary>
+    /// The share of the list loaded so far (0-100) while <see cref="LoadProgressMessage" /> is set; 0 otherwise.
+    /// </summary>
+    [ObservableProperty]
+    private int _loadProgressPercent;
+
+    /// <summary>
+    /// Shown above the list: why a Database's clips could not be loaded (file missing, Peer offline, timeout), or how many
+    /// of a remote search's matches are shown; <c>null</c> when there is nothing to report.
     /// </summary>
     [ObservableProperty]
     private string? _remoteStatusMessage;
@@ -535,13 +554,12 @@ public partial class ClipListViewModel : ObservableObject,
                 if (!page.HasMore)
                     break;
 
-                RemoteStatusMessage = $"Loading clips… {_loadOffset:N0} of {total:N0}";
+                ShowLoadProgress(_loadOffset, total);
             }
 
             if (reselectClipId != null)
                 SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
 
-            RemoteStatusMessage = null;
             _logger.LogInformation("Loaded {Count} clips from Database {DatabaseKey}", Clips.Count, databaseKey);
         }
         catch (OperationCanceledException)
@@ -564,9 +582,22 @@ public partial class ClipListViewModel : ObservableObject,
             if (ReferenceEquals(_loadCts, load))
             {
                 IsLoading = false;
+                ClearLoadProgress();
                 _loadCts = null;
             }
         }
+    }
+
+    private void ShowLoadProgress(int loaded, int total)
+    {
+        LoadProgressMessage = $"Loading clips… {loaded:N0} of {total:N0}";
+        LoadProgressPercent = total > 0 ? Math.Clamp(loaded * 100 / total, 0, 100) : 0;
+    }
+
+    private void ClearLoadProgress()
+    {
+        LoadProgressMessage = null;
+        LoadProgressPercent = 0;
     }
 
     /// <summary>
@@ -631,6 +662,7 @@ public partial class ClipListViewModel : ObservableObject,
         _loadCts = null;
         previous.Cancel();
         IsLoading = false;
+        ClearLoadProgress();
     }
 
     /// <summary>
