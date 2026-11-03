@@ -234,6 +234,40 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    public async Task RefreshAsync_AfterClipsAreMovedToAnotherCollection_StillShowsTheCollectionWithoutThem()
+    {
+        // Arrange
+        var inbox = new ClipListScope.Collection(Guid.NewGuid());
+        var staying = Clip("Staying");
+        _local.WithClips(inbox, Clip("Moved"), staying);
+        var viewModel = CreateViewModel();
+        await viewModel.LoadAsync("db_local", inbox);
+        _local.WithClips(inbox, staying);
+
+        // Act
+        await viewModel.RefreshAsync();
+
+        // Assert
+        await Assert.That(Titles(viewModel)).IsEqualTo("Staying");
+        await Assert.That(viewModel.CurrentCollectionId).IsEqualTo(inbox.CollectionId);
+    }
+
+    [Test]
+    public async Task RefreshAsync_WithNoViewShown_ShowsNothing()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RefreshAsync();
+
+        // Assert
+        await Assert.That(viewModel.Clips).IsEmpty();
+        await Assert.That(_local.PageRequests).IsEmpty();
+        A.CallTo(_mockClipService).MustNotHaveHappened();
+    }
+
+    [Test]
     public async Task Receive_RemoteDatabaseNodeSelected_ShowsAReadOnlyRemoteListWithoutChangingTheCaptureTarget()
     {
         // Arrange

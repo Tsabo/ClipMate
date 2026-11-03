@@ -59,13 +59,6 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<Clip>> GetRecentAsync(string databaseKey, int count, CancellationToken cancellationToken = default)
-    {
-        var repository = GetRepository(databaseKey);
-        return await repository.GetRecentAsync(count, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public async Task<IReadOnlyList<Clip>> GetByCollectionAsync(string databaseKey, Guid collectionId, CancellationToken cancellationToken = default)
     {
         var repository = GetRepository(databaseKey);

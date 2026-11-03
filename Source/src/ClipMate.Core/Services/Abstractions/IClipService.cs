@@ -24,15 +24,6 @@ public interface IClipService
     Task<Clip?> GetByIdAsync(string databaseKey, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets recent clips from the specified database, ordered by captured date descending.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="count">Maximum number of clips to retrieve.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of recent clips.</returns>
-    Task<IReadOnlyList<Clip>> GetRecentAsync(string databaseKey, int count, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets clips in a collection from the specified database.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

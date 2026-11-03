@@ -27,14 +27,6 @@ public interface IClipRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves the most recent clips, ordered by captured date descending.
-    /// </summary>
-    /// <param name="count">Maximum number of clips to retrieve.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of recent clips.</returns>
-    Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Retrieves clips for a specific collection.
     /// </summary>
     /// <param name="collectionId">The collection's unique identifier.</param>
