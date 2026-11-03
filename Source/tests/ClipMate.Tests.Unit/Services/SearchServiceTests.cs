@@ -305,18 +305,4 @@ public class SearchServiceTests
         await Assert.That(config.SavedSearchQueries.Count).IsEqualTo(0);
         A.CallTo(() => _mockConfigurationService.SaveAsync(A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
-
-    [Test]
-    public async Task GetSearchHistoryAsync_ShouldReturnRecentSearches()
-    {
-        // Arrange - This would typically be stored in a settings/history service
-        // For now, we'll test that it returns an empty list until implementation
-
-        // Act
-        var history = await _searchService.GetSearchHistoryAsync();
-
-        // Assert
-        await Assert.That(history).IsNotNull();
-        await Assert.That(history.Count).IsEqualTo(0); // Empty until we implement history tracking
-    }
 }

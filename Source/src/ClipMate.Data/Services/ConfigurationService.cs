@@ -61,7 +61,9 @@ public class ConfigurationService : IConfigurationService
     /// <inheritdoc />
     public ClipMateConfiguration Configuration { get; private set; }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the path to the configuration file.
+    /// </summary>
     public string ConfigurationFilePath { get; }
 
     /// <inheritdoc />
@@ -150,70 +152,6 @@ public class ConfigurationService : IConfigurationService
     {
         Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         await SaveAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task ResetToDefaultsAsync(CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("Resetting configuration to defaults");
-        Configuration = CreateDefaultConfiguration();
-        await SaveAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task AddOrUpdateDatabaseAsync(string databaseId, DatabaseConfiguration database, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(databaseId))
-            throw new ArgumentException("Database ID cannot be null or empty.", nameof(databaseId));
-
-#pragma warning disable IDE0016
-        ArgumentNullException.ThrowIfNull(database);
-#pragma warning restore IDE0016
-
-        Configuration.Databases[databaseId] = database;
-        _logger.LogInformation("Database configuration '{DatabaseId}' updated", databaseId);
-        await SaveAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task RemoveDatabaseAsync(string databaseId, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(databaseId))
-            throw new ArgumentException("Database ID cannot be null or empty.", nameof(databaseId));
-
-        if (Configuration.Databases.Remove(databaseId))
-        {
-            _logger.LogInformation("Database configuration '{DatabaseId}' removed", databaseId);
-            await SaveAsync(cancellationToken);
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task AddOrUpdateApplicationProfileAsync(string applicationName, ApplicationProfile profile, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(applicationName))
-            throw new ArgumentException("Application name cannot be null or empty.", nameof(applicationName));
-
-#pragma warning disable IDE0016
-        ArgumentNullException.ThrowIfNull(profile);
-#pragma warning restore IDE0016
-
-        Configuration.ApplicationProfiles[applicationName] = profile;
-        _logger.LogInformation("Application profile '{ApplicationName}' updated", applicationName);
-        await SaveAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task RemoveApplicationProfileAsync(string applicationName, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(applicationName))
-            throw new ArgumentException("Application name cannot be null or empty.", nameof(applicationName));
-
-        if (Configuration.ApplicationProfiles.Remove(applicationName))
-        {
-            _logger.LogInformation("Application profile '{ApplicationName}' removed", applicationName);
-            await SaveAsync(cancellationToken);
-        }
     }
 
     private async Task SaveInternalAsync(CancellationToken cancellationToken)

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
-using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using WpfApplication = System.Windows.Application;
 
@@ -10,7 +9,7 @@ namespace ClipMate.App.Services;
 /// In-memory sink that captures log events for display in the Event Log dialog.
 /// Thread-safe and marshals updates to the UI thread.
 /// </summary>
-public class EventLogSink : IEventLogSink
+public class EventLogSink
 {
     private const int _defaultMaxEvents = 500;
     private readonly Dispatcher? _dispatcher;
@@ -28,13 +27,20 @@ public class EventLogSink : IEventLogSink
         _dispatcher = WpfApplication.Current?.Dispatcher;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the collection of diagnostic events.
+    /// </summary>
     public ObservableCollection<DiagnosticEvent> Events { get; }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the maximum number of events to retain.
+    /// </summary>
     public int MaxEvents { get; }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Adds a diagnostic event to the sink.
+    /// </summary>
+    /// <param name="diagnosticEvent">The event to add.</param>
     public void Add(DiagnosticEvent diagnosticEvent)
     {
         if (_dispatcher != null && !_dispatcher.CheckAccess())
@@ -46,7 +52,9 @@ public class EventLogSink : IEventLogSink
             AddInternal(diagnosticEvent);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Clears all events from the sink.
+    /// </summary>
     public void Clear()
     {
         if (_dispatcher != null && !_dispatcher.CheckAccess())

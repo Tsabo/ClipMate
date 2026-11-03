@@ -79,44 +79,4 @@ public class SqlValidationService : ISqlValidationService
             return (false, $"Validation error: {ex.Message}");
         }
     }
-
-    /// <inheritdoc />
-    public async Task<string> GetQueryPlanAsync(string sqlQuery,
-        string databaseKey,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(sqlQuery))
-            return "No query provided";
-
-        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
-        if (context == null)
-            return $"Database '{databaseKey}' is not loaded";
-
-        try
-        {
-            var connection = context.Database.GetDbConnection();
-            if (connection.State != ConnectionState.Open)
-                await connection.OpenAsync(cancellationToken);
-
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"EXPLAIN QUERY PLAN {sqlQuery}";
-
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-            var plan = new StringBuilder();
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                // SQLite EXPLAIN QUERY PLAN returns: id, parent, notused, detail
-                var detail = reader.GetString(3);
-                plan.AppendLine(detail);
-            }
-
-            return plan.ToString();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting query plan for: {Query}", sqlQuery);
-            return $"Error: {ex.Message}";
-        }
-    }
 }

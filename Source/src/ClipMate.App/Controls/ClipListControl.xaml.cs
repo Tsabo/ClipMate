@@ -12,6 +12,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
 using DevExpress.Xpf.Grid;
@@ -150,7 +151,7 @@ public partial class ClipListControl
     private readonly PreferencesConfiguration _preferences;
     private readonly IPasteTargetTracker? _pasteTargetTracker;
     private readonly IQuickPasteService? _quickPasteService;
-    private readonly IShortcutService? _shortcutService;
+    private readonly ShortcutService? _shortcutService;
     private string? _currentDatabaseKey;
 
     // Shortcut mode state
@@ -171,7 +172,7 @@ public partial class ClipListControl
         // Get services from DI container
         var app = (App)Application.Current;
         _messenger = app.ServiceProvider.GetService<IMessenger>()!;
-        _shortcutService = app.ServiceProvider.GetService<IShortcutService>();
+        _shortcutService = app.ServiceProvider.GetService<ShortcutService>();
         _quickPasteService = app.ServiceProvider.GetService<IQuickPasteService>();
         _pasteTargetTracker = app.ServiceProvider.GetService<IPasteTargetTracker>();
         _currentClipWriter = app.ServiceProvider.GetService<ICurrentClipWriter>();

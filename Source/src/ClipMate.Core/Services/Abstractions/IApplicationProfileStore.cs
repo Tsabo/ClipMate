@@ -15,13 +15,6 @@ public interface IApplicationProfileStore
     Task<Dictionary<string, ApplicationProfile>> LoadProfilesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves all application profiles to storage.
-    /// </summary>
-    /// <param name="profiles">Dictionary of application profiles to save.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    Task SaveProfilesAsync(Dictionary<string, ApplicationProfile> profiles, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets a specific application profile by name.
     /// </summary>
     /// <param name="applicationName">The application name.</param>

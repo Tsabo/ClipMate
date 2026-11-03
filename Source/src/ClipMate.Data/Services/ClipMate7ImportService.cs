@@ -37,9 +37,9 @@ public class ClipMate7ImportService : IClipMate7ImportService
 
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<ClipMate7ImportService> _logger;
-    private readonly ISetupService _setupService;
+    private readonly SetupService _setupService;
 
-    public ClipMate7ImportService(ISetupService setupService, IEncryptionService encryptionService, ILogger<ClipMate7ImportService> logger)
+    public ClipMate7ImportService(SetupService setupService, IEncryptionService encryptionService, ILogger<ClipMate7ImportService> logger)
     {
         _setupService = setupService ?? throw new ArgumentNullException(nameof(setupService));
         _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));

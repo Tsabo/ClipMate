@@ -21,28 +21,11 @@ public interface ITemplateService
     Task<IReadOnlyList<FileTemplate>> GetAllTemplatesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a specific template by name.
-    /// </summary>
-    /// <param name="name">Template name (without .txt extension).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The template if found; otherwise, null.</returns>
-    Task<FileTemplate?> GetTemplateByNameAsync(string name, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Refreshes the template list by rescanning the Templates directory.
     /// Useful after user adds/removes/modifies templates externally.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task RefreshTemplatesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Merges a clip with a template, replacing all #TAG# placeholders.
-    /// </summary>
-    /// <param name="template">The template to use.</param>
-    /// <param name="clip">The clip containing data to merge.</param>
-    /// <param name="sequenceNumber">Current sequence number for #SEQUENCE# tag.</param>
-    /// <returns>The merged text with all tags replaced.</returns>
-    string MergeClipWithTemplate(FileTemplate template, Clip clip, int sequenceNumber);
 
     /// <summary>
     /// Replaces template tags in any text with clip data.

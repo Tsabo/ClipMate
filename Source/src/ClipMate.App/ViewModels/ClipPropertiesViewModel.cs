@@ -3,6 +3,7 @@ using System.Diagnostics;
 using ClipMate.App.Models;
 using ClipMate.Core.Models;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -16,7 +17,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IFolderService _folderService;
-    private readonly IShortcutService _shortcutService;
+    private readonly ShortcutService _shortcutService;
 
     [ObservableProperty]
     private DateTimeOffset _capturedAt;
@@ -79,7 +80,7 @@ public partial class ClipPropertiesViewModel : ObservableObject
     [ObservableProperty]
     private int? _userId;
 
-    public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService, IShortcutService shortcutService)
+    public ClipPropertiesViewModel(IClipService clipService, IFolderService folderService, ICollectionService collectionService, ShortcutService shortcutService)
     {
         _clipService = clipService ?? throw new ArgumentNullException(nameof(clipService));
         _folderService = folderService ?? throw new ArgumentNullException(nameof(folderService));

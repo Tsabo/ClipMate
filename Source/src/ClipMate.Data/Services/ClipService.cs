@@ -147,21 +147,6 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
-    public async Task<bool> RenameClipAsync(string databaseKey, Guid clipId, string newTitle, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(newTitle))
-            throw new ArgumentException("Title cannot be empty", nameof(newTitle));
-
-        var repository = GetRepository(databaseKey);
-        var clip = await repository.GetByIdAsync(clipId, cancellationToken);
-        if (clip == null)
-            return false;
-
-        clip.Title = newTitle;
-        return await repository.UpdateAsync(clip, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public async Task<bool> ConvertFilePointerToTextAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
     {
         var repository = GetRepository(databaseKey);

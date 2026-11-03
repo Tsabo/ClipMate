@@ -107,8 +107,6 @@ public class DecryptedBlobCacheService : IDecryptedBlobCacheService, IDisposable
         return cached;
     }
 
-    public bool IsClipDecrypted(Guid clipId) => _cache.TryGetValue(GetCacheKey(clipId), out var _);
-
     public void ClearClip(Guid clipId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

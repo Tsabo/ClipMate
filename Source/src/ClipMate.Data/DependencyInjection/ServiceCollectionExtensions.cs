@@ -45,10 +45,10 @@ public static class ServiceCollectionExtensions
         // Every Database, local or remote, behind one interface (the Remote Databases come from IRemoteDatabaseService)
         services.AddSingleton<IDatabases, Databases>();
         services.AddSingleton<ICurrentClipWriter, CurrentClipWriter>();
-        services.AddTransient<IShortcutService, ShortcutService>();
+        services.AddTransient<ShortcutService>();
         services.AddTransient<IFolderService, FolderService>();
         services.AddTransient<ISqlValidationService, SqlValidationService>();
-        services.AddTransient<ISetupService, SetupService>();
+        services.AddTransient<SetupService>();
         services.AddTransient<ISearchService, SearchService>();
         services.AddTransient<IClipAppendService, ClipAppendService>();
         services.AddTransient<DatabaseSchemaMigrationService>();
@@ -99,7 +99,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDatabaseManager, DatabaseManager>();
 
         // Register SQL maintenance factory (creates per-session service instances)
-        services.AddSingleton<ISqlMaintenanceServiceFactory, SqlMaintenanceServiceFactory>();
+        services.AddSingleton<SqlMaintenanceServiceFactory>();
 
         // Register ClipboardCoordinator as singleton first (so it can be injected)
         services.AddSingleton<ClipboardCoordinator>();

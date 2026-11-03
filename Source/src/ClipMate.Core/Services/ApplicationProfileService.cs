@@ -111,7 +111,11 @@ public class ApplicationProfileService : IApplicationProfileService
     /// <inheritdoc />
     public async Task DeleteAllProfilesAsync(CancellationToken cancellationToken = default) => await _store.DeleteAllProfilesAsync(cancellationToken);
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Normalizes an application name by removing .EXE extension and converting to uppercase.
+    /// </summary>
+    /// <param name="applicationName">The application name to normalize.</param>
+    /// <returns>Normalized application name.</returns>
     public string NormalizeApplicationName(string applicationName)
     {
         if (string.IsNullOrWhiteSpace(applicationName))

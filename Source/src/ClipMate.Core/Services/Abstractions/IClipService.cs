@@ -110,16 +110,6 @@ public interface IClipService
     Task<IReadOnlyList<ClipData>> GetClipFormatsAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Renames a clip by changing its title in the specified database.
-    /// </summary>
-    /// <param name="databaseKey">The database key (path).</param>
-    /// <param name="clipId">The clip ID.</param>
-    /// <param name="newTitle">The new title for the clip.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if renamed successfully; otherwise, false.</returns>
-    Task<bool> RenameClipAsync(string databaseKey, Guid clipId, string newTitle, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Copies a clip to a different collection within the same database.
     /// Creates a new clip with same content in target collection.
     /// </summary>

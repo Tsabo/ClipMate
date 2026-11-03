@@ -16,15 +16,4 @@ public interface ISqlValidationService
     Task<(bool IsValid, string ErrorMessage)> ValidateSqlQueryAsync(string sqlQuery,
         string databaseKey,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets the query execution plan for a SQL query (EXPLAIN QUERY PLAN).
-    /// </summary>
-    /// <param name="sqlQuery">The SQL query to analyze.</param>
-    /// <param name="databaseKey">The database key to analyze against.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The query execution plan as a string.</returns>
-    Task<string> GetQueryPlanAsync(string sqlQuery,
-        string databaseKey,
-        CancellationToken cancellationToken = default);
 }

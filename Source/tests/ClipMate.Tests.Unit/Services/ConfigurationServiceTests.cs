@@ -118,67 +118,6 @@ public class ConfigurationServiceTests
     }
 
     [Test]
-    public async Task AddOrUpdateDatabaseAsync_AddsNewDatabase()
-    {
-        // Arrange
-        var service = await CreateServiceWithValidConfigurationAsync();
-
-        var newDatabase = new DatabaseConfiguration
-        {
-            Name = "Work Clips",
-            FilePath = "C:\\Work\\work.db",
-            AutoLoad = false,
-            PurgeDays = 30,
-        };
-
-        // Act
-        await service.AddOrUpdateDatabaseAsync("WorkClips", newDatabase);
-
-        // Assert
-        await Assert.That(service.Configuration.Databases.ContainsKey("WorkClips")).IsTrue();
-        await Assert.That(service.Configuration.Databases["WorkClips"].Name).IsEqualTo("Work Clips");
-        await Assert.That(service.Configuration.Databases["WorkClips"].PurgeDays).IsEqualTo(30);
-    }
-
-    [Test]
-    public async Task RemoveDatabaseAsync_RemovesDatabase()
-    {
-        // Arrange
-        var service = await CreateServiceWithValidConfigurationAsync();
-
-        // Act
-        await service.RemoveDatabaseAsync("MyClips");
-
-        // Assert
-        await Assert.That(service.Configuration.Databases.ContainsKey("MyClips")).IsFalse();
-    }
-
-    [Test]
-    public async Task AddOrUpdateApplicationProfileAsync_AddsNewProfile()
-    {
-        // Arrange
-        var service = await CreateServiceWithValidConfigurationAsync();
-
-        var profile = new ApplicationProfile
-        {
-            ApplicationName = "NOTEPAD",
-            Enabled = true,
-            Formats = new Dictionary<string, int>
-            {
-                { "TEXT", 1 },
-                { "UNICODETEXT", 1 },
-            },
-        };
-
-        // Act
-        await service.AddOrUpdateApplicationProfileAsync("NOTEPAD", profile);
-
-        // Assert
-        await Assert.That(service.Configuration.ApplicationProfiles.ContainsKey("NOTEPAD")).IsTrue();
-        await Assert.That(service.Configuration.ApplicationProfiles["NOTEPAD"].Formats.ContainsKey("TEXT")).IsTrue();
-    }
-
-    [Test]
     public async Task LoadAsync_OlderSettings_AddsCtfmonOnceAndSavesTheUpgrade()
     {
         // Arrange: version 1 settings whose BAD list predates CTFMON:
@@ -268,23 +207,6 @@ public class ConfigurationServiceTests
         await Assert.That((int)loadedConfig.Preferences.LogLevel).IsEqualTo((int)LogLevel.Critical);
         await Assert.That(loadedConfig.Hotkeys.QuickPaste).IsEqualTo("Ctrl+Shift+Q");
         await Assert.That(loadedConfig.Databases.Count).IsGreaterThan(0);
-    }
-
-    [Test]
-    public async Task ResetToDefaultsAsync_RestoresDefaultConfiguration()
-    {
-        // Arrange
-        var service = await CreateServiceWithValidConfigurationAsync();
-
-        // Modify configuration
-        service.Configuration.Preferences.LogLevel = LogLevel.Critical;
-        await service.SaveAsync();
-
-        // Act
-        await service.ResetToDefaultsAsync();
-
-        // Assert
-        await Assert.That((int)service.Configuration.Preferences.LogLevel).IsEqualTo((int)LogLevel.Information); // Default value
     }
 
     [Test]

@@ -473,7 +473,7 @@ public class FlatFileExportIntegrationTests : IntegrationTestBase
             serviceLogger);
     }
 
-    private IExportImportService CreateExportImportService()
+    private ExportImportService CreateExportImportService()
     {
         var clipService = CreateClipService();
         var logger = A.Fake<ILogger<ExportImportService>>();

@@ -20,7 +20,14 @@ public class RetentionEnforcementService : IRetentionEnforcementService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Enforces retention rules for a specific collection.
+    /// Moves excess clips to Overflow or Trashcan based on collection type.
+    /// Skips enforcement for ReadOnly collections.
+    /// </summary>
+    /// <param name="databaseKey">Database identifier.</param>
+    /// <param name="collectionId">Collection to enforce retention on.</param>
+    /// <returns>Number of clips moved/deleted.</returns>
     public async Task<int> EnforceRetentionAsync(string databaseKey, Guid collectionId)
     {
         _logger.LogDebug("Enforcing retention for collection {CollectionId} in database {DatabaseKey}", collectionId, databaseKey);

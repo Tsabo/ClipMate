@@ -16,7 +16,7 @@ namespace ClipMate.Platform.Services;
 /// Handles all export/import operations with support for sequential naming, title-based naming, GUID-based naming, and
 /// per-file prompts.
 /// </summary>
-public class ExportImportService : IExportImportService
+public class ExportImportService
 {
     private readonly IClipService _clipService;
     private readonly ILogger<ExportImportService> _logger;

@@ -15,12 +15,6 @@ public interface IClipboardDiagnosticsService
     ClipboardDiagnosticInfo GetDiagnostics();
 
     /// <summary>
-    /// Gets the name of the process that currently owns the clipboard.
-    /// </summary>
-    /// <returns>The process name, or "(No owner)" if no process owns the clipboard.</returns>
-    string GetOwnerProcessName();
-
-    /// <summary>
     /// Gets the current clipboard sequence number.
     /// </summary>
     /// <returns>The sequence number, which changes each time the clipboard content changes.</returns>

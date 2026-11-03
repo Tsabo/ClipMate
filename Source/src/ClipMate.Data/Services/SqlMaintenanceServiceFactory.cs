@@ -1,4 +1,3 @@
-using ClipMate.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace ClipMate.Data.Services;
@@ -7,7 +6,7 @@ namespace ClipMate.Data.Services;
 /// Factory for creating SQL maintenance service instances.
 /// Each instance manages its own transaction context with a fresh DbContext.
 /// </summary>
-public sealed class SqlMaintenanceServiceFactory : ISqlMaintenanceServiceFactory
+public sealed class SqlMaintenanceServiceFactory
 {
     private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILoggerFactory _loggerFactory;
@@ -18,8 +17,13 @@ public sealed class SqlMaintenanceServiceFactory : ISqlMaintenanceServiceFactory
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
     }
 
-    /// <inheritdoc />
-    public ISqlMaintenanceService Create(string databaseKey)
+    /// <summary>
+    /// Creates a new SQL maintenance service instance for the specified database.
+    /// The caller is responsible for disposing the returned instance.
+    /// </summary>
+    /// <param name="databaseKey">The database key to operate on.</param>
+    /// <returns>A new SQL maintenance service instance.</returns>
+    public SqlMaintenanceService Create(string databaseKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
 

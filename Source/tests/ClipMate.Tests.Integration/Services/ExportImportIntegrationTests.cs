@@ -748,7 +748,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
             serviceLogger);
     }
 
-    private IExportImportService CreateExportImportService()
+    private ExportImportService CreateExportImportService()
     {
         var clipService = A.Fake<IClipService>();
         var logger = A.Fake<ILogger<ExportImportService>>();

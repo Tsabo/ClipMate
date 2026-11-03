@@ -44,7 +44,12 @@ public class TemplateService : ITemplateService
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets a specific template by name.
+    /// </summary>
+    /// <param name="name">Template name (without .txt extension).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The template if found; otherwise, null.</returns>
     public async Task<FileTemplate?> GetTemplateByNameAsync(string name, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -68,7 +73,13 @@ public class TemplateService : ITemplateService
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Merges a clip with a template, replacing all #TAG# placeholders.
+    /// </summary>
+    /// <param name="template">The template to use.</param>
+    /// <param name="clip">The clip containing data to merge.</param>
+    /// <param name="sequenceNumber">Current sequence number for #SEQUENCE# tag.</param>
+    /// <returns>The merged text with all tags replaced.</returns>
     public string MergeClipWithTemplate(FileTemplate template, Clip clip, int sequenceNumber)
     {
         ArgumentNullException.ThrowIfNull(template);

@@ -9,6 +9,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
+using ClipMate.Data.Services;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.Messaging;
 using DevExpress.Xpf.Core;
@@ -1278,7 +1279,7 @@ public class ClipOperationsCoordinator :
             }
 
             // Get existing shortcut if any
-            var shortcutService = _serviceProvider.GetService<IShortcutService>();
+            var shortcutService = _serviceProvider.GetService<ShortcutService>();
             Shortcut? existingShortcut = null;
 
             if (shortcutService != null)
