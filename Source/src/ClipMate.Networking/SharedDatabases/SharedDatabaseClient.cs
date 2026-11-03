@@ -23,14 +23,14 @@ public interface ISharedDatabaseClient
     /// Asks <paramref name="peer" /> for its Shared Databases.
     /// </summary>
     /// <exception cref="DatabaseUnavailableException">The Peer could not be reached.</exception>
-    Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(PeerConnection peer, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Asks <paramref name="peer" /> for the collection and folder tree of one of its Shared Databases.
     /// </summary>
     /// <returns>The tree, or <c>null</c> if the Peer does not share that Database (any more).</returns>
     /// <exception cref="DatabaseUnavailableException">The Peer could not be reached.</exception>
-    Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(DeviceIdentity identity, Peer peer, Guid databaseId,
+    Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(PeerConnection peer, Guid databaseId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -39,7 +39,7 @@ public interface ISharedDatabaseClient
     /// </summary>
     /// <returns>The page, or <c>null</c> if the Peer does not share that Database, collection or folder (any more).</returns>
     /// <exception cref="DatabaseUnavailableException">The Peer could not be reached or did not answer in time.</exception>
-    Task<ClipPage?> GetClipPageAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid collectionId, Guid? folderId, int offset,
+    Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, Guid collectionId, Guid? folderId, int offset,
         int count, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -49,7 +49,7 @@ public interface ISharedDatabaseClient
     /// <exception cref="DatabaseUnavailableException">
     /// The Peer could not be reached, did not answer in time, or sent content that does not match its formats.
     /// </exception>
-    Task<ClipContent?> GetClipContentAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid clipId,
+    Task<ClipContent?> GetClipContentAsync(PeerConnection peer, Guid databaseId, Guid clipId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -58,7 +58,7 @@ public interface ISharedDatabaseClient
     /// IDs only, never clip data.
     /// </summary>
     /// <exception cref="DatabaseUnavailableException">The Peer could not be reached, or the stream broke (the Peer went away or unpaired this Device).</exception>
-    IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(PeerConnection peer, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Runs a Remote Search on one of <paramref name="peer" />'s Shared Databases: sends the criteria (never SQL) and
@@ -70,12 +70,12 @@ public interface ISharedDatabaseClient
     /// The Peer could not be reached, stopped the search because it took too long, or refused it.
     /// </exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken" /> was cancelled; the Peer stops too.</exception>
-    Task<SearchMatches?> SearchAsync(DeviceIdentity identity, Peer peer, Guid databaseId, SearchFilters filters,
+    Task<SearchMatches?> SearchAsync(PeerConnection peer, Guid databaseId, SearchFilters filters,
         CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// <see cref="ISharedDatabaseClient" /> over gRPC. Tries the Peer's announced address, then its last known addresses.
+/// <see cref="ISharedDatabaseClient" /> over gRPC, reaching each Peer through its <see cref="PeerConnection" />.
 /// Every call has a deadline, so a Peer that stops answering never holds up the caller for long.
 /// </summary>
 public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
@@ -91,21 +91,19 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     private static readonly StatusCode[] _searchStatuses = [StatusCode.NotFound, StatusCode.ResourceExhausted, StatusCode.InvalidArgument];
 
     private readonly TimeSpan _contentTimeout;
-    private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<GrpcSharedDatabaseClient> _logger;
     private readonly TimeSpan _searchTimeout;
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _timeout;
 
-    public GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeProvider? timeProvider = null)
-        : this(discovery, logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30), timeProvider)
+    public GrpcSharedDatabaseClient(ILogger<GrpcSharedDatabaseClient> logger, TimeProvider? timeProvider = null)
+        : this(logger, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(2), TimeSpan.FromSeconds(30), timeProvider)
     {
     }
 
     /// <summary>
     /// Creates the client with other deadlines (for tests).
     /// </summary>
-    /// <param name="discovery">Where the Peers' current addresses come from.</param>
     /// <param name="logger">Logger.</param>
     /// <param name="timeout">The deadline of each call that returns a single reply.</param>
     /// <param name="contentTimeout">The deadline for streaming a clip's content; defaults to <paramref name="timeout" />.</param>
@@ -113,11 +111,10 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// The deadline for a Remote Search, longer than the Peer's own search time limit so the Peer can say it gave up;
     /// defaults to <paramref name="timeout" />.
     /// </param>
-    internal GrpcSharedDatabaseClient(IDeviceDiscoveryService discovery, ILogger<GrpcSharedDatabaseClient> logger, TimeSpan timeout,
+    internal GrpcSharedDatabaseClient(ILogger<GrpcSharedDatabaseClient> logger, TimeSpan timeout,
         TimeSpan? contentTimeout = null, TimeSpan? searchTimeout = null, TimeProvider? timeProvider = null)
     {
         _searchTimeout = searchTimeout ?? timeout;
-        _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeout = timeout;
         _contentTimeout = contentTimeout ?? timeout;
@@ -125,7 +122,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <inheritdoc />
-    public async Task<ClipPage?> GetClipPageAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid collectionId, Guid? folderId,
+    public async Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, Guid collectionId, Guid? folderId,
         int offset, int count, CancellationToken cancellationToken = default)
     {
         try
@@ -139,7 +136,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
                 Count = count,
             };
 
-            var reply = await CallAsync(identity, peer, _timeout,
+            var reply = await CallAsync(peer, _timeout,
                 (client, deadline) => client.GetClipPageAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
                 _notFound, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
@@ -151,25 +148,25 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <inheritdoc />
-    public async Task<ClipContent?> GetClipContentAsync(DeviceIdentity identity, Peer peer, Guid databaseId, Guid clipId,
+    public async Task<ClipContent?> GetClipContentAsync(PeerConnection peer, Guid databaseId, Guid clipId,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var formatsRequest = new GetClipFormatsRequest { DatabaseId = databaseId.ToString("D"), ClipId = clipId.ToString("D") };
-            var formatsReply = await CallAsync(identity, peer, _timeout,
+            var formatsReply = await CallAsync(peer, _timeout,
                 (client, deadline) => client.GetClipFormatsAsync(formatsRequest, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
                 _notFound, cancellationToken);
 
             var clip = SharedDatabaseMessages.FromMessage(formatsReply.Clip ?? new ClipSummary());
             if (clip == null || clip.Id != clipId)
-                throw new DatabaseUnavailableException($"{peer.DisplayName} sent an invalid clip.");
+                throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} sent an invalid clip.");
 
             var formats = formatsReply.Formats.Select(p => SharedDatabaseMessages.FromMessage(p, clipId)).OfType<ClipData>()
                 .GroupBy(p => p.Id).Select(p => p.First()).ToList();
 
             var contentRequest = new ReadClipContentRequest { DatabaseId = formatsRequest.DatabaseId, ClipId = formatsRequest.ClipId };
-            var content = await CallAsync(identity, peer, _contentTimeout,
+            var content = await CallAsync(peer, _contentTimeout,
                 (client, deadline) => ReadContentAsync(client.ReadClipContent(contentRequest, deadline: deadline, cancellationToken: cancellationToken),
                     formats, peer, cancellationToken),
                 _notFound, cancellationToken);
@@ -183,15 +180,14 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(DeviceIdentity identity, Peer peer,
+    public async IAsyncEnumerable<PeerChangeNotice> WatchChangesAsync(PeerConnection peer,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(peer);
 
-        var (channel, call) = await OpenWatchAsync(identity, peer, cancellationToken);
-        using var ownedChannel = channel;
-        using var ownedCall = call;
+        var watch = await OpenWatchAsync(peer, cancellationToken);
+        using var ownedChannel = watch.Channel;
+        using var call = watch.Call;
         while (true)
         {
             ChangeNotice notice;
@@ -208,7 +204,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
             }
             catch (RpcException ex)
             {
-                throw new DatabaseUnavailableException($"{peer.DisplayName} stopped sending changes.", ex);
+                throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} stopped sending changes.", ex);
             }
 
             if (SharedDatabaseMessages.FromMessage(notice) is { } item)
@@ -220,53 +216,48 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// Starts the <c>WatchChanges</c> call at each of the Peer's addresses until one answers with its response headers
     /// (sent as soon as the Peer is listening). Only connecting has a deadline; the stream itself stays open.
     /// </summary>
-    private async Task<(GrpcChannel Channel, AsyncServerStreamingCall<ChangeNotice> Call)> OpenWatchAsync(DeviceIdentity identity, Peer peer,
-        CancellationToken cancellationToken)
+    private async Task<OpenWatch> OpenWatchAsync(PeerConnection peer, CancellationToken cancellationToken)
     {
-        Exception? lastError = null;
-        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
+        PeerAnswer<OpenWatch>? answer;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            GrpcChannel? channel = null;
-            AsyncServerStreamingCall<ChangeNotice>? call = null;
-            try
+            answer = await peer.TryEachAddressAsync<OpenWatch>(async (address, token) =>
             {
-                channel = PeerChannelFactory.CreateForPeer(address, identity, peer.DeviceId);
-                call = new SharedDatabaseAccess.SharedDatabaseAccessClient(channel).WatchChanges(new WatchChangesRequest(),
-                    cancellationToken: cancellationToken);
-                await call.ResponseHeadersAsync.WaitAsync(_timeout, cancellationToken);
-                return (channel, call);
-            }
-            catch (Exception ex)
-            {
-                call?.Dispose();
-                channel?.Dispose();
-                switch (ex)
+                GrpcChannel? channel = null;
+                AsyncServerStreamingCall<ChangeNotice>? call = null;
+                try
                 {
-                    case RpcException { StatusCode: StatusCode.Cancelled } when cancellationToken.IsCancellationRequested:
-                        throw new OperationCanceledException("Stopped watching.", ex, cancellationToken);
-                    case OperationCanceledException:
-                        throw;
-                    case RpcException { StatusCode: StatusCode.PermissionDenied }:
-                        throw new DatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
-                    case RpcException rpc when PeerCallFailure.IsNoReply(rpc):
-                    case TimeoutException or FormatException:
-                        lastError = ex;
-                        _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.DeviceId.ToShortDisplayString(), address);
-                        break;
-                    case RpcException:
-                        throw new DatabaseUnavailableException($"{peer.DisplayName} did not accept the request for changes.", ex);
-                    default:
-                        throw;
+                    channel = PeerChannelFactory.CreateForPeer(address, peer.Identity, peer.Peer.DeviceId);
+                    call = new SharedDatabaseAccess.SharedDatabaseAccessClient(channel).WatchChanges(new WatchChangesRequest(), cancellationToken: token);
+                    await call.ResponseHeadersAsync.WaitAsync(_timeout, token);
+                    return new OpenWatch(channel, call);
                 }
-            }
+                catch
+                {
+                    call?.Dispose();
+                    channel?.Dispose();
+                    throw;
+                }
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Stopped watching.", ex, cancellationToken);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer accepts this Device as a Peer.", ex);
+        }
+        catch (RpcException ex)
+        {
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} did not accept the request for changes.", ex);
         }
 
-        throw new DatabaseUnavailableException($"{peer.DisplayName} cannot be reached.", lastError ?? new InvalidOperationException("No address."));
+        return answer?.Value ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} cannot be reached.");
     }
 
     /// <inheritdoc />
-    public async Task<SearchMatches?> SearchAsync(DeviceIdentity identity, Peer peer, Guid databaseId, SearchFilters filters,
+    public async Task<SearchMatches?> SearchAsync(PeerConnection peer, Guid databaseId, SearchFilters filters,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(filters);
@@ -274,28 +265,28 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         try
         {
             var request = new SearchClipsRequest { DatabaseId = databaseId.ToString("D"), Criteria = SharedDatabaseMessages.ToMessage(filters) };
-            var matches = await CallAsync(identity, peer, _searchTimeout,
+            var matches = await CallAsync(peer, _searchTimeout,
                 (client, deadline) => ReadSearchPagesAsync(client.SearchClips(request, deadline: deadline, cancellationToken: cancellationToken), cancellationToken),
                 _searchStatuses, cancellationToken);
             _logger.LogDebug("Peer {DeviceId} answered the Remote Search with {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms",
-                peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
+                peer.Peer.DeviceId.ToShortDisplayString(), matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return matches;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
-            _logger.LogDebug("Peer {DeviceId} does not share the Database, collection or folder searched", peer.DeviceId.ToShortDisplayString());
+            _logger.LogDebug("Peer {DeviceId} does not share the Database, collection or folder searched", peer.Peer.DeviceId.ToShortDisplayString());
             return null;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.ResourceExhausted)
         {
-            _logger.LogDebug("Peer {DeviceId} gave up the Remote Search after {ElapsedMs:F0} ms", peer.DeviceId.ToShortDisplayString(),
+            _logger.LogDebug("Peer {DeviceId} gave up the Remote Search after {ElapsedMs:F0} ms", peer.Peer.DeviceId.ToShortDisplayString(),
                 _timeProvider.GetElapsedTime(started).TotalMilliseconds);
-            throw new DatabaseUnavailableException($"The search took too long on {peer.DisplayName}. Try narrower criteria.", ex);
+            throw new DatabaseUnavailableException($"The search took too long on {peer.Peer.DisplayName}. Try narrower criteria.", ex);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
         {
-            _logger.LogDebug("Peer {DeviceId} refused the Remote Search criteria: {Detail}", peer.DeviceId.ToShortDisplayString(), ex.Status.Detail);
-            throw new DatabaseUnavailableException($"{peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
+            _logger.LogDebug("Peer {DeviceId} refused the Remote Search criteria: {Detail}", peer.Peer.DeviceId.ToShortDisplayString(), ex.Status.Detail);
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} could not run this search: {ex.Status.Detail}", ex);
         }
     }
 
@@ -330,7 +321,7 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     /// the Peer announced.
     /// </summary>
     private static async Task<Dictionary<Guid, byte[]>> ReadContentAsync(AsyncServerStreamingCall<ClipContentChunk> call,
-        IReadOnlyList<ClipData> formats, Peer peer, CancellationToken cancellationToken)
+        IReadOnlyList<ClipData> formats, PeerConnection peer, CancellationToken cancellationToken)
     {
         using var ownedCall = call;
         var byId = formats.ToDictionary(p => p.Id);
@@ -341,26 +332,26 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
         {
             if (!Guid.TryParse(item.FormatId, out var formatId) || !byId.TryGetValue(formatId, out var format) ||
                 format.StorageType != item.StorageType || item.TotalLength is < 0 or > int.MaxValue)
-                throw new DatabaseUnavailableException($"{peer.DisplayName} sent content for an unknown format.");
+                throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} sent content for an unknown format.");
 
             if (!buffers.TryGetValue(formatId, out var entry))
             {
                 total += item.TotalLength;
                 if (total > _maxContentLength)
-                    throw new DatabaseUnavailableException($"This clip from {peer.DisplayName} is too large to show.");
+                    throw new DatabaseUnavailableException($"This clip from {peer.Peer.DisplayName} is too large to show.");
 
                 entry = (new byte[item.TotalLength], 0);
             }
 
             if (item.TotalLength != entry.Buffer.Length || entry.Written + item.Data.Length > entry.Buffer.Length)
-                throw new DatabaseUnavailableException($"{peer.DisplayName} sent more content than it announced.");
+                throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} sent more content than it announced.");
 
             item.Data.Span.CopyTo(entry.Buffer.AsSpan(entry.Written));
             buffers[formatId] = (entry.Buffer, entry.Written + item.Data.Length);
         }
 
         if (buffers.Values.Any(p => p.Written != p.Buffer.Length))
-            throw new DatabaseUnavailableException($"{peer.DisplayName} sent incomplete content.");
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} sent incomplete content.");
 
         return buffers.ToDictionary(p => p.Key, p => p.Value.Buffer);
     }
@@ -398,23 +389,23 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(DeviceIdentity identity, Peer peer,
+    public async Task<IReadOnlyList<SharedDatabase>> ListSharedDatabasesAsync(PeerConnection peer,
         CancellationToken cancellationToken = default)
     {
-        var reply = await CallAsync(identity, peer, _timeout,
+        var reply = await CallAsync(peer, _timeout,
             (client, deadline) => client.ListSharedDatabasesAsync(new ListSharedDatabasesRequest(), deadline: deadline,
                 cancellationToken: cancellationToken).ResponseAsync, _none, cancellationToken);
         return SharedDatabaseMessages.FromMessage(reply);
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(DeviceIdentity identity, Peer peer, Guid databaseId,
+    public async Task<IReadOnlyList<CollectionEntry>?> GetCollectionTreeAsync(PeerConnection peer, Guid databaseId,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var request = new GetCollectionTreeRequest { DatabaseId = databaseId.ToString("D") };
-            var reply = await CallAsync(identity, peer, _timeout,
+            var reply = await CallAsync(peer, _timeout,
                 (client, deadline) => client.GetCollectionTreeAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
                 _notFound, cancellationToken);
             return SharedDatabaseMessages.FromMessage(reply);
@@ -426,51 +417,36 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <summary>
-    /// Makes the call at each of the Peer's addresses until one answers. Any reply from the Peer, including an error
-    /// status, ends the search; only failing to reach it moves on to the next address. An error status in
-    /// <paramref name="callerHandles" /> is rethrown for the caller to handle; any other becomes a
+    /// Makes the call at each of the Peer's addresses until one answers (<see cref="PeerConnection.CallAsync{T}" />). An
+    /// error status in <paramref name="callerHandles" /> is rethrown for the caller to handle; any other becomes a
     /// <see cref="DatabaseUnavailableException" />, so a raw <see cref="RpcException" /> never escapes this client.
     /// </summary>
-    private async Task<TReply> CallAsync<TReply>(DeviceIdentity identity, Peer peer, TimeSpan timeout,
+    private static async Task<TReply> CallAsync<TReply>(PeerConnection peer, TimeSpan timeout,
         Func<SharedDatabaseAccess.SharedDatabaseAccessClient, DateTime, Task<TReply>> call, IReadOnlyCollection<StatusCode> callerHandles,
         CancellationToken cancellationToken)
+        where TReply : class
     {
-        ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(peer);
-
-        Exception? lastError = null;
-        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
+        TReply? reply;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
-                using var channel = PeerChannelFactory.CreateForPeer(address, identity, peer.DeviceId);
-                return await call(new SharedDatabaseAccess.SharedDatabaseAccessClient(channel), DateTime.UtcNow + timeout);
-            }
-            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled && cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException("The call was cancelled.", ex, cancellationToken);
-            }
-            catch (RpcException ex) when (PeerCallFailure.IsNoReply(ex))
-            {
-                lastError = ex;
-                _logger.LogDebug(ex, "Peer {DeviceId} not reachable at {Address}", peer.DeviceId.ToShortDisplayString(), address);
-            }
-            catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
-            {
-                throw new DatabaseUnavailableException($"{peer.DisplayName} no longer accepts this Device as a Peer.", ex);
-            }
-            catch (RpcException ex) when (!callerHandles.Contains(ex.StatusCode))
-            {
-                _logger.LogDebug(ex, "Peer {DeviceId} answered with {Status}", peer.DeviceId.ToShortDisplayString(), ex.StatusCode);
-                throw new DatabaseUnavailableException(PeerCallFailure.Describe(ex, peer.DisplayName), ex);
-            }
-            catch (FormatException ex)
-            {
-                lastError = ex; // a malformed address in the Peer record
-            }
+            reply = await peer.CallAsync((channel, _) => call(new SharedDatabaseAccess.SharedDatabaseAccessClient(channel), DateTime.UtcNow + timeout),
+                cancellationToken);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer accepts this Device as a Peer.", ex);
+        }
+        catch (RpcException ex) when (!callerHandles.Contains(ex.StatusCode))
+        {
+            throw new DatabaseUnavailableException(PeerCallFailure.Describe(ex, peer.Peer.DisplayName), ex);
         }
 
-        throw new DatabaseUnavailableException($"{peer.DisplayName} cannot be reached.", lastError ?? new InvalidOperationException("No address."));
+        return reply ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} cannot be reached.");
     }
+
+    /// <summary>
+    /// A <c>WatchChanges</c> call the Peer answered, and the channel it runs on.
+    /// </summary>
+    private sealed record OpenWatch(GrpcChannel Channel, AsyncServerStreamingCall<ChangeNotice> Call);
 }

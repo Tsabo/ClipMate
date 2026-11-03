@@ -30,6 +30,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     private static readonly TimeSpan _maxRewatchDelay = TimeSpan.FromSeconds(30);
     private readonly ISharedDatabaseClient _client;
     private readonly IConfigurationService _configurationService;
+    private readonly PeerConnector _connector;
     private readonly ILocalDevice _localDevice;
     private readonly ILogger<RemoteDatabaseService> _logger;
     private readonly IPeerStore _peerStore;
@@ -46,6 +47,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     public RemoteDatabaseService(IPeerStore peerStore,
         IPeerStatusService status,
         ILocalDevice localDevice,
+        PeerConnector connector,
         IConfigurationService configurationService,
         ISharedDatabaseClient client,
         TimeProvider timeProvider,
@@ -54,6 +56,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
         _status = status ?? throw new ArgumentNullException(nameof(status));
         _localDevice = localDevice ?? throw new ArgumentNullException(nameof(localDevice));
+        _connector = connector ?? throw new ArgumentNullException(nameof(connector));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -90,11 +93,10 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         await _refreshGate.WaitAsync(cancellationToken);
         try
         {
-            var identity = _localDevice.Identity;
-            if (_configurationService.Configuration.Networking.Enabled && identity != null)
+            if (_configurationService.Configuration.Networking.Enabled && _localDevice.Identity != null)
             {
                 var online = _peerStore.GetPeers().Where(p => _status.GetStatus(p.DeviceId) == PeerConnectionStatus.Online);
-                await Task.WhenAll(online.Select(p => RefreshPeerAsync(identity, p, cancellationToken)));
+                await Task.WhenAll(online.Select(p => RefreshPeerAsync(p.DeviceId, cancellationToken)));
             }
         }
         finally
@@ -118,25 +120,25 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     public async Task<IReadOnlyList<CollectionEntry>> GetCollectionTreeAsync(RemoteDatabaseAddress address,
         CancellationToken cancellationToken = default)
     {
-        var (identity, peer) = GetReachablePeer(address.DeviceId);
-        return await _client.GetCollectionTreeAsync(identity, peer, address.DatabaseId, cancellationToken)
-               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database.");
+        var peer = GetReachablePeer(address.DeviceId);
+        return await _client.GetCollectionTreeAsync(peer, address.DatabaseId, cancellationToken)
+               ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer shares this Database.");
     }
 
     /// <inheritdoc />
     public async Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
         CancellationToken cancellationToken = default)
     {
-        var (identity, peer) = GetReachablePeer(address.DeviceId);
-        return await _client.GetClipPageAsync(identity, peer, address.DatabaseId, collectionId, folderId, offset, count, cancellationToken)
-               ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this collection.");
+        var peer = GetReachablePeer(address.DeviceId);
+        return await _client.GetClipPageAsync(peer, address.DatabaseId, collectionId, folderId, offset, count, cancellationToken)
+               ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer shares this collection.");
     }
 
     /// <inheritdoc />
     public async Task<ClipContent?> GetClipContentAsync(RemoteDatabaseAddress address, Guid clipId, CancellationToken cancellationToken = default)
     {
-        var (identity, peer) = GetReachablePeer(address.DeviceId);
-        return await _client.GetClipContentAsync(identity, peer, address.DatabaseId, clipId, cancellationToken);
+        var peer = GetReachablePeer(address.DeviceId);
+        return await _client.GetClipContentAsync(peer, address.DatabaseId, clipId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -147,9 +149,9 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         var started = _timeProvider.GetTimestamp();
         try
         {
-            var (identity, peer) = GetReachablePeer(address.DeviceId);
-            var matches = await _client.SearchAsync(identity, peer, address.DatabaseId, filters, cancellationToken)
-                          ?? throw new DatabaseUnavailableException($"{peer.DisplayName} no longer shares this Database or collection.");
+            var peer = GetReachablePeer(address.DeviceId);
+            var matches = await _client.SearchAsync(peer, address.DatabaseId, filters, cancellationToken)
+                          ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer shares this Database or collection.");
             _logger.LogDebug("Remote Search of {RemoteDatabase} on {Peer}: {Count} of {TotalMatches} matches in {ElapsedMs:F0} ms", address,
                 peerName, matches.Clips.Count, matches.TotalMatches, _timeProvider.GetElapsedTime(started).TotalMilliseconds);
             return matches;
@@ -188,31 +190,33 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         UpdateWatches();
     }
 
-    private (DeviceIdentity Identity, Peer Peer) GetReachablePeer(DeviceId deviceId)
+    private PeerConnection GetReachablePeer(DeviceId deviceId)
     {
-        var identity = _localDevice.Identity;
-        if (!_configurationService.Configuration.Networking.Enabled || identity == null)
+        if (!_configurationService.Configuration.Networking.Enabled || _localDevice.Identity == null)
             throw new DatabaseUnavailableException("Networking is off.");
 
-        var peer = _peerStore.Find(deviceId) ?? throw new DatabaseUnavailableException("That Device is not a Peer.");
+        var peer = _connector.ForPeer(deviceId) ?? throw new DatabaseUnavailableException("That Device is not a Peer.");
         if (_status.GetStatus(deviceId) != PeerConnectionStatus.Online)
-            throw new DatabaseUnavailableException($"{peer.DisplayName} is offline.");
+            throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} is offline.");
 
-        return (identity, peer);
+        return peer;
     }
 
-    private async Task RefreshPeerAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken)
+    private async Task RefreshPeerAsync(DeviceId deviceId, CancellationToken cancellationToken)
     {
+        if (_connector.ForPeer(deviceId) is not { } peer)
+            return;
+
         try
         {
-            var shared = await _client.ListSharedDatabasesAsync(identity, peer, cancellationToken);
-            if (!shared.SequenceEqual(peer.SharedDatabases))
-                await _peerStore.RecordSharedDatabasesAsync(peer.DeviceId, shared, cancellationToken);
+            var shared = await _client.ListSharedDatabasesAsync(peer, cancellationToken);
+            if (!shared.SequenceEqual(peer.Peer.SharedDatabases))
+                await _peerStore.RecordSharedDatabasesAsync(deviceId, shared, cancellationToken);
         }
         catch (DatabaseUnavailableException ex)
         {
             // The status monitor notices separately; keep the last known list.
-            _logger.LogDebug(ex, "Could not get the Shared Databases of Peer {DeviceId}", peer.DeviceId.ToShortDisplayString());
+            _logger.LogDebug(ex, "Could not get the Shared Databases of Peer {DeviceId}", deviceId.ToShortDisplayString());
         }
     }
 
@@ -236,8 +240,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     /// </summary>
     private void UpdateWatches()
     {
-        var identity = _localDevice.Identity;
-        var online = !_disposed && identity != null && _configurationService.Configuration.Networking.Enabled
+        var online = !_disposed && _localDevice.Identity != null && _configurationService.Configuration.Networking.Enabled
             ? _peerStore.GetPeers().Where(p => _status.GetStatus(p.DeviceId) == PeerConnectionStatus.Online).Select(p => p.DeviceId).ToHashSet()
             : [];
 
@@ -256,26 +259,26 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
 
                 var watch = new CancellationTokenSource();
                 _watches.Add(item, watch);
-                _ = WatchAsync(identity!, item, watch);
+                _ = WatchAsync(item, watch);
             }
         }
     }
 
-    private async Task WatchAsync(DeviceIdentity identity, DeviceId deviceId, CancellationTokenSource watch)
+    private async Task WatchAsync(DeviceId deviceId, CancellationTokenSource watch)
     {
         var cancellationToken = watch.Token;
         var delay = _rewatchDelay;
         try
         {
             await Task.Yield();
-            while (!cancellationToken.IsCancellationRequested && _peerStore.Find(deviceId) is { } peer)
+            while (!cancellationToken.IsCancellationRequested && _connector.ForPeer(deviceId) is { } peer)
             {
                 try
                 {
-                    await foreach (var item in _client.WatchChangesAsync(identity, peer, cancellationToken))
+                    await foreach (var item in _client.WatchChangesAsync(peer, cancellationToken))
                     {
                         delay = _rewatchDelay;
-                        await HandleNoticeAsync(identity, deviceId, item, cancellationToken);
+                        await HandleNoticeAsync(deviceId, item, cancellationToken);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -299,7 +302,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
         }
     }
 
-    private async Task HandleNoticeAsync(DeviceIdentity identity, DeviceId deviceId, PeerChangeNotice notice, CancellationToken cancellationToken)
+    private async Task HandleNoticeAsync(DeviceId deviceId, PeerChangeNotice notice, CancellationToken cancellationToken)
     {
         switch (notice)
         {
@@ -311,7 +314,7 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
                     RemoteCollectionChanged?.Invoke(this, new RemoteCollectionChangedEventArgs(address, change.CollectionId));
                 break;
             case SharedDatabasesChangedNotice:
-                await RefreshPeerNowAsync(identity, deviceId, cancellationToken);
+                await RefreshPeerNowAsync(deviceId, cancellationToken);
                 break;
         }
     }
@@ -319,13 +322,12 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     /// <summary>
     /// Fetches one Peer's share list now (its Peer said it changed), so unsharing reaches this Device without waiting for the poll.
     /// </summary>
-    private async Task RefreshPeerNowAsync(DeviceIdentity identity, DeviceId deviceId, CancellationToken cancellationToken)
+    private async Task RefreshPeerNowAsync(DeviceId deviceId, CancellationToken cancellationToken)
     {
         await _refreshGate.WaitAsync(cancellationToken);
         try
         {
-            if (_peerStore.Find(deviceId) is { } peer)
-                await RefreshPeerAsync(identity, peer, cancellationToken);
+            await RefreshPeerAsync(deviceId, cancellationToken);
         }
         finally
         {

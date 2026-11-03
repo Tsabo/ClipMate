@@ -196,7 +196,7 @@ public class NetworkingServiceTests
 
         // Act / Assert
         await _service.ApplyConfigurationAsync();
-        A.CallTo(() => _peerStatus.StartAsync(A<DeviceIdentity>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _peerStatus.StartAsync(A<CancellationToken>._)).MustHaveHappenedOnceExactly();
         await Assert.That(_localDevice.Identity).IsNotNull();
 
         _configuration.Networking.Enabled = false;

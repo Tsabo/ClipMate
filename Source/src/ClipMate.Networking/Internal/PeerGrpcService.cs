@@ -8,32 +8,29 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Networking.Internal;
 
 /// <summary>
-/// Serves the Peer protocol. <see cref="PairedPeerGate" /> lets only Peers call anything except the pairing calls.
+/// Serves the Peer protocol. <see cref="PairedPeerGate" /> lets only Peers call anything except the pairing calls, which
+/// only carry the messages to and from <see cref="PeerPairing" />.
 /// </summary>
 internal sealed class PeerGrpcService : PeerService.PeerServiceBase
 {
-    private const int _maxDeviceNameLength = 64;
-    private readonly IPairingApprovalHandler _approvalHandler;
     private readonly IConfigurationService _configurationService;
     private readonly PeerConnectionTracker _connections;
     private readonly DeviceIdentity _identity;
     private readonly ILogger<PeerGrpcService> _logger;
+    private readonly PeerPairing _pairing;
     private readonly IPeerStore _peerStore;
-    private readonly PairingRequestTracker _tracker;
 
     public PeerGrpcService(DeviceIdentity identity,
         IConfigurationService configurationService,
         IPeerStore peerStore,
-        IPairingApprovalHandler approvalHandler,
-        PairingRequestTracker tracker,
+        PeerPairing pairing,
         PeerConnectionTracker connections,
         ILogger<PeerGrpcService> logger)
     {
         _identity = identity ?? throw new ArgumentNullException(nameof(identity));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
-        _approvalHandler = approvalHandler ?? throw new ArgumentNullException(nameof(approvalHandler));
-        _tracker = tracker ?? throw new ArgumentNullException(nameof(tracker));
+        _pairing = pairing ?? throw new ArgumentNullException(nameof(pairing));
         _connections = connections ?? throw new ArgumentNullException(nameof(connections));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -58,70 +55,22 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
     /// <inheritdoc />
     public override async Task<PairReply> RequestPairing(PairRequest request, ServerCallContext context)
     {
-        var caller = PeerCallContext.GetCallerDeviceId(context);
-        if (caller == _identity.DeviceId)
-            return Reply(PairResult.Declined);
+        var status = await _pairing.AnswerAsync(_identity.DeviceId, PeerCallContext.GetCallerDeviceId(context),
+            PeerCallContext.GetRemoteAddress(context), request.DeviceName, request.ProtocolMajor,
+            GetCallerAddress(context, request.ListeningPort), context.CancellationToken);
 
-        if (request.ProtocolMajor != PeerProtocol.Major)
+        return Reply(status switch
         {
-            _logger.LogInformation("Pairing request from Device {DeviceId} uses protocol {Major}; update required",
-                caller.ToDisplayString(), request.ProtocolMajor);
-
-            return Reply(PairResult.UpdateRequired);
-        }
-
-        if (!_tracker.TryBeginWaiting(caller, PeerCallContext.GetRemoteAddress(context)))
-            return Reply(PairResult.Busy);
-
-        var accepted = false;
-        try
-        {
-            var deviceName = CleanDeviceName(request.DeviceName, caller);
-            var code = VerificationCode.Derive(_identity.DeviceId, caller);
-            _logger.LogInformation("Pairing request from {DeviceName} ({DeviceId})", deviceName, caller.ToDisplayString());
-
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
-            timeout.CancelAfter(PairingRequestTracker.ApprovalTimeout);
-
-            PairingDecision decision;
-            try
-            {
-                decision = await _approvalHandler.RequestApprovalAsync(new PairingRequest(caller, deviceName, code), timeout.Token);
-            }
-            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
-            {
-                decision = PairingDecision.Declined;
-            }
-
-            if (!decision.Accepted || context.CancellationToken.IsCancellationRequested)
-            {
-                _logger.LogInformation("Pairing request from {DeviceId} was declined", caller.ToDisplayString());
-                return Reply(PairResult.Declined);
-            }
-
-            _tracker.Accept(caller, deviceName, decision.Alias, GetCallerAddress(context, request.ListeningPort));
-            accepted = true;
-            return Reply(PairResult.Accepted);
-        }
-        finally
-        {
-            _tracker.EndWaiting(caller, accepted);
-        }
+            PairingStatus.Accepted => PairResult.Accepted,
+            PairingStatus.UpdateRequired => PairResult.UpdateRequired,
+            PairingStatus.Busy => PairResult.Busy,
+            var _ => PairResult.Declined,
+        });
     }
 
     /// <inheritdoc />
-    public override async Task<ConfirmPairReply> ConfirmPairing(ConfirmPairRequest request, ServerCallContext context)
-    {
-        var caller = PeerCallContext.GetCallerDeviceId(context);
-        if (!_tracker.TryTakeAcceptance(caller, out var acceptance))
-        {
-            _logger.LogWarning("Ignored a pairing confirmation from Device {DeviceId} that this Device did not accept", caller.ToDisplayString());
-            return new ConfirmPairReply { Paired = false };
-        }
-
-        await _peerStore.SavePairedAsync(caller, acceptance.DeviceName, acceptance.Alias, acceptance.Address, context.CancellationToken);
-        return new ConfirmPairReply { Paired = true };
-    }
+    public override async Task<ConfirmPairReply> ConfirmPairing(ConfirmPairRequest request, ServerCallContext context) =>
+        new() { Paired = await _pairing.ConfirmAsync(PeerCallContext.GetCallerDeviceId(context), context.CancellationToken) };
 
     /// <inheritdoc />
     public override async Task<UnpairReply> Unpair(UnpairRequest request, ServerCallContext context)
@@ -149,17 +98,6 @@ internal sealed class PeerGrpcService : PeerService.PeerServiceBase
         ProtocolMajor = PeerProtocol.Major,
         ProtocolMinor = PeerProtocol.Minor,
     };
-
-    private static string CleanDeviceName(string deviceName, DeviceId deviceId)
-    {
-        var name = new string(deviceName.Where(p => !char.IsControl(p)).ToArray()).Trim();
-        if (name.Length > _maxDeviceNameLength)
-            name = name[.._maxDeviceNameLength];
-
-        return name.Length == 0
-            ? deviceId.ToShortDisplayString()
-            : name;
-    }
 
     private static string? GetCallerAddress(ServerCallContext context, uint listeningPort)
     {

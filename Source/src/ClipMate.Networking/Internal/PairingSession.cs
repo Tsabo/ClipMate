@@ -8,7 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Networking.Internal;
 
 /// <summary>
-/// One outgoing pairing request: sends it at once, then completes Pairing once both users have accepted.
+/// One outgoing pairing request, the requesting half of <see cref="PeerPairing" />: sends it at once, then completes
+/// Pairing once both users have accepted.
 /// </summary>
 internal sealed class PairingSession : IPairingSession
 {
@@ -21,16 +22,16 @@ internal sealed class PairingSession : IPairingSession
     private readonly GrpcChannel _channel;
     private readonly PeerService.PeerServiceClient _client;
     private readonly ILogger<PairingSession> _logger;
-    private readonly IPeerStore _peerStore;
+    private readonly PeerPairing _pairing;
     private int _accepted;
     private string? _peerDeviceName;
     private int _wrongDevice;
 
-    public PairingSession(DeviceIdentity identity, string deviceName, int listeningPort, PairingTarget target, IPeerStore peerStore,
+    public PairingSession(DeviceIdentity identity, string deviceName, int listeningPort, PairingTarget target, PeerPairing pairing,
         ILogger<PairingSession> logger)
     {
         Target = target;
-        _peerStore = peerStore;
+        _pairing = pairing;
         _logger = logger;
         VerificationCode = Core.Models.Networking.VerificationCode.Derive(identity.DeviceId, target.DeviceId);
         _channel = PeerChannelFactory.CreateForPairing(target.Address, identity, target.DeviceId, OnWrongDevice);
@@ -84,11 +85,8 @@ internal sealed class PairingSession : IPairingSession
             return ToStatus(ex);
         }
 
-        var deviceName = PeerDeviceName ?? (string.IsNullOrWhiteSpace(Target.DeviceName)
-            ? Target.Address
-            : Target.DeviceName);
-
-        await _peerStore.SavePairedAsync(Target.DeviceId, deviceName, alias, Target.Address, Target.AddressEnteredManually, CancellationToken.None);
+        await _pairing.RecordPairedAsync(Target.DeviceId, PeerDeviceName ?? Target.DeviceName, alias, Target.Address, Target.AddressEnteredManually,
+            CancellationToken.None);
         return PairingStatus.Paired;
     }
 
@@ -135,7 +133,7 @@ internal sealed class PairingSession : IPairingSession
 
             Volatile.Write(ref _peerDeviceName, string.IsNullOrWhiteSpace(reply.DeviceName)
                 ? null
-                : reply.DeviceName.Trim());
+                : PeerPairing.CleanDeviceName(reply.DeviceName, Target.DeviceId));
 
             return reply.Result switch
             {

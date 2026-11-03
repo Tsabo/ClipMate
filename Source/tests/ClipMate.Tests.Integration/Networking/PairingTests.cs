@@ -87,6 +87,23 @@ public partial class PairingTests
     }
 
     [Test]
+    public async Task Pairing_ApprovingDeviceReportsAnUntidyDeviceName_TheRequestingDeviceCleansItTheSameWay()
+    {
+        // Arrange: control characters and surrounding spaces, which the approving side has always removed
+        _desktop.ConfigurationService.Configuration.Networking.DeviceName = "  OFFICE\tDESKTOP\u0007  ";
+        _desktop.User.Answer = PairingDecision.Accept(null);
+        await using var session = _laptop.PairingClient.Start(_desktop.AsTarget());
+
+        // Act
+        var status = await session.AcceptAsync(null);
+
+        // Assert
+        await Assert.That(status).IsEqualTo(PairingStatus.Paired);
+        await Assert.That(session.PeerDeviceName).IsEqualTo("OFFICEDESKTOP");
+        await Assert.That(_laptop.Store.Find(_desktop.DeviceId)!.DeviceName).IsEqualTo("OFFICEDESKTOP");
+    }
+
+    [Test]
     public async Task Pairing_WhenBothAccept_PeersCanConnectBothWays()
     {
         // Arrange
@@ -368,11 +385,12 @@ public partial class PairingTests
             ConfigurationService = A.Fake<IConfigurationService>();
             A.CallTo(() => ConfigurationService.Configuration).Returns(configuration);
             Store = new PeerStore(ConfigurationService, NullLogger<PeerStore>.Instance);
-            PairingClient = new PeerPairingClient(this, Store, NullLoggerFactory.Instance);
+            Pairing = new PeerPairing(this, Store, User, NullLoggerFactory.Instance);
             var discovery = A.Fake<IDeviceDiscoveryService>();
             A.CallTo(() => discovery.DiscoveredDevices).Returns([]);
-            Unpairing = new PeerUnpairingService(this, Store, discovery, NullLogger<PeerUnpairingService>.Instance);
-            Monitor = new PeerStatusMonitor(Store, discovery, new GrpcPeerProbe(ConfigurationService, NullLogger<GrpcPeerProbe>.Instance),
+            var connector = new PeerConnector(this, Store, discovery, NullLogger<PeerConnector>.Instance);
+            Unpairing = new PeerUnpairingService(connector, Store, NullLogger<PeerUnpairingService>.Instance);
+            Monitor = new PeerStatusMonitor(Store, discovery, connector, new GrpcPeerProbe(ConfigurationService, NullLogger<GrpcPeerProbe>.Instance),
                 NullLogger<PeerStatusMonitor>.Instance);
         }
 
@@ -394,7 +412,9 @@ public partial class PairingTests
 
         public ScriptedUser User { get; } = new();
 
-        public IPairingClient PairingClient { get; }
+        public PeerPairing Pairing { get; }
+
+        public IPairingClient PairingClient => Pairing;
 
         public IUnpairingService Unpairing { get; }
 
@@ -420,7 +440,7 @@ public partial class PairingTests
         {
             // Loopback only, so the test run never triggers a Windows Firewall prompt.
             var options = new PeerHostOptions { ListenAddress = IPAddress.Loopback };
-            _host = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(Store), Store, User,
+            _host = new KestrelPeerHostFactory(new PeerStoreCertificateValidator(Store), Store, Pairing,
                 ConfigurationService, A.Fake<ISharedDatabaseService>(), A.Fake<ISharedDatabaseChangeFeed>(), NullLoggerFactory.Instance, options).Create();
             await _host.StartAsync(Identity, 0);
         }
@@ -443,7 +463,7 @@ public partial class PairingTests
         {
             if (!_monitorStarted)
             {
-                await Monitor.StartAsync(Identity);
+                await Monitor.StartAsync();
                 _monitorStarted = true;
             }
 

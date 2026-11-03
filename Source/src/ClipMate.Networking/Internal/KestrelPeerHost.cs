@@ -64,8 +64,7 @@ internal sealed class KestrelPeerHost : IPeerHost
         builder.Services.AddSingleton(_services.ConfigurationService);
         builder.Services.AddSingleton(_services.Validator);
         builder.Services.AddSingleton(_services.PeerStore);
-        builder.Services.AddSingleton(_services.ApprovalHandler);
-        builder.Services.AddSingleton(_services.Tracker);
+        builder.Services.AddSingleton(_services.Pairing);
         builder.Services.AddSingleton(_services.SharedDatabases);
         builder.Services.AddSingleton(_services.ChangeFeed);
         builder.Services.AddSingleton(_services.Options);

@@ -173,7 +173,7 @@ public sealed class NetworkingService : IHostedService, IRecipient<PreferencesCh
         _logger.LogInformation("Networking enabled on port {Port}", port);
 
         await StartDiscoveryAsync(host.ListeningPort ?? port, cancellationToken);
-        await _peerStatus.StartAsync(_identity, cancellationToken);
+        await _peerStatus.StartAsync(cancellationToken);
     }
 
     private async Task StopHostAsync()

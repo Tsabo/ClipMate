@@ -36,7 +36,10 @@ public class PeerStatusMonitorTests
         A.CallTo(() => _discovery.DiscoveredDevices).Returns([]);
         _probe = new StubProbe();
         _identity = new DeviceIdentity(CreateCertificate());
-        _monitor = new PeerStatusMonitor(_store, _discovery, _probe, NullLogger<PeerStatusMonitor>.Instance);
+        var localDevice = A.Fake<ILocalDevice>();
+        A.CallTo(() => localDevice.Identity).Returns(_identity);
+        _monitor = new PeerStatusMonitor(_store, _discovery, new PeerConnector(localDevice, _store, _discovery, NullLogger<PeerConnector>.Instance), _probe,
+            NullLogger<PeerStatusMonitor>.Instance);
     }
 
     [After(Test)]
@@ -51,7 +54,7 @@ public class PeerStatusMonitorTests
     {
         // Arrange
         _probe.Replies["192.168.1.20:47823"] = new PeerProbeReply("LAPTOP (renamed)", PeerProtocol.Major, 7, ["pairing", "future"]);
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -70,7 +73,7 @@ public class PeerStatusMonitorTests
     {
         // Arrange
         _probe.Replies["192.168.1.20:47823"] = new PeerProbeReply("LAPTOP", major, 0, []);
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -83,7 +86,7 @@ public class PeerStatusMonitorTests
     public async Task RefreshAsync_PeerDoesNotAnswer_IsOfflineAndKeepsLastSeen()
     {
         // Arrange
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -100,7 +103,7 @@ public class PeerStatusMonitorTests
         A.CallTo(() => _discovery.DiscoveredDevices).Returns(
             [new DiscoveredDevice(_laptop, "LAPTOP", IPEndPoint.Parse("10.0.0.5:47823"), PeerProtocol.Major, 0, DateTimeOffset.UtcNow)]);
         _probe.Replies["10.0.0.5:47823"] = new PeerProbeReply("LAPTOP", PeerProtocol.Major, 0, []);
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -118,7 +121,7 @@ public class PeerStatusMonitorTests
         _configuration.Peers.Single().PairedAt = DateTime.Now.AddHours(-1);
         var removed = new List<DeviceId>();
         _store.PeerRemoved += (_, e) => removed.Add(e.DeviceId);
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -134,7 +137,7 @@ public class PeerStatusMonitorTests
     {
         // Arrange: the Peer is still completing Pairing on its side.
         _probe.NotPairedAt.Add("192.168.1.20:47823");
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
 
         // Act
         await _monitor.RefreshAsync();
@@ -148,7 +151,7 @@ public class PeerStatusMonitorTests
     {
         // Arrange
         _probe.Replies["192.168.1.20:47823"] = new PeerProbeReply("LAPTOP", PeerProtocol.Major, 0, []);
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
         await _monitor.RefreshAsync();
 
         // Act
@@ -167,7 +170,7 @@ public class PeerStatusMonitorTests
         _monitor.StatusChanged += (_, _) => changed.TrySetResult();
 
         // Act
-        await _monitor.StartAsync(_identity);
+        await _monitor.StartAsync();
         await _monitor.RefreshAsync();
 
         // Assert
