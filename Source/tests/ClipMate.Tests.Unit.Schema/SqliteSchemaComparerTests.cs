@@ -213,6 +213,51 @@ public class SqliteSchemaComparerTests
     }
 
     [Test]
+    public async Task Compare_RetiredIndex_GeneratesDropIndexOperation()
+    {
+        // Arrange
+        var comparer = new SqliteSchemaComparer(new SchemaOptions { RetiredIndexes = ["IX_Clips_CollectionId"] });
+        var columns = new List<ColumnDefinition>
+        {
+            new() { Name = "Id", Type = "INTEGER", IsPrimaryKey = true, IsNullable = false, Position = 0 },
+            new() { Name = "CollectionId", Type = "TEXT", IsNullable = true, Position = 1 },
+        };
+
+        var current = new SchemaDefinition
+        {
+            Tables = new Dictionary<string, TableDefinition>
+            {
+                ["Clips"] = new()
+                {
+                    Name = "Clips",
+                    Columns = columns,
+                    Indexes =
+                    [
+                        new IndexDefinition { Name = "IX_Clips_CollectionId", TableName = "Clips", Columns = ["CollectionId"] },
+                        new IndexDefinition { Name = "IX_Clips_Other", TableName = "Clips", Columns = ["CollectionId"] },
+                    ],
+                },
+            },
+        };
+
+        var expected = new SchemaDefinition
+        {
+            Tables = new Dictionary<string, TableDefinition>
+            {
+                ["Clips"] = new() { Name = "Clips", Columns = columns },
+            },
+        };
+
+        // Act
+        var diff = comparer.Compare(current, expected);
+
+        // Assert: only the retired index is dropped; an unknown one is left alone
+        await Assert.That(diff.Operations).Count().IsEqualTo(1);
+        await Assert.That(diff.Operations[0].Type).IsEqualTo(MigrationOperationType.DropIndex);
+        await Assert.That(diff.Operations[0].Sql).IsEqualTo("DROP INDEX IX_Clips_CollectionId");
+    }
+
+    [Test]
     public async Task Compare_RemovedColumn_GeneratesWarning()
     {
         // Arrange

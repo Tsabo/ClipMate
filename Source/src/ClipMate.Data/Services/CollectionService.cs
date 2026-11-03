@@ -113,9 +113,9 @@ public class CollectionService : ICollectionService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databaseKey);
 
-        // Use contextFactory which handles both config keys and file paths
-        var repository = _contextFactory.GetCollectionRepository(databaseKey);
-        var collection = await repository.GetByIdAsync(id, cancellationToken);
+        // Runs on a worker thread: Microsoft.Data.Sqlite completes synchronously, and this is called on the UI thread
+        // when a collection is clicked. The active collection is set back on the caller's thread.
+        var collection = await Task.Run(() => _contextFactory.GetCollectionRepository(databaseKey).GetByIdAsync(id, cancellationToken), cancellationToken);
 
         if (collection == null)
             throw new ArgumentException($"Collection {id} not found in database '{databaseKey}'.", nameof(id));
