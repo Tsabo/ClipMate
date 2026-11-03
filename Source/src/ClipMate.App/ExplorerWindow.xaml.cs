@@ -636,7 +636,7 @@ public partial class ExplorerWindow : IWindow,
             }
 
             _viewModel.SetStatus($"Copied {copiedCount} clip(s)");
-            await _viewModel.PrimaryClipList.LoadClipsAsync();
+            await _viewModel.PrimaryClipList.RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -698,7 +698,7 @@ public partial class ExplorerWindow : IWindow,
             }
 
             _viewModel.SetStatus($"Moved {movedCount} clip(s)");
-            await _viewModel.PrimaryClipList.LoadClipsAsync();
+            await _viewModel.PrimaryClipList.RefreshAsync();
         }
         catch (Exception ex)
         {

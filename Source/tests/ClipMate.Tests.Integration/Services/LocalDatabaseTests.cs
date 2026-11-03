@@ -2,11 +2,13 @@ using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Caching.Memory;
@@ -100,35 +102,81 @@ public class LocalDatabaseTests : IntegrationTestBase
     }
 
     [Test]
-    public async Task GetClipPageAsync_CollectionIncludingFolders_ListsTheCollectionAndItsFolders()
+    public async Task GetClipPageAsync_CollectionIncludingFolders_PagesTheCollectionAndItsFoldersAtAnyDepthNewestFirst()
     {
         // Arrange
-        await AddClipAsync("In the collection", _inbox.Id, sortKey: 1);
-        await AddClipAsync("In Work", _inbox.Id, _work.Id, sortKey: 2);
+        var deep = await AddCollectionAsync(new Collection { Title = "Deep", SortKey = 1, LmType = CollectionLmType.Folder, ParentId = _work.Id });
+        var other = await AddCollectionAsync(new Collection { Title = "Other", SortKey = 2 });
+        await AddClipAsync("In the collection", _inbox.Id, sortKey: 5);
+        await AddClipAsync("Filed in Work", _inbox.Id, _work.Id, sortKey: 4);
+        await AddClipAsync("Filed in Deep", deep.Id, deep.Id, sortKey: 3);
+        await AddClipAsync("Deleted from Work", _inbox.Id, _work.Id, sortKey: 6, deleted: true);
+        await AddClipAsync("Elsewhere", other.Id, sortKey: 7);
+        await AddClipAsync("Oldest", _inbox.Id, sortKey: 1);
 
         // Act
-        var page = await _database.GetClipPageAsync(new ClipListScope.Collection(_inbox.Id, IncludeFolders: true), 0, 10);
+        var pages = await LoadAllAsync(new ClipListScope.Collection(_inbox.Id, IncludeFolders: true), 2);
 
         // Assert
-        await Assert.That(string.Join(", ", page.Clips.Select(p => p.Title).Order())).IsEqualTo("In the collection, In Work");
-        await Assert.That(page.TotalCount).IsEqualTo(2);
+        await Assert.That(string.Join(" | ", pages.Select(Titles))).IsEqualTo("In the collection, Filed in Work | Filed in Deep, Oldest");
+        await Assert.That(pages[0].TotalCount).IsEqualTo(4);
     }
 
     [Test]
-    public async Task GetClipPageAsync_Trash_ListsDeletedClipsMostRecentlyDeletedFirst()
+    public async Task GetClipPageAsync_Trash_PagesNewestDeletedFirstThenUndatedBySortKey()
     {
         // Arrange
-        await AddClipAsync("Kept", _inbox.Id, sortKey: 1);
-        await AddClipAsync("Deleted earlier", _inbox.Id, sortKey: 2, deletedAt: DateTimeOffset.UtcNow.AddDays(-2));
-        await AddClipAsync("Deleted later", _inbox.Id, sortKey: 3, deletedAt: DateTimeOffset.UtcNow.AddDays(-1));
+        await AddClipAsync("Kept", _inbox.Id, sortKey: 10);
+        await AddClipAsync("Deleted 3 days ago", _inbox.Id, sortKey: 9, deletedAt: DateTimeOffset.UtcNow.AddDays(-3));
+        await AddClipAsync("Undated low", _inbox.Id, sortKey: 2, deleted: true);
+        await AddClipAsync("Deleted yesterday", _work.Id, sortKey: 1, deletedAt: DateTimeOffset.UtcNow.AddDays(-1));
+        await AddClipAsync("Undated high", _inbox.Id, sortKey: 8, deleted: true);
 
         // Act
-        var trash = await _database.GetClipPageAsync(new ClipListScope.Trash(), 0, 10);
+        var trash = await LoadAllAsync(new ClipListScope.Trash(), 2);
         var inbox = await _database.GetClipPageAsync(new ClipListScope.Collection(_inbox.Id), 0, 10);
 
         // Assert
-        await Assert.That(Titles(trash)).IsEqualTo("Deleted later, Deleted earlier");
+        await Assert.That(string.Join(" | ", trash.Select(Titles))).IsEqualTo("Deleted yesterday, Deleted 3 days ago | Undated high, Undated low");
+        await Assert.That(trash[0].TotalCount).IsEqualTo(4);
         await Assert.That(Titles(inbox)).IsEqualTo("Kept");
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_LaterPages_CountNoFurtherThanThemselves()
+    {
+        // Arrange
+        var sqlCollection = await AddCollectionAsync(new Collection
+        {
+            Title = "Not deleted", SortKey = 500, ListType = CollectionListType.SqlBased, RetentionLimit = 200,
+            Sql = "SELECT * FROM Clips WHERE Del = 0",
+        });
+
+        for (var i = 1; i <= 7; i++)
+        {
+            await AddClipAsync($"Filed {i}", _inbox.Id, _work.Id, sortKey: i);
+            await AddClipAsync($"Deleted {i}", _inbox.Id, sortKey: i, deletedAt: DateTimeOffset.UtcNow.AddMinutes(-i));
+        }
+
+        ClipListScope[] scopes =
+        [
+            new ClipListScope.Collection(_inbox.Id),
+            new ClipListScope.Folder(_inbox.Id, _work.Id),
+            new ClipListScope.Collection(_inbox.Id, IncludeFolders: true),
+            new ClipListScope.Trash(),
+            new ClipListScope.Collection(sqlCollection.Id),
+        ];
+
+        foreach (var item in scopes)
+        {
+            // Act
+            var pages = await LoadAllAsync(item, 2);
+
+            // Assert: only the first page counts the whole list; a later page counts up to itself, plus one when more follow
+            await Assert.That($"{item}: {string.Join(",", pages.Select(p => p.TotalCount))}").IsEqualTo($"{item}: 7,5,7,7");
+            await Assert.That(pages.Sum(p => p.Clips.Count)).IsEqualTo(7);
+            await Assert.That(pages[^1].HasMore).IsFalse();
+        }
     }
 
     [Test]
@@ -188,6 +236,59 @@ public class LocalDatabaseTests : IntegrationTestBase
     }
 
     [Test]
+    public async Task GetClipPageAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange: Microsoft.Data.Sqlite completes synchronously, so the slow query blocks the thread it runs on
+        using var query = new SlowQuery();
+        var clips = A.Fake<IClipRepository>();
+        A.CallTo(() => clips.GetPageByCollectionAsync(_inbox.Id, 0, 10, A<CancellationToken>._))
+            .ReturnsLazily(() => query.Run(new ClipPage([], 0, 0)));
+
+        A.CallTo(() => _factory.GetClipRepository(_databaseKey)).Returns(clips);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetClipPageAsync(new ClipListScope.Collection(_inbox.Id), 0, 10));
+    }
+
+    [Test]
+    public async Task GetTreeAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        var collections = A.Fake<ICollectionRepository>();
+        A.CallTo(() => collections.GetAllAsync(A<CancellationToken>._)).ReturnsLazily(() => query.Run<IReadOnlyList<Collection>>([]));
+        A.CallTo(() => _factory.GetCollectionRepository(_databaseKey)).Returns(collections);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetTreeAsync());
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        var clips = A.Fake<IClipRepository>();
+        A.CallTo(() => clips.GetByIdAsync(A<Guid>._, A<CancellationToken>._)).ReturnsLazily(() => query.Run<Clip?>(null));
+        A.CallTo(() => _factory.GetClipRepository(_databaseKey)).Returns(clips);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetClipContentAsync(Guid.NewGuid()));
+    }
+
+    [Test]
+    public async Task SearchAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        A.CallTo(() => _searchService.SearchDatabaseAsync(_databaseKey, A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
+            .ReturnsLazily(() => query.Run(new SearchMatches([], 0)));
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.SearchAsync(new SearchFilters()));
+    }
+
+    [Test]
     public async Task Reads_DatabaseFileMissing_AreUnavailableAndCreateNoFile()
     {
         // Arrange
@@ -227,7 +328,25 @@ public class LocalDatabaseTests : IntegrationTestBase
         return collection;
     }
 
-    private async Task<Clip> AddClipAsync(string title, Guid collectionId, Guid? folderId = null, int sortKey = 0, DateTimeOffset? deletedAt = null)
+    /// <summary>
+    /// Loads every page of <paramref name="scope" />, <paramref name="pageSize" /> clips at a time, as the clip list does.
+    /// </summary>
+    private async Task<List<ClipPage>> LoadAllAsync(ClipListScope scope, int pageSize)
+    {
+        var pages = new List<ClipPage>();
+        var offset = 0;
+        while (true)
+        {
+            var page = await _database.GetClipPageAsync(scope, offset, pageSize);
+            pages.Add(page);
+            offset += page.Clips.Count;
+            if (!page.HasMore)
+                return pages;
+        }
+    }
+
+    private async Task<Clip> AddClipAsync(string title, Guid collectionId, Guid? folderId = null, int sortKey = 0, DateTimeOffset? deletedAt = null,
+        bool deleted = false)
     {
         var clip = new Clip
         {
@@ -237,7 +356,7 @@ public class LocalDatabaseTests : IntegrationTestBase
             FolderId = folderId,
             SortKey = sortKey,
             CapturedAt = DateTimeOffset.UtcNow.AddDays(-10),
-            Del = deletedAt != null,
+            Del = deleted || deletedAt != null,
             DelDate = deletedAt,
         };
 

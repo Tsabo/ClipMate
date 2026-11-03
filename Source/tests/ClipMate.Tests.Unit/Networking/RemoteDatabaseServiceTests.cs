@@ -389,11 +389,11 @@ public class RemoteDatabaseServiceTests
         SetStatus(PeerConnectionStatus.Online);
         var collectionId = Guid.NewGuid();
         var page = new ClipPage([new Clip { Id = Guid.NewGuid() }], 200, 4212);
-        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>.That.Matches(p => p.Identity == _identity && p.Peer.DeviceId == _laptop), _work.DatabaseId, collectionId, null, 200, 200,
+        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>.That.Matches(p => p.Identity == _identity && p.Peer.DeviceId == _laptop), _work.DatabaseId, new ClipListScope.Collection(collectionId), 200, 200,
             A<CancellationToken>._)).Returns(page);
 
         // Act
-        var result = await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), collectionId, null, 200, 200);
+        var result = await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new ClipListScope.Collection(collectionId), 200, 200);
 
         // Assert
         await Assert.That(result).IsSameReferenceAs(page);
@@ -406,7 +406,7 @@ public class RemoteDatabaseServiceTests
         SetStatus(PeerConnectionStatus.Offline);
 
         // Act / Assert
-        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
         A.CallTo(_client).MustNotHaveHappened();
     }
@@ -416,11 +416,11 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>._, A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>._, A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Returns((ClipPage?)null);
 
         // Act / Assert
-        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _service.GetClipPageAsync(new RemoteDatabaseAddress(_laptop, _work.DatabaseId), new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
     }
 

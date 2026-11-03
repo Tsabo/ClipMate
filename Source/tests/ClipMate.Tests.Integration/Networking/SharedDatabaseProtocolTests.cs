@@ -2,6 +2,7 @@ using System.Reflection;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using ClipMate.Networking;
 using ClipMate.Networking.Protocol;
@@ -158,7 +159,7 @@ public class SharedDatabaseProtocolTests
         reply.Clips.Add(new ClipSummary { Id = "not a guid", Title = "Broken" });
 
         // Act
-        var page = SharedDatabaseMessages.FromMessage(reply);
+        var page = SharedDatabaseMessages.FromMessage(reply, new GetClipPageRequest(), "DESKTOP");
 
         // Assert
         var clip = page.Clips.Single();
@@ -166,6 +167,35 @@ public class SharedDatabaseProtocolTests
         await Assert.That(clip.Title).IsEqualTo("Hello world");
         await Assert.That(clip.SourceApplicationName!.Length).IsEqualTo(2048);
         await Assert.That(clip.Size).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ClipPageRequest_CollectionWithItsFolders_AsksForTheFoldersToo()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+
+        // Act
+        var request = SharedDatabaseMessages.ToClipPageRequest(Guid.NewGuid(), new ClipListScope.Collection(collectionId, IncludeFolders: true), 200, 500);
+
+        // Assert
+        await Assert.That(request.CollectionId).IsEqualTo(collectionId.ToString("D"));
+        await Assert.That(request.FolderId).IsEmpty();
+        await Assert.That(request.IncludeFolders).IsTrue();
+    }
+
+    [Test]
+    public async Task FromMessage_ClipPageOfAnOlderPeerThatServedTheCollectionWithoutItsFolders_IsRefused()
+    {
+        // Arrange: a Peer older than include_folders ignores it, serves the collection alone and never echoes it
+        var request = SharedDatabaseMessages.ToClipPageRequest(Guid.NewGuid(), new ClipListScope.Collection(Guid.NewGuid(), IncludeFolders: true), 0, 200);
+        var reply = new GetClipPageReply { Offset = 0, TotalCount = 1 };
+        reply.Clips.Add(new ClipSummary { Id = Guid.NewGuid().ToString(), Title = "In the collection" });
+
+        // Act & Assert
+        await Assert.That(() => SharedDatabaseMessages.FromMessage(reply, request, "DESKTOP"))
+            .Throws<DatabaseUnavailableException>()
+            .WithMessageContaining("DESKTOP runs an older ClipMate");
     }
 
     [Test]

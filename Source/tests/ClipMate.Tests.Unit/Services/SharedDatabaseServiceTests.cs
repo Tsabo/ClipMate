@@ -185,7 +185,7 @@ public partial class SharedDatabaseServiceTests
         A.CallTo(() => _clipRepository.GetPageByCollectionAsync(inbox.Id, 0, 25, A<CancellationToken>._)).Returns(page);
 
         // Act
-        var result = await _service.GetClipPageAsync(_workId, inbox.Id, null, 0, 25);
+        var result = await _service.GetClipPageAsync(_workId, new ClipListScope.Collection(inbox.Id), 0, 25);
 
         // Assert
         await Assert.That(result).IsSameReferenceAs(page);
@@ -202,10 +202,37 @@ public partial class SharedDatabaseServiceTests
         A.CallTo(() => _clipRepository.GetPageByFolderAsync(projects.Id, 0, 25, A<CancellationToken>._)).Returns(page);
 
         // Act
-        var result = await _service.GetClipPageAsync(_workId, inbox.Id, projects.Id, 0, 25);
+        var result = await _service.GetClipPageAsync(_workId, new ClipListScope.Folder(inbox.Id, projects.Id), 0, 25);
 
         // Assert
         await Assert.That(result).IsSameReferenceAs(page);
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_CollectionWithItsFolders_ReturnsThePageWithTheFoldersClips()
+    {
+        // Arrange
+        AddDatabase("db_work", "Work", _workId, true);
+        var inbox = AddCollection("db_work", new Collection { Id = Guid.NewGuid(), Title = "Inbox" });
+        var page = new ClipPage([new Clip { Id = Guid.NewGuid(), Title = "In a folder" }], 0, 1);
+        A.CallTo(() => _clipRepository.GetPageWithFoldersAsync(inbox.Id, 0, 25, A<CancellationToken>._)).Returns(page);
+
+        // Act
+        var result = await _service.GetClipPageAsync(_workId, new ClipListScope.Collection(inbox.Id, IncludeFolders: true), 0, 25);
+
+        // Assert
+        await Assert.That(result).IsSameReferenceAs(page);
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_Trash_IsRefusedWithoutReadingClips()
+    {
+        // Arrange
+        AddDatabase("db_work", "Work", _workId, true);
+
+        // Act & Assert
+        await Assert.That(async () => await _service.GetClipPageAsync(_workId, new ClipListScope.Trash(), 0, 25)).Throws<ArgumentException>();
+        A.CallTo(() => _databaseContextFactory.GetClipRepository(A<string>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -222,7 +249,7 @@ public partial class SharedDatabaseServiceTests
             .Returns(page);
 
         // Act
-        var result = await _service.GetClipPageAsync(_workId, bitmaps.Id, null, 2, 2);
+        var result = await _service.GetClipPageAsync(_workId, new ClipListScope.Collection(bitmaps.Id), 2, 2);
 
         // Assert
         await Assert.That(result).IsSameReferenceAs(page);
@@ -236,7 +263,7 @@ public partial class SharedDatabaseServiceTests
         AddDatabase("db_home", "Home", _homeId, false);
 
         // Act
-        var result = await _service.GetClipPageAsync(_homeId, Guid.NewGuid(), null, 0, 25);
+        var result = await _service.GetClipPageAsync(_homeId, new ClipListScope.Collection(Guid.NewGuid()), 0, 25);
 
         // Assert
         await Assert.That(result).IsNull();
@@ -254,7 +281,7 @@ public partial class SharedDatabaseServiceTests
         var diary = AddCollection("db_home", new Collection { Id = Guid.NewGuid(), Title = "Diary" });
 
         // Act
-        var result = await _service.GetClipPageAsync(_workId, diary.Id, null, 0, 25);
+        var result = await _service.GetClipPageAsync(_workId, new ClipListScope.Collection(diary.Id), 0, 25);
 
         // Assert
         await Assert.That(result).IsNull();

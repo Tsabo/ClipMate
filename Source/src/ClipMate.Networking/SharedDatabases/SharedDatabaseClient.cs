@@ -34,13 +34,17 @@ public interface ISharedDatabaseClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Asks <paramref name="peer" /> for one page of the clips (metadata only) of a collection or folder of one of its
-    /// Shared Databases.
+    /// Asks <paramref name="peer" /> for one page of the clips (metadata only) of a collection, a collection with its
+    /// folders, or a folder of one of its Shared Databases.
     /// </summary>
     /// <returns>The page, or <c>null</c> if the Peer does not share that Database, collection or folder (any more).</returns>
-    /// <exception cref="DatabaseUnavailableException">The Peer could not be reached or did not answer in time.</exception>
-    Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, Guid collectionId, Guid? folderId, int offset,
-        int count, CancellationToken cancellationToken = default);
+    /// <exception cref="DatabaseUnavailableException">
+    /// The Peer could not be reached or did not answer in time, or runs an older ClipMate that cannot list a collection
+    /// with its folders.
+    /// </exception>
+    /// <exception cref="NotSupportedException"><paramref name="scope" /> is the Trash, which Peers never serve.</exception>
+    Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, ClipListScope scope, int offset, int count,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetches a clip's formats from <paramref name="peer" />, then streams their content in chunks.
@@ -122,24 +126,17 @@ public sealed class GrpcSharedDatabaseClient : ISharedDatabaseClient
     }
 
     /// <inheritdoc />
-    public async Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, Guid collectionId, Guid? folderId,
-        int offset, int count, CancellationToken cancellationToken = default)
+    public async Task<ClipPage?> GetClipPageAsync(PeerConnection peer, Guid databaseId, ClipListScope scope, int offset, int count,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(peer);
+        var request = SharedDatabaseMessages.ToClipPageRequest(databaseId, scope, offset, count);
         try
         {
-            var request = new GetClipPageRequest
-            {
-                DatabaseId = databaseId.ToString("D"),
-                CollectionId = collectionId.ToString("D"),
-                FolderId = folderId?.ToString("D") ?? string.Empty,
-                Offset = offset,
-                Count = count,
-            };
-
             var reply = await CallAsync(peer, _timeout,
                 (client, deadline) => client.GetClipPageAsync(request, deadline: deadline, cancellationToken: cancellationToken).ResponseAsync,
                 _notFound, cancellationToken);
-            return SharedDatabaseMessages.FromMessage(reply);
+            return SharedDatabaseMessages.FromMessage(reply, request, peer.Peer.DisplayName);
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {

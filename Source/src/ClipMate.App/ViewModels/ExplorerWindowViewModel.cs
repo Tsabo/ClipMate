@@ -187,17 +187,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             : string.Empty;
     }
 
-    /// <summary>
-    /// Sets the loading state with progress for status bar display.
-    /// </summary>
-    /// <param name="isLoading">Whether clips are currently loading.</param>
-    /// <param name="progress">Loading progress percentage (0-100).</param>
-    public void SetLoading(bool isLoading, int progress = 0)
-    {
-        IsLoading = isLoading;
-        LoadingProgress = progress;
-    }
-
     #region Helper Methods
 
     /// <summary>
@@ -230,8 +219,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// </summary>
     private void OnClipsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // Clear selected clip reference when collection changes (new collection loaded)
-        if (e.Action == NotifyCollectionChangedAction.Reset)
+        // Clear selected clip reference when the list is cleared for another view; a page of clips added while it
+        // loads is also a Reset, but keeps the selection
+        if (e.Action == NotifyCollectionChangedAction.Reset && PrimaryClipList.Clips.Count == 0)
         {
             _selectedClip = null;
             _clipboardCopied = false;
@@ -251,16 +241,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
             _selectedClip = null;
             _clipboardCopied = false;
             UpdateStatusMessage(_selectedClip);
-        }
-        else if (e.PropertyName == nameof(ClipListViewModel.IsLoading))
-        {
-            // Mirror the loading state from ClipListViewModel
-            IsLoading = PrimaryClipList.IsLoading;
-
-            // Show indeterminate progress (50%) when loading
-            LoadingProgress = IsLoading
-                ? 50
-                : 0; // Clear progress when done
         }
     }
 
@@ -471,18 +451,6 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     private string _statusMessage = string.Empty;
 
     /// <summary>
-    /// Loading progress percentage (0-100). Visible when IsLoading is true.
-    /// </summary>
-    [ObservableProperty]
-    private int _loadingProgress;
-
-    /// <summary>
-    /// Indicates whether clips are currently being loaded (shows progress bar).
-    /// </summary>
-    [ObservableProperty]
-    private bool _isLoading;
-
-    /// <summary>
     /// Total bytes across all loaded clips.
     /// </summary>
     [ObservableProperty]
@@ -639,7 +607,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// <summary>
     /// Handles ReloadClipsRequestedEvent to refresh the clip list after operations.
     /// </summary>
-    public async void Receive(ReloadClipsRequestedEvent message) => await PrimaryClipList.LoadClipsAsync();
+    public async void Receive(ReloadClipsRequestedEvent message) => await PrimaryClipList.RefreshAsync();
 
     /// <summary>
     /// Selects a template for clip merging.

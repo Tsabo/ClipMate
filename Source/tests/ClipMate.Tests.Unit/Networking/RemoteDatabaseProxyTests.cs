@@ -56,8 +56,8 @@ public class RemoteDatabaseProxyTests
         var folderId = Guid.NewGuid();
         var collectionPage = new ClipPage([], 0, 0);
         var folderPage = new ClipPage([], 0, 0);
-        A.CallTo(() => _remoteDatabases.GetClipPageAsync(_address, collectionId, null, 0, 200, A<CancellationToken>._)).Returns(collectionPage);
-        A.CallTo(() => _remoteDatabases.GetClipPageAsync(_address, collectionId, folderId, 0, 200, A<CancellationToken>._)).Returns(folderPage);
+        A.CallTo(() => _remoteDatabases.GetClipPageAsync(_address, new ClipListScope.Collection(collectionId), 0, 200, A<CancellationToken>._)).Returns(collectionPage);
+        A.CallTo(() => _remoteDatabases.GetClipPageAsync(_address, new ClipListScope.Folder(collectionId, folderId), 0, 200, A<CancellationToken>._)).Returns(folderPage);
 
         // Act & Assert
         await Assert.That(await database.GetClipPageAsync(new ClipListScope.Collection(collectionId), 0, 200)).IsSameReferenceAs(collectionPage);
@@ -65,15 +65,27 @@ public class RemoteDatabaseProxyTests
     }
 
     [Test]
-    public async Task GetClipPageAsync_TrashOrIncludingFolders_IsNotSupported()
+    public async Task GetClipPageAsync_CollectionWithItsFolders_AsksThePeer()
+    {
+        // Arrange
+        var database = Online();
+        var scope = new ClipListScope.Collection(Guid.NewGuid(), IncludeFolders: true);
+        var page = new ClipPage([], 0, 0);
+        A.CallTo(() => _remoteDatabases.GetClipPageAsync(_address, scope, 0, 200, A<CancellationToken>._)).Returns(page);
+
+        // Act & Assert
+        await Assert.That(await database.GetClipPageAsync(scope, 0, 200)).IsSameReferenceAs(page);
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_Trash_IsNotSupported()
     {
         // Arrange
         var database = Online();
 
         // Act & Assert
         await Assert.That(async () => await database.GetClipPageAsync(new ClipListScope.Trash(), 0, 10)).Throws<NotSupportedException>();
-        await Assert.That(async () => await database.GetClipPageAsync(new ClipListScope.Collection(Guid.NewGuid(), IncludeFolders: true), 0, 10))
-            .Throws<NotSupportedException>();
+        A.CallTo(_remoteDatabases).Where(p => p.Method.Name == nameof(IRemoteDatabaseService.GetClipPageAsync)).MustNotHaveHappened();
     }
 
     [Test]

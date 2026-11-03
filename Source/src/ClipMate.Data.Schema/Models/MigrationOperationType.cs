@@ -12,4 +12,5 @@ public enum MigrationOperationType
     AddColumn,
     CreateIndex,
     DropTable,
+    DropIndex,
 }

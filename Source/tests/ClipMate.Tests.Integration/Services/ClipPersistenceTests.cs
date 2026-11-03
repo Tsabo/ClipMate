@@ -101,7 +101,7 @@ public class ClipPersistenceTests : IntegrationTestBase
         await DbContext.SaveChangesAsync();
 
         // Assert
-        var recentClips = await clipService.GetRecentAsync(_testDatabaseKey, 10);
+        var recentClips = await DbContext.Clips.OrderByDescending(p => p.SortKey).ToListAsync();
         await Assert.That(recentClips.Count).IsEqualTo(3);
         await Assert.That(recentClips[0].TextContent).IsEqualTo("Third"); // Most recent first
         await Assert.That(recentClips[1].TextContent).IsEqualTo("Second");

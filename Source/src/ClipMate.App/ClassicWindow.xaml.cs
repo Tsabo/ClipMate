@@ -458,7 +458,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
                 }
             }
 
-            await _viewModel.ClipListViewModel.LoadClipsAsync();
+            await _viewModel.ClipListViewModel.RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -507,7 +507,7 @@ public partial class ClassicWindow : IWindow, IRecipient<ShowSearchWindowEvent>
                 }
             }
 
-            await _viewModel.ClipListViewModel.LoadClipsAsync();
+            await _viewModel.ClipListViewModel.RefreshAsync();
         }
         catch (Exception ex)
         {

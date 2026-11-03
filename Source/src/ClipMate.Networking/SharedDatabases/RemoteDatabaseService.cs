@@ -126,11 +126,11 @@ public sealed class RemoteDatabaseService : IRemoteDatabaseService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
+    public async Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, ClipListScope scope, int offset, int count,
         CancellationToken cancellationToken = default)
     {
         var peer = GetReachablePeer(address.DeviceId);
-        return await _client.GetClipPageAsync(peer, address.DatabaseId, collectionId, folderId, offset, count, cancellationToken)
+        return await _client.GetClipPageAsync(peer, address.DatabaseId, scope, offset, count, cancellationToken)
                ?? throw new DatabaseUnavailableException($"{peer.Peer.DisplayName} no longer shares this collection.");
     }
 
