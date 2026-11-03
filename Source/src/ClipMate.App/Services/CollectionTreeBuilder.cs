@@ -95,10 +95,7 @@ internal class CollectionTreeBuilder : ICollectionTreeBuilder
         var ids = entries.Select(p => p.Id).ToHashSet();
         var folders = entries.Where(p => p.Kind == CollectionEntryKind.Folder && p.ParentId != null && ids.Contains(p.ParentId.Value))
             .ToLookup(p => p.ParentId!.Value);
-        var placedFolders = folders.SelectMany(p => p).Select(p => p.Id).ToHashSet();
-
-        var regular = entries.Where(p => p.Kind == CollectionEntryKind.Collection
-                                         || p.Kind == CollectionEntryKind.Folder && !placedFolders.Contains(p.Id));
+        var regular = CollectionEntry.TopLevel(entries);
         var smart = entries.Where(p => p.Kind is CollectionEntryKind.Smart or CollectionEntryKind.SqlBased).ToList();
 
         var result = new List<TreeNodeBase>();
