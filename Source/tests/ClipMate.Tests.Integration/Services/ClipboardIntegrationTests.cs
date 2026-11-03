@@ -12,6 +12,7 @@ using ClipMate.Platform.Services;
 using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Windows.Win32.Foundation;
@@ -386,7 +387,7 @@ public class ClipboardIntegrationTests : IntegrationTestBase, IDisposable
         await DbContext.SaveChangesAsync();
 
         // Assert - Verify all clips were saved
-        var savedClips = await _clipRepository.GetRecentAsync(10);
+        var savedClips = await DbContext.Clips.ToListAsync();
         await Assert.That(savedClips.Count).IsEqualTo(3);
         await Assert.That(savedClips.Select(c => c.ContentHash)).Contains(ContentHasher.HashText("Clip 1"));
         await Assert.That(savedClips.Select(c => c.ContentHash)).Contains(ContentHasher.HashText("Clip 2"));

@@ -639,7 +639,7 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// <summary>
     /// Handles ReloadClipsRequestedEvent to refresh the clip list after operations.
     /// </summary>
-    public async void Receive(ReloadClipsRequestedEvent message) => await PrimaryClipList.LoadClipsAsync();
+    public async void Receive(ReloadClipsRequestedEvent message) => await PrimaryClipList.RefreshAsync();
 
     /// <summary>
     /// Selects a template for clip merging.
