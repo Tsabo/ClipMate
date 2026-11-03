@@ -123,9 +123,15 @@ public sealed class FakeDatabase : IDatabase
     public List<SearchFilters> Searches { get; } = [];
 
     /// <summary>
-    /// Gets the scope and offset of every page asked for, in order.
+    /// Gets or sets what <see cref="GetClipPageAsync" /> waits for, given the page's offset, before reading the list,
+    /// so a test can change the list between pages.
     /// </summary>
-    public List<(ClipListScope Scope, int Offset)> PageRequests { get; } = [];
+    public Func<int, Task> PageReady { get; set; } = _ => Task.CompletedTask;
+
+    /// <summary>
+    /// Gets the scope, offset and size of every page asked for, in order.
+    /// </summary>
+    public List<(ClipListScope Scope, int Offset, int Count)> PageRequests { get; } = [];
 
     /// <summary>
     /// Sets the clips in <paramref name="scope" />, in display order.
@@ -157,13 +163,19 @@ public sealed class FakeDatabase : IDatabase
     public Task<ClipPage> GetClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
-        PageRequests.Add((scope, offset));
+        PageRequests.Add((scope, offset, count));
         ThrowIfUnavailable();
         if (Remote != null && scope is ClipListScope.Trash or ClipListScope.Collection { IncludeFolders: true })
             throw new NotSupportedException("A Remote Database lists only the clips of one collection or folder at a time.");
 
-        var clips = _lists.GetValueOrDefault(scope, []);
-        return Task.FromResult(new ClipPage(clips.Skip(offset).Take(count).ToList(), offset, clips.Count));
+        return PageAsync();
+
+        async Task<ClipPage> PageAsync()
+        {
+            await PageReady(offset).WaitAsync(cancellationToken);
+            var clips = _lists.GetValueOrDefault(scope, []);
+            return new ClipPage(clips.Skip(offset).Take(count).ToList(), offset, clips.Count);
+        }
     }
 
     /// <inheritdoc />

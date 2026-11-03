@@ -58,7 +58,7 @@ public partial class ClipListViewModel : ObservableObject,
     private bool _acceptsNewClips = true;
 
     [ObservableProperty]
-    private ObservableCollection<Clip> _clips = [];
+    private ClipCollection _clips = [];
 
     [ObservableProperty]
     private Guid? _currentCollectionId;
@@ -199,7 +199,7 @@ public partial class ClipListViewModel : ObservableObject,
     public void Receive(ClipAddedEvent message)
     {
         // Ensure we're on the UI thread
-        Application.Current.Dispatcher.InvokeAsync(() =>
+        UiThread.Run(() =>
         {
             // Set the database key if not already set (handles clips arriving before collection selection)
             if (string.IsNullOrEmpty(CurrentDatabaseKey))
@@ -321,9 +321,14 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// The most clips asked for in one page.
+    /// The clips asked for in the first page of a list, shown as soon as they arrive.
     /// </summary>
-    public const int PageSize = 200;
+    public const int FirstPageSize = 200;
+
+    /// <summary>
+    /// The clips asked for in each page after the first.
+    /// </summary>
+    public const int PageSize = 2_000;
 
     /// <summary>
     /// Receives RemoteDatabaseNodeSelectedEvent when a node in a Remote Database is selected: loads the clips of the
@@ -457,11 +462,12 @@ public partial class ClipListViewModel : ObservableObject,
             var offset = 0;
             while (true)
             {
-                var page = await database.GetClipPageAsync(scope, offset, PageSize, token);
+                var page = await database.GetClipPageAsync(scope, offset, offset == 0 ? FirstPageSize : PageSize, token);
                 token.ThrowIfCancellationRequested();
 
-                foreach (var item in page.Clips)
-                    Clips.Add(item);
+                // A clip captured while loading is already at the top, and pushes the clips after it one page later
+                var shown = Clips.Select(p => p.Id).ToHashSet();
+                Clips.AddRange(page.Clips.Where(p => !shown.Contains(p.Id)));
 
                 // A re-fetch keeps the clip that was selected, wherever it now is
                 if (reselectClipId is { } clipId && page.Clips.FirstOrDefault(p => p.Id == clipId) is { } reselect)

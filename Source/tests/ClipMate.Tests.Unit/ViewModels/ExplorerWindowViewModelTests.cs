@@ -349,4 +349,20 @@ public class ExplorerWindowViewModelTests
         await Assert.That(afterLoading).IsEqualTo("2 matches in 2 Databases");
         await Assert.That(viewModel.StatusMessage).IsEqualTo("📋Clip Item [Report 2]");
     }
+
+    [Test]
+    public async Task ClipListGrowsByAPage_KeepsTheSelectedClipsStatistics()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var selected = new Clip { Id = Guid.NewGuid(), Title = "Report", Type = ClipType.Text, Size = 100 };
+        viewModel.PrimaryClipList.Clips.AddRange([selected]);
+        viewModel.Receive(new ClipSelectedEvent(selected, "db_mine"));
+
+        // Act
+        viewModel.PrimaryClipList.Clips.AddRange([new Clip { Id = Guid.NewGuid(), Title = "Later", Type = ClipType.Text, Size = 4 }]);
+
+        // Assert
+        await Assert.That(viewModel.TotalBytes).IsEqualTo(100);
+    }
 }

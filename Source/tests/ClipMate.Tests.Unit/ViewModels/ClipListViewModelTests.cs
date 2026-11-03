@@ -8,6 +8,7 @@ using ClipMate.Tests.Unit.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Logging;
 using FakeItEasy;
+using TUnit.Assertions.Enums;
 
 namespace ClipMate.Tests.Unit.ViewModels;
 
@@ -256,24 +257,52 @@ public class ClipListViewModelTests
     }
 
     [Test]
-    public async Task LoadAsync_LargeCollection_ShowsTheFirstPageThenAppendsTheRestPageByPage()
+    public async Task LoadAsync_LargeCollection_Shows200ClipsThenAddsPagesOf2000AsOneUpdateEach()
     {
         // Arrange
         var collectionId = Guid.NewGuid();
-        var clips = Enumerable.Range(0, ClipListViewModel.PageSize + 1).Select(p => Clip($"Clip {p}")).ToArray();
+        var clips = Enumerable.Range(0, 2_201).Select(p => Clip($"Clip {p}")).ToArray();
         _remote.WithClips(new ClipListScope.Collection(collectionId), clips);
         var viewModel = CreateViewModel();
+        var countAtEachUpdate = new List<int>();
+        viewModel.Clips.CollectionChanged += (_, _) => countAtEachUpdate.Add(viewModel.Clips.Count);
 
         // Act
         await viewModel.LoadAsync(RemoteKey, new ClipListScope.Collection(collectionId));
 
-        // Assert
-        await Assert.That(viewModel.Clips.Count).IsEqualTo(clips.Length);
-        await Assert.That(viewModel.Clips[0].Id).IsEqualTo(clips[0].Id);
-        await Assert.That(viewModel.Clips[^1].Id).IsEqualTo(clips[^1].Id);
-        await Assert.That(_remote.PageRequests.Select(p => p.Offset)).IsEquivalentTo([0, ClipListViewModel.PageSize]);
+        // Assert: the list is cleared, then grows once per page
+        await Assert.That(countAtEachUpdate).IsEquivalentTo([0, 200, 2_200, 2_201], CollectionOrdering.Matching);
+        await Assert.That(_remote.PageRequests.Select(p => (p.Offset, p.Count))).IsEquivalentTo([(0, 200), (200, 2_000), (2_200, 2_000)], CollectionOrdering.Matching);
+        await Assert.That(viewModel.Clips.Select(p => p.Id)).IsEquivalentTo(clips.Select(p => p.Id), CollectionOrdering.Matching);
+        await Assert.That(viewModel.SelectedClip?.Id).IsEqualTo(clips[0].Id);
         await Assert.That(viewModel.IsLoading).IsFalse();
         await Assert.That(viewModel.RemoteStatusMessage).IsNull();
+    }
+
+    [Test]
+    public async Task LoadAsync_ClipCapturedMidLoad_AppearsOnceAtTheTop()
+    {
+        // Arrange
+        var collectionId = Guid.NewGuid();
+        var scope = new ClipListScope.Collection(collectionId);
+        var clips = Enumerable.Range(0, 2_201).Select(p => Clip($"Clip {p}")).ToArray();
+        _local.WithClips(scope, clips);
+        var secondPage = new TaskCompletionSource();
+        _local.PageReady = offset => offset == ClipListViewModel.FirstPageSize ? secondPage.Task : Task.CompletedTask;
+        var viewModel = CreateViewModel();
+        var load = viewModel.LoadAsync("db_local", scope);
+        await WaitUntilAsync(() => _local.PageRequests.Count == 2);
+
+        // Act: a capture is saved and announced while the second page is on its way, shifting every later clip down one
+        var captured = Clip("Captured");
+        _local.WithClips(scope, [captured, .. clips]);
+        viewModel.Receive(new ClipAddedEvent(captured, false, "db_local", collectionId));
+        secondPage.SetResult();
+        await load;
+
+        // Assert
+        await Assert.That(viewModel.Clips.Select(p => p.Id)).IsEquivalentTo([captured.Id, .. clips.Select(p => p.Id)], CollectionOrdering.Matching);
+        await Assert.That(viewModel.SelectedClip?.Id).IsEqualTo(captured.Id);
     }
 
     [Test]

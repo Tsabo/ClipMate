@@ -230,8 +230,9 @@ public partial class ExplorerWindowViewModel : ObservableObject,
     /// </summary>
     private void OnClipsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // Clear selected clip reference when collection changes (new collection loaded)
-        if (e.Action == NotifyCollectionChangedAction.Reset)
+        // Clear selected clip reference when the list is cleared for another view; a page of clips added while it
+        // loads is also a Reset, but keeps the selection
+        if (e.Action == NotifyCollectionChangedAction.Reset && PrimaryClipList.Clips.Count == 0)
         {
             _selectedClip = null;
             _clipboardCopied = false;
