@@ -9,10 +9,9 @@ namespace ClipMate.Networking.Internal;
 internal sealed record PeerHostServices(
     IPeerCertificateValidator Validator,
     IPeerStore PeerStore,
-    IPairingApprovalHandler ApprovalHandler,
+    PeerPairing Pairing,
     IConfigurationService ConfigurationService,
     ISharedDatabaseService SharedDatabases,
     ISharedDatabaseChangeFeed ChangeFeed,
     ILoggerFactory LoggerFactory,
-    PeerHostOptions Options,
-    PairingRequestTracker Tracker);
+    PeerHostOptions Options);

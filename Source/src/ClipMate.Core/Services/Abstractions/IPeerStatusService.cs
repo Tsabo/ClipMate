@@ -37,9 +37,10 @@ public interface IPeerStatusService
     PeerConnectionStatus GetStatus(DeviceId deviceId);
 
     /// <summary>
-    /// Starts checking the Peers as <paramref name="identity" />. Returns without waiting for the first check.
+    /// Starts checking the Peers, as this Device's identity while networking is enabled. Returns without waiting for the
+    /// first check.
     /// </summary>
-    Task StartAsync(DeviceIdentity identity, CancellationToken cancellationToken = default);
+    Task StartAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stops checking; every status goes back to <see cref="PeerConnectionStatus.Unknown" />.

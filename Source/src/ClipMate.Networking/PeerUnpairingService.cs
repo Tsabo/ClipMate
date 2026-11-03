@@ -14,57 +14,46 @@ namespace ClipMate.Networking;
 public sealed class PeerUnpairingService : IUnpairingService
 {
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
-    private readonly IDeviceDiscoveryService _discovery;
-    private readonly ILocalDevice _localDevice;
+    private readonly PeerConnector _connector;
     private readonly ILogger<PeerUnpairingService> _logger;
     private readonly IPeerStore _peerStore;
 
-    public PeerUnpairingService(ILocalDevice localDevice, IPeerStore peerStore, IDeviceDiscoveryService discovery,
-        ILogger<PeerUnpairingService> logger)
+    public PeerUnpairingService(PeerConnector connector, IPeerStore peerStore, ILogger<PeerUnpairingService> logger)
     {
-        _localDevice = localDevice ?? throw new ArgumentNullException(nameof(localDevice));
+        _connector = connector ?? throw new ArgumentNullException(nameof(connector));
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
-        _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
     public async Task<bool> UnpairAsync(DeviceId deviceId, CancellationToken cancellationToken = default)
     {
-        var peer = _peerStore.Find(deviceId);
+        // How to reach it, taken while it is still a Peer.
+        var peer = _connector.ForPeer(deviceId);
 
         // Unpair here first: from now on the Device is refused, and its open connections are dropped.
         await _peerStore.RemoveAsync(deviceId, cancellationToken);
 
-        var identity = _localDevice.Identity;
-        if (peer == null || identity == null)
+        if (peer == null)
             return false;
 
-        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
+        try
         {
-            if (await TryTellAsync(identity, deviceId, address, cancellationToken))
+            var reply = await peer.CallAsync((channel, token) =>
+                new PeerService.PeerServiceClient(channel).UnpairAsync(new UnpairRequest(), deadline: DateTime.UtcNow + _timeout,
+                    cancellationToken: token).ResponseAsync, cancellationToken);
+
+            if (reply != null)
                 return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug(ex, "Device {DeviceId} did not accept being unpaired", deviceId.ToShortDisplayString());
         }
 
         _logger.LogInformation("Could not tell Device {DeviceId} it was unpaired; it will find out when it next reaches this Device",
             deviceId.ToDisplayString());
 
         return false;
-    }
-
-    private async Task<bool> TryTellAsync(DeviceIdentity identity, DeviceId deviceId, string address, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var channel = PeerChannelFactory.CreateForPeer(address, identity, deviceId);
-            var client = new PeerService.PeerServiceClient(channel);
-            await client.UnpairAsync(new UnpairRequest(), deadline: DateTime.UtcNow + _timeout, cancellationToken: cancellationToken);
-            return true;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogDebug(ex, "Could not tell Device {DeviceId} at {Address} it was unpaired", deviceId.ToShortDisplayString(), address);
-            return false;
-        }
     }
 }

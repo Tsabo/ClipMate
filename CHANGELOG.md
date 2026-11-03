@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Peer Protocol 2.0** - Peers now speak version 2 of the Peer protocol, in which sharing Databases, browsing their clips, change notices and Remote Search are always available. A Peer still running 1.0.1-beta or older shows **Update required**, and Pairing with it is refused, until both Devices run the same version.
 
 ### Fixed
+- **Peer Names Stored the Same Way on Both Devices** - The Device that sent a pairing request kept the other Device's Device Name as it arrived, control characters and all, while the approving Device cleaned it. Both now drop control characters, trim it and keep at most 64 characters.
 - **Copies Dropped Silently by an Application Profile** - When a program's Application Profile kept none of what it copied, the copy vanished without a sound. It now plays the Erase sound and logs why, as ClipMate 7 does.
 - **Toolbar Buttons Captured as Clips** - A tiny bitmap with no owning program, as when a toolbar button is copied, is now ignored with the Erase sound, as in ClipMate 7.
 - **Captures Lost Outside Any Collection** - If choosing the collection failed, the capture was saved with no collection and never showed in the tree. It's now not kept, and the error is logged.

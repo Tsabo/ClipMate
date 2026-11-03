@@ -148,7 +148,8 @@ public partial class AppServiceGraphTests
     private static ILookup<string, Func<Type?>> KnownTypes()
     {
         var clipMate = new[] { typeof(global::ClipMate.App.App).Assembly, typeof(IClipService).Assembly, typeof(global::ClipMate.Data.ClipMateDbContext).Assembly,
-            typeof(global::ClipMate.Platform.Services.ClipboardService).Assembly, typeof(NetworkingService).Assembly };
+            typeof(global::ClipMate.Platform.Services.ClipboardService).Assembly, typeof(NetworkingService).Assembly,
+            typeof(global::ClipMate.Networking.PeerPairing).Assembly };
 
         var ownTypes = clipMate.SelectMany(assembly =>
         {

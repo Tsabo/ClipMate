@@ -6,6 +6,7 @@ using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Networking;
 using ClipMate.Networking.SharedDatabases;
 using ClipMate.Networking.SharedDatabases.Notice;
 using FakeItEasy;
@@ -44,8 +45,15 @@ public class RemoteDatabaseServiceTests
         _status = A.Fake<IPeerStatusService>();
         _client = A.Fake<ISharedDatabaseClient>();
         _logger = new RecordingLogger<RemoteDatabaseService>();
-        _service = new RemoteDatabaseService(_store, _status, localDevice, configurationService, _client, new NoTimers(),
+        _service = new RemoteDatabaseService(_store, _status, localDevice, CreateConnector(localDevice, _store), configurationService, _client, new NoTimers(),
             _logger);
+    }
+
+    private static PeerConnector CreateConnector(ILocalDevice localDevice, IPeerStore store)
+    {
+        var discovery = A.Fake<IDeviceDiscoveryService>();
+        A.CallTo(() => discovery.DiscoveredDevices).Returns([]);
+        return new PeerConnector(localDevice, store, discovery, NullLogger<PeerConnector>.Instance);
     }
 
     [After(Test)]
@@ -271,7 +279,7 @@ public class RemoteDatabaseServiceTests
         await store.RecordSharedDatabasesAsync(_laptop, [_work]);
         var localDevice = A.Fake<ILocalDevice>();
         A.CallTo(() => localDevice.Identity).Returns(_identity);
-        using var service = new RemoteDatabaseService(store, _status, localDevice, configurationService, _client, new NoTimers(),
+        using var service = new RemoteDatabaseService(store, _status, localDevice, CreateConnector(localDevice, store), configurationService, _client, new NoTimers(),
             _logger);
         await Assert.That(service.GetRemoteDatabases()).IsNotEmpty();
         var raised = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -339,7 +347,7 @@ public class RemoteDatabaseServiceTests
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
         var tree = new[] { new CollectionEntry(Guid.NewGuid(), null, "Inbox", CollectionEntryKind.Collection, 10) };
-        A.CallTo(() => _client.GetCollectionTreeAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, A<CancellationToken>._))
+        A.CallTo(() => _client.GetCollectionTreeAsync(A<PeerConnection>.That.Matches(p => p.Identity == _identity && p.Peer.DeviceId == _laptop), _work.DatabaseId, A<CancellationToken>._))
             .Returns(tree);
 
         // Act
@@ -366,7 +374,7 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        A.CallTo(() => _client.GetCollectionTreeAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<CancellationToken>._))
+        A.CallTo(() => _client.GetCollectionTreeAsync(A<PeerConnection>._, A<Guid>._, A<CancellationToken>._))
             .Returns((IReadOnlyList<CollectionEntry>?)null);
 
         // Act / Assert
@@ -381,7 +389,7 @@ public class RemoteDatabaseServiceTests
         SetStatus(PeerConnectionStatus.Online);
         var collectionId = Guid.NewGuid();
         var page = new ClipPage([new Clip { Id = Guid.NewGuid() }], 200, 4212);
-        A.CallTo(() => _client.GetClipPageAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, collectionId, null, 200, 200,
+        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>.That.Matches(p => p.Identity == _identity && p.Peer.DeviceId == _laptop), _work.DatabaseId, collectionId, null, 200, 200,
             A<CancellationToken>._)).Returns(page);
 
         // Act
@@ -408,7 +416,7 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        A.CallTo(() => _client.GetClipPageAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _client.GetClipPageAsync(A<PeerConnection>._, A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Returns((ClipPage?)null);
 
         // Act / Assert
@@ -423,7 +431,7 @@ public class RemoteDatabaseServiceTests
         SetStatus(PeerConnectionStatus.Online);
         var filters = new SearchFilters { TitleQuery = "report" };
         var matches = new SearchMatches([new Clip { Id = Guid.NewGuid() }], 4212);
-        A.CallTo(() => _client.SearchAsync(_identity, A<Peer>.That.Matches(p => p.DeviceId == _laptop), _work.DatabaseId, filters, A<CancellationToken>._))
+        A.CallTo(() => _client.SearchAsync(A<PeerConnection>.That.Matches(p => p.Identity == _identity && p.Peer.DeviceId == _laptop), _work.DatabaseId, filters, A<CancellationToken>._))
             .Returns(matches);
 
         // Act
@@ -450,7 +458,7 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+        A.CallTo(() => _client.SearchAsync(A<PeerConnection>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
             .Returns((SearchMatches?)null);
 
         // Act / Assert
@@ -463,7 +471,7 @@ public class RemoteDatabaseServiceTests
     {
         // Arrange
         SetStatus(PeerConnectionStatus.Online);
-        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+        A.CallTo(() => _client.SearchAsync(A<PeerConnection>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
             .Returns(new SearchMatches([new Clip { Id = Guid.NewGuid() }], 4212));
 
         // Act
@@ -499,7 +507,7 @@ public class RemoteDatabaseServiceTests
         SetStatus(PeerConnectionStatus.Online);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        A.CallTo(() => _client.SearchAsync(A<DeviceIdentity>._, A<Peer>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
+        A.CallTo(() => _client.SearchAsync(A<PeerConnection>._, A<Guid>._, A<SearchFilters>._, A<CancellationToken>._))
             .Throws(new OperationCanceledException(cancellation.Token));
 
         // Act
@@ -678,8 +686,8 @@ public class RemoteDatabaseServiceTests
     private WatchStream WatchesOnLaptop()
     {
         var watch = new WatchStream();
-        A.CallTo(() => _client.WatchChangesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
-            .ReturnsLazily((DeviceIdentity _, Peer _, CancellationToken token) => watch.Open(token));
+        A.CallTo(() => _client.WatchChangesAsync(A<PeerConnection>.That.Matches(p => p.Peer.DeviceId == _laptop), A<CancellationToken>._))
+            .ReturnsLazily((PeerConnection _, CancellationToken token) => watch.Open(token));
         return watch;
     }
 
@@ -713,7 +721,7 @@ public class RemoteDatabaseServiceTests
     private void SetStatus(PeerConnectionStatus status) => A.CallTo(() => _status.GetStatus(_laptop)).Returns(status);
 
     private void SharesOnLaptop(params SharedDatabase[] databases) =>
-        A.CallTo(() => _client.ListSharedDatabasesAsync(A<DeviceIdentity>._, A<Peer>.That.Matches(p => p.DeviceId == _laptop), A<CancellationToken>._))
+        A.CallTo(() => _client.ListSharedDatabasesAsync(A<PeerConnection>.That.Matches(p => p.Peer.DeviceId == _laptop), A<CancellationToken>._))
             .Returns(databases);
 
     private static X509Certificate2 CreateCertificate()

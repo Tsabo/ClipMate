@@ -30,7 +30,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IPeerCertificateValidator, PeerStoreCertificateValidator>();
         services.TryAddSingleton<IPairingApprovalHandler, DeclineAllPairingApprovalHandler>();
         services.AddSingleton<IPeerHostFactory, KestrelPeerHostFactory>();
-        services.AddSingleton<IPairingClient, PeerPairingClient>();
+        services.AddSingleton<PeerPairing>();
+        services.AddSingleton<IPairingClient>(p => p.GetRequiredService<PeerPairing>());
+        services.AddSingleton<PeerConnector>();
         services.AddSingleton<IUnpairingService, PeerUnpairingService>();
         services.AddSingleton<IPeerProbe, GrpcPeerProbe>();
         services.AddSingleton<IPeerStatusService, PeerStatusMonitor>();

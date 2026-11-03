@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 namespace ClipMate.Networking.Monitor;
 
 /// <summary>
-/// Checks every Peer at start, every 30 seconds and whenever the Peers or Discovered Devices change. A Peer is tried at
-/// the address it currently announces on the LAN, then at its last known addresses.
+/// Checks every Peer at start, every 30 seconds and whenever the Peers or Discovered Devices change, at each of its
+/// addresses in turn (<see cref="PeerConnection" />).
 /// </summary>
 public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
 {
@@ -21,6 +21,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
     // While a Peer stays online, its last seen time is written to clipmate.toml at most this often.
     private static readonly TimeSpan _lastSeenPersistInterval = TimeSpan.FromMinutes(10);
 
+    private readonly PeerConnector _connector;
     private readonly IDeviceDiscoveryService _discovery;
     private readonly ILogger<PeerStatusMonitor> _logger;
     private readonly IPeerStore _peerStore;
@@ -28,13 +29,14 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly ConcurrentDictionary<DeviceId, PeerConnectionStatus> _statuses = new();
     private CancellationTokenSource? _cancellation;
-    private DeviceIdentity? _identity;
     private Task? _loop;
 
-    public PeerStatusMonitor(IPeerStore peerStore, IDeviceDiscoveryService discovery, IPeerProbe probe, ILogger<PeerStatusMonitor> logger)
+    public PeerStatusMonitor(IPeerStore peerStore, IDeviceDiscoveryService discovery, PeerConnector connector, IPeerProbe probe,
+        ILogger<PeerStatusMonitor> logger)
     {
         _peerStore = peerStore ?? throw new ArgumentNullException(nameof(peerStore));
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
+        _connector = connector ?? throw new ArgumentNullException(nameof(connector));
         _probe = probe ?? throw new ArgumentNullException(nameof(probe));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -49,13 +51,11 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
     public PeerConnectionStatus GetStatus(DeviceId deviceId) => _statuses.GetValueOrDefault(deviceId, PeerConnectionStatus.Unknown);
 
     /// <inheritdoc />
-    public Task StartAsync(DeviceIdentity identity, CancellationToken cancellationToken = default)
+    public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(identity);
         if (_cancellation != null)
             throw new InvalidOperationException("The Peer status monitor is already running.");
 
-        _identity = identity;
         _cancellation = new CancellationTokenSource();
         _peerStore.PeersChanged += OnChanged;
         _peerStore.PeerRemoved += OnPeerRemoved;
@@ -87,7 +87,6 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         finally
         {
             _cancellation = null;
-            _identity = null;
             _loop = null;
             _statuses.Clear();
             StatusChanged?.Invoke(this, EventArgs.Empty);
@@ -97,9 +96,8 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
     /// <inheritdoc />
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        var identity = _identity;
         var cancellation = _cancellation;
-        if (identity == null || cancellation == null)
+        if (cancellation == null)
             return;
 
         // The stop source is never disposed (it owns no timer), so linking to it is always safe.
@@ -116,7 +114,7 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         try
         {
             var peers = _peerStore.GetPeers();
-            await Task.WhenAll(peers.Select(p => CheckAsync(identity, p, linked.Token)));
+            await Task.WhenAll(peers.Select(p => CheckAsync(p.DeviceId, linked.Token)));
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
@@ -161,35 +159,42 @@ public sealed class PeerStatusMonitor : IPeerStatusService, IAsyncDisposable
         }
     }
 
-    private async Task CheckAsync(DeviceIdentity identity, Peer peer, CancellationToken cancellationToken)
+    private async Task CheckAsync(DeviceId deviceId, CancellationToken cancellationToken)
     {
-        foreach (var address in PeerAddress.GetAddressesToTry(peer, _discovery.DiscoveredDevices))
+        if (_connector.ForPeer(deviceId) is not { } connection)
+            return;
+
+        var peer = connection.Peer;
+        var answer = await connection.TryEachAddressAsync<PeerProbeResult>(async (address, token) =>
         {
-            var result = await _probe.ProbeAsync(identity, peer.DeviceId, address, cancellationToken);
-            if (result.Unpaired && !IsCompletingPairing(peer))
-            {
-                _logger.LogInformation("Peer {DeviceId} no longer has this Device as a Peer; unpairing it here too", peer.DeviceId.ToDisplayString());
-                await _peerStore.RemoveAsync(peer.DeviceId, cancellationToken);
-                return;
-            }
+            var result = await _probe.ProbeAsync(connection.Identity, deviceId, address, token);
+            return result.Reply != null || (result.Unpaired && !IsCompletingPairing(peer))
+                ? result
+                : null;
+        }, cancellationToken);
 
-            var reply = result.Reply;
-            if (reply == null)
-                continue;
-
-            var status = reply.ProtocolMajor == PeerProtocol.Major
-                ? PeerConnectionStatus.Online
-                : PeerConnectionStatus.UpdateRequired;
-
-            var wasReachable = GetStatus(peer.DeviceId) is PeerConnectionStatus.Online or PeerConnectionStatus.UpdateRequired;
-            if (!wasReachable || NeedsRecording(peer, reply.DeviceName, address))
-                await _peerStore.RecordSeenAsync(peer.DeviceId, reply.DeviceName, address, DateTime.Now, cancellationToken);
-
-            SetStatus(peer.DeviceId, status);
+        if (answer == null)
+        {
+            SetStatus(deviceId, PeerConnectionStatus.Offline);
             return;
         }
 
-        SetStatus(peer.DeviceId, PeerConnectionStatus.Offline);
+        if (answer.Value.Reply is not { } reply)
+        {
+            _logger.LogInformation("Peer {DeviceId} no longer has this Device as a Peer; unpairing it here too", deviceId.ToDisplayString());
+            await _peerStore.RemoveAsync(deviceId, cancellationToken);
+            return;
+        }
+
+        var status = reply.ProtocolMajor == PeerProtocol.Major
+            ? PeerConnectionStatus.Online
+            : PeerConnectionStatus.UpdateRequired;
+
+        var wasReachable = GetStatus(deviceId) is PeerConnectionStatus.Online or PeerConnectionStatus.UpdateRequired;
+        if (!wasReachable || NeedsRecording(peer, reply.DeviceName, answer.Address))
+            await _peerStore.RecordSeenAsync(deviceId, reply.DeviceName, answer.Address, DateTime.Now, cancellationToken);
+
+        SetStatus(deviceId, status);
     }
 
     private static bool IsCompletingPairing(Peer peer) =>
