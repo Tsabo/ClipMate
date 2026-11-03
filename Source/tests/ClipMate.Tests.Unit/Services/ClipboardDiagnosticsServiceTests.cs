@@ -9,7 +9,9 @@ namespace ClipMate.Tests.Unit.Services;
 /// Tests for <see cref="ClipboardDiagnosticsService" />.
 /// Note: Most methods interact with Win32 clipboard APIs which are integration-test level.
 /// These tests focus on constructor validation and testable logic paths.
+/// The GetDiagnostics tests open the real, shared clipboard, so the class runs apart from other clipboard tests.
 /// </summary>
+[NotInParallel("SystemClipboard")]
 public class ClipboardDiagnosticsServiceTests
 {
     [Test]

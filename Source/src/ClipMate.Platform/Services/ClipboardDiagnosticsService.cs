@@ -13,6 +13,13 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 public sealed class ClipboardDiagnosticsService : IClipboardDiagnosticsService
 {
+    /// <summary>
+    /// Serializes the open/enumerate/close block across threads. OpenClipboard with a null window ties the clipboard to
+    /// the task, so a second thread of this process can open it too, and its CloseClipboard would free the data the
+    /// first thread is still sizing with GlobalSize, corrupting the heap.
+    /// </summary>
+    private static readonly Lock _clipboardLock = new();
+
     private readonly ILogger<ClipboardDiagnosticsService> _logger;
 
     /// <summary>
@@ -31,30 +38,33 @@ public sealed class ClipboardDiagnosticsService : IClipboardDiagnosticsService
         var sequenceNumber = GetSequenceNumber();
         var formats = new List<ClipboardFormatDiagnostic>();
 
-        if (!TryOpenClipboard())
+        lock (_clipboardLock)
         {
-            _logger.LogWarning("Failed to open clipboard for diagnostics");
-            return new ClipboardDiagnosticInfo(ownerName, sequenceNumber, formats);
-        }
-
-        try
-        {
-            var formatId = PInvoke.EnumClipboardFormats(0);
-            while (formatId != 0)
+            if (!TryOpenClipboard())
             {
-                var formatName = GetFormatName(formatId);
-                var dataSize = GetClipboardDataSize(formatId);
-
-                formats.Add(new ClipboardFormatDiagnostic(formatId, formatName, dataSize));
-
-                formatId = PInvoke.EnumClipboardFormats(formatId);
+                _logger.LogWarning("Failed to open clipboard for diagnostics");
+                return new ClipboardDiagnosticInfo(ownerName, sequenceNumber, formats);
             }
 
-            _logger.LogDebug("Retrieved {Count} clipboard formats for diagnostics", formats.Count);
-        }
-        finally
-        {
-            PInvoke.CloseClipboard();
+            try
+            {
+                var formatId = PInvoke.EnumClipboardFormats(0);
+                while (formatId != 0)
+                {
+                    var formatName = GetFormatName(formatId);
+                    var dataSize = GetClipboardDataSize(formatId);
+
+                    formats.Add(new ClipboardFormatDiagnostic(formatId, formatName, dataSize));
+
+                    formatId = PInvoke.EnumClipboardFormats(formatId);
+                }
+
+                _logger.LogDebug("Retrieved {Count} clipboard formats for diagnostics", formats.Count);
+            }
+            finally
+            {
+                PInvoke.CloseClipboard();
+            }
         }
 
         return new ClipboardDiagnosticInfo(ownerName, sequenceNumber, formats);
