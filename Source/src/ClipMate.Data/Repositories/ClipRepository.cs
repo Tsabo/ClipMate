@@ -67,20 +67,12 @@ public class ClipRepository : IClipRepository
     }
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
-    {
-        // Compared with a parameter: SQLite seeks the (CollectionId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
-        var deleted = false;
-        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.CollectionId == collectionId && p.Del == deleted)), offset, count, cancellationToken);
-    }
+    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default) =>
+        GetPageAsync(NewestFirst(UndeletedClips().Where(p => p.CollectionId == collectionId)), offset, count, cancellationToken);
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default)
-    {
-        // Compared with a parameter: SQLite seeks the (FolderId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
-        var deleted = false;
-        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.FolderId == folderId && p.Del == deleted)), offset, count, cancellationToken);
-    }
+    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default) =>
+        GetPageAsync(NewestFirst(UndeletedClips().Where(p => p.FolderId == folderId)), offset, count, cancellationToken);
 
     /// <inheritdoc />
     public Task<ClipPage> GetPageWithFoldersAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
@@ -95,12 +87,9 @@ public class ClipRepository : IClipRepository
             Select Id as Value from Folders
             """);
 
-        // One condition, so a clip filed in a folder of the collection is listed once. Del is compared with a
-        // parameter: SQLite seeks the (CollectionId, Del, SortKey) and (FolderId, Del, SortKey) indexes on "Del = ?",
-        // but not on "NOT Del"
-        var deleted = false;
-        return GetPageAsync(NewestFirst(_context.Clips.Where(p => p.Del == deleted &&
-                (p.CollectionId == collectionId || (p.FolderId != null && folderIds.Contains(p.FolderId.Value))))),
+        // One condition, so a clip filed in a folder of the collection is listed once
+        return GetPageAsync(NewestFirst(UndeletedClips().Where(p =>
+                p.CollectionId == collectionId || (p.FolderId != null && folderIds.Contains(p.FolderId.Value)))),
             offset, count, cancellationToken);
     }
 
@@ -113,6 +102,36 @@ public class ClipRepository : IClipRepository
                 .ThenByDescending(p => p.SortKey)
                 .ThenBy(p => p.Id),
             offset, count, cancellationToken);
+
+    /// <summary>
+    /// The clips not in the Trash, for a clip list query. Del is compared with a parameter: SQLite seeks the
+    /// (CollectionId, Del, SortKey) and (FolderId, Del, SortKey) indexes on "Del = ?", but not on the "NOT Del" EF
+    /// writes for <c>!p.Del</c>, and sorts the whole list instead.
+    /// </summary>
+    private IQueryable<Clip> UndeletedClips()
+    {
+        var deleted = false;
+        return _context.Clips.Where(p => p.Del == deleted);
+    }
+
+    /// <summary>
+    /// The rows to read for a page of <paramref name="count" /> clips that isn't counted: one more, which tells whether
+    /// more follow (see <see cref="DropLookahead" />).
+    /// </summary>
+    private static int WithLookahead(int count) => count == int.MaxValue ? count : count + 1;
+
+    /// <summary>
+    /// Drops the extra row a page read with <see cref="WithLookahead" />, if it came.
+    /// </summary>
+    /// <returns>Whether more clips follow the page.</returns>
+    private static bool DropLookahead(List<Clip> rows, int count)
+    {
+        if (rows.Count <= count)
+            return false;
+
+        rows.RemoveAt(rows.Count - 1);
+        return true;
+    }
 
     /// <summary>
     /// Orders clips for a clip list: SortKey descending (newest first), then ID.
@@ -132,12 +151,10 @@ public class ClipRepository : IClipRepository
 
         var clips = await query
             .Skip(offset)
-            .Take(count == int.MaxValue ? count : count + 1)
+            .Take(WithLookahead(count))
             .ToListAsync(cancellationToken);
 
-        var hasMore = clips.Count > count;
-        if (hasMore)
-            clips.RemoveAt(clips.Count - 1);
+        var hasMore = DropLookahead(clips, count);
 
         await LoadFormatFlagsAsync(clips, cancellationToken);
         if (offset > 0)
@@ -550,11 +567,9 @@ public class ClipRepository : IClipRepository
             // A later page isn't counted: one clip more than asked tells whether more follow
             var rows = (await connection.QueryAsync<Clip>(new CommandDefinition(
                 $"Select Matches.* from ({query}\n) as Matches\nOrder By Matches.SortKey Desc, Matches.ID\nLimit @PageLimit Offset @PageOffset",
-                new { PageLimit = count == int.MaxValue ? count : count + 1, PageOffset = offset }, cancellationToken: cancellationToken))).ToList();
+                new { PageLimit = WithLookahead(count), PageOffset = offset }, cancellationToken: cancellationToken))).ToList();
 
-            var hasMore = rows.Count > count;
-            if (hasMore)
-                rows.RemoveAt(rows.Count - 1);
+            var hasMore = DropLookahead(rows, count);
 
             if (rows.Count > 0)
                 await LoadFormatFlagsAsync(rows, cancellationToken);
