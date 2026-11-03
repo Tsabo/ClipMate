@@ -2,11 +2,13 @@ using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Repositories;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
 using ClipMate.Platform.Services;
+using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
 using FakeItEasy;
 using Microsoft.Extensions.Caching.Memory;
@@ -185,6 +187,59 @@ public class LocalDatabaseTests : IntegrationTestBase
 
         // Assert
         await Assert.That(result).IsSameReferenceAs(matches);
+    }
+
+    [Test]
+    public async Task GetClipPageAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange: Microsoft.Data.Sqlite completes synchronously, so the slow query blocks the thread it runs on
+        using var query = new SlowQuery();
+        var clips = A.Fake<IClipRepository>();
+        A.CallTo(() => clips.GetPageByCollectionAsync(_inbox.Id, 0, 10, A<CancellationToken>._))
+            .ReturnsLazily(() => query.Run(new ClipPage([], 0, 0)));
+
+        A.CallTo(() => _factory.GetClipRepository(_databaseKey)).Returns(clips);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetClipPageAsync(new ClipListScope.Collection(_inbox.Id), 0, 10));
+    }
+
+    [Test]
+    public async Task GetTreeAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        var collections = A.Fake<ICollectionRepository>();
+        A.CallTo(() => collections.GetAllAsync(A<CancellationToken>._)).ReturnsLazily(() => query.Run<IReadOnlyList<Collection>>([]));
+        A.CallTo(() => _factory.GetCollectionRepository(_databaseKey)).Returns(collections);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetTreeAsync());
+    }
+
+    [Test]
+    public async Task GetClipContentAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        var clips = A.Fake<IClipRepository>();
+        A.CallTo(() => clips.GetByIdAsync(A<Guid>._, A<CancellationToken>._)).ReturnsLazily(() => query.Run<Clip?>(null));
+        A.CallTo(() => _factory.GetClipRepository(_databaseKey)).Returns(clips);
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.GetClipContentAsync(Guid.NewGuid()));
+    }
+
+    [Test]
+    public async Task SearchAsync_QueryStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange
+        using var query = new SlowQuery();
+        A.CallTo(() => _searchService.SearchDatabaseAsync(_databaseKey, A<SearchFilters>._, A<int?>._, A<CancellationToken>._))
+            .ReturnsLazily(() => query.Run(new SearchMatches([], 0)));
+
+        // Act & Assert
+        await query.AssertCallerGetsControlBackAsync(() => _database.SearchAsync(new SearchFilters()));
     }
 
     [Test]

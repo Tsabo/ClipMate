@@ -390,6 +390,31 @@ public class CollectionServiceTests
     }
 
     [Test]
+    public async Task SetActiveAsync_LookupStillRunning_ReturnsAnIncompleteTask()
+    {
+        // Arrange: Microsoft.Data.Sqlite completes synchronously, so a slow lookup blocks the thread it runs on
+        var collectionId = Guid.NewGuid();
+        var service = CreateCollectionService();
+        using var release = new ManualResetEventSlim();
+        A.CallTo(() => _mockRepository.GetByIdAsync(collectionId, A<CancellationToken>._))
+            .ReturnsLazily(() =>
+            {
+                release.Wait(TimeSpan.FromSeconds(5));
+                return Task.FromResult<Collection?>(CreateTestCollection(collectionId));
+            });
+
+        // Act
+        var task = service.SetActiveAsync(collectionId, _testDatabaseKey);
+        var completedWhileHeld = task.IsCompleted;
+        release.Set();
+        await task;
+
+        // Assert
+        await Assert.That(completedWhileHeld).IsFalse();
+        await Assert.That(service.GetActiveDatabaseKey()).IsEqualTo(_testDatabaseKey);
+    }
+
+    [Test]
     public async Task SetActiveAsync_WithInvalidId_ShouldThrowArgumentException()
     {
         // Arrange

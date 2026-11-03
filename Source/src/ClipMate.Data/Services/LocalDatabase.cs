@@ -46,21 +46,29 @@ internal sealed class LocalDatabase : IDatabase
     public RemoteDatabase? Remote => null;
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<CollectionEntry>> GetTreeAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<CollectionEntry>> GetTreeAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfUnavailable();
-        var collections = await _databaseContextFactory.GetCollectionRepository(Key).GetAllAsync(cancellationToken);
-        return collections.Select(CollectionEntry.From).ToList();
+        return OnWorkerAsync<IReadOnlyList<CollectionEntry>>(async () =>
+        {
+            var collections = await _databaseContextFactory.GetCollectionRepository(Key).GetAllAsync(cancellationToken);
+            return collections.Select(CollectionEntry.From).ToList();
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<ClipPage> GetClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken = default)
+    public Task<ClipPage> GetClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ThrowIfUnavailable();
 
+        return OnWorkerAsync(() => ReadClipPageAsync(scope, offset, count, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ClipPage> ReadClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken)
+    {
         var clips = _databaseContextFactory.GetClipRepository(Key);
         switch (scope)
         {
@@ -87,9 +95,14 @@ internal sealed class LocalDatabase : IDatabase
     }
 
     /// <inheritdoc />
-    public async Task<ClipContent?> GetClipContentAsync(Guid clipId, CancellationToken cancellationToken = default)
+    public Task<ClipContent?> GetClipContentAsync(Guid clipId, CancellationToken cancellationToken = default)
     {
         ThrowIfUnavailable();
+        return OnWorkerAsync(() => ReadClipContentAsync(clipId, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ClipContent?> ReadClipContentAsync(Guid clipId, CancellationToken cancellationToken)
+    {
         var clip = await _databaseContextFactory.GetClipRepository(Key).GetByIdAsync(clipId, cancellationToken);
         if (clip == null)
             return null;
@@ -109,7 +122,7 @@ internal sealed class LocalDatabase : IDatabase
     {
         ArgumentNullException.ThrowIfNull(filters);
         ThrowIfUnavailable();
-        return _searchService.SearchDatabaseAsync(Key, filters, maxResults, cancellationToken);
+        return OnWorkerAsync(() => _searchService.SearchDatabaseAsync(Key, filters, maxResults, cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -124,6 +137,14 @@ internal sealed class LocalDatabase : IDatabase
         // A clip filed in a folder of the collection is in both lists
         return result.Where(p => !p.Del).DistinctBy(p => p.Id).ToList();
     }
+
+    /// <summary>
+    /// Runs SQLite work on a worker thread. Microsoft.Data.Sqlite's async methods complete synchronously, so awaiting
+    /// them on the caller's thread (the UI thread when a collection is clicked) would block it until the query ends.
+    /// Each repository from the context factory has its own context, so reads may run at the same time.
+    /// </summary>
+    private static Task<T> OnWorkerAsync<T>(Func<Task<T>> work, CancellationToken cancellationToken) =>
+        Task.Run(work, cancellationToken);
 
     /// <summary>
     /// Pages a list that is already in display order.
