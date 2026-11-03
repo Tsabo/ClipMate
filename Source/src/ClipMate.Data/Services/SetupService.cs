@@ -1,5 +1,4 @@
 using ClipMate.Core.Helpers;
-using ClipMate.Core.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -8,7 +7,7 @@ namespace ClipMate.Data.Services;
 /// <summary>
 /// Service for database setup and initialization tasks.
 /// </summary>
-public class SetupService : ISetupService
+public class SetupService
 {
     private readonly ILogger<SetupService> _logger;
 
@@ -17,7 +16,12 @@ public class SetupService : ISetupService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Creates a new ClipMate database at the specified path.
+    /// </summary>
+    /// <param name="databasePath">The full path to the database file to create.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if database was created successfully, false otherwise.</returns>
     public async Task<bool> CreateDatabaseAsync(string databasePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
@@ -64,7 +68,12 @@ public class SetupService : ISetupService
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Validates that a database exists and has the correct schema.
+    /// </summary>
+    /// <param name="databasePath">The full path to the database file to validate.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if database is valid, false otherwise.</returns>
     public async Task<bool> ValidateDatabaseAsync(string databasePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
@@ -107,7 +116,10 @@ public class SetupService : ISetupService
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the default database path for the application.
+    /// </summary>
+    /// <returns>The full path to the default database location.</returns>
     public string GetDefaultDatabasePath()
     {
         var clipMateDataPath = Path.Combine(ClipMatePaths.DataDirectory, "Databases");
@@ -117,33 +129,11 @@ public class SetupService : ISetupService
         return defaultDbPath;
     }
 
-    /// <inheritdoc />
-    public async Task<string> EnsureDefaultDatabaseAsync(CancellationToken cancellationToken = default)
-    {
-        var defaultDbPath = GetDefaultDatabasePath();
-
-        // Check if database already exists and is valid
-        if (File.Exists(defaultDbPath))
-        {
-            var isValid = await ValidateDatabaseAsync(defaultDbPath, cancellationToken);
-            if (isValid)
-            {
-                _logger.LogInformation("Default database already exists and is valid: {DefaultDbPath}", defaultDbPath);
-                return defaultDbPath;
-            }
-
-            _logger.LogWarning("Default database exists but is invalid, will recreate: {DefaultDbPath}", defaultDbPath);
-        }
-
-        // Create the database
-        var created = await CreateDatabaseAsync(defaultDbPath, cancellationToken);
-        if (!created)
-            throw new InvalidOperationException($"Failed to create default database at: {defaultDbPath}");
-
-        return defaultDbPath;
-    }
-
-    /// <inheritdoc />
+    /// <summary>
+    /// Seeds default data (collections, etc.) into an existing database and applies schema migrations.
+    /// </summary>
+    /// <param name="databasePath">The full path to the database file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task SeedDefaultDataAsync(string databasePath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(databasePath))

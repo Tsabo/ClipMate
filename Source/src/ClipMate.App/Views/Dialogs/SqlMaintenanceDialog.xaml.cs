@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using ClipMate.App.ViewModels;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data.Services;
 using DevExpress.Xpf.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,14 +20,14 @@ public partial class SqlMaintenanceDialog
 {
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<SqlMaintenanceDialog> _logger;
-    private readonly ISqlMaintenanceService _sqlMaintenanceService;
+    private readonly SqlMaintenanceService _sqlMaintenanceService;
     private readonly SqlMaintenanceViewModel _viewModel;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlMaintenanceDialog" /> class.
     /// </summary>
     public SqlMaintenanceDialog(SqlMaintenanceViewModel viewModel,
-        ISqlMaintenanceService sqlMaintenanceService,
+        SqlMaintenanceService sqlMaintenanceService,
         IConfigurationService configurationService,
         ILogger<SqlMaintenanceDialog> logger)
     {

@@ -59,11 +59,4 @@ public interface IApplicationProfileService
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteAllProfilesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Normalizes an application name by removing .EXE extension and converting to uppercase.
-    /// </summary>
-    /// <param name="applicationName">The application name to normalize.</param>
-    /// <returns>Normalized application name.</returns>
-    string NormalizeApplicationName(string applicationName);
 }

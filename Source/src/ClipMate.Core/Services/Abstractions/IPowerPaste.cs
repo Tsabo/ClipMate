@@ -20,11 +20,6 @@ public interface IPowerPaste
     PowerPasteDirection Direction { get; }
 
     /// <summary>
-    /// Gets the position of the waiting clip in the sequence, or -1 when Power Paste is not active.
-    /// </summary>
-    int CurrentPosition { get; }
-
-    /// <summary>
     /// Gets the number of steps in the sequence.
     /// </summary>
     int TotalCount { get; }

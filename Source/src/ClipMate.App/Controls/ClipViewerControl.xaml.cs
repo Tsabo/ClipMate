@@ -13,6 +13,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Repositories;
+using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data;
 using ClipMate.Platform.Helpers;
@@ -47,7 +48,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         _logger = serviceProvider.GetRequiredService<ILogger<ClipViewerControl>>();
         _messenger = serviceProvider.GetRequiredService<IMessenger>();
         _configurationService = serviceProvider.GetRequiredService<IConfigurationService>();
-        _textTransformService = serviceProvider.GetRequiredService<ITextTransformService>();
+        _textTransformService = serviceProvider.GetRequiredService<TextTransformService>();
         _databaseContextFactory = serviceProvider.GetRequiredService<IDatabaseContextFactory>();
         _clipService = serviceProvider.GetRequiredService<IClipService>();
         _currentClipWriter = serviceProvider.GetRequiredService<ICurrentClipWriter>();
@@ -274,7 +275,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     private readonly IMessenger _messenger;
     private readonly IConfigurationService _configurationService;
     private readonly ClipViewerToolbarViewModel _toolbarViewModel;
-    private readonly ITextTransformService _textTransformService;
+    private readonly TextTransformService _textTransformService;
     private readonly IDatabaseContextFactory _databaseContextFactory;
     private readonly IClipService _clipService;
     private readonly ICurrentClipWriter _currentClipWriter;

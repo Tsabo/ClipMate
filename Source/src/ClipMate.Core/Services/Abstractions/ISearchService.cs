@@ -32,24 +32,12 @@ public interface ISearchService
 
     /// <summary>
     /// Builds a readable SQL rendering of the search, with filter values inlined as escaped literals.
-    /// Intended for display only; searches execute <see cref="BuildParameterizedSqlQuery" /> instead.
+    /// Intended for display only; searches run parameterized SQL instead.
     /// </summary>
     /// <param name="query">The search query text.</param>
     /// <param name="filters">Optional search filters.</param>
     /// <returns>The generated SQL query string.</returns>
     string BuildSqlQuery(string query, SearchFilters? filters = null);
-
-    /// <summary>
-    /// Builds the parameterized SQL that a search executes. Every filter value is passed as a parameter.
-    /// </summary>
-    /// <param name="query">The search query text (matched against clip text).</param>
-    /// <param name="filters">Optional search filters.</param>
-    /// <returns>The SQL text and its parameter values.</returns>
-    /// <exception cref="ArgumentException">
-    /// The scope is <see cref="Models.SearchScope.CurrentCollection" /> without a collection ID, or
-    /// <see cref="Models.SearchScope.SpecificFolder" /> without a folder ID.
-    /// </exception>
-    SearchSqlQuery BuildParameterizedSqlQuery(string query, SearchFilters? filters = null);
 
     /// <summary>
     /// Validates a SQL query for security and syntax.
@@ -91,12 +79,4 @@ public interface ISearchService
     /// <param name="name">The name of the search query to delete.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task DeleteSearchQueryAsync(string name, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets the search history (recent searches).
-    /// </summary>
-    /// <param name="count">Number of recent searches to return.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of recent search queries.</returns>
-    Task<IReadOnlyList<string>> GetSearchHistoryAsync(int count = 10, CancellationToken cancellationToken = default);
 }

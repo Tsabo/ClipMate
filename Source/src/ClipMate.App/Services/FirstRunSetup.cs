@@ -1,7 +1,6 @@
 using System.IO;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 
@@ -23,7 +22,7 @@ public static class FirstRunSetup
     /// asking the user anything.
     /// </summary>
     /// <returns>The new database file.</returns>
-    public static async Task<string> CreateDefaultAsync(ISetupService setupService, ILoggerFactory loggerFactory,
+    public static async Task<string> CreateDefaultAsync(SetupService setupService, ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(setupService);

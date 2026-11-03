@@ -59,34 +59,6 @@ public class DecryptedBlobCacheServiceTests : IDisposable
     }
 
     [Test]
-    public async Task IsClipDecrypted_WhenCached_ReturnsTrue()
-    {
-        // Arrange
-        var clipId = Guid.NewGuid();
-        var blobs = CreateTestBlobData();
-        _service.CacheDecryptedBlobs(clipId, blobs);
-
-        // Act
-        var result = _service.IsClipDecrypted(clipId);
-
-        // Assert
-        await Assert.That(result).IsTrue();
-    }
-
-    [Test]
-    public async Task IsClipDecrypted_WhenNotCached_ReturnsFalse()
-    {
-        // Arrange
-        var clipId = Guid.NewGuid();
-
-        // Act
-        var result = _service.IsClipDecrypted(clipId);
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    [Test]
     public async Task ClearClip_RemovesCachedBlobs()
     {
         // Arrange
@@ -100,7 +72,6 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         // Assert
         var result = _service.GetDecryptedBlobs(clipId);
         await Assert.That(result).IsNull();
-        await Assert.That(_service.IsClipDecrypted(clipId)).IsFalse();
     }
 
     [Test]
@@ -191,7 +162,6 @@ public class DecryptedBlobCacheServiceTests : IDisposable
         var cached = _service.GetDecryptedBlobs(clipId);
         await Assert.That(cached).IsNotNull();
         await Assert.That(cached!.TextBlobs[0].Data).IsEqualTo("Replaced");
-        await Assert.That(_service.IsClipDecrypted(clipId)).IsTrue();
     }
 
     [Test]

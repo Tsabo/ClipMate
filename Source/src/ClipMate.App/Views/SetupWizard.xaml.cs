@@ -2,7 +2,6 @@ using System.IO;
 using ClipMate.App.Services;
 using ClipMate.Core.Helpers;
 using ClipMate.Core.Models.Configuration;
-using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -19,9 +18,9 @@ public partial class SetupWizard
 {
     private readonly string _configurationDirectory;
     private readonly ILogger<SetupWizard> _logger;
-    private readonly ISetupService _setupService;
+    private readonly SetupService _setupService;
 
-    public SetupWizard(ILogger<SetupWizard> logger, ISetupService setupService, string? configurationDirectory = null)
+    public SetupWizard(ILogger<SetupWizard> logger, SetupService setupService, string? configurationDirectory = null)
     {
         InitializeComponent();
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

@@ -1,5 +1,5 @@
 using System.Windows;
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -13,7 +13,7 @@ namespace ClipMate.App.ViewModels;
 public partial class TextCleanupDialogViewModel : ObservableObject
 {
     private readonly ILogger<TextCleanupDialogViewModel> _logger;
-    private readonly ITextTransformService _textTransformService;
+    private readonly TextTransformService _textTransformService;
 
     [ObservableProperty]
     private string _caseConversion = "NoChange";
@@ -54,7 +54,7 @@ public partial class TextCleanupDialogViewModel : ObservableObject
     [ObservableProperty]
     private bool _useRegex;
 
-    public TextCleanupDialogViewModel(ITextTransformService textTransformService, ILogger<TextCleanupDialogViewModel> logger)
+    public TextCleanupDialogViewModel(TextTransformService textTransformService, ILogger<TextCleanupDialogViewModel> logger)
     {
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

@@ -78,66 +78,6 @@ public class ClipServiceExtendedTests : TestFixtureBase
         A.Fake<IMessenger>(),
         _logger);
 
-    [Category("RenameClip")]
-    public class RenameClipAsyncTests : ClipServiceExtendedTests
-    {
-        [Test]
-        public async Task WithValidIdAndTitle_UpdatesClipTitle()
-        {
-            // Arrange
-            var clipId = Guid.NewGuid();
-            var clip = new Clip
-            {
-                Id = clipId,
-                Title = "Old Title",
-                TextContent = "Content",
-                CapturedAt = DateTime.UtcNow,
-            };
-
-            A.CallTo(() => _mockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored))
-                .Returns(clip);
-
-            A.CallTo(() => _mockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored))
-                .Returns(true);
-
-            var service = CreateService();
-
-            // Act
-            var result = await service.RenameClipAsync(_testDatabaseKey, clipId, "New Title");
-
-            // Assert
-            await Assert.That(result).IsTrue();
-            await Assert.That(clip.Title).IsEqualTo("New Title");
-        }
-
-        [Test]
-        public async Task WithNonExistentId_ReturnsFalse()
-        {
-            // Arrange
-            A.CallTo(() => _mockClipRepository.GetByIdAsync(A<Guid>.Ignored, A<CancellationToken>.Ignored))
-                .Returns((Clip?)null);
-
-            var service = CreateService();
-
-            // Act
-            var result = await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), "New Title");
-
-            // Assert
-            await Assert.That(result).IsFalse();
-        }
-
-        [Test]
-        public async Task WithEmptyTitle_ThrowsArgumentException()
-        {
-            // Arrange
-            var service = CreateService();
-
-            // Act & Assert
-            await Assert.That(async () => await service.RenameClipAsync(_testDatabaseKey, Guid.NewGuid(), string.Empty))
-                .Throws<ArgumentException>();
-        }
-    }
-
     [Category("CopyClip")]
     public class CopyClipAsyncTests : ClipServiceExtendedTests
     {

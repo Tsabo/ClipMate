@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services.Abstractions;
 
 namespace ClipMate.Core.Services;
 
@@ -10,7 +9,7 @@ namespace ClipMate.Core.Services;
 /// Service for text transformation and manipulation operations.
 /// User Story 6: Text Processing Tools
 /// </summary>
-public class TextTransformService : ITextTransformService
+public class TextTransformService
 {
     private static readonly TextInfo _textInfo = CultureInfo.CurrentCulture.TextInfo;
 

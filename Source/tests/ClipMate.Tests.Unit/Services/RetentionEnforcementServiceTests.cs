@@ -36,7 +36,7 @@ public class RetentionEnforcementServiceTests
             .Returns(_mockCollectionRepository);
     }
 
-    private IRetentionEnforcementService CreateService() =>
+    private RetentionEnforcementService CreateService() =>
         new RetentionEnforcementService(
             _mockContextFactory,
             A.Fake<ILogger<IRetentionEnforcementService>>());

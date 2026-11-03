@@ -60,7 +60,10 @@ public sealed class ClipboardDiagnosticsService : IClipboardDiagnosticsService
         return new ClipboardDiagnosticInfo(ownerName, sequenceNumber, formats);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the name of the process that currently owns the clipboard.
+    /// </summary>
+    /// <returns>The process name, or "(No owner)" if no process owns the clipboard.</returns>
     public string GetOwnerProcessName()
     {
         var ownerHandle = PInvoke.GetClipboardOwner();

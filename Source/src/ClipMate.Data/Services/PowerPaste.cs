@@ -95,7 +95,9 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     /// <inheritdoc />
     public PowerPasteDirection Direction { get; private set; } = PowerPasteDirection.Down;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the position of the waiting clip in the sequence, or -1 when Power Paste is not active.
+    /// </summary>
     public int CurrentPosition { get; private set; } = -1;
 
     /// <inheritdoc />

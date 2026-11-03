@@ -1,5 +1,4 @@
 using ClipMate.Core.Models;
-using ClipMate.Core.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -10,7 +9,7 @@ namespace ClipMate.Data.Services;
 /// Registered as singleton to support multi-database operations.
 /// Creates fresh DbContext instances for each operation (thread-safe).
 /// </summary>
-public class ShortcutService : IShortcutService
+public class ShortcutService
 {
     private readonly IDatabaseManager _databaseManager;
     private readonly ILogger<ShortcutService> _logger;
@@ -21,7 +20,12 @@ public class ShortcutService : IShortcutService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets all shortcuts from the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of all shortcuts.</returns>
     public async Task<IReadOnlyList<Shortcut>> GetAllAsync(string databaseKey, CancellationToken cancellationToken = default)
     {
         await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
@@ -33,7 +37,11 @@ public class ShortcutService : IShortcutService
             .ToListAsync(cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets all shortcuts from all loaded databases.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of shortcuts with their database keys.</returns>
     public async Task<IReadOnlyList<(string DatabaseKey, Shortcut Shortcut)>> GetAllFromAllDatabasesAsync(CancellationToken cancellationToken = default)
     {
         var allShortcuts = new List<(string DatabaseKey, Shortcut Shortcut)>();
@@ -62,26 +70,12 @@ public class ShortcutService : IShortcutService
         return allShortcuts.OrderBy(p => p.Shortcut.Nickname).ToList();
     }
 
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<Shortcut>> GetByNicknamePrefixAsync(string databaseKey, string nicknamePrefix, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(nicknamePrefix))
-            return Array.Empty<Shortcut>();
-
-        await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
-        if (context == null)
-            throw new InvalidOperationException($"Database '{databaseKey}' is not loaded");
-
-        // Case-insensitive prefix match
-        var prefixLower = nicknamePrefix.ToLowerInvariant();
-
-        return await context.Shortcuts
-            .Where(p => p.Nickname.ToLower().StartsWith(prefixLower))
-            .OrderBy(p => p.Nickname)
-            .ToListAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets shortcuts matching the specified nickname prefix from all loaded databases.
+    /// </summary>
+    /// <param name="nicknamePrefix">The nickname prefix to match (case-insensitive).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of matching shortcuts with their database keys.</returns>
     public async Task<IReadOnlyList<(string DatabaseKey, Shortcut Shortcut)>> GetByNicknamePrefixFromAllDatabasesAsync(string nicknamePrefix, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(nicknamePrefix))
@@ -115,7 +109,13 @@ public class ShortcutService : IShortcutService
         return allShortcuts.OrderBy(p => p.Shortcut.Nickname).ToList();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets the shortcut for a specific clip from the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The shortcut if found; otherwise, null.</returns>
     public async Task<Shortcut?> GetByClipIdAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
     {
         await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
@@ -126,7 +126,14 @@ public class ShortcutService : IShortcutService
             .FirstOrDefaultAsync(p => p.ClipId == clipId, cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Updates or creates a shortcut for a clip. If nickname is null/empty, deletes the shortcut.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="nickname">The shortcut nickname (max 64 chars), or null to delete.</param>
+    /// <param name="title">The clip title to update, or null to leave unchanged.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task UpdateClipShortcutAsync(string databaseKey, Guid clipId, string? nickname, string? title = null, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("UpdateClipShortcutAsync called: DatabaseKey='{DatabaseKey}', ClipId={ClipId}, Nickname='{Nickname}', Title='{Title}'", databaseKey, clipId, nickname, title);
@@ -222,7 +229,12 @@ public class ShortcutService : IShortcutService
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Deletes a shortcut by ID from the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="shortcutId">The shortcut ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task DeleteAsync(string databaseKey, Guid shortcutId, CancellationToken cancellationToken = default)
     {
         await using var context = _databaseManager.CreateDatabaseContext(databaseKey);
@@ -238,7 +250,12 @@ public class ShortcutService : IShortcutService
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Deletes all shortcuts for a specific clip from the specified database.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task DeleteByClipIdAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default)
     {
         await using var context = _databaseManager.CreateDatabaseContext(databaseKey);

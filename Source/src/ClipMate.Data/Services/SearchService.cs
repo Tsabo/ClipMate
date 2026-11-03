@@ -13,8 +13,6 @@ namespace ClipMate.Data.Services;
 /// </summary>
 public partial class SearchService : ISearchService
 {
-    private const int _maxHistorySize = 50;
-
     // SQL validation - prevent dangerous operations
     private static readonly string[] _dangerousKeywords =
     [
@@ -26,7 +24,6 @@ public partial class SearchService : ISearchService
 
     private readonly IDatabaseContextFactory _contextFactory;
     private readonly ILogger<SearchService> _logger;
-    private readonly List<string> _searchHistory = [];
     private readonly ISqlValidationService _sqlValidationService;
 
     public SearchService(IDatabaseContextFactory contextFactory,
@@ -50,10 +47,6 @@ public partial class SearchService : ISearchService
             throw new InvalidOperationException("No active database selected");
 
         var clipRepository = _contextFactory.GetClipRepository(databaseKey);
-
-        // Track search history (non-empty queries only)
-        if (!string.IsNullOrWhiteSpace(query))
-            AddToSearchHistory(query);
 
         // Build parameterized SQL from filters; filter values never enter the SQL text
         var sqlQuery = BuildParameterizedSqlQuery(query, filters);
@@ -306,16 +299,6 @@ public partial class SearchService : ISearchService
         await _configurationService.SaveAsync(cancellationToken);
     }
 
-    public Task<IReadOnlyList<string>> GetSearchHistoryAsync(int count = 10, CancellationToken cancellationToken = default)
-    {
-        var history = _searchHistory
-            .Take(count)
-            .ToList()
-            .AsReadOnly();
-
-        return Task.FromResult<IReadOnlyList<string>>(history);
-    }
-
     /// <summary>
     /// Validates a SQL query for security and syntax.
     /// Strategy 1: Read-only validation (dangerous keywords)
@@ -384,18 +367,5 @@ public partial class SearchService : ISearchService
             "files" => 15,
             var _ => 1, // Default to text
         };
-    }
-
-    private void AddToSearchHistory(string query)
-    {
-        // Remove if already exists
-        _searchHistory.Remove(query);
-
-        // Add to front
-        _searchHistory.Insert(0, query);
-
-        // Trim to max size
-        if (_searchHistory.Count > _maxHistorySize)
-            _searchHistory.RemoveAt(_searchHistory.Count - 1);
     }
 }

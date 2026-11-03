@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.Core.Services;
 using Microsoft.Extensions.Logging;
 using MessageBox = System.Windows.MessageBox;
 
@@ -13,10 +13,10 @@ namespace ClipMate.App.Views.Dialogs;
 public partial class TextCleanupDialog
 {
     private readonly ILogger<TextCleanupDialog> _logger;
-    private readonly ITextTransformService _textTransformService;
+    private readonly TextTransformService _textTransformService;
     private string _inputText = string.Empty;
 
-    public TextCleanupDialog(ITextTransformService textTransformService, ILogger<TextCleanupDialog> logger)
+    public TextCleanupDialog(TextTransformService textTransformService, ILogger<TextCleanupDialog> logger)
     {
         InitializeComponent();
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));

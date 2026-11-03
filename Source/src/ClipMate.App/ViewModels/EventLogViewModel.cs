@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows.Data;
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.App.Services;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,7 +16,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public sealed partial class EventLogViewModel : ObservableObject
 {
-    private readonly IEventLogSink _eventLogSink;
+    private readonly EventLogSink _eventLogSink;
 
     /// <summary>
     /// Gets or sets whether to auto-scroll to newest events.
@@ -40,7 +40,7 @@ public sealed partial class EventLogViewModel : ObservableObject
     /// Initializes a new instance of the <see cref="EventLogViewModel" /> class.
     /// </summary>
     /// <param name="eventLogSink">The event log sink containing events.</param>
-    public EventLogViewModel(IEventLogSink eventLogSink)
+    public EventLogViewModel(EventLogSink eventLogSink)
     {
         _eventLogSink = eventLogSink ?? throw new ArgumentNullException(nameof(eventLogSink));
 

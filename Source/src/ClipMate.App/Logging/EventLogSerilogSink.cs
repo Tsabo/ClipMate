@@ -1,4 +1,4 @@
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.App.Services;
 using ClipMate.Core.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
@@ -12,13 +12,13 @@ namespace ClipMate.App.Logging;
 /// </summary>
 public sealed class EventLogSerilogSink : ILogEventSink
 {
-    private readonly IEventLogSink _eventLogSink;
+    private readonly EventLogSink _eventLogSink;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventLogSerilogSink" /> class.
     /// </summary>
     /// <param name="eventLogSink">The event log sink to write to.</param>
-    public EventLogSerilogSink(IEventLogSink eventLogSink)
+    public EventLogSerilogSink(EventLogSink eventLogSink)
     {
         _eventLogSink = eventLogSink ?? throw new ArgumentNullException(nameof(eventLogSink));
     }

@@ -25,13 +25,6 @@ public interface IDecryptedBlobCacheService
     DecryptedBlobData? GetDecryptedBlobs(Guid clipId);
 
     /// <summary>
-    /// Check if a clip has cached decrypted data.
-    /// </summary>
-    /// <param name="clipId">The clip ID</param>
-    /// <returns>True if decrypted data is cached</returns>
-    bool IsClipDecrypted(Guid clipId);
-
-    /// <summary>
     /// Remove cached data for a specific clip.
     /// </summary>
     /// <param name="clipId">The clip ID</param>

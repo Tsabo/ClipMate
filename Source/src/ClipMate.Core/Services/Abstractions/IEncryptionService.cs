@@ -49,13 +49,4 @@ public interface IEncryptionService
         EncryptionMetadata metadata,
         EncryptionKey key,
         int iterations);
-
-    /// <summary>
-    /// Derives a cryptographic key from a passphrase using PBKDF2.
-    /// </summary>
-    /// <param name="key">The encryption key.</param>
-    /// <param name="salt">Salt for key derivation.</param>
-    /// <param name="iterations">PBKDF2 iteration count.</param>
-    /// <returns>Derived key bytes (32 bytes for AES-256).</returns>
-    Task<byte[]> DeriveKeyAsync(EncryptionKey key, byte[] salt, int iterations);
 }

@@ -184,7 +184,8 @@ public class CopyToLocalIntegrationTests : IntegrationTestBase
         var peerText = (await peerBlobs.GetTextByClipIdAsync(source.Id)).Single();
         peerText.Data = "Changed on the Peer";
         await peerBlobs.UpdateTextAsync(peerText);
-        await _peerClipService.RenameClipAsync(_peerDatabaseKey, source.Id, "Renamed on the Peer");
+        source.Title = "Renamed on the Peer";
+        await _peerClipService.UpdateAsync(_peerDatabaseKey, source);
         await _peerClipService.DeleteAsync(_peerDatabaseKey, source.Id);
 
         // Assert

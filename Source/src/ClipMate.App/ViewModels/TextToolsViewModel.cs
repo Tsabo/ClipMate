@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ClipMate.Core.Models;
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.Core.Services;
 using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,7 +13,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class TextToolsViewModel : ObservableObject
 {
-    private readonly ITextTransformService _textTransformService;
+    private readonly TextTransformService _textTransformService;
 
     [ObservableProperty]
     private CaseConversion _caseConversionMode = CaseConversion.Uppercase;
@@ -65,7 +65,7 @@ public partial class TextToolsViewModel : ObservableObject
     /// </summary>
     /// <param name="textTransformService">The text transformation service.</param>
     /// <exception cref="ArgumentNullException">Thrown when textTransformService is null.</exception>
-    public TextToolsViewModel(ITextTransformService textTransformService)
+    public TextToolsViewModel(TextTransformService textTransformService)
     {
         _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
 

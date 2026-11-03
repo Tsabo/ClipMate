@@ -1,5 +1,5 @@
 using ClipMate.Core.Events;
-using ClipMate.Core.Services.Abstractions;
+using ClipMate.Data.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -15,7 +15,7 @@ public partial class RenameClipDialogViewModel : ObservableObject
     private static string? _lastPrefix; // Static to persist between dialog invocations
     private readonly ILogger<RenameClipDialogViewModel> _logger;
     private readonly IMessenger _messenger;
-    private readonly IShortcutService _shortcutService;
+    private readonly ShortcutService _shortcutService;
 
     [ObservableProperty]
     private bool _carryOverLastPrefix;
@@ -30,7 +30,7 @@ public partial class RenameClipDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _title;
 
-    public RenameClipDialogViewModel(IShortcutService shortcutService, IMessenger messenger, ILogger<RenameClipDialogViewModel> logger)
+    public RenameClipDialogViewModel(ShortcutService shortcutService, IMessenger messenger, ILogger<RenameClipDialogViewModel> logger)
     {
         _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
         _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));

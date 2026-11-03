@@ -1,5 +1,4 @@
 using System.Data;
-using ClipMate.Core.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
@@ -10,7 +9,7 @@ namespace ClipMate.Data.Services;
 /// Service for executing raw SQL maintenance operations within a transaction context.
 /// Provides controlled access to database for administrative purposes.
 /// </summary>
-internal sealed class SqlMaintenanceService : ISqlMaintenanceService
+public sealed class SqlMaintenanceService : IAsyncDisposable
 {
     private readonly ClipMateDbContext _dbContext;
     private readonly ILogger<SqlMaintenanceService> _logger;
@@ -36,13 +35,20 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
         _ownsContext = ownsContext;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets whether a transaction is currently active.
+    /// </summary>
     public bool HasActiveTransaction => _transaction != null;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets whether the current transaction has been committed.
+    /// </summary>
     public bool IsTransactionCommitted { get; private set; }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Begins a new database transaction.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -55,7 +61,10 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
         _logger.LogInformation("SQL Maintenance: Transaction started");
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Commits the current transaction, making all changes permanent.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -71,7 +80,10 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
         _transaction = null;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Rolls back the current transaction, reverting all changes.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -87,7 +99,13 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
         _transaction = null;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Executes a SQL query and returns results as a DataTable.
+    /// Use for SELECT, PRAGMA, EXPLAIN queries.
+    /// </summary>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result containing the DataTable and row count.</returns>
     public async Task<SqlQueryResult> ExecuteQueryAsync(string sql, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -125,7 +143,13 @@ internal sealed class SqlMaintenanceService : ISqlMaintenanceService
         };
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Executes a SQL command that doesn't return results.
+    /// Use for INSERT, UPDATE, DELETE, CREATE, DROP, etc.
+    /// </summary>
+    /// <param name="sql">The SQL command to execute.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of rows affected.</returns>
     public async Task<int> ExecuteNonQueryAsync(string sql, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

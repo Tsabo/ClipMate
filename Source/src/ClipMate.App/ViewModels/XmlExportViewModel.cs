@@ -2,6 +2,7 @@ using System.IO;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -12,7 +13,7 @@ public partial class XmlExportViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
     private readonly IConfigurationService _configurationService;
-    private readonly IExportImportService _exportImportService;
+    private readonly ExportImportService _exportImportService;
     private CancellationTokenSource? _cancellationTokenSource;
     private Guid? _collectionId;
 
@@ -41,7 +42,7 @@ public partial class XmlExportViewModel : ObservableObject
     [ObservableProperty]
     private bool _xmlExportIncludeCollections = true;
 
-    public XmlExportViewModel(IExportImportService exportImportService,
+    public XmlExportViewModel(ExportImportService exportImportService,
         IClipService clipService,
         ICollectionService collectionService,
         IConfigurationService configurationService)

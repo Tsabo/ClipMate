@@ -54,9 +54,6 @@ public static class ServiceCollectionExtensions
         // Subscribers must properly unregister in Dispose to prevent memory leaks
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
 
-        // Register the shared EventLogSink instance (already receiving logs via Serilog sink)
-        services.AddSingleton<IEventLogSink>(p => p.GetRequiredService<EventLogSink>());
-
         // Register ClipBar (quick paste picker) as hosted service
         services.AddSingleton<ClassicWindowCoordinator>();
         services.AddHostedService(p => p.GetRequiredService<ClassicWindowCoordinator>());

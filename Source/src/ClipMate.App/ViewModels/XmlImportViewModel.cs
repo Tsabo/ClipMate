@@ -3,6 +3,7 @@ using System.IO;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -13,7 +14,7 @@ public partial class XmlImportViewModel : ObservableObject
     private readonly IClipService _clipService;
     private readonly ICollectionTreeBuilder _collectionTreeBuilder;
     private readonly IConfigurationService _configurationService;
-    private readonly IExportImportService _exportImportService;
+    private readonly ExportImportService _exportImportService;
     private CancellationTokenSource? _cancellationTokenSource;
 
     [ObservableProperty]
@@ -41,7 +42,7 @@ public partial class XmlImportViewModel : ObservableObject
     [ObservableProperty]
     private string _xmlImportFilePath = string.Empty;
 
-    public XmlImportViewModel(IExportImportService exportImportService,
+    public XmlImportViewModel(ExportImportService exportImportService,
         ICollectionTreeBuilder collectionTreeBuilder,
         IClipService clipService,
         IConfigurationService configurationService)

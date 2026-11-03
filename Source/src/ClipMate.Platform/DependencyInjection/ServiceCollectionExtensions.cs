@@ -66,9 +66,6 @@ public static class ServiceCollectionExtensions
         // Register StartupManager for Windows startup configuration
         services.AddSingleton<IStartupManager, StartupManager>();
 
-        // Register FileLoggingService for log management
-        services.AddSingleton<IFileLoggingService, FileLoggingService>();
-
         // Register Win32IdleDetector for system idle detection
         services.AddSingleton<IWin32IdleDetector, Win32IdleDetector>();
 
@@ -79,7 +76,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDecryptedBlobCacheService, DecryptedBlobCacheService>();
 
         // Register ExportImportService as transient - only used occasionally for export/import operations
-        services.AddTransient<IExportImportService, ExportImportService>();
+        services.AddTransient<ExportImportService>();
 
         // Register encryption service as singleton
         services.AddSingleton<IEncryptionService, AesEncryptionService>();

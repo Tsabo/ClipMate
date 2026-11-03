@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessenger>(new StrongReferenceMessenger());
 
         // Register text transform service as singleton
-        services.AddSingleton<ITextTransformService, TextTransformService>();
+        services.AddSingleton<TextTransformService>();
 
         // Register HTML to Markdown conversion service as singleton (stateless)
         services.AddSingleton<IMarkdownConversionService, MarkdownConversionService>();

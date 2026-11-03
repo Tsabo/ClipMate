@@ -693,7 +693,7 @@ public partial class MainMenuViewModel : ObservableObject,
 
         var viewModel = _serviceProvider.GetRequiredService<SqlMaintenanceViewModel>();
         var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
-        var sqlMaintenanceFactory = _serviceProvider.GetRequiredService<ISqlMaintenanceServiceFactory>();
+        var sqlMaintenanceFactory = _serviceProvider.GetRequiredService<SqlMaintenanceServiceFactory>();
         var logger = _serviceProvider.GetRequiredService<ILogger<SqlMaintenanceDialog>>();
         var activeWindowService = _serviceProvider.GetRequiredService<IActiveWindowService>();
 

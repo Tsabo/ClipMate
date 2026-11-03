@@ -3,6 +3,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Models.Export;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -11,7 +12,7 @@ namespace ClipMate.App.ViewModels;
 public partial class FlatFileExportViewModel : ObservableObject
 {
     private readonly IConfigurationService _configurationService;
-    private readonly IExportImportService _exportImportService;
+    private readonly ExportImportService _exportImportService;
     private CancellationTokenSource? _cancellationTokenSource;
 
     [ObservableProperty]
@@ -60,7 +61,7 @@ public partial class FlatFileExportViewModel : ObservableObject
     [ObservableProperty]
     private FileNamingStrategy _selectedNamingStrategy = FileNamingStrategy.Sequential;
 
-    public FlatFileExportViewModel(IExportImportService exportImportService,
+    public FlatFileExportViewModel(ExportImportService exportImportService,
         IConfigurationService configurationService)
     {
         _exportImportService = exportImportService;
