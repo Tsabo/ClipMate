@@ -97,6 +97,22 @@ public class SqliteSchemaComparer : ISchemaComparer
     private void CompareIndexes(TableDefinition current, TableDefinition expected, SchemaDiff diff)
     {
         var currentIndexNames = current.Indexes.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var expectedIndexNames = expected.Indexes.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Only a retired index is dropped, any other index missing from the model is left alone
+        foreach (var item in current.Indexes)
+        {
+            if (expectedIndexNames.Contains(item.Name) || !_options.RetiredIndexes.Contains(item.Name))
+                continue;
+
+            diff.Operations.Add(new MigrationOperation
+            {
+                Type = MigrationOperationType.DropIndex,
+                TableName = expected.Name,
+                IndexName = item.Name,
+                Sql = $"DROP INDEX {item.Name}",
+            });
+        }
 
         foreach (var item in expected.Indexes)
         {

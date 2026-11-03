@@ -218,8 +218,9 @@ public class ClipMateDbContext : DbContext
             entity.HasIndex(p => p.ContentHash).HasDatabaseName("IX_Clips_ContentHash");
             entity.HasIndex(p => p.SourceApplicationName).HasDatabaseName("IX_Clips_SourceApplicationName");
             entity.HasIndex(p => p.IsFavorite).HasDatabaseName("IX_Clips_IsFavorite");
-            entity.HasIndex(p => p.CollectionId).HasDatabaseName("IX_Clips_CollectionId");
-            entity.HasIndex(p => p.FolderId).HasDatabaseName("IX_Clips_FolderId");
+            // A collection or folder page reads its clips in SortKey order straight from these, with no sort
+            entity.HasIndex(p => new { p.CollectionId, p.Del, p.SortKey }).HasDatabaseName("IX_Clips_CollectionId_Del_SortKey");
+            entity.HasIndex(p => new { p.FolderId, p.Del, p.SortKey }).HasDatabaseName("IX_Clips_FolderId_Del_SortKey");
             entity.HasIndex(p => p.Del).HasDatabaseName("IX_Clips_Del"); // Soft delete index
             entity.HasIndex(p => p.SortKey).HasDatabaseName("IX_Clips_SortKey");
             entity.HasIndex(p => p.Checksum).HasDatabaseName("IX_Clips_Checksum");

@@ -183,12 +183,20 @@ public class ClipRepository : IClipRepository
     }
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(_context.Clips.Where(p => p.CollectionId == collectionId && !p.Del), offset, count, cancellationToken);
+    public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // Compared with a parameter: SQLite seeks the (CollectionId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
+        var deleted = false;
+        return GetPageAsync(_context.Clips.Where(p => p.CollectionId == collectionId && p.Del == deleted), offset, count, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(_context.Clips.Where(p => p.FolderId == folderId && !p.Del), offset, count, cancellationToken);
+    public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // Compared with a parameter: SQLite seeks the (FolderId, Del, SortKey) index on "Del = ?", but not on "NOT Del"
+        var deleted = false;
+        return GetPageAsync(_context.Clips.Where(p => p.FolderId == folderId && p.Del == deleted), offset, count, cancellationToken);
+    }
 
     /// <summary>
     /// Pages <paramref name="query" /> in the database by SortKey (newest first), loading format flags for the page only,

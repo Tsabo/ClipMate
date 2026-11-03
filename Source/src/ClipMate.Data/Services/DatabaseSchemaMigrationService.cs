@@ -52,8 +52,14 @@ public class DatabaseSchemaMigrationService
 
         try
         {
-            // ApplicationFilters held the old per-application capture filter, replaced by Application Profiles
-            var options = new SchemaOptions { RetiredTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ApplicationFilters" } };
+            // ApplicationFilters held the old per-application capture filter, replaced by Application Profiles.
+            // The single-column CollectionId and FolderId indexes were replaced by (CollectionId, Del, SortKey) and
+            // (FolderId, Del, SortKey).
+            var options = new SchemaOptions
+            {
+                RetiredTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ApplicationFilters" },
+                RetiredIndexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "IX_Clips_CollectionId", "IX_Clips_FolderId" },
+            };
 
             // Read current schema from database
             var schemaReader = new SqliteSchemaReader(connection, options);
@@ -301,6 +307,7 @@ public class DatabaseSchemaMigrationService
                 MigrationOperationType.AddColumn => $"Add column '{operation.ColumnName}' to '{operation.TableName}'",
                 MigrationOperationType.CreateIndex => $"Create index '{operation.IndexName}'",
                 MigrationOperationType.DropTable => $"Drop table '{operation.TableName}'",
+                MigrationOperationType.DropIndex => $"Drop index '{operation.IndexName}'",
                 var _ => operation.Type.ToString(),
             };
         }
