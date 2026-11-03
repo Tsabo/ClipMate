@@ -181,11 +181,11 @@ public class SharedDatabaseTransportTests
             Size = 2048, Type = ClipType.Html, HasText = true, HasHtml = true, SourceApplicationName = @"C:\Apps\WINWORD.EXE",
             SourceApplicationTitle = "report.docx", SortKey = 7,
         };
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, collectionId, null, 0, 200, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, new ClipListScope.Collection(collectionId), 0, 200, A<CancellationToken>._))
             .Returns(new ClipPage([clip], 0, 4212));
 
         // Act
-        var page = await _client.GetClipPageAsync(Connect(desktop), _workId, collectionId, null, 0, 200);
+        var page = await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(collectionId), 0, 200);
 
         // Assert
         await Assert.That(page).IsNotNull();
@@ -202,15 +202,31 @@ public class SharedDatabaseTransportTests
     }
 
     [Test]
+    public async Task GetClipPageAsync_CollectionWithItsFolders_ReturnsThePeersPageOfTheCollectionAndItsFolders()
+    {
+        // Arrange
+        var desktop = await PairAsync();
+        var scope = new ClipListScope.Collection(Guid.NewGuid(), IncludeFolders: true);
+        var clip = new Clip { Id = Guid.NewGuid(), Title = "In a folder" };
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, scope, 0, 200, A<CancellationToken>._)).Returns(new ClipPage([clip], 0, 1));
+
+        // Act
+        var page = await _client.GetClipPageAsync(Connect(desktop), _workId, scope, 0, 200);
+
+        // Assert
+        await Assert.That(page?.Clips.Single().Id).IsEqualTo(clip.Id);
+    }
+
+    [Test]
     public async Task GetClipPageAsync_CollectionNotShared_ReturnsNull()
     {
         // Arrange
         var desktop = await PairAsync();
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Returns((ClipPage?)null);
 
         // Act
-        var page = await _client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200);
+        var page = await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200);
 
         // Assert
         await Assert.That(page).IsNull();
@@ -224,10 +240,10 @@ public class SharedDatabaseTransportTests
         var collectionId = Guid.NewGuid();
 
         // Act
-        await _client.GetClipPageAsync(Connect(desktop), _workId, collectionId, null, 0, 1_000_000);
+        await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(collectionId), 0, 1_000_000);
 
         // Assert
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, collectionId, null, 0, A<int>.That.Matches(p => p <= 500), A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(_workId, new ClipListScope.Collection(collectionId), 0, A<int>.That.Matches(p => p <= 500), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -300,10 +316,10 @@ public class SharedDatabaseTransportTests
         // Arrange
         var desktop = await PairAsync();
         var peerCancelled = new TaskCompletionSource();
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .ReturnsLazily(async call =>
             {
-                var token = call.GetArgument<CancellationToken>(5);
+                var token = call.GetArgument<CancellationToken>(4);
                 token.Register(() => peerCancelled.TrySetResult());
                 await Task.Delay(Timeout.Infinite, token);
                 return (ClipPage?)null;
@@ -311,7 +327,7 @@ public class SharedDatabaseTransportTests
         var client = new GrpcSharedDatabaseClient(NullLogger<GrpcSharedDatabaseClient>.Instance, TimeSpan.FromMilliseconds(500));
 
         // Act / Assert
-        await Assert.That(async () => await client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
         await peerCancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
     }
@@ -324,7 +340,7 @@ public class SharedDatabaseTransportTests
         await _desktopHost.StopAsync();
 
         // Act / Assert
-        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
     }
 
@@ -339,11 +355,11 @@ public class SharedDatabaseTransportTests
     {
         // Arrange
         var desktop = await PairAsync();
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Throws(new RpcException(new Status(status, "Something went wrong.")));
 
         // Act / Assert
-        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
     }
 
@@ -352,11 +368,11 @@ public class SharedDatabaseTransportTests
     {
         // Arrange: an unexpected exception on the Peer reaches this Device as status Unknown.
         var desktop = await PairAsync();
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("Database is locked."));
 
         // Act / Assert
-        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
     }
 
@@ -371,13 +387,13 @@ public class SharedDatabaseTransportTests
             new DiscoveredDevice(_desktopIdentity.DeviceId, "DESKTOP", new IPEndPoint(IPAddress.Loopback, _desktopHost.ListeningPort!.Value), PeerProtocol.Major, 0,
                 DateTimeOffset.UtcNow),
         ]);
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .Throws(new RpcException(new Status(StatusCode.Internal, "Something went wrong.")));
 
         // Act / Assert
-        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, Guid.NewGuid(), null, 0, 200))
+        await Assert.That(async () => await _client.GetClipPageAsync(Connect(desktop), _workId, new ClipListScope.Collection(Guid.NewGuid()), 0, 200))
             .Throws<DatabaseUnavailableException>();
-        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<Guid>._, A<Guid?>._, A<int>._, A<int>._, A<CancellationToken>._))
+        A.CallTo(() => _sharedDatabases.GetClipPageAsync(A<Guid>._, A<ClipListScope>._, A<int>._, A<int>._, A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 

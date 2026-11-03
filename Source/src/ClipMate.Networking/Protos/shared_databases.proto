@@ -19,9 +19,10 @@ service SharedDatabaseAccess {
   // Returns the collection and folder tree of one Shared Database. NOT_FOUND if the Peer does not share it.
   rpc GetCollectionTree (GetCollectionTreeRequest) returns (GetCollectionTreeReply);
 
-  // Returns one page of the clips (metadata only) of a collection or folder of a Shared Database. Smart and SQL-based
-  // collections are evaluated on the Peer with its own stored SQL. NOT_FOUND if the Peer does not share the Database
-  // or it has no such collection or folder.
+  // Returns one page of the clips (metadata only) of a collection, a collection with its folders, or a folder of a
+  // Shared Database. Smart and SQL-based collections are evaluated on the Peer with its own stored SQL. NOT_FOUND if
+  // the Peer does not share the Database or it has no such collection or folder. Deleted clips (the Trash) are never
+  // served.
   rpc GetClipPage (GetClipPageRequest) returns (GetClipPageReply);
 
   // Returns a clip's metadata and its formats (no content). NOT_FOUND if the Peer does not share the Database or it
@@ -95,6 +96,9 @@ message GetClipPageRequest {
   int32 offset = 4;
   // The Peer serves at most its own page size limit.
   int32 count = 5;
+  // With an empty folder_id: also the clips of all the collection's folders, at any depth. A Peer older than this field
+  // ignores it and serves the collection alone; its reply's include_folders then stays false.
+  bool include_folders = 6;
 }
 
 message GetClipPageReply {
@@ -103,6 +107,9 @@ message GetClipPageReply {
   // The whole list's clip count on the first page (offset 0). A later page isn't counted: it carries offset plus its
   // clip count, plus one when more clips follow.
   int32 total_count = 3;
+  // Whether the page includes the clips of the collection's folders, as the request's include_folders asked. A
+  // requester that asked for them and finds this false is talking to an older Peer, and must not show the page.
+  bool include_folders = 4;
 }
 
 enum ClipKind {

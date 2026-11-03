@@ -7,7 +7,7 @@ namespace ClipMate.Networking.SharedDatabases;
 
 /// <summary>
 /// <see cref="IDatabase" /> for a Remote Database: every read is a coarse request its Peer runs against its own
-/// Database (a read-only live proxy). There is no Trash, and nothing can be written.
+/// Database (a read-only live proxy). There is no Trash (a Peer never serves deleted clips), and nothing can be written.
 /// </summary>
 internal sealed class RemoteDatabaseProxy : IDatabase
 {
@@ -43,14 +43,10 @@ internal sealed class RemoteDatabaseProxy : IDatabase
     public Task<ClipPage> GetClipPageAsync(ClipListScope scope, int offset, int count, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
-        return scope switch
-        {
-            ClipListScope.Collection { IncludeFolders: false } collection =>
-                _remoteDatabases.GetClipPageAsync(Remote.Address, collection.CollectionId, null, offset, count, cancellationToken),
-            ClipListScope.Folder folder =>
-                _remoteDatabases.GetClipPageAsync(Remote.Address, folder.CollectionId, folder.FolderId, offset, count, cancellationToken),
-            var _ => throw new NotSupportedException("A Remote Database lists only the clips of one collection or folder at a time."),
-        };
+        if (scope is ClipListScope.Trash)
+            throw new NotSupportedException("A Remote Database has no Trash: Peers never serve deleted clips.");
+
+        return _remoteDatabases.GetClipPageAsync(Remote.Address, scope, offset, count, cancellationToken);
     }
 
     /// <inheritdoc />

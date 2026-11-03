@@ -60,19 +60,21 @@ public interface IRemoteDatabaseService
     Task<IReadOnlyList<CollectionEntry>> GetCollectionTreeAsync(RemoteDatabaseAddress address, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fetches one page of the clips (metadata only) of a collection or folder of a Remote Database from its Peer.
-    /// Smart and SQL-based collections are evaluated on the Peer with the Peer's own stored SQL.
+    /// Fetches one page of the clips (metadata only) of a collection, a collection with its folders, or a folder of a
+    /// Remote Database from its Peer. Smart and SQL-based collections are evaluated on the Peer with the Peer's own
+    /// stored SQL.
     /// </summary>
     /// <param name="address">The Remote Database.</param>
-    /// <param name="collectionId">The collection.</param>
-    /// <param name="folderId">A folder of that collection, or <c>null</c> for the collection itself.</param>
+    /// <param name="scope">A collection or folder; a Peer never serves its Trash.</param>
     /// <param name="offset">How many clips to skip.</param>
     /// <param name="count">The most clips to return (the Peer may return fewer).</param>
     /// <param name="cancellationToken">Cancellation token; also cancels the work on the Peer.</param>
     /// <exception cref="DatabaseUnavailableException">
-    /// The Peer cannot be reached or did not answer in time, or no longer shares that Database or collection.
+    /// The Peer cannot be reached or did not answer in time, no longer shares that Database or collection, or runs an
+    /// older ClipMate that cannot list a collection with its folders.
     /// </exception>
-    Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, Guid collectionId, Guid? folderId, int offset, int count,
+    /// <exception cref="NotSupportedException"><paramref name="scope" /> is the Trash.</exception>
+    Task<ClipPage> GetClipPageAsync(RemoteDatabaseAddress address, ClipListScope scope, int offset, int count,
         CancellationToken cancellationToken = default);
 
     /// <summary>

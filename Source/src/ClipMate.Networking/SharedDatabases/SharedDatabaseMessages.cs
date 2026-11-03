@@ -3,6 +3,7 @@ using ClipMate.Core.Constants;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
 using ClipMate.Core.Models.Search;
+using ClipMate.Core.Services.Abstractions;
 using ClipMate.Networking.Protocol;
 using ClipMate.Networking.SharedDatabases.Notice;
 using CollectionEntry = ClipMate.Core.Models.CollectionEntry;
@@ -183,8 +184,42 @@ internal static class SharedDatabaseMessages
         return clip;
     }
 
-    public static ClipPage FromMessage(GetClipPageReply reply)
+    /// <summary>
+    /// The request for one page of <paramref name="scope" />.
+    /// </summary>
+    /// <exception cref="NotSupportedException"><paramref name="scope" /> is the Trash, which Peers never serve.</exception>
+    public static GetClipPageRequest ToClipPageRequest(Guid databaseId, ClipListScope scope, int offset, int count)
     {
+        ArgumentNullException.ThrowIfNull(scope);
+        var (collectionId, folderId, includeFolders) = scope switch
+        {
+            ClipListScope.Collection collection => (collection.CollectionId, (Guid?)null, collection.IncludeFolders),
+            ClipListScope.Folder folder => (folder.CollectionId, folder.FolderId, false),
+            var _ => throw new NotSupportedException("Peers never serve their Trash."),
+        };
+
+        return new GetClipPageRequest
+        {
+            DatabaseId = databaseId.ToString("D", CultureInfo.InvariantCulture),
+            CollectionId = collectionId.ToString("D", CultureInfo.InvariantCulture),
+            FolderId = folderId?.ToString("D", CultureInfo.InvariantCulture) ?? string.Empty,
+            Offset = offset,
+            Count = count,
+            IncludeFolders = includeFolders,
+        };
+    }
+
+    /// <summary>
+    /// The page a Peer sent for <paramref name="request" />.
+    /// </summary>
+    /// <exception cref="DatabaseUnavailableException">
+    /// The request asked for a collection with its folders, and the Peer (an older ClipMate) served the collection alone.
+    /// </exception>
+    public static ClipPage FromMessage(GetClipPageReply reply, GetClipPageRequest request, string peerName)
+    {
+        if (request.IncludeFolders && !reply.IncludeFolders)
+            throw new DatabaseUnavailableException($"{peerName} runs an older ClipMate that can't list a collection with its folders.");
+
         var clips = reply.Clips.Select(FromMessage).OfType<Clip>().ToList();
         var offset = Math.Max(0, reply.Offset);
         return new ClipPage(clips, offset, Math.Max(reply.TotalCount, offset + clips.Count));

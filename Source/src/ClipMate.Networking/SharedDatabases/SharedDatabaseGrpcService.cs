@@ -77,18 +77,21 @@ internal sealed class SharedDatabaseGrpcService : SharedDatabaseAccess.SharedDat
     {
         var databaseId = ParseId(request.DatabaseId, "Database ID");
         var collectionId = ParseId(request.CollectionId, "collection ID");
-        Guid? folderId = string.IsNullOrEmpty(request.FolderId)
-            ? null
-            : ParseId(request.FolderId, "folder ID");
+        ClipListScope scope = string.IsNullOrEmpty(request.FolderId)
+            ? new ClipListScope.Collection(collectionId, request.IncludeFolders)
+            : new ClipListScope.Folder(collectionId, ParseId(request.FolderId, "folder ID"));
 
         if (request.Offset < 0)
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid offset."));
 
+        if (request.IncludeFolders && scope is ClipListScope.Folder)
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Only a collection includes its folders."));
+
         var count = Math.Clamp(request.Count, 1, MaxPageSize);
-        var page = await _sharedDatabases.GetClipPageAsync(databaseId, collectionId, folderId, request.Offset, count, context.CancellationToken)
+        var page = await _sharedDatabases.GetClipPageAsync(databaseId, scope, request.Offset, count, context.CancellationToken)
                    ?? throw new RpcException(new Status(StatusCode.NotFound, "This collection is not shared."));
 
-        var reply = new GetClipPageReply { Offset = page.Offset, TotalCount = page.TotalCount };
+        var reply = new GetClipPageReply { Offset = page.Offset, TotalCount = page.TotalCount, IncludeFolders = request.IncludeFolders };
         reply.Clips.AddRange(page.Clips.Select(SharedDatabaseMessages.ToMessage));
         return reply;
     }

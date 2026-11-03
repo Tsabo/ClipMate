@@ -59,7 +59,7 @@ public sealed class FakeDatabases : IDatabases
 /// <summary>
 /// In-memory <see cref="IDatabase" />. Its tree, clip lists, contents and search results are set directly; while
 /// <see cref="IsAvailable" /> is false every read throws <see cref="DatabaseUnavailableException" />, and a Remote one
-/// has no Trash or folder-including lists, as the real ones do.
+/// has no Trash, as the real ones do.
 /// </summary>
 public sealed class FakeDatabase : IDatabase
 {
@@ -165,8 +165,8 @@ public sealed class FakeDatabase : IDatabase
         ArgumentNullException.ThrowIfNull(scope);
         PageRequests.Add((scope, offset, count));
         ThrowIfUnavailable();
-        if (Remote != null && scope is ClipListScope.Trash or ClipListScope.Collection { IncludeFolders: true })
-            throw new NotSupportedException("A Remote Database lists only the clips of one collection or folder at a time.");
+        if (Remote != null && scope is ClipListScope.Trash)
+            throw new NotSupportedException("A Remote Database has no Trash: Peers never serve deleted clips.");
 
         return PageAsync();
 

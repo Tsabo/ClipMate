@@ -61,11 +61,18 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
     }
 
     /// <inheritdoc />
-    public async Task<ClipPage?> GetClipPageAsync(Guid databaseId, Guid collectionId, Guid? folderId, int offset, int count,
+    public async Task<ClipPage?> GetClipPageAsync(Guid databaseId, ClipListScope scope, int offset, int count,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(scope);
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        var (collectionId, folderId) = scope switch
+        {
+            ClipListScope.Collection listed => (listed.CollectionId, (Guid?)null),
+            ClipListScope.Folder folder => (folder.CollectionId, folder.FolderId),
+            var _ => throw new ArgumentException("Deleted clips are never served to Peers.", nameof(scope)),
+        };
 
         var databaseKey = await FindSharedDatabaseKeyAsync(databaseId, cancellationToken);
         if (databaseKey == null)
@@ -84,6 +91,10 @@ internal sealed class SharedDatabaseService : ISharedDatabaseService
 
             return await _databaseContextFactory.GetClipRepository(databaseKey).GetPageByFolderAsync(folderId.Value, offset, count, cancellationToken);
         }
+
+        // The collection's clips with those of its folders at any depth, as the local list shows them
+        if (scope is ClipListScope.Collection { IncludeFolders: true })
+            return await _databaseContextFactory.GetClipRepository(databaseKey).GetPageWithFoldersAsync(collectionId, offset, count, cancellationToken);
 
         // Smart and SQL-based collections run their own stored SQL, as they do locally, but only for the page asked for
         if (collection.IsVirtual && !string.IsNullOrWhiteSpace(collection.Sql))
