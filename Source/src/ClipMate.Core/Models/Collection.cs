@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace ClipMate.Core.Models;
 
 /// <summary>
@@ -233,6 +235,13 @@ public class Collection
     public bool IsVirtual => LmType == CollectionLmType.Virtual ||
                              ListType == CollectionListType.Smart ||
                              ListType == CollectionListType.SqlBased;
+
+    /// <summary>
+    /// The opposite of <see cref="IsVirtual" /> as a filter EF can turn into SQL, since <see cref="IsVirtual" /> is not a column.
+    /// </summary>
+    public static Expression<Func<Collection, bool>> NotVirtual { get; } = p => p.LmType != CollectionLmType.Virtual &&
+                                                                               p.ListType != CollectionListType.Smart &&
+                                                                               p.ListType != CollectionListType.SqlBased;
 
     /// <summary>
     /// Whether this collection is active (receives new clips).

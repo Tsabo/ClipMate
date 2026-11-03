@@ -49,4 +49,18 @@ public sealed record CollectionEntry(Guid Id, Guid? ParentId, string Title, Coll
 
         return new CollectionEntry(collection.Id, collection.ParentId, collection.Title, kind, collection.SortKey);
     }
+
+    /// <summary>
+    /// The entries a tree shows directly under their Database, outside the Virtual container: every collection, plus any
+    /// folder whose parent is missing (shown as a collection rather than lost). These are the entries that are reordered
+    /// against each other.
+    /// </summary>
+    public static IEnumerable<CollectionEntry> TopLevel(IReadOnlyCollection<CollectionEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+
+        var ids = entries.Select(p => p.Id).ToHashSet();
+        return entries.Where(p => p.Kind == CollectionEntryKind.Collection
+                                  || p.Kind == CollectionEntryKind.Folder && !ids.Contains(p.ParentId!.Value));
+    }
 }
