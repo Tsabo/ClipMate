@@ -459,10 +459,15 @@ public partial class ClipListViewModel : ObservableObject,
 
             AcceptsNewClips = await AcceptsNewClipsAsync(database, scope, token);
             var offset = 0;
+            var total = 0;
             while (true)
             {
                 var page = await database.GetClipPageAsync(scope, offset, PageSize, token);
                 token.ThrowIfCancellationRequested();
+
+                // Only the first page counts the whole list
+                if (offset == 0)
+                    total = page.TotalCount;
 
                 foreach (var item in page.Clips)
                     Clips.Add(item);
@@ -480,7 +485,7 @@ public partial class ClipListViewModel : ObservableObject,
                 if (!page.HasMore)
                     break;
 
-                RemoteStatusMessage = $"Loading clips… {offset:N0} of {page.TotalCount:N0}";
+                RemoteStatusMessage = $"Loading clips… {offset:N0} of {total:N0}";
             }
 
             if (reselectClipId != null)
@@ -930,56 +935,6 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Loads clips from the clip service.
-    /// </summary>
-    /// <param name="count">Maximum number of clips to load (default 1000).</param>
-    public async Task LoadClipsAsync(int count = 1000)
-    {
-        CancelLoad();
-        _currentScope = null;
-        ShowsSearchResults = false;
-        try
-        {
-            IsLoading = true;
-            AcceptsNewClips = true; // Recent clips view accepts new clips
-            _logger.LogInformation("Loading recent {Count} clips (no collection filter)", count);
-            IReadOnlyCollection<Clip> clips;
-            var activeDatabaseKey = _collectionService.GetActiveDatabaseKey();
-
-            if (string.IsNullOrEmpty(activeDatabaseKey))
-            {
-                _logger.LogWarning("No active database key found, cannot load recent clips");
-                clips = [];
-            }
-            else
-                clips = await _clipService.GetRecentAsync(activeDatabaseKey, count);
-
-            _logger.LogInformation("Retrieved {Count} recent clips. First clip CollectionId: {CollectionId}", clips.Count, clips.FirstOrDefault()?.CollectionId);
-
-            // Update collection on UI thread
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                Clips.Clear();
-                foreach (var item in clips)
-                    Clips.Add(item);
-
-                _logger.LogInformation("Updated UI collection: {Count} clips now in Clips collection", Clips.Count);
-                // Auto-select the first (most recent) clip without triggering clipboard operation
-                SetSelectedClipWithoutClipboardOperation(Clips.FirstOrDefault());
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading recent clips");
-            await Application.Current.Dispatcher.InvokeAsync(() => Clips.Clear());
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
     /// Loads specific clips by their IDs (used for search results). Must be called on the UI thread.
     /// </summary>
     /// <param name="clipIds">The list of clip IDs to load.</param>
@@ -1086,14 +1041,20 @@ public partial class ClipListViewModel : ObservableObject,
     }
 
     /// <summary>
-    /// Refreshes the clip list by loading what it shows again.
+    /// Refreshes the clip list by loading what it shows again. With no view shown (no node selected yet), the list
+    /// shows nothing.
     /// </summary>
     public async Task RefreshAsync()
     {
         if (CurrentDatabaseKey != null && _currentScope != null)
+        {
             await LoadAsync(CurrentDatabaseKey, _currentScope);
-        else
-            await LoadClipsAsync();
+            return;
+        }
+
+        SelectedClip = null;
+        SelectedClips.Clear();
+        Clips.Clear();
     }
 
     /// <summary>

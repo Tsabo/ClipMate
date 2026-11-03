@@ -50,106 +50,6 @@ public class ClipRepository : IClipRepository
         return clip;
     }
 
-    public async Task<IReadOnlyList<Clip>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
-    {
-        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
-        // Single query: fetch clips with their format flags in one database round-trip
-        var clipsWithFormats = await _context.Clips
-            .Where(p => !p.Del) // Exclude soft-deleted clips
-            .GroupJoin(
-                _context.ClipData,
-                clip => clip.Id,
-                clipData => clipData.ClipId,
-                (clip, clipDataGroup) => new
-                {
-                    Clip = clip,
-                    HasText = clipDataGroup.Any(p => p.Format == Formats.Text.Code || p.Format == Formats.UnicodeText.Code || p.FormatName == Formats.Text.Name || p.FormatName == Formats.UnicodeText.Name),
-                    HasRtf = clipDataGroup.Any(p => p.FormatName == Formats.RichText.Name || p.Format == Formats.RichText.Code),
-                    HasHtml = clipDataGroup.Any(p => p.FormatName == Formats.Html.Name || p.Format == Formats.Html.Code || p.Format == Formats.HtmlAlt.Code),
-                    HasBitmap = clipDataGroup.Any(p => p.Format == Formats.Bitmap.Code || p.Format == Formats.Dib.Code || p.FormatName == Formats.Bitmap.Name || p.FormatName == Formats.Dib.Name),
-                    HasFiles = clipDataGroup.Any(p => p.Format == Formats.HDrop.Code || p.FormatName == Formats.HDrop.Name),
-                    FormatNames = string.Join(", ", clipDataGroup.Select(cd => cd.FormatName)),
-                })
-            .ToListAsync(cancellationToken);
-
-        // Sort in memory and take the requested count (by manual SortKey, which also correlates with capture order)
-        clipsWithFormats = clipsWithFormats
-            .OrderByDescending(p => p.Clip.SortKey)
-            .Take(count)
-            .ToList();
-
-        // Apply format flags to clips in memory
-        foreach (var item in clipsWithFormats)
-        {
-            var clip = item.Clip;
-
-            // Set format flags directly
-            clip.HasText = item.HasText;
-            clip.HasRtf = item.HasRtf;
-            clip.HasHtml = item.HasHtml;
-            clip.HasBitmap = item.HasBitmap;
-            clip.HasFiles = item.HasFiles;
-
-            // Pre-compute and cache the icon string
-            var icons = new List<string>();
-            if (clip.Macro)
-                icons.Add("⌨");
-
-            if (item.HasBitmap)
-                icons.Add("🖼");
-
-            if (item.HasRtf)
-                icons.Add("🅰");
-
-            if (item.HasHtml)
-                icons.Add("🌐");
-
-            if (item.HasFiles)
-                icons.Add("📁");
-
-            if (item.HasText)
-                icons.Add("📄");
-
-            // Add lock icon prefix for encrypted clips
-            var lockIcon = clip.Encrypted
-                ? clip.IsDecrypted
-                    ? "🔓"
-                    : "🔒"
-                : string.Empty;
-
-            clip.IconGlyph = icons.Count > 0
-                ? lockIcon + string.Join("", icons)
-                : lockIcon + "❓";
-
-            // Fallback for clips with no ClipData
-            if (!item.HasText && !item.HasRtf && !item.HasHtml && !item.HasBitmap && !item.HasFiles)
-            {
-                switch (clip.Type)
-                {
-                    case ClipType.Text:
-                        clip.HasText = true;
-                        clip.IconGlyph = "📄";
-                        break;
-                    case ClipType.Image:
-                        clip.HasBitmap = true;
-                        clip.IconGlyph = "🖼";
-                        break;
-                    case ClipType.Files:
-                        clip.HasFiles = true;
-                        clip.IconGlyph = "📁";
-                        break;
-                    default:
-                        clip.IconGlyph = "❓";
-                        break;
-                }
-            }
-        }
-
-        return clipsWithFormats
-            .Select(p => p.Clip)
-            .ToList();
-    }
-
     public async Task<IReadOnlyList<Clip>> GetByCollectionAsync(Guid collectionId, CancellationToken cancellationToken = default)
     {
         // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
@@ -166,48 +66,76 @@ public class ClipRepository : IClipRepository
         return clips;
     }
 
-    public async Task<IReadOnlyList<Clip>> GetByFolderAsync(Guid folderId, CancellationToken cancellationToken = default)
-    {
-        // Fetch clips without ordering (SQLite doesn't support DateTimeOffset in ORDER BY)
-        var clips = await _context.Clips
-            .Where(p => p.FolderId == folderId && !p.Del)
-            .ToListAsync(cancellationToken);
-
-        // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
-        clips = clips.OrderByDescending(p => p.SortKey).ToList();
-
-        // Load format flags from ClipData table (not actual content)
-        await LoadFormatFlagsAsync(clips, cancellationToken);
-
-        return clips;
-    }
-
     /// <inheritdoc />
     public Task<ClipPage> GetPageByCollectionAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(_context.Clips.Where(p => p.CollectionId == collectionId && !p.Del), offset, count, cancellationToken);
+        GetPageAsync(NewestFirst(_context.Clips.Where(p => p.CollectionId == collectionId && !p.Del)), offset, count, cancellationToken);
 
     /// <inheritdoc />
     public Task<ClipPage> GetPageByFolderAsync(Guid folderId, int offset, int count, CancellationToken cancellationToken = default) =>
-        GetPageAsync(_context.Clips.Where(p => p.FolderId == folderId && !p.Del), offset, count, cancellationToken);
+        GetPageAsync(NewestFirst(_context.Clips.Where(p => p.FolderId == folderId && !p.Del)), offset, count, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<ClipPage> GetPageWithFoldersAsync(Guid collectionId, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // The folders of the collection at any depth (folders are collections with LmType = Folder)
+        var folderIds = _context.Database.SqlQuery<Guid>($"""
+            With Recursive Folders(Id) as (
+                Select Id from Collections where ParentId = {collectionId} and LmType = {(int)CollectionLmType.Folder}
+                Union
+                Select Collections.Id from Collections join Folders on Collections.ParentId = Folders.Id
+                where Collections.LmType = {(int)CollectionLmType.Folder})
+            Select Id as Value from Folders
+            """);
+
+        // One condition, so a clip filed in a folder of the collection is listed once
+        return GetPageAsync(NewestFirst(_context.Clips.Where(p => !p.Del &&
+                (p.CollectionId == collectionId || (p.FolderId != null && folderIds.Contains(p.FolderId.Value))))),
+            offset, count, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<ClipPage> GetDeletedPageAsync(int offset, int count, CancellationToken cancellationToken = default) =>
+        GetPageAsync(_context.Clips
+                .Where(p => p.Del)
+                .OrderBy(p => p.DelDate == null)
+                .ThenByDescending(p => p.DelDate)
+                .ThenByDescending(p => p.SortKey)
+                .ThenBy(p => p.Id),
+            offset, count, cancellationToken);
 
     /// <summary>
-    /// Pages <paramref name="query" /> in the database by SortKey (newest first), loading format flags for the page only,
-    /// so the first page of a large collection is quick.
+    /// Orders clips for a clip list: SortKey descending (newest first), then ID.
     /// </summary>
-    private async Task<ClipPage> GetPageAsync(IQueryable<Clip> query, int offset, int count, CancellationToken cancellationToken)
+    private static IOrderedQueryable<Clip> NewestFirst(IQueryable<Clip> query) =>
+        query.OrderByDescending(p => p.SortKey).ThenBy(p => p.Id);
+
+    /// <summary>
+    /// Pages <paramref name="query" /> in the database, loading format flags for the page only, so the first page of a
+    /// large list is quick. Only the first page (offset 0) counts the list, and only when it has more clips than the
+    /// page; a later page reads one clip more than asked to learn whether more follow (<see cref="ClipPage.Uncounted" />).
+    /// </summary>
+    private async Task<ClipPage> GetPageAsync(IOrderedQueryable<Clip> query, int offset, int count, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
-        var total = await query.CountAsync(cancellationToken);
         var clips = await query
-            .OrderByDescending(p => p.SortKey)
-            .ThenBy(p => p.Id)
             .Skip(offset)
-            .Take(count)
+            .Take(count == int.MaxValue ? count : count + 1)
             .ToListAsync(cancellationToken);
 
+        var hasMore = clips.Count > count;
+        if (hasMore)
+            clips.RemoveAt(clips.Count - 1);
+
         await LoadFormatFlagsAsync(clips, cancellationToken);
+        if (offset > 0)
+            return ClipPage.Uncounted(clips, offset, hasMore);
+
+        var total = hasMore
+            ? await query.CountAsync(cancellationToken)
+            : clips.Count;
+
         return new ClipPage(clips, offset, total);
     }
 
@@ -220,22 +148,6 @@ public class ClipRepository : IClipRepository
 
         // Sort in memory after fetching (by manual SortKey, which also correlates with capture order)
         clips = clips.OrderByDescending(p => p.SortKey).ToList();
-
-        // Load format flags from ClipData table (not actual content)
-        await LoadFormatFlagsAsync(clips, cancellationToken);
-
-        return clips;
-    }
-
-    public async Task<IReadOnlyList<Clip>> GetDeletedAsync(CancellationToken cancellationToken = default)
-    {
-        // Fetch deleted clips (where Del=true) for the Trashcan virtual collection
-        var clips = await _context.Clips
-            .Where(p => p.Del)
-            .ToListAsync(cancellationToken);
-
-        // Sort by deletion date (most recently deleted first)
-        clips = clips.OrderByDescending(p => p.DelDate ?? p.CapturedAt).ToList();
 
         // Load format flags from ClipData table (not actual content)
         await LoadFormatFlagsAsync(clips, cancellationToken);
@@ -617,10 +529,26 @@ public class ClipRepository : IClipRepository
 
         try
         {
-            var (clips, total) = await QueryPageAsync(connection, sqlQuery.Trim().TrimEnd(';'), new DynamicParameters(), offset, count,
-                cancellationToken);
+            var query = sqlQuery.Trim().TrimEnd(';');
+            if (offset == 0)
+            {
+                var (clips, total) = await QueryPageAsync(connection, query, new DynamicParameters(), offset, count, cancellationToken);
+                return new ClipPage(clips, offset, total);
+            }
 
-            return new ClipPage(clips, offset, total);
+            // A later page isn't counted: one clip more than asked tells whether more follow
+            var rows = (await connection.QueryAsync<Clip>(new CommandDefinition(
+                $"Select Matches.* from ({query}\n) as Matches\nOrder By Matches.SortKey Desc, Matches.ID\nLimit @PageLimit Offset @PageOffset",
+                new { PageLimit = count == int.MaxValue ? count : count + 1, PageOffset = offset }, cancellationToken: cancellationToken))).ToList();
+
+            var hasMore = rows.Count > count;
+            if (hasMore)
+                rows.RemoveAt(rows.Count - 1);
+
+            if (rows.Count > 0)
+                await LoadFormatFlagsAsync(rows, cancellationToken);
+
+            return ClipPage.Uncounted(rows, offset, hasMore);
         }
         finally
         {
@@ -633,7 +561,8 @@ public class ClipRepository : IClipRepository
     /// Runs <paramref name="query" /> (a single SELECT) once, as a subquery ordered newest first (SortKey descending, then
     /// ID), and returns the rows from <paramref name="offset" />, at most <paramref name="limit" /> of them (all if
     /// <c>null</c>), with the total row count counted in the same pass. Only when that page is empty although rows may
-    /// exist (an offset past the first row, or a limit of zero) is the query counted separately.
+    /// exist (an offset past the first row, or a limit of zero) is the query counted separately. A later page of a clip
+    /// list doesn't come here: it isn't counted (see <see cref="ExecuteSqlPageAsync" />).
     /// </summary>
     private async Task<(List<Clip> Clips, int Total)> QueryPageAsync(IDbConnection connection, string query, DynamicParameters parameters,
         int offset, int? limit, CancellationToken cancellationToken)

@@ -100,6 +100,8 @@ message GetClipPageRequest {
 message GetClipPageReply {
   repeated ClipSummary clips = 1;
   int32 offset = 2;
+  // The whole list's clip count on the first page (offset 0). A later page isn't counted: it carries offset plus its
+  // clip count, plus one when more clips follow.
   int32 total_count = 3;
 }
 
