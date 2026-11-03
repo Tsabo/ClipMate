@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.1.0-beta.1] - 2026-11-3
+
 ### Added
 - **Outbound Filter** - **Filter Outbound Clips** (Tools menu, toolbar, tray menu and the Pasting options) puts clips on the clipboard as plain text only, or as just their image when they have no text, so they paste without formatting. The clip itself keeps every format. **Active** puts a copy made in another program back as plain text right after it is captured, with the Filter sound, and through the active template, as in ClipMate 7. **Passive** does it when ClipMate loses focus. Clips from the programs listed under **Don't filter clips from these programs** (Explorer by default, so files can still be copied) are left whole.
 - **Search In** - The search dialog's **Search in** box chooses what to search: a Database (yours or a Peer's) or one of its collections or folders, each with its collection tree icon. It starts on what's selected in the collection tree. It replaces the scope list and the **Member of Collection** filter, which did nothing.
