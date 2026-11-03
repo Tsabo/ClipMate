@@ -129,6 +129,36 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    public async Task Receive_AnotherNodeSelectedWhileTheFirstIsBeingMadeActive_ShowsOnlyTheLaterNode()
+    {
+        // Arrange: making the first collection active reads its Database off the UI thread and has not finished
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        _local.WithClips(new ClipListScope.Collection(first), Clip("In the first"));
+        _local.WithClips(new ClipListScope.Collection(second), Clip("In the second"));
+        var firstActivation = new TaskCompletionSource();
+        Guid? active = null;
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(first, "db_local", A<CancellationToken>._))
+            .ReturnsLazily(() => firstActivation.Task.ContinueWith(_ => active = first, TaskContinuationOptions.ExecuteSynchronously));
+        A.CallTo(() => _mockCollectionService.SetActiveAsync(second, "db_local", A<CancellationToken>._))
+            .Invokes(() => active = second).Returns(Task.CompletedTask);
+        var viewModel = CreateViewModel();
+
+        // Act
+        viewModel.Receive(new CollectionNodeSelectedEvent(first, null, "db_local"));
+        viewModel.Receive(new CollectionNodeSelectedEvent(second, null, "db_local"));
+        firstActivation.SetResult();
+        await WaitUntilAsync(() => viewModel.Clips.Count == 1 && !viewModel.IsLoading);
+        await Task.Delay(50);
+
+        // Assert: the later node is both shown and made active last, so it is the capture target
+        await Assert.That(Titles(viewModel)).IsEqualTo("In the second");
+        await Assert.That(viewModel.CurrentCollectionId).IsEqualTo(second);
+        await Assert.That(_local.PageRequests.Any(p => p.Scope == new ClipListScope.Collection(first))).IsFalse();
+        await Assert.That(active).IsEqualTo(second);
+    }
+
+    [Test]
     public async Task Receive_FolderNodeSelected_ShowsTheFolder()
     {
         // Arrange

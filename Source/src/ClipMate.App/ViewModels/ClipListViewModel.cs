@@ -50,6 +50,10 @@ public partial class ClipListViewModel : ObservableObject,
     private ClipListScope? _currentScope;
     private CancellationTokenSource? _loadCts;
 
+    // The activation of the collection node selected last, and how many collection nodes have been selected
+    private Task _activation = Task.CompletedTask;
+    private int _nodeSelection;
+
     /// <summary>
     /// Indicates whether the current view accepts new clips from clipboard capture.
     /// False for virtual collections (search results, deleted clips, etc.) that show fixed/filtered content.
@@ -586,14 +590,23 @@ public partial class ClipListViewModel : ObservableObject,
         _logger.LogInformation("CollectionNodeSelectedEvent received: DatabaseKey={DatabaseKey}, CollectionId={CollectionId}, FolderId={FolderId}, IsTrashcan={IsTrashcan}",
             message.DatabaseKey, message.CollectionId, message.FolderId, message.IsTrashcan);
 
+        // Selecting another node stops the load in progress at once, before this node is made active
+        var selection = ++_nodeSelection;
+        CancelLoad();
+
         try
         {
             // Set the active collection and folder for new clipboard captures
             // Skip this for virtual collections like Trashcan (they don't receive new clips)
             if (!message.IsTrashcan)
             {
-                await _collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
-                await _folderService.SetActiveAsync(message.FolderId);
+                var activation = ActivateAsync(_activation, message);
+                _activation = activation;
+                await activation;
+
+                // A node selected meanwhile shows instead, and was made active after this one
+                if (selection != _nodeSelection)
+                    return;
 
                 _logger.LogInformation("Active collection and folder updated for new clipboard captures");
             }
@@ -611,6 +624,26 @@ public partial class ClipListViewModel : ObservableObject,
         {
             _logger.LogError(ex, "Failed to show collection {CollectionId} of Database {DatabaseKey}", message.CollectionId, message.DatabaseKey);
         }
+    }
+
+    /// <summary>
+    /// Makes the selected collection and folder the target of new captures once the previous selection's activation
+    /// has finished, so the active collection is always the node selected last. The collection service reads the
+    /// Database off the UI thread.
+    /// </summary>
+    private async Task ActivateAsync(Task previous, CollectionNodeSelectedEvent message)
+    {
+        try
+        {
+            await previous;
+        }
+        catch (Exception)
+        {
+            // The previous selection logged its own failure
+        }
+
+        await _collectionService.SetActiveAsync(message.CollectionId, message.DatabaseKey);
+        await _folderService.SetActiveAsync(message.FolderId);
     }
 
     /// <summary>
