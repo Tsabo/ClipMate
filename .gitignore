@@ -413,6 +413,7 @@ FodyWeavers.xsd
 *.db
 *.db-shm
 *.db-wal
+!Source/tests/ClipMate.UITests/DocsScreenshots/SampleData/clipmate.db
 clipmate-*.log
 
 # Ignore Copilot-specific files in .github

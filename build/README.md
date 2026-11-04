@@ -58,8 +58,23 @@ $env:DEVEXPRESS_FEED_AUTH_KEY = "your-key-here"
 | `Smoke-Test` | Start ClipMate against a temporary `--data-dir` and check it finishes startup (`--exe`, `--data-dir`, `--timeout`, `--keep-running`). It never captures your clipboard at startup |
 | `UI-Probe` | Check a change by hand without touching your ClipMate: starts an isolated copy with `--setting section.key=value` applied, copies each `--copy` text and then each `--copy-html` fragment (as HTML plus its plain text, e.g. `--copy-html '<a href="https://example.com">Example</a>'`, with `--source-url <url>` as the page they came from), presses each `--press` combination and saves a PNG of each of ClipMate's windows into `--capture <folder>` (only ClipMate's pixels, fit for a PR). Use hotkeys your own ClipMate doesn't hold, e.g. `--setting hotkeys.select_next="Ctrl+Alt+Shift+F9" --press Ctrl+Alt+Shift+F9`. Copying replaces your clipboard; text there is put back afterwards. Also `--wait-ms`, `--data-dir`, `--exe`, `--keep-running` |
 | `UI-Test` | Run `Source/tests/ClipMate.UITests` (not in CI; uses the real clipboard; `--test-filter`). Prints the totals and each failure's first lines; the full output goes to `build/logs/ui-test-*.log` (`--full-output` streams it instead) |
+| `Docs-Screenshots` | Take the user docs' screenshots; see [below](#docs-screenshots) |
 | `CI` | Full CI build (build + test) |
 | `Release` | Full release build with installer |
+
+## Docs-Screenshots
+
+```powershell
+.\build\build.ps1 -Target Docs-Screenshots -Configuration Debug
+```
+
+Starts isolated copies of ClipMate on the sample database and saves PNGs next to their pages under `docs/docs`, replacing what is there. The shot list lives in the test class, `Source/tests/ClipMate.UITests/DocsScreenshots/DocsScreenshotTests.cs`. What it can't reach is listed in [`docs/SCREENSHOTS_BY_HAND.md`](../docs/SCREENSHOTS_BY_HAND.md).
+
+- **It takes over the mouse and foreground while it runs**, for a minute or two. Don't use the computer until it finishes.
+- It writes nothing to the clipboard, and it fails a shot if the clipboard changes during that shot, because a copy would have captured it. So don't copy anything while it runs.
+- The Pairing shots start two copies with networking on, which need the Windows Firewall rule for the exe's exact path. A user approves that once per path, by running the exe with networking on and accepting the Windows prompt. The target never causes that prompt: it checks first, and fails if the rule is missing.
+- The exe is this configuration's build in `Source/src/ClipMate.App/bin`, built there even with `--artifacts-path`, since that is the path with the rule. Pass `--exe` to use another one.
+- Pictures are in physical pixels, so their size follows the display's scale: run it at the scale you want to publish.
 
 ## Versioning
 
