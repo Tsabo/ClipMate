@@ -24,10 +24,10 @@ public static class UiThread
     }
 
     /// <summary>
-    /// Queues the action on the UI thread at background priority, even when called there, so it runs after the message
-    /// being handled and after work already queued; runs it now when there is no application, as in unit tests. For
-    /// work that must not run inside the message that triggered it, such as opening the clipboard from a clipboard
-    /// message.
+    /// Queues the action on the UI thread, even when called there, so it runs after the message being handled and after
+    /// work queued earlier at this priority; runs it now when there is no application, as in unit tests. For work that
+    /// must not run inside the message that triggered it, such as opening the clipboard from a clipboard message. It
+    /// runs ahead of layout and rendering, which can hold back lower priorities for over half a second.
     /// </summary>
     public static void Queue(Action action)
     {
@@ -37,7 +37,7 @@ public static class UiThread
         if (dispatcher == null)
             action();
         else
-            dispatcher.BeginInvoke(DispatcherPriority.Background, action);
+            dispatcher.BeginInvoke(DispatcherPriority.Normal, action);
     }
 
     /// <summary>

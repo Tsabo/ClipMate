@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **PowerPaste Button** - The button now works as in ClipMate 7. A click starts in the direction you last used (going up the first time), and the next click turns it off. Turning it off without pasting makes the next start go the other way. **PowerPaste Up** and **PowerPaste Down** turn it off if it's already going that way.
+- **Clicking Another Clip During PowerPaste** - As in ClipMate 7, clicking a clip outside the series takes PowerPaste back to the start of the series. It used to turn PowerPaste off.
+- **PowerPaste Shield** - The option is back on the Pasting options page, and it now works. It's on by default, so other programs reading the clipboard don't move PowerPaste on. If PowerPaste doesn't advance when you paste into a program, turn it off: then any program reading the clipboard moves PowerPaste on, as in ClipMate 7 with its shield off.
+
 ### Fixed
+- **PowerPaste With One Clip Selected** - PowerPaste pasted the clip once and stopped. As in ClipMate 7, it now runs from that clip to the end of the collection, and the clip list follows along. With several clips selected, it still pastes only those.
+- **PowerPaste in Browsers, Windows Terminal and Store Apps** - Pasting into these programs didn't count as a paste, so PowerPaste never advanced. Now it does.
+- **PowerPaste Missing Pastes** - A paste soon after the previous one could go unnoticed, and the next paste repeated the clip. This happened most on machines running WSL or in a remote session.
+- **Pasting Quickly With PowerPaste** - Pastes less than half a second apart repeated the same clip. Pastes about a quarter of a second apart or more now advance.
+- **Exploding PowerPaste Going Up** - Each clip's fragments now paste in reading order when going up. They used to paste last to first.
 - **Reset Buttons Do What They Say** - The **Layout/Font**, **Application Profile** and **Everything** buttons on the Advanced options tab reported success without changing anything. Now **Layout/Font** resets ClipMate Classic's position and size and the editor font the next time ClipMate starts. **Application Profile** clears the Application Profile at once, with no restart. **Everything** clears the Application Profile, turns off **Start with Windows** and resets all other settings the next time ClipMate starts. It keeps your Databases, saved searches and paired Devices. The mention of re-registering is gone from its tooltip, since ClipMate has no licensing.
 - **Source URL on the HTML Tab** - The **Source** box said "(No source URL found)" for clips that had a source URL, even while the clip list's **Source URL** column showed it. It now shows the clip's source URL, and **Go** opens it.
 - **Help Links** - **Help** in the encryption key dialog opened a page that doesn't exist, and so did the localization link in **About**. They now open the Options documentation and GitHub Issues.

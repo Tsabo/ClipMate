@@ -42,16 +42,9 @@ This option is on the main menu under **Edit**, not in this dialog. Click to tog
 
 ## PowerPaste Shield
 
-If other applications interfere with PowerPaste, causing it to "fast-forward," enable this option to operate in "stealth" mode.
+PowerPaste Shield is on by default. It stops other programs that read the clipboard, such as clipboard history or another clipboard manager, from moving PowerPaste on to the next clip, which is called "fast-forwarding."
 
-PowerPaste Shield:
-- Hides clipboard updates from other applications
-- Prevents premature PowerPaste advancement
-- Restores normal clipboard notification when PowerPaste ends
-
-:::note Rare Compatibility Issue
-In rare cases, the target application may rely on clipboard notifications. If pasting doesn't work correctly, try disabling this option.
-:::
+If PowerPaste doesn't advance when you paste into a program, turn this option off. Then any program reading the clipboard moves PowerPaste on, so it may skip clips if such a program is running.
 
 ## Filter Outbound Clips
 

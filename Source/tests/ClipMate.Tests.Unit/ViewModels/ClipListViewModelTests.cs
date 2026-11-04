@@ -86,6 +86,79 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    [Arguments(PowerPasteDirection.Down, "b,c,d")]
+    [Arguments(PowerPasteDirection.Up, "a,b")]
+    public async Task GetClipsForPowerPaste_OneClipSelected_RunsToTheEndOfTheListInThatDirection(PowerPasteDirection direction, string expected)
+    {
+        // Arrange - ClipMate 7's list builder 0x874610 walks every row when the selected count is 1, and the manual says
+        // "from the selected clip to the end of the collection"
+        var viewModel = CreateViewModel();
+        var clips = new[] { "a", "b", "c", "d" }.Select(p => new Clip { Id = Guid.NewGuid(), Title = p }).ToArray();
+        foreach (var clip in clips)
+            viewModel.Clips.Add(clip);
+
+        viewModel.SelectedClips.Add(clips[1]);
+
+        // Act
+        var result = viewModel.GetClipsForPowerPaste(direction);
+
+        // Assert - in on-screen order: Power Paste walks it from the end going up
+        await Assert.That(string.Join(",", result.Select(p => p.Title))).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task GetClipsForPowerPaste_SeveralClipsSelected_IsJustThoseInOnScreenOrder()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var clips = new[] { "a", "b", "c", "d" }.Select(p => new Clip { Id = Guid.NewGuid(), Title = p }).ToArray();
+        foreach (var clip in clips)
+            viewModel.Clips.Add(clip);
+
+        viewModel.SelectedClips.Add(clips[2]);
+        viewModel.SelectedClips.Add(clips[0]);
+
+        // Act
+        var result = viewModel.GetClipsForPowerPaste(PowerPasteDirection.Down);
+
+        // Assert
+        await Assert.That(string.Join(",", result.Select(p => p.Title))).IsEqualTo("a,c");
+    }
+
+    [Test]
+    public async Task GetClipsForPowerPaste_NothingSelected_IsEmpty()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        viewModel.Clips.Add(new Clip { Id = Guid.NewGuid() });
+
+        // Act
+        var result = viewModel.GetClipsForPowerPaste(PowerPasteDirection.Down);
+
+        // Assert
+        await Assert.That(result).IsEmpty();
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_WithOneRowSelected_MovesTheHighlightedRow()
+    {
+        // Arrange - ClipMate 7's AdvanceNextItem selects each next row ("AdvancePP")
+        var viewModel = CreateViewModel();
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(first);
+        viewModel.Clips.Add(second);
+        viewModel.SelectedClips.Add(first);
+
+        // Act
+        viewModel.SelectClipWithoutCopying(second.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(second);
+        await Assert.That(viewModel.SelectedClips).IsEquivalentTo(new[] { second });
+    }
+
+    [Test]
     public async Task SelectClipWithoutCopying_ClipNotInList_KeepsTheSelection()
     {
         // Arrange

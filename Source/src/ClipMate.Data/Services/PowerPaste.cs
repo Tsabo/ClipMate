@@ -20,21 +20,31 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     // ClipMate 7 beeps twice, this far apart, when a looping sequence starts over
     private static readonly TimeSpan _loopBeepInterval = TimeSpan.FromMilliseconds(250);
 
-    // Some applications (and Windows itself, e.g. Smart Actions inspecting freshly pasted text) read the clipboard
-    // again shortly after a paste. A read by the target arriving faster than any human re-paste is one of those, not a
-    // second paste.
-    private static readonly TimeSpan _minPasteInterval = TimeSpan.FromMilliseconds(500);
+    // Browsers, Electron programs and Windows Terminal read without a window, and a Store app's read comes from a Windows
+    // service, so the reader cannot be tied to the application in the foreground. Those reads are a paste when the user
+    // just did something: this recently...
+    private static readonly TimeSpan _inputBeforePaste = TimeSpan.FromSeconds(1);
 
-    // A reader can open the clipboard several times for one change (Remote Desktop's clipboard redirection does).
-    // Offering again only after this settle time lets those opens read the data already rendered, instead of each one
-    // rendering it again and counting as another read.
-    private static readonly TimeSpan _reOfferSettleTime = TimeSpan.FromMilliseconds(100);
+    // ...and after the clip came up. The key press that pasted the previous clip is released about now, so input this
+    // soon after the offer still belongs to that paste, and a clipboard monitor reading the new clip is not a paste.
+    private static readonly TimeSpan _inputAfterOffer = TimeSpan.FromMilliseconds(150);
 
-    // Offering again changes the clipboard, and a reader that ignores the "ignore me" markers reads every change. A few
-    // offers per interval follow the settle time, so a paste soon after a background read is still seen; more wait for
-    // the interval, which keeps such a reader from spinning with us while the clip stays detectable.
+    // Some applications read the clipboard again shortly after a paste: Word 126 ms later and Excel 168 ms later when
+    // measured. A read by the target arriving this soon is one of those, not a second paste. ClipMate 7 has no such limit,
+    // only PowerPasteDelay, so this is as short as it can be without skipping clips; pasting every 300 ms still advances.
+    private static readonly TimeSpan _minPasteInterval = TimeSpan.FromMilliseconds(250);
+
+    // A clip already rendered for a background reader hides a paste until it is offered again, so this wait is a window
+    // in which a paste goes unnoticed. Remote Desktop's clipboard client, which WSLg also runs, reads within milliseconds
+    // of each offer for a burst of a few reads: at 100 ms that burst filled most of the time between two pastes. This
+    // wait only has to let the reader close the clipboard.
+    private static readonly TimeSpan _reOfferSettleTime = TimeSpan.FromMilliseconds(25);
+
+    // Offering again changes the clipboard, and a reader that ignores the "ignore me" markers reads every change. Those
+    // bursts end by themselves, and holding offers back during one hides pastes, so the limit is well above a burst: it
+    // only keeps a reader that never stops from spinning with us. Offers beyond it wait for the interval.
     private static readonly TimeSpan _reOfferInterval = TimeSpan.FromSeconds(1);
-    private const int QuickReOffersPerInterval = 3;
+    private const int QuickReOffersPerInterval = 20;
 
     private readonly IPowerPasteClipboard _clipboard;
     private readonly IClipboardService _clipboardService;
@@ -51,6 +61,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
 
     // Sequence state, guarded by _lock
     private bool _isSingleClip;
+    private Func<Clip, Task>? _loadContent;
     private int _pasteCount;
 
     // Clipboard state, used on the UI thread only. The generation moves on with every clip offered and when the
@@ -58,6 +69,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     private CancellationTokenSource? _advanceDelay;
     private int _generation;
     private bool _isHolding;
+    private DateTimeOffset _clipOfferedAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastPasteAt = DateTimeOffset.MinValue;
     private bool _reOfferPending;
     private Clip? _waitingClip;
@@ -120,7 +132,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task StartAsync(IReadOnlyList<Clip> clips, PowerPasteDirection direction, CancellationToken cancellationToken = default)
+    public async Task StartAsync(IReadOnlyList<Clip> clips, PowerPasteDirection direction, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default)
     {
         if (clips == null || clips.Count == 0)
             throw new ArgumentException("Clips collection cannot be null or empty", nameof(clips));
@@ -135,19 +147,25 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
 
             _sequence.Clear();
             _pasteCount = 0;
+            _loadContent = loadContent;
 
             // A single clip without Explode pastes once and stops, even with Loop on
             _isSingleClip = clips.Count == 1 && !explode;
 
-            if (explode)
+            Direction = direction;
+
+            // A sequence can run to the end of a large collection, so a loader gets each clip's content only when it
+            // comes up. Without one the clips are already loaded.
+            if (loadContent != null)
+                _sequence.AddRange(clips.Select(p => new PowerPasteStep(p, false, false)));
+            else if (explode)
             {
                 foreach (var clip in clips)
-                    _sequence.AddRange(ExplodeClip(clip, preferences));
+                    _sequence.AddRange(OrderedForDirection(ExplodeClip(clip, preferences)));
             }
             else
                 _sequence.AddRange(clips.Select(p => new PowerPasteStep(p, false)));
 
-            Direction = direction;
             CurrentPosition = direction == PowerPasteDirection.Down
                 ? 0
                 : _sequence.Count - 1;
@@ -181,12 +199,11 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task ToggleAsync(Func<Task<IReadOnlyList<Clip>>> loadSelection, CancellationToken cancellationToken = default)
+    public async Task ToggleAsync(Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(loadSelection);
+        ArgumentNullException.ThrowIfNull(getClips);
 
-        // Up → Off
-        if (State == PowerPasteState.Active && Direction == PowerPasteDirection.Up)
+        if (State == PowerPasteState.Active)
         {
             _logger.LogInformation("PowerPaste stopped via toggle");
             Stop();
@@ -194,21 +211,48 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             return;
         }
 
-        // Off → Down, Down → Up
-        var direction = State == PowerPasteState.Active
-            ? PowerPasteDirection.Up
-            : PowerPasteDirection.Down;
+        await StartWithClipsAsync(NextDirection, getClips, loadContent, cancellationToken);
+    }
 
-        var clips = await loadSelection();
-        if (clips.Count == 0)
+    /// <inheritdoc />
+    public async Task ToggleAsync(PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(getClips);
+
+        if (State == PowerPasteState.Active && Direction == direction)
         {
-            _logger.LogDebug("PowerPaste toggle ignored: no clips selected");
+            _logger.LogInformation("PowerPaste {Direction} stopped via its own button", direction);
+            Stop();
 
             return;
         }
 
-        await StartAsync(clips, direction, cancellationToken);
+        await StartWithClipsAsync(direction, getClips, loadContent, cancellationToken);
     }
+
+    private async Task StartWithClipsAsync(PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent,
+        CancellationToken cancellationToken)
+    {
+        var clips = getClips(direction);
+        if (clips.Count == 0)
+        {
+            _logger.LogDebug("PowerPaste ignored: no clips selected");
+
+            return;
+        }
+
+        await StartAsync(clips, direction, loadContent, cancellationToken);
+    }
+
+    /// <summary>
+    /// The direction the button starts in: the one saved, which stopping without a paste has flipped. ClipMate 7 starts
+    /// going up until a direction was used.
+    /// </summary>
+    private PowerPasteDirection NextDirection =>
+        Enum.TryParse<PowerPasteDirection>(Preferences.PowerPasteLastDirection, out var saved)
+            ? saved
+            : PowerPasteDirection.Up;
 
     /// <inheritdoc />
     public bool MoveTo(Guid clipId)
@@ -219,21 +263,28 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             if (State != PowerPasteState.Active)
                 return false;
 
+            // Explode pieces are laid out in paste order for the direction, so this is the clip's first piece either way
             var position = Direction == PowerPasteDirection.Down
                 ? _sequence.FindIndex(p => p.Clip.Id == clipId)
                 : _sequence.FindLastIndex(p => p.Clip.Id == clipId);
 
-            if (position < 0)
-                return false;
+            // A clip outside the sequence sends it back to its start, and the list back to that clip
+            var isInSequence = position >= 0;
+            if (!isInSequence)
+            {
+                position = Direction == PowerPasteDirection.Down
+                    ? 0
+                    : _sequence.Count - 1;
+            }
 
-            if (position != CurrentPosition)
+            if (position != CurrentPosition || !isInSequence)
             {
                 CurrentPosition = position;
-                _logger.LogInformation("PowerPaste moved to clip {ClipId}: Position={Position}/{TotalCount}", clipId, CurrentPosition + 1, _sequence.Count);
+                _logger.LogInformation("PowerPaste moved to {ClipId}: Position={Position}/{TotalCount}", _sequence[position].Clip.Id, CurrentPosition + 1, _sequence.Count);
                 MoveToCurrentPosition();
             }
 
-            return true;
+            return isInSequence;
         }
         finally
         {
@@ -307,20 +358,90 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     }
 
     /// <summary>
-    /// Tells listeners the waiting clip changed and offers it. Call with the lock held.
+    /// Tells listeners the waiting clip changed and offers it, once its content is loaded. Call with the lock held.
     /// </summary>
     private void MoveToCurrentPosition()
     {
         var item = _sequence[CurrentPosition];
-        PositionChanged?.Invoke(this, new PowerPastePositionChangedEventArgs
+        if (!item.IsReady)
+        {
+            _ = PrepareAndMoveAsync(item);
+
+            return;
+        }
+
+        var position = new PowerPastePositionChangedEventArgs
         {
             Position = CurrentPosition,
             TotalCount = _sequence.Count,
             CurrentClip = item.Clip,
             IsExplodePiece = item.IsExplodePiece,
-        });
+        };
 
-        OnUiThread(() => Offer(item));
+        // The offer comes first. Listeners move the clip list's selection, and rendering it can hold the UI thread for
+        // over half a second; until the clip is offered, a paste gets the previous clip again and goes unnoticed.
+        OnUiThread(() =>
+        {
+            Offer(item);
+            PositionChanged?.Invoke(this, position);
+        });
+    }
+
+    /// <summary>
+    /// Loads a step's content, explodes it when the setting is on, and moves on to it if the sequence is still there.
+    /// </summary>
+    private async Task PrepareAndMoveAsync(PowerPasteStep item)
+    {
+        try
+        {
+            if (_loadContent is { } loadContent)
+                await loadContent(item.Clip);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PowerPaste could not load clip {ClipId}", item.Clip.Id);
+        }
+
+        await _lock.WaitAsync();
+        try
+        {
+            var index = _sequence.IndexOf(item);
+            if (State != PowerPasteState.Active || index < 0)
+                return;
+
+            var preferences = Preferences;
+            var steps = preferences.PowerPasteExplode
+                ? OrderedForDirection(ExplodeClip(item.Clip, preferences))
+                : [item with { IsReady = true }];
+
+            _sequence.RemoveAt(index);
+            _sequence.InsertRange(index, steps);
+
+            if (index == CurrentPosition)
+            {
+                // Going up, the sequence is walked backward, so the clip's first piece is its last step
+                if (Direction == PowerPasteDirection.Up)
+                    CurrentPosition = index + steps.Count - 1;
+
+                MoveToCurrentPosition();
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// A clip's Explode pieces always paste in reading order. Going up the sequence is walked backward, so they are
+    /// laid out reversed.
+    /// </summary>
+    private List<PowerPasteStep> OrderedForDirection(List<PowerPasteStep> steps)
+    {
+        if (Direction == PowerPasteDirection.Up)
+            steps.Reverse();
+
+        return steps;
     }
 
     /// <summary>
@@ -333,9 +454,16 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
 
         _logger.LogInformation("Stopping PowerPaste after {PasteCount} paste(s)", _pasteCount);
 
-        // Only a sequence that was pasted from is complete
+        // Only a sequence that was pasted from is complete. One that was not was probably going the wrong way, so the
+        // button starts the other way next time.
         if (_pasteCount > 0)
             _ = PlayCompletionSoundAsync();
+        else
+        {
+            Preferences.PowerPasteLastDirection = (Direction == PowerPasteDirection.Down
+                ? PowerPasteDirection.Up
+                : PowerPasteDirection.Down).ToString();
+        }
 
         var oldState = State;
         State = PowerPasteState.Inactive;
@@ -413,6 +541,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             return;
         }
 
+        _clipOfferedAt = _timeProvider.GetUtcNow();
         if (_clipboard.Offer(formats))
             _logger.LogInformation("PowerPaste offered clip {ClipId} in {FormatCount} format(s)", clip.Id, formats.Count);
         else
@@ -474,7 +603,9 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             return;
         }
 
-        if (!e.IsPaste)
+        var now = _timeProvider.GetUtcNow();
+        var isShielded = Preferences.PowerPasteShield;
+        if (!IsPaste(e, now, isShielded))
         {
             // Clipboard history, another clipboard manager, ClipMate itself: it got the data, but the user has not pasted
             _logger.LogDebug("PowerPaste clipboard read by {ReaderProcess} is not a paste", e.ReaderName);
@@ -483,8 +614,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             return;
         }
 
-        var now = _timeProvider.GetUtcNow();
-        if (now - _lastPasteAt < _minPasteInterval)
+        if (isShielded && now - _lastPasteAt < _minPasteInterval)
         {
             _logger.LogDebug("PowerPaste ignoring clipboard read by {ReaderProcess} {ElapsedMs}ms after the last paste - too soon to be a new paste",
                 e.ReaderName, (now - _lastPasteAt).TotalMilliseconds);
@@ -502,6 +632,31 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             _templateService.AdvanceSequence();
 
         AdvanceAfterDelay();
+    }
+
+    /// <summary>
+    /// With PowerPaste Shield off, every read by another program is a paste, as in ClipMate 7, where background readers
+    /// can "fast forward" the sequence. With it on, a window of the application in the foreground always pastes, a named
+    /// background program never does, and a read that cannot be tied to a process pastes when it follows the user's
+    /// input: see <see cref="_inputBeforePaste" /> and <see cref="_inputAfterOffer" />.
+    /// </summary>
+    private bool IsPaste(PowerPasteClipboardReadEventArgs read, DateTimeOffset now, bool isShielded)
+    {
+        if (read.IsByClipMate)
+            return false;
+
+        if (!isShielded)
+            return true;
+
+        if (read.IsClipMateInForeground)
+            return false;
+
+        if (read.IsByForegroundApplication)
+            return true;
+
+        return read.MayBeForForegroundApplication
+               && read.SinceUserInput <= _inputBeforePaste
+               && now - read.SinceUserInput >= _clipOfferedAt + _inputAfterOffer;
     }
 
     private void OnClipboardLost(object? sender, EventArgs e)

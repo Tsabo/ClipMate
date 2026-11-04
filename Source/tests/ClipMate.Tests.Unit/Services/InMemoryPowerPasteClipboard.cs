@@ -62,10 +62,41 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     }
 
     /// <summary>
-    /// An application reads the offered Formats: the application the user works in when <paramref name="isPaste" />.
+    /// An application reads the offered Formats: the application the user works in when <paramref name="isPaste" />,
+    /// otherwise a program in the background while the user does nothing.
     /// </summary>
     public void ReadBy(bool isPaste) =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { IsPaste = isPaste, ReaderName = isPaste ? "notepad" : "clipboard history" });
+        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs
+        {
+            IsByForegroundApplication = isPaste,
+            SinceUserInput = isPaste ? TimeSpan.Zero : TimeSpan.FromHours(1),
+            ReaderName = isPaste ? "notepad" : "clipboard history",
+        });
+
+    /// <summary>
+    /// A read that cannot be tied to a process, <paramref name="sinceUserInput" /> after the user's last input: a browser
+    /// or Windows Terminal reads without a window, and a Store app's read comes from a Windows service.
+    /// </summary>
+    public void ReadWithoutAProcess(TimeSpan sinceUserInput) =>
+        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { MayBeForForegroundApplication = true, SinceUserInput = sinceUserInput, ReaderName = "(no window)" });
+
+    /// <summary>
+    /// A named program in the background reads, just after the user's input.
+    /// </summary>
+    public void ReadByABackgroundProgramWhileTheUserTypes() =>
+        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { SinceUserInput = TimeSpan.Zero, ReaderName = "msrdc" });
+
+    /// <summary>
+    /// ClipMate itself reads, just after the user's input.
+    /// </summary>
+    public void ReadByClipMate() =>
+        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { IsByClipMate = true, IsClipMateInForeground = true, SinceUserInput = TimeSpan.Zero, ReaderName = "ClipMate.App" });
+
+    /// <summary>
+    /// A read that cannot be tied to a process, just after the user's input in ClipMate's own window.
+    /// </summary>
+    public void ReadWithClipMateInTheForeground() =>
+        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { IsClipMateInForeground = true, MayBeForForegroundApplication = true, SinceUserInput = TimeSpan.Zero, ReaderName = "(no window)" });
 
     /// <summary>
     /// Another program puts something on the clipboard.

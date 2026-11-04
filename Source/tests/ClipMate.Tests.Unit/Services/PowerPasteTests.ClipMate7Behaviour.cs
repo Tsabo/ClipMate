@@ -186,18 +186,21 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("MoveTo")]
-    public async Task MoveTo_ClipOutsideSequence_ReturnsFalseAndKeepsPosition()
+    [Arguments(PowerPasteDirection.Down, "First")]
+    [Arguments(PowerPasteDirection.Up, "Third")]
+    public async Task MoveTo_ClipOutsideSequence_GoesBackToTheStart(PowerPasteDirection direction, string expected)
     {
-        // Arrange
+        // Arrange - ReInitPPIndex 0x867138 uses index 0, the first clip in paste order, for a clip not in the list
         var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], direction);
+        await PasteAsync();
 
         // Act
         var moved = service.MoveTo(Guid.NewGuid());
 
         // Assert
         await Assert.That(moved).IsFalse();
-        await Assert.That(service.CurrentPosition).IsEqualTo(0);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo(expected);
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
     }
 
@@ -217,7 +220,7 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("MoveTo")]
-    public async Task MoveTo_ExplodedClip_GoesToItsFirstPieceDownAndLastPieceUp()
+    public async Task MoveTo_ExplodedClip_GoesToItsFirstPieceEitherWay()
     {
         // Arrange
         UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
@@ -234,6 +237,88 @@ public partial class PowerPasteTests
         await Assert.That(WaitingClip(down)?.TextContent).IsEqualTo("c");
 
         up.MoveTo(target.Id);
-        await Assert.That(WaitingClip(up)?.TextContent).IsEqualTo("d");
+        await Assert.That(WaitingClip(up)?.TextContent).IsEqualTo("c");
+    }
+
+    [Test]
+    [Category("ExplodeMode")]
+    public async Task Up_WithExplode_PastesEachClipsPiecesInReadingOrder()
+    {
+        // Arrange: AdvanceNextItem 0x8669d8 walks fragment index +0x960 upward in either direction
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
+        var service = CreateService();
+        UseExplode();
+        await service.StartAsync([CreateTestClip("c,d"), CreateTestClip("a,b")], PowerPasteDirection.Up);
+        var pasted = new List<string?> { WaitingClip(service)?.TextContent };
+
+        // Act
+        for (var i = 0; i < 3; i++)
+        {
+            await PasteAsync();
+            pasted.Add(WaitingClip(service)?.TextContent);
+        }
+
+        // Assert
+        await Assert.That(string.Join(",", pasted)).IsEqualTo("a,b,c,d");
+    }
+
+    [Test]
+    [Category("LoadContent")]
+    public async Task Start_WithALoader_LoadsOnlyTheClipThatComesUp()
+    {
+        // Arrange: a single selected clip runs to the end of the collection, which may hold thousands of clips
+        var service = CreateService();
+        var loaded = new List<Guid>();
+        Clip[] clips = [CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")];
+        Task Load(Clip clip)
+        {
+            loaded.Add(clip.Id);
+            return Task.CompletedTask;
+        }
+
+        // Act
+        await service.StartAsync(clips, PowerPasteDirection.Down, Load);
+        await WaitUntilOfferedAsync(1);
+
+        // Assert
+        await Assert.That(loaded).IsEquivalentTo(new[] { clips[0].Id });
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("LoadContent")]
+    public async Task Paste_WithALoaderAndExplode_ExplodesTheNextClipWhenItComesUp()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
+        var service = CreateService();
+        UseExplode();
+        var second = CreateTestClip(string.Empty);
+        await service.StartAsync([CreateTestClip("a"), second], PowerPasteDirection.Down, clip =>
+        {
+            if (clip == second)
+                clip.TextContent = "b,c";
+
+            return Task.CompletedTask;
+        });
+        await WaitUntilOfferedAsync(1);
+
+        // Act
+        await PasteAsync();
+        await WaitUntilOfferedAsync(2);
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("b");
+        await PasteAsync();
+        await WaitUntilOfferedAsync(3);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("c");
+    }
+
+    // A loader's content arrives after a task switch, so the offer it leads to can come a moment after the call
+    private async Task WaitUntilOfferedAsync(int offers)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (_clipboard.Offers.Count < offers && DateTime.UtcNow < deadline)
+            await Task.Yield();
     }
 }
