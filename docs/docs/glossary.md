@@ -7,71 +7,97 @@ title: Glossary
 
 ## Application Profile
 
-Configuration settings that determine which clipboard formats to capture from each application. Prevents ClipMate from being overwhelmed by unwanted data formats. See [Application Profile](options/application-profile.md).
+The rule for which clipboard formats ClipMate captures from one application. An application gets a profile the first time you copy from it. See [Application Profile](options/application-profile.md).
 
 ## Bitmap
 
 A pixel-based image format. Photographs and pixel-based images copied to the clipboard are captured as bitmaps. See [Bitmap Tab](user-interface/preview-edit/bitmap-tab.md).
 
-## Clip Item
+## Clip
 
-A piece of data stored in ClipMate. When you copy something to the clipboard, ClipMate creates a new Clip Item containing:
-- The data itself
-- Timestamp
-- Source URL (if from browser)
-- Creator application
-- Size
-- Other metadata
+One thing you copied, kept by ClipMate. A clip holds every format the application offered when you copied it, such as plain text and HTML, along with details like when it was captured and which application it came from.
 
 ## Clipboard
 
-A global memory area inside Windows for exchanging data between applications. ClipMate constantly monitors the clipboard and captures its contents.
+A shared memory area in Windows that applications use to exchange data. ClipMate watches the clipboard and captures what you copy.
 
-## Clipboard Chain
+## ClipMate 7 Import
 
-The mechanism Windows uses to notify applications of clipboard changes. Applications "chain" themselves together, passing notifications along. This chain can break, causing clipboard issues. Modern Windows versions (Vista+) use a newer notification API that eliminates chain problems.
+Bringing the clips of a ClipMate 7 database into a new or an existing database. See [Importing from ClipMate 7](options/databases.md#importing-from-clipmate-7).
 
 ## Collection
 
-A folder within the database where clips are categorized and stored. Default collections:
-- **InBox** — Recent captures
-- **Overflow** — Clips aged out of InBox
-- **Safe** — Permanent storage
+A folder within a database where clips are organized and stored. New databases start with these, among others:
+- **Inbox**: where new clips go
+- **Overflow**: the oldest clips trimmed from the Inbox
+- **Safe**: clips that are never deleted automatically
 
 See [Data Management](advanced/data-management.md).
 
-## Data Source
+## Copy to local
 
-A database containing clip data. ClipMate can connect to multiple data sources simultaneously.
+Keeping a clip from a Remote Database by storing it as a new clip in one of your own databases. See [Copy to local](options/devices.md#copy-to-local).
+
+## Database
+
+A self-contained store of clips and collections, kept as a single file. Each one is a top-level item in the collection tree, and ClipMate can have several open at once. See [Database Options](options/databases.md).
+
+## Device
+
+One installation of ClipMate, with its own identity. If you use ClipMate on a desktop and a laptop, you have two Devices. See [Devices Options](options/devices.md).
+
+## Discovered Device
+
+A Device on your local network that you haven't paired with yet. Seeing one doesn't let it connect to you. See [Discovered Devices](options/devices.md#discovered-devices).
 
 ## HTML
 
-HyperText Markup Language. When you copy from web browsers, ClipMate captures HTML Format data to preserve formatting. See [HTML Tab](user-interface/preview-edit/html-tab.md).
+HyperText Markup Language. When you copy from a web browser, ClipMate captures the HTML format to preserve formatting. See [HTML Tab](user-interface/preview-edit/html-tab.md).
+
+## Pairing
+
+Two Devices each accepting the other's Device ID, so they trust each other. It completes only once both have accepted. See [Pairing](options/devices.md#pairing).
+
+## Paste Target
+
+The application window a clip is pasted into. Unless you lock one, QuickPaste uses the last suitable window you were working in before you switched to ClipMate.
+
+## Peer
+
+Another of your Devices that you've paired with this one. See [Peers](options/devices.md#peers).
 
 ## Picture (Metafile)
 
 A vector-based image format used for drawings, clip art, and diagrams. Unlike bitmaps, pictures scale without quality loss. See [Picture Tab](user-interface/preview-edit/picture-tab.md).
 
-## QuickPaste
-
-A feature for rapidly pasting clips into applications. Double-click a clip or press Enter to paste into the target application. See [QuickPaste Options](options/quickpaste.md).
-
 ## PowerPaste
 
-A feature for pasting multiple clips in sequence. ClipMate automatically loads the next clip after each paste. See [PowerPaste](user-interface/main-toolbar/powerpaste.md).
+Pasting a chosen sequence of clips one at a time: each time you paste, the next clip takes the previous one's place on the clipboard. See [PowerPaste](user-interface/main-toolbar/powerpaste.md).
 
-## Retention Rules
+## Purging Rules
 
-Rules that determine how long clips are kept before automatic deletion. Different collections can have different retention settings.
+The setting on a collection that decides when ClipMate removes its oldest clips: by number of clips, by age, or never.
+
+## QuickPaste
+
+Pasting a clip straight into the Paste Target by double-clicking it, or by selecting it and pressing **ENTER**. See [QuickPaste Options](options/quickpaste.md).
+
+## Remote Database
+
+A Peer's Shared Database, as it appears in your collection tree. You can browse and search it, but you can't change it. See [Shared and Remote Databases](options/devices.md#shared-and-remote-databases).
+
+## Remote Search
+
+A search of a Remote Database. Your criteria go to the Peer, which runs the search on its Shared Database and sends back the matches. See [Searching a Remote Database](options/devices.md#searching-a-remote-database).
 
 ## Rich Text Format (RTF)
 
 A text format that preserves fonts, colors, and formatting. Word processors typically copy data as RTF. See [Rich Text Tab](user-interface/preview-edit/rich-text-tab.md).
 
-## Target Application
+## Shared Database
 
-The application where ClipMate will paste data during QuickPaste operations. ClipMate auto-detects the target based on which application was active before you switched to ClipMate.
+One of your databases that you've chosen to let your Peers read, by turning on **Share with Peers**. See [Shared and Remote Databases](options/devices.md#shared-and-remote-databases).
 
 ## Virtual Collection
 
-A dynamic collection that shows clips matching certain criteria (like a saved search). Examples include Trashcan, Today, Past 7 Days, and All Bitmaps. See [Data Management](advanced/data-management.md).
+A collection whose clips come from a saved search over its database, such as **Today** or **Images**. It never receives new clips and can't be reordered by hand. See [Data Management](advanced/data-management.md).
