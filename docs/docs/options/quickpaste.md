@@ -11,16 +11,15 @@ QuickPaste lets you easily paste clips into applications by double-clicking on a
 
 ## Universal QuickPaste
 
-In ClipMate 7 and later, QuickPaste is "always on" and available in:
+QuickPaste is always on and available in:
 - ClipMate Classic
 - ClipMate Explorer
-- The ClipBar dropdown
 
 No special hotkey is required to activate QuickPaste mode—it's built into all ClipLists.
 
 ## Auto-Targeting
 
-Auto-targeting determines where ClipMate will paste data. When ClipMate comes to the foreground (via hotkey, clicking a window, systray icon, or ClipBar), auto-targeting activates:
+Auto-targeting determines where ClipMate will paste data. When ClipMate comes to the foreground (via hotkey, clicking a window, or the tray icon), auto-targeting activates:
 
 1. Identifies the most recently active application
 2. Analyzes for reasonability (filtering out taskbar, etc.)

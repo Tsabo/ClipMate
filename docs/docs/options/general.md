@@ -31,14 +31,7 @@ If the selected window isn't pre-loaded, it won't load until you activate ClipMa
 
 ### Start with Windows
 
-When enabled, ClipMate loads automatically when Windows boots. This sets an entry in the registry run key:
-```
-HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
-```
-
-:::note ClipBar
-There's no startup option for ClipBar. ClipMate automatically loads ClipBar if it detects the ClipBar Dock Site running in the taskbar.
-:::
+When enabled, ClipMate starts automatically when you sign in to Windows.
 
 ## Other Settings
 
@@ -46,9 +39,9 @@ There's no startup option for ClipBar. ClipMate automatically loads ClipBar if i
 
 Provides extra protection for collections marked as "never delete." You'll receive an "Are you sure?" confirmation dialog before deletion.
 
-### Check for Updates and News
+### Check for Updates Automatically
 
-When enabled, ClipMate polls the update server every 5 days. If updates or news are available, a menu item appears to view details and download links.
+When enabled, ClipMate checks for a new release every few days. Set how often with **Check interval (days)**, from 1 to 30 (default 5). If a new version is available, ClipMate offers to open its release notes and download.
 
 ### Sort Collections Alphabetically
 
@@ -65,6 +58,6 @@ Controls the order of collections in the Collection Tree and menus:
 
 ## See Also
 
-- [Visual Options](visual.md)
+- [Appearance Options](visual.md)
 - [ClipMate Classic](../user-interface/clipmate-classic.md)
 - [ClipMate Explorer](../user-interface/clipmate-explorer.md)

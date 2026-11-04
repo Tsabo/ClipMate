@@ -32,53 +32,29 @@ Time between pasting an item and loading the next. Increase if PowerPaste has tr
 
 ## Behavior Settings
 
-### Alt Key Required for Collection Drag/Drop
+### ALT Key Required for Collection Tree DragDrop
 
 When enabled (default), you must press **Alt** to move collections via drag/drop, preventing accidental reorganization.
 
-### Pay Attention To Clipboard Ignore Flag
+### Pay Attention To Clipboard Viewer Ignore Flag
 
 Respects requests from clipboard-aware programs that want ClipMate to ignore their updates. Turn off to solve certain compatibility issues.
-
-### Enable Auto Capture At Startup
-
-Controls whether ClipMate captures clipboard data when it starts. Turn off to start with capture disabled.
 
 ### Enable Cached Database Writes
 
 For performance, ClipMate caches database updates. Turning off guarantees immediate disk writes but causes "disk chatter" and slight delays. Only disable if experiencing frequent crashes with data loss.
 
-## Display Settings
+### Buttons for Move/Copy to Collection Should Re-Use the Last Selected Target
 
-### Use Internet Explorer To Display HTML
+When enabled, the Move and Copy buttons default to the last collection you selected.
 
-ClipMate uses IE to render HTML internally. Disable if:
-- You don't want HTML display
-- Your internet connection won't disconnect after closing IE
+## Reset/Clear Settings
 
-Requires restart.
+The tab has three buttons: **Layout/Font**, **Application Profile** and **Everything**.
 
-### Collection Menu Style
-
-Controls how collection menus behave when they exceed screen height:
-- **Scroll** - Scroll up/down
-- **Multiple Columns** - Break into columns
-
-## Reset Options
-
-### Reset All Settings To Defaults
-
-Resets all settings to factory defaults. Requires restart.
-
-:::caution License Warning
-Resetting will "un-register" your copy. You'll need to re-enter your license key after restart.
+:::caution Not working yet
+In this version these buttons don't change anything, even though a message says they did.
 :::
-
-**Alternative:** Press **Ctrl+Shift** while ClipMate loads for the same option.
-
-### Clear Application Profile
-
-Completely wipes the Application Profile if it becomes corrupted. Requires restart.
 
 ## See Also
 

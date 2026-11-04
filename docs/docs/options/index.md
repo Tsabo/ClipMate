@@ -13,7 +13,6 @@ The **Tools** menu provides access to:
 - **Options Dialog** - Main configuration interface
 - **Clipboard Diagnostics** - Troubleshoot clipboard issues
 - **SQL Window** - Direct database queries
-- **Spell Check Configuration** - Configure spell checking
 
 ### Standalone Options
 
@@ -27,31 +26,28 @@ The Options Dialog contains settings organized into tabs:
 
 | Tab | Purpose |
 |-----|---------|
-| [General](general.md) | Startup, tray icon, confirmations |
-| [Visual](visual.md) | Colors, fonts, appearance |
-| [Editor](editor.md) | Text editor behavior |
-| [Capturing](capturing.md) | What and how to capture |
-| [Application Profile](application-profile.md) | Per-application settings |
+| [General](general.md) | Startup, updates, tray icon, confirmations |
+| [Appearance](visual.md) | Theme, tray tooltip, hotkey popup |
 | [Pasting](pasting.md) | Paste behavior options |
 | [QuickPaste](quickpaste.md) | QuickPaste menu configuration |
-| [Hotkeys](hotkeys.md) | Keyboard shortcuts |
+| [Editor](editor.md) | Text editor behavior |
+| [Capturing](capturing.md) | What and how to capture |
+| [App Profiles](application-profile.md) | Per-application settings |
+| Font/Language | Not available yet |
 | [Sounds](sounds.md) | Audio feedback |
+| [Hotkeys](hotkeys.md) | Keyboard shortcuts |
 | [Database](databases.md) | Data storage settings |
 | [Advanced](advanced-options.md) | Power user settings |
+| Encryption | How encrypted clips are locked and unlocked |
+| Printing | Printer, header, footer and layout |
 | [Devices](devices.md) | Peer networking, Device Name and Device ID |
 
 ## About Settings Storage
 
-All ClipMate settings are stored in the Windows registry. If multiple user accounts are on the same system, each user has their own settings.
-
-:::tip Registry Reset
-If settings become corrupted and you want to start over:
-1. Hold **Ctrl+Shift** while starting ClipMate
-2. ClipMate will ask if you want to reset the registry
-:::
+ClipMate keeps its settings in a file named `clipmate.toml` in `%LOCALAPPDATA%\ClipMate`. Each Windows user has their own settings.
 
 ## See Also
 
 - [General Options](general.md)
-- [Visual Options](visual.md)
+- [Appearance Options](visual.md)
 - [Hotkeys](hotkeys.md)

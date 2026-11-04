@@ -314,13 +314,13 @@
                     </TextBlock>
 
                     <TextBlock TextWrapping="Wrap" FontStyle="Italic">
-                        Visit our contribution guide to learn how to get started with localization.
+                        Open an issue on GitHub to get started with localization.
                     </TextBlock>
                 </StackPanel>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
                     <TextBlock Style="{StaticResource LinkStyle}"
-                               Text="View Localization Guide"
+                               Text="Open an Issue on GitHub"
                                FontSize="13">
                         <TextBlock.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding ViewLocalizationInfoCommand}" />

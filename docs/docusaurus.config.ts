@@ -8,7 +8,7 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   // GitHub Pages deployment configuration
-  url: 'https://tsabo.github.io',
+  url: 'https://jeremy.browns.info',
   baseUrl: '/ClipMate/',
 
   // GitHub pages deployment config
@@ -35,7 +35,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/tsabo/ClipMate/tree/main/docs/',
+          editUrl: 'https://github.com/tsabo/ClipMate/tree/master/docs/',
         },
         blog: false,
         theme: {
@@ -46,7 +46,6 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/clipmate-social-card.png',
     navbar: {
       title: 'ClipMate',
       logo: {
@@ -86,10 +85,6 @@ const config: Config = {
         {
           title: 'Community',
           items: [
-            {
-              label: 'GitHub Discussions',
-              href: 'https://github.com/tsabo/ClipMate/discussions',
-            },
             {
               label: 'Issues',
               href: 'https://github.com/tsabo/ClipMate/issues',
