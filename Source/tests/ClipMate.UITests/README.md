@@ -56,6 +56,7 @@ ClipMate.UITests/
 │   ├── CaptureTimingTests.cs                # Runs: formats written one at a time are captured once; a slow source doesn't freeze the window
 │   ├── ClipboardFileDropRoundTripTests.cs   # Runs: capture an Explorer cut, pick it, paste it with the shell
 │   ├── MarkdownTabTests.cs                  # Runs: with the Markdown tab open, a new HTML clip replaces the Markdown shown
+│   ├── PowerPasteIntoAnotherProgramTests.cs # Runs: Ctrl+V into WinForms and WPF programs, checking the text that lands there
 │   ├── PowerPasteTests.cs                   # Runs: paste detection, and the clipboard after Power Paste ends
 │   └── BounceTrackingTests.cs, DragDropTests.cs, ExampleTests.cs, RetentionPolicyTests.cs   # Skipped placeholders
 └── Fixtures/
@@ -65,6 +66,7 @@ ClipMate.UITests/
     ├── ForegroundTestWindow.cs   # A test window in the foreground, to paste as the user's application
     ├── Poll.cs                   # Waits on another process until a deadline
     ├── SystemClipboard.cs        # STA clipboard access, backup/restore, raw format names
+    ├── TestAppKind.cs            # The toolkit of a TestAppWindow, which decides how it reads the clipboard
     ├── TestAppWindow.cs          # A window in another process to paste into, with its text read back
     └── TestProgramProfile.cs     # The test program's Application Profile, written before ClipMate starts
 ```
@@ -119,8 +121,15 @@ itself, which can overwrite what a test just put on the clipboard.
 
 ### Remote Desktop
 
-In a Remote Desktop session the client (`msrdc`) reads the clipboard on every change, opening it several times. Tests
-that count clipboard reads, such as Power Paste's paste detection, see these as background reads.
+In a Remote Desktop session the client (`msrdc`) reads the clipboard on every change, opening it several times. WSLg runs
+the same client, so a machine with a WSL distribution does this too. Tests that count clipboard reads, such as Power
+Paste's paste detection, see these as background reads.
+
+### Keep your hands off the keyboard, mouse and clipboard
+
+`PowerPasteIntoAnotherProgramTests` presses Ctrl+V in the foreground window. `PowerPasteTests` reads without a window as a
+background reader, and Power Paste counts such a read as a paste when the user just pressed a key or used the mouse. A copy
+made anywhere on the machine while they run, by you or another program, stops Power Paste and fails the test.
 
 ## Troubleshooting
 

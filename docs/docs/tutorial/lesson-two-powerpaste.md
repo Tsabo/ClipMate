@@ -12,8 +12,9 @@ PowerPaste allows you to paste a series of items rapidly. It's like a semi-autom
 Using the 5 food items from Lesson 1, with Notepad open:
 
 1. Select the **"Apple"** item in ClipMate
-2. Click the **PowerPaste button** until it shows the **up arrow** ⬆️
+2. Click the **PowerPaste button** so it shows the **up arrow** ⬆️
    - This means it will work UP the list
+   - If it shows the down arrow, click it twice: once to turn it off and once to turn it on going the other way
 3. Go to Notepad and paste (**Ctrl+V**) — you get "Apple"
 4. Paste again — you get "Banana"
 5. Keep pasting until you reach "Egg"

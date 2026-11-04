@@ -35,7 +35,7 @@ public class PowerPasteTests(AppFixture appFixture)
         var backup = SystemClipboard.Backup();
         try
         {
-            // Arrange: Power Paste Down over both clips; the newer one is listed first, so it waits first
+            // Arrange: Power Paste Down over both clips (a saved direction); the newer one is listed first, so it waits first
             var clipList = await StartPowerPasteOverBothClipsAsync();
             await WaitForOtherReadersAsync();
 
@@ -60,7 +60,7 @@ public class PowerPasteTests(AppFixture appFixture)
             await Poll.UntilAsync(() => SystemClipboard.TryReadText(IntPtr.Zero) == _older, "Power Paste to advance to the next clip");
             await Poll.UntilAsync(() => clipList.IsSelected(_newer) && clipList.IsSelected(_older), "both clips to stay selected");
 
-            // Act: paste the last clip. A paste within 500 ms of the previous one counts as the application re-reading
+            // Act: paste the last clip. A paste within 250 ms of the previous one counts as the application re-reading
             // it, so paste until the sequence finishes. A later attempt can land while ClipMate is putting the clip
             // back, so only the first one's text is checked.
             await Assert.That(await target.PasteAsync()).IsEqualTo(_older);
@@ -85,16 +85,14 @@ public class PowerPasteTests(AppFixture appFixture)
         var backup = SystemClipboard.Backup();
         try
         {
-            // Arrange: Power Paste Down, then the toolbar button changes it to Up, where the older clip waits first
+            // Arrange: Power Paste Down, where the newer clip waits first
             var clipList = await StartPowerPasteOverBothClipsAsync();
-            clipList.ClickToolbarButton("PowerPaste");
-            await Poll.UntilAsync(() => SystemClipboard.TryReadText(IntPtr.Zero) == _older, "Power Paste Up to arm the older clip");
 
-            // Act: the third click stops Power Paste
+            // Act: the next click stops Power Paste
             clipList.ClickToolbarButton("PowerPaste");
 
             // Assert
-            await AssertLeftOnTheClipboardAsNormalCopyAsync(_older);
+            await AssertLeftOnTheClipboardAsNormalCopyAsync(_newer);
         }
         finally
         {
@@ -132,7 +130,7 @@ public class PowerPasteTests(AppFixture appFixture)
     /// </summary>
     private async Task<ClipListPage> StartPowerPasteOverBothClipsAsync()
     {
-        await appFixture.StartAppAsync();
+        await appFixture.StartAppAsync("preferences.power_paste_last_direction=\"Down\"");
         var clipList = new ClipListPage(appFixture.Process);
 
         // A copy made while the previous one is still being captured can be missed; copy again until it is listed

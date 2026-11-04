@@ -23,16 +23,23 @@ The PowerPaste button has visual indicators showing its state:
 
 1. Select the starting clip in your series
 2. Click the PowerPaste button once to activate (arrow appears)
-3. If the arrow points the wrong direction, click again to flip it
+3. If the arrow points the wrong direction, click the button twice: the first click turns PowerPaste off and the second turns it on going the other way
 4. Switch to your target application
 5. Paste repeatedly—ClipMate advances after each paste
 6. Click the button again to turn off PowerPaste
 
+## Which Clips It Pastes
+
+- With one clip selected, PowerPaste runs from that clip to the end of the collection: to the top going up, to the bottom going down.
+- With several clips selected, PowerPaste pastes only those clips.
+
+While PowerPaste is on, clicking a clip in the series makes it the next one pasted. Clicking any other clip takes PowerPaste back to the start of the series.
+
 ## Arrow Behavior
 
-- First click shows the arrow in the direction you last used
-- If you paste and click the button, PowerPaste turns off
-- If you click without pasting, the arrow flips direction
+- The first click shows the arrow in the direction you last used. The first time you use PowerPaste, it goes up.
+- A click while PowerPaste is on turns it off.
+- If you turn PowerPaste off without pasting, it goes the other way the next time you turn it on.
 - The direction is remembered between sessions
 
 ## Alternative Access

@@ -194,7 +194,8 @@ public class PreferencesConfiguration
     public int PowerPasteDelay { get; set; } = 100;
 
     /// <summary>
-    /// Gets or sets whether PowerPaste shield is enabled (prevents accidental activation).
+    /// Gets or sets whether PowerPaste shield is enabled: only a paste moves the sequence on, not another program reading
+    /// the clipboard. When off, every read does, as ClipMate 7 does without its shield.
     /// </summary>
     public bool PowerPasteShield { get; set; } = true;
 

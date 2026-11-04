@@ -14,8 +14,8 @@ namespace ClipMate.Platform.Services;
 /// <summary>
 /// Power Paste's clipboard on Windows. The offered Formats are registered for delayed rendering (SetClipboardData with
 /// no data) from a hidden window, so Windows sends WM_RENDERFORMAT at the moment an application reads one
-/// (GetClipboardData). Every Format is rendered on that first request, and the read is reported with whether the
-/// reader is the application the user is working in.
+/// (GetClipboardData). Every Format is rendered on that first request, and the read is reported with what tells a paste
+/// from another read: whether the reader is the application in the foreground, and how recent the user's input is.
 /// </summary>
 public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, IDisposable
 {
@@ -23,15 +23,17 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
     private const int WmRenderAllFormats = 0x0306;
     private const int WmDestroyClipboard = 0x0307;
 
+    private readonly IWin32IdleDetector _idleDetector;
     private readonly ILogger<PowerPasteClipboard> _logger;
     private readonly IWin32InputInterop _win32;
     private IReadOnlyList<ClipboardFormatData> _formats = [];
     private HwndSource? _hwndSource;
     private bool _isOffering;
 
-    public PowerPasteClipboard(IWin32InputInterop win32, ILogger<PowerPasteClipboard> logger)
+    public PowerPasteClipboard(IWin32InputInterop win32, IWin32IdleDetector idleDetector, ILogger<PowerPasteClipboard> logger)
     {
         _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
+        _idleDetector = idleDetector ?? throw new ArgumentNullException(nameof(idleDetector));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -217,7 +219,11 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
 
         Read?.Invoke(this, new PowerPasteClipboardReadEventArgs
         {
-            IsPaste = reader.IsPaste(OwnProcess.Id),
+            IsByForegroundApplication = reader.IsForegroundApplication(OwnProcess.Id),
+            MayBeForForegroundApplication = reader.MayBeForForegroundApplication,
+            IsByClipMate = reader.ProcessId == OwnProcess.Id,
+            IsClipMateInForeground = reader.ForegroundProcessId == OwnProcess.Id,
+            SinceUserInput = TimeSpan.FromMilliseconds(_idleDetector.GetIdleTimeMilliseconds()),
             ReaderName = reader.ProcessName,
         });
     }

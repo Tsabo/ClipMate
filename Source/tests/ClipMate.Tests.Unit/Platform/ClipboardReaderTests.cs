@@ -11,29 +11,29 @@ public class ClipboardReaderTests
     private const uint _ownProcessId = 100;
 
     [Test]
-    [Category("IsPaste")]
-    public async Task IsPaste_ReadByTheForegroundApplication_IsAPaste() =>
-        await Assert.That(Reader(200, 200).IsPaste(_ownProcessId)).IsTrue();
+    [Category("IsForegroundApplication")]
+    public async Task IsForegroundApplication_ReadByTheForegroundApplication_IsAPaste() =>
+        await Assert.That(Reader(200, 200).IsForegroundApplication(_ownProcessId)).IsTrue();
 
     [Test]
-    [Category("IsPaste")]
-    public async Task IsPaste_ReadByABackgroundApplication_IsNotAPaste() =>
+    [Category("IsForegroundApplication")]
+    public async Task IsForegroundApplication_ReadByABackgroundApplication_IsNotAPaste() =>
         // e.g. clipboard history or another clipboard manager reading while the user works in another application
-        await Assert.That(Reader(300, 200).IsPaste(_ownProcessId)).IsFalse();
+        await Assert.That(Reader(300, 200).IsForegroundApplication(_ownProcessId)).IsFalse();
 
     [Test]
-    [Category("IsPaste")]
-    public async Task IsPaste_ReadByClipMateInTheForeground_IsNotAPaste() =>
-        await Assert.That(Reader(_ownProcessId, _ownProcessId).IsPaste(_ownProcessId)).IsFalse();
+    [Category("IsForegroundApplication")]
+    public async Task IsForegroundApplication_ReadByClipMateInTheForeground_IsNotAPaste() =>
+        await Assert.That(Reader(_ownProcessId, _ownProcessId).IsForegroundApplication(_ownProcessId)).IsFalse();
 
     [Test]
-    [Category("IsPaste")]
-    public async Task IsPaste_ReadWithoutAWindow_IsNotAPaste() =>
+    [Category("IsForegroundApplication")]
+    public async Task IsForegroundApplication_ReadWithoutAWindow_IsNotAPaste() =>
         // OpenClipboard(NULL): the reader cannot be told apart from a background one
-        await Assert.That(Reader(0, 0).IsPaste(_ownProcessId)).IsFalse();
+        await Assert.That(Reader(0, 0).IsForegroundApplication(_ownProcessId)).IsFalse();
 
     [Test]
-    [Category("IsPaste")]
+    [Category("IsForegroundApplication")]
     public async Task Current_PasteByTheForegroundEditor_IsAPaste()
     {
         var desktop = new FakeDesktop();
@@ -43,11 +43,11 @@ public class ClipboardReaderTests
         var reader = ClipboardReader.Current(desktop, new HWND(editor.Handle));
 
         await Assert.That(reader.ProcessName).IsEqualTo("NOTEPAD");
-        await Assert.That(reader.IsPaste(OwnProcess.Id)).IsTrue();
+        await Assert.That(reader.IsForegroundApplication(OwnProcess.Id)).IsTrue();
     }
 
     [Test]
-    [Category("IsPaste")]
+    [Category("IsForegroundApplication")]
     public async Task Current_ReadByABackgroundWindowWhileTheEditorIsInFront_IsNotAPaste()
     {
         var desktop = new FakeDesktop();
@@ -58,11 +58,11 @@ public class ClipboardReaderTests
         var reader = ClipboardReader.Current(desktop, new HWND(history.Handle));
 
         await Assert.That(reader.ForegroundProcessName).IsEqualTo("NOTEPAD");
-        await Assert.That(reader.IsPaste(OwnProcess.Id)).IsFalse();
+        await Assert.That(reader.IsForegroundApplication(OwnProcess.Id)).IsFalse();
     }
 
     [Test]
-    [Category("IsPaste")]
+    [Category("IsForegroundApplication")]
     public async Task Current_ReadByClipMateInFront_IsNotAPaste()
     {
         var desktop = new FakeDesktop();
@@ -71,11 +71,11 @@ public class ClipboardReaderTests
 
         var reader = ClipboardReader.Current(desktop, new HWND(clipMate.Handle));
 
-        await Assert.That(reader.IsPaste(OwnProcess.Id)).IsFalse();
+        await Assert.That(reader.IsForegroundApplication(OwnProcess.Id)).IsFalse();
     }
 
     [Test]
-    [Category("IsPaste")]
+    [Category("IsForegroundApplication")]
     public async Task Current_ReadWithoutAWindow_NamesNoWindow()
     {
         var desktop = new FakeDesktop();
@@ -84,8 +84,25 @@ public class ClipboardReaderTests
         var reader = ClipboardReader.Current(desktop, HWND.Null);
 
         await Assert.That(reader.ProcessName).IsEqualTo("(no window)");
-        await Assert.That(reader.IsPaste(OwnProcess.Id)).IsFalse();
+        await Assert.That(reader.IsForegroundApplication(OwnProcess.Id)).IsFalse();
     }
+
+    [Test]
+    [Category("MayBeForForegroundApplication")]
+    public async Task MayBeForForegroundApplication_ReadWithoutAWindow_IsTrue() =>
+        // Edge and Windows Terminal, observed in the log: "read by (no window) while msedge is in the foreground"
+        await Assert.That(new ClipboardReader(0, "(no window)", 200, "msedge").MayBeForForegroundApplication).IsTrue();
+
+    [Test]
+    [Category("MayBeForForegroundApplication")]
+    public async Task MayBeForForegroundApplication_ServiceReadForAStoreApp_IsTrue() =>
+        // Calculator, observed in the log: "read by svchost while ApplicationFrameHost is in the foreground"
+        await Assert.That(new ClipboardReader(300, "svchost", 200, "ApplicationFrameHost").MayBeForForegroundApplication).IsTrue();
+
+    [Test]
+    [Category("MayBeForForegroundApplication")]
+    public async Task MayBeForForegroundApplication_ANamedBackgroundProgram_IsFalse() =>
+        await Assert.That(new ClipboardReader(300, "msrdc", 200, "notepad").MayBeForForegroundApplication).IsFalse();
 
     private static ClipboardReader Reader(uint processId, uint foregroundProcessId) =>
         new(processId, "reader", foregroundProcessId, "foreground");

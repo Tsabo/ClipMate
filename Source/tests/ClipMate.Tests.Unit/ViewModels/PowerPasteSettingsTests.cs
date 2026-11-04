@@ -10,7 +10,7 @@ namespace ClipMate.Tests.Unit.ViewModels;
 
 /// <summary>
 /// Power Paste's Explode and Loop are single saved settings shared by the menu, the toolbar and the Options dialog;
-/// Shield is no longer offered but its setting is kept.
+/// Shield is on the Pasting options page and resets to on.
 /// </summary>
 public class PowerPasteSettingsTests : TestFixtureBase
 {
@@ -76,20 +76,27 @@ public class PowerPasteSettingsTests : TestFixtureBase
     }
 
     [Test]
-    public async Task PowerPasteOptions_Save_KeepsTheShieldSetting()
+    public async Task PowerPasteOptions_LoadAndSave_KeepTheShieldSetting()
     {
-        // Arrange - Shield is no longer on the dialog; an imported value must survive saving it
+        // Arrange
         _configuration.Preferences.PowerPasteShield = false;
         var options = new PowerPasteOptionsViewModel(_configurationService,
             new OutboundFilterOptionsViewModel(_configurationService, A.Fake<ICurrentClipWriter>()), A.Fake<ILogger<PowerPasteOptionsViewModel>>());
         options.LoadAsync();
+        await Assert.That(options.PowerPasteShield).IsFalse();
 
         // Act
-        options.ResetToDefaultsCommand.Execute(null);
         options.SaveAsync();
 
         // Assert
         await Assert.That(_configuration.Preferences.PowerPasteShield).IsFalse();
+
+        // Act - the default is on
+        options.ResetToDefaultsCommand.Execute(null);
+        options.SaveAsync();
+
+        // Assert
+        await Assert.That(_configuration.Preferences.PowerPasteShield).IsTrue();
     }
 
     private MainMenuViewModel CreateMainMenu()

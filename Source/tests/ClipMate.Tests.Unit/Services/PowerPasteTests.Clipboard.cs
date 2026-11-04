@@ -144,7 +144,7 @@ public partial class PowerPasteTests
         await PasteAsync();
 
         // Act
-        _clock.Advance(TimeSpan.FromMilliseconds(499));
+        _clock.Advance(TimeSpan.FromMilliseconds(249));
         _clipboard.ReadBy(true);
 
         // Assert
@@ -179,20 +179,20 @@ public partial class PowerPasteTests
         // Arrange - a reader ignoring the "ignore me" markers reads each offer again
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 20; i++)
         {
             _clipboard.ReadBy(false);
-            _clock.Advance(TimeSpan.FromMilliseconds(100));
+            _clock.Advance(TimeSpan.FromMilliseconds(25));
         }
 
         // Act
         _clipboard.ReadBy(false);
 
-        // Assert - the fourth waits until a second after the first of the three, offered again at 100 ms
-        _clock.Advance(TimeSpan.FromMilliseconds(799));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(3);
+        // Assert - the 21st waits until a second after the first of the twenty, offered again at 25 ms
+        _clock.Advance(TimeSpan.FromMilliseconds(524));
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(20);
         _clock.Advance(TimeSpan.FromMilliseconds(1));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(4);
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(21);
     }
 
     [Test]
@@ -307,30 +307,236 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("Toggle")]
-    public async Task Toggle_CyclesOffDownUpOff()
+    public async Task Toggle_FirstUse_StartsGoingUp()
+    {
+        // Arrange: act_PPExecute 0x866228 starts Up unless the direction field 0x931 holds Down, and it starts at 0
+        var service = CreateService();
+
+        // Act
+        await service.ToggleAsync(_ => [CreateTestClip("First"), CreateTestClip("Second")]);
+
+        // Assert
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
+        await Assert.That(service.Direction).IsEqualTo(PowerPasteDirection.Up);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
+    }
+
+    [Test]
+    [Category("Toggle")]
+    public async Task Toggle_StoppedWithoutAPaste_GoesTheOtherWayNextTime()
+    {
+        // Arrange: PPStop 0x866ecc flips the direction when the paste count is 0
+        var service = CreateService();
+        IReadOnlyList<Clip> clips = [CreateTestClip("First"), CreateTestClip("Second")];
+        await service.ToggleAsync(_ => clips);
+
+        // Act
+        await service.ToggleAsync(_ => clips);
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
+        await service.ToggleAsync(_ => clips);
+
+        // Assert
+        await Assert.That(service.Direction).IsEqualTo(PowerPasteDirection.Down);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("Toggle")]
+    public async Task Toggle_StoppedAfterAPaste_KeepsTheDirection()
+    {
+        // Arrange
+        var service = CreateService();
+        IReadOnlyList<Clip> clips = [CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")];
+        await service.ToggleAsync(_ => clips);
+        await PasteAsync();
+
+        // Act
+        await service.ToggleAsync(_ => clips);
+        await service.ToggleAsync(_ => clips);
+
+        // Assert
+        await Assert.That(service.Direction).IsEqualTo(PowerPasteDirection.Up);
+    }
+
+    [Test]
+    [Category("Toggle")]
+    public async Task ToggleDirection_AlreadyGoingThatWay_Stops()
     {
         // Arrange
         var service = CreateService();
         IReadOnlyList<Clip> clips = [CreateTestClip("First"), CreateTestClip("Second")];
-        var loads = 0;
-        Task<IReadOnlyList<Clip>> Load()
-        {
-            loads++;
-            return Task.FromResult(clips);
-        }
+        await service.ToggleAsync(PowerPasteDirection.Down, _ => clips);
 
-        // Act & Assert
-        await service.ToggleAsync(Load);
+        // Act
+        await service.ToggleAsync(PowerPasteDirection.Down, _ => clips);
+
+        // Assert
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
+    }
+
+    [Test]
+    [Category("Toggle")]
+    public async Task ToggleDirection_GoingTheOtherWay_StartsThatWay()
+    {
+        // Arrange
+        var service = CreateService();
+        IReadOnlyList<Clip> clips = [CreateTestClip("First"), CreateTestClip("Second")];
+        await service.ToggleAsync(PowerPasteDirection.Down, _ => clips);
+
+        // Act
+        await service.ToggleAsync(PowerPasteDirection.Up, _ => clips);
+
+        // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
-        await Assert.That(service.Direction).IsEqualTo(PowerPasteDirection.Down);
-
-        await service.ToggleAsync(Load);
         await Assert.That(service.Direction).IsEqualTo(PowerPasteDirection.Up);
         await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
+    }
 
-        await service.ToggleAsync(Load);
-        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
-        await Assert.That(loads).IsEqualTo(2);
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_WithoutAProcessJustAfterTheUsersInput_IsAPaste()
+    {
+        // Arrange: a browser or Windows Terminal reads without a window, and a Store app's read comes from a Windows service
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+
+        // Act
+        _clipboard.ReadWithoutAProcess(TimeSpan.FromMilliseconds(20));
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
+    }
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_WithoutAProcessWithNoRecentInput_IsNotAPaste()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+
+        // Act
+        _clipboard.ReadWithoutAProcess(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_WithoutAProcess_WhenTheLastInputCameBeforeTheClip_IsNotAPaste()
+    {
+        // Arrange: the input is the key press that pasted the clip before this one, released as this one came up
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clock.Advance(TimeSpan.FromMilliseconds(420));
+
+        // Act: the input was 300 ms ago, so 120 ms after the offer
+        _clipboard.ReadWithoutAProcess(TimeSpan.FromMilliseconds(300));
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_ByABackgroundProgramWhileTheUserTypes_IsNotAPaste()
+    {
+        // Arrange: WSLg's msrdc reads every clipboard change; Tab between two pastes must not count as pasting
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+
+        // Act
+        _clipboard.ReadByABackgroundProgramWhileTheUserTypes();
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_ByClipMateOrWithItInTheForeground_IsNotAPaste()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+
+        // Act
+        _clipboard.ReadByClipMate();
+        _clipboard.ReadWithClipMateInTheForeground();
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Read_ByTheTarget300MillisecondsAfterAPaste_IsAnotherPaste()
+    {
+        // Arrange - the manual says pasting "very rapidly"
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
+        await PasteAsync();
+
+        // Act
+        _clock.Advance(TimeSpan.FromMilliseconds(300));
+        _clipboard.ReadBy(true);
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Third");
+    }
+
+    [Test]
+    [Category("Shield")]
+    public async Task ShieldOff_TheTargetReadingAgainAtOnce_IsAnotherPaste()
+    {
+        // Arrange - ClipMate 7 has no limit on how soon the next read counts
+        UseConfiguration(new PreferencesConfiguration { PowerPasteShield = false, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
+        await PasteAsync();
+
+        // Act
+        _clipboard.ReadBy(true);
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Third");
+    }
+
+    [Test]
+    [Category("Shield")]
+    public async Task ShieldOff_ReadByABackgroundProgram_IsAPaste()
+    {
+        // Arrange: ClipMate 7's ClipViewRenderFormat 0x8666e4 does not look at who reads
+        UseConfiguration(new PreferencesConfiguration { PowerPasteShield = false, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+
+        // Act
+        _clipboard.ReadBy(false);
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
+    }
+
+    [Test]
+    [Category("Shield")]
+    public async Task ShieldOff_ReadByClipMate_IsNotAPaste()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteShield = false, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+
+        // Act
+        _clipboard.ReadByClipMate();
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
     }
 
     [Test]
@@ -341,7 +547,7 @@ public partial class PowerPasteTests
         var service = CreateService();
 
         // Act
-        await service.ToggleAsync(() => Task.FromResult<IReadOnlyList<Clip>>([]));
+        await service.ToggleAsync(_ => []);
 
         // Assert
         await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);

@@ -459,7 +459,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     }
 
     [Test]
-    public Task ClipSelectedEvent_UserPicksAClipOutsideTheSequence_StopsPowerPasteWithoutPuttingTheWaitingClipBack()
+    public Task ClipSelectedEvent_UserPicksAClipOutsideTheSequence_LeavesPowerPasteOn()
     {
         // Arrange
         var clip = new Clip { Id = Guid.NewGuid() };
@@ -470,8 +470,9 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         _coordinator.Receive(new ClipSelectedEvent(clip, "test-database-path"));
 
         // Assert
-        // The picked clip is copied next; putting the waiting clip back would race with it
-        A.CallTo(() => _mockPowerPaste.Stop(false)).MustHaveHappenedOnceExactly();
+        // MoveTo has sent the sequence back to its start
+        A.CallTo(() => _mockPowerPaste.MoveTo(clip.Id)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _mockPowerPaste.Stop(A<bool>.Ignored)).MustNotHaveHappened();
         A.CallTo(() => _mockPowerPaste.Stop()).MustNotHaveHappened();
 
         return Task.CompletedTask;
@@ -496,15 +497,24 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     }
 
     [Test]
-    public async Task PowerPasteRequests_StartWithTheSelectedClipsOrToggle()
+    public async Task PowerPasteRequests_GiveTheClipListsClipsInTheCommandsDirection()
     {
         // Arrange
         var clip = new Clip { Id = Guid.NewGuid(), TextContent = "a,b" };
         _mockClipListViewModel.Clips.Add(clip);
         _mockClipListViewModel.SelectedClips.Add(clip);
         IReadOnlyList<Clip>? toggled = null;
-        A.CallTo(() => _mockPowerPaste.ToggleAsync(A<Func<Task<IReadOnlyList<Clip>>>>.Ignored, A<CancellationToken>.Ignored))
-            .ReturnsLazily(async (Func<Task<IReadOnlyList<Clip>>> load, CancellationToken _) => toggled = await load());
+        IReadOnlyList<Clip>? down = null;
+        IReadOnlyList<Clip>? up = null;
+        A.CallTo(() => _mockPowerPaste.ToggleAsync(A<Func<PowerPasteDirection, IReadOnlyList<Clip>>>.Ignored, A<Func<Clip, Task>?>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? _, CancellationToken _) => toggled = getClips(PowerPasteDirection.Up))
+            .Returns(Task.CompletedTask);
+        A.CallTo(() => _mockPowerPaste.ToggleAsync(PowerPasteDirection.Down, A<Func<PowerPasteDirection, IReadOnlyList<Clip>>>.Ignored, A<Func<Clip, Task>?>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? _, CancellationToken _) => down = getClips(direction))
+            .Returns(Task.CompletedTask);
+        A.CallTo(() => _mockPowerPaste.ToggleAsync(PowerPasteDirection.Up, A<Func<PowerPasteDirection, IReadOnlyList<Clip>>>.Ignored, A<Func<Clip, Task>?>.Ignored, A<CancellationToken>.Ignored))
+            .Invokes((PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? _, CancellationToken _) => up = getClips(direction))
+            .Returns(Task.CompletedTask);
 
         // Act
         _coordinator.Receive(new PowerPasteDownRequestedEvent());
@@ -512,10 +522,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         _coordinator.Receive(new PowerPasteToggleRequestedEvent());
 
         // Assert
-        A.CallTo(() => _mockPowerPaste.StartAsync(A<IReadOnlyList<Clip>>.That.Contains(clip), PowerPasteDirection.Down, A<CancellationToken>.Ignored))
-            .MustHaveHappenedOnceExactly();
-        A.CallTo(() => _mockPowerPaste.StartAsync(A<IReadOnlyList<Clip>>.That.Contains(clip), PowerPasteDirection.Up, A<CancellationToken>.Ignored))
-            .MustHaveHappenedOnceExactly();
+        await Assert.That(down).Contains(clip);
+        await Assert.That(up).Contains(clip);
         await Assert.That(toggled).Contains(clip);
     }
 

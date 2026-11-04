@@ -35,24 +35,36 @@ public interface IPowerPaste
     event EventHandler<PowerPastePositionChangedEventArgs>? PositionChanged;
 
     /// <summary>
-    /// Starts a sequence of the clips, with their content loaded, replacing any sequence already running. The clips are
-    /// exploded when the PowerPasteExplode setting is on, and the direction is saved as the last one used.
+    /// Starts a sequence of the clips, replacing any sequence already running. The clips are exploded when the
+    /// PowerPasteExplode setting is on, and the direction is saved as the last one used.
     /// </summary>
     /// <param name="clips">The clips, in on-screen order.</param>
     /// <param name="direction">The direction to paste them in.</param>
+    /// <param name="loadContent">Loads a clip's content when it comes up; leave it out when the clips are already loaded.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task StartAsync(IReadOnlyList<Clip> clips, PowerPasteDirection direction, CancellationToken cancellationToken = default);
+    Task StartAsync(IReadOnlyList<Clip> clips, PowerPasteDirection direction, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The Power Paste button: off starts going down, down starts again going up, and up stops.
+    /// The Power Paste button: when on it stops, and when off it starts in the last direction used. Stopping without a
+    /// paste flips that direction, so clicking again goes the other way.
     /// </summary>
-    /// <param name="loadSelection">Loads the clips to paste when a sequence is started; none leaves Power Paste as it is.</param>
+    /// <param name="getClips">Gives the clips to paste in a direction when a sequence is started; none leaves Power Paste off.</param>
+    /// <param name="loadContent">Loads a clip's content when it comes up.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task ToggleAsync(Func<Task<IReadOnlyList<Clip>>> loadSelection, CancellationToken cancellationToken = default);
+    Task ToggleAsync(Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Moves the sequence to a clip in it, so that clip is the next one pasted: its first Explode piece going down,
-    /// its last going up.
+    /// The Power Paste Up or Down command: stops when already going that way, otherwise starts going that way.
+    /// </summary>
+    /// <param name="direction">The command's direction.</param>
+    /// <param name="getClips">Gives the clips to paste in a direction when a sequence is started; none leaves Power Paste as it is.</param>
+    /// <param name="loadContent">Loads a clip's content when it comes up.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task ToggleAsync(PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves the sequence to a clip in it, so that clip, from its first Explode piece, is the next one pasted. A clip
+    /// outside the sequence sends it back to its start.
     /// </summary>
     /// <param name="clipId">The clip's ID.</param>
     /// <returns>False if Power Paste is not active or the clip is not in the sequence.</returns>

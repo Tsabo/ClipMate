@@ -880,14 +880,23 @@ public partial class ClipListViewModel : ObservableObject,
 
     /// <summary>
     /// Selects a clip of the list without copying it to the clipboard or treating it as the user's pick, as Power Paste
-    /// does to show the clip waiting to be pasted. Only the current clip moves; the selected rows stay selected, so a
-    /// restart in the other direction still sees the whole sequence. Does nothing if the clip is not in the list.
+    /// does to show the clip waiting to be pasted. With several rows selected only the current clip moves, so a restart
+    /// in the other direction still sees the whole sequence; with one, the highlighted row moves with it. Does nothing
+    /// if the clip is not in the list.
     /// </summary>
     public void SelectClipWithoutCopying(Guid clipId)
     {
         var clip = Clips.FirstOrDefault(p => p.Id == clipId);
-        if (clip != null && clip != SelectedClip)
-            SetSelectedClipWithoutClipboardOperation(clip);
+        if (clip == null || clip == SelectedClip)
+            return;
+
+        SetSelectedClipWithoutClipboardOperation(clip);
+
+        if (SelectedClips.Count <= 1)
+        {
+            SelectedClips.Clear();
+            SelectedClips.Add(clip);
+        }
     }
 
     /// <summary>
@@ -1005,6 +1014,33 @@ public partial class ClipListViewModel : ObservableObject,
                 ? index
                 : int.MaxValue)
             .ToList();
+    }
+
+    /// <summary>
+    /// The clips Power Paste works through, in on-screen order: an extended selection, or with one clip selected, every
+    /// clip from it to the end of the list in the direction of travel (ClipMate 7's manual: "from the selected clip to
+    /// the end of the collection").
+    /// </summary>
+    public IReadOnlyList<Clip> GetClipsForPowerPaste(PowerPasteDirection direction)
+    {
+        var selected = GetSelectedClipsInDisplayOrder();
+        if (selected.Count > 1)
+            return selected;
+
+        var start = selected.Count == 1
+            ? selected[0]
+            : SelectedClip;
+
+        if (start == null)
+            return [];
+
+        var index = Clips.ToList().FindIndex(p => p.Id == start.Id);
+        if (index < 0)
+            return [start];
+
+        return direction == PowerPasteDirection.Down
+            ? Clips.Skip(index).ToList()
+            : Clips.Take(index + 1).ToList();
     }
 
     /// <summary>

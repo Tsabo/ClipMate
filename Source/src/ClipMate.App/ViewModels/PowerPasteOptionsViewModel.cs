@@ -26,6 +26,9 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     private bool _powerPasteLoop;
 
     [ObservableProperty]
+    private bool _powerPasteShield;
+
+    [ObservableProperty]
     private bool _powerPasteTrim;
 
     public PowerPasteOptionsViewModel(IConfigurationService configurationService,
@@ -53,6 +56,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteTrim = config.PowerPasteTrim;
         PowerPasteIncludeDelimiter = config.PowerPasteIncludeDelimiter;
         PowerPasteLoop = config.PowerPasteLoop;
+        PowerPasteShield = config.PowerPasteShield;
         PowerPasteExplode = config.PowerPasteExplode;
         OutboundFilter.Load();
 
@@ -70,6 +74,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         config.PowerPasteTrim = PowerPasteTrim;
         config.PowerPasteIncludeDelimiter = PowerPasteIncludeDelimiter;
         config.PowerPasteLoop = PowerPasteLoop;
+        config.PowerPasteShield = PowerPasteShield;
         config.PowerPasteExplode = PowerPasteExplode;
         OutboundFilter.Save();
 
@@ -86,6 +91,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteTrim = true;
         PowerPasteIncludeDelimiter = false;
         PowerPasteLoop = false;
+        PowerPasteShield = true;
         PowerPasteExplode = false;
         OutboundFilter.ResetToDefaults();
 

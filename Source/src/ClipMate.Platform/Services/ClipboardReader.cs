@@ -9,6 +9,8 @@ namespace ClipMate.Platform.Services;
 /// </summary>
 internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint ForegroundProcessId, string ForegroundProcessName)
 {
+    private const string _storeAppFrameHost = "ApplicationFrameHost";
+
     /// <summary>
     /// The reader as seen now, while the clipboard is open to <paramref name="openClipboardWindow" />.
     /// </summary>
@@ -21,11 +23,18 @@ internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint 
     }
 
     /// <summary>
-    /// A read is a paste when the window holding the clipboard open belongs to the application in the foreground, and
-    /// that application is not ClipMate. A read by a window-less caller never is.
+    /// True when the window holding the clipboard open belongs to the application in the foreground, and that
+    /// application is not ClipMate. A window-less caller's read cannot be told apart this way.
     /// </summary>
-    public bool IsPaste(uint ownProcessId) =>
+    public bool IsForegroundApplication(uint ownProcessId) =>
         ProcessId != 0 && ProcessId == ForegroundProcessId && ProcessId != ownProcessId;
+
+    /// <summary>
+    /// True when the read cannot be tied to a process: it came without a window, or a Store app is in the foreground. Its
+    /// top-level window belongs to the frame host, and its clipboard reads come from a Windows service.
+    /// </summary>
+    public bool MayBeForForegroundApplication =>
+        ProcessId == 0 || string.Equals(ForegroundProcessName, _storeAppFrameHost, StringComparison.OrdinalIgnoreCase);
 
     private static uint GetProcessId(IWin32InputInterop win32, HWND window)
     {
