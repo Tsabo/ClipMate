@@ -462,7 +462,7 @@ Task("UI-Probe")
     .Does(() =>
 {
     // --setting section.key=value, --copy text, --copy-html fragment, --press Ctrl+Alt+Shift+F9 (each repeatable, in order), --source-url,
-    // --wait-ms, --capture folder, --data-dir, --exe, --keep-running
+    // --no-focus, --wait-ms, --capture folder, --data-dir, --exe, --keep-running
     string Quote(string value) => "'" + value.Replace("'", "''") + "'";
     var command = new System.Text.StringBuilder("& ")
         .Append(Quote(MakeAbsolute(buildDir.CombineWithFilePath("ui-probe.ps1")).FullPath))
@@ -477,6 +477,8 @@ Task("UI-Probe")
 
     if (HasArgument("source-url"))
         command.Append(" -SourceUrl ").Append(Quote(Argument<string>("source-url")));
+    if (HasArgument("no-focus"))
+        command.Append(" -NoFocus");
     if (HasArgument("wait-ms"))
         command.Append(" -WaitMs ").Append(Argument<int>("wait-ms"));
     if (HasArgument("capture"))

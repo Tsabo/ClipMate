@@ -9,7 +9,9 @@ Cake target (see build/README.md), which passes the built executable.
 2. Starts ClipMate (never capturing the clipboard at startup) and waits until clipboard monitoring runs.
 3. Copies each -Copy text, then each -CopyHtml fragment (as HTML plus its plain text), waiting until ClipMate has
    saved each. This replaces what is on the user's clipboard; text that was there is put back at the end.
-4. Presses each -Press key combination, -WaitMs apart.
+4. Presses each -Press key combination, -WaitMs apart. Each goes to ClipMate: its main window is brought to the
+   foreground first unless one of its windows already is, and the probe fails rather than send keys to another program.
+   If it shows no window, or with -NoFocus, the keys go to whatever has focus, which still reaches a global hotkey.
 5. Saves a PNG of each of ClipMate's visible windows into -Capture: only ClipMate's own pixels, never the desktop,
    so the images can go in a pull request.
 #>
@@ -27,6 +29,8 @@ Param(
     [string]$SourceUrl = "",
     # Ctrl+Alt+Shift+F9: pick keys the user's own ClipMate does not hold, or the presses go to it
     [string[]]$Press = @(),
+    # press without bringing ClipMate forward, to check a global hotkey with another program in the foreground
+    [switch]$NoFocus,
     [int]$WaitMs = 800,
     [string]$Capture = "",
     [switch]$KeepRunning
@@ -52,6 +56,8 @@ public static class ProbeNative
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
     [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] static extern bool OpenClipboard(IntPtr owner);
     [DllImport("user32.dll")] static extern bool EmptyClipboard();
     [DllImport("user32.dll")] static extern bool CloseClipboard();
@@ -101,6 +107,34 @@ public static class ProbeNative
         return memory;
     }
 
+    public static bool IsForeground(int processId)
+    {
+        uint owner;
+        GetWindowThreadProcessId(GetForegroundWindow(), out owner);
+        return owner == processId;
+    }
+
+    // Explorer or Classic, by title: the tray icon's window, toasts, shadows and dialogs have other titles
+    public static IntPtr MainWindowOf(int processId)
+    {
+        foreach (var window in VisibleWindowsOf(processId))
+        {
+            var title = new System.Text.StringBuilder(256);
+            GetWindowText(window, title, title.Capacity);
+            if (title.ToString().StartsWith("ClipMate", StringComparison.Ordinal))
+                return window;
+        }
+        return IntPtr.Zero;
+    }
+
+    public static bool BringToForeground(IntPtr window)
+    {
+        // Windows lets only the program that last had input take the foreground, so tap a key that means nothing
+        keybd_event(0xFC, 0, 0, UIntPtr.Zero); // VK_NONAME
+        keybd_event(0xFC, 0, 2, UIntPtr.Zero);
+        return SetForegroundWindow(window);
+    }
+
     public static List<IntPtr> VisibleWindowsOf(int processId)
     {
         var windows = new List<IntPtr>();
@@ -137,6 +171,27 @@ function Wait-Log([string]$Pattern, [int]$Count = 1, [int]$TimeoutSeconds = 90) 
         Start-Sleep -Milliseconds 250
     }
     throw "Timed out waiting for '$Pattern' in $logDir"
+}
+
+# Never lets keys meant for ClipMate reach another program: it fails if it can't take the foreground
+function Set-ClipMateForeground([int]$WaitForWindowSeconds) {
+    $deadline = (Get-Date).AddSeconds($WaitForWindowSeconds)
+    while (($window = [ProbeNative]::MainWindowOf($app.Id)) -eq [IntPtr]::Zero -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Milliseconds 250
+    }
+    if ([ProbeNative]::IsForeground($app.Id)) { return }
+    if ($window -eq [IntPtr]::Zero) {
+        Write-Host "ClipMate shows no window, so the keys go to whatever has focus"
+        return
+    }
+
+    [ProbeNative]::BringToForeground($window) | Out-Null
+    $deadline = (Get-Date).AddSeconds(3)
+    while (-not [ProbeNative]::IsForeground($app.Id)) {
+        if ((Get-Date) -ge $deadline) { throw "Could not bring ClipMate to the foreground, so nothing was pressed. -NoFocus presses anyway." }
+        Start-Sleep -Milliseconds 50
+    }
+    Start-Sleep -Milliseconds 200 # WPF takes keyboard focus just after the activation
 }
 
 function Start-ClipMate {
@@ -180,21 +235,35 @@ try {
 
     # 3. Copies, each saved before the next
     $saved = [regex]::Matches((Read-Log), "Captured Item #").Count
+    $selectionPattern = "SelectedClip changed to"
+    $selected = 0
     foreach ($text in $Copy) {
+        $selected = [regex]::Matches((Read-Log), $selectionPattern).Count
         Set-Clipboard -Value $text
         $saved++
         Wait-Log "Captured Item #" -Count $saved -TimeoutSeconds 15
     }
     foreach ($fragment in $CopyHtml) {
+        $selected = [regex]::Matches((Read-Log), $selectionPattern).Count
         [ProbeNative]::CopyHtml($fragment, ($fragment -replace '<[^>]+>', ''), $SourceUrl)
         $saved++
         Wait-Log "Captured Item #" -Count $saved -TimeoutSeconds 15
     }
 
+    # The list selects a clip a moment after saving it, and a press before that acts on the clip selected before.
+    # Not fatal: a clip saved outside the shown collection is never selected.
+    if ($Press.Count -gt 0 -and $Copy.Count + $CopyHtml.Count -gt 0) {
+        try { Wait-Log $selectionPattern -Count ($selected + 1) -TimeoutSeconds 10 }
+        catch { Write-Host "The last copy wasn't selected in the clip list, so the keys act on what is" }
+    }
+
     # 4. Key presses
     $keys = @{ Ctrl = 0x11; Alt = 0x12; Shift = 0x10; Win = 0x5B; Enter = 0x0D; Esc = 0x1B; Tab = 0x09; Space = 0x20; Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27 }
     1..24 | ForEach-Object { $keys["F$_"] = 0x6F + $_ }
+    $waitForWindowSeconds = 10 # it may still be opening for the first press; later, none means a press closed it
     foreach ($combination in $Press) {
+        if (-not $NoFocus) { Set-ClipMateForeground $waitForWindowSeconds }
+        $waitForWindowSeconds = 0
         $codes = $combination.Split("+") | ForEach-Object {
             if ($keys.ContainsKey($_)) { [byte]$keys[$_] }
             elseif ($_ -match '^[A-Z0-9]$') { [byte][char]$_ }
