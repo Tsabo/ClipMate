@@ -117,12 +117,42 @@ public class CfHtmlParserTests
     }
 
     [Test]
-    public async Task ExtractSourceUrl_WithComment_ReturnsUrl()
+    public async Task ExtractSourceUrl_WithHeader_ReturnsUrl()
     {
+        // Arrange
+        const string cfHtml = "Version:0.9\r\nStartHTML:0000000105\r\nEndHTML:0000000130\r\n" +
+                              "SourceURL:https://example.com/page\r\n<html><body>x</body></html>";
+
         // Act
-        var result = CfHtmlParser.ExtractSourceUrl("<!--SourceURL: https://example.com/page--><p>x</p>");
+        var result = CfHtmlParser.ExtractSourceUrl(cfHtml);
 
         // Assert
         await Assert.That(result).IsEqualTo("https://example.com/page");
+    }
+
+    [Test]
+    public async Task ExtractSourceUrl_WithHeaderInOtherCaseAndSpaces_ReturnsTrimmedUrl()
+    {
+        // Act
+        var result = CfHtmlParser.ExtractSourceUrl("Version:1.0\nsourceurl:  https://example.com/page  \n<p>x</p>");
+
+        // Assert
+        await Assert.That(result).IsEqualTo("https://example.com/page");
+    }
+
+    [Test]
+    [Arguments("Version:0.9\r\nStartHTML:0000000025\r\n<p>SourceURL:https://example.com</p>")]
+    [Arguments("Version:0.9\r\n<p>x</p>\r\nSourceURL:https://example.com\r\n")]
+    [Arguments("Version:0.9\r\nSourceURL:\r\n<p>x</p>")]
+    [Arguments("SourceURL:https://example.com\r\n<p>x</p>")]
+    [Arguments("<!--SourceURL: https://example.com--><p>x</p>")]
+    [Arguments("")]
+    public async Task ExtractSourceUrl_WithoutUrlInTheHeader_ReturnsNull(string html)
+    {
+        // Act
+        var result = CfHtmlParser.ExtractSourceUrl(html);
+
+        // Assert
+        await Assert.That(result).IsNull();
     }
 }

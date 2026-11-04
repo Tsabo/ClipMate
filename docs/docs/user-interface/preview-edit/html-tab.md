@@ -18,7 +18,7 @@ When you copy text from a web page, ClipMate captures this HTML Format data and 
 
 ## Source URL
 
-When an application supports the complete HTML Format specification, it supplies the URL of the page the data was copied from. If the Source URL field shows a valid URL, you can click it to revisit the original page in your browser.
+When an application supports the complete HTML Format specification, it supplies the URL of the page the data was copied from. The **Source** box shows that URL, the same one as the clip list's **Source URL** column and **Clip Properties**. If it's a valid URL, click **Go** to revisit the original page in your browser.
 
 :::note
 The page must still exist on the server and you must be connected to the internet.

@@ -173,51 +173,6 @@ public class RegexPatternsTests
 
     #endregion
 
-    #region SourceUrl Tests
-
-    [Test]
-    public async Task SourceUrl_WithValidSourceUrlComment_ExtractsUrl()
-    {
-        // Arrange
-        var html = "<!--SourceURL: https://example.com-->";
-
-        // Act
-        var match = RegexPatterns.SourceUrl().Match(html);
-
-        // Assert
-        await Assert.That(match.Success).IsTrue();
-        await Assert.That(match.Groups[1].Value).IsEqualTo("https://example.com");
-    }
-
-    [Test]
-    public async Task SourceUrl_WithExtraSpacing_ExtractsUrl()
-    {
-        // Arrange
-        var html = "<!--SourceURL:   https://example.com/page  -->";
-
-        // Act
-        var match = RegexPatterns.SourceUrl().Match(html);
-
-        // Assert
-        await Assert.That(match.Success).IsTrue();
-        await Assert.That(match.Groups[1].Value).IsEqualTo("https://example.com/page  ");
-    }
-
-    [Test]
-    public async Task SourceUrl_WithNoSourceUrl_DoesNotMatch()
-    {
-        // Arrange
-        var html = "<!-- Just a comment -->";
-
-        // Act
-        var result = RegexPatterns.SourceUrl().IsMatch(html);
-
-        // Assert
-        await Assert.That(result).IsFalse();
-    }
-
-    #endregion
-
     #region ScriptTag Tests
 
     [Test]
