@@ -288,6 +288,17 @@ public interface IClipService
     Task<bool> ConvertFilePointerToTextAsync(string databaseKey, Guid clipId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Applies <paramref name="transform" /> to a clip's text and title and removes its other Formats, which would still
+    /// hold the old text. Updates the clip's hash and size.
+    /// </summary>
+    /// <param name="databaseKey">The database key (path).</param>
+    /// <param name="clipId">The clip ID.</param>
+    /// <param name="transform">The change to make to the text.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The changed clip, or null if the clip isn't found, is encrypted, or has no text.</returns>
+    Task<Clip?> TransformTextAsync(string databaseKey, Guid clipId, Func<string, string> transform, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Moves a clip to the top or bottom of its collection's manual sort order.
     /// </summary>
     /// <param name="databaseKey">The database key (path).</param>

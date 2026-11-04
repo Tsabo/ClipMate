@@ -7,6 +7,7 @@ using ClipMate.App.Views.Dialogs;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
 using ClipMate.Core.Models.Networking;
+using ClipMate.Core.Services;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Core.ValueObjects;
 using ClipMate.Data.Services;
@@ -61,6 +62,7 @@ public class ClipOperationsCoordinator :
     private readonly ClipListViewModel _clipListViewModel;
     private readonly IClipService _clipService;
     private readonly ICollectionService _collectionService;
+    private readonly ICurrentClipWriter _currentClipWriter;
     private readonly IDatabases _databases;
     private readonly CollectionTreeViewModel _collectionTreeViewModel;
     private readonly IConfigurationService _configurationService;
@@ -69,6 +71,7 @@ public class ClipOperationsCoordinator :
     private readonly IPowerPaste _powerPaste;
     private readonly ISearchService _searchService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly TextTransformService _textTransformService;
 
     // Guard flag to prevent infinite decryption loop
     private bool _isDecryptingClip;
@@ -84,8 +87,12 @@ public class ClipOperationsCoordinator :
         IMessenger messenger,
         IDatabases databases,
         IServiceProvider serviceProvider,
+        ICurrentClipWriter currentClipWriter,
+        TextTransformService textTransformService,
         ILogger<ClipOperationsCoordinator> logger)
     {
+        _currentClipWriter = currentClipWriter ?? throw new ArgumentNullException(nameof(currentClipWriter));
+        _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
         _activeWindowService = activeWindowService ?? throw new ArgumentNullException(nameof(activeWindowService));
         _clipListViewModel = clipListViewModel ?? throw new ArgumentNullException(nameof(clipListViewModel));
         _collectionTreeViewModel = collectionTreeViewModel ?? throw new ArgumentNullException(nameof(collectionTreeViewModel));
@@ -137,22 +144,93 @@ public class ClipOperationsCoordinator :
     /// <summary>
     /// Handles CaseConversionRequestedEvent to convert text case in selected clip.
     /// </summary>
-    public void Receive(CaseConversionRequestedEvent message)
+    public async void Receive(CaseConversionRequestedEvent message)
     {
         if (RejectIfReadOnlyDatabase())
             return;
 
-        var selectedClip = _clipListViewModel.SelectedClip;
+        var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
-        if (selectedClip == null)
+        if (selectedClips.Count == 0)
         {
             SendStatus("No clip selected");
             return;
         }
 
-        // TODO: Implement case conversion (requires ClipData modification)
-        var typeName = message.ConversionType.ToString();
-        SendStatus($"Case Conversion ({typeName}): Feature coming in a future update");
+        var databaseKey = GetDatabaseKeyForSelectedNode();
+
+        if (string.IsNullOrEmpty(databaseKey))
+        {
+            _logger.LogError("Cannot convert case: database key not found");
+            SendStatus("Error: database not found", true);
+            return;
+        }
+
+        var conversion = message.ConversionType switch
+        {
+            CaseConversionType.Upper => CaseConversion.Uppercase,
+            CaseConversionType.Lower => CaseConversion.Lowercase,
+            CaseConversionType.Title => CaseConversion.TitleCase,
+            CaseConversionType.Sentence => CaseConversion.SentenceCase,
+            CaseConversionType.Toggle => CaseConversion.InvertCase,
+            var other => throw new ArgumentOutOfRangeException(nameof(message), other, null),
+        };
+
+        try
+        {
+            var convertedCount = 0;
+            foreach (var clip in selectedClips)
+            {
+                var converted = await _clipService.TransformTextAsync(databaseKey, clip.Id, p => _textTransformService.ConvertCase(p, conversion));
+                if (converted == null)
+                    continue;
+
+                ShowConvertedClip(clip, converted);
+                convertedCount++;
+            }
+
+            if (convertedCount == 0)
+            {
+                SendStatus("The selected clips have no text to convert");
+                return;
+            }
+
+            // Show the new text in the viewer, and put it on the clipboard as editing a clip does
+            if (_clipListViewModel.SelectedClip is { } selectedClip)
+                _messenger.Send(new ClipSelectedEvent(selectedClip, databaseKey, false));
+
+            if (selectedClips.Count == 1)
+                await _currentClipWriter.MakeCurrentAsync(databaseKey, selectedClips[0].Id);
+
+            SendStatus($"Converted the case of {convertedCount} clip(s)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to convert the case of the selected clips");
+            SendStatus("Error converting case", true);
+        }
+    }
+
+    /// <summary>
+    /// Updates the clip shown in the list with what converting its case changed, and refreshes its row. The list keeps its
+    /// selection, which reloading it would lose.
+    /// </summary>
+    private void ShowConvertedClip(Clip shown, Clip converted)
+    {
+        shown.Title = converted.Title;
+        shown.ContentHash = converted.ContentHash;
+        shown.Checksum = converted.Checksum;
+        shown.Size = converted.Size;
+        shown.Type = converted.Type;
+        shown.LastModified = converted.LastModified;
+        shown.IconGlyph = converted.IconGlyph;
+        shown.HasText = converted.HasText;
+        shown.HasRtf = converted.HasRtf;
+        shown.HasHtml = converted.HasHtml;
+        shown.HasBitmap = converted.HasBitmap;
+        shown.HasFiles = converted.HasFiles;
+
+        _messenger.Send(new ClipUpdatedMessage(shown.Id, shown.Title));
     }
 
     /// <summary>
