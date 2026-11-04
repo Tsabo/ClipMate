@@ -23,7 +23,7 @@ A shared memory area in Windows that applications use to exchange data. ClipMate
 
 ## ClipMate 7 Import
 
-Bringing the clips of a ClipMate 7 database into a new or an existing database. See [Importing from ClipMate 7](options/databases.md#importing-from-clipmate-7).
+Bringing the clips of a ClipMate 7 database into a new or an existing database. See [ClipMate 7 Import](coming-from-clipmate-7/import.md).
 
 ## Collection
 

@@ -101,33 +101,9 @@ Restore from backup with **File** > **Database Maintenance** > **Restore Databas
 2. Consider backing up current database first
 3. For preserving existing data, create a new database and restore there
 
-## Importing from ClipMate 7
+## ClipMate 7 Import
 
-If you used the original ClipMate 7.x, you can bring its clips across. Click **Import ClipMate 7...** under the database list.
-
-1. **Folder** - ClipMate looks in the default location (`%APPDATA%\Thornsoft Development\ClipMate7`) automatically. Use **Browse...** if your ClipMate 7 database is somewhere else. ClipMate shows how many clips, collections and shortcuts it found.
-2. **Encrypted clips** - If the database has any, ClipMate shows how many. Enter each key you used in ClipMate 7, clicking **Add Key** after each one.
-3. **Import Into** - Choose one:
-   - **A new database** - Creates a separate database with the default collections and imports into it. It is added to the database list when you click **OK** in Options.
-   - **Merge into an existing database** - Adds the clips to one of your current databases.
-4. Click **Go**, then **Done** when the import finishes.
-
-What gets imported:
-
-- Clips with their text, rich text, HTML, images and file lists, plus titles, capture dates, source URLs and macro settings
-- Collections and folders. Collections that already exist (such as InBox, Safe and Overflow) are reused rather than duplicated
-- Shortcuts (nicknames)
-- Encrypted clips that one of your keys opens. They stay encrypted, with the key that opens them
-
-What is skipped:
-
-- **Encrypted clips that no key opens**
-- **Virtual collections** - ClipMate has its own versions of these.
-- **Clips already present** - Clips are matched by their ClipMate 7 identity, so you can safely run the import again.
-
-:::tip
-You can run the import while ClipMate 7 is still open. For a consistent copy, though, close ClipMate 7 first. The import is all-or-nothing: if it fails or you click **Abort**, nothing is changed.
-:::
+To bring in the clips of a ClipMate 7 database, click **Import ClipMate 7...** under the database list. See [ClipMate 7 Import](../coming-from-clipmate-7/import.md).
 
 ## See Also
 

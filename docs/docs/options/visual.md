@@ -5,7 +5,7 @@ title: Appearance Options
 
 # Appearance Options
 
-{/* ![Appearance Options Tab](img/options-visual.png) */}
+![The Appearance tab of Options, with Light selected as the application theme](img/options-appearance.png)
 
 The Appearance tab controls how ClipMate looks.
 
@@ -14,6 +14,8 @@ The Appearance tab controls how ClipMate looks.
 ### Application Theme
 
 Choose **Light** or **Dark**.
+
+![The same tab in the dark theme](img/options-appearance-dark.png)
 
 ### Text Editor Theme Follows Application Theme
 

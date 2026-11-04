@@ -115,6 +115,20 @@ public class DocsScreenshotTests
     }
 
     /// <summary>
+    /// With networking off, so the tab lists no Discovered Devices. The Device Name is seeded because it defaults to the computer's name.
+    /// </summary>
+    [Test]
+    public async Task DevicesTab()
+    {
+        await using var copy = await StartAsync($"networking.device_name=\"{_laptopName}\"");
+        var page = new DocsCopyPage(copy.Process);
+
+        await page.OpenOptionsAsync();
+        await page.SelectOptionsTabAsync("Devices");
+        await SaveAsync(page, DocsCopyPage.OptionsTitle, "devices/img/devices-tab.png");
+    }
+
+    /// <summary>
     /// Two copies pair with each other. The pictures are taken before anyone accepts; pairing is then finished, because a
     /// Pairing shot of two copies that can't pair would document something that doesn't work. Real Devices on the network
     /// are listed too, so no picture is taken of Discovered Devices, and only the exact seeded name is ever paired with.
@@ -126,7 +140,12 @@ public class DocsScreenshotTests
         await FirewallRule.RequireForAsync(ExePath);
 
         await using var desktop = await StartAsync(NetworkingSettings(47911, _desktopName));
-        await using var laptop = await StartAsync(NetworkingSettings(47912, _laptopName));
+        await using var laptop = await StartCopyAsync(async copy =>
+        {
+            await UseSampleDatabaseAsync(copy);
+            await ShareDatabaseAsync(copy);
+        }, NetworkingSettings(47912, _laptopName));
+
         var requesting = new DocsCopyPage(desktop.Process);
         var answering = new DocsCopyPage(laptop.Process);
 
@@ -142,17 +161,17 @@ public class DocsScreenshotTests
 
         await requesting.PairWithAsync(_laptopName);
         clock.Restart();
-        await SaveAsync(requesting, DocsCopyPage.PairingTitle, "options/img/pairing-request.png");
+        await SaveAsync(requesting, DocsCopyPage.PairingTitle, "devices/img/pairing-request.png");
 
         // Not brought to the foreground: it is only on screen until the approval dialog replaces it, and clicking it opens that dialog
         var notification = await answering.WaitForPairingNotificationAsync($"{_desktopName} wants to pair with this Device.");
-        var notificationSize = await WindowCapture.SaveWhenSettledAsync(notification, Path.Combine(OutputFolder, "options/img/pairing-notification.png"));
-        Report($"options/img/pairing-notification.png: {notificationSize.Width}x{notificationSize.Height}");
+        var notificationSize = await WindowCapture.SaveWhenSettledAsync(notification, Path.Combine(OutputFolder, "devices/img/pairing-notification.png"));
+        Report($"devices/img/pairing-notification.png: {notificationSize.Width}x{notificationSize.Height}");
 
         await answering.WaitForApprovalDialogAsync();
         Report($"The approval dialog opened {clock.Elapsed.TotalSeconds:F1}s after the request");
         await Foreground.ActivateAsync(answering.Window(DocsCopyPage.PairingTitle), "the answering Pairing dialog");
-        await SaveAsync(answering, DocsCopyPage.PairingTitle, "options/img/pairing-approval.png");
+        await SaveAsync(answering, DocsCopyPage.PairingTitle, "devices/img/pairing-approval.png");
 
         clock.Restart();
         await answering.AcceptPairingAsync();
@@ -165,6 +184,23 @@ public class DocsScreenshotTests
         await requesting.WaitForPeerAsync(_laptopName);
         await answering.WaitForPeerAsync(_desktopName);
         Report("Each lists the other under Peers");
+
+        // UI Automation doesn't report the Remote Database's tree row, so the sharing Device's log says when it was asked for its tree
+        await requesting.CloseDialogAsync(DocsCopyPage.OptionsTitle, "Cancel");
+        await Poll.UntilAsync(() => laptop.ReadLog().Contains("SharedDatabaseAccess/GetCollectionTree", StringComparison.Ordinal), "the Remote Database's collection tree to be read", _discoveryTimeout);
+        requesting.MakeExplorerTaller();
+        await SaveAsync(requesting, DocsCopyPage.ExplorerTitle, "devices/img/remote-database.png", _webContentMatches);
+    }
+
+    /// <summary>
+    /// Turns on Share with Peers for the copy's one database. Its settings key is generated, so it can't be named as a setting.
+    /// </summary>
+    private static async Task ShareDatabaseAsync(AppFixture copy)
+    {
+        var path = Path.Combine(copy.DataDirectory, "clipmate.toml");
+        var lines = (await File.ReadAllLinesAsync(path)).Where(p => !p.StartsWith("share_with_peers =", StringComparison.Ordinal)).ToList();
+        lines.Insert(lines.FindIndex(p => p.StartsWith("[databases.", StringComparison.Ordinal)) + 1, "share_with_peers = true");
+        await File.WriteAllLinesAsync(path, lines);
     }
 
     private static Task WaitForDiscoveryAsync(AppFixture copy, string deviceName) => Poll.UntilAsync(
@@ -191,7 +227,9 @@ public class DocsScreenshotTests
     /// Starts a copy on the sample database. The settings keep the picture free of the machine it runs on: without
     /// auto-targeting the QuickPaste toolbar shows "No target", not the title of the user's foreground window.
     /// </summary>
-    private static async Task<AppFixture> StartAsync(params string[] settings)
+    private static Task<AppFixture> StartAsync(params string[] settings) => StartCopyAsync(UseSampleDatabaseAsync, settings);
+
+    private static async Task<AppFixture> StartCopyAsync(Func<AppFixture, Task> afterFirstRun, params string[] settings)
     {
         var copy = new AppFixture();
         try
@@ -202,7 +240,7 @@ public class DocsScreenshotTests
                 SkipStartupCapture = true,
                 WaitUntilCapturing = false,
                 Settings = ["preferences.backup_interval_days=0", "preferences.quick_paste_auto_targeting_enabled=false", .. settings],
-                AfterFirstRun = UseSampleDatabaseAsync,
+                AfterFirstRun = afterFirstRun,
             });
 
             return copy;
