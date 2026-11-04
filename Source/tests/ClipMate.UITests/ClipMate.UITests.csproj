@@ -18,6 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="WpfPilot" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
@@ -27,6 +28,11 @@
     <Using Include="TUnit.Assertions" />
     <Using Include="TUnit.Assertions.Extensions" />
     <Using Include="WpfPilot" />
+  </ItemGroup>
+
+  <!-- The database the user docs' screenshots show (DocsScreenshots/SampleDatabaseBuilder.cs regenerates it) -->
+  <ItemGroup>
+    <None Include="DocsScreenshots\SampleData\*.db" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Adds to tests/BannedSymbols.txt: every wait on another process goes through Poll -->

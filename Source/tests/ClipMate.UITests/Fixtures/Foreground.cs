@@ -70,6 +70,24 @@ public static partial class Foreground
     }
 
     /// <summary>
+    /// Clicks the middle of <paramref name="bounds" /> only if the window under that point belongs to
+    /// <paramref name="processId" />, so a window of another program that has come on top is never clicked.
+    /// </summary>
+    /// <returns>False if another program's window is there; nothing was clicked.</returns>
+    public static bool TryLeftClickIn(int processId, System.Windows.Rect bounds)
+    {
+        // WindowFromPoint takes a POINT by value, which on x64 is the two coordinates packed into one register
+        var x = (int)(bounds.Left + bounds.Width / 2);
+        var y = (int)(bounds.Top + bounds.Height / 2);
+        GetWindowThreadProcessId(WindowFromPoint(((long)y << 32) | (uint)x), out var owner);
+        if (owner != processId)
+            return false;
+
+        LeftClick(bounds);
+        return true;
+    }
+
+    /// <summary>
     /// Right-clicks the middle of <paramref name="bounds" /> (screen coordinates) with the mouse.
     /// </summary>
     public static void RightClick(System.Windows.Rect bounds)
@@ -98,6 +116,9 @@ public static partial class Foreground
 
     [LibraryImport("user32.dll")]
     private static partial void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, nuint dwExtraInfo);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint WindowFromPoint(long point);
 
     [LibraryImport("user32.dll")]
     private static partial nint GetForegroundWindow();

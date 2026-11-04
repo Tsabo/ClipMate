@@ -585,8 +585,34 @@ Task("UI-Test")
     .Does(() =>
 {
     // --test-filter narrows the run with a TUnit tree filter, e.g. "/*/*/ClipboardFileDropRoundTripTests/*"
+    RunUiTests(Argument("test-filter", ""), "ui-test", null);
+});
+
+Task("Docs-Screenshots")
+    .Description("Take the user docs' screenshots (the shot list is DocsScreenshotTests): takes over the mouse and foreground while it runs")
+    .Does(() =>
+{
+    // --exe (default: the configuration's build in its own bin, whatever --artifacts-path says, since a firewall rule is per exact path)
+    var appExe = Argument("exe", "");
+    if (string.IsNullOrEmpty(appExe))
+    {
+        appExe = appProject.GetDirectory().Combine($"bin/{configuration}/net10.0-windows").CombineWithFilePath("ClipMate.App.exe").FullPath;
+        if (!string.IsNullOrEmpty(artifactsPath))
+            DotNetBuild(appProject.FullPath, new DotNetBuildSettings { Configuration = configuration, Verbosity = DotNetVerbosity.Quiet });
+    }
+
+    RunUiTests("/*/*/DocsScreenshotTests/*", "docs-screenshots", new Dictionary<string, string>
+    {
+        ["CLIPMATE_DOCS_OUTPUT"] = System.IO.Path.GetFullPath(repoRoot.Combine("docs/docs").FullPath),
+        ["CLIPMATE_DOCS_EXE"] = System.IO.Path.GetFullPath(appExe),
+    });
+});
+
+// Builds and runs Source/tests/ClipMate.UITests. --full-output streams its output; otherwise it goes to build/logs/<logName>-*.log
+// and the outcome, each failure's first lines and the lines the tests report ("docs-screenshots: ...") are printed.
+void RunUiTests(string filter, string logName, IDictionary<string, string> environment)
+{
     var uiTestsProject = sourceDir.CombineWithFilePath("tests/ClipMate.UITests/ClipMate.UITests.csproj");
-    var filter = Argument("test-filter", "");
     var fullOutput = HasArgument("full-output");
 
     DotNetBuild(uiTestsProject.FullPath, new DotNetBuildSettings
@@ -605,6 +631,7 @@ Task("UI-Test")
         WorkingDirectory = exe.GetDirectory(),
         RedirectStandardOutput = !fullOutput,
         RedirectStandardError = !fullOutput,
+        EnvironmentVariables = environment,
     };
 
     if (fullOutput)
@@ -619,8 +646,11 @@ Task("UI-Test")
     var exitCode = StartProcess(exe, processSettings, out var standardOutput, out var standardError);
     var lines = standardOutput.Concat(standardError).ToList();
     EnsureDirectoryExists(logsDir);
-    var log = logsDir.CombineWithFilePath($"ui-test-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+    var log = logsDir.CombineWithFilePath($"{logName}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
     System.IO.File.WriteAllLines(log.FullPath, lines);
+
+    foreach (var line in lines.Select(p => p.Trim()).Where(p => p.StartsWith("docs-screenshots:", StringComparison.Ordinal)))
+        Information(line);
 
     for (var i = 0; i < lines.Count; i++)
     {
@@ -643,7 +673,7 @@ Task("UI-Test")
     Information($"Full output: {log.FullPath}");
     if (exitCode != 0)
         throw new Exception($"UI tests failed with exit code {exitCode}");
-});
+}
 
 Task("Publish")
     .IsDependentOn("Build")
