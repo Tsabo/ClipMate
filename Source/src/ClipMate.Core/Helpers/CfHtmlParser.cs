@@ -10,6 +10,7 @@ public static class CfHtmlParser
 {
     private const string _startFragmentMarker = "<!--StartFragment-->";
     private const string _endFragmentMarker = "<!--EndFragment-->";
+    private const string _sourceUrlHeader = "SourceURL:";
 
     /// <summary>
     /// Parses CF_HTML clipboard format to extract the full HTML document.
@@ -135,18 +136,28 @@ public static class CfHtmlParser
     }
 
     /// <summary>
-    /// Extracts the source URL from HTML content.
-    /// Looks for &lt;!--SourceURL: http://example.com--&gt; comment pattern.
+    /// Extracts the source URL from the SourceURL line of a CF_HTML header. Only the header counts,
+    /// which ends at the first line starting with '&lt;', so text in the page itself is never taken for it.
+    /// Pass the raw CF_HTML: <see cref="ParseCfHtmlFormat" /> removes the header.
     /// </summary>
-    public static string? ExtractSourceUrl(string htmlContent)
+    public static string? ExtractSourceUrl(string cfHtml)
     {
-        if (string.IsNullOrWhiteSpace(htmlContent))
+        if (string.IsNullOrWhiteSpace(cfHtml) || !cfHtml.StartsWith("Version:", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        var match = RegexPatterns.SourceUrl().Match(htmlContent);
+        foreach (var rawLine in cfHtml.AsSpan().EnumerateLines())
+        {
+            var line = rawLine.TrimStart();
+            if (line.StartsWith("<"))
+                return null;
 
-        return match.Success
-            ? match.Groups[1].Value.Trim()
-            : null;
+            if (line.StartsWith(_sourceUrlHeader, StringComparison.OrdinalIgnoreCase))
+            {
+                var url = line[_sourceUrlHeader.Length..].Trim();
+                return url.IsEmpty ? null : url.ToString();
+            }
+        }
+
+        return null;
     }
 }

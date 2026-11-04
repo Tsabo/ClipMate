@@ -626,8 +626,11 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                     ? blobData.Data
                     : CfHtmlParser.ParseCfHtmlFormat(blobData.Data);
 
-                // Extract source URL from HTML content (if present)
-                var sourceUrl = CfHtmlParser.ExtractSourceUrl(htmlContent);
+                // The clip's Source URL, as in the clip list and Clip Properties; a clip without one may still have it in its header
+                var sourceUrl = string.IsNullOrWhiteSpace(_currentClip?.SourceUrl)
+                    ? CfHtmlParser.ExtractSourceUrl(blobData.Data)
+                    : _currentClip.SourceUrl;
+
                 HtmlSourceUrlEdit.EditValue = sourceUrl ?? "(No source URL found)";
 
                 // Strip scripts if DeleteScripts option is enabled

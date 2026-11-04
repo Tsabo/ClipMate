@@ -33,13 +33,6 @@ public static partial class RegexPatterns
     #region HTML Processing Patterns
 
     /// <summary>
-    /// Extracts the SourceURL from HTML clipboard metadata comments.
-    /// Captures: <!--SourceURL: https://example.com-->
-    /// </summary>
-    [GeneratedRegex(@"<!--SourceURL:\s*(.+?)-->")]
-    public static partial Regex SourceUrl();
-
-    /// <summary>
     /// Matches script tags including their content (case-insensitive, multiline).
     /// Used for sanitizing HTML content.
     /// </summary>

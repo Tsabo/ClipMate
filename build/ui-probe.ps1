@@ -23,6 +23,8 @@ Param(
     [string[]]$Copy = @(),
     # an HTML fragment such as <a href="https://example.com">Example</a>, offered as CF_HTML and as plain text
     [string[]]$CopyHtml = @(),
+    # the page every -CopyHtml fragment was copied from: the SourceURL header of its CF_HTML
+    [string]$SourceUrl = "",
     # Ctrl+Alt+Shift+F9: pick keys the user's own ClipMate does not hold, or the presses go to it
     [string[]]$Press = @(),
     [int]$WaitMs = 800,
@@ -60,9 +62,10 @@ public static class ProbeNative
     [DllImport("kernel32.dll")] static extern bool GlobalUnlock(IntPtr memory);
 
     // Win32 rather than the WinForms clipboard, which needs an STA thread that pwsh doesn't have
-    public static void CopyHtml(string fragment, string text)
+    public static void CopyHtml(string fragment, string text, string sourceUrl)
     {
-        const string header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n";
+        var header = "Version:0.9\r\nStartHTML:{0:D10}\r\nEndHTML:{1:D10}\r\nStartFragment:{2:D10}\r\nEndFragment:{3:D10}\r\n" +
+                     (sourceUrl.Length > 0 ? "SourceURL:" + sourceUrl.Replace("{", "{{").Replace("}", "}}") + "\r\n" : "");
         var utf8 = System.Text.Encoding.UTF8;
         var headerLength = string.Format(header, 0, 0, 0, 0).Length;
         var before = "<html><body><!--StartFragment-->";
@@ -176,16 +179,16 @@ try {
     Write-Host "ClipMate running (PID $($app.Id))"
 
     # 3. Copies, each saved before the next
-    $saved = [regex]::Matches((Read-Log), "Clip saved successfully").Count
+    $saved = [regex]::Matches((Read-Log), "Captured Item #").Count
     foreach ($text in $Copy) {
         Set-Clipboard -Value $text
         $saved++
-        Wait-Log "Clip saved successfully" -Count $saved -TimeoutSeconds 15
+        Wait-Log "Captured Item #" -Count $saved -TimeoutSeconds 15
     }
     foreach ($fragment in $CopyHtml) {
-        [ProbeNative]::CopyHtml($fragment, ($fragment -replace '<[^>]+>', ''))
+        [ProbeNative]::CopyHtml($fragment, ($fragment -replace '<[^>]+>', ''), $SourceUrl)
         $saved++
-        Wait-Log "Clip saved successfully" -Count $saved -TimeoutSeconds 15
+        Wait-Log "Captured Item #" -Count $saved -TimeoutSeconds 15
     }
 
     # 4. Key presses
