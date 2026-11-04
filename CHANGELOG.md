@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Help Links** - **Help** in the encryption key dialog opened a page that doesn't exist, and so did the localization link in **About**. They now open the Options documentation and GitHub Issues.
+
 ## [v1.1.0-beta.1] - 2026-11-3
 
 ### Added

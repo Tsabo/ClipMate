@@ -237,6 +237,19 @@ jobs:
         path: build/logs/
         retention-days: 90
 
+  docs:
+    name: Publish documentation
+    needs: release
+    if: ${{ !contains(needs.release.outputs.version, 'alpha') && !contains(needs.release.outputs.version, 'dev') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+    - name: Start the documentation workflow
+      run: gh workflow run docs.yml --repo ${{ github.repository }} --ref master
+      env:
+        GH_TOKEN: ${{ github.token }}
+
   winget:
     name: Publish to WinGet
     runs-on: windows-latest

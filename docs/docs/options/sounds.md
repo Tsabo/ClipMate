@@ -28,7 +28,6 @@ If using custom sounds, keep files small (8-16KB) to avoid tying up CPU or disk 
 | **Clipboard Erased** | Something has cleared the clipboard |
 | **Data Ignored/Rejected** | Data rejected (no matching formats in Application Profile) |
 | **PowerPaste Complete** | PowerPaste sequence ended (double-sound = looping) |
-| **Network Update** | Another user updated the shared database |
 | **Outbound Clip Filter** | Incoming clip was filtered and put back as plain-text |
 
 ## Understanding Sound Sequences

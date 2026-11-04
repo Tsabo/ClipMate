@@ -23,14 +23,6 @@ To turn capture on/off temporarily without changing this setting, use **Tools** 
 
 When enabled, if the clipboard already contains data when ClipMate starts, it will be captured rather than lost.
 
-## Clipboard Connection
-
-### Use Vista Clipboard Notification
-
-Windows Vista and later include a new clipboard API that eliminates the troublesome "clipboard notification chain." Enable this on Vista and newer for more reliable clipboard monitoring.
-
-When enabled, the "keepalive" and "reestablish clipboard connection" functions become obsolete.
-
 ## HDROP Expansion
 
 When you copy files from Windows Explorer, a format called HDROP enables cut/copy/paste operations. However, HDROP contains no human-readable file listing.

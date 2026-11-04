@@ -1,79 +1,38 @@
 ---
 sidebar_position: 2
-title: Visual Options
+title: Appearance Options
 ---
 
-# Visual Options
+# Appearance Options
 
-{/* ![Visual Options Tab](img/options-visual.png) */}
+{/* ![Appearance Options Tab](img/options-visual.png) */}
 
-The Visual tab controls the appearance and display behavior of ClipMate.
+The Appearance tab controls how ClipMate looks.
 
-## Display Options
+## Theme
 
-### Show Item Type Icons
+### Application Theme
 
-Show or hide the indicator icons to the left of clip titles in the ClipList. See [Item Type Icons](../user-interface/cliplist/item-type-icons.md).
+Choose **Light** or **Dark**.
 
-### Use Fancy Menus and Buttons
+### Text Editor Theme Follows Application Theme
 
-ClipMate normally shows icons in its menus and buttons. Turn this off if you:
-- Prefer a simpler look
-- Are visually impaired and use a screen reader
+When enabled, the clip text editor switches between its light and dark theme to match. Turn this off to pick the editor theme yourself on the [Editor](editor.md) tab.
 
-### Magnetic Borders
+## System Tray Hint
 
-When positioning windows near screen edges, this causes them to "snap" to the edge when within 16 pixels. This makes it easy to align to corners and edges (sometimes called "WinAmp" style).
+Choose what the tooltip shows when you hover over the tray icon:
 
-## Skins
+- **Clip title** - The title of the clip on the clipboard, so you can see what you will paste
+- **Collection** - The collection selected in ClipMate
 
-ClipMate features "skins" that change its appearance and add functionality, including an extra title bar button for "stay on top" toggling.
+## Hotkey Navigation
 
-:::note Compatibility
-If you use another skinning program like WindowBlinds:
-- Don't use skins within ClipMate, OR
-- Disable ClipMate skinning within WindowBlinds
-:::
+### Show Clip When Scrolling With Hotkeys
 
-### Skin Options
-
-- **Skin the titlebar/menu** - Turn off if another program adds buttons to the toolbar
-- **3-button skins** - Skins starting with "3_" don't have the extra 4th button
-
-ClipMate uses VCLSkin library skins, customized for ClipMate. Check the website for new skins.
-
-:::tip Missing Skins?
-If skins aren't available, you may have skipped them during installation. Re-install and select "full install."
-:::
-
-## Hints (Tooltips)
-
-### Show Hints
-
-Enable or disable tooltip hints that appear when hovering over controls. You can also set how long they remain visible.
-
-### Show Clip Hint
-
-Shows the first 1024 bytes of a clip when you hover over the "current clip" box in ClipMate Classic or ClipBar.
-
-## System Tray
-
-### System Tray Icon Visibility
-
-| Setting | Behavior |
-|---------|----------|
-| **When ClipBar Not Active** | Only show when ClipBar isn't running (default) |
-| **Always** | Always show the system tray icon |
-
-### System Tray Hint
-
-The system tray tooltip can show:
-- The title of the current clip
-- The current collection name
-
-Hover over the system tray icon to see this information.
+When the Scroll Next and Previous hotkeys move to another clip, a popup next to the tray shows its title, collection and a preview. Click the popup to open ClipMate with that clip selected.
 
 ## See Also
 
 - [General Options](general.md)
-- [Item Type Icons](../user-interface/cliplist/item-type-icons.md)
+- [Hotkeys](hotkeys.md)

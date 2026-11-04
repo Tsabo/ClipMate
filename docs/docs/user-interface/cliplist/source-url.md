@@ -5,7 +5,7 @@ title: Source URL
 
 # Source URL
 
-When copying from web browsers (Internet Explorer, Chrome, Firefox, Edge, etc.), the URL of the page that the data was copied from is recorded in the **Source URL** field.
+When copying from web browsers (Chrome, Firefox, Edge, etc.), the URL of the page that the data was copied from is recorded in the **Source URL** field.
 
 ## Viewing Source URLs
 
