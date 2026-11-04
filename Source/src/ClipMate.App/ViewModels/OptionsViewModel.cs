@@ -59,6 +59,10 @@ public partial class OptionsViewModel : ObservableObject
         Print = printOptionsViewModel ?? throw new ArgumentNullException(nameof(printOptionsViewModel));
         Devices = devicesOptionsViewModel ?? throw new ArgumentNullException(nameof(devicesOptionsViewModel));
 
+        // OK saves what each tab holds, which would undo these two resets
+        Advanced.ApplicationProfilesCleared += (_, _) => ApplicationProfiles.ApplicationProfileNodes.Clear();
+        Advanced.StartWithWindowsTurnedOff += (_, _) => General.StartWithWindows = false;
+
         // Note: LoadConfigurationAsync() will be called from the View's Loaded event
     }
 

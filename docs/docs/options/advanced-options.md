@@ -64,21 +64,30 @@ Controls how collection menus behave when they exceed screen height:
 - **Scroll** - Scroll up/down
 - **Multiple Columns** - Break into columns
 
-## Reset Options
+## Reset/Clear Settings
 
-### Reset All Settings To Defaults
+The tab has three buttons: **Layout/Font**, **Application Profile** and **Everything**. Each one asks you to confirm first, and none of them can be undone. Closing Options with **Cancel** doesn't undo them either.
 
-Resets all settings to factory defaults. Requires restart.
+### Layout/Font
 
-:::caution License Warning
-Resetting will "un-register" your copy. You'll need to re-enter your license key after restart.
-:::
+Puts the ClipMate Classic window back to its default position and size, unpins it if it was tacked, and sets the editor font and font size back to their defaults. This happens the next time ClipMate starts, so restart ClipMate after using it. Other settings don't change, including the Explorer layout on the [General](general.md) tab.
 
-**Alternative:** Press **Ctrl+Shift** while ClipMate loads for the same option.
+### Application Profile
 
-### Clear Application Profile
+Clears every entry in the [Application Profile](application-profile.md), if it becomes corrupted or you want to start over. This happens at once, with no restart. ClipMate builds new entries as you copy from each program.
 
-Completely wipes the Application Profile if it becomes corrupted. Requires restart.
+### Everything
+
+Sets all settings back to their factory defaults. Use it if your settings have gone badly wrong.
+
+- The Application Profile is cleared and **Start with Windows** is turned off at once.
+- Everything else is reset the next time ClipMate starts, so restart ClipMate after using it. Any settings you change before restarting are reset too.
+
+These are kept:
+
+- Your Databases, their clips and each Database's own settings
+- Saved searches
+- Paired Devices. **Enable networking** on the Devices tab is turned off, so turn it back on to connect to them again.
 
 ## See Also
 
