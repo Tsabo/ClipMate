@@ -25,7 +25,7 @@ You can define multiple databases for:
 - **Open Folder** - Opens database directory in Windows Explorer
 
 :::note Database Files
-ClipMate uses .DAT, .IDX, and .BLB files (about 22-24 files total). Files ending in "K" are backups from cleanup/repair operations and can be deleted.
+Each database is a single file named `clipmate.db`, in its own folder.
 :::
 
 :::caution Directory Rules
@@ -72,7 +72,7 @@ ClipMate uses .DAT, .IDX, and .BLB files (about 22-24 files total). Files ending
 
 ClipMate includes ZIP-based backup creating files like:
 ```
-ClipMate7_DB_My Clips_2024-01-15.ZIP
+ClipMate_DB_My Clips_2024-01-15.zip
 ```
 
 ### Backup Schedule
@@ -106,20 +106,22 @@ Restore from backup with **File** > **Database Maintenance** > **Restore Databas
 If you used the original ClipMate 7.x, you can bring its clips across. Click **Import ClipMate 7...** under the database list.
 
 1. **Folder** - ClipMate looks in the default location (`%APPDATA%\Thornsoft Development\ClipMate7`) automatically. Use **Browse...** if your ClipMate 7 database is somewhere else. ClipMate shows how many clips, collections and shortcuts it found.
-2. **Import Into** - Choose one:
+2. **Encrypted clips** - If the database has any, ClipMate shows how many. Enter each key you used in ClipMate 7, clicking **Add Key** after each one.
+3. **Import Into** - Choose one:
    - **A new database** - Creates a separate database with the default collections and imports into it. It is added to the database list when you click **OK** in Options.
    - **Merge into an existing database** - Adds the clips to one of your current databases.
-3. Click **Go**, then **Done** when the import finishes.
+4. Click **Go**, then **Done** when the import finishes.
 
 What gets imported:
 
 - Clips with their text, rich text, HTML, images and file lists, plus titles, capture dates, source URLs and macro settings
 - Collections and folders. Collections that already exist (such as InBox, Safe and Overflow) are reused rather than duplicated
 - Shortcuts (nicknames)
+- Encrypted clips that one of your keys opens. They stay encrypted, with the key that opens them
 
 What is skipped:
 
-- **Encrypted clips** - ClipMate 7's encryption can't be read. Decrypt these clips in ClipMate 7 before you import.
+- **Encrypted clips that no key opens**
 - **Virtual collections** - ClipMate has its own versions of these.
 - **Clips already present** - Clips are matched by their ClipMate 7 identity, so you can safely run the import again.
 

@@ -52,4 +52,4 @@ Some buttons have additional features:
 
 - [PowerPaste](powerpaste.md)
 - [Search](search.md)
-- [Visual Options](../../options/visual.md)
+- [Appearance Options](../../options/visual.md)

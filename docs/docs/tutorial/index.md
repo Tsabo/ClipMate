@@ -18,10 +18,6 @@ We'll use **ClipMate Classic** for the first few lessons. It closely resembles p
 - Drop-down ClipList
 - Preview/edit window
 
-:::tip ClipBar Alternative
-The ClipBar (embedded in the Windows taskbar) has all the capability of ClipMate Classic—it's actually Classic split into two pieces. You can use ClipBar for this tutorial if you prefer.
-:::
-
 ### Switching to Classic View
 
 If you're in ClipMate Explorer (3-pane layout), switch to Classic:

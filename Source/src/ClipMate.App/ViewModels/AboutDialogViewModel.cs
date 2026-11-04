@@ -141,10 +141,10 @@ public partial class AboutDialogViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Opens the localization contribution guide.
+    /// Opens GitHub Issues, where translators can get started.
     /// </summary>
     [RelayCommand]
-    private void ViewLocalizationInfo() => OpenUrl("https://github.com/Tsabo/ClipMate/blob/main/CONTRIBUTING.md#localization");
+    private void ViewLocalizationInfo() => OpenUrl("https://github.com/Tsabo/ClipMate/issues");
 
     /// <summary>
     /// Opens a URL in a credit item.

@@ -75,6 +75,7 @@ const sidebars: SidebarsConfig = {
         'options/sounds',
         'options/databases',
         'options/advanced-options',
+        'options/devices',
       ],
     },
     {

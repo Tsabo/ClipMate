@@ -68,7 +68,7 @@ Unlike QuickPaste Format Strings (which send keystrokes), templates pre-assemble
 
 Templates are text files in the `Templates` directory:
 ```
-C:\Program Files\ClipMate\Templates
+%APPDATA%\ClipMate\Templates
 ```
 
 To create a template:
@@ -106,7 +106,7 @@ Templates work with:
 A: You may have accidentally activated a template. Select "None" from the template menu.
 
 **Q: Source URL isn't appearing.**
-A: Source URL is only available when copying from browsers that supply it in the HTML data. Internet Explorer and Firefox support this; Opera may require DDE (enable in Advanced options).
+A: Source URL is only available when copying from browsers that supply it in the HTML data.
 
 ## See Also
 

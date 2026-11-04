@@ -45,4 +45,4 @@ Access Transparency from:
 
 - [ClipMate Classic](clipmate-classic.md)
 - [ClipMate Explorer](clipmate-explorer.md)
-- [Visual Options](../options/visual.md)
+- [Appearance Options](../options/visual.md)

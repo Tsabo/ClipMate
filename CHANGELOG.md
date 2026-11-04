@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Reset Buttons Do What They Say** - The **Layout/Font**, **Application Profile** and **Everything** buttons on the Advanced options tab reported success without changing anything. Now **Layout/Font** resets ClipMate Classic's position and size and the editor font the next time ClipMate starts. **Application Profile** clears the Application Profile at once, with no restart. **Everything** clears the Application Profile, turns off **Start with Windows** and resets all other settings the next time ClipMate starts. It keeps your Databases, saved searches and paired Devices. The mention of re-registering is gone from its tooltip, since ClipMate has no licensing.
+- **Help Links** - **Help** in the encryption key dialog opened a page that doesn't exist, and so did the localization link in **About**. They now open the Options documentation and GitHub Issues.
 
 ## [v1.1.0-beta.1] - 2026-11-3
 

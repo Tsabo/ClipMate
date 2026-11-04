@@ -318,10 +318,9 @@ public partial class EncryptionKeyDialogViewModel : ObservableObject, IDisposabl
     [RelayCommand]
     private void Help()
     {
-        // TODO: Open help documentation for encryption
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://jeremy.browns.info/ClipMate/docs/using-encryption",
+            FileName = "https://jeremy.browns.info/ClipMate/options/",
             UseShellExecute = true,
         });
     }

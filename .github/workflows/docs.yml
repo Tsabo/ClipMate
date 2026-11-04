@@ -1,14 +1,8 @@
 name: Deploy Documentation
 
+# Runs on master only, because the github-pages environment deploys from no other ref.
+# release.yml starts it after each release; run it by hand for an urgent fix.
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'docs/**'
-      - 'Resources/Fonts/**'
-      - 'build/build.cake'
-      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:

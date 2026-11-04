@@ -44,9 +44,3 @@ ClipMate uses different report layouts for different content types:
 
 The large/small bitmap threshold is configurable (default: 640 pixels).
 
-## HTML Printing
-
-HTML clips have special printing support through Internet Explorer's native print engine:
-1. View the HTML clip in the editor
-2. Right-click within the HTML preview
-3. Select **Print** from the context menu
