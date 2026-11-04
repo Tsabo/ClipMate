@@ -156,6 +156,16 @@ internal sealed class DocsCopyPage(Process app)
     }
 
     /// <summary>
+    /// Makes the Explorer window taller, so a Remote Database at the bottom of the collection tree is in view.
+    /// </summary>
+    public void MakeExplorerTaller()
+    {
+        var explorer = AutomationElement.FromHandle(Window(ExplorerTitle));
+        var bounds = explorer.Current.BoundingRectangle;
+        ((TransformPattern)explorer.GetCurrentPattern(TransformPattern.Pattern)).Resize(bounds.Width, bounds.Height * 1.6);
+    }
+
+    /// <summary>
     /// Waits for the Pairing dialog of an incoming request.
     /// </summary>
     public Task WaitForApprovalDialogAsync() => WaitForWindowTitleAsync(PairingTitle, _approvalDialogTimeout);

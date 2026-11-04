@@ -6,25 +6,22 @@ slug: /
 
 # Introducing ClipMate
 
-Welcome to ClipMate, a powerful clipboard manager for Windows.
+ClipMate remembers everything you copy. The Windows clipboard holds one thing at a time, and each copy replaces the last. ClipMate keeps every text, picture and file list you copy, so you can find it and paste it again days or months later.
 
-## It's a Multi-Clipboard
+![ClipMate Explorer listing recent clips, with the selected clip's text below the list](user-interface/img/clipmate-explorer-overview.png)
 
-ClipMate enhances the Windows clipboard, transforming it into a true power tool. The standard Windows cut/copy/paste functionality works well for transferring single items of data, but falls short when you need to move multiple pieces of data or retain information beyond your next cut or copy operation. Windows overwrites the clipboard contents whether you're ready or not.
+## What you can do with it
 
-ClipMate works alongside the regular Windows clipboard and remembers every piece of data—both text and graphics—that you cut or copy. Once your data is saved in ClipMate, you can select an item and it's automatically placed back on the clipboard or directly into an application. Within ClipMate you can view, print, edit, reformat, convert case, search, rename, and reorder clip items.
+- **Paste any earlier clip.** Pick a clip, and it's ready to paste into whatever you're working in.
+- **Paste a series of clips.** With PowerPaste, each paste moves on to the next clip, which is handy for filling in forms.
+- **Keep clips organized.** Sort them into collections, such as Recipes or Work, and find them with search.
+- **Edit and clean up clips.** Change the text, fix its case, and remove stray line breaks before you paste.
+- **Use your clips on your other computers.** Pair your own computers so each can browse and search the clips the others share.
 
-Features like PowerPaste, Templates, and Text Clean-Up help automate repetitive tasks and bulk operations, saving you time when working with large amounts of data.
+ClipMate runs on Windows and is free and open source.
 
-## It's an Organizer
+## Where to go next
 
-You can create an unlimited number of collections to store your data, with full control over retention rules so your collections fit your personal work process. Many users keep their most-commonly used data in a "Safe" collection, while others organize by topic, project, or source.
-
-ClipMate can hold tens of thousands of items, and its SQL-based search engine finds them quickly. Even if you choose to do nothing special with your clips, you'll always have recent clips at your disposal, ready to paste wherever you need them.
-
-
-## What's Next?
-
-- [The User Interface](user-interface/index.md) - Learn about ClipMate's windows and controls
-- [Options and Configuration](options/index.md) - Customize ClipMate to your needs
-- [Tutorial](tutorial/index.md) - Step-by-step lessons to get started
+- New to ClipMate? Start with [Install ClipMate](get-started/install.md).
+- Used ClipMate 7 before? See [ClipMate 7 Import](coming-from-clipmate-7/import.md).
+- Have more than one computer? See [Use ClipMate across your Devices](devices/index.md).

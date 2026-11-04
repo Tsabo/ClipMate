@@ -5,6 +5,8 @@ title: Devices Options
 
 # Devices
 
+For a step-by-step guide, see [Use ClipMate across your Devices](../devices/index.md).
+
 The **Devices** tab controls peer networking: letting your own ClipMate installations (Devices) connect to each other.
 
 ## Enable Networking
@@ -14,17 +16,13 @@ The **Devices** tab controls peer networking: letting your own ClipMate installa
 When you turn it on and click **OK**, ClipMate:
 
 - creates this Device's identity the first time (a private key and certificate, stored encrypted for your Windows account in the ClipMate data folder, never in `clipmate.toml`);
-- starts listening for your other Devices on the configured **Port** (default 47823);
-- announces this Device on the local network about every 30 seconds (UDP port 47824), so your other Devices can find it;
-- adds a Windows Firewall rule for ClipMate. Windows asks for administrator permission to add it. Uninstalling ClipMate offers to remove the rule again (Windows asks for permission once more).
+- starts listening for your other Devices on the configured **Port**;
+- announces this Device on the local network, so your other Devices can find it;
+- adds a Windows Firewall rule for ClipMate, after Windows asks for permission.
 
 Only Devices you have paired with can connect. Turning networking off stops the listener and the announcements.
 
-### Public networks
-
-The firewall rule only allows connections on networks Windows treats as **Private** or **Domain**. On a **Public** network (a café, a hotel, or a home network Windows was never told to trust), your other Devices can't connect to this one and show it as offline, although this Device can still connect to them.
-
-While networking is on and this computer is on a Public network, the Devices tab shows a warning naming the network. If you trust the network, click **Open network settings** (or go to **Settings > Network & internet**), choose your Wi-Fi or Ethernet connection and set **Network profile type** to **Private**. The warning clears by itself within a few seconds.
+Ports, the firewall rule and Public networks are covered in [Network and firewall](../troubleshooting/network.md).
 
 ## This Device
 
