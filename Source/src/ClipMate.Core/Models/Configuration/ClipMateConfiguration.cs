@@ -87,4 +87,9 @@ public class ClipMateConfiguration
     /// Gets or sets the Peer records (Devices this Device has completed Pairing with). Use <see cref="Services.IPeerStore" />.
     /// </summary>
     public List<PeerConfiguration> Peers { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the reset to carry out the next time ClipMate starts. Use <see cref="SettingsReset" />.
+    /// </summary>
+    public PendingSettingsReset PendingSettingsReset { get; set; }
 }

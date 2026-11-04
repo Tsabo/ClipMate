@@ -1,5 +1,7 @@
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
+using ClipMate.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -12,9 +14,11 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class AdvancedOptionsViewModel : ObservableObject
 {
+    private readonly IApplicationProfileService _applicationProfileService;
     private readonly IConfigurationService _configurationService;
     private readonly IDialogService _dialogService;
     private readonly ILogger<AdvancedOptionsViewModel> _logger;
+    private readonly IStartupManager _startupManager;
 
     [ObservableProperty]
     private bool _altKeyRequiredForDragDrop;
@@ -42,10 +46,14 @@ public partial class AdvancedOptionsViewModel : ObservableObject
 
     public AdvancedOptionsViewModel(IConfigurationService configurationService,
         IDialogService dialogService,
+        IApplicationProfileService applicationProfileService,
+        IStartupManager startupManager,
         ILogger<AdvancedOptionsViewModel> logger)
     {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _applicationProfileService = applicationProfileService ?? throw new ArgumentNullException(nameof(applicationProfileService));
+        _startupManager = startupManager ?? throw new ArgumentNullException(nameof(startupManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -88,71 +96,108 @@ public partial class AdvancedOptionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Resets layout and font settings to defaults.
+    /// Raised when the Application Profiles have been cleared, so a tab holding them doesn't save them back.
+    /// </summary>
+    public event EventHandler? ApplicationProfilesCleared;
+
+    /// <summary>
+    /// Raised when Start With Windows has been turned off, so a tab holding the setting doesn't turn it back on.
+    /// </summary>
+    public event EventHandler? StartWithWindowsTurnedOff;
+
+    /// <summary>
+    /// Resets the position and size of ClipMate Classic and the editor font the next time ClipMate starts.
     /// </summary>
     [RelayCommand]
-    private void ResetLayoutFont()
-    {
-        var result = _dialogService.ShowMessage(
-            "This will reset all layout and font settings to their defaults.\n\nA restart is required for the changes to take effect.\n\nDo you want to continue?",
+    private Task ResetLayoutFontAsync() =>
+        RunResetAsync(
+            "This will reset the position and size of ClipMate Classic and the editor font to their defaults the next time ClipMate starts.\n\nDo you want to continue?",
             "Reset Layout/Font Settings",
-            DialogButton.YesNo,
-            DialogIcon.Warning);
-
-        if (result != DialogResult.Yes)
-            return;
-
-        // TODO: Implement layout/font reset logic
-        _logger.LogInformation("Layout/Font settings reset requested");
-
-        _dialogService.ShowMessage(
-            "Layout and font settings have been reset.\n\nPlease restart ClipMate for the changes to take effect.",
-            "Settings Reset");
-    }
+            () => RequestResetAsync(PendingSettingsReset.LayoutAndFonts),
+            "The position and size of ClipMate Classic and the editor font will be reset the next time ClipMate starts.\n\nPlease restart ClipMate now.");
 
     /// <summary>
-    /// Clears the application profile.
+    /// Clears the Application Profiles. ClipMate reads them from their file for each capture, so this applies at once.
     /// </summary>
     [RelayCommand]
-    private void ResetApplicationProfile()
-    {
-        var result = _dialogService.ShowMessage(
-            "This will clear all entries in the Application Profile, wiping it completely clean.\n\nA restart is required afterward.\n\nDo you want to continue?",
+    private Task ResetApplicationProfileAsync() =>
+        RunResetAsync(
+            "This will clear all entries in the Application Profile, wiping it completely clean. ClipMate builds it again as you copy from each program.\n\nDo you want to continue?",
             "Clear Application Profile",
-            DialogButton.YesNo,
-            DialogIcon.Warning);
-
-        if (result != DialogResult.Yes)
-            return;
-
-        // TODO: Implement application profile clear logic
-        _logger.LogInformation("Application Profile reset requested");
-
-        _dialogService.ShowMessage(
-            "Application Profile has been cleared.\n\nPlease restart ClipMate for the changes to take effect.",
-            "Application Profile Cleared");
-    }
+            ClearApplicationProfilesAsync,
+            "Application Profile has been cleared.");
 
     /// <summary>
-    /// Resets all settings to defaults.
+    /// Clears the Application Profiles and turns off Start With Windows now, since neither is held in the settings
+    /// file, and resets every other setting the next time ClipMate starts.
     /// </summary>
     [RelayCommand]
-    private void ResetEverything()
-    {
-        var result = _dialogService.ShowMessage(
-            "This will reset ALL settings to their factory defaults.\n\nA restart is required for the changes to take effect.\n\nDo you want to continue?",
+    private Task ResetEverythingAsync() =>
+        RunResetAsync(
+            "This will clear the Application Profile and turn off Start with Windows now, and reset ALL other settings to their factory defaults the next time ClipMate starts.\n\nYour Databases and their clips, saved searches and paired Devices are kept.\n\nDo you want to continue?",
             "Reset All Settings",
-            DialogButton.YesNo,
-            DialogIcon.Warning);
+            async () =>
+            {
+                await ClearApplicationProfilesAsync();
+                await TurnOffStartWithWindowsAsync();
+                await RequestResetAsync(PendingSettingsReset.Everything);
+            },
+            "All settings will be reset to defaults the next time ClipMate starts.\n\nPlease restart ClipMate now.");
 
+    private async Task RunResetAsync(string confirmation, string title, Func<Task> reset, string doneMessage)
+    {
+        var result = _dialogService.ShowMessage(confirmation, title, DialogButton.YesNo, DialogIcon.Warning);
         if (result != DialogResult.Yes)
+        {
+            _logger.LogDebug("{Title}: not confirmed", title);
             return;
+        }
 
-        // TODO: Implement full settings reset logic
-        _logger.LogInformation("Full settings reset requested");
+        try
+        {
+            await reset();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{Title} failed", title);
+            _dialogService.ShowMessage($"The reset could not be finished.\n\n{ex.Message}", title, DialogButton.OK, DialogIcon.Error);
+            return;
+        }
 
-        _dialogService.ShowMessage(
-            "All settings have been reset to defaults.\n\nPlease restart ClipMate for the changes to take effect.",
-            "Settings Reset");
+        _logger.LogInformation("{Title} done", title);
+        _dialogService.ShowMessage(doneMessage, title);
+    }
+
+    private async Task ClearApplicationProfilesAsync()
+    {
+        await _applicationProfileService.DeleteAllProfilesAsync();
+        ApplicationProfilesCleared?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task TurnOffStartWithWindowsAsync()
+    {
+        var (success, errorMessage) = await _startupManager.DisableAsync();
+        if (!success)
+            throw new InvalidOperationException(errorMessage);
+
+        StartWithWindowsTurnedOff?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task RequestResetAsync(PendingSettingsReset reset)
+    {
+        var configuration = _configurationService.Configuration;
+        var previous = configuration.PendingSettingsReset;
+        SettingsReset.Request(configuration, reset);
+
+        try
+        {
+            await _configurationService.SaveAsync();
+        }
+        catch
+        {
+            // Reported as not done, so a later save must not carry it to the next start
+            configuration.PendingSettingsReset = previous;
+            throw;
+        }
     }
 }

@@ -114,16 +114,16 @@
                             Command="{Binding ResetLayoutFontCommand}"
                             MinWidth="120"
                             Margin="0,0,10,0"
-                            ToolTip="Reset layout and font settings to defaults. Requires restart." />
+                            ToolTip="Reset the position and size of ClipMate Classic and the editor font to their defaults. Requires restart." />
                     <Button Content="Application Profile"
                             Command="{Binding ResetApplicationProfileCommand}"
                             MinWidth="120"
                             Margin="0,0,10,0"
-                            ToolTip="Clear all Application Profile entries. Requires restart." />
+                            ToolTip="Clear all Application Profile entries." />
                     <Button Content="Everything"
                             Command="{Binding ResetEverythingCommand}"
                             MinWidth="120"
-                            ToolTip="Reset ALL settings to factory defaults. Requires restart and re-registration if licensed." />
+                            ToolTip="Reset ALL settings to factory defaults and clear all Application Profile entries. Databases, saved searches and paired Devices are kept. Requires restart." />
                 </StackPanel>
             </dxlc:LayoutItem>
 

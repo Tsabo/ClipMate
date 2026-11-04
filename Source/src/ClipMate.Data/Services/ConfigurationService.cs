@@ -96,15 +96,21 @@ public class ConfigurationService : IConfigurationService
                 _logger.LogInformation("MonacoEditor.EnableDebug after parse: {EnableDebug}", Configuration.MonacoEditor.EnableDebug);
                 _logger.LogInformation("MonacoEditor.Theme after parse: {Theme}", Configuration.MonacoEditor.Theme);
 
+                var pendingReset = Configuration.PendingSettingsReset;
+                Configuration = SettingsReset.ApplyPending(Configuration);
+
                 // Validate the configuration
                 var validationErrors = ValidateConfiguration(Configuration);
                 if (validationErrors.Count <= 0)
                 {
                     if (upgraded)
-                    {
                         _logger.LogInformation("Upgraded configuration from version {Old} to {New}", savedVersion, Configuration.Version);
+
+                    if (pendingReset != PendingSettingsReset.None)
+                        _logger.LogInformation("Carried out the settings reset requested in Options: {Reset}", pendingReset);
+
+                    if (upgraded || pendingReset != PendingSettingsReset.None)
                         await SaveInternalAsync(cancellationToken);
-                    }
 
                     return Configuration;
                 }

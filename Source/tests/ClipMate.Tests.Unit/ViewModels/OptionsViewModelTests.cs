@@ -28,6 +28,7 @@ public class OptionsViewModelTests
     private GeneralOptionsViewModel _generalViewModel = null!;
     private HotkeysOptionsViewModel _hotkeysViewModel = null!;
     private IConfigurationService _mockConfigurationService = null!;
+    private IDialogService _mockDialogService = null!;
     private IHotkeyService _mockHotkeyService = null!;
     private ILogger<OptionsViewModel> _mockLogger = null!;
     private IMessenger _mockMessenger = null!;
@@ -44,6 +45,7 @@ public class OptionsViewModelTests
     public void Setup()
     {
         _mockConfigurationService = A.Fake<IConfigurationService>();
+        _mockDialogService = A.Fake<IDialogService>();
         _mockStartupManager = A.Fake<IStartupManager>();
         _mockMessenger = A.Fake<IMessenger>();
         _mockLogger = A.Fake<ILogger<OptionsViewModel>>();
@@ -122,7 +124,9 @@ public class OptionsViewModelTests
 
         _advancedViewModel = new AdvancedOptionsViewModel(
             _mockConfigurationService,
-            A.Fake<IDialogService>(),
+            _mockDialogService,
+            _mockProfileService,
+            _mockStartupManager,
             A.Fake<ILogger<AdvancedOptionsViewModel>>());
 
         _encryptionViewModel = new EncryptionOptionsViewModel();
@@ -293,6 +297,34 @@ public class OptionsViewModelTests
         // Assert
         await Assert.That(viewModel.ApplicationProfiles.ApplicationProfileNodes).IsEmpty();
         A.CallTo(() => _mockProfileService.DeleteAllProfilesAsync(CancellationToken.None)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task OkAfterResetEverything_DoesNotSaveTheProfilesBackOrTurnStartWithWindowsOn()
+    {
+        // Arrange
+        var profiles = new Dictionary<string, ApplicationProfile>
+        {
+            ["NOTEPAD"] = new() { ApplicationName = "NOTEPAD", Enabled = true },
+        };
+
+        A.CallTo(() => _mockProfileService.GetAllProfilesAsync(CancellationToken.None)).Returns(profiles);
+        A.CallTo(() => _mockStartupManager.IsEnabledAsync()).Returns((true, true, (string?)null));
+        A.CallTo(() => _mockStartupManager.DisableAsync()).Returns((true, (string?)null));
+        A.CallTo(() => _mockDialogService.ShowMessage(A<string>._, A<string>._, DialogButton.YesNo, A<DialogIcon>._))
+            .Returns(DialogResult.Yes);
+
+        var viewModel = CreateViewModel();
+        await viewModel.ApplicationProfiles.LoadApplicationProfilesCommand.ExecuteAsync(null);
+        await viewModel.General.LoadAsync();
+
+        // Act
+        await viewModel.Advanced.ResetEverythingCommand.ExecuteAsync(null);
+        await viewModel.OkCommand.ExecuteAsync(null);
+
+        // Assert
+        A.CallTo(() => _mockProfileService.UpdateProfileAsync(A<ApplicationProfile>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => _mockStartupManager.EnableAsync()).MustNotHaveHappened();
     }
 
     [Test]
