@@ -38,16 +38,31 @@ public class AppFixture : IAsyncDisposable
     /// <param name="settings">
     /// Settings to change first, as section.key=value with the value written as TOML: preferences.default_editor_view="Markdown".
     /// </param>
-    public async Task StartAppAsync(params string[] settings)
+    public Task StartAppAsync(params string[] settings) => StartAppAsync(new AppStartOptions { Settings = settings });
+
+    /// <summary>
+    /// Starts ClipMate as <paramref name="options" /> says and waits until its log reports that startup finished and
+    /// clipboard monitoring is running.
+    /// </summary>
+    public async Task StartAppAsync(AppStartOptions options)
     {
         if (_appProcess != null)
             return;
 
         Directory.CreateDirectory(DataDirectory);
-        if (settings.Length > 0)
-            await ApplySettingsAsync(settings);
+        if (options.Settings.Count > 0 || options.AfterFirstRun != null)
+        {
+            await RunFirstTimeAsync(options);
+            if (options.AfterFirstRun != null)
+                await options.AfterFirstRun(this);
 
-        _appProcess = StartProcess();
+            if (options.Settings.Count > 0)
+                await ApplySettingsAsync(options.Settings);
+
+            await Poll.UntilAsync(() => TryDelete(LogDirectory), "the first run's log to be deleted", TimeSpan.FromSeconds(5));
+        }
+
+        _appProcess = StartProcess(options);
 
         // The app is a separate process, so its startup can only be observed by polling its log until a deadline
         try
@@ -68,17 +83,22 @@ public class AppFixture : IAsyncDisposable
             throw new TimeoutException($"ClipMate did not finish starting within {_startupTimeout.TotalSeconds}s. Logs: {LogDirectory}");
         }
 
-        await WaitUntilCapturingAsync();
+        if (options.WaitUntilCapturing)
+            await WaitUntilCapturingAsync();
     }
 
-    private Process StartProcess()
+    private Process StartProcess(AppStartOptions options)
     {
-        var appPath = Path.Combine(AppContext.BaseDirectory, "ClipMate.App.exe");
+        var appPath = options.ExePath ?? Path.Combine(AppContext.BaseDirectory, "ClipMate.App.exe");
         if (!File.Exists(appPath))
-            throw new FileNotFoundException($"ClipMate.App.exe not found beside the tests at {appPath}. Build ClipMate.UITests first.");
+            throw new FileNotFoundException($"ClipMate.App.exe not found at {appPath}. Build ClipMate.UITests first.");
+
+        string[] arguments = options.SkipStartupCapture
+            ? ["--data-dir", DataDirectory, "--no-startup-capture"]
+            : ["--data-dir", DataDirectory];
 
         // The app also logs to its console; discard that copy (the log files are read below) so test output stays readable
-        var process = Process.Start(new ProcessStartInfo(appPath, ["--data-dir", DataDirectory])
+        var process = Process.Start(new ProcessStartInfo(appPath, arguments)
                       {
                           UseShellExecute = false,
                           RedirectStandardOutput = true,
@@ -94,26 +114,29 @@ public class AppFixture : IAsyncDisposable
     }
 
     /// <summary>
-    /// ClipMate rejects a settings file without its databases, so it is started once to write its defaults, which are
-    /// then changed. That run's log is removed, so startup is only ever read from the run under test.
+    /// Starts ClipMate once, until it has written its default settings and created its database, and stops it. ClipMate
+    /// rejects a settings file without its databases, so settings are changed after this run. Its log is removed before the
+    /// run under test, so startup is only ever read from that run.
     /// </summary>
-    private async Task ApplySettingsAsync(string[] settings)
+    public async Task RunFirstTimeAsync(AppStartOptions options)
     {
-        using (var first = StartProcess())
+        Directory.CreateDirectory(DataDirectory);
+        using var first = StartProcess(options);
+        try
         {
-            try
-            {
-                await Poll.UntilAsync(() => ReadLog().Contains("Initialization pipeline completed", StringComparison.Ordinal),
-                    "ClipMate's first run", _startupTimeout);
-            }
-            finally
-            {
-                // The tree includes the WebView2 processes
-                first.Kill(true);
-                await first.WaitForExitAsync();
-            }
+            await Poll.UntilAsync(() => ReadLog().Contains("Initialization pipeline completed", StringComparison.Ordinal),
+                "ClipMate's first run", _startupTimeout);
         }
+        finally
+        {
+            // The tree includes the WebView2 processes
+            first.Kill(true);
+            await first.WaitForExitAsync();
+        }
+    }
 
+    private async Task ApplySettingsAsync(IReadOnlyList<string> settings)
+    {
         var settingsPath = Path.Combine(DataDirectory, "clipmate.toml");
         var lines = (await File.ReadAllLinesAsync(settingsPath)).ToList();
         foreach (var setting in settings)
@@ -141,7 +164,6 @@ public class AppFixture : IAsyncDisposable
         }
 
         await File.WriteAllLinesAsync(settingsPath, lines);
-        await Poll.UntilAsync(() => TryDelete(LogDirectory), "the first run's log to be deleted", TimeSpan.FromSeconds(5));
     }
 
     /// <summary>
