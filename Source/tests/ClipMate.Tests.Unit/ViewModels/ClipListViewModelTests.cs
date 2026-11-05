@@ -159,6 +159,64 @@ public class ClipListViewModelTests
     }
 
     [Test]
+    public async Task SelectClipWithoutCopying_WhileAPickDuringPowerPasteWaits_KeepsThePick()
+    {
+        // Arrange: the sequence moving on just after the user clicked a clip, before the click is handled
+        var status = new PowerPasteStatus { IsActive = true };
+        using var viewModel = CreateViewModel(powerPasteStatus: status);
+        var picked = new Clip { Id = Guid.NewGuid() };
+        var next = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(picked);
+        viewModel.Clips.Add(next);
+        viewModel.SelectedClip = picked;
+
+        // Act
+        viewModel.SelectClipWithoutCopying(next.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(picked);
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_RightAfterAPickBeforePowerPasteStarted_SelectsTheClip()
+    {
+        // Arrange: a quick Ctrl+click and then the button, whose sequence starts at another clip
+        var status = new PowerPasteStatus();
+        using var viewModel = CreateViewModel(powerPasteStatus: status);
+        var picked = new Clip { Id = Guid.NewGuid() };
+        var start = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(picked);
+        viewModel.Clips.Add(start);
+        viewModel.SelectedClip = picked;
+        status.IsActive = true;
+
+        // Act
+        viewModel.SelectClipWithoutCopying(start.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(start);
+    }
+
+    [Test]
+    public async Task SelectClipWithoutCopying_TwiceDuringPowerPaste_FollowsTheSequence()
+    {
+        // Arrange: Power Paste's own moves are not picks, so they never hold each other up
+        var status = new PowerPasteStatus { IsActive = true };
+        using var viewModel = CreateViewModel(powerPasteStatus: status);
+        var first = new Clip { Id = Guid.NewGuid() };
+        var second = new Clip { Id = Guid.NewGuid() };
+        viewModel.Clips.Add(first);
+        viewModel.Clips.Add(second);
+
+        // Act
+        viewModel.SelectClipWithoutCopying(first.Id);
+        viewModel.SelectClipWithoutCopying(second.Id);
+
+        // Assert
+        await Assert.That(viewModel.SelectedClip).IsEqualTo(second);
+    }
+
+    [Test]
     public async Task SelectClipWithoutCopying_ClipNotInList_KeepsTheSelection()
     {
         // Arrange
@@ -847,19 +905,21 @@ public class ClipListViewModelTests
         await Assert.That(announced).IsFalse();
     }
 
-    private ClipListViewModel CreateViewModel(IMessenger messenger, IDatabases? databases = null) => new(
+    private ClipListViewModel CreateViewModel(IMessenger messenger, IDatabases? databases = null, PowerPasteStatus? powerPasteStatus = null) => new(
         _mockCollectionService,
         _mockFolderService,
         _mockClipService,
         A.Fake<ICurrentClipWriter>(),
         _mockQuickPasteService,
-        new PowerPasteStatus(),
+        powerPasteStatus ?? new PowerPasteStatus(),
         databases ?? _databases,
         _mockRemoteDatabases,
         messenger,
         _mockLogger);
 
     private ClipListViewModel CreateViewModel() => CreateViewModel(_mockMessenger);
+
+    private ClipListViewModel CreateViewModel(PowerPasteStatus powerPasteStatus) => CreateViewModel(_mockMessenger, powerPasteStatus: powerPasteStatus);
 
     [Test]
     public async Task Constructor_ShouldRegisterWithMessenger()

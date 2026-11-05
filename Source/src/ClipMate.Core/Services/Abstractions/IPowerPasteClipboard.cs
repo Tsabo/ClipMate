@@ -9,7 +9,8 @@ namespace ClipMate.Core.Services.Abstractions;
 public interface IPowerPasteClipboard
 {
     /// <summary>
-    /// Raised when an application read the offered Formats; it has been given all of them.
+    /// Raised when an application reads the offered Formats. It is given all of them afterward, unless a handler sets
+    /// <see cref="PowerPasteClipboardReadEventArgs.IsRefused" />.
     /// </summary>
     event EventHandler<PowerPasteClipboardReadEventArgs>? Read;
 

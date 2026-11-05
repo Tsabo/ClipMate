@@ -87,6 +87,18 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
         Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { SinceUserInput = TimeSpan.Zero, ReaderName = "msrdc" });
 
     /// <summary>
+    /// A named program in the background reads while the user does nothing.
+    /// </summary>
+    /// <returns>False when the program was refused the data.</returns>
+    public bool ReadInTheBackground(string readerName = "msrdc")
+    {
+        var read = new PowerPasteClipboardReadEventArgs { SinceUserInput = TimeSpan.FromHours(1), ReaderName = readerName };
+        Read?.Invoke(this, read);
+
+        return !read.IsRefused;
+    }
+
+    /// <summary>
     /// ClipMate itself reads, just after the user's input.
     /// </summary>
     public void ReadByClipMate() =>

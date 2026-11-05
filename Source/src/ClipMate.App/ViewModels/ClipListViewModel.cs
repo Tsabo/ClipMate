@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using ClipMate.App.Models;
 using ClipMate.Core.Events;
 using ClipMate.Core.Models;
@@ -165,6 +166,9 @@ public partial class ClipListViewModel : ObservableObject,
     /// setting <see cref="SelectedClip" /> was always clear by then, so every capture replaced the clipboard.
     /// </summary>
     private Guid? _clipNotToCopyOnSelection;
+
+    // The user picked a clip while Power Paste is on, and the pick has not been handled yet. See SelectClipWithoutCopying.
+    private bool _isPickPendingDuringPowerPaste;
 
     public ClipListViewModel(ICollectionService collectionService,
         IFolderService folderService,
@@ -882,12 +886,13 @@ public partial class ClipListViewModel : ObservableObject,
     /// Selects a clip of the list without copying it to the clipboard or treating it as the user's pick, as Power Paste
     /// does to show the clip waiting to be pasted. With several rows selected only the current clip moves, so a restart
     /// in the other direction still sees the whole sequence; with one, the highlighted row moves with it. Does nothing
-    /// if the clip is not in the list.
+    /// if the clip is not in the list, or while a pick made during Power Paste waits to be handled: replacing the
+    /// selection would lose the pick, and Power Paste follows it when it is handled.
     /// </summary>
     public void SelectClipWithoutCopying(Guid clipId)
     {
         var clip = Clips.FirstOrDefault(p => p.Id == clipId);
-        if (clip == null || clip == SelectedClip)
+        if (clip == null || clip == SelectedClip || _isPickPendingDuringPowerPaste)
             return;
 
         SetSelectedClipWithoutClipboardOperation(clip);
@@ -913,6 +918,9 @@ public partial class ClipListViewModel : ObservableObject,
 
         _previousSelectedClip = value;
 
+        // A pick made before Power Paste started is not one: the sequence it started goes first
+        _isPickPendingDuringPowerPaste = _powerPasteStatus.IsActive && value != null && value.Id != _clipNotToCopyOnSelection;
+
         _logger.LogInformation("[ClipListViewModel] SelectedClip changed to: {ClipId}, Title: {Title}, DatabaseKey: {DatabaseKey}",
             value?.Id, value?.DisplayTitle, CurrentDatabaseKey);
 
@@ -931,6 +939,8 @@ public partial class ClipListViewModel : ObservableObject,
         // Debouncer executes on background thread, so marshal to UI thread
         Application.Current.Dispatcher.InvokeAsync(() =>
         {
+            _isPickPendingDuringPowerPaste = false;
+
             var clip = SelectedClip;
             if (clip == null)
                 return;
@@ -958,7 +968,7 @@ public partial class ClipListViewModel : ObservableObject,
             // This is ClipMate's standard "Pick, Flip, and Paste" behavior
             _setClipboardCts = new CancellationTokenSource();
             _ = SetClipboardContentAsync(clip, _setClipboardCts.Token);
-        });
+        }, DispatcherPriority.DataBind); // After the grid's sync of this click (see GridControlSelectionSync), even on a stalled UI thread
     }
 
     /// <summary>

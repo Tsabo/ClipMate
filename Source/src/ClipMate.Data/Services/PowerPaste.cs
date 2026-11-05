@@ -41,15 +41,25 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     private static readonly TimeSpan _reOfferSettleTime = TimeSpan.FromMilliseconds(25);
 
     // Offering again changes the clipboard, and a reader that ignores the "ignore me" markers reads every change. Those
-    // bursts end by themselves, and holding offers back during one hides pastes, so the limit is well above a burst: it
-    // only keeps a reader that never stops from spinning with us. Offers beyond it wait for the interval.
+    // bursts usually end by themselves, and holding offers back during one hides pastes, so the limit is well above a
+    // burst: it only keeps a reader that never stops from spinning with us. Offers beyond it wait for the interval.
     private static readonly TimeSpan _reOfferInterval = TimeSpan.FromSeconds(1);
     private const int QuickReOffersPerInterval = 20;
 
+    // Remote Desktop's clipboard client, which WSLg also runs, can keep this up for as long as Power Paste is on: on a busy
+    // machine it read 15 times a second, below the limit above. Every offer wakes each clipboard monitor on the machine, and
+    // they hold the clipboard often enough that 5% of attempts to open it failed. A text box then pastes nothing, and a
+    // paste landing between a read and the next offer goes unnoticed. A named program reading this often is not doing it
+    // for the user, so it gets nothing until Power Paste next starts, which ends the changes that keep it reading.
+    private static readonly TimeSpan _endlessReaderWindow = TimeSpan.FromSeconds(2);
+    private const int EndlessReaderReads = 10;
+
+    private readonly Dictionary<string, Queue<DateTimeOffset>> _backgroundReads = [];
     private readonly IPowerPasteClipboard _clipboard;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly ICurrentClipWriter _currentClipWriter;
+    private readonly HashSet<string> _endlessReaders = [];
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<PowerPaste> _logger;
     private readonly Queue<DateTimeOffset> _recentReOffers = new();
@@ -496,6 +506,8 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
 
         _isHolding = true;
         _lastPasteAt = DateTimeOffset.MinValue;
+        _backgroundReads.Clear();
+        _endlessReaders.Clear();
         _clipboardService.SuspendCapture();
     }
 
@@ -609,6 +621,13 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         {
             // Clipboard history, another clipboard manager, ClipMate itself: it got the data, but the user has not pasted
             _logger.LogDebug("PowerPaste clipboard read by {ReaderProcess} is not a paste", e.ReaderName);
+            if (IsEndlessReader(e, now))
+            {
+                e.IsRefused = true;
+
+                return;
+            }
+
             ScheduleReOffer();
 
             return;
@@ -657,6 +676,34 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         return read.MayBeForForegroundApplication
                && read.SinceUserInput <= _inputBeforePaste
                && now - read.SinceUserInput >= _clipOfferedAt + _inputAfterOffer;
+    }
+
+    /// <summary>
+    /// True for a named background program that has read <see cref="EndlessReaderReads" /> times within
+    /// <see cref="_endlessReaderWindow" />. ClipMate needs its own reads, and a read without a process may be a paste.
+    /// </summary>
+    private bool IsEndlessReader(PowerPasteClipboardReadEventArgs read, DateTimeOffset now)
+    {
+        if (read.IsByClipMate || read.MayBeForForegroundApplication)
+            return false;
+
+        if (_endlessReaders.Contains(read.ReaderName))
+            return true;
+
+        if (!_backgroundReads.TryGetValue(read.ReaderName, out var reads))
+            _backgroundReads[read.ReaderName] = reads = new Queue<DateTimeOffset>();
+
+        reads.Enqueue(now);
+        while (now - reads.Peek() > _endlessReaderWindow)
+            reads.Dequeue();
+
+        if (reads.Count < EndlessReaderReads)
+            return false;
+
+        _logger.LogInformation("PowerPaste refusing {ReaderProcess}: it reads the clipboard after every offer", read.ReaderName);
+        _endlessReaders.Add(read.ReaderName);
+
+        return true;
     }
 
     private void OnClipboardLost(object? sender, EventArgs e)

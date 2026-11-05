@@ -214,10 +214,7 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
             "PowerPaste WM_RENDERFORMAT received for format {FormatId}, read by {ReaderProcess} while {ForegroundProcess} is in the foreground",
             formatId, reader.ProcessName, reader.ForegroundProcessName);
 
-        // Windows sends WM_RENDERFORMAT once per format; every Format is supplied now, whoever asked
-        SetFormats(true);
-
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs
+        var read = new PowerPasteClipboardReadEventArgs
         {
             IsByForegroundApplication = reader.IsForegroundApplication(OwnProcess.Id),
             MayBeForForegroundApplication = reader.MayBeForForegroundApplication,
@@ -225,7 +222,14 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
             IsClipMateInForeground = reader.ForegroundProcessId == OwnProcess.Id,
             SinceUserInput = TimeSpan.FromMilliseconds(_idleDetector.GetIdleTimeMilliseconds()),
             ReaderName = reader.ProcessName,
-        });
+        };
+
+        Read?.Invoke(this, read);
+
+        // Windows sends WM_RENDERFORMAT once per format; every Format is supplied now, whoever asked. A Format left without
+        // data stays delayed, and Windows asks again at the next read.
+        if (!read.IsRefused)
+            SetFormats(true);
     }
 
     private void OnRenderAllFormats(HWND hwnd)
