@@ -36,4 +36,10 @@ public class PowerPasteClipboardReadEventArgs : EventArgs
     /// The reading process, for the log.
     /// </summary>
     public string ReaderName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Set by a handler to give the reader nothing. The Formats stay offered by delayed rendering, so the clipboard does
+    /// not change and the next read is still heard.
+    /// </summary>
+    public bool IsRefused { get; set; }
 }

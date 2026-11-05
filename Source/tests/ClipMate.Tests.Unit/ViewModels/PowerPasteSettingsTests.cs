@@ -99,6 +99,30 @@ public class PowerPasteSettingsTests : TestFixtureBase
         await Assert.That(_configuration.Preferences.PowerPasteShield).IsTrue();
     }
 
+    [Test]
+    public async Task PowerPasteOptions_LoadAndSave_KeepTheHideFromOtherProgramsSetting()
+    {
+        // Arrange
+        _configuration.Preferences.PowerPasteHideFromOtherPrograms = true;
+        var options = new PowerPasteOptionsViewModel(_configurationService,
+            new OutboundFilterOptionsViewModel(_configurationService, A.Fake<ICurrentClipWriter>()), A.Fake<ILogger<PowerPasteOptionsViewModel>>());
+        options.LoadAsync();
+        await Assert.That(options.PowerPasteHideFromOtherPrograms).IsTrue();
+
+        // Act
+        options.SaveAsync();
+
+        // Assert
+        await Assert.That(_configuration.Preferences.PowerPasteHideFromOtherPrograms).IsTrue();
+
+        // Act - the default is off
+        options.ResetToDefaultsCommand.Execute(null);
+        options.SaveAsync();
+
+        // Assert
+        await Assert.That(_configuration.Preferences.PowerPasteHideFromOtherPrograms).IsFalse();
+    }
+
     private MainMenuViewModel CreateMainMenu()
     {
         var serviceProvider = A.Fake<IServiceProvider>();

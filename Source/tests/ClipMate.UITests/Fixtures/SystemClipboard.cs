@@ -77,7 +77,26 @@ public static partial class SystemClipboard
         return copy;
     });
 
-    public static void Restore(DataObject backup) => OnSta(() => Clipboard.SetDataObject(backup, true));
+    /// <summary>
+    /// Puts back what <see cref="Backup" /> copied. Each attempt retries for about a second by itself, which clipboard
+    /// monitors holding the clipboard can outlast on a busy machine, and this cleanup shouldn't fail the test.
+    /// </summary>
+    public static void Restore(DataObject backup) => OnSta(() =>
+    {
+        for (var attemptsLeft = 4; ; attemptsLeft--)
+        {
+            try
+            {
+                Clipboard.SetDataObject(backup, true);
+
+                return;
+            }
+            catch (COMException) when (attemptsLeft > 0)
+            {
+                // Still held; try again
+            }
+        }
+    });
 
     /// <summary>
     /// Names of the formats on the clipboard as Windows reports them (EnumClipboardFormats), so formats WPF would

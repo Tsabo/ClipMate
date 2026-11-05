@@ -21,6 +21,10 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     // Slower than the time Power Paste treats as the program reading the same paste again, like a person pasting
     private static readonly TimeSpan _pause = TimeSpan.FromMilliseconds(700);
 
+    // A click just after a paste comes in before the sequence moves on, and is handled after it: the 400 ms that a selection
+    // takes to settle spans this delay
+    private const string _slowToMoveOn = "preferences.power_paste_delay=300";
+
     // Pasting "very rapidly", as the manual puts it, but slower than a program's re-read
     private static readonly TimeSpan _fastPause = TimeSpan.FromMilliseconds(350);
 
@@ -136,12 +140,18 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     }
 
     [Test]
-    public async Task PastingFast_EachPasteAdvances()
+    public async Task PastingFast_EachPasteAdvances() => await PasteThreeClipsFastAsync(_goingDown);
+
+    [Test]
+    public async Task PastingFast_WithClipsHiddenFromOtherPrograms_EachPasteAdvances() =>
+        await PasteThreeClipsFastAsync(_goingDown, "preferences.power_paste_hide_from_other_programs=true");
+
+    private async Task PasteThreeClipsFastAsync(params string[] settings)
     {
         var backup = SystemClipboard.Backup();
         try
         {
-            var clipList = await CopyThreeClipsAsync(_goingDown);
+            var clipList = await CopyThreeClipsAsync(settings);
             await SelectAndWaitForCopyAsync(clipList, _third);
 
             clipList.ClickToolbarButton("PowerPaste");
@@ -160,12 +170,19 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     }
 
     [Test]
-    public async Task ClickingAClipOutsideTheSequence_GoesBackToItsStart()
+    public async Task ClickingAClipOutsideTheSequence_GoesBackToItsStart() =>
+        await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown);
+
+    [Test]
+    public async Task ClickingAClipOutsideTheSequence_JustBeforeTheNextClipComesUp_GoesBackToItsStart() =>
+        await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown, _slowToMoveOn);
+
+    private async Task PasteThenClickAClipOutsideTheSequenceAsync(params string[] settings)
     {
         var backup = SystemClipboard.Backup();
         try
         {
-            var clipList = await CopyThreeClipsAsync(_goingDown);
+            var clipList = await CopyThreeClipsAsync(settings);
             await SelectAndWaitForCopyAsync(clipList, _third);
             await clipList.AddToSelectionAsync(_second);
             await Poll.UntilAsync(() => SystemClipboard.IsOwnedBy(appFixture.Process) && SystemClipboard.TryReadText(IntPtr.Zero) == _second,

@@ -41,15 +41,30 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     private static readonly TimeSpan _reOfferSettleTime = TimeSpan.FromMilliseconds(25);
 
     // Offering again changes the clipboard, and a reader that ignores the "ignore me" markers reads every change. Those
-    // bursts end by themselves, and holding offers back during one hides pastes, so the limit is well above a burst: it
-    // only keeps a reader that never stops from spinning with us. Offers beyond it wait for the interval.
+    // bursts usually end by themselves, and holding offers back during one hides pastes, so the limit is well above a
+    // burst: it only keeps a reader that never stops from spinning with us. Offers beyond it wait for the interval.
     private static readonly TimeSpan _reOfferInterval = TimeSpan.FromSeconds(1);
     private const int QuickReOffersPerInterval = 20;
 
+    // An offer that couldn't open the clipboard leaves the last clip rendered there, and pastes repeat it unnoticed until an
+    // offer gets through, so it is tried until then. Each try holds up the UI thread while it waits for the clipboard, so
+    // the tries are spaced out in case a program never lets go of it.
+    private static readonly TimeSpan _offerRetryInterval = TimeSpan.FromMilliseconds(500);
+
+    // Remote Desktop's clipboard client, which WSLg also runs, can keep this up for as long as Power Paste is on: on a busy
+    // machine it read 15 times a second, below the limit above. Every offer wakes each clipboard monitor on the machine, and
+    // they hold the clipboard often enough that 5% of attempts to open it failed. A text box then pastes nothing, and a
+    // paste landing between a read and the next offer goes unnoticed. A named program reading this often is not doing it
+    // for the user, so it gets nothing until Power Paste next starts, which ends the changes that keep it reading.
+    private static readonly TimeSpan _endlessReaderWindow = TimeSpan.FromSeconds(2);
+    private const int EndlessReaderReads = 10;
+
+    private readonly Dictionary<string, Queue<DateTimeOffset>> _backgroundReads = [];
     private readonly IPowerPasteClipboard _clipboard;
     private readonly IClipboardService _clipboardService;
     private readonly IConfigurationService _configurationService;
     private readonly ICurrentClipWriter _currentClipWriter;
+    private readonly HashSet<string> _endlessReaders = [];
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly ILogger<PowerPaste> _logger;
     private readonly Queue<DateTimeOffset> _recentReOffers = new();
@@ -496,6 +511,8 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
 
         _isHolding = true;
         _lastPasteAt = DateTimeOffset.MinValue;
+        _backgroundReads.Clear();
+        _endlessReaders.Clear();
         _clipboardService.SuspendCapture();
     }
 
@@ -545,7 +562,31 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         if (_clipboard.Offer(formats))
             _logger.LogInformation("PowerPaste offered clip {ClipId} in {FormatCount} format(s)", clip.Id, formats.Count);
         else
+        {
             _logger.LogWarning("PowerPaste could not open the clipboard to offer clip {ClipId}", clip.Id);
+            ScheduleOfferRetry(clip.Id, formats);
+        }
+    }
+
+    private void ScheduleOfferRetry(Guid clipId, IReadOnlyList<ClipboardFormatData> formats)
+    {
+        var generation = _generation;
+        _ = Task.Delay(_offerRetryInterval, _timeProvider)
+            .ContinueWith(_ => OnUiThread(() => RetryOffer(generation, clipId, formats)),
+                CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private void RetryOffer(int generation, Guid clipId, IReadOnlyList<ClipboardFormatData> formats)
+    {
+        // The next clip was offered, or Power Paste stopped, meanwhile
+        if (generation != _generation)
+            return;
+
+        _clipOfferedAt = _timeProvider.GetUtcNow();
+        if (_clipboard.Offer(formats))
+            _logger.LogInformation("PowerPaste offered clip {ClipId} in {FormatCount} format(s) after trying again", clipId, formats.Count);
+        else
+            ScheduleOfferRetry(clipId, formats);
     }
 
     /// <summary>
@@ -609,6 +650,13 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         {
             // Clipboard history, another clipboard manager, ClipMate itself: it got the data, but the user has not pasted
             _logger.LogDebug("PowerPaste clipboard read by {ReaderProcess} is not a paste", e.ReaderName);
+            if (IsHiddenFrom(e) || IsEndlessReader(e, now))
+            {
+                e.IsRefused = true;
+
+                return;
+            }
+
             ScheduleReOffer();
 
             return;
@@ -659,6 +707,41 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
                && now - read.SinceUserInput >= _clipOfferedAt + _inputAfterOffer;
     }
 
+    /// <summary>
+    /// True when the user chose to hide clips from programs in the background. ClipMate needs its own reads, and a read
+    /// without a process may be a paste.
+    /// </summary>
+    private bool IsHiddenFrom(PowerPasteClipboardReadEventArgs read) =>
+        Preferences.PowerPasteHideFromOtherPrograms && !read.IsByClipMate && !read.MayBeForForegroundApplication;
+
+    /// <summary>
+    /// True for a named background program that has read <see cref="EndlessReaderReads" /> times within
+    /// <see cref="_endlessReaderWindow" />. ClipMate needs its own reads, and a read without a process may be a paste.
+    /// </summary>
+    private bool IsEndlessReader(PowerPasteClipboardReadEventArgs read, DateTimeOffset now)
+    {
+        if (read.IsByClipMate || read.MayBeForForegroundApplication)
+            return false;
+
+        if (_endlessReaders.Contains(read.ReaderName))
+            return true;
+
+        if (!_backgroundReads.TryGetValue(read.ReaderName, out var reads))
+            _backgroundReads[read.ReaderName] = reads = new Queue<DateTimeOffset>();
+
+        reads.Enqueue(now);
+        while (now - reads.Peek() > _endlessReaderWindow)
+            reads.Dequeue();
+
+        if (reads.Count < EndlessReaderReads)
+            return false;
+
+        _logger.LogInformation("PowerPaste refusing {ReaderProcess}: it reads the clipboard after every offer", read.ReaderName);
+        _endlessReaders.Add(read.ReaderName);
+
+        return true;
+    }
+
     private void OnClipboardLost(object? sender, EventArgs e)
     {
         _logger.LogInformation("PowerPaste clipboard taken by another program - stopping PowerPaste");
@@ -706,24 +789,24 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
     /// <summary>
     /// Offers the waiting clip again once the reader is done with the clipboard: after <see cref="_reOfferSettleTime" />,
     /// or later when it was already offered again <see cref="QuickReOffersPerInterval" /> times within
-    /// <see cref="_reOfferInterval" />.
+    /// <see cref="_reOfferInterval" />, or after <paramref name="wait" /> when given.
     /// </summary>
-    private void ScheduleReOffer()
+    private void ScheduleReOffer(TimeSpan? wait = null)
     {
         if (_reOfferPending)
             return;
 
         _reOfferPending = true;
         var generation = _generation;
-        var wait = _reOfferSettleTime;
+        var delay = wait ?? _reOfferSettleTime;
         if (_recentReOffers.Count == QuickReOffersPerInterval)
         {
             var throttled = _recentReOffers.Peek() + _reOfferInterval - _timeProvider.GetUtcNow();
-            if (throttled > wait)
-                wait = throttled;
+            if (throttled > delay)
+                delay = throttled;
         }
 
-        _ = Task.Delay(wait, _timeProvider)
+        _ = Task.Delay(delay, _timeProvider)
             .ContinueWith(_ => OnUiThread(() => ReOffer(generation)),
                 CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
@@ -742,7 +825,10 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         if (_clipboard.OfferAgain())
             _logger.LogDebug("PowerPaste offered clip {ClipId} again after a read that was not a paste", _waitingClip?.Id);
         else
+        {
             _logger.LogWarning("PowerPaste could not offer clip {ClipId} again", _waitingClip?.Id);
+            ScheduleReOffer(_offerRetryInterval);
+        }
     }
 
     /// <summary>

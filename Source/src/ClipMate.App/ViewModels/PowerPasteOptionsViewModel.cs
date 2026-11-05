@@ -20,6 +20,9 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
     private bool _powerPasteExplode;
 
     [ObservableProperty]
+    private bool _powerPasteHideFromOtherPrograms;
+
+    [ObservableProperty]
     private bool _powerPasteIncludeDelimiter;
 
     [ObservableProperty]
@@ -57,6 +60,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteIncludeDelimiter = config.PowerPasteIncludeDelimiter;
         PowerPasteLoop = config.PowerPasteLoop;
         PowerPasteShield = config.PowerPasteShield;
+        PowerPasteHideFromOtherPrograms = config.PowerPasteHideFromOtherPrograms;
         PowerPasteExplode = config.PowerPasteExplode;
         OutboundFilter.Load();
 
@@ -75,6 +79,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         config.PowerPasteIncludeDelimiter = PowerPasteIncludeDelimiter;
         config.PowerPasteLoop = PowerPasteLoop;
         config.PowerPasteShield = PowerPasteShield;
+        config.PowerPasteHideFromOtherPrograms = PowerPasteHideFromOtherPrograms;
         config.PowerPasteExplode = PowerPasteExplode;
         OutboundFilter.Save();
 
@@ -92,6 +97,7 @@ public partial class PowerPasteOptionsViewModel : ObservableObject
         PowerPasteIncludeDelimiter = false;
         PowerPasteLoop = false;
         PowerPasteShield = true;
+        PowerPasteHideFromOtherPrograms = false;
         PowerPasteExplode = false;
         OutboundFilter.ResetToDefaults();
 
