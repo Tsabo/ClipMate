@@ -46,6 +46,60 @@ public class EditMenuCaseConversionTests(AppFixture appFixture)
     }
 
     [Test]
+    public async Task Uppercase_ConvertsAClipJustCaptured()
+    {
+        var text = $"Just captured {_id}";
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: a clip ClipMate selected by itself when capturing it
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+            await CopyUntilListedAsync(clipList, text);
+            await Poll.UntilAsync(() => clipList.IsSelected(text), "the captured clip to be selected");
+
+            // Act
+            await clipList.ClickMenuItemAsync("Edit", "Case Conversion", "UPPER CASE");
+
+            // Assert
+            await Poll.UntilAsync(() => SavedTextIs(text.ToUpperInvariant()), "the clip's saved text to be converted");
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    [Test]
+    public async Task Uppercase_ConvertsTheClipJustCaptured_NotTheOneSelectedBefore()
+    {
+        var earlier = $"Earlier clip {_id}";
+        var captured = $"Captured clip {_id}";
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: a clip the user selected, then a newer capture
+            await appFixture.StartAppAsync();
+            var clipList = new ClipListPage(appFixture.Process);
+            await CopyUntilListedAsync(clipList, earlier);
+            await clipList.SelectAsync(earlier);
+            await CopyUntilListedAsync(clipList, captured);
+            await Poll.UntilAsync(() => clipList.IsSelected(captured), "the captured clip to be selected");
+
+            // Act
+            await clipList.ClickMenuItemAsync("Edit", "Case Conversion", "UPPER CASE");
+
+            // Assert: the capture is converted, and the earlier clip is left alone
+            await Poll.UntilAsync(() => SavedTextIs(captured.ToUpperInvariant()), "the captured clip to be converted");
+            await Assert.That(SavedTextIs(earlier)).IsTrue();
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    [Test]
     public async Task Shortcut_ConvertsTheSelectedClip()
     {
         var text = $"Mixed Text {_id}";
