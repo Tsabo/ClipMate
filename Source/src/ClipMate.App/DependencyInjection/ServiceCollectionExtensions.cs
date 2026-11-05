@@ -108,6 +108,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<AboutDialogViewModel>();
 
         // Register Text Cleanup dialog (no ViewModel - uses code-behind)
+        services.AddTransient<TextCleanupDialogViewModel>();
         services.AddTransient<TextCleanupDialog>();
 
         // Register Print Preview dialog (uses code-behind, no ViewModel)

@@ -45,6 +45,8 @@ Common cleanup tasks:
 - Change case for consistency
 - Find and replace unwanted characters
 
+To do these for whole clips, without opening the editor, see [Clean up the text of clips](../user-interface/preview-edit/clean-up-text.md).
+
 ## 5.4 Advanced Editing
 
 - **Rectangular Selection** — Hold **Alt** while dragging for column selection

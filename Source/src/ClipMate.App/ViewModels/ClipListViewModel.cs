@@ -875,19 +875,27 @@ public partial class ClipListViewModel : ObservableObject,
     /// <summary>
     /// Sets the SelectedClip property while temporarily suppressing clipboard operations.
     /// Use this during initial load/navigation to prevent unwanted clipboard side effects.
+    /// With several rows selected only the current clip moves, so a Power Paste restart in the other direction still sees
+    /// the whole sequence; with one or none, the selection moves with it, so commands act on the clip shown.
     /// </summary>
     private void SetSelectedClipWithoutClipboardOperation(Clip? clip)
     {
         _clipNotToCopyOnSelection = clip?.Id;
         SelectedClip = clip;
+
+        if (SelectedClips.Count > 1)
+            return;
+
+        SelectedClips.Clear();
+        if (clip != null)
+            SelectedClips.Add(clip);
     }
 
     /// <summary>
     /// Selects a clip of the list without copying it to the clipboard or treating it as the user's pick, as Power Paste
-    /// does to show the clip waiting to be pasted. With several rows selected only the current clip moves, so a restart
-    /// in the other direction still sees the whole sequence; with one, the highlighted row moves with it. Does nothing
-    /// if the clip is not in the list, or while a pick made during Power Paste waits to be handled: replacing the
-    /// selection would lose the pick, and Power Paste follows it when it is handled.
+    /// does to show the clip waiting to be pasted. Does nothing if the clip is not in the list, or while a pick made during
+    /// Power Paste waits to be handled: replacing the selection would lose the pick, and Power Paste follows it when it is
+    /// handled.
     /// </summary>
     public void SelectClipWithoutCopying(Guid clipId)
     {
@@ -896,12 +904,6 @@ public partial class ClipListViewModel : ObservableObject,
             return;
 
         SetSelectedClipWithoutClipboardOperation(clip);
-
-        if (SelectedClips.Count <= 1)
-        {
-            SelectedClips.Clear();
-            SelectedClips.Add(clip);
-        }
     }
 
     /// <summary>

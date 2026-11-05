@@ -1,126 +1,41 @@
-using System.Text.RegularExpressions;
-using System.Windows.Controls;
-using ClipMate.Core.Models;
-using ClipMate.Core.Services;
-using Microsoft.Extensions.Logging;
+using ClipMate.App.ViewModels;
+using ClipMate.Core.Models.Configuration;
 using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.Views.Dialogs;
 
 /// <summary>
-/// Text Cleanup dialog for advanced text transformations.
+/// Text Cleanup Options dialog: the choices for cleaning up the text of clips.
 /// </summary>
 public partial class TextCleanupDialog
 {
-    private readonly ILogger<TextCleanupDialog> _logger;
-    private readonly TextTransformService _textTransformService;
-    private string _inputText = string.Empty;
+    private readonly TextCleanupDialogViewModel _viewModel;
 
-    public TextCleanupDialog(TextTransformService textTransformService, ILogger<TextCleanupDialog> logger)
+    public TextCleanupDialog(TextCleanupDialogViewModel viewModel)
     {
+        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        DataContext = viewModel;
         InitializeComponent();
-        _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        // Wire up Apply button click
-        ApplyButton.Click += ApplyButton_Click;
-        CancelButton.Click += CancelButton_Click;
+        OkButton.Click += OkButton_Click;
     }
 
     /// <summary>
-    /// Gets the result text after cleanup operations.
+    /// Gets the choices made in the dialog.
     /// </summary>
-    public string? ResultText { get; private set; }
+    public TextCleanupConfiguration Options => _viewModel.Options;
 
-    /// <summary>
-    /// Sets the input text to be cleaned up.
-    /// </summary>
-    public void SetInputText(string text) => _inputText = text;
-
-    private void ApplyButton_Click(object sender, RoutedEventArgs e)
+    private void OkButton_Click(object sender, RoutedEventArgs e)
     {
-        try
+        var problem = _viewModel.Validate();
+        if (problem != null)
         {
-            var result = _inputText;
-
-            // Step 1: Strip characters
-            if (!string.IsNullOrEmpty(CharactersToStripTextEdit.Text))
-            {
-                var selectedItem = (ComboBoxItem?)StripPositionComboBox.SelectedItem;
-                var position = selectedItem?.Tag?.ToString() switch
-                {
-                    "Leading" => StripPosition.Leading,
-                    "Trailing" => StripPosition.Trailing,
-                    "Anywhere" => StripPosition.Anywhere,
-                    var _ => StripPosition.Leading,
-                };
-
-                result = _textTransformService.StripCharacters(result, CharactersToStripTextEdit.Text, position);
-            }
-
-            if (StripWhitespaceCheckBox.IsChecked == true)
-                result = result.Trim();
-
-            // Step 2: Formatting
-            if (RemoveExtraSpacesCheckBox.IsChecked == true)
-                result = Regex.Replace(result, @"\s+", " ");
-
-            if (TrimLinesCheckBox.IsChecked == true)
-                result = _textTransformService.TrimText(result);
-
-            if (RemoveExtraLineBreaksCheckBox.IsChecked == true)
-            {
-                var selectedItem = (ComboBoxItem?)LineBreakModeComboBox.SelectedItem;
-                var mode = selectedItem?.Tag?.ToString() switch
-                {
-                    "PreserveParagraphs" => LineBreakMode.PreserveParagraphs,
-                    "RemoveAll" => LineBreakMode.RemoveAll,
-                    var _ => LineBreakMode.PreserveParagraphs,
-                };
-
-                result = _textTransformService.RemoveLineBreaks(result, mode);
-            }
-
-            // Step 3: Case conversion
-            var caseItem = (ComboBoxItem?)CaseConversionComboBox.SelectedItem;
-            CaseConversion? caseConversion = caseItem?.Tag?.ToString() switch
-            {
-                "Uppercase" => CaseConversion.Uppercase,
-                "Lowercase" => CaseConversion.Lowercase,
-                "TitleCase" => CaseConversion.TitleCase,
-                "SentenceCase" => CaseConversion.SentenceCase,
-                "InvertCase" => CaseConversion.InvertCase,
-                var _ => null,
-            };
-
-            if (caseConversion.HasValue)
-                result = _textTransformService.ConvertCase(result, caseConversion.Value);
-
-            // Step 4: Find and replace
-            if (!string.IsNullOrEmpty(FindTextEdit.Text))
-            {
-                result = _textTransformService.FindAndReplace(
-                    result,
-                    FindTextEdit.Text,
-                    ReplaceTextEdit.Text ?? string.Empty,
-                    UseRegexCheckBox.IsChecked == true,
-                    CaseSensitiveCheckBox.IsChecked == true);
-            }
-
-            ResultText = result;
-            DialogResult = true;
-            Close();
+            MessageBox.Show(this, problem, "Text Cleanup Options", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error applying text cleanup");
-            MessageBox.Show($"Error applying text cleanup: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
-    private void CancelButton_Click(object sender, RoutedEventArgs e)
-    {
-        DialogResult = false;
+        _ = _viewModel.SaveAsync();
+        DialogResult = true;
         Close();
     }
 }

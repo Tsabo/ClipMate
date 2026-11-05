@@ -98,6 +98,8 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
             _mockMessenger,
             _databases,
             _mockServiceProvider,
+            A.Fake<ICurrentClipWriter>(),
+            new TextTransformService(),
             A.Fake<ILogger<ClipOperationsCoordinator>>());
 
         // Clear any cached keys

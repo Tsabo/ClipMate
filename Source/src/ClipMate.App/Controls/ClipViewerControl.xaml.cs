@@ -1693,19 +1693,17 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
                 // Set owner to prevent focus issues
                 dialog.Owner = Application.Current.GetDialogOwner();
 
-                // Set input text
-                dialog.SetInputText(currentText);
-
                 // Show dialog and get result
                 var result = dialog.ShowDialog();
 
-                if (result == true && !string.IsNullOrEmpty(dialog.ResultText))
+                if (result == true)
                 {
                     // Apply cleaned text to editor
                     Dispatcher.InvokeAsync(async () =>
                     {
-                        await TextEditor.SetTextAsync(dialog.ResultText);
-                        _logger.LogInformation("Text cleanup applied - {Length} characters", dialog.ResultText.Length);
+                        var cleaned = _textTransformService.CleanUpText(currentText, dialog.Options);
+                        await TextEditor.SetTextAsync(cleaned);
+                        _logger.LogInformation("Text cleanup applied - {Length} characters", cleaned.Length);
                     });
                 }
             });

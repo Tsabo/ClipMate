@@ -5,6 +5,7 @@ using ClipMate.Core.Models;
 using ClipMate.Core.Models.Search;
 using ClipMate.Core.Repositories;
 using ClipMate.Data.Dapper;
+using ClipMate.Platform.Helpers;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -375,6 +376,55 @@ public class ClipRepository : IClipRepository
         await LoadFormatFlagsAsync([clip], cancellationToken);
 
         return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<Clip?> TransformTextAsync(Guid clipId, Func<string, string> transform, Func<string, string>? titleTransform, CancellationToken cancellationToken = default)
+    {
+        var clip = await _context.Clips.FirstOrDefaultAsync(p => p.Id == clipId && !p.Del, cancellationToken);
+        if (clip == null || clip.Encrypted)
+            return null;
+
+        var clipDataEntries = await _context.ClipData
+            .Where(p => p.ClipId == clipId)
+            .ToListAsync(cancellationToken);
+
+        var textEntries = clipDataEntries
+            .Where(p => p.StorageType == StorageType.Text && (p.Format == Formats.UnicodeText.Code || p.Format == Formats.Text.Code))
+            .ToList();
+
+        var textEntryIds = textEntries.Select(p => p.Id).ToList();
+        var blobs = await _context.BlobTxt
+            .Where(p => textEntryIds.Contains(p.ClipDataId))
+            .ToListAsync(cancellationToken);
+
+        if (blobs.Count == 0)
+            return null;
+
+        foreach (var blob in blobs)
+        {
+            blob.Data = transform(blob.Data);
+            textEntries.First(p => p.Id == blob.ClipDataId).Size = blob.Data.Length * 2;
+        }
+
+        // Each removal cascades to its blob row
+        _context.ClipData.RemoveRange(clipDataEntries.Except(textEntries));
+
+        var hash = ContentHasher.HashText(blobs[0].Data);
+        clip.ContentHash = hash;
+        clip.Checksum = ContentHasher.Checksum(hash);
+        clip.Size = textEntries.Sum(p => p.Size);
+        clip.Type = ClipType.Text;
+        clip.LastModified = DateTimeOffset.Now;
+        if (clip.Title != null && titleTransform != null)
+            clip.Title = titleTransform(clip.Title);
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Refresh cached format flags (HasFiles/HasText/IconGlyph) to reflect the removed formats immediately.
+        await LoadFormatFlagsAsync([clip], cancellationToken);
+
+        return clip;
     }
 
     /// <inheritdoc />
