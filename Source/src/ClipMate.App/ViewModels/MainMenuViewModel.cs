@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Windows.Input;
 using ClipMate.App.Models.TreeNodes;
 using ClipMate.App.Services;
 using ClipMate.App.Views.Dialogs;
@@ -549,7 +550,13 @@ public partial class MainMenuViewModel : ObservableObject,
     private void ShiftRight() { } // Deferred to Step 6
 
     [RelayCommand]
-    private void RemoveLineBreaks() => _messenger.Send(new RemoveLineBreaksRequestedEvent());
+    private void RemoveLineBreaks()
+    {
+        // Ctrl without Alt, so that the Ctrl+Alt+B shortcut isn't taken for it
+        var modifiers = Keyboard.Modifiers;
+        var removeAll = modifiers.HasFlag(ModifierKeys.Control) && !modifiers.HasFlag(ModifierKeys.Alt);
+        _messenger.Send(new RemoveLineBreaksRequestedEvent(removeAll, modifiers.HasFlag(ModifierKeys.Shift)));
+    }
 
     [RelayCommand]
     private void CheckSpelling() { } // Deferred to Step 6

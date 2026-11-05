@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClipMate.Core.Models;
+using ClipMate.Core.Models.Configuration;
 
 namespace ClipMate.Core.Services;
 
@@ -277,20 +278,56 @@ public class TextTransformService
     /// </summary>
     /// <param name="text">The text to process.</param>
     /// <param name="mode">The line break removal mode.</param>
+    /// <param name="joinWithoutSpaces">Joins lines with nothing between them, instead of with a space.</param>
     /// <returns>The text with line breaks removed.</returns>
-    public string RemoveLineBreaks(string? text, LineBreakMode mode)
+    public string RemoveLineBreaks(string? text, LineBreakMode mode, bool joinWithoutSpaces = false)
     {
         if (string.IsNullOrEmpty(text))
             return text ?? string.Empty;
 
         return mode switch
         {
-            LineBreakMode.PreserveParagraphs => Regex.Replace(text, @"(?<!\n)\n(?!\n)", " "),
-            LineBreakMode.RemoveAll => text.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " "),
+            LineBreakMode.PreserveParagraphs => JoinLines(text, false, joinWithoutSpaces),
+            LineBreakMode.RemoveAll => JoinLines(text, true, joinWithoutSpaces),
             LineBreakMode.UrlCrunch => RemoveUrlLineBreaks(text),
             _ => text
         };
     }
+
+    /// <summary>
+    /// Runs the Text Cleanup Options dialog's choices on text: strips characters from each line, removes line breaks,
+    /// changes case, re-breaks lines, finds and replaces, then starts each line with the chosen text.
+    /// </summary>
+    /// <exception cref="ArgumentException">The find text is an invalid regular expression.</exception>
+    public string CleanUpText(string? text, TextCleanupConfiguration options)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text ?? string.Empty;
+
+        var result = StripLineCharacters(text, options);
+
+        if (options.LineBreaks != TextCleanupLineBreaks.NoChange)
+            result = JoinLines(result, options.LineBreaks == TextCleanupLineBreaks.All, false);
+
+        result = ConvertCleanupCase(result, options.Case);
+
+        if (options.ReBreak)
+            result = ReBreakLines(result, options.ReBreakColumn);
+
+        result = CleanupFindReplace(result, options);
+
+        if (options.ReQuote)
+            result = MapLines(result, p => options.ReQuoteText + p);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Runs the Text Cleanup Options dialog's choices that also apply to a clip's title: the case change, and find and replace.
+    /// </summary>
+    /// <exception cref="ArgumentException">The find text is an invalid regular expression.</exception>
+    public string CleanUpTitle(string title, TextCleanupConfiguration options) =>
+        CleanupFindReplace(ConvertCleanupCase(title, options.Case), options);
 
     /// <summary>
     /// Trims leading and trailing whitespace from each line.
@@ -355,6 +392,182 @@ public class TextTransformService
         }
 
         return result.ToString();
+    }
+
+    private static string JoinLines(string text, bool removeAll, bool joinWithoutSpaces)
+    {
+        var source = CollapseSpaces(text);
+        var result = new StringBuilder(source.Length);
+        var index = 0;
+        while (index < source.Length)
+        {
+            var breakLength = LineBreakLengthAt(source, index);
+            if (breakLength == 0)
+            {
+                result.Append(source[index++]);
+                continue;
+            }
+
+            // A blank line ends a paragraph: keep all of its line breaks
+            if (!removeAll && LineBreakLengthAt(source, index + breakLength) > 0)
+            {
+                while (index < source.Length && source[index] is '\r' or '\n')
+                    result.Append(source[index++]);
+
+                continue;
+            }
+
+            if (index > 0)
+            {
+                var endsWithSpace = source[index - 1] == ' ';
+                if (joinWithoutSpaces && endsWithSpace)
+                    result.Length--;
+                else if (!joinWithoutSpaces && !endsWithSpace)
+                    result.Append(' ');
+            }
+
+            index += breakLength;
+        }
+
+        return result.ToString();
+    }
+
+    private static int LineBreakLengthAt(string text, int index)
+    {
+        if (index >= text.Length)
+            return 0;
+
+        return text[index] switch
+        {
+            '\r' when index + 1 < text.Length && text[index + 1] == '\n' => 2,
+            '\r' or '\n' => 1,
+            _ => 0,
+        };
+    }
+
+    /// <summary>
+    /// Removes the spaces that start the text or a line, and shortens each run of spaces to one, or to two after a period.
+    /// </summary>
+    private static string CollapseSpaces(string text)
+    {
+        var result = new StringBuilder(text.Length);
+        var index = 0;
+        while (index < text.Length && text[index] == ' ')
+            index++;
+
+        while (index < text.Length)
+        {
+            var isSkipped = text[index] == ' ' && index > 0 &&
+                            (text[index - 1] == '\n' || (text[index - 1] == ' ' && (index < 2 || text[index - 2] != '.')));
+
+            if (!isSkipped)
+            {
+                result.Append(text[index++]);
+                continue;
+            }
+
+            while (index < text.Length && text[index] == ' ')
+                index++;
+        }
+
+        return result.ToString();
+    }
+
+    private static string StripLineCharacters(string text, TextCleanupConfiguration options)
+    {
+        var leading = options.Leading.ToCharacters().ToCharArray();
+        var anywhere = options.Anywhere.ToCharacters();
+        var trailing = options.Trailing.ToCharacters().ToCharArray();
+
+        return MapLines(text, line =>
+        {
+            // With no characters, Trim would remove white space instead
+            var result = leading.Length > 0 ? line.TrimStart(leading) : line;
+            if (anywhere.Length > 0)
+                result = StripCharactersAnywhere(result, anywhere);
+
+            return trailing.Length > 0 ? result.TrimEnd(trailing) : result;
+        });
+    }
+
+    private string ConvertCleanupCase(string text, TextCleanupCase cleanupCase) =>
+        cleanupCase switch
+        {
+            TextCleanupCase.Lower => ConvertCase(text, CaseConversion.Lowercase),
+            TextCleanupCase.Upper => ConvertCase(text, CaseConversion.Uppercase),
+            TextCleanupCase.Mixed => ConvertCase(text, CaseConversion.TitleCase),
+            TextCleanupCase.Sentence => ConvertCase(text, CaseConversion.SentenceCase),
+            TextCleanupCase.Invert => ConvertCase(text, CaseConversion.InvertCase),
+            _ => text,
+        };
+
+    /// <summary>
+    /// Word-wraps each line at <paramref name="column" />, breaking after a space, tab or hyphen. A word too long for the
+    /// column stays whole. More than one blank line in a row becomes one.
+    /// </summary>
+    private static string ReBreakLines(string text, int column)
+    {
+        var lineBreak = text.Contains('\n') && !text.Contains("\r\n", StringComparison.Ordinal) ? "\n" : "\r\n";
+        var wrapped = MapLines(text, line => WrapLine(line, column, lineBreak));
+        return wrapped.Replace(lineBreak + lineBreak + lineBreak, lineBreak + lineBreak, StringComparison.Ordinal);
+    }
+
+    private static string WrapLine(string line, int column, string lineBreak)
+    {
+        var result = new StringBuilder(line.Length);
+        var start = 0;
+        while (line.Length - start > column)
+        {
+            var breakAt = line.AsSpan(start, column).LastIndexOfAny(" \t-");
+            if (breakAt < 0)
+            {
+                breakAt = line.AsSpan(start).IndexOfAny(" \t-");
+                if (breakAt < 0)
+                    break;
+            }
+
+            result.Append(line, start, breakAt + 1).Append(lineBreak);
+            start += breakAt + 1;
+        }
+
+        return result.Append(line, start, line.Length - start).ToString();
+    }
+
+    private static string CleanupFindReplace(string text, TextCleanupConfiguration options)
+    {
+        if (string.IsNullOrEmpty(options.FindText))
+            return text;
+
+        if (!options.RegExFind)
+        {
+            var comparison = options.MatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            return text.Replace(options.FindText, options.ReplaceText, comparison);
+        }
+
+        var regex = new Regex(options.FindText, options.MatchCase ? RegexOptions.None : RegexOptions.IgnoreCase);
+        var replacement = options.RegExReplace
+            ? Regex.Replace(options.ReplaceText, @"\\x([0-9A-Fa-f]{2})", p => ((char)Convert.ToInt32(p.Groups[1].Value, 16)).ToString())
+            : options.ReplaceText.Replace("$", "$$", StringComparison.Ordinal);
+
+        return options.RegExLineByLine
+            ? MapLines(text, p => regex.Replace(p, replacement))
+            : regex.Replace(text, replacement);
+    }
+
+    /// <summary>
+    /// Changes each line of <paramref name="text" /> and keeps its line breaks. The empty end of text that finishes with a
+    /// line break isn't a line.
+    /// </summary>
+    private static string MapLines(string text, Func<string, string> change)
+    {
+        var parts = Regex.Split(text, "(\r\n|\n|\r)");
+        for (var index = 0; index < parts.Length; index += 2)
+        {
+            if (index < parts.Length - 1 || parts[index].Length > 0)
+                parts[index] = change(parts[index]);
+        }
+
+        return string.Concat(parts);
     }
 
     private static string RemoveUrlLineBreaks(string text)

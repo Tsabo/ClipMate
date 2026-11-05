@@ -28,7 +28,7 @@ The editor toolbar provides quick access to many text manipulation features:
 | **Shift Left/Right** | Adjusts indentation |
 | **Remove Line Breaks** | Joins lines together |
 | **Change Case** | Upper, lower, title case |
-| **Text Cleanup** | Various cleanup operations |
+| **Text Cleanup** | Opens [Text Cleanup Options](clean-up-text.md#text-cleanup-options) |
 | **Trim** | Removes leading/trailing whitespace |
 | **Find/Replace** | Search and replace text |
 | **Undo** | Reverses last edit |
@@ -37,6 +37,20 @@ The editor toolbar provides quick access to many text manipulation features:
 | **Highlight HTML** | Syntax highlights HTML tags |
 | **Encrypt/Decrypt** | Secures sensitive data |
 | **Base64** | Encode/decode Base64 |
+
+## Change the Case of Whole Clips
+
+To convert clips without opening them in the editor, select one or more clips in the ClipList and choose **Edit** > **Case Conversion**:
+
+| Command | Shortcut | Example |
+|---------|----------|---------|
+| **lower case** | Ctrl+Alt+L | this is an example. |
+| **UPPER CASE** | Ctrl+Alt+U | THIS IS AN EXAMPLE. |
+| **Mixed Case** | Ctrl+Alt+M | This Is An Example. |
+| **Sentence case.** | Ctrl+Alt+S | This is an example. |
+| **iNVERT cASE** | Ctrl+Alt+I | tHIS IS AN EXAMPLE. |
+
+The command converts each clip's text and title. Because a clip's other formats would still hold the old text, ClipMate removes them, so the clip is plain text afterward. You can't undo this. To convert only part of a clip, select the text in the editor and use **Change Case** on the editor toolbar instead.
 
 ## Rectangular Selections
 

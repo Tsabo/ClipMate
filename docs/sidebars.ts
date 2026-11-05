@@ -104,6 +104,7 @@ const sidebars: SidebarsConfig = {
               items: [
                 'user-interface/preview-edit/index',
                 'user-interface/preview-edit/text-tab',
+                'user-interface/preview-edit/clean-up-text',
                 'user-interface/preview-edit/rich-text-tab',
                 'user-interface/preview-edit/bitmap-tab',
                 'user-interface/preview-edit/picture-tab',

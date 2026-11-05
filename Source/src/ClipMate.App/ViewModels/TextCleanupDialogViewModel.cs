@@ -1,142 +1,65 @@
-using System.Windows;
-using ClipMate.Core.Services;
+using System.Text.RegularExpressions;
+using ClipMate.Core.Models.Configuration;
+using ClipMate.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using MessageBox = System.Windows.MessageBox;
 
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-/// ViewModel for the Text Cleanup dialog.
+/// ViewModel for the Text Cleanup Options dialog. The dialog starts with the choices made the last time.
 /// </summary>
 public partial class TextCleanupDialogViewModel : ObservableObject
 {
+    private readonly IConfigurationService _configurationService;
     private readonly ILogger<TextCleanupDialogViewModel> _logger;
-    private readonly TextTransformService _textTransformService;
 
-    [ObservableProperty]
-    private string _caseConversion = "NoChange";
-
-    [ObservableProperty]
-    private bool _caseSensitive;
-
-    [ObservableProperty]
-    private string _charactersToStrip = string.Empty;
-
-    [ObservableProperty]
-    private string _findText = string.Empty;
-
-    [ObservableProperty]
-    private string _inputText = string.Empty;
-
-    [ObservableProperty]
-    private string _lineBreakMode = "KeepAll";
-
-    [ObservableProperty]
-    private bool _removeExtraLineBreaks;
-
-    [ObservableProperty]
-    private bool _removeExtraSpaces;
-
-    [ObservableProperty]
-    private string _replaceText = string.Empty;
-
-    [ObservableProperty]
-    private string _stripPosition = "Leading";
-
-    [ObservableProperty]
-    private bool _stripWhitespace;
-
-    [ObservableProperty]
-    private bool _trimLines;
-
-    [ObservableProperty]
-    private bool _useRegex;
-
-    public TextCleanupDialogViewModel(TextTransformService textTransformService, ILogger<TextCleanupDialogViewModel> logger)
+    public TextCleanupDialogViewModel(IConfigurationService configurationService, ILogger<TextCleanupDialogViewModel> logger)
     {
-        _textTransformService = textTransformService ?? throw new ArgumentNullException(nameof(textTransformService));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        Options = _configurationService.Configuration.TextCleanup.Clone();
     }
 
-    public string ResultText { get; private set; } = string.Empty;
+    /// <summary>
+    /// Gets the choices being edited.
+    /// </summary>
+    public TextCleanupConfiguration Options { get; }
 
-    public event EventHandler<bool>? CloseRequested;
-
-    public void SetInputText(string text) => InputText = text;
-
-    [RelayCommand]
-    private void Apply()
+    /// <summary>
+    /// Gets a description of what is wrong with the choices, or null when they can be used.
+    /// </summary>
+    public string? Validate()
     {
+        if (!Options.RegExFind)
+            return null;
+
         try
         {
-            var result = InputText;
+            _ = new Regex(Options.FindText);
+            return null;
+        }
+        catch (ArgumentException ex)
+        {
+            return $"The Find What text isn't a valid regular expression: {ex.Message}";
+        }
+    }
 
-            // Step 1: Strip characters
-            if (!string.IsNullOrEmpty(CharactersToStrip))
-            {
-                var position = StripPosition switch
-                {
-                    "Leading" => Core.Models.StripPosition.Leading,
-                    "Trailing" => Core.Models.StripPosition.Trailing,
-                    "Anywhere" => Core.Models.StripPosition.Anywhere,
-                    _ => Core.Models.StripPosition.Leading
-                };
+    /// <summary>
+    /// Keeps the choices for the next time.
+    /// </summary>
+    public async Task SaveAsync()
+    {
+        Options.ReBreakColumn = Math.Clamp(Options.ReBreakColumn, 1, 999);
+        _configurationService.Configuration.TextCleanup = Options.Clone();
 
-                result = _textTransformService.StripCharacters(result, CharactersToStrip, position);
-            }
-
-            if (StripWhitespace)
-                result = _textTransformService.TrimText(result);
-
-            // Step 2: Formatting
-            if (RemoveExtraSpaces || RemoveExtraLineBreaks || TrimLines)
-                result = _textTransformService.CleanUpText(result, RemoveExtraSpaces, RemoveExtraLineBreaks, TrimLines);
-
-            if (LineBreakMode != "KeepAll")
-            {
-                var mode = LineBreakMode switch
-                {
-                    "PreserveParagraphs" => Core.Models.LineBreakMode.PreserveParagraphs,
-                    "RemoveAll" => Core.Models.LineBreakMode.RemoveAll,
-                    _ => Core.Models.LineBreakMode.PreserveParagraphs
-                };
-
-                result = _textTransformService.RemoveLineBreaks(result, mode);
-            }
-
-            // Step 3: Case conversion
-            if (CaseConversion != "NoChange")
-            {
-                var conversion = CaseConversion switch
-                {
-                    "Uppercase" => Core.Models.CaseConversion.Uppercase,
-                    "Lowercase" => Core.Models.CaseConversion.Lowercase,
-                    "TitleCase" => Core.Models.CaseConversion.TitleCase,
-                    "SentenceCase" => Core.Models.CaseConversion.SentenceCase,
-                    "InvertCase" => Core.Models.CaseConversion.InvertCase,
-                    _ => Core.Models.CaseConversion.Uppercase
-                };
-
-                result = _textTransformService.ConvertCase(result, conversion);
-            }
-
-            // Step 4: Find and replace
-            if (!string.IsNullOrEmpty(FindText))
-                result = _textTransformService.FindAndReplace(result, FindText, ReplaceText, UseRegex, CaseSensitive);
-
-            ResultText = result;
-            _logger.LogDebug("Text cleanup applied successfully");
-            CloseRequested?.Invoke(this, true);
+        try
+        {
+            await _configurationService.SaveAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying text cleanup");
-            MessageBox.Show($"Error applying text cleanup: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _logger.LogError(ex, "Failed to save the Text Cleanup options");
         }
     }
-
-    [RelayCommand]
-    private void Cancel() => CloseRequested?.Invoke(this, false);
 }

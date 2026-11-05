@@ -4,109 +4,140 @@
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
-                 xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
-                 xmlns:dxlc="http://schemas.devexpress.com/winfx/2008/xaml/layoutcontrol"
+                 xmlns:config="clr-namespace:ClipMate.Core.Models.Configuration;assembly=ClipMate.Core"
                  xmlns:vm="clr-namespace:ClipMate.App.ViewModels"
                  d:DataContext="{d:DesignInstance Type=vm:TextCleanupDialogViewModel}"
                  mc:Ignorable="d"
-                 Title="Text Cleanup"
-                 Height="425"
-                 Width="500"
-                 MinHeight="425"
-                 MinWidth="500"
+                 Title="Text Cleanup Options"
+                 SizeToContent="WidthAndHeight"
                  WindowStartupLocation="CenterOwner"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False">
 
-    <!-- DevExpress Dialog Buttons -->
     <dx:ThemedWindow.DialogButtons>
-        <dx:ThemedWindowDialogButton Content="Apply"
-                                     x:Name="ApplyButton"
-                                     IsDefault="True"
-                                     DialogResult="OK" />
+        <dx:ThemedWindowDialogButton Content="OK"
+                                     x:Name="OkButton"
+                                     IsDefault="True" />
         <dx:ThemedWindowDialogButton Content="Cancel"
-                                     x:Name="CancelButton"
                                      IsCancel="True"
                                      DialogResult="Cancel" />
     </dx:ThemedWindow.DialogButtons>
 
-    <!-- Main Content -->
-    <dxlc:LayoutControl Orientation="Vertical">
+    <dx:ThemedWindow.Resources>
+        <!-- One group of characters in Step 1 -->
+        <DataTemplate x:Key="CharactersTemplate" DataType="{x:Type config:TextCleanupCharacters}">
+            <UniformGrid Columns="2">
+                <CheckBox Content="&gt;" Margin="0,2" IsChecked="{Binding GreaterThan}" />
+                <CheckBox Content="&lt;" Margin="0,2" IsChecked="{Binding LessThan}" />
+                <CheckBox Content="#" Margin="0,2" IsChecked="{Binding PoundSign}" />
+                <CheckBox Content="=" Margin="0,2" IsChecked="{Binding EqualsSign}" />
+                <CheckBox Content="|" Margin="0,2" IsChecked="{Binding Pipe}" />
+                <CheckBox Content="Spaces" Margin="0,2" IsChecked="{Binding Spaces}" />
+                <CheckBox Content="Tabs" Margin="0,2" IsChecked="{Binding Tabs}" />
+                <CheckBox x:Name="OtherCheckBox" Content="Other:" Margin="0,2" IsChecked="{Binding Other}" />
+                <TextBox Width="60" Margin="0,2" FontFamily="Courier New"
+                         IsEnabled="{Binding IsChecked, ElementName=OtherCheckBox}"
+                         Text="{Binding OtherText, UpdateSourceTrigger=PropertyChanged}" />
+            </UniformGrid>
+        </DataTemplate>
+    </dx:ThemedWindow.Resources>
 
-        <!-- Step 1: Strip Characters -->
-        <dxlc:LayoutGroup Header="Step 1: Strip Characters" Orientation="Vertical">
-            <dxlc:LayoutItem Label="Strip Position:">
-                <ComboBox x:Name="StripPositionComboBox" SelectedIndex="0">
-                    <ComboBoxItem Content="Leading" Tag="Leading" />
-                    <ComboBoxItem Content="Trailing" Tag="Trailing" />
-                    <ComboBoxItem Content="Anywhere" Tag="Anywhere" />
-                </ComboBox>
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem Label="Characters to Strip:">
-                <dxe:TextEdit x:Name="CharactersToStripTextEdit"
-                              NullText="e.g., spaces, tabs, special characters" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="StripWhitespaceCheckBox"
-                          Content="Strip leading/trailing whitespace" />
-            </dxlc:LayoutItem>
-        </dxlc:LayoutGroup>
+    <StackPanel Margin="12" Width="560">
+        <GroupBox Header="Step 1: Strip Characters From Each Line" Padding="6">
+            <UniformGrid Columns="3">
+                <GroupBox Header="Leading" Margin="2" Padding="4">
+                    <ContentControl Content="{Binding Options.Leading}" ContentTemplate="{StaticResource CharactersTemplate}" Focusable="False" />
+                </GroupBox>
+                <GroupBox Header="Trailing" Margin="2" Padding="4">
+                    <ContentControl Content="{Binding Options.Trailing}" ContentTemplate="{StaticResource CharactersTemplate}" Focusable="False" />
+                </GroupBox>
+                <GroupBox Header="Anywhere" Margin="2" Padding="4">
+                    <ContentControl Content="{Binding Options.Anywhere}" ContentTemplate="{StaticResource CharactersTemplate}" Focusable="False" />
+                </GroupBox>
+            </UniformGrid>
+        </GroupBox>
 
-        <!-- Step 2: Formatting -->
-        <dxlc:LayoutGroup Header="Step 2: Formatting" Orientation="Vertical">
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="RemoveExtraSpacesCheckBox"
-                          Content="Remove extra spaces (condense multiple spaces to one)" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="RemoveExtraLineBreaksCheckBox"
-                          Content="Remove extra line breaks (condense to maximum double breaks)" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="TrimLinesCheckBox"
-                          Content="Trim lines (remove leading/trailing whitespace from each line)" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem Label="Line Break Mode:">
-                <ComboBox x:Name="LineBreakModeComboBox" SelectedIndex="0">
-                    <ComboBoxItem Content="Keep All" Tag="KeepAll" />
-                    <ComboBoxItem Content="Preserve Paragraphs" Tag="PreserveParagraphs" />
-                    <ComboBoxItem Content="Remove All" Tag="RemoveAll" />
-                </ComboBox>
-            </dxlc:LayoutItem>
-        </dxlc:LayoutGroup>
+        <GroupBox Header="Step 2: Paragraph Formatting" Margin="0,8,0,0" Padding="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <GroupBox Grid.RowSpan="2" Header="Remove Linebreaks" Padding="4">
+                    <StackPanel>
+                        <RadioButton Content="No Change" Margin="0,2"
+                                     IsChecked="{Binding Options.LineBreaks, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupLineBreaks.NoChange}}" />
+                        <RadioButton Content="Remove Unwanted Linebreaks Within Paragraph" Margin="0,2"
+                                     IsChecked="{Binding Options.LineBreaks, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupLineBreaks.WithinParagraphs}}" />
+                        <RadioButton Content="Remove ALL Linebreaks" Margin="0,2"
+                                     IsChecked="{Binding Options.LineBreaks, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupLineBreaks.All}}" />
+                    </StackPanel>
+                </GroupBox>
+                <CheckBox x:Name="ReBreakCheckBox" Grid.Column="1" Content="Re-Break Lines At Column:" Margin="8,4" VerticalAlignment="Center"
+                          ToolTip="Word-wraps the text at this column, from 1 to 999."
+                          IsChecked="{Binding Options.ReBreak}" />
+                <TextBox Grid.Column="2" Width="50" Margin="0,4" VerticalAlignment="Center"
+                         IsEnabled="{Binding IsChecked, ElementName=ReBreakCheckBox}"
+                         Text="{Binding Options.ReBreakColumn}" />
+                <CheckBox x:Name="ReQuoteCheckBox" Grid.Row="1" Grid.Column="1" Content="Start Each Line With:" Margin="8,4" VerticalAlignment="Center"
+                          ToolTip="Adds this text to the start of each line, after all the other steps."
+                          IsChecked="{Binding Options.ReQuote}" />
+                <TextBox Grid.Row="1" Grid.Column="2" Width="50" Margin="0,4" VerticalAlignment="Center" FontFamily="Courier New"
+                         IsEnabled="{Binding IsChecked, ElementName=ReQuoteCheckBox}"
+                         Text="{Binding Options.ReQuoteText, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </GroupBox>
 
-        <!-- Step 3: Case Conversion -->
-        <dxlc:LayoutGroup Header="Step 3: Case Conversion">
-            <dxlc:LayoutItem Label="Convert Case:">
-                <ComboBox x:Name="CaseConversionComboBox" SelectedIndex="0">
-                    <ComboBoxItem Content="No Change" Tag="NoChange" />
-                    <ComboBoxItem Content="UPPERCASE" Tag="Uppercase" />
-                    <ComboBoxItem Content="lowercase" Tag="Lowercase" />
-                    <ComboBoxItem Content="Title Case" Tag="TitleCase" />
-                    <ComboBoxItem Content="Sentence case" Tag="SentenceCase" />
-                    <ComboBoxItem Content="iNVERT cASE" Tag="InvertCase" />
-                </ComboBox>
-            </dxlc:LayoutItem>
-        </dxlc:LayoutGroup>
+        <GroupBox Header="Step 3: Change Case" Margin="0,8,0,0" Padding="6">
+            <UniformGrid Columns="3">
+                <RadioButton Content="No Change" Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.NoChange}}" />
+                <RadioButton Content="lower case" Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.Lower}}" />
+                <RadioButton Content="UPPER CASE" Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.Upper}}" />
+                <RadioButton Content="Mixed Case" Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.Mixed}}" />
+                <RadioButton Content="Sentence case." Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.Sentence}}" />
+                <RadioButton Content="iNVERT cASE" Margin="0,2"
+                             IsChecked="{Binding Options.Case, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static config:TextCleanupCase.Invert}}" />
+            </UniformGrid>
+        </GroupBox>
 
-        <!-- Step 4: Find and Replace -->
-        <dxlc:LayoutGroup Header="Step 4: Find and Replace" Orientation="Vertical">
-            <dxlc:LayoutItem Label="Find:">
-                <dxe:TextEdit x:Name="FindTextEdit" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem Label="Replace With:">
-                <dxe:TextEdit x:Name="ReplaceTextEdit" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="UseRegexCheckBox"
-                          Content="Use regular expressions" />
-            </dxlc:LayoutItem>
-            <dxlc:LayoutItem>
-                <CheckBox x:Name="CaseSensitiveCheckBox"
-                          Content="Case-sensitive" />
-            </dxlc:LayoutItem>
-        </dxlc:LayoutGroup>
-
-    </dxlc:LayoutControl>
-
+        <GroupBox Header="Step 4: Find and Replace" Margin="0,8,0,0" Padding="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Find What" VerticalAlignment="Center" Margin="0,2,8,2" />
+                <TextBox Grid.Column="1" Margin="0,2" Text="{Binding Options.FindText, UpdateSourceTrigger=PropertyChanged}" />
+                <CheckBox Grid.Column="2" Content="RegEx?" Margin="8,2,0,2" VerticalAlignment="Center"
+                          ToolTip="Treats the Find What text as a regular expression."
+                          IsChecked="{Binding Options.RegExFind}" />
+                <TextBlock Grid.Row="1" Text="Replace With" VerticalAlignment="Center" Margin="0,2,8,2" />
+                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,2" Text="{Binding Options.ReplaceText, UpdateSourceTrigger=PropertyChanged}" />
+                <CheckBox Grid.Row="1" Grid.Column="2" Content="RegEx?" Margin="8,2,0,2" VerticalAlignment="Center"
+                          ToolTip="Lets the Replace With text use a regular expression's groups, such as $1, and \xNN character codes."
+                          IsChecked="{Binding Options.RegExReplace}" />
+                <CheckBox Grid.Row="2" Grid.Column="1" Content="Match case" Margin="0,4,0,0"
+                          IsChecked="{Binding Options.MatchCase}" />
+                <CheckBox Grid.Row="2" Grid.Column="2" Content="Line By Line?" Margin="8,4,0,0"
+                          ToolTip="Runs the regular expression on each line. Only a regular expression run on the whole clip can match a line break."
+                          IsChecked="{Binding Options.RegExLineByLine}" />
+            </Grid>
+        </GroupBox>
+    </StackPanel>
 </dx:ThemedWindow>

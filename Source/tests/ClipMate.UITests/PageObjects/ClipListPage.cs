@@ -107,6 +107,52 @@ public class ClipListPage(Process app)
         ((InvokePattern)item.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
     }
 
+    /// <summary>
+    /// Opens the main menu along <paramref name="path" /> (e.g. "Edit", "Case Conversion", "UPPER CASE") with the mouse and
+    /// clicks the last item. Items after the first are looked for only in the open menus, since a toolbar in the main window
+    /// can hold an item of the same name, and match any control type, since the bars report a command that opens no submenu
+    /// as something other than a menu item.
+    /// </summary>
+    public async Task ClickMenuItemAsync(params string[] path)
+    {
+        var window = MainWindow() ?? throw new InvalidOperationException("The main window is not open");
+        await Foreground.ActivateAsync(window.Current.NativeWindowHandle, "ClipMate's main window");
+
+        var previous = window.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, path[0])).Current.BoundingRectangle;
+        Foreground.LeftClick(previous);
+
+        foreach (var name in path.Skip(1))
+        {
+            // A click made while a menu is still opening can open nothing; click again until the next level is open
+            var attempt = 0;
+            var opener = previous;
+            var item = await Poll.UntilAsync(() =>
+                {
+                    if (++attempt % 10 == 0)
+                        Foreground.LeftClick(opener);
+
+                    return window.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ClassNameProperty, "Popup"))
+                        .Cast<AutomationElement>()
+                        .Select(p => p.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, name)))
+                        .FirstOrDefault(p => p != null);
+                },
+                $"the menu item \"{name}\"", TimeSpan.FromSeconds(10));
+
+            previous = item.Current.BoundingRectangle;
+            Foreground.LeftClick(previous);
+        }
+    }
+
+    /// <summary>
+    /// Brings the main window to the foreground and presses a key combination there.
+    /// </summary>
+    public async Task PressKeysInMainWindowAsync(params ushort[] virtualKeys)
+    {
+        var window = MainWindow() ?? throw new InvalidOperationException("The main window is not open");
+        await Foreground.ActivateAsync(window.Current.NativeWindowHandle, "ClipMate's main window");
+        Foreground.PressKeys(virtualKeys);
+    }
+
     private AutomationElement? MainWindow() =>
         AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
             new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
