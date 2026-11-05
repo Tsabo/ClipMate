@@ -140,10 +140,10 @@ public class ClipService : IClipService
     }
 
     /// <inheritdoc />
-    public async Task<Clip?> TransformTextAsync(string databaseKey, Guid clipId, Func<string, string> transform, CancellationToken cancellationToken = default)
+    public async Task<Clip?> TransformTextAsync(string databaseKey, Guid clipId, Func<string, string> transform, Func<string, string>? titleTransform, CancellationToken cancellationToken = default)
     {
         var repository = GetRepository(databaseKey);
-        return await repository.TransformTextAsync(clipId, transform, cancellationToken);
+        return await repository.TransformTextAsync(clipId, transform, titleTransform, cancellationToken);
     }
 
     /// <inheritdoc />

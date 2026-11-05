@@ -379,7 +379,7 @@ public class ClipRepository : IClipRepository
     }
 
     /// <inheritdoc />
-    public async Task<Clip?> TransformTextAsync(Guid clipId, Func<string, string> transform, CancellationToken cancellationToken = default)
+    public async Task<Clip?> TransformTextAsync(Guid clipId, Func<string, string> transform, Func<string, string>? titleTransform, CancellationToken cancellationToken = default)
     {
         var clip = await _context.Clips.FirstOrDefaultAsync(p => p.Id == clipId && !p.Del, cancellationToken);
         if (clip == null || clip.Encrypted)
@@ -416,8 +416,8 @@ public class ClipRepository : IClipRepository
         clip.Size = textEntries.Sum(p => p.Size);
         clip.Type = ClipType.Text;
         clip.LastModified = DateTimeOffset.Now;
-        if (clip.Title != null)
-            clip.Title = transform(clip.Title);
+        if (clip.Title != null && titleTransform != null)
+            clip.Title = titleTransform(clip.Title);
 
         await _context.SaveChangesAsync(cancellationToken);
 

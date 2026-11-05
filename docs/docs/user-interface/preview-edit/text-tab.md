@@ -28,7 +28,7 @@ The editor toolbar provides quick access to many text manipulation features:
 | **Shift Left/Right** | Adjusts indentation |
 | **Remove Line Breaks** | Joins lines together |
 | **Change Case** | Upper, lower, title case |
-| **Text Cleanup** | Various cleanup operations |
+| **Text Cleanup** | Opens [Text Cleanup Options](clean-up-text.md#text-cleanup-options) |
 | **Trim** | Removes leading/trailing whitespace |
 | **Find/Replace** | Search and replace text |
 | **Undo** | Reverses last edit |

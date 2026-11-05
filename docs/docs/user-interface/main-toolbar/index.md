@@ -25,7 +25,7 @@ To customize a toolbar:
 | <span class="clipmate-emoji">&#xE004;</span> [Delete](delete-clips.md) | Remove Clips | Delete selected clips to Trashcan |
 | 🖨️ [Print](print.md) | Print Clips | Print selected clips |
 | <span class="clipmate-emoji">&#xE001;</span> [Append](append.md) | Combine Clips | Glue multiple text clips together |
-| <span class="clipmate-emoji">&#xE00C;</span> Remove Breaks | Text Cleanup | Remove line breaks from selected text |
+| <span class="clipmate-emoji">&#xE00C;</span> [Remove Breaks](../preview-edit/clean-up-text.md#remove-linebreaks) | Text Cleanup | Remove line breaks from the selected clips |
 | <span class="clipmate-emoji">&#xE007;</span> [Move to Collection](move-clips-to-collection.md) | Organize | Move clips to another collection |
 | <span class="clipmate-emoji">&#xE006;</span> [Copy to Collection](copy-clips-to-collection.md) | Organize | Copy clips to another collection |
 | 📁 [Select Collection](select-collection.md) | Navigate | Switch to a different collection |
@@ -35,7 +35,7 @@ To customize a toolbar:
 | 🖼️ [View Mode](view-mode.md) | Change Display | Toggle Detail/Thumbnail view |
 | 📊 [Outbound Filtering](outbound-clip-filtering.md) | Format Control | Filter clipboard output to plain text |
 | 📄 [Templates](templates.md) | Formatted Paste | Paste clips with metadata |
-| 🧹 Text Clean-up | Format Text | Clean up text formatting issues |
+| 🧹 [Text Clean-up](../preview-edit/clean-up-text.md) | Format Text | Clean up text formatting issues |
 | 🔁 [Loop PowerPaste](powerpaste.md#looping-powerpaste) | Continuous Mode | Enable PowerPaste looping mode |
 | 💥 [Explode PowerPaste](powerpaste.md#exploding-powerpaste) | Split Mode | Enable PowerPaste explode mode |
 | 📜 [Event Log](event-log.md) | Diagnostics | View clipboard activity log |

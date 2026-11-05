@@ -29,7 +29,7 @@ public class ClipTransformTextTests : IntegrationTestBase
         var clipService = CreateClipService();
 
         // Act
-        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant());
+        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant(), p => p.ToUpperInvariant());
 
         // Assert
         await Assert.That(converted).IsNotNull();
@@ -52,7 +52,7 @@ public class ClipTransformTextTests : IntegrationTestBase
         var clipService = CreateClipService();
 
         // Act
-        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant());
+        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant(), p => p.ToUpperInvariant());
 
         // Assert: only the text is left
         await Assert.That(converted!.HasHtml).IsFalse();
@@ -68,7 +68,7 @@ public class ClipTransformTextTests : IntegrationTestBase
         var clipService = CreateClipService();
 
         // Act
-        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant());
+        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clipId, p => p.ToUpperInvariant(), p => p.ToUpperInvariant());
 
         // Assert
         await Assert.That(converted).IsNull();
@@ -86,7 +86,7 @@ public class ClipTransformTextTests : IntegrationTestBase
         var clipService = CreateClipService();
 
         // Act
-        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clip.Id, p => p.ToUpperInvariant());
+        var converted = await clipService.TransformTextAsync(_testDatabaseKey, clip.Id, p => p.ToUpperInvariant(), p => p.ToUpperInvariant());
 
         // Assert
         await Assert.That(converted).IsNull();

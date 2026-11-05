@@ -149,6 +149,48 @@ public class ClipOperationsCoordinator :
         if (RejectIfReadOnlyDatabase())
             return;
 
+        var conversion = message.ConversionType switch
+        {
+            CaseConversionType.Upper => CaseConversion.Uppercase,
+            CaseConversionType.Lower => CaseConversion.Lowercase,
+            CaseConversionType.Title => CaseConversion.TitleCase,
+            CaseConversionType.Sentence => CaseConversion.SentenceCase,
+            CaseConversionType.Toggle => CaseConversion.InvertCase,
+            var other => throw new ArgumentOutOfRangeException(nameof(message), other, null),
+        };
+
+        await TransformSelectedClipsAsync(p => _textTransformService.ConvertCase(p, conversion), p => _textTransformService.ConvertCase(p, conversion), "Converted the case of");
+    }
+
+    /// <summary>
+    /// Handles CleanUpTextRequestedEvent to clean up whitespace in selected clip.
+    /// </summary>
+    public async void Receive(CleanUpTextRequestedEvent message)
+    {
+        if (RejectIfReadOnlyDatabase())
+            return;
+
+        if (_clipListViewModel.GetSelectedClipsInDisplayOrder().Count == 0)
+        {
+            SendStatus("No clip selected");
+            return;
+        }
+
+        var dialog = _serviceProvider.GetRequiredService<TextCleanupDialog>();
+        dialog.Owner = _activeWindowService.DialogOwner;
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var options = dialog.Options;
+        await TransformSelectedClipsAsync(p => _textTransformService.CleanUpText(p, options), p => _textTransformService.CleanUpTitle(p, options), "Cleaned up");
+    }
+
+    /// <summary>
+    /// Changes the text of every selected clip and saves it, leaving each clip with only its text. Like editing a clip,
+    /// this puts the first of them on the clipboard.
+    /// </summary>
+    private async Task TransformSelectedClipsAsync(Func<string, string> transform, Func<string, string>? titleTransform, string doneStatus)
+    {
         var selectedClips = _clipListViewModel.GetSelectedClipsInDisplayOrder();
 
         if (selectedClips.Count == 0)
@@ -161,58 +203,47 @@ public class ClipOperationsCoordinator :
 
         if (string.IsNullOrEmpty(databaseKey))
         {
-            _logger.LogError("Cannot convert case: database key not found");
+            _logger.LogError("Cannot change the selected clips' text: database key not found");
             SendStatus("Error: database not found", true);
             return;
         }
 
-        var conversion = message.ConversionType switch
-        {
-            CaseConversionType.Upper => CaseConversion.Uppercase,
-            CaseConversionType.Lower => CaseConversion.Lowercase,
-            CaseConversionType.Title => CaseConversion.TitleCase,
-            CaseConversionType.Sentence => CaseConversion.SentenceCase,
-            CaseConversionType.Toggle => CaseConversion.InvertCase,
-            var other => throw new ArgumentOutOfRangeException(nameof(message), other, null),
-        };
-
         try
         {
-            var convertedCount = 0;
+            var changedCount = 0;
             foreach (var clip in selectedClips)
             {
-                var converted = await _clipService.TransformTextAsync(databaseKey, clip.Id, p => _textTransformService.ConvertCase(p, conversion));
-                if (converted == null)
+                var changed = await _clipService.TransformTextAsync(databaseKey, clip.Id, transform, titleTransform);
+                if (changed == null)
                     continue;
 
-                ShowConvertedClip(clip, converted);
-                convertedCount++;
+                ShowConvertedClip(clip, changed);
+                changedCount++;
             }
 
-            if (convertedCount == 0)
+            if (changedCount == 0)
             {
-                SendStatus("The selected clips have no text to convert");
+                SendStatus("The selected clips have no text to change");
                 return;
             }
 
-            // Show the new text in the viewer, and put it on the clipboard as editing a clip does
+            // Show the new text in the viewer
             if (_clipListViewModel.SelectedClip is { } selectedClip)
                 _messenger.Send(new ClipSelectedEvent(selectedClip, databaseKey, false));
 
-            if (selectedClips.Count == 1)
-                await _currentClipWriter.MakeCurrentAsync(databaseKey, selectedClips[0].Id);
+            await _currentClipWriter.MakeCurrentAsync(databaseKey, selectedClips[0].Id);
 
-            SendStatus($"Converted the case of {convertedCount} clip(s)");
+            SendStatus($"{doneStatus} {changedCount} clip(s)");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to convert the case of the selected clips");
-            SendStatus("Error converting case", true);
+            _logger.LogError(ex, "Failed to change the text of the selected clips");
+            SendStatus("Error changing the selected clips", true);
         }
     }
 
     /// <summary>
-    /// Updates the clip shown in the list with what converting its case changed, and refreshes its row. The list keeps its
+    /// Updates the clip shown in the list with what changing its text changed, and refreshes its row. The list keeps its
     /// selection, which reloading it would lose.
     /// </summary>
     private void ShowConvertedClip(Clip shown, Clip converted)
@@ -231,27 +262,6 @@ public class ClipOperationsCoordinator :
         shown.HasFiles = converted.HasFiles;
 
         _messenger.Send(new ClipUpdatedMessage(shown.Id, shown.Title));
-    }
-
-    /// <summary>
-    /// Handles CleanUpTextRequestedEvent to clean up whitespace in selected clip.
-    /// </summary>
-    public void Receive(CleanUpTextRequestedEvent message)
-    {
-        if (RejectIfReadOnlyDatabase())
-            return;
-
-        var selectedClip = _clipListViewModel.SelectedClip;
-
-        if (selectedClip == null)
-        {
-            SendStatus("No clip selected");
-            return;
-        }
-
-        // TODO: Implement text cleanup (requires ClipData modification)
-        // This would normalize line endings, trim trailing whitespace, collapse multiple blank lines
-        SendStatus("Clean-Up Text: Feature coming in a future update");
     }
 
     /// <summary>
@@ -1286,21 +1296,13 @@ public class ClipOperationsCoordinator :
     /// <summary>
     /// Handles RemoveLineBreaksRequestedEvent to remove line breaks from selected clip.
     /// </summary>
-    public void Receive(RemoveLineBreaksRequestedEvent message)
+    public async void Receive(RemoveLineBreaksRequestedEvent message)
     {
         if (RejectIfReadOnlyDatabase())
             return;
 
-        var selectedClip = _clipListViewModel.SelectedClip;
-
-        if (selectedClip == null)
-        {
-            SendStatus("No clip selected");
-            return;
-        }
-
-        // TODO: Implement line break removal (requires ClipData modification)
-        SendStatus("Remove Linebreaks: Feature coming in a future update");
+        var mode = message.RemoveAll ? LineBreakMode.RemoveAll : LineBreakMode.PreserveParagraphs;
+        await TransformSelectedClipsAsync(p => _textTransformService.RemoveLineBreaks(p, mode, message.JoinWithoutSpaces), null, "Removed the line breaks of");
     }
 
     /// <summary>
@@ -1461,21 +1463,12 @@ public class ClipOperationsCoordinator :
     /// <summary>
     /// Handles StripNonTextRequestedEvent to remove non-text formats from selected clip.
     /// </summary>
-    public void Receive(StripNonTextRequestedEvent message)
+    public async void Receive(StripNonTextRequestedEvent message)
     {
         if (RejectIfReadOnlyDatabase())
             return;
 
-        var selectedClip = _clipListViewModel.SelectedClip;
-
-        if (selectedClip == null)
-        {
-            SendStatus("No clip selected");
-            return;
-        }
-
-        // TODO: Implement non-text stripping (requires deleting ClipData entries and blobs)
-        SendStatus("Strip Non-Text: Feature coming in a future update");
+        await TransformSelectedClipsAsync(p => p, null, "Stripped the non-text formats of");
     }
 
     /// <summary>

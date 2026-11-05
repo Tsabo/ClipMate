@@ -79,6 +79,11 @@ public class ClipMateConfiguration
     public AppearanceConfiguration Appearance { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the choices in the Text Cleanup Options dialog.
+    /// </summary>
+    public TextCleanupConfiguration TextCleanup { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the Peer networking configuration.
     /// </summary>
     public NetworkingConfiguration Networking { get; set; } = new();
