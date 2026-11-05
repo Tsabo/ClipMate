@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0-beta.1] - 2026-11-05
+
+### Added
+- **Hide Clips From Other Programs** - A new option on the Pasting options page, off by default. While PowerPaste is on, programs in the background get nothing from the clipboard, so they can't make it repeat a clip or make a paste put in nothing. Clipboard history, other clipboard managers, and Remote Desktop and WSL clipboard sharing don't see the clips until PowerPaste stops.
+
 ### Changed
 - **PowerPaste Button** - The button now works as in ClipMate 7. A click starts in the direction you last used (going up the first time), and the next click turns it off. Turning it off without pasting makes the next start go the other way. **PowerPaste Up** and **PowerPaste Down** turn it off if it's already going that way.
 - **Clicking Another Clip During PowerPaste** - As in ClipMate 7, clicking a clip outside the series takes PowerPaste back to the start of the series. It used to turn PowerPaste off.
-- **Hide Clips From Other Programs** - A new option on the Pasting options page, off by default. While PowerPaste is on, programs in the background get nothing from the clipboard, so they can't make it repeat a clip or make a paste put in nothing. Clipboard history, other clipboard managers, and Remote Desktop and WSL clipboard sharing don't see the clips until PowerPaste stops.
 - **PowerPaste Shield** - The option is back on the Pasting options page, and it now works. It's on by default, so other programs reading the clipboard don't move PowerPaste on. If PowerPaste doesn't advance when you paste into a program, turn it off: then any program reading the clipboard moves PowerPaste on, as in ClipMate 7 with its shield off.
 
 ### Fixed
+- **Case Conversion** - **Edit** > **Case Conversion** opened an empty submenu, and the same commands on the tray menu only reported a future update. It now offers **lower case** (Ctrl+Alt+L), **UPPER CASE** (Ctrl+Alt+U), **Mixed Case** (Ctrl+Alt+M), **Sentence case.** (Ctrl+Alt+S) and **iNVERT cASE** (Ctrl+Alt+I). As in ClipMate 7, each converts the text and title of every selected clip and leaves the clip with only its text. Encrypted clips and clips without text are skipped.
 - **Clean-Up Text, Remove Linebreaks and Strip Out Non-TEXT Data Formats** - These **Edit** menu commands did nothing but report a future update. They now work on every selected clip, as in ClipMate 7, and leave each clip with only its text. **Clean-Up Text...** opens a new **Text Cleanup Options** window, also used by the editor toolbar, which remembers your choices. Hold **Ctrl** while choosing **Remove Linebreaks** to remove the line breaks between paragraphs too, or **Shift** to join lines without a space. **Remove Line Breaks** on the editor toolbar now joins lines the same way, and no longer leaves stray characters behind in text with Windows line breaks.
 - **PowerPaste With One Clip Selected** - PowerPaste pasted the clip once and stopped. As in ClipMate 7, it now runs from that clip to the end of the collection, and the clip list follows along. With several clips selected, it still pastes only those.
 - **PowerPaste in Browsers, Windows Terminal and Store Apps** - Pasting into these programs didn't count as a paste, so PowerPaste never advanced. Now it does.
