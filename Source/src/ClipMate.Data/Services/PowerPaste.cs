@@ -621,7 +621,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
         {
             // Clipboard history, another clipboard manager, ClipMate itself: it got the data, but the user has not pasted
             _logger.LogDebug("PowerPaste clipboard read by {ReaderProcess} is not a paste", e.ReaderName);
-            if (IsEndlessReader(e, now))
+            if (IsHiddenFrom(e) || IsEndlessReader(e, now))
             {
                 e.IsRefused = true;
 
@@ -677,6 +677,13 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
                && read.SinceUserInput <= _inputBeforePaste
                && now - read.SinceUserInput >= _clipOfferedAt + _inputAfterOffer;
     }
+
+    /// <summary>
+    /// True when the user chose to hide clips from programs in the background. ClipMate needs its own reads, and a read
+    /// without a process may be a paste.
+    /// </summary>
+    private bool IsHiddenFrom(PowerPasteClipboardReadEventArgs read) =>
+        Preferences.PowerPasteHideFromOtherPrograms && !read.IsByClipMate && !read.MayBeForForegroundApplication;
 
     /// <summary>
     /// True for a named background program that has read <see cref="EndlessReaderReads" /> times within

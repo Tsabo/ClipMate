@@ -241,6 +241,75 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("Clipboard")]
+    public async Task Read_ByABackgroundProgram_WhenHidingClips_IsRefusedAndNotOfferedAgain()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+
+        // Act
+        var served = _clipboard.ReadInTheBackground("BCClipboard");
+        _clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(served).IsFalse();
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(0);
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Read_ByABackgroundProgram_WhenHidingClips_DoesNotHideTheNextPaste()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clipboard.ReadInTheBackground("BCClipboard");
+
+        // Act
+        await PasteAsync();
+
+        // Assert
+        await Assert.That(service.CurrentPosition).IsEqualTo(1);
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Read_WithoutAProcess_WhenHidingClips_IsStillGivenTheData()
+    {
+        // Arrange - it may be the program in the foreground pasting, so it can't go without
+        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+
+        // Act
+        _clipboard.ReadWithoutAProcess(TimeSpan.FromHours(1));
+        _clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Assert - offering again is what follows a read that got the data
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Read_ByClipMate_WhenHidingClips_IsStillGivenTheData()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+
+        // Act
+        _clipboard.ReadByClipMate();
+        _clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+    }
+
+    [Test]
+    [Category("Clipboard")]
     public async Task Read_ByAProgramReadingNowAndThen_IsAlwaysGivenTheData()
     {
         // Arrange

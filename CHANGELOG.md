@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **PowerPaste Button** - The button now works as in ClipMate 7. A click starts in the direction you last used (going up the first time), and the next click turns it off. Turning it off without pasting makes the next start go the other way. **PowerPaste Up** and **PowerPaste Down** turn it off if it's already going that way.
 - **Clicking Another Clip During PowerPaste** - As in ClipMate 7, clicking a clip outside the series takes PowerPaste back to the start of the series. It used to turn PowerPaste off.
+- **Hide Clips From Other Programs** - A new option on the Pasting options page, off by default. While PowerPaste is on, programs in the background get nothing from the clipboard, so they can't make it repeat a clip or make a paste put in nothing. Clipboard history, other clipboard managers, and Remote Desktop and WSL clipboard sharing don't see the clips until PowerPaste stops.
 - **PowerPaste Shield** - The option is back on the Pasting options page, and it now works. It's on by default, so other programs reading the clipboard don't move PowerPaste on. If PowerPaste doesn't advance when you paste into a program, turn it off: then any program reading the clipboard moves PowerPaste on, as in ClipMate 7 with its shield off.
 
 ### Fixed

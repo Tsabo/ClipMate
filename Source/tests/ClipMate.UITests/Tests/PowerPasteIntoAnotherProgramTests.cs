@@ -140,12 +140,18 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     }
 
     [Test]
-    public async Task PastingFast_EachPasteAdvances()
+    public async Task PastingFast_EachPasteAdvances() => await PasteThreeClipsFastAsync(_goingDown);
+
+    [Test]
+    public async Task PastingFast_WithClipsHiddenFromOtherPrograms_EachPasteAdvances() =>
+        await PasteThreeClipsFastAsync(_goingDown, "preferences.power_paste_hide_from_other_programs=true");
+
+    private async Task PasteThreeClipsFastAsync(params string[] settings)
     {
         var backup = SystemClipboard.Backup();
         try
         {
-            var clipList = await CopyThreeClipsAsync(_goingDown);
+            var clipList = await CopyThreeClipsAsync(settings);
             await SelectAndWaitForCopyAsync(clipList, _third);
 
             clipList.ClickToolbarButton("PowerPaste");

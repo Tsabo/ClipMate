@@ -200,6 +200,13 @@ public class PreferencesConfiguration
     public bool PowerPasteShield { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether programs in the background get nothing when they read the clipboard during PowerPaste. Each of
+    /// their reads otherwise leaves a moment in which a paste goes unnoticed and holds the clipboard, which can make a paste
+    /// put in nothing. Off by default: ClipMate 7 gives every reader the clip, and clipboard managers expect it.
+    /// </summary>
+    public bool PowerPasteHideFromOtherPrograms { get; set; }
+
+    /// <summary>
     /// Gets or sets the PowerPaste delimiter characters.
     /// </summary>
     public string PowerPasteDelimiter { get; set; } = @",.;:\n\t";
