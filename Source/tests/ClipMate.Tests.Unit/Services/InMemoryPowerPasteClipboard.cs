@@ -19,6 +19,11 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     public int OffersAgain { get; private set; }
 
     /// <summary>
+    /// How many more offers fail, as when another program keeps the clipboard open.
+    /// </summary>
+    public int OffersToFail { get; set; }
+
+    /// <summary>
     /// How many times the clipboard was released.
     /// </summary>
     public int Releases { get; private set; }
@@ -37,6 +42,13 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     /// <inheritdoc />
     public bool Offer(IReadOnlyList<ClipboardFormatData> formats)
     {
+        if (OffersToFail > 0)
+        {
+            OffersToFail--;
+
+            return false;
+        }
+
         Offers.Add(formats);
         IsHeld = true;
 
@@ -48,6 +60,13 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     {
         if (!IsHeld)
             return false;
+
+        if (OffersToFail > 0)
+        {
+            OffersToFail--;
+
+            return false;
+        }
 
         OffersAgain++;
 

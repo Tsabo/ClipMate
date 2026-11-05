@@ -308,6 +308,73 @@ public partial class PowerPasteTests
         await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// Moves the clock in steps, so a wait started when an earlier one ends also runs out.
+    /// </summary>
+    private void LetTimeGoBy()
+    {
+        for (var i = 0; i < 20; i++)
+            _clock.Advance(TimeSpan.FromMilliseconds(250));
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Offer_WhenTheClipboardCannotBeOpened_TriesAgainUntilItIsOffered()
+    {
+        // Arrange - the previous clip stays on the clipboard until the next one gets there, so the next paste repeats it
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        var offers = _clipboard.Offers.Count;
+        _clipboard.OffersToFail = 2;
+
+        // Act
+        await PasteAsync();
+        var offersAfterTheFailure = _clipboard.Offers.Count;
+        LetTimeGoBy();
+
+        // Assert
+        await Assert.That(offersAfterTheFailure).IsEqualTo(offers);
+        await Assert.That(_clipboard.OffersToFail).IsEqualTo(0);
+        await Assert.That(_clipboard.Offers.Count).IsEqualTo(offers + 1);
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task Offer_WhenTheClipboardCannotBeOpened_StopsTryingWhenPowerPasteStops()
+    {
+        // Arrange
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        var offers = _clipboard.Offers.Count;
+        _clipboard.OffersToFail = 1;
+        await PasteAsync();
+
+        // Act
+        service.Stop();
+        _clock.Advance(TimeSpan.FromSeconds(5));
+
+        // Assert
+        await Assert.That(_clipboard.Offers.Count).IsEqualTo(offers);
+    }
+
+    [Test]
+    [Category("Clipboard")]
+    public async Task OfferAgain_WhenTheClipboardCannotBeOpened_TriesAgain()
+    {
+        // Arrange - a clip left rendered for a background reader hides the next paste
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clipboard.OffersToFail = 2;
+
+        // Act
+        _clipboard.ReadInTheBackground("BCClipboard");
+        LetTimeGoBy();
+
+        // Assert
+        await Assert.That(_clipboard.OffersToFail).IsEqualTo(0);
+        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+    }
+
     [Test]
     [Category("Clipboard")]
     public async Task Read_ByAProgramReadingNowAndThen_IsAlwaysGivenTheData()
