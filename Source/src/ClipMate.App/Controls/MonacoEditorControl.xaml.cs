@@ -781,6 +781,27 @@ public partial class MonacoEditorControl
     }
 
     /// <summary>
+    /// Selects <paramref name="length" /> characters from character <paramref name="offset" /> of the text and scrolls
+    /// them into view. A length of 0 clears the selection at that point.
+    /// </summary>
+    public async Task<bool> SelectRangeAsync(int offset, int length)
+    {
+        if (!IsInitialized)
+            return false;
+
+        try
+        {
+            var result = await EditorWebView.ExecuteScriptAsync($"selectRange({offset}, {length})");
+            return result == "true";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to select a range");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Gets the currently selected text in the editor.
     /// </summary>
     public async Task<string> GetSelectedTextAsync()

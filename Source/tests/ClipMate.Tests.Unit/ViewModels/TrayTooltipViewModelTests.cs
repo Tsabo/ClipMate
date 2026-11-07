@@ -36,6 +36,41 @@ public class TrayTooltipViewModelTests
     private void SetCurrentClip(Clip clip) => _messenger.Send(new CurrentClipChangedEvent(new CurrentClip(clip, "db")));
 
     [Test]
+    [Category("PowerPasteFragment")]
+    public async Task Text_FragmentWaiting_ShowsTheFragmentWhateverTheHint()
+    {
+        // Arrange - ClipMate 7's UpdateFragmentTitle 0x866c68 puts "Fragment [%s]" in the tray hint
+        _configuration.Appearance.SystemTrayHint = SystemTrayHint.Collection;
+        SetCurrentClip(new Clip { Title = "Meeting notes" });
+
+        // Act
+        _messenger.Send(new PowerPasteFragmentChangedEvent(Guid.NewGuid(), "Alice", 0, 5));
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("Fragment [Alice]");
+    }
+
+    [Test]
+    [Category("PowerPasteFragment")]
+    public async Task Text_NoFragmentWaitingAnyMore_ShowsTheHintAgain()
+    {
+        // Arrange
+        SetCurrentClip(new Clip { Title = "Meeting notes" });
+        _messenger.Send(new PowerPasteFragmentChangedEvent(Guid.NewGuid(), "Alice", 0, 5));
+
+        // Act
+        _messenger.Send(PowerPasteFragmentChangedEvent.None);
+
+        // Assert
+        await Assert.That(_viewModel.Text).IsEqualTo("Meeting notes");
+    }
+
+    [Test]
+    [Category("PowerPasteFragment")]
+    public async Task FragmentTitle_WithLineBreaksAndTabs_IsOneLine() =>
+        await Assert.That(new PowerPasteFragmentChangedEvent(Guid.NewGuid(), " Alice\t Smith\r\n", 0, 0).Title).IsEqualTo("Fragment [Alice Smith]");
+
+    [Test]
     public async Task Text_NoCurrentClip_IsClipMate()
     {
         // Assert

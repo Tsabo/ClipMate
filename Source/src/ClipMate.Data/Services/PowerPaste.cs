@@ -354,6 +354,8 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             TotalCount = _sequence.Count,
             CurrentClip = item.Clip,
             IsExplodePiece = item.IsExplodePiece,
+            FragmentStart = item.FragmentStart,
+            FragmentLength = item.FragmentLength,
         };
 
         // The offer comes first. Listeners move the clip list's selection, and rendering it can hold the UI thread for
@@ -718,18 +720,28 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
                 continue;
 
             var piece = text[start..i];
+            var pieceStart = start;
             start = i + 1;
 
             if (preferences.PowerPasteTrim)
-                piece = piece.Trim();
+            {
+                var trimmed = piece.TrimStart();
+                pieceStart += piece.Length - trimmed.Length;
+                piece = trimmed.TrimEnd();
+            }
 
             if (piece.Length == 0)
                 continue;
 
+            // The span in the clip's text: the Fragment as pasted, running on to its delimiter when that is pasted too
+            var pieceEnd = pieceStart + piece.Length;
             if (preferences.PowerPasteIncludeDelimiter && !isEnd)
+            {
                 piece += text[i];
+                pieceEnd = i + 1;
+            }
 
-            // A piece keeps the clip's ID, so the clip list follows the sequence
+            // A Fragment keeps the clip's ID, so the clip list follows the sequence
             pieces.Add(new PowerPasteStep(new Clip
             {
                 Id = clip.Id,
@@ -738,7 +750,7 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
                 CapturedAt = clip.CapturedAt,
                 SourceApplicationName = clip.SourceApplicationName,
                 CollectionId = clip.CollectionId,
-            }, true));
+            }, true, FragmentStart: pieceStart, FragmentLength: pieceEnd - pieceStart));
         }
 
         if (pieces.Count == 0)

@@ -549,6 +549,48 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         await Assert.That(_mockClipListViewModel.SelectedClip).IsEqualTo(second);
     }
 
+    [Test]
+    public async Task PowerPastePositionChanged_ToAFragment_TellsViewsWhereItLies()
+    {
+        // Arrange
+        var clipId = Guid.NewGuid();
+
+        // Act
+        _mockPowerPaste.PositionChanged += Raise.With(new PowerPastePositionChangedEventArgs
+        {
+            CurrentClip = new Clip { Id = clipId, TextContent = "Smith" },
+            IsExplodePiece = true,
+            FragmentStart = 6,
+            FragmentLength = 5,
+        });
+
+        // Assert
+        await Assert.That(SentFragments()).IsEquivalentTo([new PowerPasteFragmentChangedEvent(clipId, "Smith", 6, 5)]);
+    }
+
+    [Test]
+    public async Task PowerPastePositionChanged_ToAWholeClip_TellsViewsNoFragmentIsWaiting()
+    {
+        // Act
+        _mockPowerPaste.PositionChanged += Raise.With(new PowerPastePositionChangedEventArgs { CurrentClip = new Clip { Id = Guid.NewGuid() } });
+
+        // Assert
+        await Assert.That(SentFragments()).IsEquivalentTo([PowerPasteFragmentChangedEvent.None]);
+    }
+
+    [Test]
+    public async Task PowerPasteStopped_TellsViewsNoFragmentIsWaiting()
+    {
+        // Act
+        _mockPowerPaste.StateChanged += Raise.With(new PowerPasteStateChangedEventArgs { OldState = PowerPasteState.Active, NewState = PowerPasteState.Inactive });
+
+        // Assert
+        await Assert.That(SentFragments()).IsEquivalentTo([PowerPasteFragmentChangedEvent.None]);
+    }
+
+    private List<PowerPasteFragmentChangedEvent> SentFragments() =>
+        Fake.GetCalls(_mockMessenger).Select(p => p.Arguments.FirstOrDefault()).OfType<PowerPasteFragmentChangedEvent>().ToList();
+
     #endregion
 
     #region Helper Methods

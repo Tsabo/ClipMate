@@ -50,6 +50,10 @@ One installation of ClipMate, with its own identity. If you use ClipMate on a de
 
 A Device on your local network that you haven't paired with yet. Seeing one doesn't let it connect to you. See [Discovered Devices](options/devices.md#discovered-devices).
 
+## Fragment
+
+One part of a clip's text that Exploding PowerPaste pastes on its own. ClipMate splits the clip into fragments at the delimiters set in [Pasting Options](options/pasting.md). See [Exploding PowerPaste](user-interface/main-toolbar/powerpaste.md#exploding-powerpaste).
+
 ## HTML
 
 HyperText Markup Language. When you copy from a web browser, ClipMate captures the HTML format to preserve formatting. See [HTML Tab](user-interface/preview-edit/html-tab.md).

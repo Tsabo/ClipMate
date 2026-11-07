@@ -13,7 +13,7 @@
     xmlns:converters="clr-namespace:ClipMate.App.Converters"
     d:DataContext="{d:DesignInstance Type=vm:ClassicViewModel}"
     mc:Ignorable="d"
-    Title="ClipMate"
+    Title="{Binding MainMenu.FragmentCaption, StringFormat='ClipMate{0}', FallbackValue='ClipMate'}"
     Width="700"
     Height="500"
     MinWidth="500"

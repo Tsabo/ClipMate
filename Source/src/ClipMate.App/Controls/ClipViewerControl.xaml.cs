@@ -33,7 +33,8 @@ namespace ClipMate.App.Controls;
 /// Multi-tab viewer for clipboard data with support for Text, HTML, RTF, Markdown, Bitmap, Picture, and Binary formats.
 /// Listens to ClipSelectedEvent, PreferencesChangedEvent, and ClipCacheExpiredMessage via MVVM Toolkit Messenger.
 /// </summary>
-public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>, IRecipient<ClipCacheExpiredMessage>
+public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipient<PreferencesChangedEvent>, IRecipient<ClipCacheExpiredMessage>,
+    IRecipient<PowerPasteFragmentChangedEvent>
 {
     #region Constructor
 
@@ -75,6 +76,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             _messenger.Register<ClipSelectedEvent>(this);
             _messenger.Register<PreferencesChangedEvent>(this);
             _messenger.Register<ClipCacheExpiredMessage>(this);
+            _messenger.Register<PowerPasteFragmentChangedEvent>(this);
 
             // Apply initial editor settings
             ApplyEditorSettings();
@@ -105,6 +107,7 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
             _messenger.Unregister<ClipSelectedEvent>(this);
             _messenger.Unregister<PreferencesChangedEvent>(this);
             _messenger.Unregister<ClipCacheExpiredMessage>(this);
+            _messenger.Unregister<PowerPasteFragmentChangedEvent>(this);
 
             // Cancel any ongoing load operation
             _loadCancellationTokenSource?.Cancel();
@@ -232,6 +235,27 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         });
     }
 
+    /// <summary>
+    /// Shows the Fragment Power Paste will paste next selected in the clip's text, as ClipMate 7's editor does. When its
+    /// clip is still loading, the Fragment is selected once the text is in.
+    /// </summary>
+    public void Receive(PowerPasteFragmentChangedEvent message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var previous = _fragment;
+            _fragment = message.ClipId == null ? null : message;
+
+            if (_fragment != null)
+            {
+                if (ClipId == _fragment.ClipId && !IsLoading)
+                    _ = ShowFragmentAsync();
+            }
+            else if (previous != null && ClipId == previous.ClipId && !IsLoading)
+                _ = TextEditor.SelectRangeAsync(0, 0);
+        });
+    }
+
     #endregion
 
     #region Dependency Properties
@@ -295,6 +319,9 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
     // Raw HTML/RTF of the current clip, used as the source for the Markdown tab
     private string? _currentRawHtml;
     private string? _currentRawRtf;
+
+    // The Fragment Power Paste will paste next, while one is waiting
+    private PowerPasteFragmentChangedEvent? _fragment;
 
     // Track which ClipData entries are being edited
     private Guid? _textFormatClipDataId;
@@ -482,6 +509,15 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
         }
     }
 
+    /// <summary>
+    /// Selects the waiting Fragment when the text shown is its clip's.
+    /// </summary>
+    private async Task ShowFragmentAsync()
+    {
+        if (_fragment is { } fragment && ClipId == fragment.ClipId)
+            await TextEditor.SelectRangeAsync(fragment.Start, fragment.Length);
+    }
+
     private async Task LoadTextFormatsAsync(IMonacoEditorStateRepository? monacoStateRepository, CancellationToken cancellationToken = default)
     {
         // Debug log all ClipData entries
@@ -559,6 +595,8 @@ public partial class ClipViewerControl : IRecipient<ClipSelectedEvent>, IRecipie
 
             // Track the ClipData ID for saving changes (never for a read-only Database's clip)
             _textFormatClipDataId = isReadOnly ? null : textFormat.Id;
+
+            await ShowFragmentAsync();
             return;
         }
 

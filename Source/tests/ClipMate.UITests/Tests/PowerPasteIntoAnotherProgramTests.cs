@@ -127,11 +127,19 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
             clipList.ClickToolbarButton("PowerPaste");
             await WaitForPowerPasteToArmAsync();
 
+            // The caption shows the Fragment waiting, as ClipMate 7's does, until the last one is pasted
+            await Poll.UntilAsync(() => clipList.Title?.EndsWith($" [Fragment [{fragments[0]}]]", StringComparison.Ordinal) == true, "the first Fragment in the caption");
+
             using var target = await TestAppWindow.OpenAsync($"Paste target {Guid.NewGuid():N}");
             await Foreground.ActivateAsync(target.Handle, "the paste target");
             await PasteAsync(target, fragments[0]);
+            await Poll.UntilAsync(() => clipList.Title?.EndsWith($" [Fragment [{fragments[1]}]]", StringComparison.Ordinal) == true, "the second Fragment in the caption");
             await PasteAsync(target, fragments[0] + fragments[1]);
             await PasteAsync(target, fragments[0] + fragments[1] + fragments[2]);
+
+            // The sequence runs on to the end of the collection; stopping it takes the Fragment out of the caption
+            clipList.ClickToolbarButton("PowerPaste");
+            await Poll.UntilAsync(() => clipList.Title == "ClipMate - Clipboard Manager", "the caption without a Fragment once Power Paste stops");
         }
         finally
         {

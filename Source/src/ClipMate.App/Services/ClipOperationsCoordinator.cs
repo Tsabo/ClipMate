@@ -135,8 +135,9 @@ public class ClipOperationsCoordinator :
         _messenger.Register<ConvertFilePointerRequestedEvent>(this);
         _messenger.Register<MoveClipSortOrderRequestedEvent>(this);
 
-        // The clip list shows the clip waiting to be pasted
+        // The clip list shows the clip waiting to be pasted, and views the Fragment waiting in it
         _powerPaste.PositionChanged += OnPowerPastePositionChanged;
+        _powerPaste.StateChanged += OnPowerPasteStateChanged;
 
         _logger.LogDebug("ClipOperationsCoordinator initialized and registered for events");
     }
@@ -1299,8 +1300,27 @@ public class ClipOperationsCoordinator :
     /// </summary>
     private void OnPowerPastePositionChanged(object? sender, PowerPastePositionChangedEventArgs e)
     {
-        if (e.CurrentClip is { } clip)
-            UiThread.Run(() => _clipListViewModel.SelectClipWithoutCopying(clip.Id));
+        if (e.CurrentClip is not { } clip)
+            return;
+
+        var fragment = e.IsExplodePiece
+            ? new PowerPasteFragmentChangedEvent(clip.Id, clip.TextContent ?? string.Empty, e.FragmentStart, e.FragmentLength)
+            : PowerPasteFragmentChangedEvent.None;
+
+        UiThread.Run(() =>
+        {
+            _messenger.Send(fragment);
+            _clipListViewModel.SelectClipWithoutCopying(clip.Id);
+        });
+    }
+
+    /// <summary>
+    /// Once Power Paste stops, no Fragment is waiting.
+    /// </summary>
+    private void OnPowerPasteStateChanged(object? sender, PowerPasteStateChangedEventArgs e)
+    {
+        if (e.NewState == PowerPasteState.Inactive)
+            UiThread.Run(() => _messenger.Send(PowerPasteFragmentChangedEvent.None));
     }
 
     /// <summary>
