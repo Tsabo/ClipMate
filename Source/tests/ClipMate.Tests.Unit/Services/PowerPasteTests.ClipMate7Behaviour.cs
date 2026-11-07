@@ -97,9 +97,9 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("SingleClip")]
-    public async Task Paste_SingleExplodedClipWithLoopOn_StartsOver()
+    public async Task Paste_SingleExplodedClipWithLoopOn_StopsAfterItsLastFragment()
     {
-        // Arrange
+        // Arrange - AdvanceNextItem 0x8669d8 ends a one-clip list before it looks at Loop, Explode included
         UseConfiguration(new PreferencesConfiguration { PowerPasteLoop = true, PowerPasteDelimiter = ",", PowerPasteTrim = true });
         var service = CreateService();
         UseExplode();
@@ -110,8 +110,8 @@ public partial class PowerPasteTests
         await PasteAsync();
 
         // Assert
-        await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("a");
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
+        await Assert.That(CompleteSoundCount()).IsEqualTo(1);
     }
 
     [Test]
@@ -186,22 +186,23 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("MoveTo")]
-    [Arguments(PowerPasteDirection.Down, "First")]
-    [Arguments(PowerPasteDirection.Up, "Third")]
-    public async Task MoveTo_ClipOutsideSequence_GoesBackToTheStart(PowerPasteDirection direction, string expected)
+    public async Task MoveTo_ClipOutsideSequence_StopsWithoutPuttingTheWaitingClipBack()
     {
-        // Arrange - ReInitPPIndex 0x867138 uses index 0, the first clip in paste order, for a clip not in the list
+        // Arrange - the clip list's pick handler 0x861f44 cancels: "Cancelled - Clip Outside of Original PowerPaste Range."
         var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], direction);
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
         await PasteAsync();
 
         // Act
         var moved = service.MoveTo(Guid.NewGuid());
+        await Task.Yield();
 
-        // Assert
+        // Assert - the picked clip is copied by the clip list, as any pick is
         await Assert.That(moved).IsFalse();
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo(expected);
-        await Assert.That(service.State).IsEqualTo(PowerPasteState.Active);
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
+        await Assert.That(_clipboard.Releases).IsEqualTo(1);
+        A.CallTo(() => _mockCurrentClipWriter.PutOnClipboardAsync(A<Clip>.Ignored, A<WriteOptions>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
     }
 
     [Test]

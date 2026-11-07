@@ -63,6 +63,15 @@ public class ClipListPage(Process app)
         FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
     /// <summary>
+    /// True when the main window shows a text element reading exactly <paramref name="text" />, such as a status bar
+    /// message.
+    /// </summary>
+    public bool ShowsText(string text) =>
+        MainWindow()?.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text),
+            new PropertyCondition(AutomationElement.NameProperty, text))) != null;
+
+    /// <summary>
     /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste"), or its check button
     /// (e.g. "Append").
     /// </summary>

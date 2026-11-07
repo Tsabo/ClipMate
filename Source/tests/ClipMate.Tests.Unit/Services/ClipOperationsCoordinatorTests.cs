@@ -461,7 +461,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
     }
 
     [Test]
-    public Task ClipSelectedEvent_UserPicksAClipOutsideTheSequence_LeavesPowerPasteOn()
+    public Task ClipSelectedEvent_UserPicksAClipOutsideTheSequence_LeavesTheCancelToPowerPaste()
     {
         // Arrange
         var clip = new Clip { Id = Guid.NewGuid() };
@@ -472,7 +472,7 @@ public class ClipOperationsCoordinatorTests : TestFixtureBase
         _coordinator.Receive(new ClipSelectedEvent(clip, "test-database-path"));
 
         // Assert
-        // MoveTo has sent the sequence back to its start
+        // MoveTo has cancelled Power Paste itself, without putting the waiting clip back
         A.CallTo(() => _mockPowerPaste.MoveTo(clip.Id)).MustHaveHappenedOnceExactly();
         A.CallTo(() => _mockPowerPaste.Stop(A<bool>.Ignored)).MustNotHaveHappened();
         A.CallTo(() => _mockPowerPaste.Stop()).MustNotHaveHappened();

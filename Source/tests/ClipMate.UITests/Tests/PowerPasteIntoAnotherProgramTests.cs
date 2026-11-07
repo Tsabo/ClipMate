@@ -170,11 +170,11 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     }
 
     [Test]
-    public async Task ClickingAClipOutsideTheSequence_GoesBackToItsStart() =>
+    public async Task ClickingAClipOutsideTheSequence_CancelsAndPastesThePickedClip() =>
         await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown);
 
     [Test]
-    public async Task ClickingAClipOutsideTheSequence_JustBeforeTheNextClipComesUp_GoesBackToItsStart() =>
+    public async Task ClickingAClipOutsideTheSequence_JustBeforeTheNextClipComesUp_CancelsAndPastesThePickedClip() =>
         await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown, _slowToMoveOn);
 
     private async Task PasteThenClickAClipOutsideTheSequenceAsync(params string[] settings)
@@ -195,13 +195,15 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
             await Foreground.ActivateAsync(target.Handle, "the paste target");
             await PasteAsync(target, _third);
 
-            // The second clip is waiting. Picking the first, which isn't in the sequence, goes back to the third.
+            // The second clip is waiting. Picking the first, which isn't in the sequence, cancels Power Paste as ClipMate 7's
+            // clip list does, and the picked clip is copied as any pick is: the next paste is that clip.
             await clipList.SelectAsync(_first);
-            await Poll.UntilAsync(() => clipList.IsSelected(_third), "the clip list to go back to the start of the sequence");
-            await WaitForPowerPasteToArmAsync();
+            await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() != "ClipMate.PowerPaste" && SystemClipboard.IsOwnedBy(appFixture.Process) &&
+                                        SystemClipboard.TryReadText(IntPtr.Zero) == _first,
+                "Power Paste to cancel and the picked clip to be copied");
 
             await Foreground.ActivateAsync(target.Handle, "the paste target");
-            await PasteAsync(target, _third + _third);
+            await PasteAsync(target, _third + _first);
         }
         finally
         {

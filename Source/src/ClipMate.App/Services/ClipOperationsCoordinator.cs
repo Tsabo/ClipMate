@@ -266,16 +266,26 @@ public class ClipOperationsCoordinator :
 
     /// <summary>
     /// Handles ClipSelectedEvent: while PowerPaste is active, picking a clip of its sequence moves the sequence to it
-    /// and picking any other clip sends it back to its start. Also handles automatic decryption of encrypted clips.
+    /// and picking any other clip cancels it. Also handles automatic decryption of encrypted clips.
     /// </summary>
     public async void Receive(ClipSelectedEvent message)
     {
         // Selections PowerPaste makes itself (following the sequence) are not the user's
         if (_powerPaste.State == PowerPasteState.Active
             && message is { IsUserSelection: true, SelectedClip: not null })
-            SendStatus(_powerPaste.MoveTo(message.SelectedClip.Id)
-                ? "PowerPaste moved to the selected clip"
-                : "PowerPaste went back to the start of its sequence");
+        {
+            if (_powerPaste.MoveTo(message.SelectedClip.Id))
+                SendStatus("PowerPaste moved to the selected clip");
+            else
+            {
+                // ClipMate 7's words. The window writes the picked clip's own status as it handles this event and again
+                // once the clip is copied, so the message goes after them and stays until the user picks again.
+                UiThread.Queue(() => _messenger.Send(new StatusUpdateEvent("Cancelled - Clip Outside of Original PowerPaste Range.")
+                {
+                    KeepUntilUserSelects = true,
+                }));
+            }
+        }
 
         // Handle encrypted clip selection
         // Guard against re-entrant calls while decrypting (prevents infinite loop from context menu)

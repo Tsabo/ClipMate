@@ -127,13 +127,47 @@ public class PowerPasteTests(AppFixture appFixture)
         }
     }
 
-    /// <summary>
-    /// Copies two clips, selects both and clicks the PowerPaste toolbar button (Power Paste Down), then waits until
-    /// the first clip is armed for delayed rendering.
-    /// </summary>
-    private async Task<ClipListPage> StartPowerPasteOverBothClipsAsync()
+    [Test]
+    public async Task PickOutsideTheSequence_CancelsPowerPasteAndCopiesThePickedClip()
     {
-        await appFixture.StartAppAsync("preferences.power_paste_last_direction=\"Down\"");
+        var backup = SystemClipboard.Backup();
+        try
+        {
+            // Arrange: Power Paste Up from the newer clip, the top row, so the sequence is that clip alone
+            // (picking each clip in turn, so ClipMate's copy of the newer one has landed before Power Paste takes the clipboard)
+            var clipList = await CopyBothClipsAsync("Up");
+            await clipList.SelectAsync(_older);
+            await Poll.UntilAsync(() => SystemClipboard.IsOwnedBy(appFixture.Process) && SystemClipboard.TryReadText(IntPtr.Zero) == _older,
+                "ClipMate to copy the older clip");
+            await clipList.SelectAsync(_newer);
+            await Poll.UntilAsync(() => SystemClipboard.IsOwnedBy(appFixture.Process) && SystemClipboard.TryReadText(IntPtr.Zero) == _newer,
+                "ClipMate to copy the newer clip");
+            clipList.ClickToolbarButton("PowerPaste");
+            await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() == _powerPasteWindow, "Power Paste to arm the clip");
+
+            // Act: pick the older clip, outside the sequence
+            await clipList.SelectAsync(_older);
+
+            // Assert: Power Paste let go of the clipboard, the picked clip was copied as any pick is, and the status bar
+            // says why, in ClipMate 7's words
+            await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() != _powerPasteWindow && SystemClipboard.IsOwnedBy(appFixture.Process) &&
+                                        SystemClipboard.TryReadText(IntPtr.Zero) == _older,
+                "the picked clip on the clipboard");
+            await Poll.UntilAsync(() => clipList.ShowsText("Cancelled - Clip Outside of Original PowerPaste Range."), "the cancel message");
+        }
+        finally
+        {
+            SystemClipboard.Restore(backup);
+        }
+    }
+
+    /// <summary>
+    /// Starts ClipMate with <paramref name="direction" /> as the saved Power Paste direction and copies the older clip,
+    /// then the newer one, until both are listed.
+    /// </summary>
+    private async Task<ClipListPage> CopyBothClipsAsync(string direction)
+    {
+        await appFixture.StartAppAsync($"preferences.power_paste_last_direction=\"{direction}\"");
         var clipList = new ClipListPage(appFixture.Process);
 
         // A copy made while the previous one is still being captured can be missed; copy again until it is listed
@@ -148,6 +182,17 @@ public class PowerPasteTests(AppFixture appFixture)
                 return clipList.FindRow(item);
             }, $"\"{item}\" in the clip list");
         }
+
+        return clipList;
+    }
+
+    /// <summary>
+    /// Copies two clips, selects both and clicks the PowerPaste toolbar button (Power Paste Down), then waits until
+    /// the first clip is armed for delayed rendering.
+    /// </summary>
+    private async Task<ClipListPage> StartPowerPasteOverBothClipsAsync()
+    {
+        var clipList = await CopyBothClipsAsync("Down");
 
         // The newer clip, just captured, is already the current row, so selecting it copies nothing. Adding the older
         // one makes it current, and ClipMate copies it once the selection settles: that copy must land before Power

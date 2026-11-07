@@ -125,8 +125,9 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
             _pasteCount = 0;
             _loadContent = loadContent;
 
-            // A single clip without Explode pastes once and stops, even with Loop on
-            _isSingleClip = clips.Count == 1 && !explode;
+            // A sequence of one clip pastes once, or its Fragments once, and stops, even with Loop on (ClipMate 7's
+            // AdvanceNextItem 0x8669d8 ends a one-clip list before looking at Loop)
+            _isSingleClip = clips.Count == 1;
 
             Direction = direction;
 
@@ -244,23 +245,24 @@ public sealed class PowerPaste : IPowerPaste, IDisposable
                 ? _sequence.FindIndex(p => p.Clip.Id == clipId)
                 : _sequence.FindLastIndex(p => p.Clip.Id == clipId);
 
-            // A clip outside the sequence sends it back to its start, and the list back to that clip
-            var isInSequence = position >= 0;
-            if (!isInSequence)
+            // A clip outside the sequence cancels it, as ClipMate 7's clip list does (0x861f44). The picked clip is copied
+            // as any pick is, so the waiting clip isn't put back first.
+            if (position < 0)
             {
-                position = Direction == PowerPasteDirection.Down
-                    ? 0
-                    : _sequence.Count - 1;
+                _logger.LogInformation("PowerPaste cancelled: clip {ClipId} is outside its sequence", clipId);
+                StopInternal(false);
+
+                return false;
             }
 
-            if (position != CurrentPosition || !isInSequence)
+            if (position != CurrentPosition)
             {
                 CurrentPosition = position;
                 _logger.LogInformation("PowerPaste moved to {ClipId}: Position={Position}/{TotalCount}", _sequence[position].Clip.Id, CurrentPosition + 1, _sequence.Count);
                 MoveToCurrentPosition();
             }
 
-            return isInSequence;
+            return true;
         }
         finally
         {
