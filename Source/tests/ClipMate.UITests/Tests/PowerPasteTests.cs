@@ -6,13 +6,14 @@ namespace ClipMate.UITests.Tests;
 
 /// <summary>
 /// Power Paste offers the waiting clip by delayed rendering: a read by the application in the foreground is a paste
-/// and advances the sequence, any other read (clipboard history, another clipboard manager) gets the data without
-/// advancing. When Power Paste ends, the waiting clip stays on the clipboard as a normal copy; when another program
-/// takes the clipboard, its copy is left alone.
+/// and advances the sequence, and a read by a program in the background (clipboard history, Remote Desktop, another
+/// clipboard manager) gets nothing and changes nothing (ADR-0008). When Power Paste ends, the waiting clip stays on the
+/// clipboard as a normal copy; when another program takes the clipboard, its copy is left alone.
 /// <para>
-/// The test process plays both readers: it reads without a window as a background reader, and through a window of
-/// its own brought to the foreground as the application the user pastes into. Uses the real, shared clipboard and
-/// puts its previous content back afterwards.
+/// The test process pastes through a window of its own brought to the foreground, and a separate helper process reads
+/// from a hidden window as the background program. A read without a window counts as a paste, so while Power Paste
+/// runs the test waits on the clipboard's owner and sequence number instead of reading it. Uses the real, shared
+/// clipboard and puts its previous content back afterwards.
 /// </para>
 /// </summary>
 [ClassDataSource<AppFixture>(Shared = SharedType.None)]
@@ -22,7 +23,7 @@ public class PowerPasteTests(AppFixture appFixture)
     // The title of the window through which Power Paste owns the clipboard
     private const string _powerPasteWindow = "ClipMate.PowerPaste";
 
-    // The marker Power Paste adds when it re-arms the waiting clip after a read that was not a paste
+    // ClipMate marks its own copies with this; Power Paste's offers carry it among the markers that keep readers away
     private const string _ignoreMarker = "Clipboard Viewer Ignore";
 
     // Unique per run, so a copy left on the clipboard by an earlier run is never mistaken for this one
@@ -30,47 +31,49 @@ public class PowerPasteTests(AppFixture appFixture)
     private readonly string _newer = $"power paste newer {Guid.NewGuid():N}";
 
     [Test]
-    public async Task PasteDetection_APasteByTheForegroundApplicationAdvances_ABackgroundReadDoesNot()
+    public async Task PasteDetection_APasteByTheForegroundApplicationAdvances_ABackgroundReadGetsNothing()
     {
         var backup = SystemClipboard.Backup();
         try
         {
             // Arrange: Power Paste Down over both clips (a saved direction); the newer one is listed first, so it waits first
             var clipList = await StartPowerPasteOverBothClipsAsync();
-            await WaitForOtherReadersAsync();
-
-            // Act: a background read, as clipboard history or another clipboard manager makes
-            var backgroundRead = await ReadInBackgroundAsync();
-
-            // Assert: it got the waiting clip, and Power Paste armed that same clip again instead of advancing
-            await Assert.That(backgroundRead.Text).IsEqualTo(_newer);
-            await Poll.UntilAsync(() => SystemClipboard.SequenceNumber != backgroundRead.SequenceNumber &&
-                                        SystemClipboard.GetOwnerWindowTitle() == _powerPasteWindow &&
-                                        SystemClipboard.TryGetRawFormatNames()?.Contains(_ignoreMarker) == true,
-                "Power Paste to re-arm the waiting clip");
-            await Assert.That((await ReadInBackgroundAsync()).Text).IsEqualTo(_newer);
-
-            // Act: a paste into the foreground application soon after that background read
+            var formats = await Poll.UntilAsync(SystemClipboard.TryGetRawFormatNames, "the offered formats");
             using var target = await ForegroundTestWindow.OpenAsync();
+            var offered = SystemClipboard.SequenceNumber;
+
+            // Act: a program in the background reads while the target is in front
+            bool gotNothing;
+            using (var reader = ClipboardTestProgram.ReadInBackground())
+            {
+                await Poll.UntilAsync(() => reader.HasPrinted("read:(null)") || reader.HasPrinted($"read:{_newer}"), "the background read");
+                gotNothing = reader.HasPrinted("read:(null)");
+            }
+
+            // Assert: the offer carries every marker, the background program got nothing, and the clipboard didn't change
+            await Assert.That(gotNothing).IsTrue();
+            await Assert.That(formats).Contains(_ignoreMarker);
+            await Assert.That(formats).Contains("ExcludeClipboardContentFromMonitorProcessing");
+            await Assert.That(formats).Contains("CanIncludeInClipboardHistory");
+            await Assert.That(formats).Contains("CanUploadToCloudClipboard");
+            await Assert.That(SystemClipboard.SequenceNumber).IsEqualTo(offered);
+            await Assert.That(SystemClipboard.GetOwnerWindowTitle()).IsEqualTo(_powerPasteWindow);
+
+            // Act: a paste into the foreground application
             var pasted = await target.PasteAsync();
 
-            // Assert: it got the waiting clip, and the sequence moved on to the next one, which the clip list now shows
-            // as current while both clips of the sequence stay selected
+            // Assert: it got the waiting clip, and the next clip went up, which the clip list now shows as current while
+            // both clips of the sequence stay selected
             await Assert.That(pasted).IsEqualTo(_newer);
-            await Poll.UntilAsync(() => SystemClipboard.TryReadText(IntPtr.Zero) == _older, "Power Paste to advance to the next clip");
+            await Poll.UntilAsync(() => SystemClipboard.SequenceNumber != offered && SystemClipboard.GetOwnerWindowTitle() == _powerPasteWindow,
+                "Power Paste to offer the next clip");
             await Poll.UntilAsync(() => clipList.IsSelected(_newer) && clipList.IsSelected(_older), "both clips to stay selected");
 
-            // Act: paste the last clip. A paste within 250 ms of the previous one counts as the application re-reading
-            // it, so paste until the sequence finishes. A later attempt can land while ClipMate is putting the clip
-            // back, so only the first one's text is checked.
+            // Act: paste the last clip
             await Assert.That(await target.PasteAsync()).IsEqualTo(_older);
-            await Poll.UntilAsync(() =>
-            {
-                target.Paste();
-                return SystemClipboard.GetOwnerWindowTitle() != _powerPasteWindow;
-            }, "Power Paste to finish after the last clip is pasted");
 
-            // Assert: the last clip stays on the clipboard as a normal copy
+            // Assert: Power Paste finishes, and the last clip stays on the clipboard as a normal copy
+            await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() != _powerPasteWindow, "Power Paste to finish after the last clip is pasted");
             await AssertLeftOnTheClipboardAsNormalCopyAsync(_older);
         }
         finally
@@ -160,55 +163,13 @@ public class PowerPasteTests(AppFixture appFixture)
         return clipList;
     }
 
-    /// <summary>
-    /// Reads the clipboard's text without a window, opening it three times a few milliseconds apart as Remote Desktop's
-    /// clipboard redirection does for one change. Gives the text and the clipboard's sequence number at the last read.
-    /// </summary>
-    private static async Task<(string? Text, uint SequenceNumber)> ReadInBackgroundAsync()
-    {
-        var sequenceNumber = 0u;
-        var text = await Poll.UntilAsync(() => SystemClipboard.TryReadText(IntPtr.Zero, out sequenceNumber), "a background read");
-        for (var i = 0; i < 2; i++)
-        {
-            // The reader's own timing, not a wait for ClipMate
-#pragma warning disable RS0030
-            await Task.Delay(30);
-#pragma warning restore RS0030
-            if (SystemClipboard.TryReadText(IntPtr.Zero, out var next) != null)
-                sequenceNumber = next;
-        }
-
-        return (text, sequenceNumber);
-    }
-
-    /// <summary>
-    /// Waits until the clipboard has not changed for a second: clipboard monitors on the machine (Remote Desktop's
-    /// clipboard redirection, other clipboard managers) read a newly armed clip, and Power Paste re-arms it after each read.
-    /// </summary>
-    private static async Task WaitForOtherReadersAsync()
-    {
-        var sequenceNumber = SystemClipboard.SequenceNumber;
-        var changedAt = DateTime.UtcNow;
-        await Poll.UntilAsync(() =>
-        {
-            var current = SystemClipboard.SequenceNumber;
-            if (current != sequenceNumber)
-            {
-                sequenceNumber = current;
-                changedAt = DateTime.UtcNow;
-            }
-
-            return DateTime.UtcNow - changedAt > TimeSpan.FromSeconds(1);
-        }, "other clipboard readers to finish with the armed clip");
-    }
-
     private async Task AssertLeftOnTheClipboardAsNormalCopyAsync(string text)
     {
         await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() != _powerPasteWindow && SystemClipboard.IsOwnedBy(appFixture.Process) &&
                                     SystemClipboard.TryReadText(IntPtr.Zero) == text,
             "ClipMate to leave the waiting clip on the clipboard");
 
-        // Marked as ClipMate's own copy like any other, but kept in Windows clipboard history, unlike a re-arm
+        // Marked as ClipMate's own copy like any other, but kept in Windows clipboard history, unlike an offer
         var formats = await Poll.UntilAsync(SystemClipboard.TryGetRawFormatNames, "the clipboard's formats");
         await Assert.That(formats).Contains("#13"); // CF_UNICODETEXT
         await Assert.That(formats).Contains(_ignoreMarker);

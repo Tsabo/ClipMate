@@ -189,9 +189,11 @@ public class PreferencesConfiguration
     public bool ReuseLastSelectedMoveTarget { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets the PowerPaste delay (in milliseconds).
+    /// Gets or sets the PowerPaste delay (in milliseconds): how long after a paste the next clip goes up. Until then a
+    /// program reading again gets the pasted clip, so the 250 ms default (ClipMate 7: 100) covers Word and Excel, which
+    /// read again 126 ms and 168 ms after pasting.
     /// </summary>
-    public int PowerPasteDelay { get; set; } = 100;
+    public int PowerPasteDelay { get; set; } = 250;
 
     /// <summary>
     /// Gets or sets whether PowerPaste shield is enabled: only a paste moves the sequence on, not another program reading

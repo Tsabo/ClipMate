@@ -30,11 +30,16 @@ internal sealed record ClipboardReader(uint ProcessId, string ProcessName, uint 
         ProcessId != 0 && ProcessId == ForegroundProcessId && ProcessId != ownProcessId;
 
     /// <summary>
-    /// True when the read cannot be tied to a process: it came without a window, or a Store app is in the foreground. Its
-    /// top-level window belongs to the frame host, and its clipboard reads come from a Windows service.
+    /// True when the clipboard was opened without a window, as browsers, Electron programs and Windows Terminal open it.
     /// </summary>
-    public bool MayBeForForegroundApplication =>
-        ProcessId == 0 || string.Equals(ForegroundProcessName, _storeAppFrameHost, StringComparison.OrdinalIgnoreCase);
+    public bool IsWithoutWindow => ProcessId == 0;
+
+    /// <summary>
+    /// True when a Store app is in the foreground: its top-level window belongs to the frame host, and its clipboard
+    /// reads come from a Windows service, so the reader can't be tied to it.
+    /// </summary>
+    public bool IsStoreAppInForeground =>
+        string.Equals(ForegroundProcessName, _storeAppFrameHost, StringComparison.OrdinalIgnoreCase);
 
     private static uint GetProcessId(IWin32InputInterop win32, HWND window)
     {

@@ -88,21 +88,26 @@ public class ClipboardReaderTests
     }
 
     [Test]
-    [Category("MayBeForForegroundApplication")]
-    public async Task MayBeForForegroundApplication_ReadWithoutAWindow_IsTrue() =>
+    [Category("IsWithoutWindow")]
+    public async Task IsWithoutWindow_ReadWithoutAWindow_IsTrue() =>
         // Edge and Windows Terminal, observed in the log: "read by (no window) while msedge is in the foreground"
-        await Assert.That(new ClipboardReader(0, "(no window)", 200, "msedge").MayBeForForegroundApplication).IsTrue();
+        await Assert.That(new ClipboardReader(0, "(no window)", 200, "msedge").IsWithoutWindow).IsTrue();
 
     [Test]
-    [Category("MayBeForForegroundApplication")]
-    public async Task MayBeForForegroundApplication_ServiceReadForAStoreApp_IsTrue() =>
+    [Category("IsWithoutWindow")]
+    public async Task IsWithoutWindow_ANamedBackgroundProgram_IsFalse() =>
+        await Assert.That(new ClipboardReader(300, "msrdc", 200, "notepad").IsWithoutWindow).IsFalse();
+
+    [Test]
+    [Category("IsStoreAppInForeground")]
+    public async Task IsStoreAppInForeground_WithTheFrameHostInFront_IsTrue() =>
         // Calculator, observed in the log: "read by svchost while ApplicationFrameHost is in the foreground"
-        await Assert.That(new ClipboardReader(300, "svchost", 200, "ApplicationFrameHost").MayBeForForegroundApplication).IsTrue();
+        await Assert.That(new ClipboardReader(300, "svchost", 200, "ApplicationFrameHost").IsStoreAppInForeground).IsTrue();
 
     [Test]
-    [Category("MayBeForForegroundApplication")]
-    public async Task MayBeForForegroundApplication_ANamedBackgroundProgram_IsFalse() =>
-        await Assert.That(new ClipboardReader(300, "msrdc", 200, "notepad").MayBeForForegroundApplication).IsFalse();
+    [Category("IsStoreAppInForeground")]
+    public async Task IsStoreAppInForeground_WithADesktopProgramInFront_IsFalse() =>
+        await Assert.That(new ClipboardReader(300, "svchost", 200, "notepad").IsStoreAppInForeground).IsFalse();
 
     private static ClipboardReader Reader(uint processId, uint foregroundProcessId) =>
         new(processId, "reader", foregroundProcessId, "foreground");

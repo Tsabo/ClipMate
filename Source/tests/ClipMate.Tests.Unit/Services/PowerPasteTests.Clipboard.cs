@@ -124,7 +124,7 @@ public partial class PowerPasteTests
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
         // Act
-        _clipboard.ReadBy(true);
+        _clipboard.ReadByTheTarget();
 
         // Assert
         await Assert.That(service.CurrentPosition).IsEqualTo(0);
@@ -136,176 +136,133 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("Clipboard")]
-    public async Task Read_ByTheTargetTooSoonAfterAPaste_IsNotASecondPaste()
+    public async Task Read_ByTheTargetAgainBeforeTheDelay_GetsThePastedClipAndIsNotASecondPaste()
     {
-        // Arrange - the target, or Windows, reading again what it was just given
+        // Arrange - Word reads again 126 ms after a paste; the default delay is 250 ms
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelay = 250 });
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
-        await PasteAsync();
+        _clipboard.ReadByTheTarget();
 
         // Act
-        _clock.Advance(TimeSpan.FromMilliseconds(249));
-        _clipboard.ReadBy(true);
+        _clock.Advance(TimeSpan.FromMilliseconds(126));
+        var served = _clipboard.ReadByTheTarget();
+        _clock.Advance(TimeSpan.FromMilliseconds(124));
 
         // Assert
+        await Assert.That(served).IsTrue();
         await Assert.That(service.CurrentPosition).IsEqualTo(1);
-        _clock.Advance(TimeSpan.FromMilliseconds(100));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     [Test]
     [Category("Clipboard")]
-    public async Task Read_ByAnotherProgram_OffersTheSameClipAgainAfterItSettles()
+    public async Task PowerPasteDelay_DefaultsTo250Milliseconds() =>
+        await Assert.That(new PreferencesConfiguration().PowerPasteDelay).IsEqualTo(250);
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_ByABackgroundProgram_IsRefusedAndChangesNothing()
     {
-        // Arrange
+        // Arrange - Remote Desktop's client and clipboard history read every offer from their own windows
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
-        // Act - clipboard history reads it, opening the clipboard twice for one change
-        _clipboard.ReadBy(false);
-        _clipboard.ReadBy(false);
+        // Act
+        var served = _clipboard.ReadInTheBackground();
+        _clock.Advance(TimeSpan.FromSeconds(5));
 
-        // Assert
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(0);
-        _clock.Advance(TimeSpan.FromMilliseconds(100));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+        // Assert - nothing offered again, so nothing has a reason to read again
+        await Assert.That(served).IsFalse();
+        await Assert.That(_clipboard.Offers).Count().IsEqualTo(1);
         await Assert.That(service.CurrentPosition).IsEqualTo(0);
     }
 
     [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByAReaderThatReadsEveryChange_IsThrottledToTheInterval()
-    {
-        // Arrange - a reader ignoring the "ignore me" markers reads each offer again. It has no name, so it may be a paste.
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        for (var i = 0; i < 20; i++)
-        {
-            _clipboard.ReadWithoutAProcess(TimeSpan.FromHours(1));
-            _clock.Advance(TimeSpan.FromMilliseconds(25));
-        }
-
-        // Act
-        _clipboard.ReadWithoutAProcess(TimeSpan.FromHours(1));
-
-        // Assert - the 21st waits until a second after the first of the twenty, offered again at 25 ms
-        _clock.Advance(TimeSpan.FromMilliseconds(524));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(20);
-        _clock.Advance(TimeSpan.FromMilliseconds(1));
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(21);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByAProgramThatKeepsReading_IsRefusedAndNotOfferedAgain()
-    {
-        // Arrange - Remote Desktop's client reading every offer, 15 times a second
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        var served = 0;
-        while (_clipboard.ReadInTheBackground())
-        {
-            served++;
-            _clock.Advance(TimeSpan.FromMilliseconds(66));
-        }
-
-        var offersAgain = _clipboard.OffersAgain;
-
-        // Act
-        _clock.Advance(TimeSpan.FromSeconds(5));
-        var servedLater = _clipboard.ReadInTheBackground();
-        _clock.Advance(TimeSpan.FromSeconds(5));
-
-        // Assert - the clipboard stops changing, so the program has no reason to read and nothing else wakes up
-        await Assert.That(served).IsEqualTo(9);
-        await Assert.That(servedLater).IsFalse();
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(offersAgain);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByAProgramThatKeepsReading_DoesNotHideTheNextPaste()
+    [Category("PasteDetection")]
+    public async Task Read_ByABackgroundProgramOverAndOver_IsRefusedEachTimeAndTheNextPasteStillMovesOn()
     {
         // Arrange
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        while (_clipboard.ReadInTheBackground())
-            _clock.Advance(TimeSpan.FromMilliseconds(66));
+        for (var i = 0; i < 100; i++)
+        {
+            _clipboard.ReadInTheBackground(i % 2 == 0 ? "msrdc" : "svchost");
+            _clock.Advance(TimeSpan.FromMilliseconds(10));
+        }
 
         // Act
         await PasteAsync();
 
         // Assert
-        await Assert.That(service.CurrentPosition).IsEqualTo(1);
+        await Assert.That(_clipboard.Refusals).IsEqualTo(100);
+        await Assert.That(_clipboard.Offers).Count().IsEqualTo(2);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByABackgroundProgram_WhenHidingClips_IsRefusedAndNotOfferedAgain()
+    [Category("PasteDetection")]
+    public async Task Read_WithoutAWindow_IsAPaste()
     {
-        // Arrange
-        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        // Arrange - browsers, Electron programs and Windows Terminal paste without a window
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
         // Act
-        var served = _clipboard.ReadInTheBackground("BCClipboard");
-        _clock.Advance(TimeSpan.FromSeconds(5));
+        var served = _clipboard.ReadWithoutAWindow();
 
         // Assert
-        await Assert.That(served).IsFalse();
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(0);
+        await Assert.That(served).IsTrue();
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByABackgroundProgram_WhenHidingClips_DoesNotHideTheNextPaste()
+    [Category("PasteDetection")]
+    public async Task Read_ForAStoreAppInTheForeground_IsAPaste()
     {
-        // Arrange
-        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
+        // Arrange - Calculator's paste is read by a Windows service while ApplicationFrameHost is in the foreground
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clipboard.ReadInTheBackground("BCClipboard");
 
         // Act
-        await PasteAsync();
+        _clipboard.ReadForAStoreApp();
 
         // Assert
-        await Assert.That(service.CurrentPosition).IsEqualTo(1);
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     [Test]
-    [Category("Clipboard")]
-    public async Task Read_WithoutAProcess_WhenHidingClips_IsStillGivenTheData()
-    {
-        // Arrange - it may be the program in the foreground pasting, so it can't go without
-        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-
-        // Act
-        _clipboard.ReadWithoutAProcess(TimeSpan.FromHours(1));
-        _clock.Advance(TimeSpan.FromSeconds(5));
-
-        // Assert - offering again is what follows a read that got the data
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByClipMate_WhenHidingClips_IsStillGivenTheData()
+    [Category("PasteDetection")]
+    public async Task Read_ByClipMateOrWithItInTheForeground_IsRefused()
     {
         // Arrange
-        UseConfiguration(new PreferencesConfiguration { PowerPasteHideFromOtherPrograms = true, PowerPasteDelay = 0 });
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
         // Act
-        _clipboard.ReadByClipMate();
-        _clock.Advance(TimeSpan.FromSeconds(5));
+        var byClipMate = _clipboard.ReadByClipMate();
+        var withClipMateInFront = _clipboard.ReadWithoutAWindowWithClipMateInTheForeground();
 
         // Assert
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
+        await Assert.That(byClipMate).IsFalse();
+        await Assert.That(withClipMateInFront).IsFalse();
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
+    }
+
+    [Test]
+    [Category("PasteDetection")]
+    public async Task Read_ByABackgroundProgram_ThenWithoutAWindow_IsAPaste()
+    {
+        // Arrange - the refused read leaves the clip waiting, so the paste that follows is still heard
+        var service = CreateService();
+        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
+        _clipboard.ReadInTheBackground("svchost");
+
+        // Act
+        _clipboard.ReadWithoutAWindow();
+
+        // Assert
+        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     /// <summary>
@@ -355,100 +312,6 @@ public partial class PowerPasteTests
 
         // Assert
         await Assert.That(_clipboard.Offers.Count).IsEqualTo(offers);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task OfferAgain_WhenTheClipboardCannotBeOpened_TriesAgain()
-    {
-        // Arrange - a clip left rendered for a background reader hides the next paste
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clipboard.OffersToFail = 2;
-
-        // Act
-        _clipboard.ReadInTheBackground("BCClipboard");
-        LetTimeGoBy();
-
-        // Assert
-        await Assert.That(_clipboard.OffersToFail).IsEqualTo(0);
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(1);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByAProgramReadingNowAndThen_IsAlwaysGivenTheData()
-    {
-        // Arrange
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        var served = 0;
-
-        // Act - a burst of three for each of many changes, a second apart
-        for (var i = 0; i < 12; i++)
-        {
-            for (var j = 0; j < 3; j++)
-            {
-                if (_clipboard.ReadInTheBackground())
-                    served++;
-            }
-
-            _clock.Advance(TimeSpan.FromSeconds(1));
-        }
-
-        // Assert
-        await Assert.That(served).IsEqualTo(36);
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByARefusedProgram_IsServedAgainWhenPowerPasteNextStarts()
-    {
-        // Arrange
-        var service = CreateService();
-        var clips = new[] { CreateTestClip("First"), CreateTestClip("Second") };
-        await service.StartAsync(clips, PowerPasteDirection.Down);
-        while (_clipboard.ReadInTheBackground())
-            _clock.Advance(TimeSpan.FromMilliseconds(66));
-
-        // Act
-        service.Stop();
-        await service.StartAsync(clips, PowerPasteDirection.Down);
-
-        // Assert
-        await Assert.That(_clipboard.ReadInTheBackground()).IsTrue();
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_ByAnotherProgram_WhenOneIsRefused_IsGivenTheData()
-    {
-        // Arrange
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        while (_clipboard.ReadInTheBackground())
-            _clock.Advance(TimeSpan.FromMilliseconds(66));
-
-        // Act and assert
-        await Assert.That(_clipboard.ReadInTheBackground("clipboard history")).IsTrue();
-    }
-
-    [Test]
-    [Category("Clipboard")]
-    public async Task Read_PendingWhenTheNextClipIsOffered_IsNotOfferedAgain()
-    {
-        // Arrange
-        var service = CreateService();
-        var second = CreateTestClip("Second");
-        await service.StartAsync([CreateTestClip("First"), second], PowerPasteDirection.Down);
-        _clipboard.ReadBy(false);
-
-        // Act
-        service.MoveTo(second.Id);
-        _clock.Advance(TimeSpan.FromMilliseconds(100));
-
-        // Assert
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(0);
     }
 
     [Test]
@@ -528,19 +391,21 @@ public partial class PowerPasteTests
 
     [Test]
     [Category("Clipboard")]
-    public async Task Read_AfterStop_IsIgnored()
+    public async Task Read_AfterStop_IsNotReported()
     {
         // Arrange
         var service = CreateService();
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
         service.Stop(false);
+        var offers = _clipboard.Offers.Count;
 
         // Act
-        _clipboard.ReadBy(false);
+        _clipboard.ReadByTheTarget();
         _clock.Advance(TimeSpan.FromSeconds(1));
 
         // Assert
-        await Assert.That(_clipboard.OffersAgain).IsEqualTo(0);
+        await Assert.That(service.State).IsEqualTo(PowerPasteState.Inactive);
+        await Assert.That(_clipboard.Offers.Count).IsEqualTo(offers);
     }
 
     [Test]
@@ -631,87 +496,6 @@ public partial class PowerPasteTests
     }
 
     [Test]
-    [Category("PasteDetection")]
-    public async Task Read_WithoutAProcessJustAfterTheUsersInput_IsAPaste()
-    {
-        // Arrange: a browser or Windows Terminal reads without a window, and a Store app's read comes from a Windows service
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clock.Advance(TimeSpan.FromSeconds(1));
-
-        // Act
-        _clipboard.ReadWithoutAProcess(TimeSpan.FromMilliseconds(20));
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
-    }
-
-    [Test]
-    [Category("PasteDetection")]
-    public async Task Read_WithoutAProcessWithNoRecentInput_IsNotAPaste()
-    {
-        // Arrange
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clock.Advance(TimeSpan.FromSeconds(1));
-
-        // Act
-        _clipboard.ReadWithoutAProcess(TimeSpan.FromSeconds(5));
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
-    }
-
-    [Test]
-    [Category("PasteDetection")]
-    public async Task Read_WithoutAProcess_WhenTheLastInputCameBeforeTheClip_IsNotAPaste()
-    {
-        // Arrange: the input is the key press that pasted the clip before this one, released as this one came up
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clock.Advance(TimeSpan.FromMilliseconds(420));
-
-        // Act: the input was 300 ms ago, so 120 ms after the offer
-        _clipboard.ReadWithoutAProcess(TimeSpan.FromMilliseconds(300));
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
-    }
-
-    [Test]
-    [Category("PasteDetection")]
-    public async Task Read_ByABackgroundProgramWhileTheUserTypes_IsNotAPaste()
-    {
-        // Arrange: WSLg's msrdc reads every clipboard change; Tab between two pastes must not count as pasting
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clock.Advance(TimeSpan.FromSeconds(1));
-
-        // Act
-        _clipboard.ReadByABackgroundProgramWhileTheUserTypes();
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
-    }
-
-    [Test]
-    [Category("PasteDetection")]
-    public async Task Read_ByClipMateOrWithItInTheForeground_IsNotAPaste()
-    {
-        // Arrange
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
-        _clock.Advance(TimeSpan.FromSeconds(1));
-
-        // Act
-        _clipboard.ReadByClipMate();
-        _clipboard.ReadWithClipMateInTheForeground();
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
-    }
-
-    [Test]
     [Category("Clipboard")]
     public async Task Read_ByTheTarget300MillisecondsAfterAPaste_IsAnotherPaste()
     {
@@ -722,24 +506,7 @@ public partial class PowerPasteTests
 
         // Act
         _clock.Advance(TimeSpan.FromMilliseconds(300));
-        _clipboard.ReadBy(true);
-
-        // Assert
-        await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Third");
-    }
-
-    [Test]
-    [Category("Shield")]
-    public async Task ShieldOff_TheTargetReadingAgainAtOnce_IsAnotherPaste()
-    {
-        // Arrange - ClipMate 7 has no limit on how soon the next read counts
-        UseConfiguration(new PreferencesConfiguration { PowerPasteShield = false, PowerPasteDelay = 0 });
-        var service = CreateService();
-        await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second"), CreateTestClip("Third")], PowerPasteDirection.Down);
-        await PasteAsync();
-
-        // Act
-        _clipboard.ReadBy(true);
+        _clipboard.ReadByTheTarget();
 
         // Assert
         await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Third");
@@ -755,15 +522,16 @@ public partial class PowerPasteTests
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
         // Act
-        _clipboard.ReadBy(false);
+        var served = _clipboard.ReadInTheBackground();
 
         // Assert
+        await Assert.That(served).IsTrue();
         await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("Second");
     }
 
     [Test]
     [Category("Shield")]
-    public async Task ShieldOff_ReadByClipMate_IsNotAPaste()
+    public async Task ShieldOff_ReadByClipMate_IsRefused()
     {
         // Arrange
         UseConfiguration(new PreferencesConfiguration { PowerPasteShield = false, PowerPasteDelay = 0 });
@@ -771,9 +539,10 @@ public partial class PowerPasteTests
         await service.StartAsync([CreateTestClip("First"), CreateTestClip("Second")], PowerPasteDirection.Down);
 
         // Act
-        _clipboard.ReadByClipMate();
+        var served = _clipboard.ReadByClipMate();
 
         // Assert
+        await Assert.That(served).IsFalse();
         await Assert.That(WaitingClip(service)?.TextContent).IsEqualTo("First");
     }
 
