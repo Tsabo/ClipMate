@@ -196,17 +196,11 @@ public class PreferencesConfiguration
     public int PowerPasteDelay { get; set; } = 250;
 
     /// <summary>
-    /// Gets or sets whether PowerPaste shield is enabled: only a paste moves the sequence on, not another program reading
-    /// the clipboard. When off, every read does, as ClipMate 7 does without its shield.
+    /// Gets or sets whether PowerPaste shield is enabled: only a paste by the program in the foreground moves the sequence
+    /// on, and programs in the background reading the clipboard get nothing (ADR-0008). When off, every read moves it on,
+    /// as in ClipMate 7. A saved power_paste_hide_from_other_programs, from before Shield did this, is ignored.
     /// </summary>
     public bool PowerPasteShield { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether programs in the background get nothing when they read the clipboard during PowerPaste. Each of
-    /// their reads otherwise leaves a moment in which a paste goes unnoticed and holds the clipboard, which can make a paste
-    /// put in nothing. Off by default: ClipMate 7 gives every reader the clip, and clipboard managers expect it.
-    /// </summary>
-    public bool PowerPasteHideFromOtherPrograms { get; set; }
 
     /// <summary>
     /// Gets or sets the PowerPaste delimiter characters.

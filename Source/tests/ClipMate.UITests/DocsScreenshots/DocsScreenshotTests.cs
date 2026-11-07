@@ -114,6 +114,17 @@ public class DocsScreenshotTests
         await SaveAsync(page, DocsCopyPage.OptionsTitle, "options/img/options-appearance-dark.png");
     }
 
+    [Test]
+    public async Task PastingOptions()
+    {
+        await using var copy = await StartAsync();
+        var page = new DocsCopyPage(copy.Process);
+
+        await page.OpenOptionsAsync();
+        await page.SelectOptionsTabAsync("Pasting");
+        await SaveAsync(page, DocsCopyPage.OptionsTitle, "options/img/options-pasting.png");
+    }
+
     /// <summary>
     /// With networking off, so the tab lists no Discovered Devices. The Device Name is seeded because it defaults to the computer's name.
     /// </summary>

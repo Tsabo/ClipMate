@@ -5,7 +5,7 @@ title: Pasting Options
 
 # Pasting Options
 
-{/* ![Pasting Options Tab](img/options-pasting.png) */}
+![The Pasting tab of the Options dialog, with the PowerPaste and Outbound Clip Filtering settings](img/options-pasting.png)
 
 These settings control how ClipMate pastes data to applications.
 
@@ -42,19 +42,13 @@ This option is on the main menu under **Edit**, not in this dialog. Click to tog
 
 ## PowerPaste Shield
 
-PowerPaste Shield is on by default. It stops other programs that read the clipboard, such as clipboard history or another clipboard manager, from moving PowerPaste on to the next clip, which is called "fast-forwarding."
+PowerPaste Shield is on by default. With it on, only pasting into the program you're working in moves PowerPaste on to the next clip. Programs that read the clipboard in the background can't read the clip while PowerPaste is on, so they can't make it skip ahead. These include clipboard history, Remote Desktop and WSL clipboard sharing, and other clipboard managers. Once PowerPaste stops, they can read the clipboard again.
 
-If PowerPaste doesn't advance when you paste into a program, turn this option off. Then any program reading the clipboard moves PowerPaste on, so it may skip clips if such a program is running.
+If pasting into a program doesn't move PowerPaste on, turn this option off. Then any program that reads the clipboard moves PowerPaste on, so it may skip clips while such a program is running.
 
-## Hide Clips From Other Programs
-
-This option is off by default, so every program that reads the clipboard gets the clip, as in ClipMate 7. It works only while PowerPaste Shield is on.
-
-Programs that read the clipboard in the background can get in the way of a paste, mostly on a busy computer or when you paste quickly. PowerPaste may repeat a clip, or a paste may put in nothing. If this happens to you, turn this option on.
-
-While PowerPaste is on, programs in the background then get nothing from the clipboard. These include clipboard history, other clipboard managers, and the clipboard sharing in Remote Desktop and WSL. They can read the clipboard again when PowerPaste stops.
-
-If pasting into a program puts in nothing with this option on, turn it off.
+:::note Windows clipboard history
+You don't need to turn off clipboard history (**Windows key + V**) to use PowerPaste. While PowerPaste is on, clipboard history doesn't record the clips it offers, and it can't make PowerPaste skip ahead.
+:::
 
 ## Filter Outbound Clips
 
