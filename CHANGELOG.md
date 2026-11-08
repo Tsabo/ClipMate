@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1-beta] - 2026-11-07
+
+### Added
+- **Seeing the Next Fragment** - While Exploding PowerPaste runs, ClipMate shows which fragment your next paste will give, as ClipMate 7 does. The fragment is selected in the clip's text, and the window title and tray icon's tooltip end with **[Fragment [...]]**. They go back to normal when PowerPaste stops.
+
+### Changed
+- **PowerPaste Shield Keeps Clips From Background Programs** - With PowerPaste Shield on (the default), only pasting into the program you're working in moves PowerPaste on. Programs that read the clipboard in the background, such as clipboard history, Remote Desktop and WSL clipboard sharing, and other clipboard managers, can't read the clip until PowerPaste stops, so they can't make it skip ahead. You don't need to turn off Windows clipboard history: it doesn't record the clips PowerPaste offers. The separate **Hide Clips From Other Programs** option added in 1.2.0-beta.1 is gone, and its saved value is ignored.
+- **Clicking Another Clip During PowerPaste** - As in ClipMate 7, clicking a clip outside the sequence now stops PowerPaste and copies that clip, and the status bar says "Cancelled - Clip Outside of Original PowerPaste Range." In 1.2.0-beta.1 it took PowerPaste back to the start of the sequence.
+- **PowerPaste Delay** - The default is now 250 milliseconds (it was 100). Word and Excel read the clipboard again just after a paste, and until the delay ends they get the clip you pasted, so PowerPaste doesn't skip one. If you used an earlier version, your settings keep 100. Change it under **Advanced** in Options if PowerPaste skips clips in Word or Excel.
+
+### Fixed
+- **PowerPaste Moving On by Itself** - A program reading the clipboard in the background just after you clicked or typed counted as a paste, so PowerPaste could move to the next clip without you pasting. ([#32](https://github.com/Tsabo/ClipMate/issues/32))
+- **Exploding PowerPaste on One Clip** - With **Loop** on, the fragments of a single clip pasted over and over. As in ClipMate 7, they now paste once, and then PowerPaste stops.
+
 ## [1.2.0-beta.1] - 2026-11-05
 
 ### Added
