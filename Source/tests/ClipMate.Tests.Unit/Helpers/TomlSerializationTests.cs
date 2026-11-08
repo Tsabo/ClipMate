@@ -23,6 +23,19 @@ public class TomlSerializationTests
     }
 
     [Test]
+    public async Task Deserialize_RemovedPowerPasteHideSetting_IsIgnored()
+    {
+        // Arrange - written by 1.2.0-beta.1, before PowerPaste Shield took over what the setting did
+        const string toml = "[preferences]\npower_paste_shield = false\npower_paste_hide_from_other_programs = true\n";
+
+        // Act
+        var configuration = TomlSerializer.Deserialize<ClipMateConfiguration>(toml, TomlSerialization.Options)!;
+
+        // Assert - the rest of the file still loads
+        await Assert.That(configuration.Preferences.PowerPasteShield).IsFalse();
+    }
+
+    [Test]
     public async Task Deserialize_ReadsEnumFromIntegerOrName()
     {
         // Act

@@ -226,6 +226,26 @@
         }
 
         // Get currently selected text
+        // Selects `length` characters from character `offset` of the text and scrolls them into view; a length of 0
+        // clears the selection there. Used to show the Fragment Power Paste will paste next.
+        function selectRange(offset, length) {
+            if (!monacoEditor) {
+                return false;
+            }
+            try {
+                const model = monacoEditor.getModel();
+                const start = model.getPositionAt(offset);
+                const end = model.getPositionAt(offset + length);
+                const range = new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column);
+                monacoEditor.setSelection(range);
+                monacoEditor.revealRangeInCenterIfOutsideViewport(range);
+                return true;
+            } catch (error) {
+                console.error('[Monaco] Select range error:', error);
+                return false;
+            }
+        }
+
         function getSelectedText() {
             if (!monacoEditor) {
                 return '';

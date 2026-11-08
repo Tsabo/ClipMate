@@ -14,8 +14,9 @@ namespace ClipMate.Platform.Services;
 /// <summary>
 /// Power Paste's clipboard on Windows. The offered Formats are registered for delayed rendering (SetClipboardData with
 /// no data) from a hidden window, so Windows sends WM_RENDERFORMAT at the moment an application reads one
-/// (GetClipboardData). Every Format is rendered on that first request, and the read is reported with what tells a paste
-/// from another read: whether the reader is the application in the foreground, and how recent the user's input is.
+/// (GetClipboardData). The read is reported with who read and what is in the foreground; unless it is refused, every
+/// Format is rendered on that first request. Each offer carries the markers that keep clipboard history, the cloud
+/// clipboard and clipboard managers that respect them from reading it.
 /// </summary>
 public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, IDisposable
 {
@@ -23,17 +24,24 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
     private const int WmRenderAllFormats = 0x0306;
     private const int WmDestroyClipboard = 0x0307;
 
-    private readonly IWin32IdleDetector _idleDetector;
     private readonly ILogger<PowerPasteClipboard> _logger;
     private readonly IWin32InputInterop _win32;
     private IReadOnlyList<ClipboardFormatData> _formats = [];
     private HwndSource? _hwndSource;
     private bool _isOffering;
 
-    public PowerPasteClipboard(IWin32InputInterop win32, IWin32IdleDetector idleDetector, ILogger<PowerPasteClipboard> logger)
+    // Real data, a DWORD 0: the two "Can..." markers read it as "no", the other two only have to be present
+    private static readonly string[] _markers =
+    [
+        ClipboardIgnoreFormats.ClipboardViewerIgnore,
+        ClipboardIgnoreFormats.ExcludeFromMonitorProcessing,
+        ClipboardIgnoreFormats.CanIncludeInClipboardHistory,
+        ClipboardIgnoreFormats.CanUploadToCloudClipboard,
+    ];
+
+    public PowerPasteClipboard(IWin32InputInterop win32, ILogger<PowerPasteClipboard> logger)
     {
         _win32 = win32 ?? throw new ArgumentNullException(nameof(win32));
-        _idleDetector = idleDetector ?? throw new ArgumentNullException(nameof(idleDetector));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -77,6 +85,7 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
             {
                 PInvoke.EmptyClipboard();
                 SetFormats(false);
+                SetMarkers();
             }
             finally
             {
@@ -89,35 +98,6 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
         {
             _isOffering = false;
         }
-    }
-
-    /// <inheritdoc />
-    public bool OfferAgain()
-    {
-        if (_hwndSource == null || _formats.Count == 0)
-            return false;
-
-        if (!TryOpenClipboard(new HWND(_hwndSource.Handle)))
-            return false;
-
-        try
-        {
-            SetFormats(false);
-
-            // The waiting clip is unchanged, so clipboard managers that already read it are asked not to read it again
-            foreach (var item in ClipboardIgnoreFormats.All)
-            {
-                var hGlobal = DataObjectFormats.AllocGlobal(new byte[sizeof(int)]);
-                if (hGlobal != IntPtr.Zero)
-                    PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(item), new HANDLE(hGlobal));
-            }
-        }
-        finally
-        {
-            PInvoke.CloseClipboard();
-        }
-
-        return true;
     }
 
     /// <inheritdoc />
@@ -180,6 +160,16 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
         }
     }
 
+    private static void SetMarkers()
+    {
+        foreach (var item in _markers)
+        {
+            var hGlobal = DataObjectFormats.AllocGlobal(new byte[sizeof(int)]);
+            if (hGlobal != IntPtr.Zero)
+                PInvoke.SetClipboardData(PInvoke.RegisterClipboardFormat(item), new HANDLE(hGlobal));
+        }
+    }
+
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         switch (msg)
@@ -217,17 +207,17 @@ public sealed class PowerPasteClipboard : IPowerPasteClipboard, IHostedService, 
         var read = new PowerPasteClipboardReadEventArgs
         {
             IsByForegroundApplication = reader.IsForegroundApplication(OwnProcess.Id),
-            MayBeForForegroundApplication = reader.MayBeForForegroundApplication,
+            IsWithoutWindow = reader.IsWithoutWindow,
+            IsStoreAppInForeground = reader.IsStoreAppInForeground,
             IsByClipMate = reader.ProcessId == OwnProcess.Id,
             IsClipMateInForeground = reader.ForegroundProcessId == OwnProcess.Id,
-            SinceUserInput = TimeSpan.FromMilliseconds(_idleDetector.GetIdleTimeMilliseconds()),
             ReaderName = reader.ProcessName,
         };
 
         Read?.Invoke(this, read);
 
-        // Windows sends WM_RENDERFORMAT once per format; every Format is supplied now, whoever asked. A Format left without
-        // data stays delayed, and Windows asks again at the next read.
+        // Every Format is supplied for a paste, so the clipboard holds the pasted clip until the next offer. A refused read
+        // leaves them without data: they stay delayed, and Windows asks again at the next read.
         if (!read.IsRefused)
             SetFormats(true);
     }

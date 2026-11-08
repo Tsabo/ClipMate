@@ -95,6 +95,16 @@ With Exploding PowerPaste enabled, each paste will give you the next fragment:
 4. Each paste operation pastes the next fragment
 5. Commas are removed and spaces are trimmed automatically
 
+### Seeing the next fragment
+
+While Exploding PowerPaste runs, ClipMate shows you which fragment your next paste will give you:
+
+- In the clip's text, below the clip list, the fragment is selected. The selection moves on after each paste.
+- The window title ends with **[Fragment [...]]**, for example **ClipMate - Clipboard Manager [Fragment [January]]**.
+- The tray icon's tooltip shows **Fragment [...]** too, so you can check it without opening ClipMate.
+
+When PowerPaste stops, the title and tooltip go back to normal.
+
 ### Configuration
 
 Configure fragment delimiters in [Pasting Options](../../options/pasting.md):

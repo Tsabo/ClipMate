@@ -65,6 +65,24 @@ public sealed class ClipboardTestProgram : IDisposable
                                            Application.Run();
                                        }
 
+                                       // A clipboard monitor in the background: opens the clipboard with a hidden window of its
+                                       // own, never in the foreground, reads the text once and prints what it got
+                                       public static void ReadInBackground()
+                                       {
+                                           var reader = new ClipboardTestOwner("", 0, 0);
+                                           Open(reader.Handle);
+                                           var text = "(null)";
+                                           var data = GetClipboardData(CfUnicodeText);
+                                           if (data != IntPtr.Zero)
+                                           {
+                                               text = Marshal.PtrToStringUni(GlobalLock(data));
+                                               GlobalUnlock(data);
+                                           }
+
+                                           CloseClipboard();
+                                           Console.WriteLine("read:" + text);
+                                       }
+
                                        // The text is there at once for clipboard monitors that read only text; the HTML is
                                        // rendered on demand. Windows' clipboard history is kept out, as it would ask for it first.
                                        private void Offer()
@@ -150,6 +168,7 @@ public sealed class ClipboardTestProgram : IDisposable
                                        [DllImport("user32.dll")] private static extern IntPtr GetOpenClipboardWindow();
                                        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
                                        [DllImport("user32.dll")] private static extern IntPtr SetClipboardData(uint format, IntPtr data);
+                                       [DllImport("user32.dll")] private static extern IntPtr GetClipboardData(uint format);
                                        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern uint RegisterClipboardFormat(string name);
                                        [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
                                        [DllImport("kernel32.dll")] private static extern IntPtr GlobalLock(IntPtr handle);
@@ -218,6 +237,12 @@ public sealed class ClipboardTestProgram : IDisposable
     /// </summary>
     public static ClipboardTestProgram CopyInBackground(string text, string title) =>
         new($"[ClipboardTestOwner]::CopyInBackground('{Quote(text)}', '{Quote(title)}')");
+
+    /// <summary>
+    /// Reads the clipboard's text once from a hidden window of its own, never in the foreground, as a clipboard monitor
+    /// in the background does, and prints "read:" and the text, or "read:(null)" when it got none.
+    /// </summary>
+    public static ClipboardTestProgram ReadInBackground() => new("[ClipboardTestOwner]::ReadInBackground()");
 
     /// <summary>
     /// The name of the program's process, as ClipMate records it.

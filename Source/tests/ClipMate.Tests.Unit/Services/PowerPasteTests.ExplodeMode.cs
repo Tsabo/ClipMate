@@ -251,6 +251,91 @@ public partial class PowerPasteTests
         await Assert.That(await PastedPiecesAsync(service, 2)).IsEquivalentTo(["Apple,", "Banana"]);
     }
 
+    [Test]
+    [Category("FragmentSpan")]
+    public async Task FragmentSpans_OfRepeatedFragments_AreEachTheirOwn()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
+        UseExplode();
+        var service = CreateService();
+
+        // Act
+        var spans = await FragmentSpansAsync(service, "ab,ab,ab", 3);
+
+        // Assert
+        await Assert.That(spans).IsEquivalentTo([(0, 2), (3, 2), (6, 2)]);
+    }
+
+    [Test]
+    [Category("FragmentSpan")]
+    public async Task FragmentSpans_OfTrimmedFragments_CoverOnlyTheText()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true });
+        UseExplode();
+        var service = CreateService();
+
+        // Act
+        var spans = await FragmentSpansAsync(service, "  a ,  b", 2);
+
+        // Assert
+        await Assert.That(spans).IsEquivalentTo([(2, 1), (7, 1)]);
+    }
+
+    [Test]
+    [Category("FragmentSpan")]
+    public async Task FragmentSpans_WithTheDelimiterIncluded_RunOnToTheDelimiter()
+    {
+        // Arrange
+        UseConfiguration(new PreferencesConfiguration { PowerPasteDelimiter = ",", PowerPasteTrim = true, PowerPasteIncludeDelimiter = true });
+        UseExplode();
+        var service = CreateService();
+
+        // Act
+        var spans = await FragmentSpansAsync(service, "a ,b", 2);
+
+        // Assert
+        await Assert.That(spans).IsEquivalentTo([(0, 3), (3, 1)]);
+    }
+
+    [Test]
+    [Category("FragmentSpan")]
+    public async Task FragmentSpans_WithoutExplode_AreNotReported()
+    {
+        // Arrange
+        var service = CreateService();
+        PowerPastePositionChangedEventArgs? position = null;
+        service.PositionChanged += (_, e) => position = e;
+
+        // Act
+        await service.StartAsync([CreateTestClip("a,b")], PowerPasteDirection.Down);
+
+        // Assert
+        await Assert.That(position?.IsExplodePiece).IsFalse();
+        await Assert.That(position?.FragmentLength).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Starts Power Paste on one clip of <paramref name="text" />, pastes <paramref name="count" /> times, and returns
+    /// where each Fragment lay in the text as it waited to be pasted.
+    /// </summary>
+    private async Task<List<(int Start, int Length)>> FragmentSpansAsync(IPowerPaste service, string text, int count)
+    {
+        var spans = new List<(int Start, int Length)>();
+        service.PositionChanged += (_, e) =>
+        {
+            if (e.IsExplodePiece)
+                spans.Add((e.FragmentStart, e.FragmentLength));
+        };
+
+        await service.StartAsync([CreateTestClip(text)], PowerPasteDirection.Down);
+        for (var i = 1; i < count; i++)
+            await PasteAsync();
+
+        return spans;
+    }
+
     /// <summary>
     /// Pastes <paramref name="count" /> times and returns the text of each piece as it waited to be pasted.
     /// </summary>

@@ -15,5 +15,15 @@ public static class ClipboardIgnoreFormats
     /// </summary>
     public const string ExcludeFromMonitorProcessing = "ExcludeClipboardContentFromMonitorProcessing";
 
+    /// <summary>
+    /// With a DWORD 0, keeps the change out of the Windows clipboard history.
+    /// </summary>
+    public const string CanIncludeInClipboardHistory = "CanIncludeInClipboardHistory";
+
+    /// <summary>
+    /// With a DWORD 0, keeps the change out of the cloud clipboard.
+    /// </summary>
+    public const string CanUploadToCloudClipboard = "CanUploadToCloudClipboard";
+
     public static readonly IReadOnlyList<string> All = [ClipboardViewerIgnore, ExcludeFromMonitorProcessing];
 }

@@ -100,7 +100,7 @@ public partial class PowerPasteTests
     private Task PasteAsync()
     {
         _clock.Advance(TimeSpan.FromSeconds(1));
-        _clipboard.ReadBy(true);
+        _clipboard.ReadByTheTarget();
         _clock.Advance(TimeSpan.FromMilliseconds(Math.Max(0, _mockConfigService.Configuration.Preferences.PowerPasteDelay)));
 
         return Task.CompletedTask;

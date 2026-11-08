@@ -63,11 +63,12 @@ public interface IPowerPaste
     Task ToggleAsync(PowerPasteDirection direction, Func<PowerPasteDirection, IReadOnlyList<Clip>> getClips, Func<Clip, Task>? loadContent = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Moves the sequence to a clip in it, so that clip, from its first Explode piece, is the next one pasted. A clip
-    /// outside the sequence sends it back to its start.
+    /// Moves the sequence to a clip in it, so that clip, from its first Fragment, is the next one pasted. A clip outside
+    /// the sequence stops Power Paste without putting the waiting clip back: the picked clip is copied instead, as any
+    /// pick is.
     /// </summary>
     /// <param name="clipId">The clip's ID.</param>
-    /// <returns>False if Power Paste is not active or the clip is not in the sequence.</returns>
+    /// <returns>False if Power Paste is not active or the clip is not in the sequence (Power Paste has then stopped).</returns>
     bool MoveTo(Guid clipId);
 
     /// <summary>

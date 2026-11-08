@@ -15,4 +15,14 @@ public class PowerPastePositionChangedEventArgs : EventArgs
     /// True when <see cref="CurrentClip" /> is one piece of an exploded clip, which is pasted as plain text only.
     /// </summary>
     public bool IsExplodePiece { get; init; }
+
+    /// <summary>
+    /// For a Fragment, where it starts in its clip's text, in characters.
+    /// </summary>
+    public int FragmentStart { get; init; }
+
+    /// <summary>
+    /// For a Fragment, how many characters of its clip's text it covers, its delimiter included when that is pasted too.
+    /// </summary>
+    public int FragmentLength { get; init; }
 }

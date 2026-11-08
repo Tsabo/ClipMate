@@ -1,7 +1,7 @@
 namespace ClipMate.Core.Services.Abstractions;
 
 /// <summary>
-/// An application read the Formats Power Paste offered.
+/// An application read the Formats Power Paste offered: who read, and what was in the foreground.
 /// </summary>
 public class PowerPasteClipboardReadEventArgs : EventArgs
 {
@@ -11,11 +11,14 @@ public class PowerPasteClipboardReadEventArgs : EventArgs
     public bool IsByForegroundApplication { get; init; }
 
     /// <summary>
-    /// True when the read cannot be tied to a process, so it may be the application in the foreground pasting: it came
-    /// without a window, as browsers, Electron programs and Windows Terminal read, or a Store app is in the foreground,
-    /// whose reads come from a Windows service.
+    /// True when the clipboard was opened without a window, as browsers, Electron programs and Windows Terminal open it.
     /// </summary>
-    public bool MayBeForForegroundApplication { get; init; }
+    public bool IsWithoutWindow { get; init; }
+
+    /// <summary>
+    /// True when a Store app is in the foreground. Its reads come from a Windows service, so they can't be tied to it.
+    /// </summary>
+    public bool IsStoreAppInForeground { get; init; }
 
     /// <summary>
     /// True when ClipMate itself read.
@@ -26,11 +29,6 @@ public class PowerPasteClipboardReadEventArgs : EventArgs
     /// True when ClipMate is in the foreground, so the user is not pasting into another application.
     /// </summary>
     public bool IsClipMateInForeground { get; init; }
-
-    /// <summary>
-    /// How long ago the user last pressed a key or used the mouse, in any application.
-    /// </summary>
-    public TimeSpan SinceUserInput { get; init; }
 
     /// <summary>
     /// The reading process, for the log.

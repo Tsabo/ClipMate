@@ -20,17 +20,11 @@ public interface IPowerPasteClipboard
     event EventHandler? Lost;
 
     /// <summary>
-    /// Empties the clipboard and offers these Formats by delayed rendering, taking the clipboard if needed.
+    /// Empties the clipboard and offers these Formats by delayed rendering, taking the clipboard if needed. The offer is
+    /// marked so that clipboard history, the cloud clipboard and clipboard managers that respect the markers don't read it.
     /// </summary>
     /// <returns>False when the clipboard could not be opened.</returns>
     bool Offer(IReadOnlyList<ClipboardFormatData> formats);
-
-    /// <summary>
-    /// After a read that was not a paste the clipboard holds the Formats' data, so the next paste would go unnoticed:
-    /// offers them by delayed rendering again, marked as a change clipboard managers should ignore.
-    /// </summary>
-    /// <returns>False when nothing is offered or the clipboard could not be opened.</returns>
-    bool OfferAgain();
 
     /// <summary>
     /// Gives up the clipboard. Formats offered and not yet read are rendered first, so they stay on it.

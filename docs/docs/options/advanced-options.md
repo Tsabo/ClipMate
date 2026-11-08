@@ -28,7 +28,7 @@ Minimum wait time after capturing before accepting new items: a change that woul
 
 ### PowerPaste Delay
 
-Time between pasting an item and loading the next. Increase if PowerPaste has trouble, giving the target application more time to process.
+How long after you paste, in milliseconds, PowerPaste waits before putting the next clip on the clipboard. Default is 250. Some programs read the clipboard a second time just after a paste; until the delay ends, they get the clip you just pasted, so PowerPaste doesn't skip one. If PowerPaste skips a clip in a program, increase it. If you paste faster than the delay, the same clip is pasted twice, so decrease it.
 
 ## Behavior Settings
 

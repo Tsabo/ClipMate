@@ -4,7 +4,8 @@ using ClipMate.Core.Services.Abstractions;
 namespace ClipMate.Tests.Unit.Services;
 
 /// <summary>
-/// Power Paste's clipboard in memory: records what is offered, and lets a test read it or take it away.
+/// Power Paste's clipboard in memory: records what is offered, and lets a test read it or take it away. Like Windows, a
+/// read that is given the data renders the offer, and later reads of it are not reported until the next offer.
 /// </summary>
 internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
 {
@@ -12,11 +13,6 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     /// Every set of Formats offered, in order.
     /// </summary>
     public List<IReadOnlyList<ClipboardFormatData>> Offers { get; } = [];
-
-    /// <summary>
-    /// How many times the Formats were offered again after a read that was not a paste.
-    /// </summary>
-    public int OffersAgain { get; private set; }
 
     /// <summary>
     /// How many more offers fail, as when another program keeps the clipboard open.
@@ -32,6 +28,16 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     /// True while Formats are offered and not released.
     /// </summary>
     public bool IsHeld { get; private set; }
+
+    /// <summary>
+    /// True when the current offer was given to a reader, so the clipboard holds its data.
+    /// </summary>
+    public bool IsRendered { get; private set; }
+
+    /// <summary>
+    /// How many reads were refused.
+    /// </summary>
+    public int Refusals { get; private set; }
 
     /// <inheritdoc />
     public event EventHandler<PowerPasteClipboardReadEventArgs>? Read;
@@ -51,24 +57,7 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
 
         Offers.Add(formats);
         IsHeld = true;
-
-        return true;
-    }
-
-    /// <inheritdoc />
-    public bool OfferAgain()
-    {
-        if (!IsHeld)
-            return false;
-
-        if (OffersToFail > 0)
-        {
-            OffersToFail--;
-
-            return false;
-        }
-
-        OffersAgain++;
+        IsRendered = false;
 
         return true;
     }
@@ -81,53 +70,42 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     }
 
     /// <summary>
-    /// An application reads the offered Formats: the application the user works in when <paramref name="isPaste" />,
-    /// otherwise a program in the background while the user does nothing.
+    /// The user pastes into the program they are working in, whose window reads.
     /// </summary>
-    public void ReadBy(bool isPaste) =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs
-        {
-            IsByForegroundApplication = isPaste,
-            SinceUserInput = isPaste ? TimeSpan.Zero : TimeSpan.FromHours(1),
-            ReaderName = isPaste ? "notepad" : "clipboard history",
-        });
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadByTheTarget() => ReadAs(new PowerPasteClipboardReadEventArgs { IsByForegroundApplication = true, ReaderName = "notepad" });
 
     /// <summary>
-    /// A read that cannot be tied to a process, <paramref name="sinceUserInput" /> after the user's last input: a browser
-    /// or Windows Terminal reads without a window, and a Store app's read comes from a Windows service.
+    /// A named program in the background reads: Remote Desktop's client, clipboard history, another clipboard manager.
     /// </summary>
-    public void ReadWithoutAProcess(TimeSpan sinceUserInput) =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { MayBeForForegroundApplication = true, SinceUserInput = sinceUserInput, ReaderName = "(no window)" });
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadInTheBackground(string readerName = "msrdc") => ReadAs(new PowerPasteClipboardReadEventArgs { ReaderName = readerName });
 
     /// <summary>
-    /// A named program in the background reads, just after the user's input.
+    /// A read without a window, as a browser, an Electron program or Windows Terminal pastes.
     /// </summary>
-    public void ReadByABackgroundProgramWhileTheUserTypes() =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { SinceUserInput = TimeSpan.Zero, ReaderName = "msrdc" });
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadWithoutAWindow() => ReadAs(new PowerPasteClipboardReadEventArgs { IsWithoutWindow = true, ReaderName = "(no window)" });
 
     /// <summary>
-    /// A named program in the background reads while the user does nothing.
+    /// A Windows service reads while a Store app is in the foreground, as when pasting into Calculator.
     /// </summary>
-    /// <returns>False when the program was refused the data.</returns>
-    public bool ReadInTheBackground(string readerName = "msrdc")
-    {
-        var read = new PowerPasteClipboardReadEventArgs { SinceUserInput = TimeSpan.FromHours(1), ReaderName = readerName };
-        Read?.Invoke(this, read);
-
-        return !read.IsRefused;
-    }
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadForAStoreApp() => ReadAs(new PowerPasteClipboardReadEventArgs { IsStoreAppInForeground = true, ReaderName = "svchost" });
 
     /// <summary>
-    /// ClipMate itself reads, just after the user's input.
+    /// ClipMate itself reads.
     /// </summary>
-    public void ReadByClipMate() =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { IsByClipMate = true, IsClipMateInForeground = true, SinceUserInput = TimeSpan.Zero, ReaderName = "ClipMate.App" });
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadByClipMate() =>
+        ReadAs(new PowerPasteClipboardReadEventArgs { IsByClipMate = true, IsClipMateInForeground = true, ReaderName = "ClipMate.App" });
 
     /// <summary>
-    /// A read that cannot be tied to a process, just after the user's input in ClipMate's own window.
+    /// A read without a window while ClipMate's own window is in the foreground.
     /// </summary>
-    public void ReadWithClipMateInTheForeground() =>
-        Read?.Invoke(this, new PowerPasteClipboardReadEventArgs { IsClipMateInForeground = true, MayBeForForegroundApplication = true, SinceUserInput = TimeSpan.Zero, ReaderName = "(no window)" });
+    /// <returns>False when the reader got no data.</returns>
+    public bool ReadWithoutAWindowWithClipMateInTheForeground() =>
+        ReadAs(new PowerPasteClipboardReadEventArgs { IsWithoutWindow = true, IsClipMateInForeground = true, ReaderName = "(no window)" });
 
     /// <summary>
     /// Another program puts something on the clipboard.
@@ -136,5 +114,27 @@ internal sealed class InMemoryPowerPasteClipboard : IPowerPasteClipboard
     {
         IsHeld = false;
         Lost?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool ReadAs(PowerPasteClipboardReadEventArgs read)
+    {
+        // Windows asks the owner only for data it doesn't have yet
+        if (!IsHeld || IsRendered)
+            return IsHeld;
+
+        var offer = Offers.Count;
+        Read?.Invoke(this, read);
+        if (read.IsRefused)
+        {
+            Refusals++;
+
+            return false;
+        }
+
+        // The data goes to the offer that was read; a handler may already have offered the next clip
+        if (Offers.Count == offer)
+            IsRendered = true;
+
+        return true;
     }
 }

@@ -127,11 +127,19 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
             clipList.ClickToolbarButton("PowerPaste");
             await WaitForPowerPasteToArmAsync();
 
+            // The caption shows the Fragment waiting, as ClipMate 7's does, until the last one is pasted
+            await Poll.UntilAsync(() => clipList.Title?.EndsWith($" [Fragment [{fragments[0]}]]", StringComparison.Ordinal) == true, "the first Fragment in the caption");
+
             using var target = await TestAppWindow.OpenAsync($"Paste target {Guid.NewGuid():N}");
             await Foreground.ActivateAsync(target.Handle, "the paste target");
             await PasteAsync(target, fragments[0]);
+            await Poll.UntilAsync(() => clipList.Title?.EndsWith($" [Fragment [{fragments[1]}]]", StringComparison.Ordinal) == true, "the second Fragment in the caption");
             await PasteAsync(target, fragments[0] + fragments[1]);
             await PasteAsync(target, fragments[0] + fragments[1] + fragments[2]);
+
+            // The sequence runs on to the end of the collection; stopping it takes the Fragment out of the caption
+            clipList.ClickToolbarButton("PowerPaste");
+            await Poll.UntilAsync(() => clipList.Title == "ClipMate - Clipboard Manager", "the caption without a Fragment once Power Paste stops");
         }
         finally
         {
@@ -141,10 +149,6 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
 
     [Test]
     public async Task PastingFast_EachPasteAdvances() => await PasteThreeClipsFastAsync(_goingDown);
-
-    [Test]
-    public async Task PastingFast_WithClipsHiddenFromOtherPrograms_EachPasteAdvances() =>
-        await PasteThreeClipsFastAsync(_goingDown, "preferences.power_paste_hide_from_other_programs=true");
 
     private async Task PasteThreeClipsFastAsync(params string[] settings)
     {
@@ -170,11 +174,11 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
     }
 
     [Test]
-    public async Task ClickingAClipOutsideTheSequence_GoesBackToItsStart() =>
+    public async Task ClickingAClipOutsideTheSequence_CancelsAndPastesThePickedClip() =>
         await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown);
 
     [Test]
-    public async Task ClickingAClipOutsideTheSequence_JustBeforeTheNextClipComesUp_GoesBackToItsStart() =>
+    public async Task ClickingAClipOutsideTheSequence_JustBeforeTheNextClipComesUp_CancelsAndPastesThePickedClip() =>
         await PasteThenClickAClipOutsideTheSequenceAsync(_goingDown, _slowToMoveOn);
 
     private async Task PasteThenClickAClipOutsideTheSequenceAsync(params string[] settings)
@@ -195,13 +199,15 @@ public class PowerPasteIntoAnotherProgramTests(AppFixture appFixture)
             await Foreground.ActivateAsync(target.Handle, "the paste target");
             await PasteAsync(target, _third);
 
-            // The second clip is waiting. Picking the first, which isn't in the sequence, goes back to the third.
+            // The second clip is waiting. Picking the first, which isn't in the sequence, cancels Power Paste as ClipMate 7's
+            // clip list does, and the picked clip is copied as any pick is: the next paste is that clip.
             await clipList.SelectAsync(_first);
-            await Poll.UntilAsync(() => clipList.IsSelected(_third), "the clip list to go back to the start of the sequence");
-            await WaitForPowerPasteToArmAsync();
+            await Poll.UntilAsync(() => SystemClipboard.GetOwnerWindowTitle() != "ClipMate.PowerPaste" && SystemClipboard.IsOwnedBy(appFixture.Process) &&
+                                        SystemClipboard.TryReadText(IntPtr.Zero) == _first,
+                "Power Paste to cancel and the picked clip to be copied");
 
             await Foreground.ActivateAsync(target.Handle, "the paste target");
-            await PasteAsync(target, _third + _third);
+            await PasteAsync(target, _third + _first);
         }
         finally
         {

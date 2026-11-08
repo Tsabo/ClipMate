@@ -8,6 +8,7 @@ using ClipMate.Core.Events;
 using ClipMate.Core.Models.Configuration;
 using ClipMate.Core.Services.Abstractions;
 using ClipMate.Data.Services;
+using ClipMate.Platform.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -27,6 +28,7 @@ namespace ClipMate.App.ViewModels;
 /// </summary>
 public partial class MainMenuViewModel : ObservableObject,
     IRecipient<StateRefreshRequestedEvent>,
+    IRecipient<PowerPasteFragmentChangedEvent>,
     IDisposable
 {
     private readonly IAppendMode _appendMode;
@@ -103,7 +105,8 @@ public partial class MainMenuViewModel : ObservableObject,
         _configurationService.Saved += OnConfigurationSaved;
 
         // Register for state refresh notifications
-        _messenger.Register(this);
+        _messenger.Register<StateRefreshRequestedEvent>(this);
+        _messenger.Register<PowerPasteFragmentChangedEvent>(this);
 
         // Subscribe to selection changes to update CanExecute for collection commands
         if (_collectionTreeViewModel != null)
@@ -236,6 +239,19 @@ public partial class MainMenuViewModel : ObservableObject,
         OnPropertyChanged(nameof(IsLoopMode));
         OnPropertyChanged(nameof(IsOutboundFilterEnabled));
     }
+
+    /// <summary>
+    /// Added to the window caption while Power Paste has a Fragment waiting, " [Fragment [text]]" as in ClipMate 7's
+    /// caption; empty otherwise.
+    /// </summary>
+    [ObservableProperty]
+    private string _fragmentCaption = string.Empty;
+
+    /// <summary>
+    /// Power Paste has another Fragment waiting, or none.
+    /// </summary>
+    public void Receive(PowerPasteFragmentChangedEvent message) =>
+        UiThread.Run(() => FragmentCaption = message.ClipId == null ? string.Empty : $" [{message.Title}]");
 
     /// <summary>
     /// Receives a notification when service state changes and refreshes all derived properties.

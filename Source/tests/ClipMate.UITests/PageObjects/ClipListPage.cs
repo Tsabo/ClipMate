@@ -63,6 +63,20 @@ public class ClipListPage(Process app)
         FindRow(text) is { } row && ((SelectionItemPattern)row.GetCurrentPattern(SelectionItemPattern.Pattern)).Current.IsSelected;
 
     /// <summary>
+    /// The main window's caption, or null when it isn't open.
+    /// </summary>
+    public string? Title => MainWindow()?.Current.Name;
+
+    /// <summary>
+    /// True when the main window shows a text element reading exactly <paramref name="text" />, such as a status bar
+    /// message.
+    /// </summary>
+    public bool ShowsText(string text) =>
+        MainWindow()?.FindFirst(TreeScope.Descendants, new AndCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text),
+            new PropertyCondition(AutomationElement.NameProperty, text))) != null;
+
+    /// <summary>
     /// Clicks the main window's toolbar button named <paramref name="name" /> (e.g. "PowerPaste"), or its check button
     /// (e.g. "Append").
     /// </summary>
@@ -153,10 +167,11 @@ public class ClipListPage(Process app)
         Foreground.PressKeys(virtualKeys);
     }
 
+    // The caption gains " [Fragment [...]]" while Power Paste has a Fragment waiting
     private AutomationElement? MainWindow() =>
-        AutomationElement.RootElement.FindFirst(TreeScope.Children, new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id),
-            new PropertyCondition(AutomationElement.NameProperty, _mainWindowTitle)));
+        AutomationElement.RootElement.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ProcessIdProperty, app.Id))
+            .Cast<AutomationElement>()
+            .FirstOrDefault(p => p.Current.Name.StartsWith(_mainWindowTitle, StringComparison.Ordinal));
 
     /// <summary>
     /// Selects the row containing <paramref name="text" />, which copies that clip to the clipboard.

@@ -9,10 +9,11 @@ using CommunityToolkit.Mvvm.Messaging;
 namespace ClipMate.App.ViewModels;
 
 /// <summary>
-/// The tray icon's tooltip (ClipMate 7's System Tray Hint): the Current Clip's title, or the current collection.
+/// The tray icon's tooltip (ClipMate 7's System Tray Hint): the Current Clip's title, or the current collection. While
+/// Power Paste has a Fragment waiting, the Fragment, as ClipMate 7's UpdateFragmentTitle shows it.
 /// </summary>
 public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<CurrentClipChangedEvent>,
-    IRecipient<CurrentCollectionChangedEvent>, IRecipient<PreferencesChangedEvent>, IDisposable
+    IRecipient<CurrentCollectionChangedEvent>, IRecipient<PreferencesChangedEvent>, IRecipient<PowerPasteFragmentChangedEvent>, IDisposable
 {
     /// <summary>
     /// The most characters Windows shows in a tray icon's tooltip.
@@ -27,6 +28,7 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<CurrentC
     private readonly IMessenger _messenger;
     private string? _currentCollection;
     private Clip? _currentClip;
+    private string? _fragmentTitle;
 
     public TrayTooltipViewModel(IMessenger messenger, IConfigurationService configurationService,
         ICollectionService collectionService)
@@ -38,6 +40,7 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<CurrentC
         _messenger.Register<CurrentClipChangedEvent>(this);
         _messenger.Register<CurrentCollectionChangedEvent>(this);
         _messenger.Register<PreferencesChangedEvent>(this);
+        _messenger.Register<PowerPasteFragmentChangedEvent>(this);
     }
 
     /// <summary>
@@ -102,6 +105,16 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<CurrentC
     /// </summary>
     public void Receive(PreferencesChangedEvent message) => UiThread.Run(Refresh);
 
+    /// <summary>
+    /// Power Paste has another Fragment waiting, or none.
+    /// </summary>
+    public void Receive(PowerPasteFragmentChangedEvent message) =>
+        UiThread.Run(() =>
+        {
+            _fragmentTitle = message.ClipId == null ? null : message.Title;
+            Refresh();
+        });
+
     public void Dispose()
     {
         _messenger.UnregisterAll(this);
@@ -109,9 +122,10 @@ public sealed class TrayTooltipViewModel : ObservableObject, IRecipient<CurrentC
 
     private void Refresh()
     {
-        var detail = _configurationService.Configuration.Appearance.SystemTrayHint == SystemTrayHint.Collection
-            ? _currentCollection
-            : _currentClip == null ? null : ClipDescription.TitleOf(_currentClip);
+        var detail = _fragmentTitle
+                     ?? (_configurationService.Configuration.Appearance.SystemTrayHint == SystemTrayHint.Collection
+                         ? _currentCollection
+                         : _currentClip == null ? null : ClipDescription.TitleOf(_currentClip));
 
         var text = string.IsNullOrEmpty(detail) ? _appName : detail;
         Text = text.Length <= MaxLength ? text : Shorten(text);
