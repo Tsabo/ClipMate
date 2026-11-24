@@ -1120,8 +1120,10 @@ public class ClipService : IClipService
             // that the content is plain again
             try
             {
-                await LoadBlobDataAsync(databaseKey, clip, cancellationToken);
-                clip.ContentHash = ContentHasher.HashClip(clip);
+                // Hashed from a scratch clip, so the stored clip's transient content stays unloaded
+                var hashSource = new Clip { Id = clip.Id };
+                await LoadBlobDataAsync(databaseKey, hashSource, cancellationToken);
+                clip.ContentHash = ContentHasher.HashClip(hashSource);
                 clip.Checksum = ContentHasher.Checksum(clip.ContentHash);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
