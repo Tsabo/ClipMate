@@ -922,8 +922,17 @@ public class ClipService : IClipService
             return false;
         }
 
+        // Clips encrypted before AES-GCM store "AES-256" (or no method) and a per-clip IV
+        var metadata = new EncryptionMetadata(
+            clip.EncryptionSalt ?? string.Empty,
+            clip.EncryptionIv ?? string.Empty,
+            string.IsNullOrEmpty(clip.EncryptionMethod)
+                ? EncryptionMetadata.LegacyCbcAlgorithm
+                : clip.EncryptionMethod,
+            0);
+
         // Validate encryption metadata
-        if (string.IsNullOrEmpty(clip.EncryptionSalt) || string.IsNullOrEmpty(clip.EncryptionIv))
+        if (string.IsNullOrEmpty(metadata.Salt) || (!metadata.IsAuthenticated && string.IsNullOrEmpty(metadata.IV)))
         {
             _logger.LogError("Clip {ClipId} is missing encryption metadata, cannot decrypt", clip.Id);
             return false;
@@ -932,23 +941,6 @@ public class ClipService : IClipService
         // A Remote Database is read-only: its clips can be decrypted for viewing here, never decrypted in place
         if (isPermanent && _databases.Get(databaseKey).IsReadOnly)
             throw new InvalidOperationException($"A clip in a read-only Database cannot be decrypted permanently: {DatabaseMessages.ReadOnly}");
-
-        var metadata = new EncryptionMetadata(
-            clip.EncryptionSalt,
-            clip.EncryptionIv,
-            clip.EncryptionMethod ?? "AES-256-CBC",
-            0); // Checksum will be validated during decryption
-
-        // Handle decryption mode - Clear flags BEFORE decrypting BLOBs so they get saved with first SaveChangesAsync
-        // Save metadata in local vars first since we'll need them for decryption
-        if (isPermanent)
-        {
-            clip.Encrypted = false;
-            clip.IsDecrypted = false;
-            clip.EncryptionSalt = null;
-            clip.EncryptionIv = null;
-            clip.EncryptionMethod = null;
-        }
 
         // Permanent decryption writes back to the local Database; decryption for viewing only reads the stored
         // ciphertext, which for a Remote Database comes from its Peer
@@ -976,188 +968,112 @@ public class ClipService : IClipService
             binaryBlobs = content?.BinaryBlobs ?? [];
         }
 
-        // For temporary decryption, we need to work with detached copies to prevent auto-save
-        // Clone the BLOB objects so modifications don't affect tracked entities
-        if (!isPermanent)
-        {
-            textBlobs = textBlobs.Select(b => new BlobTxt
-                {
-                    Id = b.Id,
-                    ClipId = b.ClipId,
-                    ClipDataId = b.ClipDataId,
-                    Data = b.Data,
-                })
-                .ToList();
+        // Decrypt into detached copies, so nothing is written (or left modified on a tracked entity) unless every
+        // field decrypts: a wrong key or altered data must never leave a clip half decrypted
+        var decryptedText = textBlobs.Select(b => new BlobTxt { Id = b.Id, ClipId = b.ClipId, ClipDataId = b.ClipDataId, Data = b.Data }).ToList();
+        var decryptedJpg = jpgBlobs.Select(b => new BlobJpg { Id = b.Id, ClipId = b.ClipId, ClipDataId = b.ClipDataId, Data = b.Data }).ToList();
+        var decryptedPng = pngBlobs.Select(b => new BlobPng { Id = b.Id, ClipId = b.ClipId, ClipDataId = b.ClipDataId, Data = b.Data }).ToList();
+        var decryptedBinary = binaryBlobs.Select(b => new BlobBlob { Id = b.Id, ClipId = b.ClipId, ClipDataId = b.ClipDataId, Data = b.Data }).ToList();
 
-            jpgBlobs = jpgBlobs.Select(b => new BlobJpg
-                {
-                    Id = b.Id,
-                    ClipId = b.ClipId,
-                    ClipDataId = b.ClipDataId,
-                    Data = b.Data,
-                })
-                .ToList();
+        // AES-GCM authenticates every field, so any failure is a wrong key or altered data and fails the clip. The
+        // legacy CBC format tolerates fields that are already plain text (from an old bug where the Encrypted flag
+        // wasn't cleared), but a failure of every field means the key is wrong.
+        var decryptedFields = 0;
+        var failedFields = 0;
 
-            pngBlobs = pngBlobs.Select(b => new BlobPng
-                {
-                    Id = b.Id,
-                    ClipId = b.ClipId,
-                    ClipDataId = b.ClipDataId,
-                    Data = b.Data,
-                })
-                .ToList();
-
-            binaryBlobs = binaryBlobs.Select(b => new BlobBlob
-                {
-                    Id = b.Id,
-                    ClipId = b.ClipId,
-                    ClipDataId = b.ClipDataId,
-                    Data = b.Data,
-                })
-                .ToList();
-
-            _logger.LogDebug("Cloned {Count} BLOB entities for temporary decryption (no persistence)",
-                textBlobs.Count + jpgBlobs.Count + pngBlobs.Count + binaryBlobs.Count);
-        }
-
-        // Decrypt TEXT BLOBs
-        foreach (var item in textBlobs)
+        async Task<byte[]?> TryDecryptFieldAsync(byte[] encryptedBytes, string field, Guid id)
         {
             try
             {
-                // Decrypt the data
-                var encryptedBytes = Convert.FromBase64String(item.Data);
-                var decryptedBytes = await _encryptionService.DecryptAsync(encryptedBytes, metadata, encryptionKey, 600_000);
+                var decryptedBytes = await _encryptionService.DecryptAsync(encryptedBytes, metadata, encryptionKey, ClipContentEncryption.Iterations);
+                decryptedFields++;
+                _logger.LogDebug("Decrypted {Field} for {Id} (persistent: {IsPermanent})", field, id, isPermanent);
+                return decryptedBytes;
+            }
+            catch (CryptographicException) when (metadata.IsAuthenticated)
+            {
+                _logger.LogWarning("Authentication failed for the {Field} of clip {ClipId}: wrong key or altered data", field, clip.Id);
+                throw;
+            }
+            catch (CryptographicException ex)
+            {
+                failedFields++;
+                _logger.LogWarning(ex, "{Field} for {Id} could not be decrypted (legacy format) - may already be plain text, leaving as-is", field, id);
+                return null;
+            }
+        }
 
-                // Update BLOB object with decrypted data
-                item.Data = Encoding.UTF8.GetString(decryptedBytes);
-
-                // Only persist if permanent decryption
-                if (isPermanent)
-                    await blobRepository!.UpdateTextAsync(item, cancellationToken);
-
-                _logger.LogDebug("Decrypted TEXT BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
+        foreach (var item in decryptedText)
+        {
+            byte[] encryptedBytes;
+            try
+            {
+                encryptedBytes = Convert.FromBase64String(item.Data);
+            }
+            catch (FormatException ex) when (metadata.IsAuthenticated)
+            {
+                // AES-GCM always stores TEXT as Base64 ciphertext: anything else was altered
+                throw new CryptographicException("Encrypted text is not valid Base64. The data was altered.", ex);
             }
             catch (FormatException ex)
             {
                 // Handle corrupted data (e.g., from old encryption that didn't properly encrypt all fields)
                 _logger.LogWarning(ex, "TEXT BLOB for ClipData {ClipDataId} contains invalid Base64 - may be corrupted, leaving as-is", item.ClipDataId);
+                continue;
             }
-            catch (CryptographicException ex)
-            {
-                // BLOB is already decrypted (from previous temporary decrypt that persisted)
-                _logger.LogWarning(ex, "TEXT BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
-            }
+
+            if (await TryDecryptFieldAsync(encryptedBytes, "TEXT", item.ClipDataId) is { } decryptedBytes)
+                item.Data = Encoding.UTF8.GetString(decryptedBytes);
         }
 
-        // Decrypt JPG BLOBs
-        foreach (var item in jpgBlobs)
+        foreach (var item in decryptedJpg)
         {
-            try
-            {
-                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+            if (await TryDecryptFieldAsync(item.Data, "JPG", item.ClipDataId) is { } decryptedBytes)
                 item.Data = decryptedBytes;
-
-                // Only persist if permanent decryption
-                if (isPermanent)
-                    await blobRepository!.UpdateJpgAsync(item, cancellationToken);
-
-                _logger.LogDebug("Decrypted JPG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
-            }
-            catch (CryptographicException ex)
-            {
-                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
-                _logger.LogWarning(ex, "JPG BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
-            }
         }
 
-        // Decrypt PNG BLOBs
-        foreach (var item in pngBlobs)
+        foreach (var item in decryptedPng)
         {
-            try
-            {
-                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+            if (await TryDecryptFieldAsync(item.Data, "PNG", item.ClipDataId) is { } decryptedBytes)
                 item.Data = decryptedBytes;
-
-                // Only persist if permanent decryption
-                if (isPermanent)
-                    await blobRepository!.UpdatePngAsync(item, cancellationToken);
-
-                _logger.LogDebug("Decrypted PNG BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
-            }
-            catch (CryptographicException ex)
-            {
-                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
-                _logger.LogWarning(ex, "PNG BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
-            }
         }
 
-        // Decrypt binary BLOBs
-        foreach (var item in binaryBlobs)
+        foreach (var item in decryptedBinary)
         {
-            try
-            {
-                var decryptedBytes = await _encryptionService.DecryptAsync(item.Data, metadata, encryptionKey, 600_000);
+            if (await TryDecryptFieldAsync(item.Data, "binary", item.ClipDataId) is { } decryptedBytes)
                 item.Data = decryptedBytes;
-
-                // Only persist if permanent decryption
-                if (isPermanent)
-                    await blobRepository!.UpdateBlobAsync(item, cancellationToken);
-
-                _logger.LogDebug("Decrypted binary BLOB for ClipData {ClipDataId} (persistent: {IsPermanent})", item.ClipDataId, isPermanent);
-            }
-            catch (CryptographicException ex)
-            {
-                // BLOB is already decrypted (from old bug where Encrypted flag wasn't cleared)
-                _logger.LogWarning(ex, "Binary BLOB for ClipData {ClipDataId} is already decrypted - skipping", item.ClipDataId);
-            }
         }
 
         // Decrypt Title (if it was encrypted)
-        if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
+        var decryptedTitle = clip.Title;
+        if (!clip.CustomTitle && TitleLooksEncrypted(clip.Title, metadata, out var encryptedTitleBytes))
         {
-            // Only attempt decryption if Title looks like encrypted Base64:
-            // - Length > 44 (AES-256 with IV/Salt produces minimum ~32 bytes → ~44 Base64 chars)
-            // - Valid Base64 pattern with optional padding
-            // This prevents trying to decrypt already-decrypted alphanumeric titles like "MyFile123"
-            var looksEncrypted = clip.Title.Length > 44 && RegexPatterns.IsBase64().IsMatch(clip.Title);
-
-            if (looksEncrypted)
-            {
-                try
-                {
-                    var encryptedTitleBytes = Convert.FromBase64String(clip.Title);
-                    var decryptedTitleBytes = await _encryptionService.DecryptAsync(encryptedTitleBytes, metadata, encryptionKey, 600_000);
-                    clip.Title = Encoding.UTF8.GetString(decryptedTitleBytes);
-                    _logger.LogDebug("Decrypted Title for clip {ClipId}", clip.Id);
-                }
-                catch (FormatException ex)
-                {
-                    // Invalid Base64 - use default title
-                    _logger.LogWarning(ex, "Title for clip {ClipId} has invalid Base64 - using default", clip.Id);
-                    clip.Title = "This clip is encrypted - unable to display.";
-                }
-                catch (CryptographicException ex)
-                {
-                    // Decryption failed (wrong key or corrupted) - use default title
-                    _logger.LogWarning(ex, "Failed to decrypt Title for clip {ClipId} - using default", clip.Id);
-                    clip.Title = "This clip is encrypted - unable to display.";
-                }
-            }
+            if (await TryDecryptFieldAsync(encryptedTitleBytes, "title", clip.Id) is { } decryptedTitleBytes)
+                decryptedTitle = Encoding.UTF8.GetString(decryptedTitleBytes);
             else
-                _logger.LogDebug("Title for clip {ClipId} does not look encrypted (length: {Length}), keeping as-is", clip.Id, clip.Title.Length);
+                decryptedTitle = "This clip is encrypted - unable to display.";
         }
+        else if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
+            _logger.LogDebug("Title for clip {ClipId} does not look encrypted (length: {Length}), keeping as-is", clip.Id, clip.Title.Length);
+
+        if (failedFields > 0 && decryptedFields == 0)
+            throw new CryptographicException("The clip could not be decrypted. Incorrect encryption key or corrupted data.");
+
+        clip.Title = decryptedTitle;
 
         // For temporary decryption, cache the decrypted BLOBs and set in-memory flag
         if (!isPermanent)
         {
             // Cache decrypted BLOB data
             var decryptedData = new DecryptedBlobData(
-                textBlobs.ToList().AsReadOnly(),
-                jpgBlobs.ToList().AsReadOnly(),
-                pngBlobs.ToList().AsReadOnly(),
-                binaryBlobs.ToList().AsReadOnly()
+                decryptedText.AsReadOnly(),
+                decryptedJpg.AsReadOnly(),
+                decryptedPng.AsReadOnly(),
+                decryptedBinary.AsReadOnly()
             );
+
+            _logger.LogDebug("Decrypted {Count} BLOB entities for viewing (no persistence)",
+                decryptedText.Count + decryptedJpg.Count + decryptedPng.Count + decryptedBinary.Count);
 
             // Get expiration from encryption key (set by user in dialog)
             var expiration = encryptionKey.ExpirationMinutes.HasValue
@@ -1176,13 +1092,81 @@ public class ClipService : IClipService
         }
         else
         {
-            // For permanent decryption, flags were already cleared before BLOB decryption
-            // Now just need to save Title changes
+            // Every field decrypted: write the plain text back and clear the encryption fields
+            CopyData(decryptedText, textBlobs, (target, source) => target.Data = source.Data);
+            CopyData(decryptedJpg, jpgBlobs, (target, source) => target.Data = source.Data);
+            CopyData(decryptedPng, pngBlobs, (target, source) => target.Data = source.Data);
+            CopyData(decryptedBinary, binaryBlobs, (target, source) => target.Data = source.Data);
+
+            clip.Encrypted = false;
+            clip.IsDecrypted = false;
+            clip.EncryptionSalt = null;
+            clip.EncryptionIv = null;
+            clip.EncryptionMethod = null;
+
+            foreach (var item in textBlobs)
+                await blobRepository!.UpdateTextAsync(item, cancellationToken);
+
+            foreach (var item in jpgBlobs)
+                await blobRepository!.UpdateJpgAsync(item, cancellationToken);
+
+            foreach (var item in pngBlobs)
+                await blobRepository!.UpdatePngAsync(item, cancellationToken);
+
+            foreach (var item in binaryBlobs)
+                await blobRepository!.UpdateBlobAsync(item, cancellationToken);
+
+            // Encryption cleared the content hash and checksum (they would reveal the plain text); restore them now
+            // that the content is plain again
+            try
+            {
+                await LoadBlobDataAsync(databaseKey, clip, cancellationToken);
+                clip.ContentHash = ContentHasher.HashClip(clip);
+                clip.Checksum = ContentHasher.Checksum(clip.ContentHash);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The clip is decrypted either way; only duplicate detection against it is affected
+                _logger.LogWarning(ex, "Could not restore the content hash of decrypted clip {ClipId}", clip.Id);
+            }
+
             await clipRepository!.UpdateAsync(clip, cancellationToken);
-            _logger.LogInformation("Permanently decrypted clip {ClipId} - cleared encryption flags and saved decrypted title", clip.Id);
+            _logger.LogInformation("Permanently decrypted clip {ClipId} - cleared encryption flags and saved decrypted content", clip.Id);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether a clip's (non-custom) title holds ciphertext in <paramref name="metadata" />'s format rather than
+    /// plain text, judged by its Base64 length and, for AES-GCM, its version byte.
+    /// </summary>
+    private static bool TitleLooksEncrypted(string? title, EncryptionMetadata metadata, out byte[] encryptedBytes)
+    {
+        encryptedBytes = [];
+        if (string.IsNullOrWhiteSpace(title) || !RegexPatterns.IsBase64().IsMatch(title))
+            return false;
+
+        try
+        {
+            encryptedBytes = Convert.FromBase64String(title);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        // AES-GCM: version, nonce and tag around at least one byte (an empty title is never encrypted). Legacy CBC: an
+        // encrypted checksum block followed by at least one data block.
+        return metadata.IsAuthenticated
+            ? encryptedBytes.Length > EncryptionMetadata.AesGcmOverhead && encryptedBytes[0] == EncryptionMetadata.AesGcmFormatVersion
+            : encryptedBytes.Length >= 32 && encryptedBytes.Length % 16 == 0;
+    }
+
+    private static void CopyData<T>(IReadOnlyList<T> sources, IReadOnlyList<T> targets, Action<T, T> copy)
+    {
+        for (var i = 0; i < targets.Count; i++)
+            copy(targets[i], sources[i]);
     }
 
     /// <summary>

@@ -351,4 +351,43 @@ public partial class ClipServiceTests
         // Assert - Should continue after error and process second clip
         await Assert.That(result).IsEqualTo(1);
     }
+
+    [Test]
+    [Category("Encryption")]
+    [Category("EncryptClipsAsync")]
+    public async Task EncryptClipsAsync_ClearsPlainTextHashAndChecksum()
+    {
+        // Arrange: the content hash and checksum are unsalted hashes of the plain text
+        var clipId = Guid.NewGuid();
+        var clip = CreateTestClip(clipId, contentHash: "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789");
+        clip.Checksum = 12345;
+        clip.Title = null;
+
+        var textBlob = CreateTestTextBlob(clipId, "password123");
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("test");
+
+        A.CallTo(() => MockClipRepository.GetByIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(clip);
+        A.CallTo(() => MockClipDataRepository.GetByClipIdAsync(clipId, A<CancellationToken>.Ignored))
+            .Returns(new List<ClipData> { CreateTestClipData(clipId) });
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(new List<BlobTxt> { textBlob });
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(new List<BlobJpg>());
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(new List<BlobPng>());
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(new List<BlobBlob>());
+
+        // AES-GCM metadata has no per-clip IV
+        var metadata = new EncryptionMetadata("c2FsdA==", string.Empty, EncryptionMetadata.AesGcmAlgorithm, 0);
+        A.CallTo(() => MockEncryptionService.EncryptAsync(A<byte[]>.Ignored, key, 600_000, null))
+            .Returns((new byte[] { 1, 2, 3 }, metadata));
+
+        // Act
+        var result = await service.EncryptClipsAsync(TestDatabaseKey, [clipId], key);
+
+        // Assert
+        await Assert.That(result).IsEqualTo(1);
+        await Assert.That(clip.ContentHash).IsEmpty();
+        await Assert.That(clip.Checksum).IsEqualTo(0);
+        await Assert.That(clip.EncryptionMethod).IsEqualTo(EncryptionMetadata.AesGcmAlgorithm);
+        await Assert.That(clip.EncryptionIv).IsNull();
+    }
 }

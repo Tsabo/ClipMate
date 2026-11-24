@@ -415,7 +415,7 @@ public partial class ClipServiceTests
         clip.Encrypted = true;
         clip.IsDecrypted = false;
         clip.CustomTitle = false;
-        clip.Title = Convert.ToBase64String(new byte[50]); // Long Base64 string (> 44 chars)
+        clip.Title = Convert.ToBase64String(new byte[48]); // A legacy CBC title: checksum block plus whole data blocks
         clip.EncryptionSalt = "salt123";
         clip.EncryptionIv = "iv456";
         clip.EncryptionMethod = "AES-256";
@@ -458,7 +458,7 @@ public partial class ClipServiceTests
         clip.Encrypted = true;
         clip.IsDecrypted = false;
         clip.CustomTitle = false;
-        clip.Title = "ShortTitle"; // Less than 44 chars - doesn't look encrypted
+        clip.Title = "ShortTitle"; // Too short to be ciphertext - doesn't look encrypted
         clip.EncryptionSalt = "salt123";
         clip.EncryptionIv = "iv456";
         clip.EncryptionMethod = "AES-256";
@@ -686,5 +686,239 @@ public partial class ClipServiceTests
         A.CallTo(() => MockBlobRepository.UpdateJpgAsync(jpgBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
         A.CallTo(() => MockBlobRepository.UpdatePngAsync(pngBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
         A.CallTo(() => MockBlobRepository.UpdateBlobAsync(binaryBlob, A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_AesGcmClipWithoutIv_Decrypts()
+    {
+        // Arrange: AES-GCM keeps its nonce in each field, so the clip has no IV
+        var clip = CreateEncryptedClip(EncryptionMetadata.AesGcmAlgorithm, iv: null);
+        var textBlob = CreateTestTextBlob(clip.Id);
+        textBlob.Data = Convert.ToBase64String(new byte[40]);
+        SetupBlobs(clip.Id, [textBlob]);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .Returns("Plain"u8.ToArray());
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("test");
+
+        // Act
+        var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        await Assert.That(textBlob.Data).IsEqualTo("Plain");
+        await Assert.That(clip.Encrypted).IsFalse();
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored,
+                A<EncryptionMetadata>.That.Matches(p => p.IsAuthenticated), A<EncryptionKey>.Ignored, 600_000))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_AesGcmAuthenticationFailure_ThrowsAndLeavesClipEncrypted()
+    {
+        // Arrange: the first field decrypts, the second fails authentication (wrong key or altered data)
+        var clip = CreateEncryptedClip(EncryptionMetadata.AesGcmAlgorithm, iv: null);
+        var textBlob = CreateTestTextBlob(clip.Id);
+        var encryptedText = Convert.ToBase64String(new byte[40]);
+        textBlob.Data = encryptedText;
+        var jpgBlob = CreateTestJpgBlob(clip.Id);
+        jpgBlob.Data = [9, 9, 9];
+        SetupBlobs(clip.Id, [textBlob], [jpgBlob]);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .ReturnsNextFromSequence("Plain"u8.ToArray());
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.That.Matches(p => p.Length == 3), A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .ThrowsAsync(new System.Security.Cryptography.CryptographicException("Authentication failed."));
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("wrong");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<System.Security.Cryptography.CryptographicException>(async () =>
+            await service.DecryptClipAsync(TestDatabaseKey, clip, key, true));
+
+        // Nothing written, and the stored entities are untouched
+        await Assert.That(clip.Encrypted).IsTrue();
+        await Assert.That(clip.EncryptionSalt).IsEqualTo("salt123");
+        await Assert.That(textBlob.Data).IsEqualTo(encryptedText);
+        AssertNothingPersisted();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_LegacyWrongKey_ThrowsAndLeavesClipEncrypted()
+    {
+        // Arrange: every field fails, so the key is wrong
+        var clip = CreateEncryptedClip(EncryptionMetadata.LegacyCbcAlgorithm, iv: "iv456");
+        var textBlob = CreateTestTextBlob(clip.Id);
+        var encryptedText = Convert.ToBase64String(new byte[32]);
+        textBlob.Data = encryptedText;
+        var pngBlob = CreateTestPngBlob(clip.Id);
+        pngBlob.Data = [1, 2, 3];
+        SetupBlobs(clip.Id, [textBlob], png: [pngBlob]);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .ThrowsAsync(new System.Security.Cryptography.CryptographicException("Checksum validation failed."));
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("wrong");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<System.Security.Cryptography.CryptographicException>(async () =>
+            await service.DecryptClipAsync(TestDatabaseKey, clip, key, true));
+
+        await Assert.That(clip.Encrypted).IsTrue();
+        await Assert.That(clip.EncryptionIv).IsEqualTo("iv456");
+        await Assert.That(textBlob.Data).IsEqualTo(encryptedText);
+        AssertNothingPersisted();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_LegacyWrongKey_ForViewing_ThrowsWithoutCaching()
+    {
+        // Arrange
+        var clip = CreateEncryptedClip(EncryptionMetadata.LegacyCbcAlgorithm, iv: "iv456");
+        clip.Title = Convert.ToBase64String(new byte[32]);
+        var textBlob = CreateTestTextBlob(clip.Id);
+        textBlob.Data = Convert.ToBase64String(new byte[32]);
+        SetupBlobs(clip.Id, [textBlob]);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .ThrowsAsync(new System.Security.Cryptography.CryptographicException("Checksum validation failed."));
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("wrong", 30);
+
+        // Act & Assert: an error, not a placeholder title and cached ciphertext
+        await Assert.ThrowsAsync<System.Security.Cryptography.CryptographicException>(async () =>
+            await service.DecryptClipAsync(TestDatabaseKey, clip, key));
+
+        await Assert.That(clip.IsDecrypted).IsFalse();
+        await Assert.That(clip.Title).IsEqualTo(Convert.ToBase64String(new byte[32]));
+        A.CallTo(() => MockBlobCacheService.CacheDecryptedBlobs(A<Guid>.Ignored, A<DecryptedBlobData>.Ignored, A<TimeSpan>.Ignored, A<Action<Guid>>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_LegacyFieldAlreadyPlain_IsLeftAsIs()
+    {
+        // Arrange: one field is already plain text (old bug); the rest decrypt, so the key is right
+        var clip = CreateEncryptedClip(EncryptionMetadata.LegacyCbcAlgorithm, iv: "iv456");
+        var textBlob = CreateTestTextBlob(clip.Id);
+        textBlob.Data = Convert.ToBase64String(new byte[32]);
+        var jpgBlob = CreateTestJpgBlob(clip.Id);
+        var plainJpg = new byte[] { 0xFF, 0xD8, 0xFF };
+        jpgBlob.Data = plainJpg;
+        SetupBlobs(clip.Id, [textBlob], [jpgBlob]);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .Returns("Plain"u8.ToArray());
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(plainJpg, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .ThrowsAsync(new System.Security.Cryptography.CryptographicException("Checksum validation failed."));
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("test");
+
+        // Act
+        var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        await Assert.That(textBlob.Data).IsEqualTo("Plain");
+        await Assert.That(jpgBlob.Data).IsEqualTo(plainJpg);
+        await Assert.That(clip.Encrypted).IsFalse();
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_DecryptsShortLegacyTitle()
+    {
+        // Arrange: a title under 16 bytes encrypts to 32 bytes, 44 Base64 characters
+        var clip = CreateEncryptedClip(EncryptionMetadata.LegacyCbcAlgorithm, iv: "iv456");
+        clip.Title = Convert.ToBase64String(new byte[32]);
+        SetupBlobs(clip.Id);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .Returns("Hi"u8.ToArray());
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("test");
+
+        // Act
+        var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        await Assert.That(clip.Title).IsEqualTo("Hi");
+    }
+
+    [Test]
+    [Category("Decryption")]
+    [Category("DecryptClipAsync")]
+    public async Task DecryptClipAsync_DecryptsShortAesGcmTitle()
+    {
+        // Arrange: a one-byte title is the version byte, nonce, one byte and tag (30 bytes)
+        var clip = CreateEncryptedClip(EncryptionMetadata.AesGcmAlgorithm, iv: null);
+        var encryptedTitle = new byte[EncryptionMetadata.AesGcmOverhead + 1];
+        encryptedTitle[0] = EncryptionMetadata.AesGcmFormatVersion;
+        clip.Title = Convert.ToBase64String(encryptedTitle);
+        SetupBlobs(clip.Id);
+
+        A.CallTo(() => MockEncryptionService.DecryptAsync(A<byte[]>.Ignored, A<EncryptionMetadata>.Ignored, A<EncryptionKey>.Ignored, 600_000))
+            .Returns("X"u8.ToArray());
+
+        var service = CreateClipService();
+        using var key = EncryptionKey.FromPassphrase("test");
+
+        // Act
+        var result = await service.DecryptClipAsync(TestDatabaseKey, clip, key, true);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        await Assert.That(clip.Title).IsEqualTo("X");
+    }
+
+    private static Clip CreateEncryptedClip(string algorithm, string? iv)
+    {
+        var clip = CreateTestClip();
+        clip.Encrypted = true;
+        clip.IsDecrypted = false;
+        clip.CustomTitle = false;
+        clip.Title = null;
+        clip.EncryptionSalt = "salt123";
+        clip.EncryptionIv = iv;
+        clip.EncryptionMethod = algorithm;
+        return clip;
+    }
+
+    private void SetupBlobs(Guid clipId, List<BlobTxt>? text = null, List<BlobJpg>? jpg = null, List<BlobPng>? png = null, List<BlobBlob>? binary = null)
+    {
+        A.CallTo(() => MockBlobRepository.GetTextByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(text ?? []);
+        A.CallTo(() => MockBlobRepository.GetJpgByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(jpg ?? []);
+        A.CallTo(() => MockBlobRepository.GetPngByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(png ?? []);
+        A.CallTo(() => MockBlobRepository.GetBlobByClipIdAsync(clipId, A<CancellationToken>.Ignored)).Returns(binary ?? []);
+    }
+
+    private void AssertNothingPersisted()
+    {
+        A.CallTo(() => MockBlobRepository.UpdateTextAsync(A<BlobTxt>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdateJpgAsync(A<BlobJpg>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdatePngAsync(A<BlobPng>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockBlobRepository.UpdateBlobAsync(A<BlobBlob>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
+        A.CallTo(() => MockClipRepository.UpdateAsync(A<Clip>.Ignored, A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 }

@@ -4,6 +4,7 @@ using ClipMate.Core.ValueObjects;
 using ClipMate.Data;
 using ClipMate.Data.Repositories;
 using ClipMate.Data.Services;
+using ClipMate.Platform.Helpers;
 using ClipMate.Platform.Services;
 using ClipMate.Tests.Integration.Fakes;
 using CommunityToolkit.Mvvm.Messaging;
@@ -46,8 +47,10 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
         await Assert.That(encryptedClip!.Encrypted).IsTrue();
         await Assert.That(encryptedClip.IsDecrypted).IsFalse();
         await Assert.That(encryptedClip.EncryptionSalt).IsNotEmpty();
-        await Assert.That(encryptedClip.EncryptionIv).IsNotEmpty();
-        await Assert.That(encryptedClip.EncryptionMethod).IsEqualTo("AES-256");
+        await Assert.That(encryptedClip.EncryptionIv).IsNull(); // AES-GCM keeps a nonce in each field
+        await Assert.That(encryptedClip.EncryptionMethod).IsEqualTo(EncryptionMetadata.AesGcmAlgorithm);
+        await Assert.That(encryptedClip.ContentHash).IsEmpty(); // An unsalted hash of the plain text would leak it
+        await Assert.That(encryptedClip.Checksum).IsEqualTo(0);
 
         // Title should be encrypted (Base64)
         await Assert.That(encryptedClip.Title).IsNotEqualTo(originalTitle);
@@ -289,6 +292,83 @@ public class ClipEncryptionIntegrationTests : IntegrationTestBase
         // Verify BLOB data is still intact (not corrupted by attempted re-decryption)
         var finalBlobs = await blobRepository.GetTextByClipIdAsync(clip.Id);
         await Assert.That(finalBlobs[0].Data).IsEqualTo(originalText);
+    }
+
+    [Test]
+    public async Task EncryptClip_TitleAndTextWithSamePrefix_DoNotShareCiphertext()
+    {
+        // Arrange: the title of a captured clip is the first line of its text (issue #63)
+        var clipService = CreateClipService();
+        const string text = "Account recovery code: 1234-5678-9012";
+        var clip = await CreateTestClipWithData(clipService, text, text);
+
+        using var encryptionKey = EncryptionKey.FromPassphrase(_testPassphrase);
+
+        // Act
+        await clipService.EncryptClipsAsync(_testDatabaseKey, [clip.Id], encryptionKey);
+        await DbContext.SaveChangesAsync();
+
+        // Assert: each field has its own nonce, so equal plain text gives unrelated ciphertext
+        var encryptedClip = await clipService.GetByIdAsync(_testDatabaseKey, clip.Id);
+        var textBlobs = await new BlobRepository(DbContext).GetTextByClipIdAsync(clip.Id);
+        var encryptedTitle = Convert.FromBase64String(encryptedClip!.Title!);
+        var encryptedText = Convert.FromBase64String(textBlobs[0].Data);
+
+        await Assert.That(encryptedTitle.Length).IsEqualTo(encryptedText.Length);
+        await Assert.That(encryptedTitle.AsSpan(1, 12).SequenceEqual(encryptedText.AsSpan(1, 12))).IsFalse();
+        await Assert.That(encryptedTitle.AsSpan(13, 16).SequenceEqual(encryptedText.AsSpan(13, 16))).IsFalse();
+    }
+
+    [Test]
+    public async Task PermanentDecrypt_WithWrongKey_LeavesClipEncrypted()
+    {
+        // Arrange
+        var clipService = CreateClipService();
+        const string originalText = "Only for the right key";
+        var clip = await CreateTestClipWithData(clipService, "Secret", originalText);
+
+        using var encryptionKey = EncryptionKey.FromPassphrase(_testPassphrase);
+        await clipService.EncryptClipsAsync(_testDatabaseKey, [clip.Id], encryptionKey);
+        await DbContext.SaveChangesAsync();
+
+        var blobRepository = new BlobRepository(DbContext);
+        var encryptedText = (await blobRepository.GetTextByClipIdAsync(clip.Id))[0].Data;
+
+        // Act
+        using var wrongKey = EncryptionKey.FromPassphrase("Not-The-Passphrase");
+        var decryptedCount = await clipService.DecryptClipsAsync(_testDatabaseKey, [clip.Id], wrongKey, true);
+
+        // Assert: nothing decrypted, and the stored clip is still intact ciphertext
+        await Assert.That(decryptedCount).IsEqualTo(0);
+        var storedClip = await clipService.GetByIdAsync(_testDatabaseKey, clip.Id);
+        await Assert.That(storedClip!.Encrypted).IsTrue();
+        await Assert.That(storedClip.EncryptionSalt).IsNotEmpty();
+        await Assert.That((await blobRepository.GetTextByClipIdAsync(clip.Id))[0].Data).IsEqualTo(encryptedText);
+
+        // And the right key still works
+        await Assert.That(await clipService.DecryptClipsAsync(_testDatabaseKey, [clip.Id], encryptionKey, true)).IsEqualTo(1);
+        await Assert.That((await blobRepository.GetTextByClipIdAsync(clip.Id))[0].Data).IsEqualTo(originalText);
+    }
+
+    [Test]
+    public async Task PermanentDecrypt_RestoresContentHash()
+    {
+        // Arrange
+        var clipService = CreateClipService();
+        const string originalText = "Hash me again";
+        var clip = await CreateTestClipWithData(clipService, "Title", originalText);
+
+        using var encryptionKey = EncryptionKey.FromPassphrase(_testPassphrase);
+        await clipService.EncryptClipsAsync(_testDatabaseKey, [clip.Id], encryptionKey);
+        await DbContext.SaveChangesAsync();
+
+        // Act
+        await clipService.DecryptClipsAsync(_testDatabaseKey, [clip.Id], encryptionKey, true);
+
+        // Assert
+        var decryptedClip = await clipService.GetByIdAsync(_testDatabaseKey, clip.Id);
+        await Assert.That(decryptedClip!.ContentHash).IsEqualTo(ContentHasher.HashText(originalText));
+        await Assert.That(decryptedClip.Checksum).IsEqualTo(ContentHasher.Checksum(decryptedClip.ContentHash));
     }
 
     #region Helper Methods

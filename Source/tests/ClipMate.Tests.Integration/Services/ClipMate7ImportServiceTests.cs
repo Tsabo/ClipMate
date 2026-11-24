@@ -390,7 +390,7 @@ public class ClipMate7ImportServiceTests
     private static async Task<string> DecryptAsync(string base64, Clip clip, string passphrase)
     {
         using var key = EncryptionKey.FromPassphrase(passphrase);
-        var metadata = new EncryptionMetadata(clip.EncryptionSalt!, clip.EncryptionIv!, clip.EncryptionMethod!, 0);
+        var metadata = new EncryptionMetadata(clip.EncryptionSalt!, clip.EncryptionIv ?? string.Empty, clip.EncryptionMethod!, 0);
         var plain = await new AesEncryptionService().DecryptAsync(Convert.FromBase64String(base64), metadata, key, 600_000);
         return Encoding.UTF8.GetString(plain);
     }
@@ -439,7 +439,8 @@ public class ClipMate7ImportServiceTests
             var clip = await context.Clips.SingleAsync(p => p.Id == _passwordDemoClipId);
             await Assert.That(clip.Encrypted).IsTrue();
             await Assert.That(clip.EncryptionSalt).IsNotNull();
-            await Assert.That(clip.EncryptionIv).IsNotNull();
+            await Assert.That(clip.EncryptionMethod).IsEqualTo(EncryptionMetadata.AesGcmAlgorithm);
+            await Assert.That(clip.ContentHash).IsEmpty();
 
             // Stored encrypted (Base64 ciphertext), and decrypts with the ClipMate 7 key
             var text = await context.BlobTxt.SingleAsync(p => p.ClipId == _passwordDemoClipId);

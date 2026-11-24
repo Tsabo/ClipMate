@@ -29,9 +29,9 @@ public class EncryptionServiceTests : TestFixtureBase
         // Assert
         await Assert.That(encryptedData).IsNotNull();
         await Assert.That(encryptedData.Length).IsGreaterThan(plaintext.Length);
-        await Assert.That(metadata.Algorithm).IsEqualTo("AES-256");
+        await Assert.That(metadata.Algorithm).IsEqualTo(EncryptionMetadata.AesGcmAlgorithm);
         await Assert.That(metadata.Salt).IsNotEmpty();
-        await Assert.That(metadata.IV).IsNotEmpty();
+        await Assert.That(metadata.IV).IsEmpty(); // AES-GCM keeps its nonce in the data
     }
 
     [Test]
@@ -109,7 +109,7 @@ public class EncryptionServiceTests : TestFixtureBase
 
         // Assert
         await Assert.That(encryptedData).IsNotNull();
-        await Assert.That(encryptedData.Length).IsGreaterThan(0); // Still has checksum + padding
+        await Assert.That(encryptedData.Length).IsEqualTo(EncryptionMetadata.AesGcmOverhead); // Version, nonce and tag
     }
 
     [Test]
@@ -270,8 +270,166 @@ public class EncryptionServiceTests : TestFixtureBase
 
         var (encryptedData, metadata) = await _service.EncryptAsync(plaintext, correctKey, _testIterations);
 
-        // Act & Assert - Should throw due to checksum mismatch
+        // Act & Assert - Should throw due to authentication failure
         await Assert.ThrowsAsync<CryptographicException>(async () =>
             await _service.DecryptAsync(encryptedData, metadata, wrongKey, _testIterations));
+    }
+
+    [Test]
+    public async Task EncryptAsync_WritesVersionNonceCiphertextAndTag()
+    {
+        // Arrange
+        var plaintext = "Hello, World!"u8.ToArray();
+        using var key = EncryptionKey.FromPassphrase("password");
+
+        // Act
+        var (encryptedData, _) = await _service.EncryptAsync(plaintext, key, _testIterations);
+
+        // Assert
+        await Assert.That(encryptedData.Length).IsEqualTo(plaintext.Length + EncryptionMetadata.AesGcmOverhead);
+        await Assert.That(encryptedData[0]).IsEqualTo(EncryptionMetadata.AesGcmFormatVersion);
+    }
+
+    [Test]
+    public async Task EncryptAsync_ReusingMetadata_SharesSaltButNeverNonce()
+    {
+        // Arrange: the fields of one clip share its salt, as ClipContentEncryption does
+        var plaintext = "The same first line of a clip, used as its title"u8.ToArray();
+        using var key = EncryptionKey.FromPassphrase("password");
+
+        // Act
+        var (first, firstMetadata) = await _service.EncryptAsync(plaintext, key, _testIterations);
+        var (second, secondMetadata) = await _service.EncryptAsync(plaintext, key, _testIterations, firstMetadata);
+
+        // Assert: same salt, different nonce, and the same plaintext doesn't give the same ciphertext (issue #63)
+        await Assert.That(secondMetadata.Salt).IsEqualTo(firstMetadata.Salt);
+        await Assert.That(first.AsSpan(1, 12).SequenceEqual(second.AsSpan(1, 12))).IsFalse();
+        await Assert.That(first.AsSpan(13, 16).SequenceEqual(second.AsSpan(13, 16))).IsFalse();
+
+        await Assert.That(await _service.DecryptAsync(first, firstMetadata, key, _testIterations)).IsEquivalentTo(plaintext);
+        await Assert.That(await _service.DecryptAsync(second, secondMetadata, key, _testIterations)).IsEquivalentTo(plaintext);
+    }
+
+    [Test]
+    [Arguments(0)] // Version
+    [Arguments(5)] // Nonce
+    [Arguments(13)] // Ciphertext
+    [Arguments(-1)] // Tag (last byte)
+    public async Task DecryptAsync_WithAnyByteAltered_ThrowsCryptographicException(int position)
+    {
+        // Arrange
+        var plaintext = "Transfer $100 to Alice"u8.ToArray();
+        using var key = EncryptionKey.FromPassphrase("password");
+        var (encryptedData, metadata) = await _service.EncryptAsync(plaintext, key, _testIterations);
+
+        // Act: flip one bit, as an attacker editing the database would
+        encryptedData[position < 0 ? encryptedData.Length + position : position] ^= 0x01;
+
+        // Assert
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await _service.DecryptAsync(encryptedData, metadata, key, _testIterations));
+    }
+
+    [Test]
+    public async Task DecryptAsync_WithTruncatedData_ThrowsCryptographicException()
+    {
+        // Arrange
+        using var key = EncryptionKey.FromPassphrase("password");
+        var (encryptedData, metadata) = await _service.EncryptAsync("data"u8.ToArray(), key, _testIterations);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await _service.DecryptAsync(encryptedData[..^1], metadata, key, _testIterations));
+
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await _service.DecryptAsync(encryptedData[..(EncryptionMetadata.AesGcmOverhead - 1)], metadata, key, _testIterations));
+    }
+
+    [Test]
+    [Arguments(EncryptionMetadata.LegacyCbcAlgorithm)]
+    [Arguments("AES-256-CBC")] // ClipService's old fallback for a clip with no stored method
+    public async Task DecryptAsync_LegacyCbcData_StillDecrypts(string algorithm)
+    {
+        // Arrange: a clip encrypted before AES-GCM
+        var plaintext = "Encrypted with ClipMate 1.2"u8.ToArray();
+        using var key = EncryptionKey.FromPassphrase("legacy-password");
+        var (encryptedData, salt, iv) = await EncryptLegacyCbcAsync(plaintext, key);
+        var metadata = new EncryptionMetadata(salt, iv, algorithm, 0);
+
+        // Act
+        var decryptedData = await _service.DecryptAsync(encryptedData, metadata, key, _testIterations);
+
+        // Assert
+        await Assert.That(decryptedData).IsEquivalentTo(plaintext);
+    }
+
+    [Test]
+    public async Task DecryptAsync_LegacyCbcDataWithWrongKey_ThrowsCryptographicException()
+    {
+        // Arrange
+        using var key = EncryptionKey.FromPassphrase("legacy-password");
+        using var wrongKey = EncryptionKey.FromPassphrase("not-the-password");
+        var (encryptedData, salt, iv) = await EncryptLegacyCbcAsync("Secret"u8.ToArray(), key);
+        var metadata = new EncryptionMetadata(salt, iv, EncryptionMetadata.LegacyCbcAlgorithm, 0);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await _service.DecryptAsync(encryptedData, metadata, wrongKey, _testIterations));
+    }
+
+    [Test]
+    public async Task DecryptAsync_AesGcmDataReadAsLegacy_ThrowsCryptographicException()
+    {
+        // Arrange: the method changed to the legacy format, as an attacker might to downgrade the check
+        var plaintext = "Sixteen bytes!!!"u8.ToArray();
+        using var key = EncryptionKey.FromPassphrase("password");
+        var (encryptedData, metadata) = await _service.EncryptAsync(plaintext, key, _testIterations);
+        var downgraded = metadata with { Algorithm = EncryptionMetadata.LegacyCbcAlgorithm, IV = Convert.ToBase64String(new byte[16]) };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await _service.DecryptAsync(encryptedData, downgraded, key, _testIterations));
+    }
+
+    /// <summary>
+    /// Encrypts the way ClipMate did before AES-GCM: AES-256-CBC with an encrypted CRC32 block (IV with its first byte
+    /// flipped) in front of the data.
+    /// </summary>
+    private async Task<(byte[] EncryptedData, string Salt, string Iv)> EncryptLegacyCbcAsync(byte[] data, EncryptionKey key)
+    {
+        var salt = RandomNumberGenerator.GetBytes(16);
+        var iv = RandomNumberGenerator.GetBytes(16);
+        var derivedKey = await _service.DeriveKeyAsync(key, salt, _testIterations);
+
+        using var aes = Aes.Create();
+        aes.Key = derivedKey;
+
+        var checksumIv = (byte[])iv.Clone();
+        checksumIv[0] ^= 0xFF;
+
+        var encryptedChecksum = aes.EncryptCbc(BitConverter.GetBytes(Crc32(data)), checksumIv);
+        var encryptedData = aes.EncryptCbc(data, iv);
+
+        return ([..encryptedChecksum, ..encryptedData], Convert.ToBase64String(salt), Convert.ToBase64String(iv));
+    }
+
+    /// <summary>
+    /// CRC-32 (IEEE 802.3), as the legacy format stores it.
+    /// </summary>
+    private static uint Crc32(byte[] data)
+    {
+        var crc = 0xFFFFFFFF;
+        foreach (var item in data)
+        {
+            crc ^= item;
+            for (var i = 0; i < 8; i++)
+            {
+                crc = (crc & 1) == 1
+                    ? crc >> 1 ^ 0xEDB88320
+                    : crc >> 1;
+            }
+        }
+
+        return ~crc;
     }
 }

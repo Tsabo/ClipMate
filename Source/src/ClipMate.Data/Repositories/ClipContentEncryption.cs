@@ -6,8 +6,8 @@ using ClipMate.Core.ValueObjects;
 namespace ClipMate.Data.Repositories;
 
 /// <summary>
-/// Encrypts a clip's stored content in place: the title (unless custom) and every BLOB, all with one salt and IV.
-/// Shared by Encrypt Clip and database import.
+/// Encrypts a clip's stored content in place: the title (unless custom) and every BLOB, all with one salt and each
+/// with its own random nonce. Shared by Encrypt Clip and database import.
 /// </summary>
 internal static class ClipContentEncryption
 {
@@ -19,7 +19,8 @@ internal static class ClipContentEncryption
     /// <summary>
     /// Encrypts the title and BLOB entities and sets the clip's encryption fields. Text (title, TEXT BLOBs) is
     /// stored as Base64 of the encrypted UTF-8; binary BLOBs as the encrypted bytes. The caller persists the
-    /// entities and clears the clip's transient content.
+    /// entities and clears the clip's transient content. The clip's content hash and checksum are cleared too: they are
+    /// unsalted hashes of the plain text, which would let anyone holding the database confirm a guess at the content.
     /// </summary>
     public static async Task EncryptAsync(IEncryptionService encryptionService,
         EncryptionKey encryptionKey,
@@ -29,7 +30,7 @@ internal static class ClipContentEncryption
         IEnumerable<BlobPng> pngBlobs,
         IEnumerable<BlobBlob> binaryBlobs)
     {
-        // The first encryption generates the salt and IV; everything else reuses them
+        // The first encryption generates the salt; everything else reuses it (the nonce is new for every field)
         EncryptionMetadata? sharedMetadata = null;
 
         if (!clip.CustomTitle && !string.IsNullOrWhiteSpace(clip.Title))
@@ -51,6 +52,8 @@ internal static class ClipContentEncryption
         foreach (var item in binaryBlobs)
             item.Data = await EncryptAsync(item.Data);
 
+        clip.ContentHash = string.Empty;
+        clip.Checksum = 0;
         clip.Encrypted = true;
         clip.IsDecrypted = false;
         return;
@@ -68,7 +71,9 @@ internal static class ClipContentEncryption
         {
             sharedMetadata = metadata;
             clip.EncryptionSalt = metadata.Salt;
-            clip.EncryptionIv = metadata.IV;
+            clip.EncryptionIv = string.IsNullOrEmpty(metadata.IV)
+                ? null
+                : metadata.IV;
             clip.EncryptionMethod = metadata.Algorithm;
         }
     }

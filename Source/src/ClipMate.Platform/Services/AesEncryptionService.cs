@@ -5,15 +5,26 @@ using ClipMate.Core.ValueObjects;
 namespace ClipMate.Platform.Services;
 
 /// <summary>
-/// Implements AES-256-CBC encryption with PBKDF2 key derivation and CRC32 integrity checking.
+/// Encrypts with AES-256-GCM (authenticated encryption) and a PBKDF2-derived key. Every call uses a fresh random
+/// nonce, so fields that share a clip's salt never share a nonce. Data written by the original AES-256-CBC + CRC32
+/// format is still decrypted, selected by <see cref="EncryptionMetadata.Algorithm" />.
 /// </summary>
+/// <remarks>
+/// AES-GCM field layout: <c>version (1 byte) ‖ nonce (12 bytes) ‖ ciphertext ‖ tag (16 bytes)</c>. The version byte
+/// is also the associated data, so it is authenticated with the ciphertext.
+/// </remarks>
 public sealed class AesEncryptionService : IEncryptionService
 {
     private const int _aesKeySize = 256; // AES-256
     private const int _aesBlockSize = 128; // 16 bytes
     private const int _saltSize = 16; // 16 bytes
-    private const int _ivSize = 16; // 16 bytes for AES
-    private const string _algorithmName = "AES-256";
+    private const int _ivSize = 16; // 16 bytes for AES-CBC
+    private const int _minimumIterations = 100_000;
+
+    private const byte _gcmFormatVersion = EncryptionMetadata.AesGcmFormatVersion;
+    private const int _gcmNonceSize = 12; // AesGcm.NonceByteSizes.MaxSize
+    private const int _gcmTagSize = 16; // AesGcm.TagByteSizes.MaxSize
+    private const int _gcmOverhead = EncryptionMetadata.AesGcmOverhead; // version + nonce + tag
 
     /// <inheritdoc />
     public async Task<(byte[] EncryptedData, EncryptionMetadata Metadata)> EncryptAsync(byte[] data,
@@ -29,93 +40,36 @@ public sealed class AesEncryptionService : IEncryptionService
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(key);
+        ValidateIterations(iterations);
 
-        if (iterations < 100000)
-            throw new ArgumentException("PBKDF2 iterations must be at least 100,000.", nameof(iterations));
-
-        // Generate random salt and IV (or reuse if provided)
+        // The salt may be shared by the fields of one clip (one stored salt per clip); the nonce never is
         byte[] salt;
-        byte[] iv;
-
         if (reuseMetadata != null)
         {
-            // Reuse existing salt and IV
-            salt = Convert.FromBase64String(reuseMetadata.Salt);
-            iv = Convert.FromBase64String(reuseMetadata.IV);
-
+            salt = reuseMetadata.GetSaltBytes();
             if (salt.Length != _saltSize)
                 throw new ArgumentException($"Reused salt must be {_saltSize} bytes.", nameof(reuseMetadata));
-
-            if (iv.Length != _ivSize)
-                throw new ArgumentException($"Reused IV must be {_ivSize} bytes.", nameof(reuseMetadata));
         }
         else
-        {
-            // Generate random salt and IV
-            salt = new byte[_saltSize];
-            iv = new byte[_ivSize];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(salt);
-            rng.GetBytes(iv);
-        }
+            salt = RandomNumberGenerator.GetBytes(_saltSize);
 
-        // Derive encryption key using PBKDF2
         var derivedKey = await DeriveKeyAsync(key, salt, iterations);
-
-        // Calculate CRC32 checksum of original data
-        var checksum = CalculateCrc32(data);
-
-        // Encrypt data using AES-256-CBC
-        byte[] encryptedData;
-        using (var aes = Aes.Create())
+        try
         {
-            aes.KeySize = _aesKeySize;
-            aes.BlockSize = _aesBlockSize;
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.PKCS7;
-            aes.Key = derivedKey;
-            aes.IV = iv;
+            var output = EncryptGcm(data, derivedKey);
 
-            using var encryptor = aes.CreateEncryptor();
-            encryptedData = encryptor.TransformFinalBlock(data, 0, data.Length);
+            var metadata = new EncryptionMetadata(
+                Convert.ToBase64String(salt),
+                string.Empty,
+                EncryptionMetadata.AesGcmAlgorithm,
+                0);
+
+            return (output, metadata);
         }
-
-        // Encrypt the checksum with the same derived key (different IV for checksum)
-        var checksumBytes = BitConverter.GetBytes(checksum);
-        var checksumIv = new byte[_ivSize];
-        Array.Copy(iv, checksumIv, _ivSize);
-        checksumIv[0] ^= 0xFF; // XOR first byte to create different IV
-
-        byte[] encryptedChecksum;
-        using (var aes = Aes.Create())
+        finally
         {
-            aes.KeySize = _aesKeySize;
-            aes.BlockSize = _aesBlockSize;
-            aes.Mode = CipherMode.CBC;
-            aes.Padding = PaddingMode.PKCS7;
-            aes.Key = derivedKey;
-            aes.IV = checksumIv;
-
-            using var encryptor = aes.CreateEncryptor();
-            encryptedChecksum = encryptor.TransformFinalBlock(checksumBytes, 0, checksumBytes.Length);
+            CryptographicOperations.ZeroMemory(derivedKey);
         }
-
-        // Prepend encrypted checksum to encrypted data
-        var finalData = new byte[encryptedChecksum.Length + encryptedData.Length];
-        Array.Copy(encryptedChecksum, 0, finalData, 0, encryptedChecksum.Length);
-        Array.Copy(encryptedData, 0, finalData, encryptedChecksum.Length, encryptedData.Length);
-
-        // Zero out derived key
-        Array.Clear(derivedKey, 0, derivedKey.Length);
-
-        var metadata = new EncryptionMetadata(
-            Convert.ToBase64String(salt),
-            Convert.ToBase64String(iv),
-            _algorithmName,
-            checksum
-        );
-
-        return (finalData, metadata);
     }
 
     /// <inheritdoc />
@@ -127,77 +81,109 @@ public sealed class AesEncryptionService : IEncryptionService
         ArgumentNullException.ThrowIfNull(encryptedData);
         ArgumentNullException.ThrowIfNull(metadata);
         ArgumentNullException.ThrowIfNull(key);
+        ValidateIterations(iterations);
 
-        if (iterations < 100000)
-            throw new ArgumentException("PBKDF2 iterations must be at least 100,000.", nameof(iterations));
-
-        var salt = metadata.GetSaltBytes();
-        var iv = metadata.GetIVBytes();
-
-        // Derive encryption key using PBKDF2
-        var derivedKey = await DeriveKeyAsync(key, salt, iterations);
-
+        var derivedKey = await DeriveKeyAsync(key, metadata.GetSaltBytes(), iterations);
         try
         {
-            // Extract encrypted checksum (first block) and encrypted data
-            var checksumIv = new byte[_ivSize];
-            Array.Copy(iv, checksumIv, _ivSize);
-            checksumIv[0] ^= 0xFF; // XOR first byte to match encryption
-
-            // Determine encrypted checksum size (at least one AES block)
-            const int encryptedChecksumSize = _aesBlockSize / 8; // 16 bytes minimum
-            if (encryptedData.Length < encryptedChecksumSize)
-                throw new CryptographicException("Encrypted data is too short.");
-
-            var encryptedChecksum = new byte[encryptedChecksumSize];
-            Array.Copy(encryptedData, 0, encryptedChecksum, 0, encryptedChecksumSize);
-
-            var actualEncryptedData = new byte[encryptedData.Length - encryptedChecksumSize];
-            Array.Copy(encryptedData, encryptedChecksumSize, actualEncryptedData, 0, actualEncryptedData.Length);
-
-            // Decrypt checksum
-            byte[] decryptedChecksumBytes;
-            using (var aes = Aes.Create())
-            {
-                aes.KeySize = _aesKeySize;
-                aes.BlockSize = _aesBlockSize;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.Key = derivedKey;
-                aes.IV = checksumIv;
-
-                using var decryptor = aes.CreateDecryptor();
-                decryptedChecksumBytes = decryptor.TransformFinalBlock(encryptedChecksum, 0, encryptedChecksum.Length);
-            }
-
-            var decryptedChecksum = BitConverter.ToUInt32(decryptedChecksumBytes, 0);
-
-            // Decrypt data using AES-256-CBC
-            byte[] decryptedData;
-            using (var aes = Aes.Create())
-            {
-                aes.KeySize = _aesKeySize;
-                aes.BlockSize = _aesBlockSize;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.Key = derivedKey;
-                aes.IV = iv;
-
-                using var decryptor = aes.CreateDecryptor();
-                decryptedData = decryptor.TransformFinalBlock(actualEncryptedData, 0, actualEncryptedData.Length);
-            }
-
-            // Validate checksum
-            var actualChecksum = CalculateCrc32(decryptedData);
-            return actualChecksum != decryptedChecksum
-                ? throw new CryptographicException("Checksum validation failed. Incorrect encryption key or corrupted data.")
-                : decryptedData;
+            return metadata.IsAuthenticated
+                ? DecryptGcm(encryptedData, derivedKey)
+                : DecryptLegacyCbc(encryptedData, metadata.GetIVBytes(), derivedKey);
         }
         finally
         {
-            // Zero out derived key
-            Array.Clear(derivedKey, 0, derivedKey.Length);
+            CryptographicOperations.ZeroMemory(derivedKey);
         }
+    }
+
+    /// <summary>
+    /// Encrypts one AES-GCM field with a fresh random nonce.
+    /// </summary>
+    private static byte[] EncryptGcm(byte[] data, byte[] derivedKey)
+    {
+        var output = new byte[_gcmOverhead + data.Length];
+        output[0] = _gcmFormatVersion;
+
+        var nonce = output.AsSpan(1, _gcmNonceSize);
+        RandomNumberGenerator.Fill(nonce);
+
+        var ciphertext = output.AsSpan(1 + _gcmNonceSize, data.Length);
+        var tag = output.AsSpan(1 + _gcmNonceSize + data.Length, _gcmTagSize);
+
+        using var aes = new AesGcm(derivedKey, _gcmTagSize);
+        aes.Encrypt(nonce, data, ciphertext, tag, output.AsSpan(0, 1));
+
+        return output;
+    }
+
+    /// <summary>
+    /// Decrypts and authenticates one AES-GCM field.
+    /// </summary>
+    /// <exception cref="CryptographicException">The data is malformed, the key is wrong, or the data was altered.</exception>
+    private static byte[] DecryptGcm(byte[] encryptedData, byte[] derivedKey)
+    {
+        if (encryptedData.Length < _gcmOverhead)
+            throw new CryptographicException("Encrypted data is too short.");
+
+        if (encryptedData[0] != _gcmFormatVersion)
+            throw new CryptographicException($"Unsupported encryption format version {encryptedData[0]}.");
+
+        var plaintextLength = encryptedData.Length - _gcmOverhead;
+        var nonce = encryptedData.AsSpan(1, _gcmNonceSize);
+        var ciphertext = encryptedData.AsSpan(1 + _gcmNonceSize, plaintextLength);
+        var tag = encryptedData.AsSpan(1 + _gcmNonceSize + plaintextLength, _gcmTagSize);
+
+        var plaintext = new byte[plaintextLength];
+        try
+        {
+            using var aes = new AesGcm(derivedKey, _gcmTagSize);
+            aes.Decrypt(nonce, ciphertext, tag, plaintext, encryptedData.AsSpan(0, 1));
+        }
+        catch (CryptographicException ex)
+        {
+            CryptographicOperations.ZeroMemory(plaintext);
+            throw new CryptographicException("Authentication failed. Incorrect encryption key or the data was altered.", ex);
+        }
+
+        return plaintext;
+    }
+
+    /// <summary>
+    /// Decrypts the original AES-256-CBC format: an encrypted CRC32 block (IV with its first byte flipped) followed by
+    /// the encrypted data (the clip's IV). Kept only so clips encrypted before AES-GCM can still be opened.
+    /// </summary>
+    private static byte[] DecryptLegacyCbc(byte[] encryptedData, byte[] iv, byte[] derivedKey)
+    {
+        if (iv.Length != _ivSize)
+            throw new CryptographicException($"IV must be {_ivSize} bytes.");
+
+        var checksumIv = (byte[])iv.Clone();
+        checksumIv[0] ^= 0xFF;
+
+        const int encryptedChecksumSize = _aesBlockSize / 8; // one AES block
+        if (encryptedData.Length < encryptedChecksumSize)
+            throw new CryptographicException("Encrypted data is too short.");
+
+        using var aes = Aes.Create();
+        aes.KeySize = _aesKeySize;
+        aes.Key = derivedKey;
+
+        var checksumBytes = aes.DecryptCbc(encryptedData.AsSpan(0, encryptedChecksumSize), checksumIv, PaddingMode.PKCS7);
+        if (checksumBytes.Length < sizeof(uint))
+            throw new CryptographicException("Checksum validation failed. Incorrect encryption key or corrupted data.");
+
+        var expectedChecksum = BitConverter.ToUInt32(checksumBytes, 0);
+        var decryptedData = aes.DecryptCbc(encryptedData.AsSpan(encryptedChecksumSize), iv, PaddingMode.PKCS7);
+
+        return CalculateCrc32(decryptedData) != expectedChecksum
+            ? throw new CryptographicException("Checksum validation failed. Incorrect encryption key or corrupted data.")
+            : decryptedData;
+    }
+
+    private static void ValidateIterations(int iterations)
+    {
+        if (iterations < _minimumIterations)
+            throw new ArgumentException("PBKDF2 iterations must be at least 100,000.", nameof(iterations));
     }
 
     /// <summary>
@@ -212,8 +198,7 @@ public sealed class AesEncryptionService : IEncryptionService
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(salt);
 
-        if (iterations < 100000)
-            throw new ArgumentException("PBKDF2 iterations must be at least 100,000.", nameof(iterations));
+        ValidateIterations(iterations);
 
         return Task.Run(() =>
         {
@@ -228,7 +213,7 @@ public sealed class AesEncryptionService : IEncryptionService
     }
 
     /// <summary>
-    /// Calculates CRC32 checksum of data.
+    /// Calculates CRC32 checksum of data (legacy CBC format only).
     /// </summary>
     private static uint CalculateCrc32(byte[] data)
     {

@@ -482,8 +482,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         var xmlContent = await File.ReadAllTextAsync(xmlPath);
         await Assert.That(xmlContent).Contains("<Encrypted>true</Encrypted>");
         await Assert.That(xmlContent).Contains("<EncryptionSalt>");
-        await Assert.That(xmlContent).Contains("<EncryptionIv>");
-        await Assert.That(xmlContent).Contains("<EncryptionMethod>AES-256</EncryptionMethod>");
+        await Assert.That(xmlContent).Contains("<EncryptionMethod>AES-256-GCM</EncryptionMethod>");
 
         // Act 3 - Import the encrypted clip from XML into a new database context
         var connection = DbContext.Database.GetDbConnection();
@@ -504,7 +503,7 @@ public class ExportImportIntegrationTests : IntegrationTestBase
         // Verify imported clip is still encrypted
         await Assert.That(reimportedClip.Encrypted).IsTrue();
         await Assert.That(reimportedClip.EncryptionSalt).IsNotEmpty();
-        await Assert.That(reimportedClip.EncryptionIv).IsNotEmpty();
+        await Assert.That(reimportedClip.EncryptionMethod).IsEqualTo(EncryptionMetadata.AesGcmAlgorithm);
 
         // Act 4 - Decrypt the imported clip with the same passphrase
         using var decryptionKey = EncryptionKey.FromPassphrase(testPassphrase);
