@@ -721,9 +721,11 @@ public class ClipOperationsCoordinator :
             var encryptionKey = EncryptionKey.FromPassphrase(passphraseString);
 
             // Permanently decrypt the selected clips
-            await _clipService.DecryptClipsAsync(databaseKey, clipIds, encryptionKey, true);
-            _logger.LogInformation("Decrypted {Count} clip(s)", clipIds.Count);
-            SendStatus($"Decrypted {clipIds.Count} clip(s)");
+            var decryptedCount = await _clipService.DecryptClipsAsync(databaseKey, clipIds, encryptionKey, true);
+            _logger.LogInformation("Decrypted {Count} of {Total} clip(s)", decryptedCount, clipIds.Count);
+            SendStatus(decryptedCount == clipIds.Count
+                ? $"Decrypted {decryptedCount} clip(s)"
+                : $"Decrypted {decryptedCount} of {clipIds.Count} clip(s); the rest need the correct key");
 
             // Request clip list reload to reflect decrypted state
             _messenger.Send(new ReloadClipsRequestedEvent());

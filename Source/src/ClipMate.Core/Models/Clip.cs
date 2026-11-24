@@ -96,12 +96,13 @@ public partial class Clip
     public string? EncryptionSalt { get; set; }
 
     /// <summary>
-    /// Base64-encoded initialization vector (16 bytes for AES-256-CBC).
+    /// Base64-encoded initialization vector (16 bytes) for the legacy AES-256-CBC format; null for AES-256-GCM, which
+    /// keeps a random nonce in each encrypted field.
     /// </summary>
     public string? EncryptionIv { get; set; }
 
     /// <summary>
-    /// Encryption algorithm name (e.g., "AES-256").
+    /// Encryption algorithm name: "AES-256-GCM", or "AES-256" for the legacy AES-256-CBC format.
     /// </summary>
     public string? EncryptionMethod { get; set; }
 

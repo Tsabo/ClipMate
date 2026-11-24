@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Stronger Clip Encryption** - Encrypted clips now use AES-256-GCM, which detects any change to the encrypted data, and each part of a clip (its title and every format) is encrypted with its own random nonce. Before, every part of a clip shared one IV under AES-256-CBC, with only a CRC32 check. Clips you encrypted earlier still open with your key and use the new format when you encrypt them again. An encrypted clip no longer keeps a hash of its plain text, which could be used to confirm a guess at the content. ([#63](https://github.com/Tsabo/ClipMate/issues/63))
+
+### Fixed
+- **Decrypting With the Wrong Key** - Decrypting a clip with the wrong key now fails with an error and leaves the clip encrypted. Before, it could mark the clip decrypted while its content stayed encrypted, and viewing it showed a placeholder title instead of an error. Short encrypted titles (under 16 characters) were also never decrypted.
+
 ## [1.2.1-beta] - 2026-11-07
 
 ### Added
